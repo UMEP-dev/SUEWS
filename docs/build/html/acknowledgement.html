@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-04-19T22:31:13+00:00" />
-    <title>2. Acknowledgements &#8212; SUEWS 2026.8.5.dev1 documentation</title>
+    <title>3. Acknowledgements &#8212; SUEWS 2026.8.6.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=201e839e"></script>
+    <script src="_static/documentation_options.js?v=9a3a7334"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,10 +57,10 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="1. Parameterisations and sub-models within SUEWS" href="parameterisations-and-sub-models.html" />
-    <link rel="prev" title="1. Contributing Guide" href="contributing/contributing.html" />
+    <link rel="prev" title="2.4. Schema Management CLI" href="contributing/schema/schema_cli.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.5.dev1" />
+  <meta name="docsearch:version" content="2026.8.6.dev2" />
     <meta name="docbuild:last-update" content="2026-04-19"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.5.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ba91dfe9657a81c69aaf428a1e4d2248c3d1643b" style="color: #31708f;">ba91dfe</a>).
+        (2026.8.6.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf" style="color: #31708f;">aa0e8eb</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.5.dev1 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.5.dev1 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -430,7 +430,14 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="contributing/contributing.html">1. Contributing Guide</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">2. Acknowledgements</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="contributing/schema/index.html">2. Schema and Data-interface Development</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="contributing/schema/schema-developer.html">2.1. Schema Development Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing/schema/schema_versioning.html">2.2. YAML Configuration Schema Versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing/schema/data_interface_versioning.html">2.3. Data-interface versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing/schema/schema_cli.html">2.4. Schema Management CLI</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">3. Acknowledgements</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
@@ -659,9 +666,9 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#team-and-contributors">2.1. Team and contributors</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#funding">2.2. Funding</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependencies">2.3. Dependencies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#team-and-contributors">3.1. Team and contributors</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#funding">3.2. Funding</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependencies">3.3. Dependencies</a></li>
 </ul>
             </nav>
         </div>
@@ -682,25 +689,25 @@
 </ol>
 </div>
 <section id="acknowledgements">
-<h1><span class="section-number">2. </span>Acknowledgements<a class="headerlink" href="#acknowledgements" title="Link to this heading">#</a></h1>
+<h1><span class="section-number">3. </span>Acknowledgements<a class="headerlink" href="#acknowledgements" title="Link to this heading">#</a></h1>
 <p>SUEWS is the work of an international team, funded by many grants, and
 built on a number of open-source libraries. The full credits are
 maintained on the project site at <a class="reference external" href="https://suews.io/">suews.io</a> so
 they stay in sync with each release and with the public-facing pages.</p>
 <section id="team-and-contributors">
-<h2><span class="section-number">2.1. </span>Team and contributors<a class="headerlink" href="#team-and-contributors" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">3.1. </span>Team and contributors<a class="headerlink" href="#team-and-contributors" title="Link to this heading">#</a></h2>
 <p>The names of everyone who has shipped physics, tooling, or documentation
 into SUEWS — past and present — are listed at
 <a class="reference external" href="https://suews.io/team/">suews.io/team</a>.</p>
 </section>
 <section id="funding">
-<h2><span class="section-number">2.2. </span>Funding<a class="headerlink" href="#funding" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">3.2. </span>Funding<a class="headerlink" href="#funding" title="Link to this heading">#</a></h2>
 <p>Grants and institutional support that funded SUEWS model development and
 supportive observations are listed at
 <a class="reference external" href="https://suews.io/funding/">suews.io/funding</a>.</p>
 </section>
 <section id="dependencies">
-<h2><span class="section-number">2.3. </span>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">3.3. </span>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading">#</a></h2>
 <p>The open-source libraries that SUEWS builds on are listed at
 <a class="reference external" href="https://suews.io/dependencies/">suews.io/dependencies</a>.</p>
 <div class="admonition note">
@@ -724,12 +731,12 @@ and we will correct it.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="contributing/contributing.html"
+       href="contributing/schema/schema_cli.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">1. </span>Contributing Guide</p>
+        <p class="prev-next-title"><span class="section-number">2.4. </span>Schema Management CLI</p>
       </div>
     </a>
     <a class="right-next"
@@ -759,9 +766,9 @@ and we will correct it.</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#team-and-contributors">2.1. Team and contributors</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#funding">2.2. Funding</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependencies">2.3. Dependencies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#team-and-contributors">3.1. Team and contributors</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#funding">3.2. Funding</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependencies">3.3. Dependencies</a></li>
 </ul>
   </nav></div>
 
@@ -803,8 +810,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.5.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ba91dfe9657a81c69aaf428a1e4d2248c3d1643b">ba91dfe</a> |
+  <p>Version: 2026.8.6.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf">aa0e8eb</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

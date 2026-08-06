@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-30T22:50:11+00:00" />
-    <title>Schema Development Documentation &#8212; SUEWS 2026.8.5.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-08-06T14:46:48+00:00" />
+    <title>2.1. Schema Development Documentation &#8212; SUEWS 2026.8.6.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=201e839e"></script>
+    <script src="../../_static/documentation_options.js?v=9a3a7334"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,10 +56,12 @@
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="2.2. YAML Configuration Schema Versioning" href="schema_versioning.html" />
+    <link rel="prev" title="2. Schema and Data-interface Development" href="index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.5.dev1" />
-    <meta name="docbuild:last-update" content="2026-06-30"/>
+  <meta name="docsearch:version" content="2026.8.6.dev2" />
+    <meta name="docbuild:last-update" content="2026-08-06"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -107,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.5.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ba91dfe9657a81c69aaf428a1e4d2248c3d1643b" style="color: #31708f;">ba91dfe</a>).
+        (2026.8.6.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf" style="color: #31708f;">aa0e8eb</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -198,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.5.dev1 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.5.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -426,9 +428,16 @@
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
-<ul class="nav bd-sidenav">
+<ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../contributing.html">1. Contributing Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">2. Schema and Data-interface Development</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">2.1. Schema Development Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema_versioning.html">2.2. YAML Configuration Schema Versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_interface_versioning.html">2.3. Data-interface versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema_cli.html">2.4. Schema Management CLI</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../acknowledgement.html">3. Acknowledgements</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
@@ -657,14 +666,14 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-basics">Schema Versioning Basics</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-a-schema-bump-is-required">When a Schema Bump Is Required</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bump-procedure">Bump Procedure</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audit-gates">Audit Gates</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-management-commands">Schema Management Commands</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-json-schema">Generating JSON Schema</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">Python API</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-map">Implementation Map</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-basics">2.1.1. Schema Versioning Basics</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-a-schema-bump-is-required">2.1.2. When a Schema Bump Is Required</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bump-procedure">2.1.3. Bump Procedure</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audit-gates">2.1.4. Audit Gates</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-management-commands">2.1.5. Schema Management Commands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-json-schema">2.1.6. Generating JSON Schema</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">2.1.7. Python API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-map">2.1.8. Implementation Map</a></li>
 </ul>
             </nav>
         </div>
@@ -685,7 +694,7 @@
 </ol>
 </div>
 <section id="schema-development-documentation">
-<h1>Schema Development Documentation<a class="headerlink" href="#schema-development-documentation" title="Link to this heading">#</a></h1>
+<h1><span class="section-number">2.1. </span>Schema Development Documentation<a class="headerlink" href="#schema-development-documentation" title="Link to this heading">#</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This page is for developers working on the SUEWS data model. Users
@@ -693,7 +702,7 @@ should refer to <a class="reference internal" href="schema_versioning.html#schem
 policy and to <a class="reference internal" href="../../inputs/transition_guide.html#transition-guide"><span class="std std-ref">Transitioning to YAML-based Configuration</span></a> for YAML upgrade paths.</p>
 </div>
 <section id="schema-versioning-basics">
-<h2>Schema Versioning Basics<a class="headerlink" href="#schema-versioning-basics" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.1.1. </span>Schema Versioning Basics<a class="headerlink" href="#schema-versioning-basics" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p>Schema labels are <strong>CalVer</strong> (<code class="docutils literal notranslate"><span class="pre">YYYY.M</span></code>), aligned with the SUEWS
 release in which each shape first shipped. The current label lives
@@ -710,9 +719,10 @@ There is no separate compatibility table.</p></li>
 </ul>
 </section>
 <section id="when-a-schema-bump-is-required">
-<h2>When a Schema Bump Is Required<a class="headerlink" href="#when-a-schema-bump-is-required" title="Link to this heading">#</a></h2>
-<p>Bump when a PR touches <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/</span></code> in a way that prevents
-a previously valid YAML from round-tripping:</p>
+<h2><span class="section-number">2.1.2. </span>When a Schema Bump Is Required<a class="headerlink" href="#when-a-schema-bump-is-required" title="Link to this heading">#</a></h2>
+<p>Bump when a PR changes a YAML-owned model under
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/</span></code> in a way that prevents a previously valid
+YAML from round-tripping:</p>
 <ul class="simple">
 <li><p>Rename a public field (for example <code class="docutils literal notranslate"><span class="pre">DeepSoilTemperature</span></code> →
 <code class="docutils literal notranslate"><span class="pre">AnnualMeanAirTemperature</span></code>).</p></li>
@@ -735,7 +745,7 @@ structurally valid YAMLs (the shape is unchanged).</p></li>
 </ul>
 </section>
 <section id="bump-procedure">
-<h2>Bump Procedure<a class="headerlink" href="#bump-procedure" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.1.3. </span>Bump Procedure<a class="headerlink" href="#bump-procedure" title="Link to this heading">#</a></h2>
 <p>When a bump is required, touch every item below in the same PR. The
 definitive checklist is in
 <code class="docutils literal notranslate"><span class="pre">.claude/rules/python/schema-versioning.md</span></code>.</p>
@@ -768,16 +778,15 @@ matching <code class="docutils literal notranslate"><span class="pre">docs/sourc
 </ol>
 </section>
 <section id="audit-gates">
-<h2>Audit Gates<a class="headerlink" href="#audit-gates" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.1.4. </span>Audit Gates<a class="headerlink" href="#audit-gates" title="Link to this heading">#</a></h2>
 <p>Two automated gates defend the invariant that a schema bump lands
 with everything it needs:</p>
 <dl class="simple">
-<dt><strong>CI workflow: schema-version-audit</strong></dt><dd><p><code class="docutils literal notranslate"><span class="pre">.github/workflows/schema-version-audit.yml</span></code> runs on every PR
-that touches <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/**</span></code>,
-<code class="docutils literal notranslate"><span class="pre">src/supy/sample_data/sample_config.yml</span></code>, or the schema
-documentation. It invokes
+<dt><strong>CI workflow: schema-version-audit</strong></dt><dd><p><code class="docutils literal notranslate"><span class="pre">.github/workflows/schema-version-audit.yml</span></code> runs on every PR and
+fast-skips when no YAML-owned model under <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/</span></code>
+or shipped sample configuration changed. It invokes
 <code class="docutils literal notranslate"><span class="pre">scripts/lint/check_schema_version_bump.py</span></code>, which fails if
-either (a) the data model changed but
+either (a) the YAML configuration shape changed but
 <code class="docutils literal notranslate"><span class="pre">CURRENT_SCHEMA_VERSION</span></code> did not, or (b)
 <code class="docutils literal notranslate"><span class="pre">CURRENT_SCHEMA_VERSION</span></code> moved but neither
 <code class="docutils literal notranslate"><span class="pre">docs/source/contributing/schema/schema_versioning.rst</span></code> nor
@@ -795,9 +804,13 @@ conversation.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">prep-release</span></code> and <code class="docutils literal notranslate"><span class="pre">audit-pr</span></code> skills encode the same
 checklist so a release or a review-in-progress cannot silently drift
 past a missing bump.</p>
+<p>Forcing and output version histories follow the independent semantic-version
+policy in <a class="reference internal" href="data_interface_versioning.html#data-interface-versioning"><span class="std std-ref">Data-interface versioning</span></a>. The
+<code class="docutils literal notranslate"><span class="pre">data-interface-version-audit</span></code> workflow checks that those histories remain
+valid and append-only; contract-specific checks own content drift.</p>
 </section>
 <section id="schema-management-commands">
-<h2>Schema Management Commands<a class="headerlink" href="#schema-management-commands" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.1.5. </span>Schema Management Commands<a class="headerlink" href="#schema-management-commands" title="Link to this heading">#</a></h2>
 <p>For developers, the <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> command exposes schema
 management operations:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>info<span class="w">                 </span><span class="c1"># Display schema information</span>
@@ -809,7 +822,7 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 <p>See <a class="reference internal" href="schema_cli.html#schema-cli"><span class="std std-ref">Schema Management CLI</span></a> for the full command reference.</p>
 </section>
 <section id="generating-json-schema">
-<h2>Generating JSON Schema<a class="headerlink" href="#generating-json-schema" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.1.6. </span>Generating JSON Schema<a class="headerlink" href="#generating-json-schema" title="Link to this heading">#</a></h2>
 <p>JSON Schema files can be generated from the Pydantic models for IDE
 autocomplete and external validation. The authoritative validation
 is always performed by the Pydantic models at runtime.</p>
@@ -819,7 +832,7 @@ is always performed by the Pydantic models at runtime.</p>
 </div>
 </section>
 <section id="python-api">
-<h2>Python API<a class="headerlink" href="#python-api" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.1.7. </span>Python API<a class="headerlink" href="#python-api" title="Link to this heading">#</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSConfig</span>
 
 <span class="c1"># Generate JSON Schema from the Pydantic model</span>
@@ -833,10 +846,14 @@ is always performed by the Pydantic models at runtime.</p>
 </div>
 </section>
 <section id="implementation-map">
-<h2>Implementation Map<a class="headerlink" href="#implementation-map" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.1.8. </span>Implementation Map<a class="headerlink" href="#implementation-map" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">src/supy/data_model/schema/</span></code> — schema version registry and
+<li><p><code class="docutils literal notranslate"><span class="pre">src/supy/data_model/schema/</span></code> — configuration schema version registry and
 compatibility helpers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">src/supy/data_model/forcing/version.py</span></code> — forcing contract version
+ownership and release history.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">src/supy/data_model/output/version.py</span></code> — output contract version
+ownership and release history.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">src/supy/data_model/schema/migration.py</span></code> — <code class="docutils literal notranslate"><span class="pre">SchemaMigrator</span></code>
 that consults the handler registry.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">src/supy/util/converter/yaml_upgrade.py</span></code> — migration handlers
@@ -861,6 +878,24 @@ point.</p></li>
                 <footer class="prev-next-footer d-print-none">
                   
 <div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">2. </span>Schema and Data-interface Development</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="schema_versioning.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">2.2. </span>YAML Configuration Schema Versioning</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
 </div>
                 </footer>
               
@@ -879,14 +914,14 @@ point.</p></li>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-basics">Schema Versioning Basics</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-a-schema-bump-is-required">When a Schema Bump Is Required</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bump-procedure">Bump Procedure</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audit-gates">Audit Gates</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-management-commands">Schema Management Commands</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-json-schema">Generating JSON Schema</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">Python API</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-map">Implementation Map</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-basics">2.1.1. Schema Versioning Basics</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-a-schema-bump-is-required">2.1.2. When a Schema Bump Is Required</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bump-procedure">2.1.3. Bump Procedure</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audit-gates">2.1.4. Audit Gates</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-management-commands">2.1.5. Schema Management Commands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-json-schema">2.1.6. Generating JSON Schema</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">2.1.7. Python API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-map">2.1.8. Implementation Map</a></li>
 </ul>
   </nav></div>
 
@@ -920,7 +955,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-30.
+  Last updated on 2026-08-06.
   <br/>
 </p>
   </div>
@@ -928,8 +963,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.5.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ba91dfe9657a81c69aaf428a1e4d2248c3d1643b">ba91dfe</a> |
+  <p>Version: 2026.8.6.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf">aa0e8eb</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

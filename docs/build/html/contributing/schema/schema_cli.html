@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-06-30T22:50:11+00:00" />
-    <title>Schema Management CLI &#8212; SUEWS 2026.8.5.dev1 documentation</title>
+    <title>2.4. Schema Management CLI &#8212; SUEWS 2026.8.6.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=201e839e"></script>
+    <script src="../../_static/documentation_options.js?v=9a3a7334"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,9 +56,11 @@
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="3. Acknowledgements" href="../../acknowledgement.html" />
+    <link rel="prev" title="2.3. Data-interface versioning" href="data_interface_versioning.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.5.dev1" />
+  <meta name="docsearch:version" content="2026.8.6.dev2" />
     <meta name="docbuild:last-update" content="2026-06-30"/>
   
     
@@ -107,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.5.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ba91dfe9657a81c69aaf428a1e4d2248c3d1643b" style="color: #31708f;">ba91dfe</a>).
+        (2026.8.6.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf" style="color: #31708f;">aa0e8eb</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -198,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.5.dev1 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.5.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -426,9 +428,16 @@
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
-<ul class="nav bd-sidenav">
+<ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../contributing.html">1. Contributing Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">2. Schema and Data-interface Development</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="schema-developer.html">2.1. Schema Development Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema_versioning.html">2.2. YAML Configuration Schema Versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_interface_versioning.html">2.3. Data-interface versioning</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">2.4. Schema Management CLI</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../acknowledgement.html">3. Acknowledgements</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
@@ -657,26 +666,26 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation">Installation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#available-commands">Available Commands</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-reference">Command Reference</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#info">info</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version">version</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#migrate">migrate</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#export">export</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation">2.4.1. Installation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#available-commands">2.4.2. Available Commands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-reference">2.4.3. Command Reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#info">2.4.3.1. info</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version">2.4.3.2. version</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#migrate">2.4.3.3. migrate</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#export">2.4.3.4. export</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#global-options">Global Options</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-other-tools">Integration with Other Tools</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-with-python">Using with Python</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-in-ci-cd">Using in CI/CD</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#global-options">2.4.4. Global Options</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">2.4.5. Examples</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-other-tools">2.4.6. Integration with Other Tools</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-with-python">2.4.6.1. Using with Python</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-in-ci-cd">2.4.6.2. Using in CI/CD</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#future-integration-with-suews-wizard">Future Integration with suews-wizard</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-best-practices">CLI Best Practices</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-troubleshooting">CLI Troubleshooting</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#future-integration-with-suews-wizard">2.4.7. Future Integration with suews-wizard</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-best-practices">2.4.8. CLI Best Practices</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-troubleshooting">2.4.9. CLI Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">2.4.10. See Also</a></li>
 </ul>
             </nav>
         </div>
@@ -697,14 +706,14 @@
 </ol>
 </div>
 <section id="schema-management-cli">
-<span id="schema-cli"></span><h1>Schema Management CLI<a class="headerlink" href="#schema-management-cli" title="Link to this heading">#</a></h1>
+<span id="schema-cli"></span><h1><span class="section-number">2.4. </span>Schema Management CLI<a class="headerlink" href="#schema-management-cli" title="Link to this heading">#</a></h1>
 <p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> command provides a comprehensive command-line interface for managing SUEWS YAML configuration schemas. This unified tool addresses the needs for schema version checking, migration, and schema export.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This CLI consolidates functionality from GitHub issues #612 and #613, providing a single entry point for all schema-related operations that will integrate with the future suews-wizard (#544).</p>
 </div>
 <section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.1. </span>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> command is automatically installed with SuPy:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>supy
 </pre></div>
@@ -712,7 +721,7 @@
 <p>Once installed, the command is available system-wide.</p>
 </section>
 <section id="available-commands">
-<h2>Available Commands<a class="headerlink" href="#available-commands" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.2. </span>Available Commands<a class="headerlink" href="#available-commands" title="Link to this heading">#</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> CLI provides the following subcommands:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>--help<span class="w">              </span><span class="c1"># Show help and available commands</span>
 suews<span class="w"> </span>schema<span class="w"> </span>info<span class="w">                 </span><span class="c1"># Display schema version information</span>
@@ -724,9 +733,9 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 <p>Configuration validation is handled by <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code>.</p>
 </section>
 <section id="command-reference">
-<h2>Command Reference<a class="headerlink" href="#command-reference" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.3. </span>Command Reference<a class="headerlink" href="#command-reference" title="Link to this heading">#</a></h2>
 <section id="info">
-<h3>info<a class="headerlink" href="#info" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">2.4.3.1. </span>info<a class="headerlink" href="#info" title="Link to this heading">#</a></h3>
 <p>Display information about available schema versions and the current version.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>info
 </pre></div>
@@ -739,7 +748,7 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 </ul>
 </section>
 <section id="version">
-<h3>version<a class="headerlink" href="#version" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">2.4.3.2. </span>version<a class="headerlink" href="#version" title="Link to this heading">#</a></h3>
 <p>Check or update schema versions in configuration files.</p>
 <p><strong>Basic usage:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check schema version</span>
@@ -768,7 +777,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w
 </ul>
 </section>
 <section id="migrate">
-<h3>migrate<a class="headerlink" href="#migrate" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">2.4.3.3. </span>migrate<a class="headerlink" href="#migrate" title="Link to this heading">#</a></h3>
 <p>Migrate configuration files between schema versions.</p>
 <p><strong>Basic usage:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Migrate to current version</span>
@@ -795,7 +804,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </ul>
 </section>
 <section id="export">
-<h3>export<a class="headerlink" href="#export" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">2.4.3.4. </span>export<a class="headerlink" href="#export" title="Link to this heading">#</a></h3>
 <p>Export the JSON Schema for SUEWS configurations.</p>
 <p><strong>Basic usage:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Export to file</span>
@@ -817,7 +826,7 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 </section>
 </section>
 <section id="global-options">
-<h2>Global Options<a class="headerlink" href="#global-options" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.4. </span>Global Options<a class="headerlink" href="#global-options" title="Link to this heading">#</a></h2>
 <p>All commands support these global options:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">--verbose,</span> <span class="pre">-v</span></code>: Enable verbose output for debugging</p></li>
@@ -825,7 +834,7 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 </ul>
 </section>
 <section id="examples">
-<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.5. </span>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
 <p><strong>Example 1: Check and update schema versions</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check current versions</span>
 suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>configs/*.yml
@@ -866,9 +875,9 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 </div>
 </section>
 <section id="integration-with-other-tools">
-<h2>Integration with Other Tools<a class="headerlink" href="#integration-with-other-tools" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.6. </span>Integration with Other Tools<a class="headerlink" href="#integration-with-other-tools" title="Link to this heading">#</a></h2>
 <section id="using-with-python">
-<h3>Using with Python<a class="headerlink" href="#using-with-python" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">2.4.6.1. </span>Using with Python<a class="headerlink" href="#using-with-python" title="Link to this heading">#</a></h3>
 <p>The schema CLI can be called from Python scripts:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
@@ -889,7 +898,7 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 </div>
 </section>
 <section id="using-in-ci-cd">
-<h3>Using in CI/CD<a class="headerlink" href="#using-in-ci-cd" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">2.4.6.2. </span>Using in CI/CD<a class="headerlink" href="#using-in-ci-cd" title="Link to this heading">#</a></h3>
 <p><strong>GitHub Actions example:</strong></p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validate SUEWS configs</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
@@ -916,7 +925,7 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 </section>
 </section>
 <section id="future-integration-with-suews-wizard">
-<h2>Future Integration with suews-wizard<a class="headerlink" href="#future-integration-with-suews-wizard" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.7. </span>Future Integration with suews-wizard<a class="headerlink" href="#future-integration-with-suews-wizard" title="Link to this heading">#</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> CLI is designed to integrate seamlessly with the upcoming <code class="docutils literal notranslate"><span class="pre">suews-wizard</span></code>:</p>
 <ul class="simple">
 <li><p>The wizard will use the validation logic to ensure created configurations are valid</p></li>
@@ -926,7 +935,7 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 </ul>
 </section>
 <section id="cli-best-practices">
-<h2>CLI Best Practices<a class="headerlink" href="#cli-best-practices" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.8. </span>CLI Best Practices<a class="headerlink" href="#cli-best-practices" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Always specify schema version</strong>: Include <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> in your YAML files</p></li>
 <li><p><strong>Validate before running</strong>: Use <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code> before running simulations</p></li>
@@ -936,7 +945,7 @@ suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">expo
 </ol>
 </section>
 <section id="cli-troubleshooting">
-<h2>CLI Troubleshooting<a class="headerlink" href="#cli-troubleshooting" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.9. </span>CLI Troubleshooting<a class="headerlink" href="#cli-troubleshooting" title="Link to this heading">#</a></h2>
 <p><strong>Issue: Command not found</strong></p>
 <p>Ensure SuPy is installed:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>supy
@@ -957,7 +966,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </div>
 </section>
 <section id="see-also">
-<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.4.10. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><span class="xref std std-ref">yaml_config</span> - YAML configuration documentation</p></li>
 <li><p><a class="reference internal" href="schema_versioning.html#schema-versioning"><span class="std std-ref">YAML Configuration Schema Versioning</span></a> - Schema versioning details</p></li>
@@ -977,6 +986,24 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
                 <footer class="prev-next-footer d-print-none">
                   
 <div class="prev-next-area">
+    <a class="left-prev"
+       href="data_interface_versioning.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">2.3. </span>Data-interface versioning</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../../acknowledgement.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">3. </span>Acknowledgements</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
 </div>
                 </footer>
               
@@ -995,26 +1022,26 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation">Installation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#available-commands">Available Commands</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-reference">Command Reference</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#info">info</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version">version</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#migrate">migrate</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#export">export</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation">2.4.1. Installation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#available-commands">2.4.2. Available Commands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-reference">2.4.3. Command Reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#info">2.4.3.1. info</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version">2.4.3.2. version</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#migrate">2.4.3.3. migrate</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#export">2.4.3.4. export</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#global-options">Global Options</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-other-tools">Integration with Other Tools</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-with-python">Using with Python</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-in-ci-cd">Using in CI/CD</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#global-options">2.4.4. Global Options</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">2.4.5. Examples</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-other-tools">2.4.6. Integration with Other Tools</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-with-python">2.4.6.1. Using with Python</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-in-ci-cd">2.4.6.2. Using in CI/CD</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#future-integration-with-suews-wizard">Future Integration with suews-wizard</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-best-practices">CLI Best Practices</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-troubleshooting">CLI Troubleshooting</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#future-integration-with-suews-wizard">2.4.7. Future Integration with suews-wizard</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-best-practices">2.4.8. CLI Best Practices</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-troubleshooting">2.4.9. CLI Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">2.4.10. See Also</a></li>
 </ul>
   </nav></div>
 
@@ -1056,8 +1083,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.5.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ba91dfe9657a81c69aaf428a1e4d2248c3d1643b">ba91dfe</a> |
+  <p>Version: 2026.8.6.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf">aa0e8eb</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

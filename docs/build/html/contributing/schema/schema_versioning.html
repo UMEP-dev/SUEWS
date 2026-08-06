@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-07-10T12:07:51+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.8.5.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-08-06T14:46:48+00:00" />
+    <title>2.2. YAML Configuration Schema Versioning &#8212; SUEWS 2026.8.6.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=201e839e"></script>
+    <script src="../../_static/documentation_options.js?v=9a3a7334"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,10 +56,12 @@
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="2.3. Data-interface versioning" href="data_interface_versioning.html" />
+    <link rel="prev" title="2.1. Schema Development Documentation" href="schema-developer.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.5.dev1" />
-    <meta name="docbuild:last-update" content="2026-07-10"/>
+  <meta name="docsearch:version" content="2026.8.6.dev2" />
+    <meta name="docbuild:last-update" content="2026-08-06"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -107,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.5.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ba91dfe9657a81c69aaf428a1e4d2248c3d1643b" style="color: #31708f;">ba91dfe</a>).
+        (2026.8.6.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf" style="color: #31708f;">aa0e8eb</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -198,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.5.dev1 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.5.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -426,9 +428,16 @@
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
-<ul class="nav bd-sidenav">
+<ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../contributing.html">1. Contributing Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">2. Schema and Data-interface Development</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="schema-developer.html">2.1. Schema Development Documentation</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">2.2. YAML Configuration Schema Versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_interface_versioning.html">2.3. Data-interface versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema_cli.html">2.4. Schema Management CLI</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../acknowledgement.html">3. Acknowledgements</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
@@ -657,18 +666,18 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-overview">Schema Versioning Overview</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-field">Schema Version Field</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-policy">Schema Version Policy</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compatibility-checking">Compatibility Checking</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migration">Migration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-migration-preferred-entry-point">Command-line migration (preferred entry point)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">Python API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-overview">2.2.1. Schema Versioning Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-field">2.2.2. Schema Version Field</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-policy">2.2.3. Schema Version Policy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compatibility-checking">2.2.4. Compatibility Checking</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migration">2.2.5. Migration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-migration-preferred-entry-point">2.2.5.1. Command-line migration (preferred entry point)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">2.2.5.2. Python API</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-history">Version History</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-best-practices">Versioning Best Practices</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#faq">FAQ</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-history">2.2.6. Version History</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-best-practices">2.2.7. Versioning Best Practices</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#faq">2.2.8. FAQ</a></li>
 </ul>
             </nav>
         </div>
@@ -689,7 +698,7 @@
 </ol>
 </div>
 <section id="yaml-configuration-schema-versioning">
-<span id="schema-versioning"></span><h1>YAML Configuration Schema Versioning<a class="headerlink" href="#yaml-configuration-schema-versioning" title="Link to this heading">#</a></h1>
+<span id="schema-versioning"></span><h1><span class="section-number">2.2. </span>YAML Configuration Schema Versioning<a class="headerlink" href="#yaml-configuration-schema-versioning" title="Link to this heading">#</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Schema versioning was introduced in SUEWS v2025.8 to track changes to
@@ -699,7 +708,7 @@ releases. The concrete version labels use SUEWS’ CalVer convention
 shape.</p>
 </div>
 <section id="schema-versioning-overview">
-<h2>Schema Versioning Overview<a class="headerlink" href="#schema-versioning-overview" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.2.1. </span>Schema Versioning Overview<a class="headerlink" href="#schema-versioning-overview" title="Link to this heading">#</a></h2>
 <p>SUEWS YAML configurations carry a <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> field that tracks
 the structure and format of the configuration file:</p>
 <ul class="simple">
@@ -721,7 +730,7 @@ file, while the SUEWS version you installed (for example
 model releases.</p>
 </section>
 <section id="schema-version-field">
-<h2>Schema Version Field<a class="headerlink" href="#schema-version-field" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.2.2. </span>Schema Version Field<a class="headerlink" href="#schema-version-field" title="Link to this heading">#</a></h2>
 <p>Add the <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> field to the top level of your configuration:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_urban_config</span>
 <span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2026.6.dev2&quot;</span>
@@ -738,7 +747,7 @@ runs you should always set the field explicitly so future readers can
 tell which shape the file targets.</p>
 </section>
 <section id="schema-version-policy">
-<h2>Schema Version Policy<a class="headerlink" href="#schema-version-policy" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.2.3. </span>Schema Version Policy<a class="headerlink" href="#schema-version-policy" title="Link to this heading">#</a></h2>
 <p>Schema labels use <strong>CalVer</strong> (<code class="docutils literal notranslate"><span class="pre">YYYY.M</span></code>, with <code class="docutils literal notranslate"><span class="pre">.devN</span></code> labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
@@ -746,8 +755,9 @@ as a floating-point number — <code class="docutils literal notranslate"><span 
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.5</span></code>,
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.4</span></code>, which comes after <code class="docutils literal notranslate"><span class="pre">2026.1</span></code>, which comes
 after <code class="docutils literal notranslate"><span class="pre">2025.12</span></code>.</p>
-<p>A bump happens when a PR to <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/</span></code> makes a previously
-valid user YAML no longer round-trip. In practice that means any of:</p>
+<p>A bump happens when a PR changes a YAML-owned model under
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/</span></code> in a way that makes a previously valid user YAML
+no longer round-trip. In practice that means any of:</p>
 <ul class="simple">
 <li><p>a public field is <strong>renamed</strong> (for example <code class="docutils literal notranslate"><span class="pre">DeepSoilTemperature</span></code> →
 <code class="docutils literal notranslate"><span class="pre">AnnualMeanAirTemperature</span></code>)</p></li>
@@ -771,7 +781,7 @@ label listed for that release in the <a class="reference internal" href="#schema
 </div>
 </section>
 <section id="compatibility-checking">
-<h2>Compatibility Checking<a class="headerlink" href="#compatibility-checking" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.2.4. </span>Compatibility Checking<a class="headerlink" href="#compatibility-checking" title="Link to this heading">#</a></h2>
 <p>SUEWS checks schema compatibility when loading a configuration.
 Compatibility is derived from the <strong>migration handler registry</strong>
 (<code class="xref py py-data docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._HANDLERS</span></code>) rather than a
@@ -803,14 +813,14 @@ Please update SUEWS or use an older configuration.
 </dl>
 </section>
 <section id="migration">
-<h2>Migration<a class="headerlink" href="#migration" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.2.5. </span>Migration<a class="headerlink" href="#migration" title="Link to this heading">#</a></h2>
 <p>When schema versions change, migration tools upgrade existing YAMLs to
 the current shape. See <a class="reference internal" href="../../inputs/transition_guide.html#transition-guide"><span class="std std-ref">Transitioning to YAML-based Configuration</span></a> for a user-facing walk
 through of each release’s delta, and <a class="reference internal" href="../../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> for
 conversions that combine version migration with legacy table-to-YAML
 rewriting.</p>
 <section id="command-line-migration-preferred-entry-point">
-<h3>Command-line migration (preferred entry point)<a class="headerlink" href="#command-line-migration-preferred-entry-point" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">2.2.5.1. </span>Command-line migration (preferred entry point)<a class="headerlink" href="#command-line-migration-preferred-entry-point" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Upgrade a YAML to the current schema in place-safely (creates a .bak)</span>
 suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>old_config.yml
 
@@ -823,7 +833,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </div>
 </section>
 <section id="python-api">
-<h3>Python API<a class="headerlink" href="#python-api" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">2.2.5.2. </span>Python API<a class="headerlink" href="#python-api" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.migration</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaMigrator</span>
 
 <span class="n">migrator</span> <span class="o">=</span> <span class="n">SchemaMigrator</span><span class="p">()</span>
@@ -837,7 +847,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </section>
 </section>
 <section id="version-history">
-<span id="schema-version-history"></span><h2>Version History<a class="headerlink" href="#version-history" title="Link to this heading">#</a></h2>
+<span id="schema-version-history"></span><h2><span class="section-number">2.2.6. </span>Version History<a class="headerlink" href="#version-history" title="Link to this heading">#</a></h2>
 <p>The lineage below mirrors <code class="docutils literal notranslate"><span class="pre">SCHEMA_VERSIONS</span></code> in
 <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/schema/version.py</span></code>. Each release tag maps to
 the schema that shipped with it via
@@ -944,7 +954,7 @@ must move with it, see <a class="reference internal" href="schema-developer.html
 repository.</p>
 </section>
 <section id="versioning-best-practices">
-<h2>Versioning Best Practices<a class="headerlink" href="#versioning-best-practices" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.2.7. </span>Versioning Best Practices<a class="headerlink" href="#versioning-best-practices" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Pin</strong> <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> in shared configurations so the target
 shape is explicit.</p></li>
@@ -960,7 +970,7 @@ reader has not internalised the CalVer policy.</p></li>
 </ol>
 </section>
 <section id="faq">
-<h2>FAQ<a class="headerlink" href="#faq" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.2.8. </span>FAQ<a class="headerlink" href="#faq" title="Link to this heading">#</a></h2>
 <dl class="simple">
 <dt><strong>Q: Do I need to add ``schema_version`` to my configs?</strong></dt><dd><p>It is optional; if absent, SUEWS assumes the current version. For
 anything you intend to keep or share, add it.</p>
@@ -994,6 +1004,24 @@ releases.</p>
                 <footer class="prev-next-footer d-print-none">
                   
 <div class="prev-next-area">
+    <a class="left-prev"
+       href="schema-developer.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">2.1. </span>Schema Development Documentation</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="data_interface_versioning.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">2.3. </span>Data-interface versioning</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
 </div>
                 </footer>
               
@@ -1012,18 +1040,18 @@ releases.</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-overview">Schema Versioning Overview</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-field">Schema Version Field</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-policy">Schema Version Policy</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compatibility-checking">Compatibility Checking</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migration">Migration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-migration-preferred-entry-point">Command-line migration (preferred entry point)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">Python API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-overview">2.2.1. Schema Versioning Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-field">2.2.2. Schema Version Field</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-policy">2.2.3. Schema Version Policy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compatibility-checking">2.2.4. Compatibility Checking</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migration">2.2.5. Migration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-migration-preferred-entry-point">2.2.5.1. Command-line migration (preferred entry point)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">2.2.5.2. Python API</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-history">Version History</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-best-practices">Versioning Best Practices</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#faq">FAQ</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-history">2.2.6. Version History</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-best-practices">2.2.7. Versioning Best Practices</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#faq">2.2.8. FAQ</a></li>
 </ul>
   </nav></div>
 
@@ -1057,7 +1085,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-07-10.
+  Last updated on 2026-08-06.
   <br/>
 </p>
   </div>
@@ -1065,8 +1093,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.5.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ba91dfe9657a81c69aaf428a1e4d2248c3d1643b">ba91dfe</a> |
+  <p>Version: 2026.8.6.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf">aa0e8eb</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

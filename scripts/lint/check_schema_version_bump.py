@@ -12,7 +12,7 @@ to `origin/master`). The script enforces two coupled invariants:
    `src/supy/data_model/core/` or the
    `src/supy/sample_data/sample_config.yml` sample has changed
    *and* `CURRENT_SCHEMA_VERSION` in
-   `src/supy/data_model/schema/version.py` has *not* changed, exit
+   `src/supy/data_model/configuration/version.py` has *not* changed, exit
    non-zero with remediation guidance.
 2. Documentation-sync invariant — if `CURRENT_SCHEMA_VERSION` *did*
    move, at least one of the schema-versioning user docs
@@ -80,7 +80,7 @@ _EXCLUDED_PATHS: frozenset[str] = frozenset({
 })
 
 # The file that must be touched when any of the watched paths changes.
-_SCHEMA_VERSION_FILE = "src/supy/data_model/schema/version.py"
+_SCHEMA_VERSION_FILE = "src/supy/data_model/configuration/version.py"
 
 # User-facing docs that explain the YAML schema and its migrations.
 # Whenever `CURRENT_SCHEMA_VERSION` changes, at least one of these

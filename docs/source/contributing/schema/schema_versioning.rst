@@ -64,8 +64,9 @@ which comes after ``2026.5``,
 which comes after ``2026.4``, which comes after ``2026.1``, which comes
 after ``2025.12``.
 
-A bump happens when a PR to ``src/supy/data_model/`` makes a previously
-valid user YAML no longer round-trip. In practice that means any of:
+A bump happens when a PR changes a YAML-owned model under
+``src/supy/data_model/core/`` in a way that makes a previously valid user YAML
+no longer round-trip. In practice that means any of:
 
 - a public field is **renamed** (for example ``DeepSoilTemperature`` →
   ``AnnualMeanAirTemperature``)

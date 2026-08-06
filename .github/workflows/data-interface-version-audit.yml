@@ -1,0 +1,38 @@
+name: Data-interface version audit
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check-interface-version-history:
+    name: Validate data-interface version histories
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Fetch base ref
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "$BASE_REF"
+
+      - name: Validate data-interface version histories
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -eu
+          python scripts/lint/check_data_interface_version_history.py \
+            --base "origin/$BASE_REF"

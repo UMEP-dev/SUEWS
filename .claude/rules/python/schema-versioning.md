@@ -230,11 +230,19 @@ When reviewing a PR that touches `src/supy/data_model/`:
 ## CI gate and bypass label
 
 The `.github/workflows/schema-version-audit.yml` workflow runs
-`scripts/lint/check_schema_version_bump.py` on every PR that touches
-`src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml`.
-If those paths changed but
+`scripts/lint/check_schema_version_bump.py` on every PR. The script fast-skips
+when no YAML-owned model under `src/supy/data_model/core/**` (excluding forcing
+validation and DataFrame rename helpers) or
+`src/supy/sample_data/sample_config.yml` changed. If those paths changed but
 `src/supy/data_model/schema/version.py` did not, the job fails with
 remediation guidance pointing at this rule.
+
+Forcing and output contract sources are intentionally outside this boundary.
+They have independent semantic-version owners. Their append-only release
+histories use the `.github/workflows/data-interface-version-audit.yml` gate
+documented in
+`docs/source/contributing/schema/data_interface_versioning.rst`; contract
+content checks remain with the forcing and output definitions.
 
 The same script also enforces the docs sync from step 6: when
 `CURRENT_SCHEMA_VERSION` does move, at least one of

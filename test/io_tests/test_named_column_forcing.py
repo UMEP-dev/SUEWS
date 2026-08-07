@@ -28,6 +28,29 @@ def test_canonical_fixture_unchanged():
     assert np.isfinite(first["pres"])  # in hPa after kPa->hPa conversion
 
 
+def test_file_aliases_yield_identical_canonical_dataframe(tmp_path):
+    """Aliases already accepted by Rust resolve to the same Python columns."""
+    from supy.util._io import read_forcing
+
+    aliases = {
+        "qn": "qn1_obs",
+        "qs": "qs_obs",
+        "qf": "qf_obs",
+        "Tair": "temp_c",
+        "snow": "snowfrac",
+        "wuh": "wu_mm",
+    }
+    lines = CANONICAL_FIXTURE.read_text(encoding="utf-8").splitlines()
+    alias_header = " ".join(aliases.get(token, token) for token in lines[0].split())
+    alias_path = tmp_path / "aliases.txt"
+    alias_path.write_text("\n".join([alias_header, *lines[1:]]), encoding="utf-8")
+
+    expected = _read_canonical()
+    actual = read_forcing(str(alias_path), tstep_mod=None)
+
+    pd.testing.assert_frame_equal(actual, expected)
+
+
 def test_missing_baseline_column_raises(tmp_path):
     """T5: mis-named baseline column (`temperature` instead of `Tair`)
     raises ValueError whose message contains the canonical name."""
@@ -142,6 +165,22 @@ def test_per_landcover_columns_separated_into_extras(tmp_path):
                  "qn", "qh", "qe", "qs", "qf", "isec"}
     assert canonical.issubset(set(forcing.df.columns))
     assert "lai_evetr" not in forcing.df.columns
+
+
+def test_surface_file_alias_is_stored_under_canonical_extra_name(tmp_path):
+    """Rust-style ``wu_mm_*`` file aliases canonicalise to ``wuh_*`` extras."""
+    from supy.suews_forcing import SUEWSForcing
+
+    lines = CANONICAL_FIXTURE.read_text(encoding="utf-8").splitlines()
+    alias_lines = [lines[0] + " wu_mm_paved"]
+    alias_lines.extend(line + " 0.25" for line in lines[1:])
+    path = tmp_path / "surface-alias.txt"
+    path.write_text("\n".join(alias_lines), encoding="utf-8")
+
+    forcing = SUEWSForcing.from_file(str(path))
+
+    assert "wu_mm_paved" not in forcing.extras
+    assert np.allclose(forcing.extras["wuh_paved"], 0.25)
 
 
 def test_lai_per_landcover_rejected_for_non_vegetated_surface(tmp_path):

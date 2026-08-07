@@ -22,10 +22,11 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing and output contracts are currently unpublished. Their
-``CURRENT_*_VERSION`` values are ``None`` and their version histories are
-empty. This is deliberate: a public version is not recorded until its
-machine-readable contract and implementation checks exist.
+The forcing contract remains unpublished: ``CURRENT_FORCING_VERSION`` is
+``None`` and its history is empty. The output contract is published at
+``1.0.0``. Its immutable bundle is stored under
+``src/supy/data_model/output/artefacts/1.0.0/`` after the registry projection
+and observable output layouts were validated.
 
 The first public version of each contract must be ``1.0.0``. Later releases use
 stable ``MAJOR.MINOR.PATCH`` semantic versions independently:
@@ -37,9 +38,11 @@ stable ``MAJOR.MINOR.PATCH`` semantic versions independently:
 Version histories
 -----------------
 
-Each released version is paired with a lowercase SHA-256 digest. The digest is
-an opaque contract identifier at this governance layer; the forcing and output
-contract implementations define which canonical bytes it identifies.
+Each released version is paired with a lowercase SHA-256 digest. The forcing
+and output contract implementations define which canonical bytes it identifies.
+For output, the digest identifies the exact canonical ``manifest.json`` bytes;
+that manifest records the digests of ``catalogue.json`` and
+``catalogue.schema.json``.
 
 The histories are append-only. A contributor may append a newer version and
 digest, but must not edit, reorder, or remove an existing entry. The current
@@ -60,22 +63,35 @@ request's merge base. It checks that:
 - the current pointer and history are updated together.
 
 The audit does not yet generate contract artefacts, detect contract-content
-drift, or decide whether a change requires a major, minor, or patch release.
-Those checks belong with the real forcing and output definitions. The forcing
-contract work is tracked in #1655, the output contract work in #1656, and
-version-addressed publication in #1657.
+drift for forcing, or decide whether a change requires a major, minor, or patch
+release. Output freshness is checked separately by
+``scripts/lint/check_output_contract_artefacts.py`` in the same workflow. It
+checks every stored bundle and regenerates the current catalogue and schema
+from ``OUTPUT_REGISTRY`` for a byte-for-byte comparison. The forcing contract
+work is tracked in #1655 and version-addressed publication in #1657.
 
 Contributor workflow
 --------------------
 
 Until a contract is published, leave its current version as ``None`` and its
-history empty. When contract-specific work publishes a release:
+history empty. For a new output release:
 
-1. Generate and validate the interface's canonical artefact.
-2. Choose the SemVer change from the interface-specific compatibility policy.
-3. Append the new version and canonical digest to the matching history.
-4. Move only that interface's current pointer to the new last entry.
-5. Run the contract-specific checks and the version-history audit.
+1. Choose the SemVer change from the output compatibility policy. This remains
+   a maintainer decision; the audit does not infer compatibility.
+2. Generate a new immutable bundle and note the printed manifest digest::
+
+      python scripts/lint/check_output_contract_artefacts.py --write <version>
+
+3. Append that version and digest to ``OUTPUT_VERSIONS``, then move
+   ``CURRENT_OUTPUT_VERSION`` to the new last entry.
+4. Run both audits::
+
+      python scripts/lint/check_output_contract_artefacts.py
+      python scripts/lint/check_data_interface_version_history.py --base origin/master
+
+The writer refuses to replace different bytes in an existing release
+directory. Never edit or regenerate a released bundle in place. Public URLs,
+``latest`` aliases, and Pages publication are separate work tracked in #1657.
 
 Never rewrite a released entry. Shared mechanical helpers may be extracted only
 after the configuration, forcing, and output policies are concrete (#1664).

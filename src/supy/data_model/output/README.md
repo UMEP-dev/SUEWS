@@ -24,9 +24,10 @@ stability:
 | provisional | `EHC`, `BEERS`, `SPARTACUS`, `STEBBS`, `NHood` |
 | internal | `debug` |
 
-These classifications are exposed by `OUTPUT_GROUP_SCOPES`. The interface is
-not published yet: `CURRENT_OUTPUT_VERSION` remains `None` until the observable
-layouts and a versioned artefact have been validated.
+These classifications are exposed by `OUTPUT_GROUP_SCOPES`. Output contract
+`1.0.0` freezes the registry projection after the observable layouts were
+validated. A group is covered when that group is present; the contract does not
+promise that every optional group is emitted by every run.
 
 ## Architecture
 
@@ -55,8 +56,10 @@ format-specific placement of coordinate fields is handled separately:
 - Parquet uses null values.
 
 `output_contract_json_schema()` returns the JSON Schema for this in-memory
-catalogue. Stored version artefacts and their digests are added only when the
-first output contract is published.
+catalogue. Each published version stores `catalogue.json`,
+`catalogue.schema.json`, and `manifest.json` under `artefacts/<version>/`.
+`OUTPUT_VERSIONS` records the SHA-256 digest of the exact canonical manifest
+bytes, which in turn contain the catalogue and schema digests.
 
 ## Core models
 
@@ -101,6 +104,12 @@ Generate the RST reference from the repository root with:
 python docs/generate_output_variable_rst.py
 ```
 
+Check the stored release against the registry with:
+
+```bash
+python scripts/lint/check_output_contract_artefacts.py
+```
+
 The generator preserves registry order so that the reference agrees with
 contract ordinals. Focused registry and contract tests live under
 `test/data_model/`.
@@ -114,6 +123,7 @@ src/supy/data_model/output/
 |-- contract.py          # Output-owned contract projection
 |-- registry.py          # Registry assembly
 |-- version.py           # Output contract version history
+|-- artefacts/           # Immutable versioned catalogues and manifests
 |-- *_vars.py            # Per-group variable definitions
 `-- README.md
 ```

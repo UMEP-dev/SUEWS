@@ -144,8 +144,8 @@ def test_group_order_and_scopes_are_explicit():
     } == {"SUEWS", "snow", "ESTM", "RSL", "BL", "DailyState"}
 
 
-def test_representation_metadata_is_uniform_and_unpublished():
-    """Declare shared representation metadata without publishing a version."""
+def test_representation_metadata_is_uniform_and_published():
+    """Declare shared representation metadata in the initial release."""
     assert get_output_contract_catalogue().representation.model_dump() == {
         "value_type": "number",
         "shape": "scalar",
@@ -155,7 +155,7 @@ def test_representation_metadata_is_uniform_and_unpublished():
             "parquet": "null",
         },
     }
-    assert CURRENT_OUTPUT_VERSION is None
+    assert CURRENT_OUTPUT_VERSION == "1.0.0"
 
 
 def test_catalogue_json_schema_is_valid_and_deterministic():

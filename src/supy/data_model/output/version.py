@@ -1,7 +1,8 @@
 """Output data-contract version management."""
 
-# No public version is declared until the output registry is complete.
-CURRENT_OUTPUT_VERSION: str | None = None
+CURRENT_OUTPUT_VERSION: str | None = "1.0.0"
 
 # Published version -> contract digest.
-OUTPUT_VERSIONS: dict[str, str] = {}
+OUTPUT_VERSIONS: dict[str, str] = {
+    "1.0.0": "sha256:742bf9f81da50dcfbeefada59fc32cc2ef62b88ae46b0ae7517e148a9d414ca0",
+}

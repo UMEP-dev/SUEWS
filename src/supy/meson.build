@@ -194,6 +194,11 @@ py.install_sources(
     preserve_path: true,
 )
 
+install_subdir(
+  'data_model/output/artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model/output',
+)
+
 knowledge_pack = custom_target(
   'suews_knowledge_pack',
   command: [

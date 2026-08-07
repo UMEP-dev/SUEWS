@@ -147,6 +147,8 @@ py.install_sources(
             'data_model/forcing/variables.py',
             'data_model/forcing/version.py',
             'data_model/output/__init__.py',
+            'data_model/output/contract.py',
+            'data_model/output/registry.py',
             'data_model/output/version.py',
             'data_model/output/variables.py',
             'data_model/output/datetime_vars.py',

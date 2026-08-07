@@ -10,7 +10,7 @@
 <meta content="SUEWS DailyState output variables" name="description" />
 <meta content="SUEWS, output, dailystate, variables" name="keywords" />
 
-    <title>5.3.10. DailyState Output Variables &#8212; SUEWS 2026.8.6.dev5 documentation</title>
+    <title>5.3.6. DailyState Output Variables &#8212; SUEWS 2026.8.7.dev1 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=0f2ff1e5"></script>
+    <script src="../../_static/documentation_options.js?v=e9812316"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,11 +57,11 @@
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="5.3.11. SPARTACUS Output Variables" href="spartacus.html" />
-    <link rel="prev" title="5.3.9. BEERS Output Variables" href="beers.html" />
+    <link rel="next" title="5.3.7. BL Output Variables" href="bl.html" />
+    <link rel="prev" title="5.3.5. RSL Output Variables" href="rsl.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.6.dev5" />
+  <meta name="docsearch:version" content="2026.8.7.dev1" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.6.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/655ad75b4078d9ecddd35b7b677c34144b986d04" style="color: #31708f;">655ad75</a>).
+        (2026.8.7.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/63c4f773fa44bf26f3536957fec8218d3af6d49e" style="color: #31708f;">63c4f77</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev5 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev5 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.7.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.7.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -322,12 +322,12 @@
 <li class="toctree-l3"><a class="reference internal" href="suews.html">5.3.2. SUEWS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="snow.html">5.3.3. snow Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="estm.html">5.3.4. ESTM Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.5. EHC Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.5. RSL Output Variables</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">5.3.6. DailyState Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="bl.html">5.3.7. BL Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="debug.html">5.3.8. debug Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="beers.html">5.3.9. BEERS Output Variables</a></li>
-<li class="toctree-l3 current active"><a class="current reference internal" href="#">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="beers.html">5.3.8. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="debug.html">5.3.9. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.10. EHC Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stebbs.html">5.3.12. STEBBS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="nhood.html">5.3.13. NHood Output Variables</a></li>
@@ -608,18 +608,16 @@
 </ol>
 </div>
 <section id="dailystate-output-variables">
-<span id="index-0"></span><span id="dailystate-output"></span><h1><span class="section-number">5.3.10. </span>DailyState Output Variables<a class="headerlink" href="#dailystate-output-variables" title="Link to this heading">#</a></h1>
+<span id="index-0"></span><span id="dailystate-output"></span><h1><span class="section-number">5.3.6. </span>DailyState Output Variables<a class="headerlink" href="#dailystate-output-variables" title="Link to this heading">#</a></h1>
 <p>Daily accumulated state variables.</p>
 <p>This group contains 47 output variables.</p>
 <dl class="output variable" id="index-1">
-<dt class="sig sig-object output" id="output-variable-AlbDecTr">
-<span class="sig-name descname"><span class="pre">AlbDecTr</span></span><a class="headerlink" href="#output-variable-AlbDecTr" title="Link to this definition">#</a></dt>
-<dd><p>Albedo for deciduous trees</p>
+<dt class="sig sig-object output" id="output-variable-HDD1_h">
+<span class="sig-name descname"><span class="pre">HDD1_h</span></span><a class="headerlink" href="#output-variable-HDD1_h" title="Link to this definition">#</a></dt>
+<dd><p>Heating degree days (accumulation during calculation)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>degC</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -628,14 +626,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-2">
-<dt class="sig sig-object output" id="output-variable-AlbEveTr">
-<span class="sig-name descname"><span class="pre">AlbEveTr</span></span><a class="headerlink" href="#output-variable-AlbEveTr" title="Link to this definition">#</a></dt>
-<dd><p>Albedo for evergreen trees</p>
+<dt class="sig sig-object output" id="output-variable-HDD2_c">
+<span class="sig-name descname"><span class="pre">HDD2_c</span></span><a class="headerlink" href="#output-variable-HDD2_c" title="Link to this definition">#</a></dt>
+<dd><p>Cooling degree days</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>degC</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -644,14 +640,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-3">
-<dt class="sig sig-object output" id="output-variable-AlbGrass">
-<span class="sig-name descname"><span class="pre">AlbGrass</span></span><a class="headerlink" href="#output-variable-AlbGrass" title="Link to this definition">#</a></dt>
-<dd><p>Albedo for grass</p>
+<dt class="sig sig-object output" id="output-variable-HDD3_Tmean">
+<span class="sig-name descname"><span class="pre">HDD3_Tmean</span></span><a class="headerlink" href="#output-variable-HDD3_Tmean" title="Link to this definition">#</a></dt>
+<dd><p>Heating degree days based on mean temperature</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>degC</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -660,14 +654,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-4">
-<dt class="sig sig-object output" id="output-variable-AlbSnow">
-<span class="sig-name descname"><span class="pre">AlbSnow</span></span><a class="headerlink" href="#output-variable-AlbSnow" title="Link to this definition">#</a></dt>
-<dd><p>Snow albedo</p>
+<dt class="sig sig-object output" id="output-variable-HDD4_T5d">
+<span class="sig-name descname"><span class="pre">HDD4_T5d</span></span><a class="headerlink" href="#output-variable-HDD4_T5d" title="Link to this definition">#</a></dt>
+<dd><p>Heating degree days based on 5-day running mean temperature</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>degC</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -676,12 +668,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-5">
-<dt class="sig sig-object output" id="output-variable-DLHrs">
-<span class="sig-name descname"><span class="pre">DLHrs</span></span><a class="headerlink" href="#output-variable-DLHrs" title="Link to this definition">#</a></dt>
-<dd><p>Daylight hours</p>
+<dt class="sig sig-object output" id="output-variable-P_day">
+<span class="sig-name descname"><span class="pre">P_day</span></span><a class="headerlink" href="#output-variable-P_day" title="Link to this definition">#</a></dt>
+<dd><p>Daily precipitation</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>hours</p>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -704,6 +696,174 @@
 </dd></dl>
 
 <dl class="output variable" id="index-7">
+<dt class="sig sig-object output" id="output-variable-GDD_EveTr">
+<span class="sig-name descname"><span class="pre">GDD_EveTr</span></span><a class="headerlink" href="#output-variable-GDD_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Growing degree days for evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-8">
+<dt class="sig sig-object output" id="output-variable-GDD_DecTr">
+<span class="sig-name descname"><span class="pre">GDD_DecTr</span></span><a class="headerlink" href="#output-variable-GDD_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Growing degree days for deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-9">
+<dt class="sig sig-object output" id="output-variable-GDD_Grass">
+<span class="sig-name descname"><span class="pre">GDD_Grass</span></span><a class="headerlink" href="#output-variable-GDD_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Growing degree days for grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-10">
+<dt class="sig sig-object output" id="output-variable-SDD_EveTr">
+<span class="sig-name descname"><span class="pre">SDD_EveTr</span></span><a class="headerlink" href="#output-variable-SDD_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Senescence degree days for evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-11">
+<dt class="sig sig-object output" id="output-variable-SDD_DecTr">
+<span class="sig-name descname"><span class="pre">SDD_DecTr</span></span><a class="headerlink" href="#output-variable-SDD_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Senescence degree days for deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-12">
+<dt class="sig sig-object output" id="output-variable-SDD_Grass">
+<span class="sig-name descname"><span class="pre">SDD_Grass</span></span><a class="headerlink" href="#output-variable-SDD_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Senescence degree days for grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-13">
+<dt class="sig sig-object output" id="output-variable-Tmin">
+<span class="sig-name descname"><span class="pre">Tmin</span></span><a class="headerlink" href="#output-variable-Tmin" title="Link to this definition">#</a></dt>
+<dd><p>Daily minimum temperature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-14">
+<dt class="sig sig-object output" id="output-variable-Tmax">
+<span class="sig-name descname"><span class="pre">Tmax</span></span><a class="headerlink" href="#output-variable-Tmax" title="Link to this definition">#</a></dt>
+<dd><p>Daily maximum temperature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-15">
+<dt class="sig sig-object output" id="output-variable-DLHrs">
+<span class="sig-name descname"><span class="pre">DLHrs</span></span><a class="headerlink" href="#output-variable-DLHrs" title="Link to this definition">#</a></dt>
+<dd><p>Daylight hours</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>hours</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-16">
+<dt class="sig sig-object output" id="output-variable-LAI_EveTr">
+<span class="sig-name descname"><span class="pre">LAI_EveTr</span></span><a class="headerlink" href="#output-variable-LAI_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Leaf area index for evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>m<sup>2</sup> m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-17">
+<dt class="sig sig-object output" id="output-variable-LAI_DecTr">
+<span class="sig-name descname"><span class="pre">LAI_DecTr</span></span><a class="headerlink" href="#output-variable-LAI_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Leaf area index for deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>m<sup>2</sup> m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-18">
+<dt class="sig sig-object output" id="output-variable-LAI_Grass">
+<span class="sig-name descname"><span class="pre">LAI_Grass</span></span><a class="headerlink" href="#output-variable-LAI_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Leaf area index for grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>m<sup>2</sup> m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-19">
 <dt class="sig sig-object output" id="output-variable-DecidCap">
 <span class="sig-name descname"><span class="pre">DecidCap</span></span><a class="headerlink" href="#output-variable-DecidCap" title="Link to this definition">#</a></dt>
 <dd><p>Deciduous canopy water storage capacity fraction (0-1)</p>
@@ -719,273 +879,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-8">
-<dt class="sig sig-object output" id="output-variable-DensSnow_BSoil">
-<span class="sig-name descname"><span class="pre">DensSnow_BSoil</span></span><a class="headerlink" href="#output-variable-DensSnow_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-9">
-<dt class="sig sig-object output" id="output-variable-DensSnow_Bldgs">
-<span class="sig-name descname"><span class="pre">DensSnow_Bldgs</span></span><a class="headerlink" href="#output-variable-DensSnow_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-10">
-<dt class="sig sig-object output" id="output-variable-DensSnow_DecTr">
-<span class="sig-name descname"><span class="pre">DensSnow_DecTr</span></span><a class="headerlink" href="#output-variable-DensSnow_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-11">
-<dt class="sig sig-object output" id="output-variable-DensSnow_EveTr">
-<span class="sig-name descname"><span class="pre">DensSnow_EveTr</span></span><a class="headerlink" href="#output-variable-DensSnow_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-12">
-<dt class="sig sig-object output" id="output-variable-DensSnow_Grass">
-<span class="sig-name descname"><span class="pre">DensSnow_Grass</span></span><a class="headerlink" href="#output-variable-DensSnow_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-13">
-<dt class="sig sig-object output" id="output-variable-DensSnow_Paved">
-<span class="sig-name descname"><span class="pre">DensSnow_Paved</span></span><a class="headerlink" href="#output-variable-DensSnow_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-14">
-<dt class="sig sig-object output" id="output-variable-DensSnow_Water">
-<span class="sig-name descname"><span class="pre">DensSnow_Water</span></span><a class="headerlink" href="#output-variable-DensSnow_Water" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-15">
-<dt class="sig sig-object output" id="output-variable-GDD_DecTr">
-<span class="sig-name descname"><span class="pre">GDD_DecTr</span></span><a class="headerlink" href="#output-variable-GDD_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Growing degree days for deciduous trees</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-16">
-<dt class="sig sig-object output" id="output-variable-GDD_EveTr">
-<span class="sig-name descname"><span class="pre">GDD_EveTr</span></span><a class="headerlink" href="#output-variable-GDD_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Growing degree days for evergreen trees</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-17">
-<dt class="sig sig-object output" id="output-variable-GDD_Grass">
-<span class="sig-name descname"><span class="pre">GDD_Grass</span></span><a class="headerlink" href="#output-variable-GDD_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Growing degree days for grass</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-18">
-<dt class="sig sig-object output" id="output-variable-HDD1_h">
-<span class="sig-name descname"><span class="pre">HDD1_h</span></span><a class="headerlink" href="#output-variable-HDD1_h" title="Link to this definition">#</a></dt>
-<dd><p>Heating degree days (accumulation during calculation)</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-19">
-<dt class="sig sig-object output" id="output-variable-HDD2_c">
-<span class="sig-name descname"><span class="pre">HDD2_c</span></span><a class="headerlink" href="#output-variable-HDD2_c" title="Link to this definition">#</a></dt>
-<dd><p>Cooling degree days</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
 <dl class="output variable" id="index-20">
-<dt class="sig sig-object output" id="output-variable-HDD3_Tmean">
-<span class="sig-name descname"><span class="pre">HDD3_Tmean</span></span><a class="headerlink" href="#output-variable-HDD3_Tmean" title="Link to this definition">#</a></dt>
-<dd><p>Heating degree days based on mean temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-21">
-<dt class="sig sig-object output" id="output-variable-HDD4_T5d">
-<span class="sig-name descname"><span class="pre">HDD4_T5d</span></span><a class="headerlink" href="#output-variable-HDD4_T5d" title="Link to this definition">#</a></dt>
-<dd><p>Heating degree days based on 5-day running mean temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-22">
-<dt class="sig sig-object output" id="output-variable-LAI_DecTr">
-<span class="sig-name descname"><span class="pre">LAI_DecTr</span></span><a class="headerlink" href="#output-variable-LAI_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Leaf area index for deciduous trees</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>m<sup>2</sup> m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-23">
-<dt class="sig sig-object output" id="output-variable-LAI_EveTr">
-<span class="sig-name descname"><span class="pre">LAI_EveTr</span></span><a class="headerlink" href="#output-variable-LAI_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Leaf area index for evergreen trees</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>m<sup>2</sup> m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-24">
-<dt class="sig sig-object output" id="output-variable-LAI_Grass">
-<span class="sig-name descname"><span class="pre">LAI_Grass</span></span><a class="headerlink" href="#output-variable-LAI_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Leaf area index for grass</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>m<sup>2</sup> m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-25">
-<dt class="sig sig-object output" id="output-variable-LAIlumps">
-<span class="sig-name descname"><span class="pre">LAIlumps</span></span><a class="headerlink" href="#output-variable-LAIlumps" title="Link to this definition">#</a></dt>
-<dd><p>Leaf area index (LUMPS calculation)</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>m<sup>2</sup> m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-26">
-<dt class="sig sig-object output" id="output-variable-P_day">
-<span class="sig-name descname"><span class="pre">P_day</span></span><a class="headerlink" href="#output-variable-P_day" title="Link to this definition">#</a></dt>
-<dd><p>Daily precipitation</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-27">
 <dt class="sig sig-object output" id="output-variable-Porosity">
 <span class="sig-name descname"><span class="pre">Porosity</span></span><a class="headerlink" href="#output-variable-Porosity" title="Link to this definition">#</a></dt>
 <dd><p>Deciduous tree canopy porosity for radiation transmission (0-1)</p>
@@ -1001,80 +895,10 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-28">
-<dt class="sig sig-object output" id="output-variable-SDD_DecTr">
-<span class="sig-name descname"><span class="pre">SDD_DecTr</span></span><a class="headerlink" href="#output-variable-SDD_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Senescence degree days for deciduous trees</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-29">
-<dt class="sig sig-object output" id="output-variable-SDD_EveTr">
-<span class="sig-name descname"><span class="pre">SDD_EveTr</span></span><a class="headerlink" href="#output-variable-SDD_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Senescence degree days for evergreen trees</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-30">
-<dt class="sig sig-object output" id="output-variable-SDD_Grass">
-<span class="sig-name descname"><span class="pre">SDD_Grass</span></span><a class="headerlink" href="#output-variable-SDD_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Senescence degree days for grass</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-31">
-<dt class="sig sig-object output" id="output-variable-Tmax">
-<span class="sig-name descname"><span class="pre">Tmax</span></span><a class="headerlink" href="#output-variable-Tmax" title="Link to this definition">#</a></dt>
-<dd><p>Daily maximum temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-32">
-<dt class="sig sig-object output" id="output-variable-Tmin">
-<span class="sig-name descname"><span class="pre">Tmin</span></span><a class="headerlink" href="#output-variable-Tmin" title="Link to this definition">#</a></dt>
-<dd><p>Daily minimum temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-33">
-<dt class="sig sig-object output" id="output-variable-WU_DecTr1">
-<span class="sig-name descname"><span class="pre">WU_DecTr1</span></span><a class="headerlink" href="#output-variable-WU_DecTr1" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient Ie_a (automatic irrigation) for deciduous trees</p>
+<dl class="output variable" id="index-21">
+<dt class="sig sig-object output" id="output-variable-AlbEveTr">
+<span class="sig-name descname"><span class="pre">AlbEveTr</span></span><a class="headerlink" href="#output-variable-AlbEveTr" title="Link to this definition">#</a></dt>
+<dd><p>Albedo for evergreen trees</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1087,10 +911,10 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-34">
-<dt class="sig sig-object output" id="output-variable-WU_DecTr2">
-<span class="sig-name descname"><span class="pre">WU_DecTr2</span></span><a class="headerlink" href="#output-variable-WU_DecTr2" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient Ie_m (manual irrigation) for deciduous trees</p>
+<dl class="output variable" id="index-22">
+<dt class="sig sig-object output" id="output-variable-AlbDecTr">
+<span class="sig-name descname"><span class="pre">AlbDecTr</span></span><a class="headerlink" href="#output-variable-AlbDecTr" title="Link to this definition">#</a></dt>
+<dd><p>Albedo for deciduous trees</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1103,10 +927,10 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-35">
-<dt class="sig sig-object output" id="output-variable-WU_DecTr3">
-<span class="sig-name descname"><span class="pre">WU_DecTr3</span></span><a class="headerlink" href="#output-variable-WU_DecTr3" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient (days since rain factor) for deciduous trees</p>
+<dl class="output variable" id="index-23">
+<dt class="sig sig-object output" id="output-variable-AlbGrass">
+<span class="sig-name descname"><span class="pre">AlbGrass</span></span><a class="headerlink" href="#output-variable-AlbGrass" title="Link to this definition">#</a></dt>
+<dd><p>Albedo for grass</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1119,7 +943,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-36">
+<dl class="output variable" id="index-24">
 <dt class="sig sig-object output" id="output-variable-WU_EveTr1">
 <span class="sig-name descname"><span class="pre">WU_EveTr1</span></span><a class="headerlink" href="#output-variable-WU_EveTr1" title="Link to this definition">#</a></dt>
 <dd><p>Water use coefficient Ie_a (automatic irrigation) for evergreen trees</p>
@@ -1135,7 +959,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-37">
+<dl class="output variable" id="index-25">
 <dt class="sig sig-object output" id="output-variable-WU_EveTr2">
 <span class="sig-name descname"><span class="pre">WU_EveTr2</span></span><a class="headerlink" href="#output-variable-WU_EveTr2" title="Link to this definition">#</a></dt>
 <dd><p>Water use coefficient Ie_m (manual irrigation) for evergreen trees</p>
@@ -1151,7 +975,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-38">
+<dl class="output variable" id="index-26">
 <dt class="sig sig-object output" id="output-variable-WU_EveTr3">
 <span class="sig-name descname"><span class="pre">WU_EveTr3</span></span><a class="headerlink" href="#output-variable-WU_EveTr3" title="Link to this definition">#</a></dt>
 <dd><p>Water use coefficient (days since rain factor) for evergreen trees</p>
@@ -1167,7 +991,55 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-39">
+<dl class="output variable" id="index-27">
+<dt class="sig sig-object output" id="output-variable-WU_DecTr1">
+<span class="sig-name descname"><span class="pre">WU_DecTr1</span></span><a class="headerlink" href="#output-variable-WU_DecTr1" title="Link to this definition">#</a></dt>
+<dd><p>Water use coefficient Ie_a (automatic irrigation) for deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-28">
+<dt class="sig sig-object output" id="output-variable-WU_DecTr2">
+<span class="sig-name descname"><span class="pre">WU_DecTr2</span></span><a class="headerlink" href="#output-variable-WU_DecTr2" title="Link to this definition">#</a></dt>
+<dd><p>Water use coefficient Ie_m (manual irrigation) for deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-29">
+<dt class="sig sig-object output" id="output-variable-WU_DecTr3">
+<span class="sig-name descname"><span class="pre">WU_DecTr3</span></span><a class="headerlink" href="#output-variable-WU_DecTr3" title="Link to this definition">#</a></dt>
+<dd><p>Water use coefficient (days since rain factor) for deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-30">
 <dt class="sig sig-object output" id="output-variable-WU_Grass1">
 <span class="sig-name descname"><span class="pre">WU_Grass1</span></span><a class="headerlink" href="#output-variable-WU_Grass1" title="Link to this definition">#</a></dt>
 <dd><p>Water use coefficient Ie_a (automatic irrigation) for grass</p>
@@ -1183,7 +1055,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-40">
+<dl class="output variable" id="index-31">
 <dt class="sig sig-object output" id="output-variable-WU_Grass2">
 <span class="sig-name descname"><span class="pre">WU_Grass2</span></span><a class="headerlink" href="#output-variable-WU_Grass2" title="Link to this definition">#</a></dt>
 <dd><p>Water use coefficient Ie_m (manual irrigation) for grass</p>
@@ -1199,7 +1071,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-41">
+<dl class="output variable" id="index-32">
 <dt class="sig sig-object output" id="output-variable-WU_Grass3">
 <span class="sig-name descname"><span class="pre">WU_Grass3</span></span><a class="headerlink" href="#output-variable-WU_Grass3" title="Link to this definition">#</a></dt>
 <dd><p>Water use coefficient (days since rain factor) for grass</p>
@@ -1208,6 +1080,134 @@
 <dd class="field-odd"><ul class="simple">
 <li></li>
 </ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-33">
+<dt class="sig sig-object output" id="output-variable-LAIlumps">
+<span class="sig-name descname"><span class="pre">LAIlumps</span></span><a class="headerlink" href="#output-variable-LAIlumps" title="Link to this definition">#</a></dt>
+<dd><p>Leaf area index (LUMPS calculation)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>m<sup>2</sup> m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-34">
+<dt class="sig sig-object output" id="output-variable-AlbSnow">
+<span class="sig-name descname"><span class="pre">AlbSnow</span></span><a class="headerlink" href="#output-variable-AlbSnow" title="Link to this definition">#</a></dt>
+<dd><p>Snow albedo</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-35">
+<dt class="sig sig-object output" id="output-variable-DensSnow_Paved">
+<span class="sig-name descname"><span class="pre">DensSnow_Paved</span></span><a class="headerlink" href="#output-variable-DensSnow_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-36">
+<dt class="sig sig-object output" id="output-variable-DensSnow_Bldgs">
+<span class="sig-name descname"><span class="pre">DensSnow_Bldgs</span></span><a class="headerlink" href="#output-variable-DensSnow_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-37">
+<dt class="sig sig-object output" id="output-variable-DensSnow_EveTr">
+<span class="sig-name descname"><span class="pre">DensSnow_EveTr</span></span><a class="headerlink" href="#output-variable-DensSnow_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-38">
+<dt class="sig sig-object output" id="output-variable-DensSnow_DecTr">
+<span class="sig-name descname"><span class="pre">DensSnow_DecTr</span></span><a class="headerlink" href="#output-variable-DensSnow_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-39">
+<dt class="sig sig-object output" id="output-variable-DensSnow_Grass">
+<span class="sig-name descname"><span class="pre">DensSnow_Grass</span></span><a class="headerlink" href="#output-variable-DensSnow_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-40">
+<dt class="sig sig-object output" id="output-variable-DensSnow_BSoil">
+<span class="sig-name descname"><span class="pre">DensSnow_BSoil</span></span><a class="headerlink" href="#output-variable-DensSnow_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-41">
+<dt class="sig sig-object output" id="output-variable-DensSnow_Water">
+<span class="sig-name descname"><span class="pre">DensSnow_Water</span></span><a class="headerlink" href="#output-variable-DensSnow_Water" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -1232,6 +1232,34 @@
 </dd></dl>
 
 <dl class="output variable" id="index-43">
+<dt class="sig sig-object output" id="output-variable-a2">
+<span class="sig-name descname"><span class="pre">a2</span></span><a class="headerlink" href="#output-variable-a2" title="Link to this definition">#</a></dt>
+<dd><p>OHM coefficient a2: time lag for storage heat flux</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>h</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-44">
+<dt class="sig sig-object output" id="output-variable-a3">
+<span class="sig-name descname"><span class="pre">a3</span></span><a class="headerlink" href="#output-variable-a3" title="Link to this definition">#</a></dt>
+<dd><p>OHM coefficient a3: constant offset for storage heat flux</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Last (final value in period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-45">
 <dt class="sig sig-object output" id="output-variable-a1_bldg">
 <span class="sig-name descname"><span class="pre">a1_bldg</span></span><a class="headerlink" href="#output-variable-a1_bldg" title="Link to this definition">#</a></dt>
 <dd><p>OHM coefficient a1 for buildings: fraction of net radiation rate change</p>
@@ -1247,41 +1275,13 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-44">
-<dt class="sig sig-object output" id="output-variable-a2">
-<span class="sig-name descname"><span class="pre">a2</span></span><a class="headerlink" href="#output-variable-a2" title="Link to this definition">#</a></dt>
-<dd><p>OHM coefficient a2: time lag for storage heat flux</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>h</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-45">
+<dl class="output variable" id="index-46">
 <dt class="sig sig-object output" id="output-variable-a2_bldg">
 <span class="sig-name descname"><span class="pre">a2_bldg</span></span><a class="headerlink" href="#output-variable-a2_bldg" title="Link to this definition">#</a></dt>
 <dd><p>OHM coefficient a2 for buildings: time lag for storage heat flux</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>h</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Last (final value in period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-46">
-<dt class="sig sig-object output" id="output-variable-a3">
-<span class="sig-name descname"><span class="pre">a3</span></span><a class="headerlink" href="#output-variable-a3" title="Link to this definition">#</a></dt>
-<dd><p>OHM coefficient a3: constant offset for storage heat flux</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -1317,20 +1317,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="beers.html"
+       href="rsl.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">5.3.9. </span>BEERS Output Variables</p>
+        <p class="prev-next-title"><span class="section-number">5.3.5. </span>RSL Output Variables</p>
       </div>
     </a>
     <a class="right-next"
-       href="spartacus.html"
+       href="bl.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">5.3.11. </span>SPARTACUS Output Variables</p>
+        <p class="prev-next-title"><span class="section-number">5.3.7. </span>BL Output Variables</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1374,8 +1374,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.6.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/655ad75b4078d9ecddd35b7b677c34144b986d04">655ad75</a> |
+  <p>Version: 2026.8.7.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/63c4f773fa44bf26f3536957fec8218d3af6d49e">63c4f77</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

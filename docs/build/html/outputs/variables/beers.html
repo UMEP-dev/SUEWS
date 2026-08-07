@@ -10,7 +10,7 @@
 <meta content="SUEWS BEERS output variables" name="description" />
 <meta content="SUEWS, output, beers, variables" name="keywords" />
 
-    <title>5.3.9. BEERS Output Variables &#8212; SUEWS 2026.8.6.dev5 documentation</title>
+    <title>5.3.8. BEERS Output Variables &#8212; SUEWS 2026.8.7.dev1 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=0f2ff1e5"></script>
+    <script src="../../_static/documentation_options.js?v=e9812316"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,11 +57,11 @@
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="5.3.10. DailyState Output Variables" href="dailystate.html" />
-    <link rel="prev" title="5.3.8. debug Output Variables" href="debug.html" />
+    <link rel="next" title="5.3.9. debug Output Variables" href="debug.html" />
+    <link rel="prev" title="5.3.7. BL Output Variables" href="bl.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.6.dev5" />
+  <meta name="docsearch:version" content="2026.8.7.dev1" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.6.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/655ad75b4078d9ecddd35b7b677c34144b986d04" style="color: #31708f;">655ad75</a>).
+        (2026.8.7.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/63c4f773fa44bf26f3536957fec8218d3af6d49e" style="color: #31708f;">63c4f77</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev5 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev5 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.7.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.7.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -322,12 +322,12 @@
 <li class="toctree-l3"><a class="reference internal" href="suews.html">5.3.2. SUEWS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="snow.html">5.3.3. snow Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="estm.html">5.3.4. ESTM Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.5. EHC Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.5. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dailystate.html">5.3.6. DailyState Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="bl.html">5.3.7. BL Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="debug.html">5.3.8. debug Output Variables</a></li>
-<li class="toctree-l3 current active"><a class="current reference internal" href="#">5.3.9. BEERS Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">5.3.8. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="debug.html">5.3.9. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.10. EHC Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stebbs.html">5.3.12. STEBBS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="nhood.html">5.3.13. NHood Output Variables</a></li>
@@ -608,10 +608,276 @@
 </ol>
 </div>
 <section id="beers-output-variables">
-<span id="index-0"></span><span id="beers-output"></span><h1><span class="section-number">5.3.9. </span>BEERS Output Variables<a class="headerlink" href="#beers-output-variables" title="Link to this heading">#</a></h1>
+<span id="index-0"></span><span id="beers-output"></span><h1><span class="section-number">5.3.8. </span>BEERS Output Variables<a class="headerlink" href="#beers-output-variables" title="Link to this heading">#</a></h1>
 <p>BEERS radiation model outputs.</p>
 <p>This group contains 29 output variables.</p>
 <dl class="output variable" id="index-1">
+<dt class="sig sig-object output" id="output-variable-azimuth">
+<span class="sig-name descname"><span class="pre">azimuth</span></span><a class="headerlink" href="#output-variable-azimuth" title="Link to this definition">#</a></dt>
+<dd><p>Solar azimuth angle</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degrees</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-2">
+<dt class="sig sig-object output" id="output-variable-altitude">
+<span class="sig-name descname"><span class="pre">altitude</span></span><a class="headerlink" href="#output-variable-altitude" title="Link to this definition">#</a></dt>
+<dd><p>Solar altitude angle</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degrees</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-3">
+<dt class="sig sig-object output" id="output-variable-GlobalRad">
+<span class="sig-name descname"><span class="pre">GlobalRad</span></span><a class="headerlink" href="#output-variable-GlobalRad" title="Link to this definition">#</a></dt>
+<dd><p>Global irradiance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-4">
+<dt class="sig sig-object output" id="output-variable-DiffuseRad">
+<span class="sig-name descname"><span class="pre">DiffuseRad</span></span><a class="headerlink" href="#output-variable-DiffuseRad" title="Link to this definition">#</a></dt>
+<dd><p>Diffuse radiation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-5">
+<dt class="sig sig-object output" id="output-variable-DirectRad">
+<span class="sig-name descname"><span class="pre">DirectRad</span></span><a class="headerlink" href="#output-variable-DirectRad" title="Link to this definition">#</a></dt>
+<dd><p>Direct radiation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-6">
+<dt class="sig sig-object output" id="output-variable-Kdown2d">
+<span class="sig-name descname"><span class="pre">Kdown2d</span></span><a class="headerlink" href="#output-variable-Kdown2d" title="Link to this definition">#</a></dt>
+<dd><p>Incoming shortwave radiation at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-7">
+<dt class="sig sig-object output" id="output-variable-Kup2d">
+<span class="sig-name descname"><span class="pre">Kup2d</span></span><a class="headerlink" href="#output-variable-Kup2d" title="Link to this definition">#</a></dt>
+<dd><p>Outgoing shortwave radiation at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-8">
+<dt class="sig sig-object output" id="output-variable-Ksouth">
+<span class="sig-name descname"><span class="pre">Ksouth</span></span><a class="headerlink" href="#output-variable-Ksouth" title="Link to this definition">#</a></dt>
+<dd><p>Shortwave radiation from south at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-9">
+<dt class="sig sig-object output" id="output-variable-Kwest">
+<span class="sig-name descname"><span class="pre">Kwest</span></span><a class="headerlink" href="#output-variable-Kwest" title="Link to this definition">#</a></dt>
+<dd><p>Shortwave radiation from west at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-10">
+<dt class="sig sig-object output" id="output-variable-Knorth">
+<span class="sig-name descname"><span class="pre">Knorth</span></span><a class="headerlink" href="#output-variable-Knorth" title="Link to this definition">#</a></dt>
+<dd><p>Shortwave radiation from north at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-11">
+<dt class="sig sig-object output" id="output-variable-Keast">
+<span class="sig-name descname"><span class="pre">Keast</span></span><a class="headerlink" href="#output-variable-Keast" title="Link to this definition">#</a></dt>
+<dd><p>Shortwave radiation from east at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-12">
+<dt class="sig sig-object output" id="output-variable-Ldown2d">
+<span class="sig-name descname"><span class="pre">Ldown2d</span></span><a class="headerlink" href="#output-variable-Ldown2d" title="Link to this definition">#</a></dt>
+<dd><p>Incoming longwave radiation at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-13">
+<dt class="sig sig-object output" id="output-variable-Lup2d">
+<span class="sig-name descname"><span class="pre">Lup2d</span></span><a class="headerlink" href="#output-variable-Lup2d" title="Link to this definition">#</a></dt>
+<dd><p>Outgoing longwave radiation at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-14">
+<dt class="sig sig-object output" id="output-variable-Lsouth">
+<span class="sig-name descname"><span class="pre">Lsouth</span></span><a class="headerlink" href="#output-variable-Lsouth" title="Link to this definition">#</a></dt>
+<dd><p>Longwave radiation from south at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-15">
+<dt class="sig sig-object output" id="output-variable-Lwest">
+<span class="sig-name descname"><span class="pre">Lwest</span></span><a class="headerlink" href="#output-variable-Lwest" title="Link to this definition">#</a></dt>
+<dd><p>Longwave radiation from west at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-16">
+<dt class="sig sig-object output" id="output-variable-Lnorth">
+<span class="sig-name descname"><span class="pre">Lnorth</span></span><a class="headerlink" href="#output-variable-Lnorth" title="Link to this definition">#</a></dt>
+<dd><p>Longwave radiation from north at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-17">
+<dt class="sig sig-object output" id="output-variable-Least">
+<span class="sig-name descname"><span class="pre">Least</span></span><a class="headerlink" href="#output-variable-Least" title="Link to this definition">#</a></dt>
+<dd><p>Longwave radiation from east at POI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-18">
+<dt class="sig sig-object output" id="output-variable-Tmrt">
+<span class="sig-name descname"><span class="pre">Tmrt</span></span><a class="headerlink" href="#output-variable-Tmrt" title="Link to this definition">#</a></dt>
+<dd><p>Mean radiant temperature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-19">
+<dt class="sig sig-object output" id="output-variable-I0">
+<span class="sig-name descname"><span class="pre">I0</span></span><a class="headerlink" href="#output-variable-I0" title="Link to this definition">#</a></dt>
+<dd><p>Theoretical value of maximum incoming solar radiation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-20">
 <dt class="sig sig-object output" id="output-variable-CI">
 <span class="sig-name descname"><span class="pre">CI</span></span><a class="headerlink" href="#output-variable-CI" title="Link to this definition">#</a></dt>
 <dd><p>Clearness index for Ldown</p>
@@ -627,247 +893,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-2">
-<dt class="sig sig-object output" id="output-variable-DiffuseRad">
-<span class="sig-name descname"><span class="pre">DiffuseRad</span></span><a class="headerlink" href="#output-variable-DiffuseRad" title="Link to this definition">#</a></dt>
-<dd><p>Diffuse radiation</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-3">
-<dt class="sig sig-object output" id="output-variable-DirectRad">
-<span class="sig-name descname"><span class="pre">DirectRad</span></span><a class="headerlink" href="#output-variable-DirectRad" title="Link to this definition">#</a></dt>
-<dd><p>Direct radiation</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-4">
-<dt class="sig sig-object output" id="output-variable-Emis_Sky">
-<span class="sig-name descname"><span class="pre">Emis_Sky</span></span><a class="headerlink" href="#output-variable-Emis_Sky" title="Link to this definition">#</a></dt>
-<dd><p>Clear-sky emissivity from Prata (1996)</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-5">
-<dt class="sig sig-object output" id="output-variable-GlobalRad">
-<span class="sig-name descname"><span class="pre">GlobalRad</span></span><a class="headerlink" href="#output-variable-GlobalRad" title="Link to this definition">#</a></dt>
-<dd><p>Global irradiance</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-6">
-<dt class="sig sig-object output" id="output-variable-I0">
-<span class="sig-name descname"><span class="pre">I0</span></span><a class="headerlink" href="#output-variable-I0" title="Link to this definition">#</a></dt>
-<dd><p>Theoretical value of maximum incoming solar radiation</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-7">
-<dt class="sig sig-object output" id="output-variable-Kdown2d">
-<span class="sig-name descname"><span class="pre">Kdown2d</span></span><a class="headerlink" href="#output-variable-Kdown2d" title="Link to this definition">#</a></dt>
-<dd><p>Incoming shortwave radiation at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-8">
-<dt class="sig sig-object output" id="output-variable-Keast">
-<span class="sig-name descname"><span class="pre">Keast</span></span><a class="headerlink" href="#output-variable-Keast" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave radiation from east at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-9">
-<dt class="sig sig-object output" id="output-variable-Knorth">
-<span class="sig-name descname"><span class="pre">Knorth</span></span><a class="headerlink" href="#output-variable-Knorth" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave radiation from north at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-10">
-<dt class="sig sig-object output" id="output-variable-Ksouth">
-<span class="sig-name descname"><span class="pre">Ksouth</span></span><a class="headerlink" href="#output-variable-Ksouth" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave radiation from south at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-11">
-<dt class="sig sig-object output" id="output-variable-Kup2d">
-<span class="sig-name descname"><span class="pre">Kup2d</span></span><a class="headerlink" href="#output-variable-Kup2d" title="Link to this definition">#</a></dt>
-<dd><p>Outgoing shortwave radiation at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-12">
-<dt class="sig sig-object output" id="output-variable-Kwest">
-<span class="sig-name descname"><span class="pre">Kwest</span></span><a class="headerlink" href="#output-variable-Kwest" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave radiation from west at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-13">
-<dt class="sig sig-object output" id="output-variable-Ldown2d">
-<span class="sig-name descname"><span class="pre">Ldown2d</span></span><a class="headerlink" href="#output-variable-Ldown2d" title="Link to this definition">#</a></dt>
-<dd><p>Incoming longwave radiation at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-14">
-<dt class="sig sig-object output" id="output-variable-Least">
-<span class="sig-name descname"><span class="pre">Least</span></span><a class="headerlink" href="#output-variable-Least" title="Link to this definition">#</a></dt>
-<dd><p>Longwave radiation from east at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-15">
-<dt class="sig sig-object output" id="output-variable-Lnorth">
-<span class="sig-name descname"><span class="pre">Lnorth</span></span><a class="headerlink" href="#output-variable-Lnorth" title="Link to this definition">#</a></dt>
-<dd><p>Longwave radiation from north at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-16">
-<dt class="sig sig-object output" id="output-variable-Lsouth">
-<span class="sig-name descname"><span class="pre">Lsouth</span></span><a class="headerlink" href="#output-variable-Lsouth" title="Link to this definition">#</a></dt>
-<dd><p>Longwave radiation from south at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-17">
-<dt class="sig sig-object output" id="output-variable-Lup2d">
-<span class="sig-name descname"><span class="pre">Lup2d</span></span><a class="headerlink" href="#output-variable-Lup2d" title="Link to this definition">#</a></dt>
-<dd><p>Outgoing longwave radiation at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-18">
-<dt class="sig sig-object output" id="output-variable-Lwest">
-<span class="sig-name descname"><span class="pre">Lwest</span></span><a class="headerlink" href="#output-variable-Lwest" title="Link to this definition">#</a></dt>
-<dd><p>Longwave radiation from west at POI</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-19">
+<dl class="output variable" id="index-21">
 <dt class="sig sig-object output" id="output-variable-SH_Ground">
 <span class="sig-name descname"><span class="pre">SH_Ground</span></span><a class="headerlink" href="#output-variable-SH_Ground" title="Link to this definition">#</a></dt>
 <dd><p>Shadow fraction on ground (0=fully sunlit, 1=fully shaded)</p>
@@ -883,7 +909,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-20">
+<dl class="output variable" id="index-22">
 <dt class="sig sig-object output" id="output-variable-SH_Walls">
 <span class="sig-name descname"><span class="pre">SH_Walls</span></span><a class="headerlink" href="#output-variable-SH_Walls" title="Link to this definition">#</a></dt>
 <dd><p>Shadow fraction on walls (0=fully sunlit, 1=fully shaded)</p>
@@ -899,23 +925,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-21">
-<dt class="sig sig-object output" id="output-variable-SVF_BdVeg">
-<span class="sig-name descname"><span class="pre">SVF_BdVeg</span></span><a class="headerlink" href="#output-variable-SVF_BdVeg" title="Link to this definition">#</a></dt>
-<dd><p>Sky view factor from buildings and vegetation</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-22">
+<dl class="output variable" id="index-23">
 <dt class="sig sig-object output" id="output-variable-SVF_Ground">
 <span class="sig-name descname"><span class="pre">SVF_Ground</span></span><a class="headerlink" href="#output-variable-SVF_Ground" title="Link to this definition">#</a></dt>
 <dd><p>Sky view factor from ground</p>
@@ -931,7 +941,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-23">
+<dl class="output variable" id="index-24">
 <dt class="sig sig-object output" id="output-variable-SVF_Roof">
 <span class="sig-name descname"><span class="pre">SVF_Roof</span></span><a class="headerlink" href="#output-variable-SVF_Roof" title="Link to this definition">#</a></dt>
 <dd><p>Sky view factor from roof</p>
@@ -947,7 +957,39 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-24">
+<dl class="output variable" id="index-25">
+<dt class="sig sig-object output" id="output-variable-SVF_BdVeg">
+<span class="sig-name descname"><span class="pre">SVF_BdVeg</span></span><a class="headerlink" href="#output-variable-SVF_BdVeg" title="Link to this definition">#</a></dt>
+<dd><p>Sky view factor from buildings and vegetation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-26">
+<dt class="sig sig-object output" id="output-variable-Emis_Sky">
+<span class="sig-name descname"><span class="pre">Emis_Sky</span></span><a class="headerlink" href="#output-variable-Emis_Sky" title="Link to this definition">#</a></dt>
+<dd><p>Clear-sky emissivity from Prata (1996)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-27">
 <dt class="sig sig-object output" id="output-variable-Ta">
 <span class="sig-name descname"><span class="pre">Ta</span></span><a class="headerlink" href="#output-variable-Ta" title="Link to this definition">#</a></dt>
 <dd><p>Air temperature</p>
@@ -961,7 +1003,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-25">
+<dl class="output variable" id="index-28">
 <dt class="sig sig-object output" id="output-variable-Tg">
 <span class="sig-name descname"><span class="pre">Tg</span></span><a class="headerlink" href="#output-variable-Tg" title="Link to this definition">#</a></dt>
 <dd><p>Ground surface temperature</p>
@@ -975,55 +1017,13 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-26">
-<dt class="sig sig-object output" id="output-variable-Tmrt">
-<span class="sig-name descname"><span class="pre">Tmrt</span></span><a class="headerlink" href="#output-variable-Tmrt" title="Link to this definition">#</a></dt>
-<dd><p>Mean radiant temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-27">
+<dl class="output variable" id="index-29">
 <dt class="sig sig-object output" id="output-variable-Tw">
 <span class="sig-name descname"><span class="pre">Tw</span></span><a class="headerlink" href="#output-variable-Tw" title="Link to this definition">#</a></dt>
 <dd><p>Wall surface temperature</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-28">
-<dt class="sig sig-object output" id="output-variable-altitude">
-<span class="sig-name descname"><span class="pre">altitude</span></span><a class="headerlink" href="#output-variable-altitude" title="Link to this definition">#</a></dt>
-<dd><p>Solar altitude angle</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degrees</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-29">
-<dt class="sig sig-object output" id="output-variable-azimuth">
-<span class="sig-name descname"><span class="pre">azimuth</span></span><a class="headerlink" href="#output-variable-azimuth" title="Link to this definition">#</a></dt>
-<dd><p>Solar azimuth angle</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degrees</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1045,20 +1045,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="debug.html"
+       href="bl.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">5.3.8. </span>debug Output Variables</p>
+        <p class="prev-next-title"><span class="section-number">5.3.7. </span>BL Output Variables</p>
       </div>
     </a>
     <a class="right-next"
-       href="dailystate.html"
+       href="debug.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">5.3.10. </span>DailyState Output Variables</p>
+        <p class="prev-next-title"><span class="section-number">5.3.9. </span>debug Output Variables</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1102,8 +1102,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.6.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/655ad75b4078d9ecddd35b7b677c34144b986d04">655ad75</a> |
+  <p>Version: 2026.8.7.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/63c4f773fa44bf26f3536957fec8218d3af6d49e">63c4f77</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

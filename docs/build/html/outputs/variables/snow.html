@@ -10,7 +10,7 @@
 <meta content="SUEWS snow output variables" name="description" />
 <meta content="SUEWS, output, snow, variables" name="keywords" />
 
-    <title>5.3.3. snow Output Variables &#8212; SUEWS 2026.8.6.dev5 documentation</title>
+    <title>5.3.3. snow Output Variables &#8212; SUEWS 2026.8.7.dev1 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=0f2ff1e5"></script>
+    <script src="../../_static/documentation_options.js?v=e9812316"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="5.3.2. SUEWS Output Variables" href="suews.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.6.dev5" />
+  <meta name="docsearch:version" content="2026.8.7.dev1" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.6.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/655ad75b4078d9ecddd35b7b677c34144b986d04" style="color: #31708f;">655ad75</a>).
+        (2026.8.7.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/63c4f773fa44bf26f3536957fec8218d3af6d49e" style="color: #31708f;">63c4f77</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev5 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev5 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.7.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.7.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -322,12 +322,12 @@
 <li class="toctree-l3"><a class="reference internal" href="suews.html">5.3.2. SUEWS Output Variables</a></li>
 <li class="toctree-l3 current active"><a class="current reference internal" href="#">5.3.3. snow Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="estm.html">5.3.4. ESTM Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.5. EHC Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.5. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dailystate.html">5.3.6. DailyState Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="bl.html">5.3.7. BL Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="debug.html">5.3.8. debug Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="beers.html">5.3.9. BEERS Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="beers.html">5.3.8. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="debug.html">5.3.9. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.10. EHC Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stebbs.html">5.3.12. STEBBS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="nhood.html">5.3.13. NHood Output Variables</a></li>
@@ -612,12 +612,12 @@
 <p>Snow-specific outputs for each surface type.</p>
 <p>This group contains 98 output variables.</p>
 <dl class="output variable" id="index-1">
-<dt class="sig sig-object output" id="output-variable-DensSnow_BSoil">
-<span class="sig-name descname"><span class="pre">DensSnow_BSoil</span></span><a class="headerlink" href="#output-variable-DensSnow_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for bare soil surface</p>
+<dt class="sig sig-object output" id="output-variable-SWE_Paved">
+<span class="sig-name descname"><span class="pre">SWE_Paved</span></span><a class="headerlink" href="#output-variable-SWE_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Snow water equivalent for paved surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -626,12 +626,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-2">
-<dt class="sig sig-object output" id="output-variable-DensSnow_Bldgs">
-<span class="sig-name descname"><span class="pre">DensSnow_Bldgs</span></span><a class="headerlink" href="#output-variable-DensSnow_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for building surface</p>
+<dt class="sig sig-object output" id="output-variable-SWE_Bldgs">
+<span class="sig-name descname"><span class="pre">SWE_Bldgs</span></span><a class="headerlink" href="#output-variable-SWE_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Snow water equivalent for building surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -640,12 +640,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-3">
-<dt class="sig sig-object output" id="output-variable-DensSnow_DecTr">
-<span class="sig-name descname"><span class="pre">DensSnow_DecTr</span></span><a class="headerlink" href="#output-variable-DensSnow_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for deciduous tree surface</p>
+<dt class="sig sig-object output" id="output-variable-SWE_EveTr">
+<span class="sig-name descname"><span class="pre">SWE_EveTr</span></span><a class="headerlink" href="#output-variable-SWE_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow water equivalent for evergreen tree surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -654,12 +654,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-4">
-<dt class="sig sig-object output" id="output-variable-DensSnow_EveTr">
-<span class="sig-name descname"><span class="pre">DensSnow_EveTr</span></span><a class="headerlink" href="#output-variable-DensSnow_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for evergreen tree surface</p>
+<dt class="sig sig-object output" id="output-variable-SWE_DecTr">
+<span class="sig-name descname"><span class="pre">SWE_DecTr</span></span><a class="headerlink" href="#output-variable-SWE_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow water equivalent for deciduous tree surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -668,12 +668,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-5">
-<dt class="sig sig-object output" id="output-variable-DensSnow_Grass">
-<span class="sig-name descname"><span class="pre">DensSnow_Grass</span></span><a class="headerlink" href="#output-variable-DensSnow_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for grass surface</p>
+<dt class="sig sig-object output" id="output-variable-SWE_Grass">
+<span class="sig-name descname"><span class="pre">SWE_Grass</span></span><a class="headerlink" href="#output-variable-SWE_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Snow water equivalent for grass surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -682,12 +682,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-6">
-<dt class="sig sig-object output" id="output-variable-DensSnow_Paved">
-<span class="sig-name descname"><span class="pre">DensSnow_Paved</span></span><a class="headerlink" href="#output-variable-DensSnow_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for paved surface</p>
+<dt class="sig sig-object output" id="output-variable-SWE_BSoil">
+<span class="sig-name descname"><span class="pre">SWE_BSoil</span></span><a class="headerlink" href="#output-variable-SWE_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Snow water equivalent for bare soil surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -696,12 +696,12 @@
 </dd></dl>
 
 <dl class="output variable" id="index-7">
-<dt class="sig sig-object output" id="output-variable-DensSnow_Water">
-<span class="sig-name descname"><span class="pre">DensSnow_Water</span></span><a class="headerlink" href="#output-variable-DensSnow_Water" title="Link to this definition">#</a></dt>
-<dd><p>Snow density for water surface</p>
+<dt class="sig sig-object output" id="output-variable-SWE_Water">
+<span class="sig-name descname"><span class="pre">SWE_Water</span></span><a class="headerlink" href="#output-variable-SWE_Water" title="Link to this definition">#</a></dt>
+<dd><p>Snow water equivalent for water surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -710,174 +710,6 @@
 </dd></dl>
 
 <dl class="output variable" id="index-8">
-<dt class="sig sig-object output" id="output-variable-MwStore_BSoil">
-<span class="sig-name descname"><span class="pre">MwStore_BSoil</span></span><a class="headerlink" href="#output-variable-MwStore_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-9">
-<dt class="sig sig-object output" id="output-variable-MwStore_Bldgs">
-<span class="sig-name descname"><span class="pre">MwStore_Bldgs</span></span><a class="headerlink" href="#output-variable-MwStore_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-10">
-<dt class="sig sig-object output" id="output-variable-MwStore_DecTr">
-<span class="sig-name descname"><span class="pre">MwStore_DecTr</span></span><a class="headerlink" href="#output-variable-MwStore_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-11">
-<dt class="sig sig-object output" id="output-variable-MwStore_EveTr">
-<span class="sig-name descname"><span class="pre">MwStore_EveTr</span></span><a class="headerlink" href="#output-variable-MwStore_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-12">
-<dt class="sig sig-object output" id="output-variable-MwStore_Grass">
-<span class="sig-name descname"><span class="pre">MwStore_Grass</span></span><a class="headerlink" href="#output-variable-MwStore_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-13">
-<dt class="sig sig-object output" id="output-variable-MwStore_Paved">
-<span class="sig-name descname"><span class="pre">MwStore_Paved</span></span><a class="headerlink" href="#output-variable-MwStore_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store for paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-14">
-<dt class="sig sig-object output" id="output-variable-MwStore_Water">
-<span class="sig-name descname"><span class="pre">MwStore_Water</span></span><a class="headerlink" href="#output-variable-MwStore_Water" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store for water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-15">
-<dt class="sig sig-object output" id="output-variable-Mw_BSoil">
-<span class="sig-name descname"><span class="pre">Mw_BSoil</span></span><a class="headerlink" href="#output-variable-Mw_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-16">
-<dt class="sig sig-object output" id="output-variable-Mw_Bldgs">
-<span class="sig-name descname"><span class="pre">Mw_Bldgs</span></span><a class="headerlink" href="#output-variable-Mw_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-17">
-<dt class="sig sig-object output" id="output-variable-Mw_DecTr">
-<span class="sig-name descname"><span class="pre">Mw_DecTr</span></span><a class="headerlink" href="#output-variable-Mw_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-18">
-<dt class="sig sig-object output" id="output-variable-Mw_EveTr">
-<span class="sig-name descname"><span class="pre">Mw_EveTr</span></span><a class="headerlink" href="#output-variable-Mw_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-19">
-<dt class="sig sig-object output" id="output-variable-Mw_Grass">
-<span class="sig-name descname"><span class="pre">Mw_Grass</span></span><a class="headerlink" href="#output-variable-Mw_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-20">
 <dt class="sig sig-object output" id="output-variable-Mw_Paved">
 <span class="sig-name descname"><span class="pre">Mw_Paved</span></span><a class="headerlink" href="#output-variable-Mw_Paved" title="Link to this definition">#</a></dt>
 <dd><p>Meltwater for paved surface</p>
@@ -891,7 +723,77 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-21">
+<dl class="output variable" id="index-9">
+<dt class="sig sig-object output" id="output-variable-Mw_Bldgs">
+<span class="sig-name descname"><span class="pre">Mw_Bldgs</span></span><a class="headerlink" href="#output-variable-Mw_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-10">
+<dt class="sig sig-object output" id="output-variable-Mw_EveTr">
+<span class="sig-name descname"><span class="pre">Mw_EveTr</span></span><a class="headerlink" href="#output-variable-Mw_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-11">
+<dt class="sig sig-object output" id="output-variable-Mw_DecTr">
+<span class="sig-name descname"><span class="pre">Mw_DecTr</span></span><a class="headerlink" href="#output-variable-Mw_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-12">
+<dt class="sig sig-object output" id="output-variable-Mw_Grass">
+<span class="sig-name descname"><span class="pre">Mw_Grass</span></span><a class="headerlink" href="#output-variable-Mw_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-13">
+<dt class="sig sig-object output" id="output-variable-Mw_BSoil">
+<span class="sig-name descname"><span class="pre">Mw_BSoil</span></span><a class="headerlink" href="#output-variable-Mw_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-14">
 <dt class="sig sig-object output" id="output-variable-Mw_Water">
 <span class="sig-name descname"><span class="pre">Mw_Water</span></span><a class="headerlink" href="#output-variable-Mw_Water" title="Link to this definition">#</a></dt>
 <dd><p>Meltwater for water surface</p>
@@ -905,10 +807,108 @@
 </dl>
 </dd></dl>
 
+<dl class="output variable" id="index-15">
+<dt class="sig sig-object output" id="output-variable-Qm_Paved">
+<span class="sig-name descname"><span class="pre">Qm_Paved</span></span><a class="headerlink" href="#output-variable-Qm_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Snow-related heat exchange for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-16">
+<dt class="sig sig-object output" id="output-variable-Qm_Bldgs">
+<span class="sig-name descname"><span class="pre">Qm_Bldgs</span></span><a class="headerlink" href="#output-variable-Qm_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Snow-related heat exchange for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-17">
+<dt class="sig sig-object output" id="output-variable-Qm_EveTr">
+<span class="sig-name descname"><span class="pre">Qm_EveTr</span></span><a class="headerlink" href="#output-variable-Qm_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow-related heat exchange for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-18">
+<dt class="sig sig-object output" id="output-variable-Qm_DecTr">
+<span class="sig-name descname"><span class="pre">Qm_DecTr</span></span><a class="headerlink" href="#output-variable-Qm_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow-related heat exchange for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-19">
+<dt class="sig sig-object output" id="output-variable-Qm_Grass">
+<span class="sig-name descname"><span class="pre">Qm_Grass</span></span><a class="headerlink" href="#output-variable-Qm_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Snow-related heat exchange for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-20">
+<dt class="sig sig-object output" id="output-variable-Qm_BSoil">
+<span class="sig-name descname"><span class="pre">Qm_BSoil</span></span><a class="headerlink" href="#output-variable-Qm_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Snow-related heat exchange for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-21">
+<dt class="sig sig-object output" id="output-variable-Qm_Water">
+<span class="sig-name descname"><span class="pre">Qm_Water</span></span><a class="headerlink" href="#output-variable-Qm_Water" title="Link to this definition">#</a></dt>
+<dd><p>Snow-related heat exchange for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="output variable" id="index-22">
-<dt class="sig sig-object output" id="output-variable-Qa_BSoil">
-<span class="sig-name descname"><span class="pre">Qa_BSoil</span></span><a class="headerlink" href="#output-variable-Qa_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Advective heat for bare soil surface</p>
+<dt class="sig sig-object output" id="output-variable-Qa_Paved">
+<span class="sig-name descname"><span class="pre">Qa_Paved</span></span><a class="headerlink" href="#output-variable-Qa_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Advective heat for paved surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -934,9 +934,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-24">
-<dt class="sig sig-object output" id="output-variable-Qa_DecTr">
-<span class="sig-name descname"><span class="pre">Qa_DecTr</span></span><a class="headerlink" href="#output-variable-Qa_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Advective heat for deciduous tree surface</p>
+<dt class="sig sig-object output" id="output-variable-Qa_EveTr">
+<span class="sig-name descname"><span class="pre">Qa_EveTr</span></span><a class="headerlink" href="#output-variable-Qa_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Advective heat for evergreen tree surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -948,9 +948,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-25">
-<dt class="sig sig-object output" id="output-variable-Qa_EveTr">
-<span class="sig-name descname"><span class="pre">Qa_EveTr</span></span><a class="headerlink" href="#output-variable-Qa_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Advective heat for evergreen tree surface</p>
+<dt class="sig sig-object output" id="output-variable-Qa_DecTr">
+<span class="sig-name descname"><span class="pre">Qa_DecTr</span></span><a class="headerlink" href="#output-variable-Qa_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Advective heat for deciduous tree surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -976,9 +976,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-27">
-<dt class="sig sig-object output" id="output-variable-Qa_Paved">
-<span class="sig-name descname"><span class="pre">Qa_Paved</span></span><a class="headerlink" href="#output-variable-Qa_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Advective heat for paved surface</p>
+<dt class="sig sig-object output" id="output-variable-Qa_BSoil">
+<span class="sig-name descname"><span class="pre">Qa_BSoil</span></span><a class="headerlink" href="#output-variable-Qa_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Advective heat for bare soil surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1004,9 +1004,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-29">
-<dt class="sig sig-object output" id="output-variable-QmFr_BSoil">
-<span class="sig-name descname"><span class="pre">QmFr_BSoil</span></span><a class="headerlink" href="#output-variable-QmFr_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Heat related to freezing for bare soil surface</p>
+<dt class="sig sig-object output" id="output-variable-QmFr_Paved">
+<span class="sig-name descname"><span class="pre">QmFr_Paved</span></span><a class="headerlink" href="#output-variable-QmFr_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Heat related to freezing for paved surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1032,9 +1032,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-31">
-<dt class="sig sig-object output" id="output-variable-QmFr_DecTr">
-<span class="sig-name descname"><span class="pre">QmFr_DecTr</span></span><a class="headerlink" href="#output-variable-QmFr_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Heat related to freezing for deciduous tree surface</p>
+<dt class="sig sig-object output" id="output-variable-QmFr_EveTr">
+<span class="sig-name descname"><span class="pre">QmFr_EveTr</span></span><a class="headerlink" href="#output-variable-QmFr_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Heat related to freezing for evergreen tree surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1046,9 +1046,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-32">
-<dt class="sig sig-object output" id="output-variable-QmFr_EveTr">
-<span class="sig-name descname"><span class="pre">QmFr_EveTr</span></span><a class="headerlink" href="#output-variable-QmFr_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Heat related to freezing for evergreen tree surface</p>
+<dt class="sig sig-object output" id="output-variable-QmFr_DecTr">
+<span class="sig-name descname"><span class="pre">QmFr_DecTr</span></span><a class="headerlink" href="#output-variable-QmFr_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Heat related to freezing for deciduous tree surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1074,9 +1074,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-34">
-<dt class="sig sig-object output" id="output-variable-QmFr_Paved">
-<span class="sig-name descname"><span class="pre">QmFr_Paved</span></span><a class="headerlink" href="#output-variable-QmFr_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Heat related to freezing for paved surface</p>
+<dt class="sig sig-object output" id="output-variable-QmFr_BSoil">
+<span class="sig-name descname"><span class="pre">QmFr_BSoil</span></span><a class="headerlink" href="#output-variable-QmFr_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Heat related to freezing for bare soil surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1102,788 +1102,6 @@
 </dd></dl>
 
 <dl class="output variable" id="index-36">
-<dt class="sig sig-object output" id="output-variable-Qm_BSoil">
-<span class="sig-name descname"><span class="pre">Qm_BSoil</span></span><a class="headerlink" href="#output-variable-Qm_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-37">
-<dt class="sig sig-object output" id="output-variable-Qm_Bldgs">
-<span class="sig-name descname"><span class="pre">Qm_Bldgs</span></span><a class="headerlink" href="#output-variable-Qm_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-38">
-<dt class="sig sig-object output" id="output-variable-Qm_DecTr">
-<span class="sig-name descname"><span class="pre">Qm_DecTr</span></span><a class="headerlink" href="#output-variable-Qm_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-39">
-<dt class="sig sig-object output" id="output-variable-Qm_EveTr">
-<span class="sig-name descname"><span class="pre">Qm_EveTr</span></span><a class="headerlink" href="#output-variable-Qm_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-40">
-<dt class="sig sig-object output" id="output-variable-Qm_Grass">
-<span class="sig-name descname"><span class="pre">Qm_Grass</span></span><a class="headerlink" href="#output-variable-Qm_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-41">
-<dt class="sig sig-object output" id="output-variable-Qm_Paved">
-<span class="sig-name descname"><span class="pre">Qm_Paved</span></span><a class="headerlink" href="#output-variable-Qm_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange for paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-42">
-<dt class="sig sig-object output" id="output-variable-Qm_Water">
-<span class="sig-name descname"><span class="pre">Qm_Water</span></span><a class="headerlink" href="#output-variable-Qm_Water" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange for water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-43">
-<dt class="sig sig-object output" id="output-variable-Qn_BSoilSnow">
-<span class="sig-name descname"><span class="pre">Qn_BSoilSnow</span></span><a class="headerlink" href="#output-variable-Qn_BSoilSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow bsoil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-44">
-<dt class="sig sig-object output" id="output-variable-Qn_BldgsSnow">
-<span class="sig-name descname"><span class="pre">Qn_BldgsSnow</span></span><a class="headerlink" href="#output-variable-Qn_BldgsSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-45">
-<dt class="sig sig-object output" id="output-variable-Qn_DecTrSnow">
-<span class="sig-name descname"><span class="pre">Qn_DecTrSnow</span></span><a class="headerlink" href="#output-variable-Qn_DecTrSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow dectr surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-46">
-<dt class="sig sig-object output" id="output-variable-Qn_EveTrSnow">
-<span class="sig-name descname"><span class="pre">Qn_EveTrSnow</span></span><a class="headerlink" href="#output-variable-Qn_EveTrSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow evetr surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-47">
-<dt class="sig sig-object output" id="output-variable-Qn_GrassSnow">
-<span class="sig-name descname"><span class="pre">Qn_GrassSnow</span></span><a class="headerlink" href="#output-variable-Qn_GrassSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-48">
-<dt class="sig sig-object output" id="output-variable-Qn_PavedSnow">
-<span class="sig-name descname"><span class="pre">Qn_PavedSnow</span></span><a class="headerlink" href="#output-variable-Qn_PavedSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-49">
-<dt class="sig sig-object output" id="output-variable-Qn_WaterSnow">
-<span class="sig-name descname"><span class="pre">Qn_WaterSnow</span></span><a class="headerlink" href="#output-variable-Qn_WaterSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-50">
-<dt class="sig sig-object output" id="output-variable-RainSn_BSoil">
-<span class="sig-name descname"><span class="pre">RainSn_BSoil</span></span><a class="headerlink" href="#output-variable-RainSn_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Rain on snow for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-51">
-<dt class="sig sig-object output" id="output-variable-RainSn_Bldgs">
-<span class="sig-name descname"><span class="pre">RainSn_Bldgs</span></span><a class="headerlink" href="#output-variable-RainSn_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Rain on snow for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-52">
-<dt class="sig sig-object output" id="output-variable-RainSn_DecTr">
-<span class="sig-name descname"><span class="pre">RainSn_DecTr</span></span><a class="headerlink" href="#output-variable-RainSn_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Rain on snow for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-53">
-<dt class="sig sig-object output" id="output-variable-RainSn_EveTr">
-<span class="sig-name descname"><span class="pre">RainSn_EveTr</span></span><a class="headerlink" href="#output-variable-RainSn_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Rain on snow for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-54">
-<dt class="sig sig-object output" id="output-variable-RainSn_Grass">
-<span class="sig-name descname"><span class="pre">RainSn_Grass</span></span><a class="headerlink" href="#output-variable-RainSn_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Rain on snow for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-55">
-<dt class="sig sig-object output" id="output-variable-RainSn_Paved">
-<span class="sig-name descname"><span class="pre">RainSn_Paved</span></span><a class="headerlink" href="#output-variable-RainSn_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Rain on snow for paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-56">
-<dt class="sig sig-object output" id="output-variable-RainSn_Water">
-<span class="sig-name descname"><span class="pre">RainSn_Water</span></span><a class="headerlink" href="#output-variable-RainSn_Water" title="Link to this definition">#</a></dt>
-<dd><p>Rain on snow for water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sum (cumulative over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-57">
-<dt class="sig sig-object output" id="output-variable-SWE_BSoil">
-<span class="sig-name descname"><span class="pre">SWE_BSoil</span></span><a class="headerlink" href="#output-variable-SWE_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Snow water equivalent for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-58">
-<dt class="sig sig-object output" id="output-variable-SWE_Bldgs">
-<span class="sig-name descname"><span class="pre">SWE_Bldgs</span></span><a class="headerlink" href="#output-variable-SWE_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Snow water equivalent for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-59">
-<dt class="sig sig-object output" id="output-variable-SWE_DecTr">
-<span class="sig-name descname"><span class="pre">SWE_DecTr</span></span><a class="headerlink" href="#output-variable-SWE_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow water equivalent for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-60">
-<dt class="sig sig-object output" id="output-variable-SWE_EveTr">
-<span class="sig-name descname"><span class="pre">SWE_EveTr</span></span><a class="headerlink" href="#output-variable-SWE_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow water equivalent for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-61">
-<dt class="sig sig-object output" id="output-variable-SWE_Grass">
-<span class="sig-name descname"><span class="pre">SWE_Grass</span></span><a class="headerlink" href="#output-variable-SWE_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Snow water equivalent for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-62">
-<dt class="sig sig-object output" id="output-variable-SWE_Paved">
-<span class="sig-name descname"><span class="pre">SWE_Paved</span></span><a class="headerlink" href="#output-variable-SWE_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Snow water equivalent for paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-63">
-<dt class="sig sig-object output" id="output-variable-SWE_Water">
-<span class="sig-name descname"><span class="pre">SWE_Water</span></span><a class="headerlink" href="#output-variable-SWE_Water" title="Link to this definition">#</a></dt>
-<dd><p>Snow water equivalent for water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-64">
-<dt class="sig sig-object output" id="output-variable-Sd_BSoil">
-<span class="sig-name descname"><span class="pre">Sd_BSoil</span></span><a class="headerlink" href="#output-variable-Sd_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Snow depth for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-65">
-<dt class="sig sig-object output" id="output-variable-Sd_Bldgs">
-<span class="sig-name descname"><span class="pre">Sd_Bldgs</span></span><a class="headerlink" href="#output-variable-Sd_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Snow depth for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-66">
-<dt class="sig sig-object output" id="output-variable-Sd_DecTr">
-<span class="sig-name descname"><span class="pre">Sd_DecTr</span></span><a class="headerlink" href="#output-variable-Sd_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow depth for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-67">
-<dt class="sig sig-object output" id="output-variable-Sd_EveTr">
-<span class="sig-name descname"><span class="pre">Sd_EveTr</span></span><a class="headerlink" href="#output-variable-Sd_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow depth for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-68">
-<dt class="sig sig-object output" id="output-variable-Sd_Grass">
-<span class="sig-name descname"><span class="pre">Sd_Grass</span></span><a class="headerlink" href="#output-variable-Sd_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Snow depth for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-69">
-<dt class="sig sig-object output" id="output-variable-Sd_Paved">
-<span class="sig-name descname"><span class="pre">Sd_Paved</span></span><a class="headerlink" href="#output-variable-Sd_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Snow depth for paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-70">
-<dt class="sig sig-object output" id="output-variable-Sd_Water">
-<span class="sig-name descname"><span class="pre">Sd_Water</span></span><a class="headerlink" href="#output-variable-Sd_Water" title="Link to this definition">#</a></dt>
-<dd><p>Snow depth for water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-71">
-<dt class="sig sig-object output" id="output-variable-SnowAlb">
-<span class="sig-name descname"><span class="pre">SnowAlb</span></span><a class="headerlink" href="#output-variable-SnowAlb" title="Link to this definition">#</a></dt>
-<dd><p>Surface albedo for snow/ice</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-72">
-<dt class="sig sig-object output" id="output-variable-Tsnow_BSoil">
-<span class="sig-name descname"><span class="pre">Tsnow_BSoil</span></span><a class="headerlink" href="#output-variable-Tsnow_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Snow surface temperature for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-73">
-<dt class="sig sig-object output" id="output-variable-Tsnow_Bldgs">
-<span class="sig-name descname"><span class="pre">Tsnow_Bldgs</span></span><a class="headerlink" href="#output-variable-Tsnow_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Snow surface temperature for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-74">
-<dt class="sig sig-object output" id="output-variable-Tsnow_DecTr">
-<span class="sig-name descname"><span class="pre">Tsnow_DecTr</span></span><a class="headerlink" href="#output-variable-Tsnow_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow surface temperature for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-75">
-<dt class="sig sig-object output" id="output-variable-Tsnow_EveTr">
-<span class="sig-name descname"><span class="pre">Tsnow_EveTr</span></span><a class="headerlink" href="#output-variable-Tsnow_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Snow surface temperature for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-76">
-<dt class="sig sig-object output" id="output-variable-Tsnow_Grass">
-<span class="sig-name descname"><span class="pre">Tsnow_Grass</span></span><a class="headerlink" href="#output-variable-Tsnow_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Snow surface temperature for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-77">
-<dt class="sig sig-object output" id="output-variable-Tsnow_Paved">
-<span class="sig-name descname"><span class="pre">Tsnow_Paved</span></span><a class="headerlink" href="#output-variable-Tsnow_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Snow surface temperature for paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-78">
-<dt class="sig sig-object output" id="output-variable-Tsnow_Water">
-<span class="sig-name descname"><span class="pre">Tsnow_Water</span></span><a class="headerlink" href="#output-variable-Tsnow_Water" title="Link to this definition">#</a></dt>
-<dd><p>Snow surface temperature for water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-79">
-<dt class="sig sig-object output" id="output-variable-frMelt_BSoil">
-<span class="sig-name descname"><span class="pre">frMelt_BSoil</span></span><a class="headerlink" href="#output-variable-frMelt_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Amount of freezing melt water for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-80">
-<dt class="sig sig-object output" id="output-variable-frMelt_Bldgs">
-<span class="sig-name descname"><span class="pre">frMelt_Bldgs</span></span><a class="headerlink" href="#output-variable-frMelt_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Amount of freezing melt water for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-81">
-<dt class="sig sig-object output" id="output-variable-frMelt_DecTr">
-<span class="sig-name descname"><span class="pre">frMelt_DecTr</span></span><a class="headerlink" href="#output-variable-frMelt_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Amount of freezing melt water for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-82">
-<dt class="sig sig-object output" id="output-variable-frMelt_EveTr">
-<span class="sig-name descname"><span class="pre">frMelt_EveTr</span></span><a class="headerlink" href="#output-variable-frMelt_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Amount of freezing melt water for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-83">
-<dt class="sig sig-object output" id="output-variable-frMelt_Grass">
-<span class="sig-name descname"><span class="pre">frMelt_Grass</span></span><a class="headerlink" href="#output-variable-frMelt_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Amount of freezing melt water for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-84">
-<dt class="sig sig-object output" id="output-variable-frMelt_Paved">
-<span class="sig-name descname"><span class="pre">frMelt_Paved</span></span><a class="headerlink" href="#output-variable-frMelt_Paved" title="Link to this definition">#</a></dt>
-<dd><p>Amount of freezing melt water for paved surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-85">
-<dt class="sig sig-object output" id="output-variable-frMelt_Water">
-<span class="sig-name descname"><span class="pre">frMelt_Water</span></span><a class="headerlink" href="#output-variable-frMelt_Water" title="Link to this definition">#</a></dt>
-<dd><p>Amount of freezing melt water for water surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-86">
-<dt class="sig sig-object output" id="output-variable-fr_BSoil">
-<span class="sig-name descname"><span class="pre">fr_BSoil</span></span><a class="headerlink" href="#output-variable-fr_BSoil" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of surface covered by snow for bare soil surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-87">
-<dt class="sig sig-object output" id="output-variable-fr_Bldgs">
-<span class="sig-name descname"><span class="pre">fr_Bldgs</span></span><a class="headerlink" href="#output-variable-fr_Bldgs" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of surface covered by snow for building surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-88">
-<dt class="sig sig-object output" id="output-variable-fr_DecTr">
-<span class="sig-name descname"><span class="pre">fr_DecTr</span></span><a class="headerlink" href="#output-variable-fr_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of surface covered by snow for deciduous tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-89">
-<dt class="sig sig-object output" id="output-variable-fr_EveTr">
-<span class="sig-name descname"><span class="pre">fr_EveTr</span></span><a class="headerlink" href="#output-variable-fr_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of surface covered by snow for evergreen tree surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-90">
-<dt class="sig sig-object output" id="output-variable-fr_Grass">
-<span class="sig-name descname"><span class="pre">fr_Grass</span></span><a class="headerlink" href="#output-variable-fr_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of surface covered by snow for grass surface</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-91">
 <dt class="sig sig-object output" id="output-variable-fr_Paved">
 <span class="sig-name descname"><span class="pre">fr_Paved</span></span><a class="headerlink" href="#output-variable-fr_Paved" title="Link to this definition">#</a></dt>
 <dd><p>Fraction of surface covered by snow for paved surface</p>
@@ -1899,10 +1117,188 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-92">
-<dt class="sig sig-object output" id="output-variable-kup_BSoilSnow">
-<span class="sig-name descname"><span class="pre">kup_BSoilSnow</span></span><a class="headerlink" href="#output-variable-kup_BSoilSnow" title="Link to this definition">#</a></dt>
-<dd><p>Reflected shortwave radiation for snow bsoil surface</p>
+<dl class="output variable" id="index-37">
+<dt class="sig sig-object output" id="output-variable-fr_Bldgs">
+<span class="sig-name descname"><span class="pre">fr_Bldgs</span></span><a class="headerlink" href="#output-variable-fr_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Fraction of surface covered by snow for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-38">
+<dt class="sig sig-object output" id="output-variable-fr_EveTr">
+<span class="sig-name descname"><span class="pre">fr_EveTr</span></span><a class="headerlink" href="#output-variable-fr_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Fraction of surface covered by snow for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-39">
+<dt class="sig sig-object output" id="output-variable-fr_DecTr">
+<span class="sig-name descname"><span class="pre">fr_DecTr</span></span><a class="headerlink" href="#output-variable-fr_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Fraction of surface covered by snow for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-40">
+<dt class="sig sig-object output" id="output-variable-fr_Grass">
+<span class="sig-name descname"><span class="pre">fr_Grass</span></span><a class="headerlink" href="#output-variable-fr_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Fraction of surface covered by snow for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-41">
+<dt class="sig sig-object output" id="output-variable-fr_BSoil">
+<span class="sig-name descname"><span class="pre">fr_BSoil</span></span><a class="headerlink" href="#output-variable-fr_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Fraction of surface covered by snow for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-42">
+<dt class="sig sig-object output" id="output-variable-RainSn_Paved">
+<span class="sig-name descname"><span class="pre">RainSn_Paved</span></span><a class="headerlink" href="#output-variable-RainSn_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Rain on snow for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-43">
+<dt class="sig sig-object output" id="output-variable-RainSn_Bldgs">
+<span class="sig-name descname"><span class="pre">RainSn_Bldgs</span></span><a class="headerlink" href="#output-variable-RainSn_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Rain on snow for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-44">
+<dt class="sig sig-object output" id="output-variable-RainSn_EveTr">
+<span class="sig-name descname"><span class="pre">RainSn_EveTr</span></span><a class="headerlink" href="#output-variable-RainSn_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Rain on snow for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-45">
+<dt class="sig sig-object output" id="output-variable-RainSn_DecTr">
+<span class="sig-name descname"><span class="pre">RainSn_DecTr</span></span><a class="headerlink" href="#output-variable-RainSn_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Rain on snow for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-46">
+<dt class="sig sig-object output" id="output-variable-RainSn_Grass">
+<span class="sig-name descname"><span class="pre">RainSn_Grass</span></span><a class="headerlink" href="#output-variable-RainSn_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Rain on snow for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-47">
+<dt class="sig sig-object output" id="output-variable-RainSn_BSoil">
+<span class="sig-name descname"><span class="pre">RainSn_BSoil</span></span><a class="headerlink" href="#output-variable-RainSn_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Rain on snow for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-48">
+<dt class="sig sig-object output" id="output-variable-RainSn_Water">
+<span class="sig-name descname"><span class="pre">RainSn_Water</span></span><a class="headerlink" href="#output-variable-RainSn_Water" title="Link to this definition">#</a></dt>
+<dd><p>Rain on snow for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-49">
+<dt class="sig sig-object output" id="output-variable-Qn_PavedSnow">
+<span class="sig-name descname"><span class="pre">Qn_PavedSnow</span></span><a class="headerlink" href="#output-variable-Qn_PavedSnow" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for snow paved surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1913,10 +1309,10 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-93">
-<dt class="sig sig-object output" id="output-variable-kup_BldgsSnow">
-<span class="sig-name descname"><span class="pre">kup_BldgsSnow</span></span><a class="headerlink" href="#output-variable-kup_BldgsSnow" title="Link to this definition">#</a></dt>
-<dd><p>Reflected shortwave radiation for snow building surface</p>
+<dl class="output variable" id="index-50">
+<dt class="sig sig-object output" id="output-variable-Qn_BldgsSnow">
+<span class="sig-name descname"><span class="pre">Qn_BldgsSnow</span></span><a class="headerlink" href="#output-variable-Qn_BldgsSnow" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for snow building surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1927,10 +1323,10 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-94">
-<dt class="sig sig-object output" id="output-variable-kup_DecTrSnow">
-<span class="sig-name descname"><span class="pre">kup_DecTrSnow</span></span><a class="headerlink" href="#output-variable-kup_DecTrSnow" title="Link to this definition">#</a></dt>
-<dd><p>Reflected shortwave radiation for snow dectr surface</p>
+<dl class="output variable" id="index-51">
+<dt class="sig sig-object output" id="output-variable-Qn_EveTrSnow">
+<span class="sig-name descname"><span class="pre">Qn_EveTrSnow</span></span><a class="headerlink" href="#output-variable-Qn_EveTrSnow" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for snow evetr surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1941,10 +1337,10 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-95">
-<dt class="sig sig-object output" id="output-variable-kup_EveTrSnow">
-<span class="sig-name descname"><span class="pre">kup_EveTrSnow</span></span><a class="headerlink" href="#output-variable-kup_EveTrSnow" title="Link to this definition">#</a></dt>
-<dd><p>Reflected shortwave radiation for snow evetr surface</p>
+<dl class="output variable" id="index-52">
+<dt class="sig sig-object output" id="output-variable-Qn_DecTrSnow">
+<span class="sig-name descname"><span class="pre">Qn_DecTrSnow</span></span><a class="headerlink" href="#output-variable-Qn_DecTrSnow" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for snow dectr surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1955,10 +1351,10 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-96">
-<dt class="sig sig-object output" id="output-variable-kup_GrassSnow">
-<span class="sig-name descname"><span class="pre">kup_GrassSnow</span></span><a class="headerlink" href="#output-variable-kup_GrassSnow" title="Link to this definition">#</a></dt>
-<dd><p>Reflected shortwave radiation for snow grass surface</p>
+<dl class="output variable" id="index-53">
+<dt class="sig sig-object output" id="output-variable-Qn_GrassSnow">
+<span class="sig-name descname"><span class="pre">Qn_GrassSnow</span></span><a class="headerlink" href="#output-variable-Qn_GrassSnow" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for snow grass surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1969,7 +1365,35 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-97">
+<dl class="output variable" id="index-54">
+<dt class="sig sig-object output" id="output-variable-Qn_BSoilSnow">
+<span class="sig-name descname"><span class="pre">Qn_BSoilSnow</span></span><a class="headerlink" href="#output-variable-Qn_BSoilSnow" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for snow bsoil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-55">
+<dt class="sig sig-object output" id="output-variable-Qn_WaterSnow">
+<span class="sig-name descname"><span class="pre">Qn_WaterSnow</span></span><a class="headerlink" href="#output-variable-Qn_WaterSnow" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for snow water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-56">
 <dt class="sig sig-object output" id="output-variable-kup_PavedSnow">
 <span class="sig-name descname"><span class="pre">kup_PavedSnow</span></span><a class="headerlink" href="#output-variable-kup_PavedSnow" title="Link to this definition">#</a></dt>
 <dd><p>Reflected shortwave radiation for snow paved surface</p>
@@ -1983,13 +1407,589 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-98">
+<dl class="output variable" id="index-57">
+<dt class="sig sig-object output" id="output-variable-kup_BldgsSnow">
+<span class="sig-name descname"><span class="pre">kup_BldgsSnow</span></span><a class="headerlink" href="#output-variable-kup_BldgsSnow" title="Link to this definition">#</a></dt>
+<dd><p>Reflected shortwave radiation for snow building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-58">
+<dt class="sig sig-object output" id="output-variable-kup_EveTrSnow">
+<span class="sig-name descname"><span class="pre">kup_EveTrSnow</span></span><a class="headerlink" href="#output-variable-kup_EveTrSnow" title="Link to this definition">#</a></dt>
+<dd><p>Reflected shortwave radiation for snow evetr surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-59">
+<dt class="sig sig-object output" id="output-variable-kup_DecTrSnow">
+<span class="sig-name descname"><span class="pre">kup_DecTrSnow</span></span><a class="headerlink" href="#output-variable-kup_DecTrSnow" title="Link to this definition">#</a></dt>
+<dd><p>Reflected shortwave radiation for snow dectr surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-60">
+<dt class="sig sig-object output" id="output-variable-kup_GrassSnow">
+<span class="sig-name descname"><span class="pre">kup_GrassSnow</span></span><a class="headerlink" href="#output-variable-kup_GrassSnow" title="Link to this definition">#</a></dt>
+<dd><p>Reflected shortwave radiation for snow grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-61">
+<dt class="sig sig-object output" id="output-variable-kup_BSoilSnow">
+<span class="sig-name descname"><span class="pre">kup_BSoilSnow</span></span><a class="headerlink" href="#output-variable-kup_BSoilSnow" title="Link to this definition">#</a></dt>
+<dd><p>Reflected shortwave radiation for snow bsoil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-62">
 <dt class="sig sig-object output" id="output-variable-kup_WaterSnow">
 <span class="sig-name descname"><span class="pre">kup_WaterSnow</span></span><a class="headerlink" href="#output-variable-kup_WaterSnow" title="Link to this definition">#</a></dt>
 <dd><p>Reflected shortwave radiation for snow water surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-63">
+<dt class="sig sig-object output" id="output-variable-frMelt_Paved">
+<span class="sig-name descname"><span class="pre">frMelt_Paved</span></span><a class="headerlink" href="#output-variable-frMelt_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Amount of freezing melt water for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-64">
+<dt class="sig sig-object output" id="output-variable-frMelt_Bldgs">
+<span class="sig-name descname"><span class="pre">frMelt_Bldgs</span></span><a class="headerlink" href="#output-variable-frMelt_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Amount of freezing melt water for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-65">
+<dt class="sig sig-object output" id="output-variable-frMelt_EveTr">
+<span class="sig-name descname"><span class="pre">frMelt_EveTr</span></span><a class="headerlink" href="#output-variable-frMelt_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Amount of freezing melt water for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-66">
+<dt class="sig sig-object output" id="output-variable-frMelt_DecTr">
+<span class="sig-name descname"><span class="pre">frMelt_DecTr</span></span><a class="headerlink" href="#output-variable-frMelt_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Amount of freezing melt water for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-67">
+<dt class="sig sig-object output" id="output-variable-frMelt_Grass">
+<span class="sig-name descname"><span class="pre">frMelt_Grass</span></span><a class="headerlink" href="#output-variable-frMelt_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Amount of freezing melt water for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-68">
+<dt class="sig sig-object output" id="output-variable-frMelt_BSoil">
+<span class="sig-name descname"><span class="pre">frMelt_BSoil</span></span><a class="headerlink" href="#output-variable-frMelt_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Amount of freezing melt water for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-69">
+<dt class="sig sig-object output" id="output-variable-frMelt_Water">
+<span class="sig-name descname"><span class="pre">frMelt_Water</span></span><a class="headerlink" href="#output-variable-frMelt_Water" title="Link to this definition">#</a></dt>
+<dd><p>Amount of freezing melt water for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-70">
+<dt class="sig sig-object output" id="output-variable-MwStore_Paved">
+<span class="sig-name descname"><span class="pre">MwStore_Paved</span></span><a class="headerlink" href="#output-variable-MwStore_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater store for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-71">
+<dt class="sig sig-object output" id="output-variable-MwStore_Bldgs">
+<span class="sig-name descname"><span class="pre">MwStore_Bldgs</span></span><a class="headerlink" href="#output-variable-MwStore_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater store for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-72">
+<dt class="sig sig-object output" id="output-variable-MwStore_EveTr">
+<span class="sig-name descname"><span class="pre">MwStore_EveTr</span></span><a class="headerlink" href="#output-variable-MwStore_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater store for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-73">
+<dt class="sig sig-object output" id="output-variable-MwStore_DecTr">
+<span class="sig-name descname"><span class="pre">MwStore_DecTr</span></span><a class="headerlink" href="#output-variable-MwStore_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater store for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-74">
+<dt class="sig sig-object output" id="output-variable-MwStore_Grass">
+<span class="sig-name descname"><span class="pre">MwStore_Grass</span></span><a class="headerlink" href="#output-variable-MwStore_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater store for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-75">
+<dt class="sig sig-object output" id="output-variable-MwStore_BSoil">
+<span class="sig-name descname"><span class="pre">MwStore_BSoil</span></span><a class="headerlink" href="#output-variable-MwStore_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater store for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-76">
+<dt class="sig sig-object output" id="output-variable-MwStore_Water">
+<span class="sig-name descname"><span class="pre">MwStore_Water</span></span><a class="headerlink" href="#output-variable-MwStore_Water" title="Link to this definition">#</a></dt>
+<dd><p>Meltwater store for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-77">
+<dt class="sig sig-object output" id="output-variable-DensSnow_Paved">
+<span class="sig-name descname"><span class="pre">DensSnow_Paved</span></span><a class="headerlink" href="#output-variable-DensSnow_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-78">
+<dt class="sig sig-object output" id="output-variable-DensSnow_Bldgs">
+<span class="sig-name descname"><span class="pre">DensSnow_Bldgs</span></span><a class="headerlink" href="#output-variable-DensSnow_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-79">
+<dt class="sig sig-object output" id="output-variable-DensSnow_EveTr">
+<span class="sig-name descname"><span class="pre">DensSnow_EveTr</span></span><a class="headerlink" href="#output-variable-DensSnow_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-80">
+<dt class="sig sig-object output" id="output-variable-DensSnow_DecTr">
+<span class="sig-name descname"><span class="pre">DensSnow_DecTr</span></span><a class="headerlink" href="#output-variable-DensSnow_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-81">
+<dt class="sig sig-object output" id="output-variable-DensSnow_Grass">
+<span class="sig-name descname"><span class="pre">DensSnow_Grass</span></span><a class="headerlink" href="#output-variable-DensSnow_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-82">
+<dt class="sig sig-object output" id="output-variable-DensSnow_BSoil">
+<span class="sig-name descname"><span class="pre">DensSnow_BSoil</span></span><a class="headerlink" href="#output-variable-DensSnow_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-83">
+<dt class="sig sig-object output" id="output-variable-DensSnow_Water">
+<span class="sig-name descname"><span class="pre">DensSnow_Water</span></span><a class="headerlink" href="#output-variable-DensSnow_Water" title="Link to this definition">#</a></dt>
+<dd><p>Snow density for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-84">
+<dt class="sig sig-object output" id="output-variable-Sd_Paved">
+<span class="sig-name descname"><span class="pre">Sd_Paved</span></span><a class="headerlink" href="#output-variable-Sd_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Snow depth for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-85">
+<dt class="sig sig-object output" id="output-variable-Sd_Bldgs">
+<span class="sig-name descname"><span class="pre">Sd_Bldgs</span></span><a class="headerlink" href="#output-variable-Sd_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Snow depth for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-86">
+<dt class="sig sig-object output" id="output-variable-Sd_EveTr">
+<span class="sig-name descname"><span class="pre">Sd_EveTr</span></span><a class="headerlink" href="#output-variable-Sd_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow depth for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-87">
+<dt class="sig sig-object output" id="output-variable-Sd_DecTr">
+<span class="sig-name descname"><span class="pre">Sd_DecTr</span></span><a class="headerlink" href="#output-variable-Sd_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow depth for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-88">
+<dt class="sig sig-object output" id="output-variable-Sd_Grass">
+<span class="sig-name descname"><span class="pre">Sd_Grass</span></span><a class="headerlink" href="#output-variable-Sd_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Snow depth for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-89">
+<dt class="sig sig-object output" id="output-variable-Sd_BSoil">
+<span class="sig-name descname"><span class="pre">Sd_BSoil</span></span><a class="headerlink" href="#output-variable-Sd_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Snow depth for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-90">
+<dt class="sig sig-object output" id="output-variable-Sd_Water">
+<span class="sig-name descname"><span class="pre">Sd_Water</span></span><a class="headerlink" href="#output-variable-Sd_Water" title="Link to this definition">#</a></dt>
+<dd><p>Snow depth for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-91">
+<dt class="sig sig-object output" id="output-variable-Tsnow_Paved">
+<span class="sig-name descname"><span class="pre">Tsnow_Paved</span></span><a class="headerlink" href="#output-variable-Tsnow_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Snow surface temperature for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-92">
+<dt class="sig sig-object output" id="output-variable-Tsnow_Bldgs">
+<span class="sig-name descname"><span class="pre">Tsnow_Bldgs</span></span><a class="headerlink" href="#output-variable-Tsnow_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Snow surface temperature for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-93">
+<dt class="sig sig-object output" id="output-variable-Tsnow_EveTr">
+<span class="sig-name descname"><span class="pre">Tsnow_EveTr</span></span><a class="headerlink" href="#output-variable-Tsnow_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow surface temperature for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-94">
+<dt class="sig sig-object output" id="output-variable-Tsnow_DecTr">
+<span class="sig-name descname"><span class="pre">Tsnow_DecTr</span></span><a class="headerlink" href="#output-variable-Tsnow_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Snow surface temperature for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-95">
+<dt class="sig sig-object output" id="output-variable-Tsnow_Grass">
+<span class="sig-name descname"><span class="pre">Tsnow_Grass</span></span><a class="headerlink" href="#output-variable-Tsnow_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Snow surface temperature for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-96">
+<dt class="sig sig-object output" id="output-variable-Tsnow_BSoil">
+<span class="sig-name descname"><span class="pre">Tsnow_BSoil</span></span><a class="headerlink" href="#output-variable-Tsnow_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Snow surface temperature for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-97">
+<dt class="sig sig-object output" id="output-variable-Tsnow_Water">
+<span class="sig-name descname"><span class="pre">Tsnow_Water</span></span><a class="headerlink" href="#output-variable-Tsnow_Water" title="Link to this definition">#</a></dt>
+<dd><p>Snow surface temperature for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-98">
+<dt class="sig sig-object output" id="output-variable-SnowAlb">
+<span class="sig-name descname"><span class="pre">SnowAlb</span></span><a class="headerlink" href="#output-variable-SnowAlb" title="Link to this definition">#</a></dt>
+<dd><p>Surface albedo for snow/ice</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -2068,8 +2068,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.6.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/655ad75b4078d9ecddd35b7b677c34144b986d04">655ad75</a> |
+  <p>Version: 2026.8.7.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/63c4f773fa44bf26f3536957fec8218d3af6d49e">63c4f77</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

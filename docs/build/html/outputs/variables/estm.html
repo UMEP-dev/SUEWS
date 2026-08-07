@@ -10,7 +10,7 @@
 <meta content="SUEWS ESTM output variables" name="description" />
 <meta content="SUEWS, output, estm, variables" name="keywords" />
 
-    <title>5.3.4. ESTM Output Variables &#8212; SUEWS 2026.8.6.dev5 documentation</title>
+    <title>5.3.4. ESTM Output Variables &#8212; SUEWS 2026.8.7.dev1 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=0f2ff1e5"></script>
+    <script src="../../_static/documentation_options.js?v=e9812316"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,11 +57,11 @@
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="5.3.5. EHC Output Variables" href="ehc.html" />
+    <link rel="next" title="5.3.5. RSL Output Variables" href="rsl.html" />
     <link rel="prev" title="5.3.3. snow Output Variables" href="snow.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.6.dev5" />
+  <meta name="docsearch:version" content="2026.8.7.dev1" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.6.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/655ad75b4078d9ecddd35b7b677c34144b986d04" style="color: #31708f;">655ad75</a>).
+        (2026.8.7.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/63c4f773fa44bf26f3536957fec8218d3af6d49e" style="color: #31708f;">63c4f77</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev5 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev5 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.7.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.7.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -322,12 +322,12 @@
 <li class="toctree-l3"><a class="reference internal" href="suews.html">5.3.2. SUEWS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="snow.html">5.3.3. snow Output Variables</a></li>
 <li class="toctree-l3 current active"><a class="current reference internal" href="#">5.3.4. ESTM Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.5. EHC Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.5. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dailystate.html">5.3.6. DailyState Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="bl.html">5.3.7. BL Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="debug.html">5.3.8. debug Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="beers.html">5.3.9. BEERS Output Variables</a></li>
-<li class="toctree-l3"><a class="reference internal" href="dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="beers.html">5.3.8. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="debug.html">5.3.9. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.10. EHC Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stebbs.html">5.3.12. STEBBS Output Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="nhood.html">5.3.13. NHood Output Variables</a></li>
@@ -640,48 +640,6 @@
 </dd></dl>
 
 <dl class="output variable" id="index-3">
-<dt class="sig sig-object output" id="output-variable-QSGround">
-<span class="sig-name descname"><span class="pre">QSGround</span></span><a class="headerlink" href="#output-variable-QSGround" title="Link to this definition">#</a></dt>
-<dd><p>Heat storage rate in ground elements</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-4">
-<dt class="sig sig-object output" id="output-variable-QSIBld">
-<span class="sig-name descname"><span class="pre">QSIBld</span></span><a class="headerlink" href="#output-variable-QSIBld" title="Link to this definition">#</a></dt>
-<dd><p>Heat storage rate in internal building mass</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-5">
-<dt class="sig sig-object output" id="output-variable-QSRoof">
-<span class="sig-name descname"><span class="pre">QSRoof</span></span><a class="headerlink" href="#output-variable-QSRoof" title="Link to this definition">#</a></dt>
-<dd><p>Heat storage rate in roof elements</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W m<sup>-2</sup></p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-6">
 <dt class="sig sig-object output" id="output-variable-QSWall">
 <span class="sig-name descname"><span class="pre">QSWall</span></span><a class="headerlink" href="#output-variable-QSWall" title="Link to this definition">#</a></dt>
 <dd><p>Heat storage rate in wall elements</p>
@@ -695,10 +653,52 @@
 </dl>
 </dd></dl>
 
+<dl class="output variable" id="index-4">
+<dt class="sig sig-object output" id="output-variable-QSRoof">
+<span class="sig-name descname"><span class="pre">QSRoof</span></span><a class="headerlink" href="#output-variable-QSRoof" title="Link to this definition">#</a></dt>
+<dd><p>Heat storage rate in roof elements</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-5">
+<dt class="sig sig-object output" id="output-variable-QSGround">
+<span class="sig-name descname"><span class="pre">QSGround</span></span><a class="headerlink" href="#output-variable-QSGround" title="Link to this definition">#</a></dt>
+<dd><p>Heat storage rate in ground elements</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-6">
+<dt class="sig sig-object output" id="output-variable-QSIBld">
+<span class="sig-name descname"><span class="pre">QSIBld</span></span><a class="headerlink" href="#output-variable-QSIBld" title="Link to this definition">#</a></dt>
+<dd><p>Heat storage rate in internal building mass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="output variable" id="index-7">
-<dt class="sig sig-object output" id="output-variable-TGROUND1">
-<span class="sig-name descname"><span class="pre">TGROUND1</span></span><a class="headerlink" href="#output-variable-TGROUND1" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 1 (outermost, external surface)</p>
+<dt class="sig sig-object output" id="output-variable-TWALL1">
+<span class="sig-name descname"><span class="pre">TWALL1</span></span><a class="headerlink" href="#output-variable-TWALL1" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in wall layer 1 (outermost, external surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -710,9 +710,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-8">
-<dt class="sig sig-object output" id="output-variable-TGROUND2">
-<span class="sig-name descname"><span class="pre">TGROUND2</span></span><a class="headerlink" href="#output-variable-TGROUND2" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 2 (outer-middle)</p>
+<dt class="sig sig-object output" id="output-variable-TWALL2">
+<span class="sig-name descname"><span class="pre">TWALL2</span></span><a class="headerlink" href="#output-variable-TWALL2" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in wall layer 2 (outer-middle)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -724,9 +724,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-9">
-<dt class="sig sig-object output" id="output-variable-TGROUND3">
-<span class="sig-name descname"><span class="pre">TGROUND3</span></span><a class="headerlink" href="#output-variable-TGROUND3" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 3 (middle)</p>
+<dt class="sig sig-object output" id="output-variable-TWALL3">
+<span class="sig-name descname"><span class="pre">TWALL3</span></span><a class="headerlink" href="#output-variable-TWALL3" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in wall layer 3 (middle)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -738,9 +738,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-10">
-<dt class="sig sig-object output" id="output-variable-TGROUND4">
-<span class="sig-name descname"><span class="pre">TGROUND4</span></span><a class="headerlink" href="#output-variable-TGROUND4" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 4 (inner-middle)</p>
+<dt class="sig sig-object output" id="output-variable-TWALL4">
+<span class="sig-name descname"><span class="pre">TWALL4</span></span><a class="headerlink" href="#output-variable-TWALL4" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in wall layer 4 (inner-middle)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -752,9 +752,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-11">
-<dt class="sig sig-object output" id="output-variable-TGROUND5">
-<span class="sig-name descname"><span class="pre">TGROUND5</span></span><a class="headerlink" href="#output-variable-TGROUND5" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 5 (innermost, internal surface)</p>
+<dt class="sig sig-object output" id="output-variable-TWALL5">
+<span class="sig-name descname"><span class="pre">TWALL5</span></span><a class="headerlink" href="#output-variable-TWALL5" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in wall layer 5 (innermost, internal surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -836,9 +836,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-17">
-<dt class="sig sig-object output" id="output-variable-TWALL1">
-<span class="sig-name descname"><span class="pre">TWALL1</span></span><a class="headerlink" href="#output-variable-TWALL1" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in wall layer 1 (outermost, external surface)</p>
+<dt class="sig sig-object output" id="output-variable-TGROUND1">
+<span class="sig-name descname"><span class="pre">TGROUND1</span></span><a class="headerlink" href="#output-variable-TGROUND1" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in ground layer 1 (outermost, external surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -850,9 +850,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-18">
-<dt class="sig sig-object output" id="output-variable-TWALL2">
-<span class="sig-name descname"><span class="pre">TWALL2</span></span><a class="headerlink" href="#output-variable-TWALL2" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in wall layer 2 (outer-middle)</p>
+<dt class="sig sig-object output" id="output-variable-TGROUND2">
+<span class="sig-name descname"><span class="pre">TGROUND2</span></span><a class="headerlink" href="#output-variable-TGROUND2" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in ground layer 2 (outer-middle)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -864,9 +864,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-19">
-<dt class="sig sig-object output" id="output-variable-TWALL3">
-<span class="sig-name descname"><span class="pre">TWALL3</span></span><a class="headerlink" href="#output-variable-TWALL3" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in wall layer 3 (middle)</p>
+<dt class="sig sig-object output" id="output-variable-TGROUND3">
+<span class="sig-name descname"><span class="pre">TGROUND3</span></span><a class="headerlink" href="#output-variable-TGROUND3" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in ground layer 3 (middle)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -878,9 +878,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-20">
-<dt class="sig sig-object output" id="output-variable-TWALL4">
-<span class="sig-name descname"><span class="pre">TWALL4</span></span><a class="headerlink" href="#output-variable-TWALL4" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in wall layer 4 (inner-middle)</p>
+<dt class="sig sig-object output" id="output-variable-TGROUND4">
+<span class="sig-name descname"><span class="pre">TGROUND4</span></span><a class="headerlink" href="#output-variable-TGROUND4" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in ground layer 4 (inner-middle)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -892,9 +892,9 @@
 </dd></dl>
 
 <dl class="output variable" id="index-21">
-<dt class="sig sig-object output" id="output-variable-TWALL5">
-<span class="sig-name descname"><span class="pre">TWALL5</span></span><a class="headerlink" href="#output-variable-TWALL5" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in wall layer 5 (innermost, internal surface)</p>
+<dt class="sig sig-object output" id="output-variable-TGROUND5">
+<span class="sig-name descname"><span class="pre">TGROUND5</span></span><a class="headerlink" href="#output-variable-TGROUND5" title="Link to this definition">#</a></dt>
+<dd><p>Temperature in ground layer 5 (innermost, internal surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -906,20 +906,6 @@
 </dd></dl>
 
 <dl class="output variable" id="index-22">
-<dt class="sig sig-object output" id="output-variable-TaBLD">
-<span class="sig-name descname"><span class="pre">TaBLD</span></span><a class="headerlink" href="#output-variable-TaBLD" title="Link to this definition">#</a></dt>
-<dd><p>Indoor air temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degK</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-23">
 <dt class="sig sig-object output" id="output-variable-TiBLD1">
 <span class="sig-name descname"><span class="pre">TiBLD1</span></span><a class="headerlink" href="#output-variable-TiBLD1" title="Link to this definition">#</a></dt>
 <dd><p>Temperature in internal building layer 1 (outermost, external surface)</p>
@@ -933,7 +919,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-24">
+<dl class="output variable" id="index-23">
 <dt class="sig sig-object output" id="output-variable-TiBLD2">
 <span class="sig-name descname"><span class="pre">TiBLD2</span></span><a class="headerlink" href="#output-variable-TiBLD2" title="Link to this definition">#</a></dt>
 <dd><p>Temperature in internal building layer 2 (outer-middle)</p>
@@ -947,7 +933,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-25">
+<dl class="output variable" id="index-24">
 <dt class="sig sig-object output" id="output-variable-TiBLD3">
 <span class="sig-name descname"><span class="pre">TiBLD3</span></span><a class="headerlink" href="#output-variable-TiBLD3" title="Link to this definition">#</a></dt>
 <dd><p>Temperature in internal building layer 3 (middle)</p>
@@ -961,7 +947,7 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-26">
+<dl class="output variable" id="index-25">
 <dt class="sig sig-object output" id="output-variable-TiBLD4">
 <span class="sig-name descname"><span class="pre">TiBLD4</span></span><a class="headerlink" href="#output-variable-TiBLD4" title="Link to this definition">#</a></dt>
 <dd><p>Temperature in internal building layer 4 (inner-middle)</p>
@@ -975,10 +961,24 @@
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-27">
+<dl class="output variable" id="index-26">
 <dt class="sig sig-object output" id="output-variable-TiBLD5">
 <span class="sig-name descname"><span class="pre">TiBLD5</span></span><a class="headerlink" href="#output-variable-TiBLD5" title="Link to this definition">#</a></dt>
 <dd><p>Temperature in internal building layer 5 (innermost, internal surface)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degK</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-27">
+<dt class="sig sig-object output" id="output-variable-TaBLD">
+<span class="sig-name descname"><span class="pre">TaBLD</span></span><a class="headerlink" href="#output-variable-TaBLD" title="Link to this definition">#</a></dt>
+<dd><p>Indoor air temperature</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -1012,11 +1012,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="ehc.html"
+       href="rsl.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">5.3.5. </span>EHC Output Variables</p>
+        <p class="prev-next-title"><span class="section-number">5.3.5. </span>RSL Output Variables</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1060,8 +1060,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.6.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/655ad75b4078d9ecddd35b7b677c34144b986d04">655ad75</a> |
+  <p>Version: 2026.8.7.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/63c4f773fa44bf26f3536957fec8218d3af6d49e">63c4f77</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

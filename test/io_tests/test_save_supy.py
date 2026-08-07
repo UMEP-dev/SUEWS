@@ -94,24 +94,17 @@ class TestSaveSuPy:
         df_output, df_state_final = sample_output
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Save only DailyState group
-            # Note: Currently dict-based output_config doesn't support groups filtering
-            # This would require using the OutputControl class from data_model
-            # For now, we'll test that the default behavior works
-
-            # Test default behavior (should include SUEWS)
             list_files = sp.save_supy(
-                df_output, df_state_final, path_dir_save=tmpdir, site="test"
+                df_output,
+                df_state_final,
+                path_dir_save=tmpdir,
+                site="test",
+                output_config=OutputControl(groups=["SUEWS"]),
+                save_state=False,
             )
 
-            # Check that both SUEWS and state files were created
-            assert len(list_files) >= 2, (
-                "At least SUEWS and state files should be created"
-            )
-
-            # SUEWS file should be created by default
-            suews_files = [f for f in list_files if "SUEWS" in str(f)]
-            assert len(suews_files) > 0, "SUEWS file should be created by default"
+            assert list_files
+            assert all("_SUEWS_" in Path(path).name for path in list_files)
 
     def test_resample_frequency(self, sample_output):
         """Test different resampling frequencies."""

@@ -181,6 +181,121 @@ class ForcingRegistry(BaseModel):
         """Return the variable matching a canonical name or accessor alias."""
         return self._lookup(name, "accessor_aliases", False)
 
+    @property
+    def legacy_variables(self) -> tuple[ForcingVariable, ...]:
+        """Return external legacy columns in their compatibility order."""
+        return tuple(
+            sorted(
+                (
+                    variable
+                    for variable in self.variables
+                    if variable.legacy_position is not None
+                ),
+                key=lambda variable: variable.legacy_position or 0,
+            )
+        )
+
+    @property
+    def canonical_file_columns(self) -> tuple[str, ...]:
+        """Return canonical external columns in legacy file order."""
+        return tuple(variable.name for variable in self.legacy_variables)
+
+    @property
+    def baseline_datetime_columns(self) -> tuple[str, ...]:
+        """Return required timestamp columns in legacy file order."""
+        return tuple(
+            variable.name
+            for variable in self.legacy_variables
+            if variable.requiredness == "baseline" and variable.role == "coordinate"
+        )
+
+    @property
+    def baseline_driver_columns(self) -> tuple[str, ...]:
+        """Return required meteorological columns in legacy file order."""
+        return tuple(
+            variable.name
+            for variable in self.legacy_variables
+            if variable.requiredness == "baseline" and variable.role != "coordinate"
+        )
+
+    @property
+    def baseline_file_columns(self) -> tuple[str, ...]:
+        """Return every column required directly in an external forcing file."""
+        return self.baseline_datetime_columns + self.baseline_driver_columns
+
+    @property
+    def optional_canonical_columns(self) -> tuple[str, ...]:
+        """Return non-baseline legacy columns in compatibility order."""
+        return tuple(
+            variable.name
+            for variable in self.legacy_variables
+            if variable.requiredness != "baseline"
+        )
+
+    @property
+    def temporal_types(self) -> dict[str, TemporalSemantics]:
+        """Return resampling semantics for canonical external columns."""
+        return {variable.name: variable.temporal for variable in self.legacy_variables}
+
+    @property
+    def runtime_validation_ranges(
+        self,
+    ) -> dict[str, tuple[float | None, float | None, str | None]]:
+        """Return enforced ranges converted from file units to runtime units."""
+        projected: dict[str, tuple[float | None, float | None, str | None]] = {}
+        for variable in self.legacy_variables:
+            if variable.validation_range is None:
+                continue
+            lower, upper = variable.validation_range
+            scale = variable.runtime_scale
+            projected[variable.name] = (
+                None if lower is None else lower * scale,
+                None if upper is None else upper * scale,
+                variable.runtime_unit or variable.unit,
+            )
+        return projected
+
+    @property
+    def accessor_aliases(self) -> dict[str, list[str]]:
+        """Return programmatic aliases without admitting them as file headers."""
+        return {
+            variable.name: list(variable.accessor_aliases)
+            for variable in self.variables
+            if variable.accessor_aliases
+        }
+
+    @property
+    def per_landcover_columns(self) -> dict[str, tuple[str, ...]]:
+        """Return surface-expanded columns grouped by their bulk fallback."""
+        grouped: dict[str, list[str]] = {}
+        for variable in self.variables:
+            if variable.fallback is not None:
+                grouped.setdefault(variable.fallback.casefold(), []).append(
+                    variable.name
+                )
+        return {name: tuple(columns) for name, columns in grouped.items()}
+
+    @property
+    def current_requirements(self) -> dict[tuple[str, int], frozenset[str]]:
+        """Project current physics selectors onto their bulk compatibility path."""
+        projected: dict[tuple[str, int], frozenset[str]] = {}
+        for rule in self.requirement_rules:
+            required = frozenset(name.casefold() for name in rule.alternatives[0])
+            for value in rule.values:
+                projected[rule.selector, value] = required
+        return projected
+
+    @property
+    def legacy_requirements(self) -> dict[tuple[str, int], list[str]]:
+        """Project legacy checker selectors without changing their vocabulary."""
+        projected: dict[tuple[str, int], list[str]] = {}
+        for rule in self.requirement_rules:
+            if rule.legacy_selector is None:
+                continue
+            for value in rule.legacy_values:
+                projected[rule.legacy_selector, value] = list(rule.alternatives[0])
+        return projected
+
     def _lookup(
         self,
         name: str,

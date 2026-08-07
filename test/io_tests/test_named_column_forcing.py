@@ -43,6 +43,40 @@ def test_missing_baseline_column_raises(tmp_path):
         read_forcing(str(bad_path), tstep_mod=None)
 
 
+@pytest.mark.parametrize(
+    "column",
+    ("iy", "id", "it", "imin", "U", "RH", "Tair", "pres", "rain", "kdown"),
+)
+def test_each_missing_baseline_column_is_named_directly(tmp_path, column):
+    """Every baseline header failure identifies the canonical column."""
+    from supy.util._io import read_forcing
+
+    lines = CANONICAL_FIXTURE.read_text(encoding="utf-8").splitlines()
+    header_tokens = lines[0].split()
+    drop_index = header_tokens.index(column)
+    rows = [
+        " ".join(
+            token for index, token in enumerate(line.split()) if index != drop_index
+        )
+        for line in lines[1:]
+    ]
+    path = tmp_path / f"missing-{column}.txt"
+    path.write_text(
+        "\n".join([
+            " ".join(
+                token
+                for index, token in enumerate(header_tokens)
+                if index != drop_index
+            ),
+            *rows,
+        ]),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=rf"\b{column}\b"):
+        read_forcing(str(path), tstep_mod=None)
+
+
 def test_unknown_column_warns(tmp_path):
     """T6: an unknown column produces a UserWarning but the run continues."""
     from supy.util._io import read_forcing

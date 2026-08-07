@@ -12,33 +12,11 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-# Variable aliases for more intuitive access
-FORCING_ALIASES = {
-    # Technical name -> Human-readable aliases
-    "Tair": ["temperature", "air_temperature", "temp", "t_air", "ta"],
-    "RH": ["relative_humidity", "humidity", "rh"],
-    "pres": ["pressure", "air_pressure", "p"],
-    "U": ["wind_speed", "wind", "u"],
-    "kdown": ["shortwave_down", "solar_radiation", "sw_down", "k_down"],
-    "ldown": ["longwave_down", "lw_down", "l_down"],
-    "rain": ["precipitation", "rainfall", "precip"],
-    "fcld": ["cloud_fraction", "cloud_cover", "clouds"],
-    "xsmd": ["soil_moisture", "smd"],
-    "qn": ["net_radiation", "qstar", "q_star"],
-    "qh": ["sensible_heat", "h"],
-    "qe": ["latent_heat", "le"],
-    "qf": ["anthropogenic_heat"],
-    "qs": ["storage_heat"],
-    "snow": ["snowfall"],
-    "Wuh": ["water_use", "external_water", "wu_mm"],
-    "lai_evetr": ["leaf_area_index_evetr"],
-    "lai_dectr": ["leaf_area_index_dectr"],
-    "lai_grass": ["leaf_area_index_grass"],
-    "lai": ["leaf_area_index"],
-    "kdiff": ["diffuse_radiation"],
-    "kdir": ["direct_radiation"],
-    "wdir": ["wind_direction", "wd"],
-}
+from .data_model.forcing import FORCING_REGISTRY
+
+# Compatibility projections retained for downstream users of these module
+# constants. File aliases remain a separate registry namespace.
+FORCING_ALIASES = FORCING_REGISTRY.accessor_aliases
 
 # Build reverse mapping: alias -> canonical name
 _ALIAS_TO_CANONICAL = {}
@@ -48,64 +26,14 @@ for canonical, aliases in FORCING_ALIASES.items():
     _ALIAS_TO_CANONICAL[canonical.lower()] = canonical
 
 
-# Variable types for resampling (from _load.py)
 FORCING_VAR_TYPES = {
-    "iy": "time",
-    "id": "time",
-    "it": "time",
-    "imin": "time",
-    "qn": "avg",
-    "qh": "avg",
-    "qe": "avg",
-    "qs": "avg",
-    "qf": "avg",
-    "U": "inst",
-    "RH": "inst",
-    "Tair": "inst",
-    "pres": "inst",
-    "rain": "sum",
-    "kdown": "avg",
-    "snow": "inst",
-    "ldown": "avg",
-    "fcld": "inst",
-    "Wuh": "sum",
-    "xsmd": "inst",
-    "lai_evetr": "inst",
-    "lai_dectr": "inst",
-    "lai_grass": "inst",
-    "lai": "inst",
-    "kdiff": "avg",
-    "kdir": "avg",
-    "wdir": "inst",
+    variable.name: variable.temporal
+    for variable in FORCING_REGISTRY.variables
+    if variable.legacy_position is not None or variable.fallback == "lai"
 }
 
 # Required columns for SUEWS forcing
-REQUIRED_COLUMNS = [
-    "iy",
-    "id",
-    "it",
-    "imin",
-    "qn",
-    "qh",
-    "qe",
-    "qs",
-    "qf",
-    "U",
-    "RH",
-    "Tair",
-    "pres",
-    "rain",
-    "kdown",
-    "snow",
-    "ldown",
-    "fcld",
-    "Wuh",
-    "xsmd",
-    "lai",
-    "kdiff",
-    "kdir",
-    "wdir",
-]
+REQUIRED_COLUMNS = list(FORCING_REGISTRY.canonical_file_columns)
 
 
 @dataclass

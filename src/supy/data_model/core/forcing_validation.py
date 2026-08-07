@@ -12,46 +12,16 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
+from ..forcing import FORCING_REGISTRY
 
-# (physics_field, value) -> required forcing column names.
-# Keep this aligned with supy._check.FORCING_REQUIREMENTS, but use the
-# current Pydantic field names emitted by ModelPhysics.model_dump().
-_PHYSICS_REQUIRED_FORCING: dict[tuple[str, int], frozenset[str]] = {
-    ("net_radiation", 0): frozenset({"qn"}),
-    ("net_radiation", 1): frozenset({"ldown"}),
-    ("net_radiation", 2): frozenset({"kdown", "fcld"}),
-    ("net_radiation", 3): frozenset({"kdown"}),
-    ("net_radiation", 11): frozenset({"ldown"}),
-    ("net_radiation", 12): frozenset({"kdown", "fcld"}),
-    ("net_radiation", 13): frozenset({"kdown"}),
-    ("net_radiation", 100): frozenset({"ldown"}),
-    ("net_radiation", 200): frozenset({"kdown", "fcld"}),
-    ("net_radiation", 300): frozenset({"kdown"}),
-    ("net_radiation", 1001): frozenset({"ldown"}),
-    ("net_radiation", 1002): frozenset({"kdown", "fcld"}),
-    ("net_radiation", 1003): frozenset({"kdown"}),
-    ("storage_heat", 0): frozenset({"qs"}),
-    ("emissions", 0): frozenset({"qf"}),
-    ("soil_moisture_deficit", 1): frozenset({"xsmd"}),
-    ("soil_moisture_deficit", 2): frozenset({"xsmd"}),
-    ("laimethod", 0): frozenset({"lai"}),
-    # gh#1372 review: WaterUseMethod.OBSERVED (1) consumes the bulk
-    # `wuh` forcing column in the Fortran water-use path. Without this
-    # entry a forcing file could omit `wuh`, pass the physics/forcing
-    # check, and then run with the -999 sentinel (or a downscaled
-    # negative value) instead of failing early.
-    ("water_use", 1): frozenset({"wuh"}),
-}
+_PHYSICS_REQUIRED_FORCING = FORCING_REGISTRY.current_requirements
 
-LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+LAI_VEG_COLUMNS = FORCING_REGISTRY.per_landcover_columns["lai"]
 # Per-land-cover external water-use forcing columns, named with the same
 # `wuh_<suffix>` convention users write in their forcing files (see
 # supy._load.WUH_LANDCOVER_SUFFIXES). Each falls back to the bulk `wuh`
 # column when its per-surface column is absent, mirroring LAI_VEG_COLUMNS.
-WUH_SURF_COLUMNS = (
-    "wuh_paved", "wuh_bldgs", "wuh_evetr", "wuh_dectr",
-    "wuh_grass", "wuh_bsoil", "wuh_water",
-)
+WUH_SURF_COLUMNS = FORCING_REGISTRY.per_landcover_columns["wuh"]
 
 
 def _resolve(value: Any) -> Any:

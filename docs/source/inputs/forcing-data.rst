@@ -90,12 +90,13 @@ File Format
 
 - **Format**: Space or tab-delimited text file
 - **Extension**: ``.txt``
-- **Header**: No header row - data starts from first line
+- **Header**: Required; canonical names are matched case-insensitively
 - **Missing values**: Use ``-999`` for optional variables
 
-**Column Order**
+**Canonical columns**
 
-The columns must appear in this exact order:
+The historical compatibility order is shown below. Modern named-column files
+may use any column order:
 
 .. code-block:: text
 
@@ -175,6 +176,11 @@ matched, case-insensitively, against the canonical column list above.
   quantity and is intentionally not per-landcover.
 * **Unknown columns**: any column not in the canonical or whitelisted
   sets emits a ``UserWarning`` and is dropped.
+
+Registry-derived variable reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. include:: generated/forcing-variable-reference.rst
 
 Important Requirements
 ----------------------

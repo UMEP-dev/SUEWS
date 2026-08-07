@@ -8,12 +8,15 @@ import pytest
 
 pytestmark = pytest.mark.api
 
-FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "benchmark1" / "forcing"
+FIXTURE_DIR = (
+    Path(__file__).resolve().parent.parent / "fixtures" / "benchmark1" / "forcing"
+)
 CANONICAL_FIXTURE = FIXTURE_DIR / "Kc1_2011_data_5_tiny.txt"
 
 
 def _read_canonical():
     from supy.util._io import read_forcing
+
     return read_forcing(str(CANONICAL_FIXTURE), tstep_mod=None)
 
 
@@ -41,6 +44,66 @@ def test_missing_baseline_column_raises(tmp_path):
     bad_path.write_text(bad, encoding="utf-8")
     with pytest.raises(ValueError, match=r"\bTair\b"):
         read_forcing(str(bad_path), tstep_mod=None)
+
+
+@pytest.mark.parametrize(
+    "column",
+    ("iy", "id", "it", "imin", "U", "RH", "Tair", "pres", "rain", "kdown"),
+)
+def test_each_missing_baseline_column_is_named_directly(tmp_path, column):
+    """Every baseline header failure identifies the canonical column."""
+    from supy.util._io import read_forcing
+
+    lines = CANONICAL_FIXTURE.read_text(encoding="utf-8").splitlines()
+    header_tokens = lines[0].split()
+    drop_index = header_tokens.index(column)
+    rows = [
+        " ".join(
+            token for index, token in enumerate(line.split()) if index != drop_index
+        )
+        for line in lines[1:]
+    ]
+    path = tmp_path / f"missing-{column}.txt"
+    path.write_text(
+        "\n".join([
+            " ".join(
+                token
+                for index, token in enumerate(header_tokens)
+                if index != drop_index
+            ),
+            *rows,
+        ]),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=rf"\b{column}\b"):
+        read_forcing(str(path), tstep_mod=None)
+
+
+def test_all_missing_baseline_columns_are_named_together(tmp_path):
+    """A malformed file reports the complete registry-derived baseline set."""
+    from supy.util._io import read_forcing
+
+    path = tmp_path / "missing-baseline.txt"
+    path.write_text("qn\n-999\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        read_forcing(str(path), tstep_mod=None)
+
+    message = str(exc_info.value)
+    for column in (
+        "iy",
+        "id",
+        "it",
+        "imin",
+        "U",
+        "RH",
+        "Tair",
+        "pres",
+        "rain",
+        "kdown",
+    ):
+        assert column in message
 
 
 def test_unknown_column_warns(tmp_path):
@@ -97,15 +160,39 @@ def test_per_landcover_columns_separated_into_extras(tmp_path):
     forcing = SUEWSForcing.from_file(str(p))
     assert hasattr(forcing, "extras")
     assert set(forcing.extras.keys()) == {
-        "lai_evetr", "lai_dectr", "lai_grass", "wuh_paved",
+        "lai_evetr",
+        "lai_dectr",
+        "lai_grass",
+        "wuh_paved",
     }
     # Each extras series matches the appended constant value
     assert (forcing.extras["lai_evetr"] == 1.5).all()
     assert (forcing.extras["wuh_paved"] == 0.25).all()
     # Main DataFrame retains canonical columns; per-landcover ones are gone.
-    canonical = {"iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "rain",
-                 "kdown", "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
-                 "qn", "qh", "qe", "qs", "qf", "isec"}
+    canonical = {
+        "iy",
+        "id",
+        "it",
+        "imin",
+        "Tair",
+        "RH",
+        "U",
+        "pres",
+        "rain",
+        "kdown",
+        "snow",
+        "ldown",
+        "fcld",
+        "Wuh",
+        "xsmd",
+        "lai",
+        "qn",
+        "qh",
+        "qe",
+        "qs",
+        "qf",
+        "isec",
+    }
     assert canonical.issubset(set(forcing.df.columns))
     assert "lai_evetr" not in forcing.df.columns
 
@@ -200,8 +287,7 @@ def test_per_landcover_extras_survive_time_slicing(tmp_path):
     lines = text.splitlines()
     path = tmp_path / "kc_extra_slice.txt"
     data_rows = [
-        line + f" {1.0 + i:.1f} {10.0 + i:.1f}"
-        for i, line in enumerate(lines[1:])
+        line + f" {1.0 + i:.1f} {10.0 + i:.1f}" for i, line in enumerate(lines[1:])
     ]
     path.write_text(
         "\n".join([lines[0] + " lai_evetr wuh_grass", *data_rows]),
@@ -245,7 +331,9 @@ def test_shuffled_header_yields_same_dataframe_as_canonical():
     canonical_path = CANONICAL_FIXTURE
     shuffled_path = (
         Path(__file__).resolve().parent.parent
-        / "fixtures" / "forcing" / "kc_shuffled.txt"
+        / "fixtures"
+        / "forcing"
+        / "kc_shuffled.txt"
     )
     df_canonical = read_forcing(str(canonical_path), tstep_mod=None)
     df_shuffled = read_forcing(str(shuffled_path), tstep_mod=None)

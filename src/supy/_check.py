@@ -15,8 +15,9 @@ from ._load import (
     dict_var_type_forcing,
     set_var_use,
 )
+from .data_model.forcing import FORCING_REGISTRY
 
-LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+LAI_VEG_COLUMNS = FORCING_REGISTRY.per_landcover_columns["lai"]
 
 
 # the check list file with ranges and logics
@@ -40,6 +41,20 @@ def load_rules(path_rules) -> Dict:
 
 # store rules as a dict
 dict_rules_indiv = load_rules(path_rules_indiv)
+
+_FORCING_RUNTIME_RULES = {
+    name.casefold(): {
+        "cat": "grid",
+        "logic": "range",
+        "optional": name not in FORCING_REGISTRY.baseline_driver_columns,
+        "param": {
+            "min": "-inf" if lower is None else lower,
+            "max": "inf" if upper is None else upper,
+        },
+        "unit": unit or "unresolved",
+    }
+    for name, (lower, upper, unit) in FORCING_REGISTRY.runtime_validation_ranges.items()
+}
 
 
 # checking the range of each parameter
@@ -156,20 +171,7 @@ list_col_forcing = list(dict_var_type_forcing.keys())
 # Format: (physics_option_name, option_value): [list of required columns]
 # Reference: https://docs.suews.io/stable/inputs/tables/RunControl/RunControl.html
 # and https://docs.suews.io/stable/inputs/forcing-data.html
-FORCING_REQUIREMENTS = {
-    ("netradiationmethod", 0): ["qn"],  # Uses observed Q*
-    ("netradiationmethod", 1): ["ldown"],  # Q* modelled with L↓ observations
-    ("netradiationmethod", 2): [
-        "kdown",
-        "fcld",
-    ],  # Q* modelled with L↓ from cloud fraction
-    ("netradiationmethod", 3): ["kdown"],  # Q* modelled with L↓ from Tair and RH
-    ("storageheatmethod", 0): ["qs"],  # Uses observed storage heat flux
-    ("emissionsmethod", 0): ["qf"],  # Uses observed anthropogenic heat flux
-    ("smdmethod", 1): ["xsmd"],  # Uses observed volumetric soil moisture
-    ("smdmethod", 2): ["xsmd"],  # Uses observed gravimetric soil moisture
-    ("laimethod", 0): ["lai"],  # Uses observed LAI from forcing
-}
+FORCING_REQUIREMENTS = FORCING_REGISTRY.legacy_requirements
 
 
 def _matches_option_value(actual_value, option_value) -> bool:
@@ -367,18 +369,24 @@ def check_forcing(
         # extras inline on the returned DataFrame for downstream physics
         # work; without this guard the lookup in dict_rules_indiv would
         # KeyError on every extra.
-        if var.lower() not in dict_rules_indiv:
+        var_key = var.lower()
+        if var_key not in dict_rules_indiv and var_key not in _FORCING_RUNTIME_RULES:
             continue
         ser_var = df_forcing.loc[:, var].copy()
-        res_check = check_range(ser_var, dict_rules_indiv)
+        rules = (
+            _FORCING_RUNTIME_RULES
+            if var_key in _FORCING_RUNTIME_RULES
+            else dict_rules_indiv
+        )
+        res_check = check_range(ser_var, rules)
         if not res_check[1]:
             str_issue = res_check[2]
             list_issues.append(str_issue)
             flag_valid = False
             if fix:
                 var_check = var.lower()
-                min_v = dict_rules_indiv[var_check]["param"]["min"]
-                max_v = dict_rules_indiv[var_check]["param"]["max"]
+                min_v = rules[var_check]["param"]["min"]
+                max_v = rules[var_check]["param"]["max"]
                 ser_var = ser_var.clip(lower=min_v, upper=max_v)
                 df_forcing_fix.loc[:, var] = ser_var.values
 

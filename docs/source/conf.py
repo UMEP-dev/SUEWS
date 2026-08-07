@@ -371,6 +371,9 @@ exclude_patterns = [
     "_build",
     "**.ipynb_checkpoints",
     "build",
+    # Auto-generated RST fragment pulled into global_applications.rst via
+    # ``.. include::``; excluded so it is not also parsed as a standalone page.
+    "assets/wos-papers/global_applications_generated.rst",
 ]
 
 # Conditionally exclude DTS documentation if DTS features not available
@@ -753,6 +756,7 @@ bibtex_bibfiles = [
     "assets/refs/refs-SUEWS.bib",
     "assets/refs/refs-others.bib",
     "assets/refs/refs-community.bib",
+    "assets/refs/refs-wos.bib",
 ]
 bibtex_default_style = "refs"
 bibtex_reference_style = "author_year_round"

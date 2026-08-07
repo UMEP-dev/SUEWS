@@ -2,7 +2,7 @@ name: Schema version audit
 
 # Enforce that PRs changing the YAML-owned Pydantic models or the shipped
 # sample_config also bump `CURRENT_SCHEMA_VERSION` in
-# `src/supy/data_model/schema/version.py`. Maintainers can label a PR
+# `src/supy/data_model/configuration/version.py`. Maintainers can label a PR
 # with `0-ci:schema-audit-ok` to bypass the check when the diff is genuinely
 # cosmetic. Forcing and output contracts have an independent audit.
 

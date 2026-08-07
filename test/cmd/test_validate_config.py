@@ -283,7 +283,7 @@ def test_validate_single_file_rejects_negative_sfr(tmp_path: Path) -> None:
     validator still has its own regression here.
     """
     from supy.cmd.validate_config import validate_single_file
-    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.configuration.publisher import generate_json_schema
 
     payload = _load_sample_dict()
     _mutate_negative(payload)
@@ -302,7 +302,7 @@ def test_validate_single_file_rejects_storage_value_plus_nested_qf(
 ) -> None:
     """Malformed storage-heat family values must not be partially folded."""
     from supy.cmd.validate_config import validate_single_file
-    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.configuration.publisher import generate_json_schema
 
     payload = _load_sample_dict()
     payload["model"]["physics"]["storage_heat"] = {
@@ -385,8 +385,8 @@ def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
     user-facing semantics.
     """
     from supy.cmd.validate_config import validate_single_file
-    from supy.data_model.schema.publisher import generate_json_schema
-    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.data_model.configuration.publisher import generate_json_schema
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
     from supy.data_model.validation.pipeline.orchestrator import (
         CRITICAL_PHYSICS_PARAMS,
     )
@@ -435,8 +435,8 @@ def test_validate_flat_stebbs_form_not_flagged_missing(tmp_path: Path) -> None:
     them missing.
     """
     from supy.cmd.validate_config import validate_single_file
-    from supy.data_model.schema.publisher import generate_json_schema
-    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.data_model.configuration.publisher import generate_json_schema
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
 
     payload = _minimal_paved_only_config(CURRENT_SCHEMA_VERSION)
     # Populate every required family switch plus the relocated STEBBS leaves
@@ -609,7 +609,7 @@ def test_validate_full_pipeline_experimental_restriction_emits_json_envelope(
     needs its own envelope path rather than printing Rich text.
     """
     from supy.cmd.validate_config import cli as validate_cli
-    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
 
     payload = _minimal_paved_only_config(CURRENT_SCHEMA_VERSION)
     payload["model"]["physics"] = {"stebbs": {"value": 1}}
@@ -829,7 +829,7 @@ def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
     Guards against over-eager flagging that would break the happy path.
     """
     from supy.cmd.validate_config import validate_single_file
-    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.configuration.publisher import generate_json_schema
 
     schema = generate_json_schema()
     with _sample_yaml_path() as sample:

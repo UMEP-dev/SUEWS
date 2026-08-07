@@ -16,7 +16,7 @@ import sys
 
 import click
 
-from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
+from ..data_model.configuration.version import CURRENT_SCHEMA_VERSION
 from .json_envelope import EXIT_USER_ERROR, Envelope, _now_iso
 
 # Mapping of template name -> (relative path under ``src/supy/sample_data``,

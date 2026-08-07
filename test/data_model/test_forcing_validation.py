@@ -37,7 +37,7 @@ def test_model_control_accepts_legacy_forcing_file():
 
 def test_current_schema_version_bumped_for_forcing_restructure():
     """gh#1372 forcing.file restructure must be documented in the 2026.5 entry."""
-    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
     # The gh#1372 forcing+output restructure landed during the 2026.5
     # development cycle (originally the dev9 cumulative bump). That cycle

@@ -19,7 +19,7 @@ Quick schema validation for checking configuration files:
 
     from pathlib import Path
     from supy.cmd.validate_config import validate_single_file
-    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.configuration.publisher import generate_json_schema
 
     # Generate the current schema
     schema = generate_json_schema()

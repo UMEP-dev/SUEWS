@@ -71,9 +71,9 @@ try:
         STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
     )
     from ..data_model.core.physics_families import flatten_physics_in_config
-    from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
-    from ..data_model.schema.publisher import generate_json_schema
-    from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
+    from ..data_model.configuration.version import CURRENT_SCHEMA_VERSION
+    from ..data_model.configuration.publisher import generate_json_schema
+    from ..data_model.configuration.migration import SchemaMigrator, check_migration_needed
 except ImportError:
     # Fallback for direct script execution
     import sys
@@ -86,9 +86,9 @@ except ImportError:
         STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
     )
     from supy.data_model.core.physics_families import flatten_physics_in_config
-    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
-    from supy.data_model.schema.publisher import generate_json_schema
-    from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
+    from supy.data_model.configuration.publisher import generate_json_schema
+    from supy.data_model.configuration.migration import SchemaMigrator, check_migration_needed
 
 # Sentinel used by the critical-physics-presence check below; module-level
 # so identity comparison stays stable across calls.
@@ -781,7 +781,7 @@ def version(files, update, target_version, backup):
     # Reuse common logic
     try:
         # Inline import to keep CLI startup light
-        from ..data_model.schema.version import CURRENT_SCHEMA_VERSION  # noqa: F401
+        from ..data_model.configuration.version import CURRENT_SCHEMA_VERSION  # noqa: F401
     except Exception:
         pass
     # Implement inline to avoid refactor breadth
@@ -793,7 +793,7 @@ def version(files, update, target_version, backup):
         table.add_column("Action", style="yellow")
 
     try:
-        from ..data_model.schema.version import (
+        from ..data_model.configuration.version import (
             CURRENT_SCHEMA_VERSION,
             is_schema_compatible,
         )
@@ -860,8 +860,8 @@ def version(files, update, target_version, backup):
 def export(output, version, fmt):
     """Export the configuration JSON Schema as JSON or YAML."""
     try:
-        from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
-        from ..data_model.schema.publisher import generate_json_schema
+        from ..data_model.configuration.version import CURRENT_SCHEMA_VERSION
+        from ..data_model.configuration.publisher import generate_json_schema
     except Exception as e:
         console.print(f"[red]✗ Unable to load schema publisher: {e}[/red]")
         sys.exit(1)

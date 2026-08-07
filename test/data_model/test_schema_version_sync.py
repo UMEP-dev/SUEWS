@@ -1,7 +1,7 @@
 """
 Guard against `CURRENT_SCHEMA_VERSION` drifting from `sample_config.yml`.
 
-`src/supy/data_model/schema/version.py::CURRENT_SCHEMA_VERSION` is the
+`src/supy/data_model/configuration/version.py::CURRENT_SCHEMA_VERSION` is the
 canonical version label; `src/supy/sample_data/sample_config.yml` ships
 with `schema_version: '<version>'`. The two must agree, otherwise:
 
@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from supy.data_model.schema import CURRENT_SCHEMA_VERSION
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 
 pytestmark = pytest.mark.api
 

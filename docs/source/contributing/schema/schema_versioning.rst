@@ -154,12 +154,12 @@ Python API
 
 .. code-block:: python
 
-   from supy.data_model.schema.migration import SchemaMigrator
+   from supy.data_model.configuration.migration import SchemaMigrator
 
    migrator = SchemaMigrator()
    upgraded = migrator.migrate(old_config, to_version="2026.5")
 
-   from supy.data_model.schema.version import is_schema_compatible
+   from supy.data_model.configuration.version import is_schema_compatible
    if is_schema_compatible("2026.4"):
        print("2026.4 has a registered migration path to current")
 
@@ -169,7 +169,7 @@ Version History
 ---------------
 
 The lineage below mirrors ``SCHEMA_VERSIONS`` in
-``src/supy/data_model/schema/version.py``. Each release tag maps to
+``src/supy/data_model/configuration/version.py``. Each release tag maps to
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 

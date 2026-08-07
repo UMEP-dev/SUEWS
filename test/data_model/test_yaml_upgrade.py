@@ -20,7 +20,7 @@ import yaml
 
 from supy.cmd.table_converter import convert_table_cmd
 from supy.data_model.core.config import SUEWSConfig
-from supy.data_model.schema import CURRENT_SCHEMA_VERSION
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.util.converter.yaml_upgrade import (
     YamlUpgradeError,
     upgrade_yaml,

@@ -40,8 +40,8 @@ from ...data_model.core.field_renames import (
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
 )
-from ...data_model.schema import CURRENT_SCHEMA_VERSION
-from ...data_model.schema.migration import SchemaMigrator
+from ...data_model.configuration import CURRENT_SCHEMA_VERSION
+from ...data_model.configuration.migration import SchemaMigrator
 
 # ---------------------------------------------------------------------------
 # Package-version -> schema-version resolver
@@ -52,7 +52,7 @@ from ...data_model.schema.migration import SchemaMigrator
 # ---------------------------------------------------------------------------
 
 # Retrospectively-assigned schema versions per formal release tag. The
-# `SCHEMA_VERSIONS` lineage in `src/supy/data_model/schema/version.py`
+# `SCHEMA_VERSIONS` lineage in `src/supy/data_model/configuration/version.py`
 # anchors each value here — see that file's docstring for the history of
 # why the schema version was frozen at "2025.12" through several structural
 # changes (gh#1304) and how the retrospective audit settled on these

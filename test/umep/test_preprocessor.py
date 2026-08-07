@@ -24,14 +24,14 @@ class TestDatabaseManagerAPI(TestCase):
 
     def test_generate_json_schema_import(self):
         """Test that generate_json_schema is importable from expected location."""
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         self.assertIsNotNone(generate_json_schema)
         self.assertTrue(callable(generate_json_schema))
 
     def test_generate_json_schema_returns_valid_schema(self):
         """Test that generate_json_schema returns a valid JSON schema."""
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         schema = generate_json_schema()
 
@@ -50,7 +50,7 @@ class TestDatabaseManagerAPI(TestCase):
 
     def test_generate_json_schema_has_definitions(self):
         """Test that schema contains $defs used by Database Manager for validation."""
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         schema = generate_json_schema()
 
@@ -79,7 +79,7 @@ class TestDatabasePrepareAPI(TestCase):
     def test_validate_single_file_valid_config(self):
         """Test validation of a valid configuration file."""
         from supy.cmd.validate_config import validate_single_file
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         # Get sample config path
         sample_config = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
@@ -100,7 +100,7 @@ class TestDatabasePrepareAPI(TestCase):
     def test_validate_single_file_invalid_config(self):
         """Test validation handles invalid config gracefully."""
         from supy.cmd.validate_config import validate_single_file
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         schema = generate_json_schema()
 
@@ -120,7 +120,7 @@ class TestDatabasePrepareAPI(TestCase):
     def test_validate_single_file_sparse_config_is_invalid(self):
         """Sparse YAML must fail file-backed model validation."""
         from supy.cmd.validate_config import validate_single_file
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         schema = generate_json_schema()
         sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
@@ -135,7 +135,7 @@ class TestDatabasePrepareAPI(TestCase):
     def test_validate_single_file_explicit_older_schema_stays_schema_only(self):
         """Explicit older targets should not run current-schema semantic checks."""
         from supy.cmd.validate_config import validate_single_file
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
         schema = generate_json_schema(version="2026.5.dev5")

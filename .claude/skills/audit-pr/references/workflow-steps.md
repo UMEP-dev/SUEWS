@@ -67,7 +67,7 @@ Check: FIRST principles, AAA pattern, tolerance assertions.
 - **CHANGELOG** — entry with correct category
 - **PR description** — scientific rationale (if physics)
 - **User docs** — updated if user-facing
-- **Schema bump trigger** — if `src/supy/data_model/schema/version.py`
+- **Schema bump trigger** — if `src/supy/data_model/configuration/version.py`
   moved `CURRENT_SCHEMA_VERSION`, the PR must also touch
   `docs/source/contributing/schema/schema_versioning.rst` and
   `docs/source/inputs/transition_guide.rst`. See the full trigger-specific

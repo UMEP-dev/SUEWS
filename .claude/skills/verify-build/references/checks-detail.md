@@ -20,12 +20,12 @@ ISSUE: src/suews/src/suews_phys_new.f95 not in meson.build
 
 ### 3. Schema Version Sync
 
-`CURRENT_SCHEMA_VERSION` in `src/supy/data_model/schema/version.py` must match the `schema_version` field in `src/supy/sample_data/sample_config.yml`. A mismatch means either:
+`CURRENT_SCHEMA_VERSION` in `src/supy/data_model/configuration/version.py` must match the `schema_version` field in `src/supy/sample_data/sample_config.yml`. A mismatch means either:
 - The schema was bumped but sample_config wasn't updated, or
 - sample_config was edited but the code constant wasn't bumped
 
 ```bash
-CODE_VER=$(python -c "from supy.data_model.schema import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
+CODE_VER=$(python -c "from supy.data_model.configuration import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
 YAML_VER=$(python -c "import yaml; print(yaml.safe_load(open('src/supy/sample_data/sample_config.yml'))['schema_version'])")
 [ "$CODE_VER" = "$YAML_VER" ] && echo "[OK] Schema version sync: $CODE_VER" || echo "[FAIL] Schema version mismatch: code=$CODE_VER, sample_config=$YAML_VER"
 ```

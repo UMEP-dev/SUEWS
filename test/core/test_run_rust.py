@@ -63,6 +63,31 @@ def test_validate_output_layout_reports_generated_registry_path(monkeypatch):
     assert "src/supy/data_model/output/dailystate_vars.py" in str(exc_info.value)
 
 
+def test_parse_output_block_preserves_registry_layout_and_missing_values():
+    """Label emitted groups in exact registry order and expose sentinels as NaN."""
+    output = np.zeros((_run_rust.OUTPUT_ALL_COLS,), dtype=np.float64)
+    output[:4] = [2012, 1, 0, 5]
+
+    offset = 0
+    for group_ordinal, (_, ncols) in enumerate(_run_rust.OUTPUT_GROUP_LAYOUT):
+        data_start = offset + _run_rust.OUTPUT_TIME_COLS
+        output[data_start : offset + ncols] = group_ordinal + 1
+        offset += ncols
+    output[_run_rust.OUTPUT_TIME_COLS] = -999.0
+
+    parsed = _run_rust._parse_output_block(output.tolist(), len_sim=1, grid_id=7)
+    expected_columns = [
+        (group, variable)
+        for group, _ in _run_rust.OUTPUT_GROUP_LAYOUT
+        for variable in _run_rust.df_var.xs(group, level="group").index
+    ]
+
+    assert parsed.columns.to_list() == expected_columns
+    assert parsed.columns.names == ["group", "var"]
+    assert parsed.index.names == ["grid", "datetime"]
+    assert pd.isna(parsed.iloc[0, 0])
+
+
 def _minimal_forcing_frame() -> pd.DataFrame:
     index = pd.date_range("2011-01-01 00:05", periods=2, freq="5min")
     return pd.DataFrame(

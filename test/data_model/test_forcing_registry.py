@@ -138,6 +138,29 @@ def test_registry_matches_current_python_requiredness_and_temporal_types() -> No
     }
 
 
+def test_registry_projects_python_forcing_metadata() -> None:
+    """Keep Python consumers on the forcing-owned registry projection."""
+    legacy = FORCING_REGISTRY.legacy_variables
+
+    assert FORCING_REGISTRY.canonical_file_columns == tuple(var.name for var in legacy)
+    assert FORCING_REGISTRY.baseline_datetime_columns == ("iy", "id", "it", "imin")
+    assert FORCING_REGISTRY.baseline_driver_columns == (
+        "U", "RH", "Tair", "pres", "rain", "kdown"
+    )
+    assert FORCING_REGISTRY.baseline_file_columns == (
+        *FORCING_REGISTRY.baseline_datetime_columns,
+        *FORCING_REGISTRY.baseline_driver_columns,
+    )
+    assert FORCING_REGISTRY.optional_canonical_columns == tuple(
+        variable.name for variable in legacy if variable.requiredness != "baseline"
+    )
+    assert FORCING_REGISTRY.runtime_validation_ranges["pres"] == (
+        680.0,
+        1300.0,
+        "hPa",
+    )
+
+
 def test_file_and_accessor_aliases_are_separate_namespaces() -> None:
     """Do not silently treat human-readable accessor aliases as file headers."""
     assert FORCING_REGISTRY.by_file_name("%TAIR").name == "Tair"

@@ -16,6 +16,7 @@ from packaging import version
 
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
 from ._misc import path_insensitive 
+from .data_model.forcing import FORCING_REGISTRY
 
 # choose different second representation to accommodate different pandas versions
 # pandas version <1.5
@@ -98,38 +99,9 @@ dict_varSiteSelect2File = {
 dict_Code2File.update(dict_varSiteSelect2File)
 
 
-# define data types for different resampling schemes
-# time: temporal info
-# avg: average values of period ending at timestamps
-# inst: instantaneous values at timestamps
-# sum: sum of period ending at timestamps
-dict_var_type_forcing = {
-    "iy": "time",
-    "id": "time",
-    "it": "time",
-    "imin": "time",
-    "qn": "avg",
-    "qh": "avg",
-    "qe": "avg",
-    "qs": "avg",
-    "qf": "avg",
-    "U": "inst",
-    "RH": "inst",
-    "Tair": "inst",
-    "pres": "inst",
-    "rain": "sum",
-    "kdown": "avg",
-    "snow": "inst",
-    "ldown": "avg",
-    "fcld": "inst",
-    "Wuh": "sum",
-    "xsmd": "inst",
-    "lai": "inst",
-    "kdiff": "avg",
-    "kdir": "avg",
-    "wdir": "inst",
-    "isec": "time",
-}
+# Compatibility projection used by the existing resampling code. ``isec`` is
+# derived internally and therefore remains outside the external registry.
+dict_var_type_forcing = {**FORCING_REGISTRY.temporal_types, "isec": "time"}
 
 
 # gh#1372 -- canonical forcing column name set (Python side, 24 cols),
@@ -139,38 +111,36 @@ dict_var_type_forcing = {
 # lower-cased canonical set; the DataFrame uses the canonical (cased)
 # names below. Whitelist must stay in sync with the Rust constants in
 # src/suews_bridge/src/forcing_io.rs.
-BASELINE_DATETIME_FORCING_COLUMNS: tuple[str, ...] = ("iy", "id", "it", "imin")
+BASELINE_DATETIME_FORCING_COLUMNS = FORCING_REGISTRY.baseline_datetime_columns
 BASELINE_DATETIME_FORCING_SET: frozenset[str] = frozenset(BASELINE_DATETIME_FORCING_COLUMNS)
 
-BASELINE_FORCING_COLUMNS: tuple[str, ...] = ("Tair", "RH", "U", "pres", "kdown", "rain")
+BASELINE_FORCING_COLUMNS = FORCING_REGISTRY.baseline_driver_columns
 BASELINE_FORCING_COLUMNS_SET: frozenset[str] = frozenset(BASELINE_FORCING_COLUMNS)
 
-OPTIONAL_FORCING_COLUMNS: list[str] = [
-    "qn", "qh", "qe", "qs", "qf",
-    "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
-    "kdiff", "kdir", "wdir",
-]
+OPTIONAL_FORCING_COLUMNS = list(FORCING_REGISTRY.optional_canonical_columns)
 
-CANONICAL_FORCING_COLUMNS = BASELINE_DATETIME_FORCING_SET | BASELINE_FORCING_COLUMNS_SET | frozenset(OPTIONAL_FORCING_COLUMNS)
+ORDERED_CANONICAL_FORCING_COLUMNS = FORCING_REGISTRY.canonical_file_columns
+CANONICAL_FORCING_COLUMNS = frozenset(ORDERED_CANONICAL_FORCING_COLUMNS)
 
-PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai", "wuh"})
-LANDCOVER_SUFFIXES: tuple[str, ...] = (
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-)
+_PER_LANDCOVER_COLUMNS = FORCING_REGISTRY.per_landcover_columns
+PER_LANDCOVER_FORCING_VARS = frozenset(_PER_LANDCOVER_COLUMNS)
 # LAI is only meaningful for vegetated surfaces; the other four surface
 # types do not carry a leaf-area-index value. wuh (external water use)
 # is accepted on every surface — irrigation and impervious-surface
 # washing on land surfaces, fountains and ornamental water features on
 # the open-water surface (gh#1372 follow-up; see meeting 2026-05-01).
-LAI_LANDCOVER_SUFFIXES: tuple[str, ...] = ("evetr", "dectr", "grass")
-WUH_LANDCOVER_SUFFIXES: tuple[str, ...] = (
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+LAI_LANDCOVER_SUFFIXES = tuple(
+    name.removeprefix("lai_") for name in _PER_LANDCOVER_COLUMNS["lai"]
 )
+WUH_LANDCOVER_SUFFIXES = tuple(
+    name.removeprefix("wuh_") for name in _PER_LANDCOVER_COLUMNS["wuh"]
+)
+LANDCOVER_SUFFIXES = WUH_LANDCOVER_SUFFIXES
 PER_LANDCOVER_ALLOWED_SUFFIXES: dict[str, tuple[str, ...]] = {
     "lai": LAI_LANDCOVER_SUFFIXES,
     "wuh": WUH_LANDCOVER_SUFFIXES,
 }
-FORCING_OPTIONAL_FILL: float = -999.0
+FORCING_OPTIONAL_FILL = FORCING_REGISTRY.missing_value
 
 
 def _is_per_landcover_column(name: str) -> bool:
@@ -880,19 +850,19 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
 
     # 1) Baseline-required columns must be present (case-insensitive).
     missing_baseline = [
-        baseline for baseline in BASELINE_FORCING_COLUMNS
+        baseline for baseline in FORCING_REGISTRY.baseline_file_columns
         if baseline.lower() not in header_groups
     ]
     if missing_baseline:
         raise ValueError(
             "forcing file(s) missing required baseline columns: "
             f"{missing_baseline}. Required baseline (case-insensitive): "
-            f"{sorted(BASELINE_FORCING_COLUMNS)}."
+            f"{list(FORCING_REGISTRY.baseline_file_columns)}."
         )
 
     # 2) Pull canonical columns out (rename to the canonical case).
     canonical_present: dict[str, pd.Series] = {}
-    for canon in CANONICAL_FORCING_COLUMNS:
+    for canon in ORDERED_CANONICAL_FORCING_COLUMNS:
         actual = header_groups.get(canon.lower())
         if actual is not None:
             canonical_present[canon] = _coalesce_case_variant_columns(
@@ -918,7 +888,7 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     # 4) Assemble the canonical 24-column DataFrame; fill missing optionals.
     n_rows = len(df_forcing_met)
     out_cols: dict[str, np.ndarray] = {}
-    for canon in CANONICAL_FORCING_COLUMNS:
+    for canon in ORDERED_CANONICAL_FORCING_COLUMNS:
         if canon in canonical_present:
             out_cols[canon] = canonical_present[canon].to_numpy()
         else:

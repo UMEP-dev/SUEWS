@@ -136,6 +136,8 @@ py.install_sources(
             'data_model/schema/exporter.py',
             'data_model/schema/registry.py',
             'data_model/forcing/__init__.py',
+            'data_model/forcing/registry.py',
+            'data_model/forcing/variables.py',
             'data_model/forcing/version.py',
             'data_model/output/__init__.py',
             'data_model/output/version.py',

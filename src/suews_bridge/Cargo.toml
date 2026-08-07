@@ -37,7 +37,7 @@ default-features = false
 features = ["ipc"]
 
 [dependencies.pyo3]
-version = "0.22"
+version = "0.29"
 optional = true
 features = ["abi3-py312"]
 

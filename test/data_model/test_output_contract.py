@@ -111,6 +111,16 @@ def test_catalogue_is_an_exact_registry_projection():
     assert len(set_identities) == len(catalogue.variables)
 
 
+def test_dataframe_index_preserves_exact_registry_order():
+    """Keep DataFrame identities in the registry's authoritative order."""
+    expected = [
+        (str(_value(variable.group)), variable.name)
+        for variable in OUTPUT_REGISTRY.variables
+    ]
+
+    assert OUTPUT_REGISTRY.to_dataframe().index.to_list() == expected
+
+
 def test_group_order_and_scopes_are_explicit():
     """Classify every registry group once without changing registry order."""
     catalogue = get_output_contract_catalogue()

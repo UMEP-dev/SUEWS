@@ -12,9 +12,6 @@ RST_STAMP     = $(RST_OUTDIR)/.generated.stamp
 OUTPUT_RST_OUTDIR = $(SOURCEDIR)/outputs/variables
 OUTPUT_RST_STAMP  = $(OUTPUT_RST_OUTDIR)/.generated.stamp
 
-# Registry-derived forcing reference included by inputs/forcing-data.rst
-FORCING_RST       = $(SOURCEDIR)/inputs/generated/forcing-variable-reference.rst
-
 # Data model sources that affect generated RST
 DM_SRC        = $(shell find ../src/supy/data_model -type f -name '*.py' 2>/dev/null)
 
@@ -25,7 +22,7 @@ help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
 # Build HTML documentation (most common use case)
-html: $(RST_STAMP) $(OUTPUT_RST_STAMP) $(FORCING_RST)
+html: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
 # Clean build artifacts
@@ -40,7 +37,7 @@ LIVEHTML_OPEN_BROWSER ?= --open-browser
 LIVEHTML_PORT ?= 8000
 
 # Live-reloading server with incremental builds
-livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP) $(FORCING_RST)
+livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	@echo "Starting live-reload server with incremental builds..."
 	@echo "Tip: Edit .rst files and see changes instantly (2-5s rebuilds)"
 	@echo "     Data model RST auto-regenerates when Python sources change"
@@ -66,14 +63,10 @@ $(OUTPUT_RST_STAMP): generate_output_variable_rst.py $(DM_SRC)
 	@python3 generate_output_variable_rst.py --output-dir $(OUTPUT_RST_OUTDIR)
 	@touch $(OUTPUT_RST_STAMP)
 
-$(FORCING_RST): generate_forcing_variable_rst.py $(DM_SRC)
-	@echo "Generating RST reference for forcing variables..."
-	@python3 generate_forcing_variable_rst.py --output $(FORCING_RST)
-
 # Convenience target: preserve existing name, now non-phony
 # Provide a no-op recipe so it won't be picked up by the generic
 # "%:" rule (which would try to call sphinx with a non-existent builder).
-generate-rst: $(RST_STAMP) $(OUTPUT_RST_STAMP) $(FORCING_RST)
+generate-rst: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	@:
 
 # Catch remaining sphinx targets without auto-generation

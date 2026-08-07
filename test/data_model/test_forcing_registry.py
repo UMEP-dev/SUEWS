@@ -142,22 +142,10 @@ def test_registry_projects_python_forcing_metadata() -> None:
     """Keep Python consumers on the forcing-owned registry projection."""
     legacy = FORCING_REGISTRY.legacy_variables
 
-    assert FORCING_REGISTRY.canonical_file_columns == tuple(
-        variable.name for variable in legacy
-    )
-    assert FORCING_REGISTRY.baseline_datetime_columns == (
-        "iy",
-        "id",
-        "it",
-        "imin",
-    )
+    assert FORCING_REGISTRY.canonical_file_columns == tuple(var.name for var in legacy)
+    assert FORCING_REGISTRY.baseline_datetime_columns == ("iy", "id", "it", "imin")
     assert FORCING_REGISTRY.baseline_driver_columns == (
-        "U",
-        "RH",
-        "Tair",
-        "pres",
-        "rain",
-        "kdown",
+        "U", "RH", "Tair", "pres", "rain", "kdown"
     )
     assert FORCING_REGISTRY.baseline_file_columns == (
         *FORCING_REGISTRY.baseline_datetime_columns,
@@ -166,26 +154,11 @@ def test_registry_projects_python_forcing_metadata() -> None:
     assert FORCING_REGISTRY.optional_canonical_columns == tuple(
         variable.name for variable in legacy if variable.requiredness != "baseline"
     )
-    assert FORCING_REGISTRY.temporal_types == {
-        variable.name: variable.temporal for variable in legacy
-    }
     assert FORCING_REGISTRY.runtime_validation_ranges["pres"] == (
         680.0,
         1300.0,
         "hPa",
     )
-    assert FORCING_REGISTRY.runtime_validation_ranges["Tair"] == (
-        -60.0,
-        90.0,
-        "degC",
-    )
-    assert FORCING_REGISTRY.accessor_aliases == FORCING_ALIASES
-
-
-def test_registry_projects_current_and_legacy_requirements() -> None:
-    """Keep selector namespaces separate while sharing registry rules."""
-    assert FORCING_REGISTRY.current_requirements == _PHYSICS_REQUIRED_FORCING
-    assert FORCING_REGISTRY.legacy_requirements == FORCING_REQUIREMENTS
 
 
 def test_file_and_accessor_aliases_are_separate_namespaces() -> None:

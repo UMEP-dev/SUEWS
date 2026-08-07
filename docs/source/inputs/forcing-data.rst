@@ -177,11 +177,6 @@ matched, case-insensitively, against the canonical column list above.
 * **Unknown columns**: any column not in the canonical or whitelisted
   sets emits a ``UserWarning`` and is dropped.
 
-Registry-derived variable reference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. include:: generated/forcing-variable-reference.rst
-
 Important Requirements
 ----------------------
 

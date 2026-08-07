@@ -27,7 +27,10 @@ def _make_pack(tmp_path: Path) -> Path:
     )
     _write(path_repo / "src/suews_bridge/src/main.rs", "fn main() {}\n")
     _write(path_repo / "src/supy/_version_scm.py", "__version__ = version = '2026.5.1.test0'\n")
-    _write(path_repo / "src/supy/data_model/schema/version.py", "CURRENT_SCHEMA_VERSION = \"2026.5.test\"\n")
+    _write(
+        path_repo / "src/supy/data_model/configuration/version.py",
+        "CURRENT_SCHEMA_VERSION = \"2026.5.test\"\n",
+    )
     path_pack = tmp_path / "pack"
     build_pack(path_repo, path_pack, git_sha="def456")
     return path_pack
@@ -41,6 +44,7 @@ def test_knowledge_manifest_json(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["status"] == "success"
     assert payload["data"]["manifest"]["git_sha"] == "def456"
+    assert payload["data"]["manifest"]["schema_version"] == "2026.5.test"
 
 
 def test_knowledge_query_json(tmp_path: Path) -> None:
@@ -69,7 +73,10 @@ def test_knowledge_build_json(tmp_path: Path) -> None:
     _write(path_repo / "src/suews/src/suews_phys_lumps.f95", "MODULE lumps\nEND MODULE\n")
     _write(path_repo / "src/suews_bridge/src/main.rs", "fn main() {}\n")
     _write(path_repo / "src/supy/_version_scm.py", "__version__ = version = '2026.5.1.test0'\n")
-    _write(path_repo / "src/supy/data_model/schema/version.py", "CURRENT_SCHEMA_VERSION = \"2026.5.test\"\n")
+    _write(
+        path_repo / "src/supy/data_model/configuration/version.py",
+        "CURRENT_SCHEMA_VERSION = \"2026.5.test\"\n",
+    )
     path_pack = tmp_path / "pack"
 
     result = CliRunner().invoke(
@@ -92,4 +99,5 @@ def test_knowledge_build_json(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["status"] == "success"
     assert payload["data"]["manifest"]["git_sha"] == "feed123"
+    assert payload["data"]["manifest"]["schema_version"] == "2026.5.test"
     assert (path_pack / "manifest.json").exists()

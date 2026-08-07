@@ -79,7 +79,7 @@ def branched_repo(tmp_path: Path) -> Path:
     """Build a miniature repo with `master` and a feature branch.
 
     Layout mirrors the real paths the script watches so the watched
-    prefix logic matches: `src/supy/data_model/schema/version.py` and a
+    prefix logic matches: `src/supy/data_model/configuration/version.py` and a
     YAML-owned model under `src/supy/data_model/core/`.
 
     Timeline:
@@ -96,7 +96,7 @@ def branched_repo(tmp_path: Path) -> Path:
     _git(repo, "init", "-q")
     _git(repo, "symbolic-ref", "HEAD", "refs/heads/master")
 
-    version_rel = "src/supy/data_model/schema/version.py"
+    version_rel = "src/supy/data_model/configuration/version.py"
     sibling_rel = "src/supy/data_model/core/model.py"
 
     _write(repo, version_rel, _make_version_file("1.0"))

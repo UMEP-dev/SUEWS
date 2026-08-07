@@ -1,4 +1,4 @@
-# Schema Management System
+# Configuration Schema Management System
 
 This directory contains the schema versioning and management system for SUEWS/SuPy YAML configuration files.
 
@@ -92,10 +92,10 @@ sites:
 
 ### In Python Code
 ```python
-from supy.data_model.schema import (
+from supy.data_model.configuration import (
     validate_schema_version,
     SchemaMigrator,
-    CURRENT_SCHEMA_VERSION
+    CURRENT_SCHEMA_VERSION,
 )
 
 # Validate version
@@ -109,10 +109,10 @@ new_config = migrator.migrate(old_config, to_version="1.0")
 ### Command Line Tools
 ```bash
 # Export schema to JSON
-python -m supy.data_model.schema.exporter
+python -m supy.data_model.configuration.exporter
 
 # Update YAML file schema version
-python -c "from supy.data_model.schema import update_yaml_schema_version; update_yaml_schema_version('config.yml', '1.0')"
+python -c "from supy.data_model.configuration import update_yaml_schema_version; update_yaml_schema_version('config.yml', '1.0')"
 ```
 
 ## CI/CD Integration

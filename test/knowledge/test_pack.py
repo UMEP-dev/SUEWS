@@ -55,8 +55,12 @@ def _make_repo(path_repo: Path) -> None:
         "def validate_config():\n    return 'schema evidence'\n",
     )
     _write(
-        path_repo / "src/supy/data_model/schema/version.py",
+        path_repo / "src/supy/data_model/configuration/version.py",
         "CURRENT_SCHEMA_VERSION = \"2026.5.test\"\n",
+    )
+    _write(
+        path_repo / "src/supy/data_model/schema/version.py",
+        "from ..configuration.version import CURRENT_SCHEMA_VERSION\n",
     )
     _write(
         path_repo / "src/supy/_version_scm.py",
@@ -103,7 +107,15 @@ def test_pack_preserves_selected_source_and_excludes_docs(tmp_path: Path) -> Non
     assert "src/suews/src/suews_phys_evap.f95" in paths
     assert "src/suews_bridge/src/sim.rs" in paths
     assert "src/supy/cmd/example.py" in paths
+    assert "src/supy/data_model/configuration/version.py" in paths
+    assert "src/supy/data_model/schema/version.py" in paths
     assert "docs/source/index.rst" not in paths
+
+    content_types = {
+        chunk["repo_path"]: chunk["content_type"] for chunk in chunks
+    }
+    assert content_types["src/supy/data_model/configuration/version.py"] == "schema"
+    assert content_types["src/supy/data_model/schema/version.py"] == "schema"
 
     for chunk in chunks:
         assert chunk["git_sha"] == "abc123"

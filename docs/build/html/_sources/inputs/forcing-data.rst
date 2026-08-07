@@ -90,12 +90,13 @@ File Format
 
 - **Format**: Space or tab-delimited text file
 - **Extension**: ``.txt``
-- **Header**: No header row - data starts from first line
+- **Header**: Required; canonical names are matched case-insensitively
 - **Missing values**: Use ``-999`` for optional variables
 
-**Column Order**
+**Canonical columns**
 
-The columns must appear in this exact order:
+The historical compatibility order is shown below. Modern named-column files
+may use any column order:
 
 .. code-block:: text
 

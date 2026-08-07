@@ -16,17 +16,11 @@ model:
 
 sites:
   - name: "London_KCL"
-    latitude: 51.5115
-    longitude: -0.1160
-    altitude: 31.0
-    land_cover:
-      paved: 0.38
-      bldgs: 0.37
-      evetr: 0.02
-      dectr: 0.04
-      grass: 0.14
-      bsoil: 0.01
-      water: 0.04
+    properties:
+      lat: {value: 51.5115}
+      lng: {value: -0.1160}
+      alt: {value: 31.0}
+      # ... other site parameters (land cover, etc.)
 
 # Notes:
 # - Files must have consistent column structure

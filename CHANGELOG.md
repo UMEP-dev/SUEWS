@@ -54,6 +54,15 @@ EXAMPLES:
 
 ## 2026
 
+### 25 Jul 2026
+
+- [change][experimental] Unrecognised keys in a YAML configuration are now rejected instead of being silently dropped (#1647)
+  - A mistyped or outdated field name was discarded by Pydantic's default `extra="ignore"`, so the run used the default and nothing indicated the user had asked for anything else. Loading now fails, listing each unrecognised key with its full path and naming the intended field where one can be found: an exact legacy name, a case-insensitive legacy name (`WaterUseMethod` -> `water_use`, the spelling every historical `RunControl.nml` used), or a close match against sibling field names.
+  - This is a breaking change: a configuration carrying a stray key that previously loaded will now be rejected, with the offending key named. Run `suews-convert -i <old.yml> -o <new.yml>` to upgrade a configuration written for an older release.
+- [bugfix] `suews-convert` no longer leaves fields in its output that the validator would discard (#1647)
+  - Five keys survived a full migration: the two hot-water-tank view factors absorbed into the runtime solver by #879, the retired `BuildingType` and `OccupantsProfile` archetype fields, and the bulk `alb` on a vegetated land-cover block. The last discarded a user-supplied albedo; a vegetated surface's albedo is the `alb_min`/`alb_max` pair, with the starting value in `initial_states.<surface>.alb_id`.
+- [doc] Corrected the YAML configuration examples, which set `latitude`, `longitude`, and `altitude` directly on a site where the model does not read them (#1647)
+
 ### 22 Jul 2026
 
 - [bugfix] Relaxed SPARTACUS-Surface land-cover fraction validation so lowest-layer geometry no longer has to equal SUEWS land-cover fractions (#1642)

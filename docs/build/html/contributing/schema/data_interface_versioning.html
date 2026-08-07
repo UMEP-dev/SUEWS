@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-06T14:46:48+00:00" />
-    <title>2.3. Data-interface versioning &#8212; SUEWS 2026.8.7.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-08-07T11:31:04+00:00" />
+    <title>2.3. Data-interface versioning &#8212; SUEWS 2026.8.7.dev4 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=fef5a370"></script>
+    <script src="../../_static/documentation_options.js?v=d01ca3bc"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="2.2. YAML Configuration Schema Versioning" href="schema_versioning.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.7.dev2" />
-    <meta name="docbuild:last-update" content="2026-08-06"/>
+  <meta name="docsearch:version" content="2026.8.7.dev4" />
+    <meta name="docbuild:last-update" content="2026-08-07"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.7.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b74d8ff2e297b8a75aa50da16a25069baf4ef13b" style="color: #31708f;">b74d8ff</a>).
+        (2026.8.7.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5bcff5eeef5b3407ddc79ff65a543c584874087b" style="color: #31708f;">5bcff5e</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.7.dev2 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.7.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.7.dev4 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.7.dev4 documentation - Home"/>
   
   
 </a></div>
@@ -707,10 +707,11 @@ migration chain remain under <a class="reference internal" href="schema_versioni
 <p>A change to one interface does not consume a version of either of the others.</p>
 <section id="current-status">
 <h2><span class="section-number">2.3.1. </span>Current status<a class="headerlink" href="#current-status" title="Link to this heading">#</a></h2>
-<p>The forcing and output contracts are currently unpublished. Their
-<code class="docutils literal notranslate"><span class="pre">CURRENT_*_VERSION</span></code> values are <code class="docutils literal notranslate"><span class="pre">None</span></code> and their version histories are
-empty. This is deliberate: a public version is not recorded until its
-machine-readable contract and implementation checks exist.</p>
+<p>The forcing contract remains unpublished: <code class="docutils literal notranslate"><span class="pre">CURRENT_FORCING_VERSION</span></code> is
+<code class="docutils literal notranslate"><span class="pre">None</span></code> and its history is empty. The output contract is published at
+<code class="docutils literal notranslate"><span class="pre">1.0.0</span></code>. Its immutable bundle is stored under
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/output/artefacts/1.0.0/</span></code> after the registry projection
+and observable output layouts were validated.</p>
 <p>The first public version of each contract must be <code class="docutils literal notranslate"><span class="pre">1.0.0</span></code>. Later releases use
 stable <code class="docutils literal notranslate"><span class="pre">MAJOR.MINOR.PATCH</span></code> semantic versions independently:</p>
 <ul class="simple">
@@ -721,9 +722,11 @@ stable <code class="docutils literal notranslate"><span class="pre">MAJOR.MINOR.
 </section>
 <section id="version-histories">
 <h2><span class="section-number">2.3.2. </span>Version histories<a class="headerlink" href="#version-histories" title="Link to this heading">#</a></h2>
-<p>Each released version is paired with a lowercase SHA-256 digest. The digest is
-an opaque contract identifier at this governance layer; the forcing and output
-contract implementations define which canonical bytes it identifies.</p>
+<p>Each released version is paired with a lowercase SHA-256 digest. The forcing
+and output contract implementations define which canonical bytes it identifies.
+For output, the digest identifies the exact canonical <code class="docutils literal notranslate"><span class="pre">manifest.json</span></code> bytes;
+that manifest records the digests of <code class="docutils literal notranslate"><span class="pre">catalogue.json</span></code> and
+<code class="docutils literal notranslate"><span class="pre">catalogue.schema.json</span></code>.</p>
 <p>The histories are append-only. A contributor may append a newer version and
 digest, but must not edit, reorder, or remove an existing entry. The current
 version pointer must name the last entry, and the pointer and history must move
@@ -742,22 +745,37 @@ request’s merge base. It checks that:</p>
 <li><p>the current pointer and history are updated together.</p></li>
 </ul>
 <p>The audit does not yet generate contract artefacts, detect contract-content
-drift, or decide whether a change requires a major, minor, or patch release.
-Those checks belong with the real forcing and output definitions. The forcing
-contract work is tracked in #1655, the output contract work in #1656, and
-version-addressed publication in #1657.</p>
+drift for forcing, or decide whether a change requires a major, minor, or patch
+release. Output freshness is checked separately by
+<code class="docutils literal notranslate"><span class="pre">scripts/lint/check_output_contract_artefacts.py</span></code> in the same workflow. It
+checks every stored bundle and regenerates the current catalogue and schema
+from <code class="docutils literal notranslate"><span class="pre">OUTPUT_REGISTRY</span></code> for a byte-for-byte comparison. The forcing contract
+work is tracked in #1655 and version-addressed publication in #1657.</p>
 </section>
 <section id="contributor-workflow">
 <h2><span class="section-number">2.3.4. </span>Contributor workflow<a class="headerlink" href="#contributor-workflow" title="Link to this heading">#</a></h2>
 <p>Until a contract is published, leave its current version as <code class="docutils literal notranslate"><span class="pre">None</span></code> and its
-history empty. When contract-specific work publishes a release:</p>
-<ol class="arabic simple">
-<li><p>Generate and validate the interface’s canonical artefact.</p></li>
-<li><p>Choose the SemVer change from the interface-specific compatibility policy.</p></li>
-<li><p>Append the new version and canonical digest to the matching history.</p></li>
-<li><p>Move only that interface’s current pointer to the new last entry.</p></li>
-<li><p>Run the contract-specific checks and the version-history audit.</p></li>
+history empty. For a new output release:</p>
+<ol class="arabic">
+<li><p>Choose the SemVer change from the output compatibility policy. This remains
+a maintainer decision; the audit does not infer compatibility.</p></li>
+<li><p>Generate a new immutable bundle and note the printed manifest digest:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">scripts</span><span class="o">/</span><span class="n">lint</span><span class="o">/</span><span class="n">check_output_contract_artefacts</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">write</span> <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</li>
+<li><p>Append that version and digest to <code class="docutils literal notranslate"><span class="pre">OUTPUT_VERSIONS</span></code>, then move
+<code class="docutils literal notranslate"><span class="pre">CURRENT_OUTPUT_VERSION</span></code> to the new last entry.</p></li>
+<li><p>Run both audits:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">scripts</span><span class="o">/</span><span class="n">lint</span><span class="o">/</span><span class="n">check_output_contract_artefacts</span><span class="o">.</span><span class="n">py</span>
+<span class="n">python</span> <span class="n">scripts</span><span class="o">/</span><span class="n">lint</span><span class="o">/</span><span class="n">check_data_interface_version_history</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">base</span> <span class="n">origin</span><span class="o">/</span><span class="n">master</span>
+</pre></div>
+</div>
+</li>
 </ol>
+<p>The writer refuses to replace different bytes in an existing release
+directory. Never edit or regenerate a released bundle in place. Public URLs,
+<code class="docutils literal notranslate"><span class="pre">latest</span></code> aliases, and Pages publication are separate work tracked in #1657.</p>
 <p>Never rewrite a released entry. Shared mechanical helpers may be extracted only
 after the configuration, forcing, and output policies are concrete (#1664).</p>
 </section>
@@ -857,7 +875,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-06.
+  Last updated on 2026-08-07.
   <br/>
 </p>
   </div>
@@ -865,8 +883,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.7.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b74d8ff2e297b8a75aa50da16a25069baf4ef13b">b74d8ff</a> |
+  <p>Version: 2026.8.7.dev4 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5bcff5eeef5b3407ddc79ff65a543c584874087b">5bcff5e</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

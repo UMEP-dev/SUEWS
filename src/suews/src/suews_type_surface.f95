@@ -3,6 +3,10 @@ module module_type_surface
       nsurf
    implicit none
 
+   ! AnOHM rolling-buffer sizing (single definition; also USEd by the driver)
+   INTEGER, PARAMETER, PUBLIC :: ANOHM_MAX_SAMPLES = 48 ! max hourly samples held per day
+   INTEGER, PARAMETER, PUBLIC :: ANOHM_MIN_VALID_SAMPLES = 6 ! min valid samples to diagnose coefficients
+
    TYPE, PUBLIC :: LUMPS_PRM
       REAL(KIND(1D0)) :: rain_cover = 0.0D0 ! limit when surface totally covered with water for LUMPS [mm]
       REAL(KIND(1D0)) :: rain_max_res = 0.0D0 ! maximum water bucket reservoir. Used for LUMPS surface wetness control. [mm]
@@ -62,6 +66,32 @@ module module_type_surface
       REAL(KIND(1D0)) :: a1_water = 0.0D0! Dynamic OHM coefficients of water
       REAL(KIND(1D0)) :: a2_water = 0.0D0! Dynamic OHM coefficients of water
       REAL(KIND(1D0)) :: a3_water = 0.0D0! Dynamic OHM coefficients of water
+      ! AnOHM (StorageHeatMethod=3) rolling 24-h forcing buffers:
+      ! `working_*` accumulates the day in progress; `coeff_*` holds the most
+      ! recently completed day that AnOHM diagnoses coefficients from. This
+      ! removes the legacy future-data (MetForcingData_grid) dependency.
+      INTEGER :: anohm_working_day = -999
+      INTEGER :: anohm_working_count = 0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_tHr = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_sd = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_ta = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_rh = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_pres = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_ws = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_ah = -999.0D0
+      INTEGER :: anohm_coeff_day = -999
+      INTEGER :: anohm_coeff_count = 0
+      LOGICAL :: anohm_coeff_ready = .FALSE.
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_tHr = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_sd = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_ta = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_rh = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_pres = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_ws = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_ah = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a1_surf = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a2_surf = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a3_surf = 0.0D0
       ! flag for iteration safety - YES
       LOGICAL :: iter_safe = .TRUE.
    END TYPE OHM_STATE

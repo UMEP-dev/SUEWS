@@ -50,9 +50,20 @@ fn is_per_landcover(name: &str) -> Option<String> {
     let lowered = name.to_ascii_lowercase();
 
     for var in PER_LANDCOVER_FORCING_VARS {
-        if let Some(suffix) = lowered.strip_prefix(&format!("{}_", var.prefix)) {
-            if var.allowed_suffixes.contains(&suffix) {
-                return Some(lowered);
+        for suffix in var.allowed_suffixes {
+            let canonical = format!("{}_{}", var.prefix, suffix);
+            let accepted = FIELD_DESCRIPTORS.iter().any(|descriptor| {
+                descriptor
+                    .csv_names
+                    .iter()
+                    .any(|name| name.eq_ignore_ascii_case(&lowered))
+                    && descriptor
+                        .csv_names
+                        .iter()
+                        .any(|name| name.eq_ignore_ascii_case(&canonical))
+            });
+            if accepted {
+                return Some(canonical);
             }
         }
     }
@@ -61,9 +72,15 @@ fn is_per_landcover(name: &str) -> Option<String> {
 }
 
 fn per_landcover_fields(prefix: &str) -> Vec<SuewsField> {
+    let canonical_prefix = format!("{prefix}_");
     FIELD_DESCRIPTORS
         .iter()
-        .filter(|d| d.field.name().starts_with(prefix))
+        .filter(|descriptor| {
+            descriptor
+                .csv_names
+                .iter()
+                .any(|name| name.starts_with(&canonical_prefix))
+        })
         .map(|d| d.field)
         .collect()
 }
@@ -183,16 +200,15 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
 
     let mut extras_targets: Vec<(String, usize)> = Vec::new();
     for (idx, header) in headers.iter().enumerate() {
-        let lowered = header.to_ascii_lowercase();
+        let lowered = header.trim_start_matches('%').to_ascii_lowercase();
+        if let Some(canonical) = is_per_landcover(&lowered) {
+            extras_targets.push((canonical, idx));
+            continue;
+        }
         if is_canonical(&lowered) {
             continue;
         }
-        match is_per_landcover(&lowered) {
-            Some(canon) => extras_targets.push((canon, idx)),
-            None => {
-                eprintln!("warning: forcing column '{header}' is not canonical; ignored (gh#1372)");
-            }
-        }
+        eprintln!("warning: forcing column '{header}' is not canonical; ignored (gh#1372)");
     }
     let mut extras: HashMap<String, Vec<f64>> = HashMap::new();
     for (name, _) in &extras_targets {
@@ -668,7 +684,7 @@ mod tests {
         // Instantaneous: first 11 rows are before t_in[0], should be backfilled to 10.0
         assert_eq!(row_val(&result, 0, SuewsField::u.index()), 10.0);
         // Row 11 = t_in[0] = (2012,1,1,0): U=10
-        assert_eq!(row_val(&result, 11, SuewsField::temp_c.index()), 10.0);
+        assert_eq!(row_val(&result, 11, SuewsField::u.index()), 10.0);
         // Row 23 = t_in[1] = (2012,1,2,0): U=20
         assert_eq!(row_val(&result, 23, SuewsField::u.index()), 20.0);
         // Row 17 = midpoint between t_in[0] and t_in[1]: U=15
@@ -706,6 +722,63 @@ mod tests {
     }
 
     #[test]
+    fn file_aliases_yield_identical_blocks_and_interpolation() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let canonical_path = dir.path().join("canonical.txt");
+        let alias_path = dir.path().join("aliases.txt");
+        let mut canonical = std::fs::File::create(&canonical_path).unwrap();
+        let mut aliases = std::fs::File::create(&alias_path).unwrap();
+
+        writeln!(
+            canonical,
+            "iy id it imin qn qs qf U RH Tair pres rain kdown snow Wuh wuh_paved"
+        )
+        .unwrap();
+        writeln!(
+            aliases,
+            "iy id it imin qn1_obs qs_obs qf_obs U RH temp_c pres rain kdown snowfrac wu_mm wu_mm_paved"
+        )
+        .unwrap();
+        for row in [
+            "2011 1 1 0 100 10 5 2 70 18 101.3 12 200 0 6 1",
+            "2011 1 2 0 120 12 6 4 72 20 101.2 24 240 0 8 2",
+        ] {
+            writeln!(canonical, "{row}").unwrap();
+            writeln!(aliases, "{row}").unwrap();
+        }
+
+        let canonical = read_forcing_block(&canonical_path).expect("canonical");
+        let aliases = read_forcing_block(&alias_path).expect("aliases");
+        assert_eq!(aliases.block, canonical.block);
+        assert_eq!(row_val(&aliases, 0, SuewsField::pres.index()), 1013.0);
+        assert_eq!(aliases.extras, canonical.extras);
+        assert_eq!(aliases.extras["wuh_paved"], vec![1.0, 2.0]);
+
+        let canonical_interp = interpolate_forcing(&canonical, 300).unwrap();
+        let alias_interp = interpolate_forcing(&aliases, 300).unwrap();
+        assert_eq!(alias_interp.block, canonical_interp.block);
+    }
+
+    #[test]
+    fn accessor_alias_does_not_satisfy_baseline_file_requirement() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("accessor-alias.txt");
+        let mut file = std::fs::File::create(&path).unwrap();
+        writeln!(file, "iy id it imin U RH temperature pres rain kdown").unwrap();
+        writeln!(file, "2011 1 0 5 2 70 18 101.3 0 200").unwrap();
+
+        let error = read_forcing_block(&path).expect_err("temperature is not a file alias");
+        assert!(
+            error.contains("tair") || error.contains("Tair"),
+            "error: {error}"
+        );
+    }
+
+    #[test]
     fn per_landcover_columns_loaded_into_extras() {
         let path = Path::new("../../test/fixtures/forcing/kc_per_landcover.txt");
         let forcing = read_forcing_block(path).expect("per-landcover fixture");
@@ -732,6 +805,31 @@ mod tests {
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_evetr.index()), 2.75);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_dectr.index()), 2.75);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_grass.index()), 2.75);
+    }
+
+    #[test]
+    fn bulk_wuh_fills_only_missing_surface_columns() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("bulk-wuh.txt");
+        let mut file = std::fs::File::create(&path).unwrap();
+        writeln!(
+            file,
+            "iy id it imin Tair RH U pres kdown rain Wuh wuh_paved wuh_grass"
+        )
+        .unwrap();
+        writeln!(file, "2011 1 0 5 18 80 2 100 0 0 2.5 1.0 -999").unwrap();
+
+        let forcing = read_forcing_block(&path).expect("bulk Wuh fixture");
+
+        assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_paved.index()), 1.0);
+        assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_bldgs.index()), 2.5);
+        assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_evetr.index()), 2.5);
+        assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_dectr.index()), 2.5);
+        assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_grass.index()), -999.0);
+        assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_bsoil.index()), 2.5);
+        assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_water.index()), 2.5);
     }
 
     #[test]

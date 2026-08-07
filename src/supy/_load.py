@@ -845,7 +845,10 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     # would reject files the previous positional loader accepted.
     header_groups: dict[str, list[str]] = {}
     for col in df_forcing_met.columns:
-        header_groups.setdefault(str(col).lstrip("%").lower(), []).append(col)
+        normalised = str(col).lstrip("%")
+        variable = FORCING_REGISTRY.by_file_name(normalised)
+        group_name = variable.name if variable is not None else normalised
+        header_groups.setdefault(group_name.lower(), []).append(col)
     canonical_lower = {c.lower() for c in CANONICAL_FORCING_COLUMNS}
 
     # 1) Baseline-required columns must be present (case-insensitive).

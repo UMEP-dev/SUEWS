@@ -62,7 +62,7 @@ class TestEnvelopeMeta:
         assert env.meta["command"] == "suews validate"
 
     def test_meta_schema_version_matches_module(self) -> None:
-        from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+        from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
 
         env = Envelope.success(data={}, command="suews schema info")
         assert env.meta["schema_version"] == CURRENT_SCHEMA_VERSION

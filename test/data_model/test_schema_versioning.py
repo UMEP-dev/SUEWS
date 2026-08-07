@@ -51,7 +51,7 @@ def write_temp_sparse_schema_file(schema_version: str) -> Path:
 
 from supy.data_model.core import SUEWSConfig
 from supy.cmd.schema_cli import validate_file_against_schema
-from supy.data_model.schema import (
+from supy.data_model.configuration import (
     CURRENT_SCHEMA_VERSION,
     is_schema_compatible,
     get_schema_compatibility_message,

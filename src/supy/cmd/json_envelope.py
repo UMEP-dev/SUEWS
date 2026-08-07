@@ -133,7 +133,7 @@ def _coerce_messages(items: Optional[Sequence[Any]]) -> list:
 
 def _build_meta(command: str, started_at: Optional[str]) -> dict[str, Any]:
     from supy import __version__ as supy_version
-    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
 
     started = started_at or _now_iso()
     return {

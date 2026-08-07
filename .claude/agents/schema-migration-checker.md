@@ -49,7 +49,7 @@ When uncertain, check whether the vendored release fixtures under `test/fixtures
 
 Check each of these is present in the SAME diff. A missing one is a `[blocking]` finding:
 
-1. `src/supy/data_model/schema/version.py`
+1. `src/supy/data_model/configuration/version.py`
    - `CURRENT_SCHEMA_VERSION` advanced. During a dev cycle this is `<target>.devN` (first structural PR after a release -> `.dev1`; subsequent -> `.devN+1`); only the release PR drops the suffix to plain CalVer. Use the shortest form (`2026.5`, not `2026.05`).
    - A new `SCHEMA_VERSIONS` entry keyed on the new label, describing only this PR's delta (not a cumulative summary), with issue/PR references.
 2. `src/supy/util/converter/yaml_upgrade.py`

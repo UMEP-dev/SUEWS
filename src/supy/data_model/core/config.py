@@ -570,7 +570,7 @@ class SUEWSConfig(BaseModel):
         SUEWSConfig
             The validated SUEWSConfig instance (self).
         """
-        from ..schema import validate_schema_version, CURRENT_SCHEMA_VERSION
+        from ..configuration import validate_schema_version, CURRENT_SCHEMA_VERSION
 
         # If no schema version specified, set to current
         if self.schema_version is None:
@@ -4500,8 +4500,8 @@ class SUEWSConfig(BaseModel):
         self-contradictory hint that pointed users at a command that could
         not work.
         """
-        from ..schema import CURRENT_SCHEMA_VERSION
-        from ..schema.migration import SchemaMigrator
+        from ..configuration import CURRENT_SCHEMA_VERSION
+        from ..configuration.migration import SchemaMigrator
 
         if had_signature:
             try:
@@ -4624,7 +4624,7 @@ class SUEWSConfig(BaseModel):
         config_data["_yaml_raw"] = yaml_raw_snapshot
 
         # Log schema version information if present
-        from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
+        from ..configuration import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
 
         # Remember whether the source YAML carried a schema_version field so the
         # drift-hint builder does not report the default-stamped CURRENT_SCHEMA_VERSION

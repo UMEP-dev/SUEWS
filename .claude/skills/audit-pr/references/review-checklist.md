@@ -137,7 +137,7 @@ Detailed checklist for comprehensive PR review.
 
 ### Schema version bump (trigger-specific)
 
-If the PR changes `src/supy/data_model/schema/version.py` so that
+If the PR changes `src/supy/data_model/configuration/version.py` so that
 `CURRENT_SCHEMA_VERSION` takes a new value, check each item below in
 addition to the general "User Documentation" bullets above:
 

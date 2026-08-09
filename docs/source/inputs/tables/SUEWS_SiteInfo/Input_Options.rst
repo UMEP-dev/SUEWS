@@ -4446,7 +4446,7 @@ Input Options
 .. option:: Wuh
 
 	:Description:
-		External water use [|m^3|]
+		Site-mean external water-use depth accumulated over the forcing interval [mm]
 
 	:Configuration:
 		.. csv-table::

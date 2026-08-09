@@ -55,6 +55,28 @@ _FORCING_RUNTIME_RULES = {
     }
     for name, (lower, upper, unit) in FORCING_REGISTRY.runtime_validation_ranges.items()
 }
+_FORCING_RUNTIME_RULES.update({
+    variable.name.casefold(): {
+        "cat": "grid",
+        "logic": "range",
+        "optional": True,
+        "param": {
+            "min": (
+                "-inf"
+                if variable.validation_range[0] is None
+                else variable.validation_range[0] * variable.runtime_scale
+            ),
+            "max": (
+                "inf"
+                if variable.validation_range[1] is None
+                else variable.validation_range[1] * variable.runtime_scale
+            ),
+        },
+        "unit": variable.runtime_unit or variable.unit or "unresolved",
+    }
+    for variable in FORCING_REGISTRY.variables
+    if variable.fallback == "Wuh" and variable.validation_range is not None
+})
 
 
 # checking the range of each parameter
@@ -74,11 +96,20 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
 
     # if the parameter is optional and not set, it is accepted
     from .util import to_nan
+    from .util._missing import SUEWS_MISSING
 
-    ser_to_check_nan = to_nan(ser_to_check)
-    if flag_optional:
+    # Observed water use is consumed by the kernel with an exact -999
+    # sentinel check. Do not let other large negative values pass as missing.
+    is_wuh = var == "wuh" or var.startswith("wuh_")
+    if is_wuh:
+        ser_to_check_nan = ser_to_check.loc[ser_to_check != SUEWS_MISSING]
+    else:
+        ser_to_check_nan = to_nan(ser_to_check)
+    if flag_optional and not is_wuh:
         ser_to_check_nan = ser_to_check_nan.dropna()
     ser_flag = ~ser_to_check_nan.between(min_v, max_v)
+    if is_wuh:
+        ser_flag = ser_flag | ~np.isfinite(ser_to_check_nan)
     n_flag = ser_flag.sum()
     if ser_flag.sum() > 0:
         is_accepted_flag = False
@@ -387,7 +418,19 @@ def check_forcing(
                 var_check = var.lower()
                 min_v = rules[var_check]["param"]["min"]
                 max_v = rules[var_check]["param"]["max"]
+                min_v = -np.inf if isinstance(min_v, str) else min_v
+                max_v = np.inf if isinstance(max_v, str) else max_v
+                missing_mask = None
+                nonfinite_mask = None
+                if var_check == "wuh" or var_check.startswith("wuh_"):
+                    from .util._missing import SUEWS_MISSING
+
+                    missing_mask = ser_var == SUEWS_MISSING
+                    nonfinite_mask = ~np.isfinite(ser_var)
                 ser_var = ser_var.clip(lower=min_v, upper=max_v)
+                if missing_mask is not None:
+                    ser_var.loc[missing_mask] = SUEWS_MISSING
+                    ser_var.loc[nonfinite_mask] = SUEWS_MISSING
                 df_forcing_fix.loc[:, var] = ser_var.values
 
     # 4. check physics-specific requirements if physics dict is provided

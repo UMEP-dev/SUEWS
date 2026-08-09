@@ -1340,9 +1340,8 @@ CONTAINS
                           bsoilPrm%irrigation_fraction_bsoil, waterPrm%irrigation_fraction_water]
 
                ! --------------------------------------------------------------------------------
-               ! If water used is observed and provided in the met forcing file, units are m3
-               ! Divide observed water use (in m3) by water use area to find water use (in mm)
-               ! 2026-05-19, MP: Updated to only take per land cover forcing (incoming in mm)
+               ! Resolved per-surface observed water-use inputs passed to the kernel
+               ! are depths [mm] accumulated over the forcing interval.
                IF (WaterUseMethod == 1) THEN !If water use is observed
                   ! Reset per-surface observed water use each timestep so a
                   ! surface whose forcing column is missing (-999 sentinel)

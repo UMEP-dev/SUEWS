@@ -12,7 +12,7 @@ from .._load import (
     resample_forcing_met,
     set_index_dt,
 )
-from ._missing import from_nan, to_nan
+from ._missing import from_nan
 
 # Surface air pressure is never below ~300 hPa (that altitude is well into
 # the free troposphere, not a surface site). A DataFrame whose median
@@ -112,9 +112,8 @@ def resample_forcing_df(df_forcing_raw: pd.DataFrame, tstep_mod=300) -> pd.DataF
 
     # resampling only when necessary
     if tstep_mod is not None and tstep_mod < tstep_met_in:
-        df_forcing = to_nan(df_forcing_raw)
         df_forcing = resample_forcing_met(
-            df_forcing, tstep_met_in, tstep_mod, kdownzen=0
+            df_forcing_raw, tstep_met_in, tstep_mod, kdownzen=0
         )
         df_forcing = from_nan(df_forcing)
 

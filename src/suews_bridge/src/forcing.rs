@@ -205,7 +205,7 @@ suews_fields! {
 
     (fcld, 17, ["fcld"], InterpKind::Instantaneous, false),
 
-    (wu_mm, 18, ["wu_mm", "wuh"], InterpKind::Instantaneous, false),
+    (wu_mm, 18, ["wu_mm", "wuh"], InterpKind::Sum, false),
 
     (xsmd, 19, ["xsmd"], InterpKind::Instantaneous, false),
 

@@ -273,6 +273,8 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
             )?;
         }
 
+        validate_wuh_fields(&row, line_no)?;
+
         // Convert pressure from kPa (SUEWS input convention) to hPa (Fortran internal).
         // Matches supy/_load.py: df_forcing_met["pres"] *= 10.
         // pres is in BASELINE_FORCING_COLUMNS so it is always read; defend against
@@ -380,6 +382,20 @@ fn apply_field(
         ));
     }
 
+    Ok(())
+}
+
+fn validate_wuh_fields(row: &[f64], line_no: usize) -> Result<(), String> {
+    let fields = std::iter::once(SuewsField::wu_mm).chain(per_landcover_fields("wuh"));
+    for field in fields {
+        let value = row[field.index()];
+        if value != FORCING_OPTIONAL_FILL && (!value.is_finite() || value < 0.0) {
+            return Err(format!(
+                "forcing value for `{}` at line {line_no} must be finite and non-negative or exact {FORCING_OPTIONAL_FILL}",
+                field.name()
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -642,6 +658,8 @@ mod tests {
         block[SuewsField::u.index()] = 10.0; // U (inst)
         block[SuewsField::kdown.index()] = 100.0; // kdown (avg)
         block[SuewsField::rain.index()] = 12.0; // rain (sum)
+        block[SuewsField::wu_mm.index()] = 12.0; // bulk water use (sum)
+        block[SuewsField::wu_mm_paved.index()] = -999.0; // exact missing sentinel
 
         // Row 1: (2012, 1, 2, 0), U=20
         let r1 = FORCING_BLOCK_STRIDE;
@@ -652,6 +670,8 @@ mod tests {
         block[r1 + SuewsField::u.index()] = 20.0;
         block[r1 + SuewsField::kdown.index()] = 200.0;
         block[r1 + SuewsField::rain.index()] = 24.0;
+        block[r1 + SuewsField::wu_mm.index()] = 24.0;
+        block[r1 + SuewsField::wu_mm_paved.index()] = -999.0;
         // Row 2: (2012, 1, 3, 0), U=30
         let r2 = 2 * FORCING_BLOCK_STRIDE;
         block[r2] = 2012.0;
@@ -661,6 +681,8 @@ mod tests {
         block[r2 + SuewsField::u.index()] = 30.0;
         block[r2 + SuewsField::kdown.index()] = 300.0;
         block[r2 + SuewsField::rain.index()] = 0.0;
+        block[r2 + SuewsField::wu_mm.index()] = -999.0;
+        block[r2 + SuewsField::wu_mm_paved.index()] = -999.0;
 
         let forcing = ForcingData {
             block,
@@ -695,6 +717,15 @@ mod tests {
         assert!((row_val(&result, 11, SuewsField::rain.index()) - 1.0).abs() < 1e-9);
         // Row 12 maps to input row 1: rain=24.0 → 2.0
         assert!((row_val(&result, 12, SuewsField::rain.index()) - 2.0).abs() < 1e-9);
+        // Bulk Wuh uses the same sum redistribution as rain.
+        assert!((row_val(&result, 0, SuewsField::wu_mm.index()) - 1.0).abs() < 1e-9);
+        assert!((row_val(&result, 11, SuewsField::wu_mm.index()) - 1.0).abs() < 1e-9);
+        assert!((row_val(&result, 12, SuewsField::wu_mm.index()) - 2.0).abs() < 1e-9);
+        // Exact bulk and surface missing values stay missing instead of
+        // becoming a flux.
+        assert_eq!(row_val(&result, 24, SuewsField::wu_mm.index()), -999.0);
+        assert_eq!(row_val(&result, 0, SuewsField::wu_mm_paved.index()), -999.0);
+        assert_eq!(row_val(&result, 12, SuewsField::wu_mm_paved.index()), -999.0);
     }
 
     #[test]
@@ -830,6 +861,34 @@ mod tests {
         assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_grass.index()), -999.0);
         assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_bsoil.index()), 2.5);
         assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_water.index()), 2.5);
+    }
+
+    #[test]
+    fn invalid_wuh_values_are_rejected_at_reader_boundary() {
+        use std::io::Write;
+
+        for invalid in ["-950", "NaN", "inf"] {
+            let dir = tempfile::tempdir().unwrap();
+
+            let bulk_path = dir.path().join("invalid-bulk-wuh.txt");
+            let mut bulk = std::fs::File::create(&bulk_path).unwrap();
+            writeln!(bulk, "iy id it imin Tair RH U pres kdown rain Wuh").unwrap();
+            writeln!(bulk, "2011 1 0 5 18 80 2 100 0 0 {invalid}").unwrap();
+            let error = read_forcing_block(&bulk_path).expect_err("invalid bulk Wuh");
+            assert!(error.contains("wu_mm"), "error: {error}");
+
+            let surface_path = dir.path().join("invalid-surface-wuh.txt");
+            let mut surface = std::fs::File::create(&surface_path).unwrap();
+            writeln!(
+                surface,
+                "iy id it imin Tair RH U pres kdown rain Wuh wuh_paved"
+            )
+            .unwrap();
+            writeln!(surface, "2011 1 0 5 18 80 2 100 0 0 2 {invalid}").unwrap();
+            let error =
+                read_forcing_block(&surface_path).expect_err("invalid surface Wuh");
+            assert!(error.contains("wu_mm_paved"), "error: {error}");
+        }
     }
 
     #[test]

@@ -140,6 +140,12 @@ matched, case-insensitively, against the canonical column list above.
 * **Optional canonical columns**: missing canonical columns outside the
   required set are filled with ``-999.0`` (the SUEWS sentinel). Column
   order is irrelevant.
+* **External water use**: bulk ``Wuh`` (also accepted as ``wu_mm``) is a
+  non-negative, site-mean depth in **mm accumulated over the forcing time
+  step**. It has no finite upper validation cap and is resampled as a sum,
+  like ``rain``. Use ``-999`` when this optional input is missing. Legacy
+  bulk values in m3 must be converted explicitly; see
+  :ref:`migrate_bulk_wuh`.
 * **Per-landcover variants**: the loader also accepts whitelisted
   ``<var>_<surface>`` columns:
 
@@ -171,9 +177,11 @@ matched, case-insensitively, against the canonical column list above.
   continues to use the bulk ``lai`` and ``Wuh`` columns as default
   values for legacy or bulk calculations. These bulk values are applied
   to all applicable surfaces unless a corresponding land-cover-specific
-  value is provided, in which case the surface-specific value overrides
-  the bulk value. Soil-moisture deficit (``xsmd``) is a bulk site-level
-  quantity and is intentionally not per-landcover.
+  column is provided, in which case its value overrides the bulk value.
+  An explicit ``-999`` in a surface-specific column is preserved as missing;
+  it does not silently fall back to bulk ``Wuh``. Soil-moisture deficit
+  (``xsmd``) is a bulk site-level quantity and is intentionally not
+  per-landcover.
 * **Unknown columns**: any column not in the canonical or whitelisted
   sets emits a ``UserWarning`` and is dropped.
 

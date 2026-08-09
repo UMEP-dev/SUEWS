@@ -2,6 +2,7 @@
 
 # This parity test intentionally inspects the current private forcing constants.
 
+import json
 from pathlib import Path
 import re
 import subprocess
@@ -229,12 +230,10 @@ def test_rust_file_aliases_exclude_internal_positions() -> None:
     )
     assert re.search(
         r'\(wu_mm,\s*18,\s*\["wu_mm",\s*"wuh"\],\s*'
-        r"InterpKind::Instantaneous",
+        r"InterpKind::Sum",
         rust_source,
     )
-    assert "Rust reader currently treats it as instantaneous" in (
-        bulk_wuh.metadata_note or ""
-    )
+    assert bulk_wuh.temporal == "sum"
     assert all(
         variable.legacy_position is None
         for variable in FORCING_REGISTRY.variables
@@ -318,17 +317,26 @@ def test_registry_rejects_ambiguous_aliases_and_unknown_requirements() -> None:
         ForcingRegistry(variables=(first,), requirement_rules=(bad_rule,))
 
 
-def test_unresolved_scientific_metadata_stays_explicit_and_unpublished() -> None:
-    """Do not turn conflicting sources into a published scientific claim."""
+def test_resolved_wuh_contract_and_unresolved_metadata_stay_explicit() -> None:
+    """Pin the approved Wuh depth contract without resolving unrelated science."""
     dict_variables = {
         variable.name: variable for variable in FORCING_REGISTRY.variables
     }
 
-    assert dict_variables["Wuh"].unit is None
-    assert dict_variables["Wuh"].validation_range is None
+    assert dict_variables["Wuh"].unit == "mm"
+    assert dict_variables["Wuh"].validation_range == (0.0, None)
+    assert dict_variables["Wuh"].metadata_note is None
     assert dict_variables["xsmd"].unit is None
     assert dict_variables["snow"].metadata_note is not None
     assert all(
         dict_variables[f"wuh_{suffix}"].unit == "mm"
+        and dict_variables[f"wuh_{suffix}"].validation_range == (0.0, None)
         for suffix in WUH_LANDCOVER_SUFFIXES
     )
+
+    checker_path = (
+        Path(__file__).resolve().parents[2] / "src/supy/checker_rules_indiv.json"
+    )
+    checker_rule = json.loads(checker_path.read_text(encoding="utf-8"))["wuh"]
+    assert checker_rule["param"] == {"max": "inf", "min": 0}
+    assert checker_rule["unit"] == "mm"

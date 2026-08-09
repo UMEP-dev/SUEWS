@@ -301,7 +301,8 @@ class SUEWSForcing:
         of length ``len(self.df)``. Empty when the file carries no
         whitelisted per-landcover columns. The kernel-facing adapter
         consumes ``lai_evetr``, ``lai_dectr`` and ``lai_grass`` when
-        present; ``wuh_*`` remains metadata for future water-use work.
+        present; ``wuh_*`` supplies the corresponding surface-specific
+        observed water-use depth to the kernel.
 
         Returns
         -------

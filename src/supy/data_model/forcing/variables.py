@@ -261,7 +261,7 @@ _FORCING_VARIABLES = (
     ),
     _variable(
         "Wuh",
-        None,
+        "mm",
         "Bulk external water use accumulated over the forcing interval",
         "driver",
         "sum",
@@ -269,14 +269,8 @@ _FORCING_VARIABLES = (
         "sentinel",
         accessor_aliases=("water_use", "external_water", "wu_mm"),
         file_aliases=("wu_mm",),
+        validation_range=(0, None),
         legacy_position=19,
-        metadata_note=(
-            "Python resampling treats bulk Wuh as a sum, while the Rust reader "
-            "currently treats it as instantaneous. The forcing documentation now "
-            "declares mm per interval, while the legacy checker still declares m3 "
-            "and an upper bound of 10; resolve #1440, #1441, and #1447 before "
-            "publication"
-        ),
     ),
     _variable(
         "xsmd",
@@ -387,6 +381,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_paved",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -398,6 +393,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_bldgs",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -409,6 +405,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_evetr",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -420,6 +417,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_dectr",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -431,6 +429,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_grass",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -442,6 +441,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_bsoil",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -453,6 +453,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_water",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
 )

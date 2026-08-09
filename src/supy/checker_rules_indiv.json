@@ -2253,10 +2253,10 @@
         "cat": "grid",
         "logic": "range",
         "param": {
-            "max": 10,
+            "max": "inf",
             "min": 0
         },
-        "unit": "m3"
+        "unit": "mm"
     },
     "wuprofa_24hr": {
         "cat": "grid",

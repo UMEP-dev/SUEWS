@@ -165,6 +165,49 @@ The converter intelligently handles various directory structures by reading the 
   
 This ensures compatibility with various SUEWS installation structures while respecting user configurations.
 
+.. _migrate_bulk_wuh:
+
+Migrating legacy bulk ``Wuh`` volumes
+--------------------------------------
+
+Bulk ``Wuh`` is now a site-mean external water-use depth in mm accumulated
+over each forcing interval. This is a breaking unit change from historical
+forcing files that supplied bulk ``Wuh`` as a volume in m3. Convert each old
+interval value before running:
+
+.. math::
+
+   Wuh_{mm} = 1000 \, \frac{Wuh_{m^3}}{A_{grid,m^2}}
+
+where :math:`A_{grid,m^2}` is the horizontal plan area of the grid cell.
+This conversion preserves the grid-total water volume, but it does **not**
+preserve the historical allocation between surfaces. The old runtime divided
+the volume by the total irrigated area and then applied each surface's
+``irrigation_fraction``. Consequently, using only the converted bulk value can
+change surface stores and evaporation even though the grid-total input is the
+same.
+
+To reproduce that historical surface allocation, supply all seven
+``wuh_<surface>`` columns (including explicit zeros) using
+
+.. math::
+
+   wuh_i = 1000 \, \frac{Wuh_{m^3}}{A_{grid,m^2}
+            \sum_j (sfr_j \, IrrFrac_j)} \, IrrFrac_i
+
+where :math:`sfr_j` and :math:`IrrFrac_j` are the historical surface fraction
+and irrigation fraction for surface :math:`j`. If the denominator is zero,
+the historical runtime supplied zero observed water use. Supplying every
+surface column is necessary because an omitted surface otherwise falls back
+to bulk ``Wuh``.
+
+The ``wu_mm`` header remains an alias for ``Wuh``, but aliases do not perform
+unit conversion. SUEWS deliberately provides no magnitude detection or
+legacy-unit runtime mode, so copying historical bulk values unchanged will
+give a different water input. Surface-specific ``wuh_<surface>`` columns are
+also non-negative depths in mm per forcing interval and override bulk ``Wuh``
+for that surface.
+
 YAML Schema Migrations
 ----------------------
 

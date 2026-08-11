@@ -48,16 +48,24 @@ test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 sys.path.insert(0, str(test_data_dir))
 from sample_output_io import load_sample_output  # noqa: E402
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
-# Default smoke validation to one model day. Set SUEWS_FAIL_FAST_STEPS to a
-# larger value when an exhaustive local comparison is needed.
+# Default the smoke path to one model day. Set SUEWS_FAIL_FAST_STEPS to a larger
+# value, or to 0 for the whole window, when an exhaustive local comparison is
+# needed. Seasonal coverage does not depend on this switch: it lives in
+# test_sample_output_validation_full_year, which ignores it entirely.
 DEFAULT_FAIL_FAST_STEPS = TIMESTEPS_PER_DAY
 
 
 def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
-    """Return validation timesteps for fail-fast execution."""
+    """Return validation timesteps, where a non-positive result means full window.
+
+    The zero sentinel matches test_soil_obs_conversion.py, the other reader of
+    SUEWS_FAIL_FAST_STEPS: non-positive means "validate everything". Previously
+    zero was coerced here to one model day, so applying the sibling module's
+    convention silently truncated coverage instead of restoring it.
+    """
     raw = os.environ.get(FAIL_FAST_STEPS_ENV)
     if not raw:
-        return TIMESTEPS_PER_DAY if default_steps <= 0 else default_steps
+        return default_steps
     try:
         steps = int(raw)
     except ValueError as exc:
@@ -65,9 +73,6 @@ def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
             f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
         ) from exc
 
-    # Non-positive value means "use the default smoke validation window".
-    if steps <= 0:
-        return default_steps
     return steps
 
 
@@ -407,6 +412,45 @@ class TestSampleOutput(TestCase):
     @pytest.mark.rust
     @pytest.mark.smoke
     def test_sample_output_validation(self):
+        """Validate the smoke window (one model day by default) against the reference."""
+        self._validate_sample_output()
+
+    @pytest.mark.core
+    @pytest.mark.rust
+    def test_sample_output_validation_full_year(self):
+        """Validate the whole simulated year against the reference.
+
+        The horizon is deliberately independent of SUEWS_FAIL_FAST_STEPS, so no
+        environment setting can silently shorten it. Restores the coverage of
+        accumulated-state and day-of-year-gated behaviour dropped in gh#1236 and
+        gh#1382, without which a regression that first diverges mid-year passes CI:
+        GDD and SDD take months to reach the values their branches test, and the
+        day-140/170/250/300 gates are never evaluated inside a one-day run.
+
+        Marked `core`, which places it in the `core`, `standard` and full physics
+        expressions. That covers drafts touching Fortran or Rust, every ready PR
+        touching code, every merge-queue entry and the nightly, so the coverage
+        never depends on the hand-applied 0-physics:change label, which is the
+        mechanism that failed. Not `slow`, which would reinstate that dependency.
+
+        Not `smoke` either, for a measured reason rather than a stylistic one.
+        The smoke tier's stated budget is ~60s; it runs at 47s without this test
+        and 57s with it on macOS ARM, so on a slower runner it would breach the
+        budget. gh#1348 previously placed a full-year run in `smoke` and gh#1382
+        removed it six days later citing a Windows per-test timeout. If a Windows
+        measurement later shows headroom, promoting this to `smoke` and deleting
+        the one-day variant above is the tidier end state, since the full year is
+        then a strict superset. If it is tight instead, re-tier rather than
+        shorten the horizon again.
+
+        Cost on macOS ARM: ~14.3s, of which almost all is the engine simulating
+        the year and ~0.2s the comparison, against ~3.4s for the one-day path.
+        It therefore scales with runner speed rather than with anything the test
+        itself can optimise.
+        """
+        self._validate_sample_output(full_year=True)
+
+    def _validate_sample_output(self, full_year: bool = False):
         """
         Test SUEWS output against reference data with appropriate tolerances.
 
@@ -454,11 +498,21 @@ class TestSampleOutput(TestCase):
         df_ref = load_sample_output(test_data_dir)
         print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
 
-        validation_steps = min(_get_fail_fast_steps(), len(df_ref))
+        if full_year:
+            validation_steps = len(df_ref)
+        else:
+            requested_steps = _get_fail_fast_steps()
+            # Non-positive means full window, matching test_soil_obs_conversion.py.
+            if requested_steps <= 0:
+                validation_steps = len(df_ref)
+            else:
+                validation_steps = min(requested_steps, len(df_ref))
 
         # Run the Rust CLI with a temporary config pointing output to tmpdir.
-        # Keep this smoke path short for wheel CI, especially on Windows where
-        # the full-year executable run can exceed the per-test timeout.
+        # The smoke path stays short for wheel CI, especially on Windows where
+        # the full-year executable run can exceed the per-test timeout; the
+        # full-year variant is `slow`, so it runs only in the full physics tier.
+        cli_timeout = 1800 if full_year else 120
         print(f"\nRunning Rust CLI: {rust_binary.name} run (Arrow output)")
         with tempfile.TemporaryDirectory() as tmpdir:
             # Copy config to tmpdir and modify output.dir
@@ -502,7 +556,7 @@ class TestSampleOutput(TestCase):
                 [str(rust_binary), "run", str(tmp_config)],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=cli_timeout,
             )
 
             if result.returncode != 0:

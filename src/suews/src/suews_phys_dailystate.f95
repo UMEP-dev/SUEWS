@@ -527,7 +527,7 @@ CONTAINS
 
    END SUBROUTINE update_Veg
 
-   SUBROUTINE update_GDDLAI( &
+   subroutine update_GDDLAI( &
       id, LAICalcYes, & !input
       lat, LAI_obs, &
       Tmin_id_prev, Tmax_id_prev, lenDay_id_prev, &
@@ -537,191 +537,306 @@ CONTAINS
       LAI_id_prev, &
       GDD_id, SDD_id, & !inout
       LAI_id_next) !output
-      IMPLICIT NONE
+      
+      implicit none
 
       !------------------------------------------------------------------------------
       ! Calculation of LAI from growing degree days
       ! This was revised and checked on 16 Feb 2014 by LJ
       !------------------------------------------------------------------------------
 
-      INTEGER, INTENT(IN) :: id
-      INTEGER, INTENT(IN) :: LAICalcYes
+      integer, intent(in) :: id
+      integer, intent(in) :: LAICalcYes
 
-      REAL(KIND(1D0)), INTENT(IN) :: lat
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: LAI_obs
-      REAL(KIND(1D0)), INTENT(IN) :: Tmin_id_prev
-      REAL(KIND(1D0)), INTENT(IN) :: Tmax_id_prev
-      REAL(KIND(1D0)), INTENT(IN) :: lenDay_id_prev
+      real(kind(1D0)), intent(in) :: lat
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAI_obs
+      real(kind(1D0)), intent(in) :: Tmin_id_prev
+      real(kind(1D0)), intent(in) :: Tmax_id_prev
+      real(kind(1D0)), intent(in) :: lenDay_id_prev
 
       ! --- Vegetation phenology ---------------------------------------------------------------------
       ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: BaseT_GDD !Base temperature for growing degree days [degC]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: BaseT_SDD !Base temperature for senescence degree days [degC]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: GDDFull !Growing degree days needed for full capacity [degC]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: SDDFull !Senescence degree days needed to initiate leaf off [degC]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: LAIMin !Min LAI [m2 m-2]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: LAIMax !Max LAI [m2 m-2]
-      REAL(KIND(1D0)), DIMENSION(4, nvegsurf), INTENT(IN) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_GDD !Base temperature for growing degree days [degC]
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_SDD !Base temperature for senescence degree days [degC]
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: GDDFull !Growing degree days needed for full capacity [degC]
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: SDDFull !Senescence degree days needed to initiate leaf off [degC]
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAIMin !Min LAI [m2 m-2]
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAIMax !Max LAI [m2 m-2]
+      real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
       !! N.B. currently DecTr only, although input provided for all veg types
-      INTEGER, DIMENSION(nvegsurf), INTENT(IN) :: LAIType !LAI equation to use: original (0) or new (1)
+      integer, dimension(nvegsurf), intent(in) :: LAIType !LAI equation to use: original (0) or new (1)
 
-      REAL(KIND(1D0)), DIMENSION(3), INTENT(INOUT) :: GDD_id !Growing Degree Days (see SUEWS_DailyState.f95)
-      REAL(KIND(1D0)), DIMENSION(3), INTENT(INOUT) :: SDD_id !Senescence Degree Days (see SUEWS_DailyState.f95)
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(OUT) :: LAI_id_next !LAI for each veg surface [m2 m-2]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: LAI_id_prev ! LAI of previous day
+      real(kind(1D0)), dimension(3), intent(inout) :: GDD_id !Growing Degree Days (see SUEWS_DailyState.f95)
+      real(kind(1D0)), dimension(3), intent(inout) :: SDD_id !Senescence Degree Days (see SUEWS_DailyState.f95)
+      real(kind(1D0)), dimension(nvegsurf), intent(out) :: LAI_id_next !LAI for each veg surface [m2 m-2]
+      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: LAI_id_prev ! LAI of previous day
 
-      REAL(KIND(1D0)) :: delta_SDD !Switches and checks for GDD
-      REAL(KIND(1D0)) :: delta_GDD !Switches and checks for GDD
-      REAL(KIND(1D0)) :: indHelp !Switches and checks for GDD
-      REAL(KIND(1D0)), DIMENSION(3) :: GDD_id_prev ! GDD of previous day
-      REAL(KIND(1D0)), DIMENSION(3) :: SDD_id_prev ! SDD of previous day
+      real(kind(1D0)) :: delta_SDD !Switches and checks for GDD
+      real(kind(1D0)) :: delta_GDD !Switches and checks for GDD
+      real(kind(1D0)) :: indHelp !Switches and checks for GDD
+      real(kind(1D0)), dimension(3) :: GDD_id_prev ! GDD of previous day
+      real(kind(1D0)), dimension(3) :: SDD_id_prev ! SDD of previous day
 
-      INTEGER :: critDays
-      INTEGER :: iv
-
+      integer :: critDays
+      integer :: iv
+      
+      integer, parameter :: SEN_DAYLENGTH = 1
+      integer, parameter :: SEN_SDD = 2
+      
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
       SDD_id_prev = SDD_id
-      ! LAI_id_prev = LAI_id_next
 
       critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
 
-      IF (LAICalcYes == 0 .AND. (ANY(IEEE_IS_NAN(LAI_obs)) .OR. ANY(LAI_obs < 0.0D0))) THEN
-         ! Invalid LAI_obs slipped past pre-flight; raise an error before
-         ! mutating phenology state and assign a safe sentinel to the output.
-         LAI_id_next = -999.0D0
-         CALL set_supy_error( &
-            105, &
-            'update_GDDLAI: laimethod=0 requires non-missing lai_* or lai >= 0 at every timestep')
-         RETURN
-      END IF
 
+      if (LAICalcYes == 0) then
+         call observed_lai()
+      end if
+      
       ! Loop through vegetation types (iv)
-      DO iv = 1, NVegSurf
-         ! Calculate GDD for each day from the minimum and maximum air temperature
-         delta_GDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
-         delta_SDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
+      do iv = 1, NVegSurf
 
-         indHelp = 0 !Help switch to allow GDD to go to zero in sprint-time !! QUESTION: What does this mean? HCW
+         call calc_delta_gdd_sdd()
+         
+         call apply_delta_gdd_sdd()
 
-         IF (delta_GDD < 0) THEN !GDD cannot be negative
-            indHelp = delta_GDD !Amount of negative GDD
-            delta_GDD = 0
-         END IF
-
-         IF (delta_SDD > 0) delta_SDD = 0 !SDD cannot be positive
-
-         ! Calculate cumulative growing and senescence degree days
-         GDD_id(iv) = GDD_id_prev(iv) + delta_GDD
-         SDD_id(iv) = SDD_id_prev(iv) + delta_SDD
+         call limit_gdd_sdd()
 
          ! Possibility for cold spring
          IF (SDD_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
             GDD_id(iv) = 0
          END IF
 
-         IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
-            GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
-            IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
-         END IF
-
-         IF (SDD_id(iv) <= SDDFull(iv)) THEN !After senescence now start growing leaves
-            SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
-            IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
-         END IF
-
          ! With these limits SDD, GDD is set to zero
-         IF (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
-         IF (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+         if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+         if (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
 
          ! Now calculate LAI itself
-         IF (lat >= 0) THEN !Northern hemispere
-            !If SDD is not zero by mid May, this is forced
-            IF (id == 140 .AND. SDD_id(iv) /= 0) SDD_id(iv) = 0
-            ! Set SDD to zero in summer time
-            IF (GDD_id(iv) > critDays .AND. id < 170) SDD_id(iv) = 0
-            ! Set GDD zero in winter time
-            IF (SDD_id(iv) < -critDays .AND. id > 170) GDD_id(iv) = 0
+         if (LAICalcYes /= 0) then
+            if (lat >= 0) THEN !Northern hemispere
+               call calculate_lai( &
+                  sdd_reset_day=140, &
+                  summer_day=170, &
+                  winter_day=170, &
+                  senescence_mode=SEN_DAYLENGTH &
+               )
+            else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
+               call calculate_lai( &
+                  sdd_reset_day=300, &
+                  summer_day=250, &
+                  winter_day=250, &
+                  senescence_mode=SEN_SDD &
+               )
+            end if !N or S hemisphere
+            
+            ! Keep internally computed phenology within the configured canopy envelope.
+            call limit_lai()
+         
+         end if
 
-            IF (LAItype(iv) < 0.5) THEN !Original LAI type
-               IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
-               ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(3, iv)*SDD_id(iv)*LAIPower(4, iv)) + LAI_id_prev(iv)
-               ELSE
-                  LAI_id_next(iv) = LAI_id_prev(iv)
-               END IF
-            ELSEIF (LAItype(iv) >= 0.5) THEN
-               IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
-                  !! Use day length to start senescence at high latitudes (N hemisphere)
-               ELSEIF (lenDay_id_prev <= 12 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
-                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
-               ELSE
-                  LAI_id_next(iv) = LAI_id_prev(iv)
-               END IF
-            END IF
+      end do !End of loop over veg surfaces
 
-         ELSEIF (lat < 0) THEN !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
-            !If SDD is not zero by late Oct, this is forced
-            IF (id == 300 .AND. SDD_id(iv) /= 0) SDD_id(iv) = 0
-            ! Set SDD to zero in summer time
-            IF (GDD_id(iv) > critDays .AND. id > 250) SDD_id(iv) = 0
-            ! Set GDD zero in winter time
-            IF (SDD_id(iv) < -critDays .AND. id < 250) GDD_id(iv) = 0
-
-            IF (LAItype(iv) < 0.5) THEN !Original LAI type
-               IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
-               ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(3, iv)*SDD_id(iv)*LAIPower(4, iv)) + LAI_id_prev(iv)
-               ELSE
-                  LAI_id_next(iv) = LAI_id_prev(iv)
-               END IF
-            ELSE
-               IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
-                  !! Day length not used to start senescence in S hemisphere (not much land)
-               ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN
-                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
-               ELSE
-                  LAI_id_next(iv) = LAI_id_prev(iv)
-               END IF
-            END IF
-         END IF !N or S hemisphere
-
-         ! Keep internally computed phenology within the configured canopy envelope.
-         IF (LAI_id_next(iv) > LAImax(iv)) THEN
-            LAI_id_next(iv) = LAImax(iv)
-         ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
-            LAI_id_next(iv) = LAImin(iv)
-         END IF
-
-      END DO !End of loop over veg surfaces
-
-      ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
-      ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
-      ! A genuine zero observation (e.g. complete winter dieback) is valid and
-      ! passes through unchanged. Missing/NaN values and strictly negative
-      ! values - including the -999 missing sentinel - are rejected; choosing
-      ! this path commits the user to providing an observation for every
-      ! timestep. Observed LAI is intentionally not clipped to LAImin/LAImax,
-      ! because those bounds describe the internal GDD/SDD phenology path.
-      ! The Python pre-flight validator (supy._check.check_forcing) enforces
-      ! this contract before a run starts; the guard below is a defensive
-      ! backstop for callers that bypass preflight. Reports via
-      ! module_ctrl_error_state so SuPy can surface a clean exception —
-      ! never WRITE(*,...) + STOP, which kills the embedding Python process.
-      IF (LAICalcYes == 0) THEN
-         ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
-         ! daily state without applying the GDD/SDD envelope above.
-         DO iv = 1, NVegSurf
-            LAI_id_next(iv) = LAI_obs(iv)
-         END DO
-      END IF
       !------------------------------------------------------------------------------
 
-   END SUBROUTINE update_GDDLAI
+   CONTAINS
+   
+      subroutine observed_lai()
+
+         implicit none
+
+         if (any(ieee_is_nan(LAI_obs)) .or. any(LAI_obs < 0.0D0)) then
+            ! Invalid LAI_obs slipped past pre-flight; raise an error before
+            ! mutating phenology state and assign a safe sentinel to the output.
+            LAI_id_next = -999.0D0
+            call set_supy_error( &
+               105, &
+               'update_GDDLAI: laimethod=0 requires non-missing lai_* or lai >= 0 at every timestep')
+            return
+         end if
+
+         ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
+         ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
+         
+         ! A genuine zero observation (e.g. complete winter dieback) is valid and
+         ! passes through unchanged. Missing/NaN values and strictly negative
+         ! values - including the -999 missing sentinel - are rejected; choosing
+         ! this path commits the user to providing an observation for every
+         ! timestep. Observed LAI is intentionally not clipped to LAImin/LAImax,
+         ! because those bounds describe the internal GDD/SDD phenology path.
+
+         ! The Python pre-flight validator (supy._check.check_forcing) enforces
+         ! this contract before a run starts; the guard below is a defensive
+         ! backstop for callers that bypass preflight. Reports via
+         ! module_ctrl_error_state so SuPy can surface a clean exception —
+         ! never WRITE(*,...) + STOP, which kills the embedding Python process.
+
+         ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
+         ! daily state without applying the GDD/SDD envelope.
+         do iv = 1, NVegSurf
+            LAI_id_next(iv) = LAI_obs(iv)
+         end do
+
+      end subroutine observed_lai
+
+      subroutine calc_delta_gdd_sdd()
+
+         implicit none
+
+         ! Calculate GDD for each day from the minimum and maximum air temperature
+         delta_GDD = calc_delta_degree_days(base_t=BaseT_GDD(iv)) ! leaf on
+         delta_SDD = calc_delta_degree_days(base_t=BaseT_SDD(iv)) ! leaf off
+
+         if (delta_SDD > 0) delta_SDD = 0 !SDD cannot be positive
+
+         indHelp = 0 !Help switch to allow GDD to go to zero in sprint-time !! QUESTION: What does this mean? HCW
+         
+         if (delta_GDD < 0) THEN !GDD cannot be negative
+            indHelp = delta_GDD !Amount of negative GDD
+            delta_GDD = 0
+         end if
+
+      end subroutine calc_delta_gdd_sdd
+
+      function calc_delta_degree_days(base_t) result(delta_dd)
+      
+         implicit none
+
+         real(kind(1D0)), intent(in) :: base_t
+         real(kind(1D0)) :: delta_dd
+         !
+         delta_dd = ((Tmin_id_prev + Tmax_id_prev)/2 - base_t)
+
+      end function calc_delta_degree_days
+
+      subroutine apply_delta_gdd_sdd()
+
+         implicit none
+
+         ! Calculate cumulative growing and senescence degree days
+         GDD_id(iv) = GDD_id_prev(iv) + delta_GDD
+         SDD_id(iv) = SDD_id_prev(iv) + delta_SDD
+      
+      end subroutine apply_delta_gdd_sdd
+
+
+      subroutine limit_gdd_sdd()
+
+         implicit none
+
+         if (GDD_id(iv) >= GDDFull(iv)) then !Start senescence
+            GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
+            if (SDD_id(iv) < -critDays) GDD_id(iv) = 0
+         end if
+
+         if (SDD_id(iv) <= SDDFull(iv)) then !After senescence now start growing leaves
+            SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
+            if (GDD_id(iv) > critDays) SDD_id(iv) = 0
+         end if
+
+      end subroutine limit_gdd_sdd
+
+      subroutine calculate_lai(sdd_reset_day, summer_day, winter_day, senescence_mode)
+
+         implicit none
+
+         integer, intent(in) :: sdd_reset_day
+         integer, intent(in) :: summer_day
+         integer, intent(in) :: winter_day
+         integer, intent(in) :: senescence_mode
+
+         logical :: start_senescence
+
+         ! if SDD is not zero by the transition day, force it
+         if (id == sdd_reset_day .and. SDD_id(iv) /= 0) SDD_id(iv) = 0
+
+         ! Set SDD to zero in summer time
+         if (GDD_id(iv) > critDays .and. id < summer_day) SDD_id(iv) = 0
+         
+         ! Set GDD zero in winter time
+         if (SDD_id(iv) < -critDays .and. id > winter_day) GDD_id(iv) = 0
+
+         if (LAItype(iv) < 0.5) THEN !Original LAI type
+            
+            if (GDD_id(iv) > 0 .and. GDD_id(iv) < GDDFull(iv)) then !Leaves can still grow
+               call calculate_gdd()
+
+            else if (SDD_id(iv) < 0 .and. SDD_id(iv) > SDDFull(iv)) then !Start senescence
+               call calculate_sdd_type0()
+            
+            else
+               LAI_id_next(iv) = LAI_id_prev(iv)
+            
+            end if
+
+         else if (LAItype(iv) >= 0.5) then
+            
+            if (GDD_id(iv) > 0 .and. GDD_id(iv) < GDDFull(iv)) then !Leaves can still grow
+               call calculate_gdd()
+
+            !! Use day length to start senescence at high latitudes (set use_daylength for N hemisphere)
+            else
+               
+               select case (senescence_mode)
+
+                  case (SEN_DAYLENGTH)
+                     start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id(iv) > SDDFull(iv)))
+
+                  case (SEN_SDD)
+                     start_senescence = ((SDD_id(iv) < 0) .and. (SDD_id(iv) > SDDFull(iv)))
+
+               end select
+
+               if (start_senescence) then !Start senescence
+                  call calculate_sdd_type1()
+               else
+                  LAI_id_next(iv) = LAI_id_prev(iv)
+               end if
+            
+            end if
+
+         end if
+
+      end subroutine calculate_lai
+
+      subroutine calculate_gdd()
+   
+         implicit none
+   
+         LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
+   
+      end subroutine calculate_gdd
+   
+      subroutine calculate_sdd_type0()
+   
+         implicit none
+   
+         LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(3, iv)*SDD_id(iv)*LAIPower(4, iv)) + LAI_id_prev(iv)
+   
+      end subroutine calculate_sdd_type0
+   
+      subroutine calculate_sdd_type1()
+   
+         implicit none
+   
+         LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+   
+      end subroutine calculate_sdd_type1
+
+      subroutine limit_lai()
+         ! Keep internally computed phenology within the configured canopy envelope.
+         
+         implicit none
+         
+         if (LAI_id_next(iv) > LAImax(iv)) then
+            LAI_id_next(iv) = LAImax(iv)
+         else if (LAI_id_next(iv) < LAImin(iv)) then
+            LAI_id_next(iv) = LAImin(iv)
+         end if
+
+      end subroutine limit_lai
+
+   end subroutine update_GDDLAI
 
    SUBROUTINE update_WaterUse( &
       id, WaterUseMethod, DayofWeek_id, lat, FrIrriAuto, HDD_id, & !input

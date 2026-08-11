@@ -577,7 +577,7 @@ CONTAINS
       real(kind(1D0)), dimension(3) :: GDD_id_prev ! GDD of previous day
       real(kind(1D0)), dimension(3) :: SDD_id_prev ! SDD of previous day
 
-      integer :: critDays
+      integer :: critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
       integer :: iv
       
       integer, parameter :: LAI_ORIGINAL = 0
@@ -589,9 +589,6 @@ CONTAINS
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
       SDD_id_prev = SDD_id
-
-      critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
-
 
       if (LAICalcYes == 0) then
          call observed_lai()
@@ -961,6 +958,15 @@ CONTAINS
 
             case (SEN_SDD)
                start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
+
+            case default
+
+               start_senescence = .false.
+
+               call set_supy_error( &
+                  107, &
+                  'update_GDDLAI: invalid senescence mode' &
+               )
 
          end select
 

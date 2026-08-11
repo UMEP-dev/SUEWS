@@ -887,15 +887,12 @@ CONTAINS
 
             !! Use day length to start senescence at high latitudes (set use_daylength for N hemisphere)
 
-            select case (senescence_mode)
-
-               case (SEN_DAYLENGTH)
-                  start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id > SDDFull))
-
-               case (SEN_SDD)
-                  start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
-
-            end select
+            start_senescence = check_start_senescence( &
+               senescence_mode=senescence_mode, &
+               lenDay_id_prev=lenDay_id_prev, &
+               SDD_id=SDD_id, &
+               SDDFull=SDDFull &
+            )
 
             if (start_senescence) then !Start senescence
                call calculate_sdd_type1( &
@@ -911,6 +908,30 @@ CONTAINS
          end if
 
       end subroutine calculate_lai
+
+      function check_start_senescence(senescence_mode, lenDay_id_prev, SDD_id, SDDFull) result(start_senescence)
+         
+         implicit none
+         
+         integer, intent(in) :: senescence_mode
+
+         real(kind(1D0)), intent(in) :: lenDay_id_prev
+         real(kind(1D0)), intent(in) :: SDD_id
+         real(kind(1D0)), intent(in) :: SDDFull
+
+         logical :: start_senescence
+         
+         select case (senescence_mode)
+
+            case (SEN_DAYLENGTH)
+               start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id > SDDFull))
+
+            case (SEN_SDD)
+               start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
+
+         end select
+
+      end function check_start_senescence
 
       subroutine calculate_gdd( &
             LAI_id_prev, LAIPower, GDD_id, LAI_id_next)

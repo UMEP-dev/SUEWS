@@ -597,11 +597,32 @@ CONTAINS
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
 
-         call calc_delta_gdd_sdd()
+         call calc_delta_gdd_sdd( &
+            Tmin_id_prev=Tmin_id_prev, &
+            Tmax_id_prev=Tmax_id_prev, &
+            BaseT_GDD=BaseT_GDD(iv), &
+            BaseT_SDD=BaseT_SDD(iv), &
+            delta_GDD=delta_GDD, &
+            delta_SDD=delta_SDD, &
+            indHelp=indHelp &
+         )
          
-         call apply_delta_gdd_sdd()
+         call apply_delta_gdd_sdd( &
+            gdd_id_prev=GDD_id_prev(iv), &
+            sdd_id_prev=SDD_id_prev(iv), &
+            delta_gdd=delta_GDD, &
+            delta_sdd=delta_SDD, &
+            gdd_id=GDD_id(iv), &
+            sdd_id=SDD_id(iv) &
+         )
 
-         call limit_gdd_sdd()
+         call limit_gdd_sdd( &
+            GDD_id=GDD_id(iv), &
+            SDD_id=SDD_id(iv), &
+            GDDFull=GDDFull(iv), &
+            SDDFull=SDDFull(iv), &
+            critDays=critDays &
+         )
 
          ! Possibility for cold spring
          IF (SDD_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
@@ -619,19 +640,43 @@ CONTAINS
                   sdd_reset_day=140, &
                   summer_day=170, &
                   winter_day=170, &
-                  senescence_mode=SEN_DAYLENGTH &
+                  senescence_mode=SEN_DAYLENGTH, &
+                  id=id, &
+                  SDD_id=SDD_id(iv), &
+                  GDD_id=GDD_id(iv), &
+                  critDays=critDays, &
+                  LAItype=LAItype(iv), &
+                  GDDFull=GDDFull(iv), &
+                  SDDFull=SDDFull(iv), &
+                  lenDay_id_prev=lenDay_id_prev, &
+                  LAI_id_prev=LAI_id_prev(iv), &
+                  LAI_id_next=LAI_id_next(iv) &
                )
             else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
                call calculate_lai( &
                   sdd_reset_day=300, &
                   summer_day=250, &
                   winter_day=250, &
-                  senescence_mode=SEN_SDD &
+                  senescence_mode=SEN_SDD, &
+                  id=id, &
+                  SDD_id=SDD_id(iv), &
+                  GDD_id=GDD_id(iv), &
+                  critDays=critDays, &
+                  LAItype=LAItype(iv), &
+                  GDDFull=GDDFull(iv), &
+                  SDDFull=SDDFull(iv), &
+                  lenDay_id_prev=lenDay_id_prev, &
+                  LAI_id_prev=LAI_id_prev(iv), &
+                  LAI_id_next=LAI_id_next(iv) &
                )
             end if !N or S hemisphere
             
             ! Keep internally computed phenology within the configured canopy envelope.
-            call limit_lai()
+            call limit_lai( &
+               LAI_id_next=LAI_id_next(iv), &
+               LAImax=LAImax(iv), &
+               LAImin=LAImin(iv) &
+            )
          
          end if
 
@@ -679,64 +724,107 @@ CONTAINS
 
       end subroutine observed_lai
 
-      subroutine calc_delta_gdd_sdd()
+      subroutine calc_delta_gdd_sdd( &
+            Tmin_prev, Tmax_prev, base_t_gdd, base_t_sdd, &
+            delta_gdd, delta_sdd, ind_help)
 
          implicit none
 
-         ! Calculate GDD for each day from the minimum and maximum air temperature
-         delta_GDD = calc_delta_degree_days(base_t=BaseT_GDD(iv)) ! leaf on
-         delta_SDD = calc_delta_degree_days(base_t=BaseT_SDD(iv)) ! leaf off
+         real(kind(1D0)), intent(in)  :: Tmin_prev
+         real(kind(1D0)), intent(in)  :: Tmax_prev
+         real(kind(1D0)), intent(in)  :: base_t_gdd
+         real(kind(1D0)), intent(in)  :: base_t_sdd
 
-         if (delta_SDD > 0) delta_SDD = 0 !SDD cannot be positive
+         real(kind(1D0)), intent(out) :: delta_gdd
+         real(kind(1D0)), intent(out) :: delta_sdd
+         real(kind(1D0)), intent(out) :: ind_help
 
-         indHelp = 0 !Help switch to allow GDD to go to zero in sprint-time !! QUESTION: What does this mean? HCW
-         
-         if (delta_GDD < 0) THEN !GDD cannot be negative
-            indHelp = delta_GDD !Amount of negative GDD
-            delta_GDD = 0
+         ! Calculate GDD and SDD
+         delta_gdd = calc_delta_degree_days( &
+            Tmin_prev, Tmax_prev, base_t_gdd)
+
+         delta_sdd = calc_delta_degree_days( &
+            Tmin_prev, Tmax_prev, base_t_sdd)
+
+         ! SDD cannot be positive
+         if (delta_sdd > 0) delta_sdd = 0
+
+         ! Help switch to allow GDD to go to zero in spring-time
+         ind_help = 0
+
+         ! GDD cannot be negative
+         if (delta_gdd < 0) then
+            ind_help = delta_gdd
+            delta_gdd = 0
          end if
 
       end subroutine calc_delta_gdd_sdd
 
-      function calc_delta_degree_days(base_t) result(delta_dd)
-      
+      function calc_delta_degree_days(Tmin_prev, Tmax_prev, base_t) result(delta_dd)
+
          implicit none
 
+         real(kind(1D0)), intent(in) :: Tmin_prev
+         real(kind(1D0)), intent(in) :: Tmax_prev
          real(kind(1D0)), intent(in) :: base_t
-         real(kind(1D0)), intent(out) :: delta_dd
-         !
-         delta_dd = ((Tmin_id_prev + Tmax_id_prev)/2 - base_t)
+
+         real(kind(1D0)) :: delta_dd
+
+         delta_dd = (Tmin_prev + Tmax_prev) / 2 - base_t
 
       end function calc_delta_degree_days
 
-      subroutine apply_delta_gdd_sdd()
+      subroutine apply_delta_gdd_sdd(iv, gdd_id_prev, sdd_id_prev, &
+                                    delta_gdd, delta_sdd, &
+                                    gdd_id, sdd_id)
 
          implicit none
+
+         integer, intent(in) :: iv
+
+         real(kind(1D0)), intent(in) :: gdd_id_prev
+         real(kind(1D0)), intent(in) :: sdd_id_prev
+         real(kind(1D0)), intent(in) :: delta_gdd
+         real(kind(1D0)), intent(in) :: delta_sdd
+
+         real(kind(1D0)), intent(out) :: gdd_id
+         real(kind(1D0)), intent(out) :: sdd_id
 
          ! Calculate cumulative growing and senescence degree days
-         GDD_id(iv) = GDD_id_prev(iv) + delta_GDD
-         SDD_id(iv) = SDD_id_prev(iv) + delta_SDD
-      
+         gdd_id = gdd_id_prev + delta_gdd
+         sdd_id = sdd_id_prev + delta_sdd
+
       end subroutine apply_delta_gdd_sdd
 
-
-      subroutine limit_gdd_sdd()
+      subroutine limit_gdd_sdd( &
+            GDD_id, SDD_id, GDDFull, SDDFull, critDays)
 
          implicit none
 
-         if (GDD_id(iv) >= GDDFull(iv)) then !Start senescence
-            GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
-            if (SDD_id(iv) < -critDays) GDD_id(iv) = 0
+         real(kind(1D0)), intent(inout) :: GDD_id
+         real(kind(1D0)), intent(inout) :: SDD_id
+         real(kind(1D0)), intent(in)    :: GDDFull
+         real(kind(1D0)), intent(in)    :: SDDFull
+         real(kind(1D0)), intent(in)    :: critDays
+
+         !Start senescence
+         if (GDD_id >= GDDFull) then
+            GDD_id = GDDFull !Leaves should not grow so delete yes from earlier
+            if (SDD_id < -critDays) GDD_id = 0
          end if
 
-         if (SDD_id(iv) <= SDDFull(iv)) then !After senescence now start growing leaves
-            SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
-            if (GDD_id(iv) > critDays) SDD_id(iv) = 0
+         !After senescence now start growing leaves
+         if (SDD_id <= SDDFull) then
+            SDD_id = SDDFull !Leaves off so add back earlier
+            if (GDD_id > critDays) GDD_id = 0
          end if
 
       end subroutine limit_gdd_sdd
 
-      subroutine calculate_lai(sdd_reset_day, summer_day, winter_day, senescence_mode)
+      subroutine calculate_lai( &
+            sdd_reset_day, summer_day, winter_day, senescence_mode, &
+            id, SDD_id, GDD_id, critDays, LAItype, GDDFull, SDDFull, &
+            lenDay_id_prev, LAI_id_prev, LAI_id_next)
 
          implicit none
 
@@ -744,94 +832,151 @@ CONTAINS
          integer, intent(in) :: summer_day
          integer, intent(in) :: winter_day
          integer, intent(in) :: senescence_mode
+         integer, intent(in) :: id
+
+         real(kind(1D0)), intent(inout) :: SDD_id
+         real(kind(1D0)), intent(inout) :: GDD_id
+         real(kind(1D0)), intent(in) :: critDays
+         real(kind(1D0)), intent(in) :: LAItype
+         real(kind(1D0)), intent(in) :: GDDFull
+         real(kind(1D0)), intent(in) :: SDDFull
+         real(kind(1D0)), intent(in) :: lenDay_id_prev
+         real(kind(1D0)), intent(in) :: LAI_id_prev
+         real(kind(1D0)), intent(out) :: LAI_id_next
 
          logical :: start_senescence
 
          ! if SDD is not zero by the transition day, force it
-         if (id == sdd_reset_day .and. SDD_id(iv) /= 0) SDD_id(iv) = 0
+         if (id == sdd_reset_day .and. SDD_id /= 0) SDD_id = 0
 
          ! Set SDD to zero in summer time
-         if (GDD_id(iv) > critDays .and. id < summer_day) SDD_id(iv) = 0
-         
+         if (GDD_id > critDays .and. id < summer_day) SDD_id = 0
+
          ! Set GDD zero in winter time
-         if (SDD_id(iv) < -critDays .and. id > winter_day) GDD_id(iv) = 0
+         if (SDD_id < -critDays .and. id > winter_day) GDD_id = 0
 
-         if (LAItype(iv) < 0.5) THEN !Original LAI type
-            
-            if (GDD_id(iv) > 0 .and. GDD_id(iv) < GDDFull(iv)) then !Leaves can still grow
-               call calculate_gdd()
+         if (LAItype < 0.5) THEN !Original LAI type
 
-            else if (SDD_id(iv) < 0 .and. SDD_id(iv) > SDDFull(iv)) then !Start senescence
-               call calculate_sdd_type0()
-            
+            if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
+               call calculate_gdd( &
+                  LAI_id_prev=LAI_id_prev(iv), &
+                  LAIPower=LAIPower(:, iv), &
+                  GDD_id=GDD_id(iv), &
+                  LAI_id_next=LAI_id_next(iv) &
+               )
+
+            else if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
+               call calculate_sdd_type0( &
+                  LAI_id_prev=LAI_id_prev(iv), &
+                  LAIPower=LAIPower(:, iv), &
+                  SDD_id=SDD_id(iv), &
+                  LAI_id_next=LAI_id_next(iv) &
+               )
+
             else
-               LAI_id_next(iv) = LAI_id_prev(iv)
-            
+               LAI_id_next = LAI_id_prev
+
             end if
 
-         else if (LAItype(iv) >= 0.5) then
-            
-            if (GDD_id(iv) > 0 .and. GDD_id(iv) < GDDFull(iv)) then !Leaves can still grow
-               call calculate_gdd()
+         else if (LAItype >= 0.5) then
+
+            if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
+               call calculate_gdd( &
+                  LAI_id_prev=LAI_id_prev(iv), &
+                  LAIPower=LAIPower(:, iv), &
+                  GDD_id=GDD_id(iv), &
+                  LAI_id_next=LAI_id_next(iv) &
+               )
 
             !! Use day length to start senescence at high latitudes (set use_daylength for N hemisphere)
             else
-               
+
                select case (senescence_mode)
 
                   case (SEN_DAYLENGTH)
-                     start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id(iv) > SDDFull(iv)))
+                     start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id > SDDFull))
 
                   case (SEN_SDD)
-                     start_senescence = ((SDD_id(iv) < 0) .and. (SDD_id(iv) > SDDFull(iv)))
+                     start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
 
                end select
 
                if (start_senescence) then !Start senescence
-                  call calculate_sdd_type1()
+                  call calculate_sdd_type1( &
+                     LAI_id_prev=LAI_id_prev(iv), &
+                     LAIPower=LAIPower(:, iv), &
+                     SDD_id=SDD_id(iv), &
+                     LAI_id_next=LAI_id_next(iv) &
+                  )
                else
-                  LAI_id_next(iv) = LAI_id_prev(iv)
+                  LAI_id_next = LAI_id_prev
                end if
-            
+
             end if
 
          end if
 
       end subroutine calculate_lai
 
-      subroutine calculate_gdd()
-   
+      subroutine calculate_gdd( &
+            LAI_id_prev, LAIPower, GDD_id, LAI_id_next)
+
          implicit none
-   
-         LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
-   
+
+         real(kind(1D0)), intent(in) :: LAI_id_prev
+         real(kind(1D0)), intent(in) :: LAIPower(2)
+         real(kind(1D0)), intent(in) :: GDD_id
+         real(kind(1D0)), intent(out) :: LAI_id_next
+
+         LAI_id_next = (LAI_id_prev**LAIPower(1) * &
+                        GDD_id * LAIPower(2)) + LAI_id_prev
+
       end subroutine calculate_gdd
    
-      subroutine calculate_sdd_type0()
-   
+      subroutine calculate_sdd_type0( &
+            LAI_id_prev, LAIPower, SDD_id, LAI_id_next)
+
          implicit none
-   
-         LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(3, iv)*SDD_id(iv)*LAIPower(4, iv)) + LAI_id_prev(iv)
-   
+
+         real(kind(1D0)), intent(in) :: LAI_id_prev
+         real(kind(1D0)), intent(in) :: LAIPower(4)
+         real(kind(1D0)), intent(in) :: SDD_id
+         real(kind(1D0)), intent(out) :: LAI_id_next
+
+         LAI_id_next = (LAI_id_prev**LAIPower(3) * &
+                        SDD_id * LAIPower(4)) + LAI_id_prev
+
       end subroutine calculate_sdd_type0
    
-      subroutine calculate_sdd_type1()
-   
+      subroutine calculate_sdd_type1( &
+            LAI_id_prev, LAIPower, SDD_id, LAI_id_next)
+
          implicit none
-   
-         LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
-   
+
+         real(kind(1D0)), intent(in) :: LAI_id_prev
+         real(kind(1D0)), intent(in) :: LAIPower(4)
+         real(kind(1D0)), intent(in) :: SDD_id
+         real(kind(1D0)), intent(out) :: LAI_id_next
+
+         LAI_id_next = (LAI_id_prev * LAIPower(3) * &
+                        (1 - SDD_id) * LAIPower(4)) + LAI_id_prev
+
       end subroutine calculate_sdd_type1
 
-      subroutine limit_lai()
+      subroutine limit_lai(LAI_id_next, LAImax, LAImin)
+
          ! Keep internally computed phenology within the configured canopy envelope.
-         
+
          implicit none
-         
-         if (LAI_id_next(iv) > LAImax(iv)) then
-            LAI_id_next(iv) = LAImax(iv)
-         else if (LAI_id_next(iv) < LAImin(iv)) then
-            LAI_id_next(iv) = LAImin(iv)
+
+         real(kind(1D0)), intent(inout) :: LAI_id_next
+         real(kind(1D0)), intent(in) :: LAImax
+         real(kind(1D0)), intent(in) :: LAImin
+
+         if (LAI_id_next > LAImax) then
+            LAI_id_next = LAImax
+         else if (LAI_id_next < LAImin) then
+            LAI_id_next = LAImin
          end if
 
       end subroutine limit_lai

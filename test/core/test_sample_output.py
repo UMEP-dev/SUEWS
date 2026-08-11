@@ -135,6 +135,11 @@ TOLERANCE_CONFIG = {
     #      0.5% tolerance for typical urban wind speeds
     #      Important for turbulent exchange calculations
     "U10": {"rtol": 0.005, "atol": 0.01},  # 10m wind speed [m/s]
+    # LAI: the phenology state itself, not a flux. Compared directly because it
+    # is the direct output of the GDD/SDD scheme; relying on it only through its
+    # effect on QE and QN means a phenology regression has to be large enough to
+    # move an energy flux by 0.8% before any test notices.
+    "LAI": {"rtol": 0.008, "atol": 0.001},  # bulk leaf area index [m2 m-2]
 }
 
 # Platform-specific adjustments (if needed in future)

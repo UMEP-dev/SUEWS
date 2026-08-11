@@ -598,18 +598,18 @@ CONTAINS
       do iv = 1, NVegSurf
 
          call calc_delta_gdd_sdd( &
-            Tmin_id_prev=Tmin_id_prev, &
-            Tmax_id_prev=Tmax_id_prev, &
-            BaseT_GDD=BaseT_GDD(iv), &
-            BaseT_SDD=BaseT_SDD(iv), &
-            delta_GDD=delta_GDD, &
-            delta_SDD=delta_SDD, &
-            indHelp=indHelp &
+            tmin_prev=Tmin_id_prev, &
+            tmax_prev=Tmax_id_prev, &
+            base_t_gdd=BaseT_GDD(iv), &
+            base_t_sdd=BaseT_SDD(iv), &
+            delta_gdd=delta_GDD, &
+            delta_sdd=delta_SDD, &
+            ind_help=indHelp &
          )
          
          call apply_delta_gdd_sdd( &
-            gdd_id_prev=GDD_id_prev(iv), &
-            sdd_id_prev=SDD_id_prev(iv), &
+            gdd_prev=GDD_id_prev(iv), &
+            sdd_prev=SDD_id_prev(iv), &
             delta_gdd=delta_GDD, &
             delta_sdd=delta_SDD, &
             gdd_id=GDD_id(iv), &
@@ -646,6 +646,7 @@ CONTAINS
                   GDD_id=GDD_id(iv), &
                   critDays=critDays, &
                   LAItype=LAItype(iv), &
+                  LAIPower=LAIPower(:, iv), &
                   GDDFull=GDDFull(iv), &
                   SDDFull=SDDFull(iv), &
                   lenDay_id_prev=lenDay_id_prev, &
@@ -663,6 +664,7 @@ CONTAINS
                   GDD_id=GDD_id(iv), &
                   critDays=critDays, &
                   LAItype=LAItype(iv), &
+                  LAIPower=LAIPower(:, iv), &
                   GDDFull=GDDFull(iv), &
                   SDDFull=SDDFull(iv), &
                   lenDay_id_prev=lenDay_id_prev, &
@@ -725,13 +727,13 @@ CONTAINS
       end subroutine observed_lai
 
       subroutine calc_delta_gdd_sdd( &
-            Tmin_prev, Tmax_prev, base_t_gdd, base_t_sdd, &
+            tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
             delta_gdd, delta_sdd, ind_help)
 
          implicit none
 
-         real(kind(1D0)), intent(in)  :: Tmin_prev
-         real(kind(1D0)), intent(in)  :: Tmax_prev
+         real(kind(1D0)), intent(in)  :: tmin_prev
+         real(kind(1D0)), intent(in)  :: tmax_prev
          real(kind(1D0)), intent(in)  :: base_t_gdd
          real(kind(1D0)), intent(in)  :: base_t_sdd
 
@@ -741,10 +743,10 @@ CONTAINS
 
          ! Calculate GDD and SDD
          delta_gdd = calc_delta_degree_days( &
-            Tmin_prev, Tmax_prev, base_t_gdd)
+            tmin_prev, tmax_prev, base_t_gdd)
 
          delta_sdd = calc_delta_degree_days( &
-            Tmin_prev, Tmax_prev, base_t_sdd)
+            tmin_prev, tmax_prev, base_t_sdd)
 
          ! SDD cannot be positive
          if (delta_sdd > 0) delta_sdd = 0
@@ -774,16 +776,14 @@ CONTAINS
 
       end function calc_delta_degree_days
 
-      subroutine apply_delta_gdd_sdd(iv, gdd_id_prev, sdd_id_prev, &
+      subroutine apply_delta_gdd_sdd(gdd_prev, sdd_prev, &
                                     delta_gdd, delta_sdd, &
                                     gdd_id, sdd_id)
 
          implicit none
 
-         integer, intent(in) :: iv
-
-         real(kind(1D0)), intent(in) :: gdd_id_prev
-         real(kind(1D0)), intent(in) :: sdd_id_prev
+         real(kind(1D0)), intent(in) :: gdd_prev
+         real(kind(1D0)), intent(in) :: sdd_prev
          real(kind(1D0)), intent(in) :: delta_gdd
          real(kind(1D0)), intent(in) :: delta_sdd
 
@@ -791,8 +791,8 @@ CONTAINS
          real(kind(1D0)), intent(out) :: sdd_id
 
          ! Calculate cumulative growing and senescence degree days
-         gdd_id = gdd_id_prev + delta_gdd
-         sdd_id = sdd_id_prev + delta_sdd
+         gdd_id = gdd_prev + delta_gdd
+         sdd_id = sdd_prev + delta_sdd
 
       end subroutine apply_delta_gdd_sdd
 
@@ -805,7 +805,8 @@ CONTAINS
          real(kind(1D0)), intent(inout) :: SDD_id
          real(kind(1D0)), intent(in)    :: GDDFull
          real(kind(1D0)), intent(in)    :: SDDFull
-         real(kind(1D0)), intent(in)    :: critDays
+         
+         integer, intent(in)    :: critDays
 
          !Start senescence
          if (GDD_id >= GDDFull) then
@@ -823,7 +824,7 @@ CONTAINS
 
       subroutine calculate_lai( &
             sdd_reset_day, summer_day, winter_day, senescence_mode, &
-            id, SDD_id, GDD_id, critDays, LAItype, GDDFull, SDDFull, &
+            id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, &
             lenDay_id_prev, LAI_id_prev, LAI_id_next)
 
          implicit none
@@ -836,8 +837,12 @@ CONTAINS
 
          real(kind(1D0)), intent(inout) :: SDD_id
          real(kind(1D0)), intent(inout) :: GDD_id
-         real(kind(1D0)), intent(in) :: critDays
-         real(kind(1D0)), intent(in) :: LAItype
+         
+         integer, intent(in) :: critDays
+         integer, intent(in) :: LAItype
+         
+         real(kind(1D0)), dimension(4), intent(in) :: LAIPower
+
          real(kind(1D0)), intent(in) :: GDDFull
          real(kind(1D0)), intent(in) :: SDDFull
          real(kind(1D0)), intent(in) :: lenDay_id_prev
@@ -859,18 +864,18 @@ CONTAINS
 
             if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
                call calculate_gdd( &
-                  LAI_id_prev=LAI_id_prev(iv), &
-                  LAIPower=LAIPower(:, iv), &
-                  GDD_id=GDD_id(iv), &
-                  LAI_id_next=LAI_id_next(iv) &
+                  LAI_id_prev=LAI_id_prev, &
+                  LAIPower=LAIPower, &
+                  GDD_id=GDD_id, &
+                  LAI_id_next=LAI_id_next &
                )
 
             else if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
                call calculate_sdd_type0( &
-                  LAI_id_prev=LAI_id_prev(iv), &
-                  LAIPower=LAIPower(:, iv), &
-                  SDD_id=SDD_id(iv), &
-                  LAI_id_next=LAI_id_next(iv) &
+                  LAI_id_prev=LAI_id_prev, &
+                  LAIPower=LAIPower, &
+                  SDD_id=SDD_id, &
+                  LAI_id_next=LAI_id_next &
                )
 
             else
@@ -882,10 +887,10 @@ CONTAINS
 
             if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
                call calculate_gdd( &
-                  LAI_id_prev=LAI_id_prev(iv), &
-                  LAIPower=LAIPower(:, iv), &
-                  GDD_id=GDD_id(iv), &
-                  LAI_id_next=LAI_id_next(iv) &
+                  LAI_id_prev=LAI_id_prev, &
+                  LAIPower=LAIPower, &
+                  GDD_id=GDD_id, &
+                  LAI_id_next=LAI_id_next &
                )
 
             !! Use day length to start senescence at high latitudes (set use_daylength for N hemisphere)
@@ -903,10 +908,10 @@ CONTAINS
 
                if (start_senescence) then !Start senescence
                   call calculate_sdd_type1( &
-                     LAI_id_prev=LAI_id_prev(iv), &
-                     LAIPower=LAIPower(:, iv), &
-                     SDD_id=SDD_id(iv), &
-                     LAI_id_next=LAI_id_next(iv) &
+                     LAI_id_prev=LAI_id_prev, &
+                     LAIPower=LAIPower, &
+                     SDD_id=SDD_id, &
+                     LAI_id_next=LAI_id_next &
                   )
                else
                   LAI_id_next = LAI_id_prev
@@ -924,7 +929,7 @@ CONTAINS
          implicit none
 
          real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), intent(in) :: LAIPower(:)
+         real(kind(1D0)), dimension(4), intent(in) :: LAIPower
          real(kind(1D0)), intent(in) :: GDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 
@@ -939,7 +944,7 @@ CONTAINS
          implicit none
 
          real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), intent(in) :: LAIPower(:)
+         real(kind(1D0)), dimension(4), intent(in) :: LAIPower
          real(kind(1D0)), intent(in) :: SDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 
@@ -954,7 +959,7 @@ CONTAINS
          implicit none
 
          real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), intent(in) :: LAIPower(:)
+         real(kind(1D0)), dimension(4), intent(in) :: LAIPower
          real(kind(1D0)), intent(in) :: SDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 

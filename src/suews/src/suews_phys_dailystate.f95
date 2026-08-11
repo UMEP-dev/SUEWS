@@ -924,7 +924,7 @@ CONTAINS
          implicit none
 
          real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), intent(in) :: LAIPower(2)
+         real(kind(1D0)), intent(in) :: LAIPower(:)
          real(kind(1D0)), intent(in) :: GDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 
@@ -939,7 +939,7 @@ CONTAINS
          implicit none
 
          real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), intent(in) :: LAIPower(4)
+         real(kind(1D0)), intent(in) :: LAIPower(:)
          real(kind(1D0)), intent(in) :: SDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 
@@ -954,7 +954,7 @@ CONTAINS
          implicit none
 
          real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), intent(in) :: LAIPower(4)
+         real(kind(1D0)), intent(in) :: LAIPower(:)
          real(kind(1D0)), intent(in) :: SDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 

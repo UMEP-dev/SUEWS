@@ -580,6 +580,9 @@ CONTAINS
       integer :: critDays
       integer :: iv
       
+      integer, parameter :: LAI_ORIGINAL = 0
+      integer, parameter :: LAI_NEW = 1
+
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
       
@@ -865,7 +868,7 @@ CONTAINS
                LAI_id_next=LAI_id_next &
             )
          
-         else if (LAItype < 0.5) THEN !Original LAI type
+         else if (LAItype == LAI_ORIGINAL) THEN !Original LAI type
 
             if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
                call calculate_sdd_type0( &
@@ -880,7 +883,7 @@ CONTAINS
 
             end if
 
-         else
+         else if (LAItype == LAI_NEW) then
 
             !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
             start_senescence = check_start_senescence( &
@@ -900,6 +903,14 @@ CONTAINS
             else
                LAI_id_next = LAI_id_prev
             end if
+
+         else
+
+            LAI_id_next = -999.0D0
+            call set_supy_error( &
+               106, &
+               'update_GDDLAI: LAIType must be 0 or 1' &
+            )
 
          end if
 

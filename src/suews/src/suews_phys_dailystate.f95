@@ -880,10 +880,9 @@ CONTAINS
 
             end if
 
-         else if (LAItype >= 0.5) then
+         else
 
-            !! Use day length to start senescence at high latitudes (set use_daylength for N hemisphere)
-
+            !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
             start_senescence = check_start_senescence( &
                senescence_mode=senescence_mode, &
                lenDay_id_prev=lenDay_id_prev, &

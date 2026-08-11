@@ -252,13 +252,20 @@ from supy._supy_module import (
 
 def pytest_configure():
     """Monkey patch legacy public functions to private implementations for tests."""
-    supy._deprecated_init_supy = supy.init_supy
-    supy._deprecated_load_forcing_grid = supy.load_forcing_grid
-    supy._deprecated_run_supy = supy.run_supy
-    supy._deprecated_run_supy_sample = supy.run_supy_sample
-    supy._deprecated_save_supy = supy.save_supy
-    supy._deprecated_load_sample_data = supy.load_sample_data
-    supy._deprecated_init_config = supy.init_config
+    # Reading these attributes trips supy's module-level deprecation shim, so
+    # stashing the originals emitted seven FutureWarnings at the head of every
+    # session before a single test ran. We are saving the callables to restore
+    # them, not calling them, so the notice does not apply to these reads.
+    # Deprecation behaviour itself is asserted in test_deprecation_visibility.py.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        supy._deprecated_init_supy = supy.init_supy
+        supy._deprecated_load_forcing_grid = supy.load_forcing_grid
+        supy._deprecated_run_supy = supy.run_supy
+        supy._deprecated_run_supy_sample = supy.run_supy_sample
+        supy._deprecated_save_supy = supy.save_supy
+        supy._deprecated_load_sample_data = supy.load_sample_data
+        supy._deprecated_init_config = supy.init_config
 
     supy.init_supy = _init_supy
     supy.load_forcing_grid = _load_forcing_grid

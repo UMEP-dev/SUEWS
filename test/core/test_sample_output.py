@@ -583,7 +583,15 @@ class TestSampleOutput(TestCase):
 
         reader = ipc.open_file(arrow_bytes)
         table = reader.read_all()
-        df_rust_all = table.to_pandas()
+
+        # Project to the compared columns before converting to pandas. A full year
+        # of output is ~1.1 GB across 1350 columns, and converting all of them then
+        # copying the slice peaked at 3.3 GB to compare nine; projecting first holds
+        # it at ~1.2 GB, nearly all of which is arrow_bytes above. That matters
+        # because this test now runs in the core and standard tiers under xdist.
+        present = [name for name in TOLERANCE_CONFIG if name in table.schema.names]
+        df_rust_all = table.select(present).to_pandas()
+        del table, reader
 
         # SUEWS group uses proper variable names (Kdown, Kup, QN, etc.)
         # directly in the Arrow file. Slice to the requested smoke window
@@ -594,7 +602,7 @@ class TestSampleOutput(TestCase):
                 "Rust CLI produced fewer rows than requested: "
                 f"Rust={len(df_rust_all)}, requested={validation_steps}"
             )
-        df_rust = df_rust_all.iloc[:validation_steps].copy()
+        df_rust = df_rust_all.iloc[:validation_steps]
 
         print(f"Rust output: {df_rust.shape[0]} rows x {df_rust.shape[1]} columns")
 

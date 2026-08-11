@@ -703,7 +703,7 @@ CONTAINS
          implicit none
 
          real(kind(1D0)), intent(in) :: base_t
-         real(kind(1D0)) :: delta_dd
+         real(kind(1D0)), intent(out) :: delta_dd
          !
          delta_dd = ((Tmin_id_prev + Tmax_id_prev)/2 - base_t)
 

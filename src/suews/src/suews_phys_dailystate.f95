@@ -817,7 +817,7 @@ CONTAINS
          !After senescence now start growing leaves
          if (SDD_id <= SDDFull) then
             SDD_id = SDDFull !Leaves off so add back earlier
-            if (GDD_id > critDays) GDD_id = 0
+            if (GDD_id > critDays) SDD_id = 0
          end if
 
       end subroutine limit_gdd_sdd
@@ -997,12 +997,11 @@ CONTAINS
          real(kind(1D0)), intent(in) :: SDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 
-         LAI_id_next = (LAI_id_prev**LAIPower(3) * &
-                        SDD_id * LAIPower(4)) + LAI_id_prev
+         LAI_id_next = (LAI_id_prev**LAIPower(3) * SDD_id * LAIPower(4)) + LAI_id_prev
 
       end subroutine calculate_sdd_type0
    
-      subroutine calculate_sdd_type1( &
+      subroutine calculate_sdd_type1( & ! 
             LAI_id_prev, LAIPower, SDD_id, LAI_id_next)
 
          implicit none
@@ -1012,8 +1011,7 @@ CONTAINS
          real(kind(1D0)), intent(in) :: SDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 
-         LAI_id_next = (LAI_id_prev * LAIPower(3) * &
-                        (1 - SDD_id) * LAIPower(4)) + LAI_id_prev
+         LAI_id_next = (LAI_id_prev * LAIPower(3) * (1 - SDD_id) * LAIPower(4)) + LAI_id_prev
 
       end subroutine calculate_sdd_type1
 

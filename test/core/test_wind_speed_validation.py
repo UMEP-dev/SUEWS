@@ -293,6 +293,28 @@ class TestPhysicsSpecificValidation:
                 "netradiationmethod=0" in issue and "qn" in issue for issue in issues
             )
 
+    @pytest.mark.parametrize(
+        ("snowuse", "netradiationmethod", "must_require_snow"),
+        ((0, 0, False), (0, 3, False), (1, 3, False), (1, 0, True)),
+    )
+    def test_snow_requires_both_legacy_physics_conditions(
+        self,
+        snowuse,
+        netradiationmethod,
+        must_require_snow,
+    ):
+        """Legacy validation uses the same approved snow conjunction."""
+        df_forcing = self.create_base_forcing_df()
+        df_forcing["qn"] = 100
+        physics = {
+            "snowuse": snowuse,
+            "netradiationmethod": netradiationmethod,
+        }
+
+        issues = check_forcing(df_forcing, fix=False, physics=physics) or []
+        snow_issues = [issue for issue in issues if "snow" in issue.lower()]
+        assert bool(snow_issues) is must_require_snow
+
     def test_emissionsmethod_0_error_includes_zero_hint(self):
         """Test that emissionsmethod=0 error includes hint about setting to zero."""
         df_forcing = self.create_base_forcing_df()

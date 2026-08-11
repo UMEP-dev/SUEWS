@@ -44,3 +44,8 @@ jobs:
 
       - name: Validate output-contract artefacts
         run: python scripts/lint/check_output_contract_artefacts.py
+
+      - name: Validate forcing-contract artefacts and reference
+        run: |
+          python scripts/lint/check_forcing_contract_artefacts.py
+          python docs/generate_forcing_variable_rst.py --check

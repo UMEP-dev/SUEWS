@@ -294,12 +294,12 @@ These additional variables can enhance model performance but are not required:
      - W/m²
      - qf
      - If not modeled
-   * - Snow fraction
+   * - Observed snow-cover fraction
      - 0-1
      - snow
-     - If SnowUse = 1
+     - If SnowUse = 1 and NetRadiationMethod = 0
    * - Cloud fraction
-     - tenths
+     - fraction (0-1)
      - fcld
      - For radiation calculations
    * - External water use
@@ -307,7 +307,7 @@ These additional variables can enhance model performance but are not required:
      - ``Wuh`` or ``wuh_<surface>``
      - For irrigation
    * - Soil moisture
-     - m³/m³
+     - m3/m3 if ``SMDMethod = 1``; kg/kg if ``SMDMethod = 2``
      - xsmd
      - For initialization
    * - Leaf area index
@@ -568,58 +568,10 @@ SUEWS provides the ``check_forcing()`` function to validate your forcing data fi
 3. **Physical ranges**: Validates values are within physically plausible ranges
 4. **Physics-specific requirements**: Ensures required data columns contain valid values based on selected model physics options (see below)
 
-**Variables and Physical Ranges**
+**Variable contract and enforced ranges**
 
-.. list-table::
-   :header-rows: 1
-   :widths: 20 30 50
-
-   * - Variable
-     - Valid Range
-     - Notes
-   * - U (wind speed)
-     - ≥ 0.01 m/s
-     - Minimum to avoid division by zero
-   * - RH (rel. humidity)
-     - 0.0001 - 105%
-     - Small buffer for measurement uncertainty
-   * - Tair (temperature)
-     - -50 to 55°C
-     - Extreme climate conditions
-   * - pres (pressure)
-     - 680 - 1300 hPa
-     - Sea level to high altitude
-   * - rain (rainfall)
-     - ≥ 0 mm
-     - Cannot be negative
-   * - kdown (SW↓)
-     - 0 - 1400 W/m²
-     - Solar constant at surface
-   * - ldown (LW↓)
-     - 100 - 600 W/m²
-     - Atmospheric thermal radiation
-   * - qn, qh, qe, qs, qf
-     - -800 to 1400 W/m²
-     - Energy flux physical limits
-   * - snow
-     - 0 - 1
-     - Fraction (0-1, or 0-100%)
-   * - fcld
-     - 0 - 10
-     - Cloud cover (oktas, 0-10 tenths)
-   * - xsmd
-     - 0 - 1 m³/m³
-     - Volumetric soil moisture
-   * - lai
-     - 0 - 15 m²/m²
-     - Observed leaf area index (consumed only when ``model.physics.laimethod: 0``;
-       otherwise ignored — see :ref:`prescribed-lai`)
-   * - kdiff, kdir
-     - 0 - 1400 W/m²
-     - Radiation components
-   * - wdir
-     - 0 - 360°
-     - Wind direction
+The registry-derived :ref:`df_forcing_var` reference is authoritative for
+input units, enforced ranges, requiredness, aliases, and missing-value policy.
 
 **Usage**
 
@@ -712,6 +664,7 @@ Certain model physics options require specific forcing data columns to contain v
 See Also
 --------
 
+- :ref:`df_forcing_var` - Registry-derived forcing-variable reference
 - :doc:`/inputs/yaml/index` - YAML configuration including forcing file specification
 - :doc:`/inputs/yaml/validation` - Complete validation system documentation
 - :doc:`/input_files/RunControl/RunControl` - Model physics options reference

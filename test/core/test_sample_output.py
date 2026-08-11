@@ -50,30 +50,39 @@ from sample_output_io import load_sample_output  # noqa: E402
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
 # Default the smoke path to one model day. Set SUEWS_FAIL_FAST_STEPS to a larger
 # value, or to 0 for the whole window, when an exhaustive local comparison is
-# needed. Seasonal coverage does not depend on this switch: it lives in
-# test_sample_output_validation_full_year, which ignores it entirely.
+# needed. Coverage of accumulated-state and day-of-year-gated behaviour does not
+# depend on this switch: it lives in test_sample_output_validation_full_year,
+# which ignores it entirely.
 DEFAULT_FAIL_FAST_STEPS = TIMESTEPS_PER_DAY
 
 
-def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
-    """Return validation timesteps, where a non-positive result means full window.
+def _resolve_fail_fast_steps(
+    total_steps: int, default_steps: int = DEFAULT_FAIL_FAST_STEPS
+) -> int:
+    """Return how many timesteps to validate, resolved against what is available.
 
-    The zero sentinel matches test_soil_obs_conversion.py, the other reader of
-    SUEWS_FAIL_FAST_STEPS: non-positive means "validate everything". Previously
-    zero was coerced here to one model day, so applying the sibling module's
-    convention silently truncated coverage instead of restoring it.
+    Non-positive means the whole window, matching test_soil_obs_conversion.py, the
+    other reader of SUEWS_FAIL_FAST_STEPS.
+
+    Resolution lives here rather than at the call sites deliberately. This module
+    has two callers, and an unresolved sentinel silently collapses a validation
+    horizon to zero timesteps, which passes vacuously rather than failing. That is
+    the same failure mode this module's full-year test exists to prevent.
     """
     raw = os.environ.get(FAIL_FAST_STEPS_ENV)
     if not raw:
-        return default_steps
-    try:
-        steps = int(raw)
-    except ValueError as exc:
-        raise ValueError(
-            f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
-        ) from exc
+        requested = default_steps
+    else:
+        try:
+            requested = int(raw)
+        except ValueError as exc:
+            raise ValueError(
+                f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
+            ) from exc
 
-    return steps
+    if requested <= 0:
+        return total_steps
+    return min(requested, total_steps)
 
 
 def _write_forcing_prefix(source: Path, destination: Path, data_rows: int) -> None:
@@ -369,7 +378,7 @@ class TestSampleOutput(TestCase):
         """Quick parity check: Python library bridge vs CLI reference.
 
         Runs only 3 days of simulation to keep execution fast.
-        Compares the 8 key variables against the corresponding slice
+        Compares the variables in TOLERANCE_CONFIG against the corresponding slice
         of the monthly sample-output shards (the CLI-generated reference).
         """
         sim = sp.SUEWSSimulation.from_sample_data()
@@ -503,20 +512,13 @@ class TestSampleOutput(TestCase):
         df_ref = load_sample_output(test_data_dir)
         print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
 
-        if full_year:
-            validation_steps = len(df_ref)
-        else:
-            requested_steps = _get_fail_fast_steps()
-            # Non-positive means full window, matching test_soil_obs_conversion.py.
-            if requested_steps <= 0:
-                validation_steps = len(df_ref)
-            else:
-                validation_steps = min(requested_steps, len(df_ref))
+        validation_steps = (
+            len(df_ref) if full_year else _resolve_fail_fast_steps(len(df_ref))
+        )
 
         # Run the Rust CLI with a temporary config pointing output to tmpdir.
         # The smoke path stays short for wheel CI, especially on Windows where
-        # the full-year executable run can exceed the per-test timeout; the
-        # full-year variant is `slow`, so it runs only in the full physics tier.
+        # the full-year executable run can exceed the per-test timeout.
         cli_timeout = 1800 if full_year else 120
         print(f"\nRunning Rust CLI: {rust_binary.name} run (Arrow output)")
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -606,7 +608,7 @@ class TestSampleOutput(TestCase):
         )
         df_ref = df_ref.iloc[:n_rust].copy()
 
-        # Compare the 8 key variables (all timesteps)
+        # Compare every variable in TOLERANCE_CONFIG (all timesteps)
         variables_to_test = list(TOLERANCE_CONFIG.keys())
         print(f"\nValidating variables: {', '.join(variables_to_test)}")
         print(f"Comparing first {n_rust} timesteps")
@@ -757,13 +759,9 @@ class TestSTEBBSOutput(TestCase):
                 "Insufficient forcing data for STEBBS validation: "
                 f"{len(df_forcing_window)} rows."
             )
-        requested_steps = _get_fail_fast_steps()
-        validation_steps = min(requested_steps, max_validation_steps)
-        if validation_steps != requested_steps:
-            print(
-                f"[INFO] Requested {requested_steps} validation steps, "
-                f"clamped to available {validation_steps}."
-            )
+        validation_steps = _resolve_fail_fast_steps(max_validation_steps)
+        if validation_steps == max_validation_steps:
+            print(f"[INFO] Validating all {validation_steps} available steps.")
         df_forcing = df_forcing_window.iloc[: TIMESTEPS_PER_DAY + validation_steps]
 
         print(

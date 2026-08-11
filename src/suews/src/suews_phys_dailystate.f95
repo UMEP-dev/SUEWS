@@ -860,17 +860,17 @@ CONTAINS
          ! Set GDD zero in winter time
          if (SDD_id < -critDays .and. id > winter_day) GDD_id = 0
 
-         if (LAItype < 0.5) THEN !Original LAI type
+         if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
+            call calculate_gdd( &
+               LAI_id_prev=LAI_id_prev, &
+               LAIPower=LAIPower, &
+               GDD_id=GDD_id, &
+               LAI_id_next=LAI_id_next &
+            )
+         
+         else if (LAItype < 0.5) THEN !Original LAI type
 
-            if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
-               call calculate_gdd( &
-                  LAI_id_prev=LAI_id_prev, &
-                  LAIPower=LAIPower, &
-                  GDD_id=GDD_id, &
-                  LAI_id_next=LAI_id_next &
-               )
-
-            else if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
+            if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
                call calculate_sdd_type0( &
                   LAI_id_prev=LAI_id_prev, &
                   LAIPower=LAIPower, &
@@ -885,38 +885,27 @@ CONTAINS
 
          else if (LAItype >= 0.5) then
 
-            if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
-               call calculate_gdd( &
+            !! Use day length to start senescence at high latitudes (set use_daylength for N hemisphere)
+
+            select case (senescence_mode)
+
+               case (SEN_DAYLENGTH)
+                  start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id > SDDFull))
+
+               case (SEN_SDD)
+                  start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
+
+            end select
+
+            if (start_senescence) then !Start senescence
+               call calculate_sdd_type1( &
                   LAI_id_prev=LAI_id_prev, &
                   LAIPower=LAIPower, &
-                  GDD_id=GDD_id, &
+                  SDD_id=SDD_id, &
                   LAI_id_next=LAI_id_next &
                )
-
-            !! Use day length to start senescence at high latitudes (set use_daylength for N hemisphere)
             else
-
-               select case (senescence_mode)
-
-                  case (SEN_DAYLENGTH)
-                     start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id > SDDFull))
-
-                  case (SEN_SDD)
-                     start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
-
-               end select
-
-               if (start_senescence) then !Start senescence
-                  call calculate_sdd_type1( &
-                     LAI_id_prev=LAI_id_prev, &
-                     LAIPower=LAIPower, &
-                     SDD_id=SDD_id, &
-                     LAI_id_next=LAI_id_next &
-                  )
-               else
-                  LAI_id_next = LAI_id_prev
-               end if
-
+               LAI_id_next = LAI_id_prev
             end if
 
          end if

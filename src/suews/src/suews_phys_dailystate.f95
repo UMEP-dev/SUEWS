@@ -851,14 +851,11 @@ CONTAINS
 
          logical :: start_senescence
 
-         ! if SDD is not zero by the transition day, force it
-         if (id == sdd_reset_day .and. SDD_id /= 0) SDD_id = 0
-
-         ! Set SDD to zero in summer time
-         if (GDD_id > critDays .and. id < summer_day) SDD_id = 0
-
-         ! Set GDD zero in winter time
-         if (SDD_id < -critDays .and. id > winter_day) GDD_id = 0
+         call reset_degree_day_states( &
+            id=id, sdd_reset_day=sdd_reset_day, crit_days=critDays, &
+            summer_day=summer_day, winter_day=winter_day, &
+            sdd_id=SDD_id, gdd_id=GDD_id &
+         )
 
          if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
             call calculate_gdd( &
@@ -908,6 +905,32 @@ CONTAINS
          end if
 
       end subroutine calculate_lai
+
+      subroutine reset_degree_day_states( &
+         id, sdd_reset_day, crit_days, summer_day, winter_day, &
+         sdd_id, gdd_id)
+      
+         implicit none
+
+         integer, intent(in) :: id
+         integer, intent(in) :: sdd_reset_day
+         integer, intent(in) :: crit_days
+         integer, intent(in) :: summer_day
+         integer, intent(in) :: winter_day
+
+         real(kind(1D0)), intent(inout) :: sdd_id
+         real(kind(1D0)), intent(inout) :: gdd_id
+
+         ! if SDD is not zero by the transition day, force it
+         if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
+
+         ! Set SDD to zero in summer time
+         if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0
+
+         ! Set GDD zero in winter time
+         if (sdd_id < -crit_days .and. id > winter_day) gdd_id = 0
+
+      end subroutine reset_degree_day_states
 
       function check_start_senescence(senescence_mode, lenDay_id_prev, SDD_id, SDDFull) result(start_senescence)
          

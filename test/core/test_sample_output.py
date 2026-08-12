@@ -447,20 +447,14 @@ class TestSampleOutput(TestCase):
         never depends on the hand-applied 0-physics:change label, which is the
         mechanism that failed. Not `slow`, which would reinstate that dependency.
 
-        Not `smoke` either, for a measured reason rather than a stylistic one.
-        The smoke tier's stated budget is ~60s; it runs at 47s without this test
-        and 57s with it on macOS ARM, so on a slower runner it would breach the
-        budget. gh#1348 previously placed a full-year run in `smoke` and gh#1382
-        removed it six days later citing a Windows per-test timeout. If a Windows
-        measurement later shows headroom, promoting this to `smoke` and deleting
-        the one-day variant above is the tidier end state, since the full year is
-        then a strict superset. If it is tight instead, re-tier rather than
-        shorten the horizon again.
+        Not `smoke` either: a full year of engine time does not fit that tier's
+        stated budget. gh#1348 tried it and gh#1382 reverted it six days later
+        over a Windows per-test timeout.
 
-        Cost on macOS ARM: ~14.3s, of which almost all is the engine simulating
-        the year and ~0.2s the comparison, against ~3.4s for the one-day path.
-        It therefore scales with runner speed rather than with anything the test
-        itself can optimise.
+        Measured runtimes, and the case for promoting this to `smoke` should
+        Windows prove to have headroom, are recorded in gh#1679 where they carry
+        a date. They are deliberately not repeated here: nothing asserts them, so
+        a docstring cannot tell a reader when they stopped being true.
         """
         self._validate_sample_output(full_year=True)
 

@@ -438,11 +438,11 @@ class TestSampleConfig:
                 f"CURRENT_SCHEMA_VERSION ({CURRENT_SCHEMA_VERSION}), got {config['schema_version']}"
             )
             print(
-                f"✓ sample_config.yml has explicit schema_version: {config['schema_version']}"
+                f"[OK] sample_config.yml has explicit schema_version: {config['schema_version']}"
             )
         else:
             # Omitting schema_version is valid - system assumes latest version
-            print("✓ sample_config.yml omits schema_version (uses latest by default)")
+            print("[OK] sample_config.yml omits schema_version (uses latest by default)")
 
         # Should not have old version fields
         assert "version" not in config, (

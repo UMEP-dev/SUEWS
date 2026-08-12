@@ -1497,7 +1497,7 @@ class SUEWSSimulation:
         See Also
         --------
         output : Access results as SUEWSOutput object with analysis methods
-        :ref:`df_output_var` : Complete output data structure and variable descriptions
+        :ref:`output_variable_reference` : Complete output variable reference
         get_variable : Extract specific variables from output groups
         save : Save results to files
         """
@@ -1529,7 +1529,7 @@ class SUEWSSimulation:
         See Also
         --------
         run : Run simulation and return SUEWSOutput (preferred)
-        :ref:`df_output_var` : Complete output data structure
+        :ref:`output_variable_reference` : Complete output variable reference
 
         Examples
         --------

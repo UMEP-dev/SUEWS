@@ -3,7 +3,7 @@
 Slugs are **slash-free** (hyphenated) so the ``suews://docs/{slug}`` URI
 template routes cleanly — an earlier ``configuration/yaml`` slug was
 unreachable because the embedded slash split the URI path. Each slug
-maps to one or more real files under the SUEWS ``docs/source/`` tree;
+maps to one or more real documentation or registry-projection files;
 the catalogue is the curated answer to "which docs does a SUEWS user
 actually need", aligned with the canonical question set (gh#1384).
 
@@ -51,7 +51,7 @@ _DOCS: dict[str, dict[str, Any]] = {
     "output-variables": {
         "title": "Output variable dictionary (df_output)",
         "summary": "Every model output variable, including T2 (2 m air temperature), RH2, and the energy/water fluxes.",
-        "paths": ["docs/source/data-structures/df_output.rst"],
+        "paths": ["src/supy/data_model/output/artefacts/1.0.0/catalogue.json"],
     },
     "outputs": {
         "title": "Model outputs overview",

@@ -679,7 +679,7 @@ def _run_supy(
     Returns
     -------
     df_output, df_state_final : Tuple[pandas.DataFrame, pandas.DataFrame]
-        - df_output: `output results <df_output_var>`
+        - df_output: `output results <output_variable_reference>`
         - df_state_final: `final model states <df_state_var>`
 
     Examples
@@ -847,7 +847,7 @@ def run_supy(
     Returns
     -------
     df_output, df_state_final : Tuple[pandas.DataFrame, pandas.DataFrame]
-        - df_output: `output results <df_output_var>`
+        - df_output: `output results <output_variable_reference>`
         - df_state_final: `final model states <df_state_var>`
 
     See Also

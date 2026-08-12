@@ -58,7 +58,7 @@ EXAMPLES:
 
 - [bugfix] Stopped the YAML config reference describing parameters without a default as optional (#1677)
   - Every parameter carrying no default previously rendered as `Default: None (optional)`, which asserted the opposite of the truth for parameters such as `store_cap` and `base_temperature_senescence`; these are declared `Optional[...] = None` only so a partial configuration still loads and the validation layer can then report what is missing.
-  - Such parameters now render as `Status: No default value; may be required depending on your configuration`, so a `Default` label always introduces a real default value and the absence of one is reported under `Status` alongside the unconditionally required case.
+  - Such parameters now render under a `Configuration Note` label stating that no default exists and that a value may be required depending on which physics options and surface types are active. A `Default` label therefore always introduces a real default value, and `Status` stays reserved for the short state token `Required`.
   - Added regression coverage over the rendered pages, which is the only available gate because the generated config reference is not tracked in git.
 
 ### 22 Jul 2026

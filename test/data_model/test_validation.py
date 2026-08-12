@@ -672,208 +672,125 @@ def test_auto_albedo_with_refvalue_inputs():
     assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
 
 
-def test_validate_same_albedo_wall_requires_identical_wall_albedos():
-    """
-    When same_albedo_wall is ON but walls have different albedos,
-    we should get an error about them needing to be identical.
-    """
-    cfg = make_cfg(same_albedo_wall=1)
+# The same-albedo / same-emissivity validators are symmetric across
+# (wall, roof) x (albedo, emissivity); one parametrised test per behaviour
+# replaces the twelve copy-pasted originals. Case values are those of the
+# original per-combination tests.
 
-    walls = [
-        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
-        SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
+_SAME_SURFACE_COMBOS = {
+    # flag -> (validator, needs_check, surfaces_attr, prop_attr, archetype_attr, word)
+    "same_albedo_wall": (
+        "_validate_same_albedo_wall",
+        "_needs_same_albedo_wall_validation",
+        "walls",
+        "alb",
+        "reflectivity_wall_external",
+        "albedo",
+    ),
+    "same_albedo_roof": (
+        "_validate_same_albedo_roof",
+        "_needs_same_albedo_roof_validation",
+        "roofs",
+        "alb",
+        "reflectivity_roof_external",
+        "albedo",
+    ),
+    "same_emissivity_wall": (
+        "_validate_same_emissivity_wall",
+        "_needs_same_emissivity_wall_validation",
+        "walls",
+        "emis",
+        "emissivity_wall_external",
+        "emissivity",
+    ),
+    "same_emissivity_roof": (
+        "_validate_same_emissivity_roof",
+        "_needs_same_emissivity_roof_validation",
+        "roofs",
+        "emis",
+        "emissivity_roof_external",
+        "emissivity",
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "flag, v1, v2, arch_v, site_name",
+    [
+        pytest.param("same_albedo_wall", 0.5, 0.6, 0.5, "SiteWallMismatch", id="albedo-wall"),
+        pytest.param("same_albedo_roof", 0.5, 0.6, 0.5, "SiteRoofMismatch", id="albedo-roof"),
+        pytest.param("same_emissivity_wall", 0.5, 0.6, 0.5, "SiteWallMismatch", id="emissivity-wall"),
+        pytest.param("same_emissivity_roof", 0.8, 0.9, 0.8, "SiteRoofEmisMismatch", id="emissivity-roof"),
+    ],
+)
+def test_validate_same_surface_property_requires_identical_values(
+    flag, v1, v2, arch_v, site_name
+):
+    """
+    When a same_* switch is ON but the wall/roof layers carry different
+    albedo/emissivity values, we should get an error about them needing to
+    be identical.
+    """
+    validator, _, surfaces_attr, prop_attr, archetype_attr, word = _SAME_SURFACE_COMBOS[flag]
+    cfg = make_cfg(**{flag: 1})
+
+    surfaces = [
+        SimpleNamespace(**{prop_attr: SimpleNamespace(value=v1)}),
+        SimpleNamespace(**{prop_attr: SimpleNamespace(value=v2)}),  # mismatch
     ]
-    vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(reflectivity_wall_external=SimpleNamespace(value=0.5))
+    vl = SimpleNamespace(**{surfaces_attr: surfaces})
+    ba = SimpleNamespace(**{archetype_attr: SimpleNamespace(value=arch_v)})
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name="SiteWallMismatch")
+    site = DummySite(properties=props, name=site_name)
 
-    msgs = SUEWSConfig._validate_same_albedo_wall(cfg, site, 0)
+    msgs = getattr(SUEWSConfig, validator)(cfg, site, 0)
     assert len(msgs) == 1
-    assert "so all walls albedo values must be identical;" in msgs[0]
-    assert "SiteWallMismatch" in msgs[0]
+    assert f"so all {surfaces_attr} {word} values must be identical;" in msgs[0]
+    assert site_name in msgs[0]
 
 
-def test_validate_same_albedo_wall_requires_match_with_wallreflectivity():
+@pytest.mark.parametrize(
+    "flag, value, arch_v, site_name",
+    [
+        pytest.param("same_albedo_wall", 0.5, 0.345, "SiteRefMismatch", id="albedo-wall"),
+        pytest.param("same_albedo_roof", 0.5, 0.345, "SiteRefMismatch", id="albedo-roof"),
+        pytest.param("same_emissivity_wall", 0.9, 0.8, "SiteEmisRefMismatch", id="emissivity-wall"),
+        pytest.param("same_emissivity_roof", 0.7, 0.5, "SiteRoofEmisRefMismatch", id="emissivity-roof"),
+    ],
+)
+def test_validate_same_surface_property_requires_match_with_archetype(
+    flag, value, arch_v, site_name
+):
     """
-    When same_albedo_wall is ON, all walls have same alb but it differs
-    from building_archetype.WallReflectivity, we should get an error.
+    When a same_* switch is ON and all wall/roof layers agree but differ from
+    the building_archetype reference value, we should get an error.
     """
-    cfg = make_cfg(same_albedo_wall=1)
+    validator, _, surfaces_attr, prop_attr, archetype_attr, _ = _SAME_SURFACE_COMBOS[flag]
+    cfg = make_cfg(**{flag: 1})
 
-    walls = [
-        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
-        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+    surfaces = [
+        SimpleNamespace(**{prop_attr: SimpleNamespace(value=value)}),
+        SimpleNamespace(**{prop_attr: SimpleNamespace(value=value)}),
     ]
-    vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(reflectivity_wall_external=SimpleNamespace(value=0.345))
+    vl = SimpleNamespace(**{surfaces_attr: surfaces})
+    ba = SimpleNamespace(**{archetype_attr: SimpleNamespace(value=arch_v)})
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name="SiteRefMismatch")
+    site = DummySite(properties=props, name=site_name)
 
-    msgs = SUEWSConfig._validate_same_albedo_wall(cfg, site, 0)
-    assert len(msgs) == 1
-    msg = msgs[0]
-    assert "must equal properties.building_archetype.reflectivity_wall_external (0.345)" in msg
-    assert "walls[0]=0.5" in msg
-
-def test_validate_same_albedo_roof_requires_match_with_roofreflectivity():
-    """
-    When same_albedo_roof is ON, all roofs have same alb but it differs
-    from building_archetype.RoofReflectivity, we should get an error.
-    """
-    cfg = make_cfg(same_albedo_roof=1)
-
-    roofs = [
-        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
-        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
-    ]
-    vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(reflectivity_roof_external=SimpleNamespace(value=0.345))
-    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name="SiteRefMismatch")
-
-    msgs = SUEWSConfig._validate_same_albedo_roof(cfg, site, 0)
-    assert len(msgs) == 1
-    msg = msgs[0]
-    assert "must equal properties.building_archetype.reflectivity_roof_external (0.345)" in msg
-    assert "roofs[0]=0.5" in msg
-
-def test_validate_same_albedo_roof_requires_identical_roof_albedos():
-    """
-    When same_albedo_roof is ON but roofs have different albedos,
-    we should get an error about them needing to be identical.
-    """
-    cfg = make_cfg(same_albedo_roof=1)
-
-    roofs = [
-        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
-        SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
-    ]
-    vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(reflectivity_roof_external=SimpleNamespace(value=0.5))
-    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name="SiteRoofMismatch")
-
-    msgs = SUEWSConfig._validate_same_albedo_roof(cfg, site, 0)
-    assert len(msgs) == 1
-    assert "so all roofs albedo values must be identical;" in msgs[0]
-    assert "SiteRoofMismatch" in msgs[0]
-
-def test_needs_same_albedo_roof_validation_true_and_false():
-    cfg = make_cfg(same_albedo_roof=1)
-    assert cfg._needs_same_albedo_roof_validation() is True
-    cfg2 = make_cfg(same_albedo_roof=0)
-    assert cfg2._needs_same_albedo_roof_validation() is False
-
-def test_needs_same_albedo_wall_validation_true_and_false():
-    cfg = make_cfg(same_albedo_wall=1)
-    assert cfg._needs_same_albedo_wall_validation() is True
-    cfg2 = make_cfg(same_albedo_wall=0)
-    assert cfg2._needs_same_albedo_wall_validation() is False
-
-def test_validate_same_emissivity_wall_requires_identical_wall_emissivities():
-    """
-    When same_emissivity_wall is ON but walls have different emissivities,
-    we should get an error about them needing to be identical.
-    """
-    cfg = make_cfg(same_emissivity_wall=1)
-
-    walls = [
-        SimpleNamespace(emis=SimpleNamespace(value=0.5)),
-        SimpleNamespace(emis=SimpleNamespace(value=0.6)),  # mismatch
-    ]
-    vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(emissivity_wall_external=SimpleNamespace(value=0.5))
-    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name="SiteWallMismatch")
-
-    msgs = SUEWSConfig._validate_same_emissivity_wall(cfg, site, 0)
-    assert len(msgs) == 1
-    assert "so all walls emissivity values must be identical;" in msgs[0]
-    assert "SiteWallMismatch" in msgs[0]
-
-def test_validate_same_emissivity_wall_requires_match_with_wallexternalemissivity():
-    """
-    When same_emissivity_wall is ON, all walls have same emis but it differs
-    from building_archetype.WallExternalEmissivity, we should get an error.
-    """
-    cfg = make_cfg(same_emissivity_wall=1)
-
-    walls = [
-        SimpleNamespace(emis=SimpleNamespace(value=0.9)),
-        SimpleNamespace(emis=SimpleNamespace(value=0.9)),
-    ]
-    vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(emissivity_wall_external=SimpleNamespace(value=0.8))
-    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name="SiteEmisRefMismatch")
-
-    msgs = SUEWSConfig._validate_same_emissivity_wall(cfg, site, 0)
+    msgs = getattr(SUEWSConfig, validator)(cfg, site, 0)
     assert len(msgs) == 1
     msg = msgs[0]
-    assert (
-        "must equal properties.building_archetype.emissivity_wall_external (0.8)" in msg
-    )
-    assert "walls[0]=0.9" in msg
-    assert "SiteEmisRefMismatch" in msg
+    assert f"must equal properties.building_archetype.{archetype_attr} ({arch_v})" in msg
+    assert f"{surfaces_attr}[0]={value}" in msg
+    assert site_name in msg
 
-def test_validate_same_emissivity_roof_requires_match_with_roofexternalemissivity():
-    """
-    When same_emissivity_roof is ON, all roofs have same emis but it differs
-    from building_archetype.RoofExternalEmissivity, we should get an error.
-    """
-    cfg = make_cfg(same_emissivity_roof=1)
 
-    roofs = [
-        SimpleNamespace(emis=SimpleNamespace(value=0.7)),
-        SimpleNamespace(emis=SimpleNamespace(value=0.7)),
-    ]
-    vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(emissivity_roof_external=SimpleNamespace(value=0.5))
-    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name="SiteRoofEmisRefMismatch")
+@pytest.mark.parametrize("flag", list(_SAME_SURFACE_COMBOS))
+def test_needs_same_surface_property_validation_true_and_false(flag):
+    needs_check = _SAME_SURFACE_COMBOS[flag][1]
+    assert getattr(make_cfg(**{flag: 1}), needs_check)() is True
+    assert getattr(make_cfg(**{flag: 0}), needs_check)() is False
 
-    msgs = SUEWSConfig._validate_same_emissivity_roof(cfg, site, 0)
-    assert len(msgs) == 1
-    msg = msgs[0]
-    assert (
-        "must equal properties.building_archetype.emissivity_roof_external (0.5)" in msg
-    )
-    assert "roofs[0]=0.7" in msg
-    assert "SiteRoofEmisRefMismatch" in msg
-
-def test_validate_same_emissivity_roof_requires_identical_roof_emissivities():
-    """
-    When same_emissivity_roof is ON but roofs have different emissivities,
-    we should get an error about them needing to be identical.
-    """
-    cfg = make_cfg(same_emissivity_roof=1)
-
-    roofs = [
-        SimpleNamespace(emis=SimpleNamespace(value=0.8)),
-        SimpleNamespace(emis=SimpleNamespace(value=0.9)),  # mismatch
-    ]
-    vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(emissivity_roof_external=SimpleNamespace(value=0.8))
-    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name="SiteRoofEmisMismatch")
-
-    msgs = SUEWSConfig._validate_same_emissivity_roof(cfg, site, 0)
-    assert len(msgs) == 1
-    assert "so all roofs emissivity values must be identical;" in msgs[0]
-    assert "SiteRoofEmisMismatch" in msgs[0]
-
-def test_needs_same_emissivity_roof_validation_true_and_false():
-    cfg = make_cfg(same_emissivity_roof=1)
-    assert cfg._needs_same_emissivity_roof_validation() is True
-    cfg2 = make_cfg(same_emissivity_roof=0)
-    assert cfg2._needs_same_emissivity_roof_validation() is False
-
-def test_needs_same_emissivity_wall_validation_true_and_false():
-    cfg = make_cfg(same_emissivity_wall=1)
-    assert cfg._needs_same_emissivity_wall_validation() is True
-    cfg2 = make_cfg(same_emissivity_wall=0)
-    assert cfg2._needs_same_emissivity_wall_validation() is False
 
 def test_phase_b_stebbs_rules_fire_with_nested_enabled_form(registry):
     """gh#1456: the STEBBS phase-B rules must fire when STEBBS is enabled via the nested form.
@@ -2336,61 +2253,35 @@ def test_validate_spartacus_sfr_allows_trunk_crown_veg_frac():
     msgs = cfg._validate_spartacus_sfr(site, 0)
     assert msgs == []
 
-def test_validate_spartacus_veg_dimensions_valid():
-    """Test validate_spartacus_veg_dimensions passes with matching veg_frac and nlayer."""
-    cfg = SUEWSConfig.model_construct()
-    vertical_layers = SimpleNamespace(
-        nlayer=2,
-        veg_frac=[0.3, 0.7],
-    )
-    props = SimpleNamespace(vertical_layers=vertical_layers)
-    site = SimpleNamespace(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
-    assert msgs == []
+# Without tree-height context (no land_cover / height array on the stub),
+# _validate_spartacus_veg_dimensions is lenient: matching, mismatched, and
+# missing nlayer/veg_frac shapes all pass through with no messages. One
+# parametrised test replaces the five copy-pasted originals; the height-aware
+# passing/failing/boundary/exceeds cases below keep their distinct assertions.
 
-def test_validate_spartacus_veg_dimensions_too_few_elements():
-    """Test validate_spartacus_veg_dimensions detects too few veg_frac elements."""
-    cfg = SUEWSConfig.model_construct()
-    vertical_layers = SimpleNamespace(
-        nlayer=3,
-        veg_frac=[0.2, 0.8],
-    )
-    props = SimpleNamespace(vertical_layers=vertical_layers)
-    site = SimpleNamespace(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
-    assert msgs == []
 
-def test_validate_spartacus_veg_dimensions_too_many_elements():
-    """Test validate_spartacus_veg_dimensions detects too many veg_frac elements."""
+@pytest.mark.parametrize(
+    "vertical_layers",
+    [
+        pytest.param(
+            SimpleNamespace(nlayer=2, veg_frac=[0.3, 0.7]), id="matching"
+        ),
+        pytest.param(
+            SimpleNamespace(nlayer=3, veg_frac=[0.2, 0.8]), id="too-few-elements"
+        ),
+        pytest.param(
+            SimpleNamespace(nlayer=2, veg_frac=[0.1, 0.2, 0.7]),
+            id="too-many-elements",
+        ),
+        pytest.param(SimpleNamespace(nlayer=2), id="missing-veg-frac"),
+        pytest.param(SimpleNamespace(veg_frac=[0.5, 0.5]), id="missing-nlayer"),
+    ],
+)
+def test_validate_spartacus_veg_dimensions_lenient_without_height_context(
+    vertical_layers,
+):
+    """nlayer/veg_frac shapes produce no messages when no height context is set."""
     cfg = SUEWSConfig.model_construct()
-    vertical_layers = SimpleNamespace(
-        nlayer=2,
-        veg_frac=[0.1, 0.2, 0.7],
-    )
-    props = SimpleNamespace(vertical_layers=vertical_layers)
-    site = SimpleNamespace(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
-    assert msgs == []
-
-def test_validate_spartacus_veg_dimensions_missing_veg_frac():
-    """Test validate_spartacus_veg_dimensions handles missing veg_frac gracefully."""
-    cfg = SUEWSConfig.model_construct()
-    vertical_layers = SimpleNamespace(
-        nlayer=2,
-        # veg_frac missing
-    )
-    props = SimpleNamespace(vertical_layers=vertical_layers)
-    site = SimpleNamespace(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
-    assert msgs == []
-
-def test_validate_spartacus_veg_dimensions_missing_nlayer():
-    """Test validate_spartacus_veg_dimensions handles missing nlayer gracefully."""
-    cfg = SUEWSConfig.model_construct()
-    vertical_layers = SimpleNamespace(
-        veg_frac=[0.5, 0.5],
-        # nlayer missing
-    )
     props = SimpleNamespace(vertical_layers=vertical_layers)
     site = SimpleNamespace(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_veg_dimensions(site, 0)

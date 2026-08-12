@@ -399,7 +399,15 @@ class StorageDrainParams(BaseModel):
             "storage-capacity values: "
             "https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html."
         ),
-        json_schema_extra={"unit": "mm", "display_name": "Storage Capacity"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Storage Capacity",
+            "default_description": (
+                "Varies by surface type. In the shipped sample configuration the "
+                "values range from 0.25 mm for buildings to 1.9 mm for grass; "
+                "calibrate by site."
+            ),
+        },
     )
     drain_eq: FlexibleRefValue(int) = Field(
         default=0,

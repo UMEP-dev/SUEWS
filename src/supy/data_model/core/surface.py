@@ -247,7 +247,14 @@ class SurfaceProperties(BaseModel):
     soil_depth: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Depth of soil layer below surface for hydrological calculations, controlling sub-surface water storage and drainage processes. Site-specific value typically determined from soil surveys or borehole data",
-        json_schema_extra={"unit": "mm", "display_name": "Soil Depth"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Soil Depth",
+            "default_description": (
+                "The shipped sample configuration uses 350 mm for every land "
+                "surface and 0 mm for water; calibrate by site."
+            ),
+        },
     )
     soil_store_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=None,

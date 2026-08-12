@@ -224,6 +224,8 @@ At the end of each object-oriented simulation, ``sim.run()`` exposes
 ``{site}_SUEWS_checkpoint.json``. The checkpoint contains:
 
 - Backend runtime state keyed by grid ID
+- Elapsed model-time metadata needed for exact continuation
+- Checkpoint and backend-state schema versions
 - SUEWS/SuPy version metadata
 - The last forcing timestamp represented by the checkpoint
 
@@ -233,9 +235,14 @@ This file can be used to:
 2. **Chain simulations** - Use end state as input for subsequent runs
 3. **Preserve typed backend state** - Avoid lossy DataFrame restart conversion
 
-The checkpoint is intentionally only the typed runtime state. To continue a run,
-load the same YAML configuration, attach the next forcing period, and run from
-``SUEWSSimulation.from_checkpoint(...)``.
+The checkpoint contains typed runtime state and elapsed timer metadata, but not
+the YAML configuration or forcing data. To continue a run, load the same YAML
+configuration, attach the next forcing period, and run from
+``SUEWSSimulation.from_checkpoint(...)``. State-only checkpoint schema version 1
+cannot preserve timer continuity and must be regenerated with schema version 2.
+Chunked and restarted outputs are expected to match uninterrupted outputs within
+relative and absolute tolerances of ``1e-12``; JSON and bridge round-trips may
+otherwise differ in the final floating-point bits.
 
 ``df_state_SSss.csv`` and ``df_state_final`` remain legacy/developer-facing
 DataFrame structures for backwards compatibility and state inspection. They are

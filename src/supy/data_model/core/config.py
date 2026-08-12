@@ -38,6 +38,17 @@ from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
+from ..validation.required_fields import (
+    BUILDING_REQUIRED,
+    BUILDING_REQUIRED_PROVIDED_FAI,
+    CONDUCTANCE_REQUIRED,
+    DECIDUOUS_REQUIRED,
+    DECIDUOUS_REQUIRED_PROVIDED_FAI,
+    EVERGREEN_REQUIRED,
+    EVERGREEN_REQUIRED_PROVIDED_FAI,
+    LAI_CALCULATED_ONLY_REQUIRED,
+    LAI_REQUIRED,
+)
 
 from datetime import datetime
 import pytz
@@ -3116,18 +3127,6 @@ class SUEWSConfig(BaseModel):
         # Sourced from the shared registry so the documentation generator can
         # describe the same conditions to readers. Copied rather than aliased,
         # because the FAI entries below are added conditionally per call.
-        from ..validation.required_fields import (
-            BUILDING_REQUIRED,
-            BUILDING_REQUIRED_PROVIDED_FAI,
-            CONDUCTANCE_REQUIRED,
-            DECIDUOUS_REQUIRED,
-            DECIDUOUS_REQUIRED_PROVIDED_FAI,
-            EVERGREEN_REQUIRED,
-            EVERGREEN_REQUIRED_PROVIDED_FAI,
-            LAI_CALCULATED_ONLY_REQUIRED,
-            LAI_REQUIRED,
-        )
-
         lai_required = dict(LAI_REQUIRED)
         lai_calculated_only_required = dict(LAI_CALCULATED_ONLY_REQUIRED)
         conductance_required = dict(CONDUCTANCE_REQUIRED)

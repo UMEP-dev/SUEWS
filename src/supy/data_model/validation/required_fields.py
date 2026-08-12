@@ -15,19 +15,18 @@ these parameters have no default and leaving the reader to guess.
 Two distinct things live in this module:
 
 - The ``*_REQUIRED`` tables, which map a field name to the
-  ``(message, fix)`` pair the validator emits. These are consumed by
-  ``SUEWSConfig._iter_critical_null_site_param_issues``.
+  ``(message, fix)`` pair emitted in annotated-YAML feedback. These are
+  consumed by ``SUEWSConfig._iter_critical_null_site_param_issues``.
 - ``DOC_REQUIRED_WHEN``, which maps a model class name to a reader-facing
   description of when each field is required. This is consumed by the
   documentation generator.
 
 .. warning::
 
-   The ``message`` strings are load-bearing. ``validation/pipeline/phase_c.py``
-   classifies issues by matching substrings of the emitted text, so rewording a
-   message can silently change how an issue is reported without failing any
-   type check. A freeze test guards the exact strings; if you need to change
-   one, update that test deliberately and check the phase C matchers.
+   The ``message`` and ``fix`` strings are user-facing annotated-YAML output.
+   Rewording either changes validation feedback without failing any type check.
+   A freeze test guards every pair; update it deliberately when changing this
+   public feedback contract.
 """
 
 from __future__ import annotations

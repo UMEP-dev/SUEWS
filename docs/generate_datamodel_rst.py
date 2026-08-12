@@ -27,6 +27,24 @@ except ImportError:
     from supy.data_model.doc_utils import ModelDocExtractor
 
 
+# Shown for any parameter that carries no default value. Such parameters are
+# typically declared Optional so that a partial configuration still loads and
+# the validation layer can report what is missing, which is not the same thing
+# as the parameter being optional to the science. The wording therefore states
+# only what is certain: no default exists, and whether one must be supplied
+# depends on the configuration.
+#
+# This is guidance addressed to the reader, so it is labelled as a note rather
+# than filed under "Status". "Status" is reserved for a short state token such
+# as "Required"; a sentence of advice is a different kind of content and gets
+# its own label.
+NO_DEFAULT_NOTE_LABEL = "Configuration Note"
+NO_DEFAULT_NOTE = (
+    "No default value. A value may be required depending on which physics "
+    "options and surface types are active in your configuration."
+)
+
+
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
 
@@ -715,14 +733,18 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:  # noqa: PLR0912
+    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
         - Required fields: ("Status", "Required")
-        - Optional with defaults: ("Default", "value") or ("Example", "value")
-        - Optional without defaults: ("Default", "None (optional)")
+        - Fields with defaults: ("Default", "value") or ("Example", "value")
+        - Fields with no default: (NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE)
         - Nested models: (None, None) to skip display
+
+        A ``Default`` label therefore always introduces a real default value.
+        Absence of a value is reported under ``Status``, alongside the
+        unconditionally required case.
 
         Site-specific fields (detected by doc_utils.py pattern matching) show
         "Example" instead of "Default" to indicate values are illustrative.
@@ -736,12 +758,6 @@ class RSTGenerator:
         if nested_model:
             return None, None
 
-        # Get the field type to check if it's Optional
-        type_str = str(field_doc.get("type", ""))
-        is_optional = "Optional" in type_str or (
-            "Union[" in type_str and "None" in type_str
-        )
-
         # Check for default value
         default = field_doc.get("default")
 
@@ -749,15 +765,14 @@ class RSTGenerator:
         if str(default) == "PydanticUndefined":
             return "Status", "Required"
 
-        # Handle None defaults explicitly
+        # No default value to report. Most such parameters are declared
+        # Optional purely so a partial configuration still loads and the
+        # validation layer can then report what is missing; whether a value
+        # must be supplied depends on which physics options and surface types
+        # are active. State the absence of a default without claiming that the
+        # parameter itself is optional.
         if default is None:
-            # If the field is Optional (like Reference fields), show as optional
-            if is_optional:
-                return "Default", "None (optional)"
-            else:
-                # If not Optional but has None default, still show as optional
-                # (this handles cases where the model has default=None)
-                return "Default", "None (optional)"
+            return NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE
 
         # We have a non-None default value - format it
         # Use the is_site_specific flag from doc_utils.py extraction

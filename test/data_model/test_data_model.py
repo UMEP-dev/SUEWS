@@ -571,17 +571,17 @@ def test_flexible_refvalue_with_cleaning():
     print("\n   a) Loading original config with value keys...")
     try:
         config_original = SUEWSConfig(**original_data)
-        print("      ✓ Original config loaded successfully")
+        print("      [OK] Original config loaded successfully")
     except Exception as e:
-        print(f"      ✗ Failed: {e}")
+        print(f"      [X] Failed: {e}")
         assert False, f"Failed to load original config: {e}"
 
     print("\n   b) Loading cleaned config without value keys...")
     try:
         config_cleaned = SUEWSConfig(**cleaned_data)
-        print("      ✓ Cleaned config loaded successfully")
+        print("      [OK] Cleaned config loaded successfully")
     except Exception as e:
-        print(f"      ✗ Failed: {e}")
+        print(f"      [X] Failed: {e}")
         assert False, f"Failed to load original config: {e}"
 
     # Compare key values
@@ -609,13 +609,13 @@ def test_flexible_refvalue_with_cleaning():
                 val_clean = val_clean.value
 
             match = val_orig == val_clean
-            symbol = "✓" if match else "✗"
+            symbol = "[OK]" if match else "[X]"
             print(f"   {symbol} {name}: {val_orig} == {val_clean}")
 
             if not match:
                 all_match = False
         except Exception as e:
-            print(f"   ✗ {name}: Error - {e}")
+            print(f"   [X] {name}: Error - {e}")
             all_match = False
 
     # Test DataFrame conversion
@@ -628,13 +628,13 @@ def test_flexible_refvalue_with_cleaning():
         print(f"   Cleaned DataFrame shape:  {df_clean.shape}")
 
         if df_orig.shape == df_clean.shape:
-            print("   ✓ DataFrame shapes match")
+            print("   [OK] DataFrame shapes match")
         else:
-            print("   ✗ DataFrame shapes differ")
+            print("   [X] DataFrame shapes differ")
             all_match = False
 
     except Exception as e:
-        print(f"   ✗ DataFrame conversion failed: {e}")
+        print(f"   [X] DataFrame conversion failed: {e}")
         all_match = False
 
     # Count how many value keys were removed

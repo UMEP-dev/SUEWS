@@ -175,7 +175,9 @@ def _write_run_inputs(
     truncated to the rows the requested window needs, because the engine runs the
     whole forcing file it is given.
     """
-    with open(sample_config, encoding="utf-8") as handle:
+    # sample_config is a Traversable, so use its own open() rather than the
+    # builtin, which requires os.PathLike and fails for zip-backed resources.
+    with sample_config.open(encoding="utf-8") as handle:
         cfg = yaml.safe_load(handle)
 
     control = cfg["model"]["control"]
@@ -664,7 +666,7 @@ class TestSampleOutput(TestCase):
         engine = _locate_engine()
         sample_dir = _sample_data_dir()
         sample_config = sample_dir / "sample_config.yml"
-        assert sample_config.exists(), f"Sample config not found: {sample_config}"
+        assert sample_config.is_file(), f"Sample config not found: {sample_config}"
 
         df_ref = load_sample_output(test_data_dir)
         print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")

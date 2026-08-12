@@ -224,9 +224,35 @@ sample_dir = trv_supy_module / "sample_data"
 ```
 
 `trv_supy_module` is `importlib.resources.files("supy")`. It returns a
-`Traversable` supporting `/`, `.exists()`, `.open()`, `.read_text(encoding=...)`
-and `shutil.copy` on its children, so it is a drop-in for the `Path` expression
-above in every use the test suite currently makes of it.
+`Traversable`, which is **not** a `Path` — and the difference is the point, so do
+not treat it as a drop-in.
+
+The protocol guarantees exactly: `joinpath` (and so `/`), `name`, `is_dir`,
+`is_file`, `iterdir`, `open`, `read_bytes`, `read_text`. Use those:
+
+```python
+sample_config = trv_supy_module / "sample_data" / "sample_config.yml"
+
+assert sample_config.is_file()                  # NOT .exists(), not in the protocol
+with sample_config.open(encoding="utf-8") as f: # NOT builtin open(...)
+    cfg = yaml.safe_load(f)
+text = sample_config.read_text(encoding="utf-8")
+```
+
+Anything that requires `os.PathLike` — builtin `open()`, `shutil.copy()`,
+subprocess arguments — needs a real filesystem path, which means
+`importlib.resources.as_file()`:
+
+```python
+from importlib.resources import as_file
+
+with as_file(sample_config) as real_path:
+    shutil.copy(real_path, destination)
+```
+
+Under an editable install these all appear to work regardless, because the
+Traversable happens to wrap a real path. That is what makes the mistake easy: it
+passes locally and only fails where the abstraction was supposed to help.
 
 ### Why
 

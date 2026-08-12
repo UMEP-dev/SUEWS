@@ -213,3 +213,105 @@ def test_modelphysics_selector_guide_choices_resolve() -> None:
     assert {path for path, _ in rows} == set(CHOICE_RESOLVERS)
     for path, choice in rows:
         CHOICE_RESOLVERS[path](choice)
+
+
+def test_field_without_default_is_not_described_as_optional() -> None:
+    """A parameter carrying no default must not be labelled optional.
+
+    Most such parameters are declared ``Optional[...] = None`` only so a partial
+    configuration still loads; the science usually requires a value. Claiming
+    they are optional is the defect reported for the config reference.
+    """
+    # ARRANGE
+    module = _load_generator_module()
+    field_doc = {
+        "name": "store_cap",
+        "type": "Optional[FlexibleRefValue(float)]",
+        "default": None,
+    }
+
+    # ACT
+    label, value = module.RSTGenerator._format_default(field_doc)
+
+    # ASSERT
+    assert "optional" not in value.lower()
+    assert (label, value) == (module.NO_DEFAULT_NOTE_LABEL, module.NO_DEFAULT_NOTE)
+    # "Status" stays reserved for the short state token, not a sentence of advice.
+    assert label != "Status"
+
+
+def test_required_field_still_reports_required() -> None:
+    """The unconditionally required rendering must be left intact."""
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    label, value = module.RSTGenerator._format_default({"default": "PydanticUndefined"})
+
+    # ASSERT
+    assert (label, value) == ("Status", "Required")
+
+
+@pytest.mark.parametrize(
+    ("default", "expected"),
+    [
+        (0.5, "``0.5``"),
+        (0, "``0``"),
+        (False, "``False``"),
+        ("", "``''`` (empty string)"),
+    ],
+)
+def test_real_default_still_reported_under_default_label(default, expected) -> None:
+    """A genuine default keeps the ``Default`` label, including falsy values.
+
+    ``0``, ``False`` and ``''`` are real defaults and must not be mistaken for
+    an absent one.
+    """
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    label, value = module.RSTGenerator._format_default({"default": default})
+
+    # ASSERT
+    assert label == "Default"
+    assert value == expected
+
+
+def test_nested_model_still_skips_the_default_line() -> None:
+    """Nested models carry a structure link instead of a default."""
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    result = module.RSTGenerator._format_default({
+        "default": None,
+        "nested_model": "LAIParams",
+    })
+
+    # ASSERT
+    assert result == (None, None)
+
+
+def test_generated_config_reference_never_claims_optional(tmp_path) -> None:
+    """End-to-end gate over every rendered page.
+
+    The generated RST is not tracked in git, so this is the only place the
+    claim can be caught before it reaches readers.
+    """
+    # ARRANGE
+    module = _load_generator_module()
+    doc_data = module.ModelDocExtractor().extract_all_models()
+
+    # ACT - "hybrid" is the style main() ships; the parameter default is stale.
+    module.RSTGenerator(doc_data).generate_all_rst(tmp_path, style="hybrid")
+
+    # ASSERT
+    pages = sorted(tmp_path.glob("*.rst"))
+    assert pages, "no RST pages were generated"
+    offenders = [
+        page.name
+        for page in pages
+        if "None (optional)" in page.read_text(encoding="utf-8")
+    ]
+    assert not offenders

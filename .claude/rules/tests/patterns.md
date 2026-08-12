@@ -192,6 +192,7 @@ skips (no coverage). See `test/fixtures/legacy_tables/` for the pattern.
 - Magic number tolerances without justification
 - Testing implementation details rather than behaviour
 - Relative paths from repository root
+- `Path(supy.__file__).parent` to reach packaged data (see "Locating packaged data" below)
 - Tests depending on execution order
 - Duplicating setup logic across multiple test files (use conftest.py)
 - Warning suppression in setUp methods (use autouse fixtures)
@@ -202,6 +203,54 @@ skips (no coverage). See `test/fixtures/legacy_tables/` for the pattern.
 - `try/except ImportError: pytest.skip(...)` — use `pytest.importorskip` instead
 
 ---
+
+## Locating packaged data
+
+Never reach for packaged data through the module's file location:
+
+```python
+# WRONG - assumes the package is an unpacked directory on disk
+sample_dir = Path(supy.__file__).parent / "sample_data"
+sample_dir = Path(sp.__file__).parent / "sample_data"
+```
+
+Use the package's own resource handle instead:
+
+```python
+# RIGHT - what supy itself uses, in src/supy/_env.py
+from supy._env import trv_supy_module
+
+sample_dir = trv_supy_module / "sample_data"
+```
+
+`trv_supy_module` is `importlib.resources.files("supy")`. It returns a
+`Traversable` supporting `/`, `.exists()`, `.open()`, `.read_text(encoding=...)`
+and `shutil.copy` on its children, so it is a drop-in for the `Path` expression
+above in every use the test suite currently makes of it.
+
+### Why
+
+- `__file__` assumes the package is an unpacked directory on disk. The import
+  system does not guarantee that; zip imports and some packaging layouts break it.
+  `importlib.resources` exists precisely to abstract over this.
+- It couples the test to supy's internal directory layout, so a package
+  reorganisation breaks tests that are not testing packaging.
+- It reimplements, less safely, something the package already does. `_env.py` has
+  resolved its own data with `files("supy")` since May 2024.
+
+### Why this keeps happening
+
+There is no public accessor for the sample-data path. `dir(supy)` exposes nothing
+for it and `trv_supy_module` is private, so a test author who needs the directory
+has no supported route and reaches for the obvious one. As of August 2026 there
+are around two dozen occurrences across roughly ten test modules, each invented
+independently.
+
+Until a public accessor exists, importing `trv_supy_module` from `supy._env` is
+the correct thing for a test to do: a test importing a private helper is normal,
+and matching the package's own convention is what stops the two drifting apart.
+If you are adding a new test that needs packaged data, use it rather than adding
+a twenty-fifth variant.
 
 ## Skipping Tests
 

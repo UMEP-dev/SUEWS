@@ -33,6 +33,7 @@ from unittest import TestCase
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
 import supy as sp
 
@@ -95,6 +96,162 @@ def _write_forcing_prefix(source: Path, destination: Path, data_rows: int) -> No
 
     rows_to_write = [lines[0], *lines[1 : data_rows + 1]]
     destination.write_text("\n".join(rows_to_write) + "\n", encoding="utf-8")
+
+
+def _locate_engine() -> Path:
+    """Return the Rust CLI binary, skipping the test if it has not been built.
+
+    Prefers the development build; falls back to the copy bundled inside the
+    installed package, which is what CI and cibuildwheel see.
+    """
+    repo_root = Path(__file__).parent.parent.parent
+    dev_binary = (
+        repo_root / "src" / "suews_bridge" / "target" / "release" / "suews-engine"
+    )
+    if dev_binary.exists():
+        return dev_binary
+
+    try:
+        from supy.cmd.rust_bridge import _bridge_binary
+
+        return _bridge_binary()
+    except (ImportError, FileNotFoundError):
+        pytest.skip(
+            "Rust CLI binary not found; "
+            "build with: cd src/suews_bridge && cargo build --release"
+        )
+
+
+def _forcing_filename(control: dict) -> str:
+    """Return the forcing file name from a config's model.control block.
+
+    Accepts the current `forcing.file` shape (gh#1372) and the legacy
+    `forcing_file` shape, each of which may wrap the value in a RefValue dict,
+    so this test works against pre- and post-migration sample configs.
+    """
+    name = None
+    if isinstance(control.get("forcing"), dict):
+        name = control["forcing"].get("file")
+    if name is None:
+        name = control.get("forcing_file")
+    if isinstance(name, dict):
+        name = name["value"]
+    if not name:
+        raise AssertionError("No forcing file declared in model.control")
+    return name
+
+
+def _forcing_rows_for(validation_steps: int, tstep: int, truncated: bool) -> int:
+    """Return how many forcing rows cover the requested number of timesteps.
+
+    One extra row is included when the window is truncated, so interpolation at
+    the final checked timestep is not a boundary effect.
+    """
+    steps_per_row = max(1, 3600 // tstep)
+    rows = max(2, (validation_steps + steps_per_row - 1) // steps_per_row)
+    return rows + 1 if truncated else rows
+
+
+def _write_run_inputs(
+    sample_dir, sample_config, run_dir: Path, validation_steps: int, truncated: bool
+) -> tuple[Path, int]:
+    """Write a config and forcing prefix into run_dir; return the config and row count.
+
+    The config is redirected to write its output into run_dir. The forcing file is
+    truncated to the rows the requested window needs, because the engine runs the
+    whole forcing file it is given.
+    """
+    with open(sample_config, encoding="utf-8") as handle:
+        cfg = yaml.safe_load(handle)
+
+    control = cfg["model"]["control"]
+    tstep = int(control.get("tstep", 300))
+    control["output"]["dir"] = str(run_dir)
+
+    config_path = run_dir / "sample_config.yml"
+    with open(config_path, "w", encoding="utf-8") as handle:
+        yaml.dump(cfg, handle, default_flow_style=False, sort_keys=False)
+
+    forcing_name = _forcing_filename(control)
+    forcing_rows = _forcing_rows_for(validation_steps, tstep, truncated)
+    _write_forcing_prefix(
+        sample_dir / forcing_name, run_dir / forcing_name, forcing_rows
+    )
+    return config_path, forcing_rows
+
+
+def _run_engine(binary: Path, config_path: Path, run_dir: Path, timeout: int) -> bytes:
+    """Run the engine and return the Arrow output as bytes.
+
+    Read to bytes rather than handing back a path: pyarrow keeps the file open,
+    which blocks TemporaryDirectory cleanup on Windows.
+    """
+    result = subprocess.run(
+        [str(binary), "run", str(config_path)],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"Engine exited with code {result.returncode}\n"
+            f"stderr: {result.stderr[:500]}"
+        )
+
+    output_path = run_dir / "suews_output.arrow"
+    if not output_path.exists():
+        raise AssertionError("Engine did not produce suews_output.arrow")
+    return output_path.read_bytes()
+
+
+def _read_engine_output(arrow_bytes: bytes, columns) -> pd.DataFrame:
+    """Return the requested columns of the Arrow output as a DataFrame.
+
+    Projects before converting to pandas. A full year is ~1.1 GB across 1350
+    columns; converting all of them and copying the slice peaked at 3.3 GB to
+    compare nine, against 1.2 GB when projected first.
+    """
+    import pyarrow.ipc as ipc
+
+    table = ipc.open_file(arrow_bytes).read_all()
+    present = [name for name in columns if name in table.schema.names]
+    return table.select(present).to_pandas()
+
+
+def _compare_frames(df_actual, df_expected, variables) -> tuple[bool, list, list]:
+    """Compare each variable within its tolerance.
+
+    Returns (all_passed, failed_variables, report_lines). A variable missing from
+    either frame counts as a failure rather than being skipped, so a column that
+    silently disappears from the engine output cannot weaken the test.
+    """
+    failed: list = []
+    report: list = []
+
+    for var in variables:
+        for frame, label in ((df_actual, "engine output"), (df_expected, "reference")):
+            if var not in frame.columns:
+                line = f"\n[ERROR] Variable {var} not found in {label}!"
+                report.append(line)
+                print(line)
+                failed.append(var)
+                break
+        else:
+            tolerance = get_tolerance_for_variable(var)
+            is_valid, detail = compare_arrays_with_tolerance(
+                df_actual[var].values,
+                df_expected[var].values,
+                rtol=tolerance["rtol"],
+                atol=tolerance["atol"],
+                var_name=var,
+            )
+            status = "[PASS]" if is_valid else "[FAIL]"
+            print(f"{status} {detail}")
+            report.append(f"{status} {detail}")
+            if not is_valid:
+                failed.append(var)
+
+    return not failed, failed, report
 
 
 def _rust_library_available() -> bool:
@@ -465,218 +622,84 @@ class TestSampleOutput(TestCase):
         self._validate_sample_output(full_year=True)
 
     def _validate_sample_output(self, full_year: bool = False):
+        """Run the engine on the sample config and compare against the reference.
+
+        Compares every variable in TOLERANCE_CONFIG. The horizon is the whole
+        reference when full_year, otherwise the fail-fast window. Skipped if the
+        engine binary has not been built.
         """
-        Test SUEWS output against reference data with appropriate tolerances.
-
-        Runs the Rust CLI binary on the sample YAML config and compares the 8
-        key output variables against the monthly sample-output shards using the tolerance
-        framework defined in TOLERANCE_CONFIG.
-
-        Skipped if the Rust binary has not been built.
-        """
-        import pyarrow.ipc as ipc
-        import yaml
-
         print("\n" + "=" * 70)
-        print("Rust Bridge Sample Output Validation Test")
+        print("Sample Output Validation")
         print("=" * 70)
 
-        # Locate the Rust binary: try development path first, then the
-        # installed package location (used by CI/cibuildwheel where the
-        # binary is bundled inside supy/bin/).
-        repo_root = Path(__file__).parent.parent.parent
-        dev_binary = (
-            repo_root / "src" / "suews_bridge" / "target" / "release" / "suews-engine"
-        )
-
-        if dev_binary.exists():
-            rust_binary = dev_binary
-        else:
-            try:
-                from supy.cmd.rust_bridge import _bridge_binary
-
-                rust_binary = _bridge_binary()
-            except (ImportError, FileNotFoundError):
-                pytest.skip(
-                    "Rust CLI binary not found; "
-                    "build with: cd src/suews_bridge && cargo build --release"
-                )
-
-        # Locate the sample YAML config and its directory
+        engine = _locate_engine()
         sample_dir = Path(sp.__file__).parent / "sample_data"
         sample_config = sample_dir / "sample_config.yml"
         assert sample_config.exists(), f"Sample config not found: {sample_config}"
 
-        # Load reference first to get SUEWS variable names
-        print("Loading reference output...")
         df_ref = load_sample_output(test_data_dir)
         print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
 
         validation_steps = (
             len(df_ref) if full_year else _resolve_fail_fast_steps(len(df_ref))
         )
+        truncated = validation_steps < len(df_ref)
 
-        # Run the Rust CLI with a temporary config pointing output to tmpdir.
-        # The smoke path stays short for wheel CI, especially on Windows where
-        # the full-year executable run can exceed the per-test timeout.
-        cli_timeout = 1800 if full_year else 120
-        print(f"\nRunning Rust CLI: {rust_binary.name} run (Arrow output)")
+        # The smoke path stays short for wheel CI, especially on Windows where a
+        # full-year run can exceed the per-test timeout.
+        timeout = 1800 if full_year else 120
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Copy config to tmpdir and modify output.dir
-            with open(sample_config, encoding="utf-8") as f:
-                cfg = yaml.safe_load(f)
-            tstep = int(cfg.get("model", {}).get("control", {}).get("tstep", 300))
-            cfg["model"]["control"]["output"]["dir"] = tmpdir
-            tmp_config = Path(tmpdir) / "sample_config.yml"
-            with open(tmp_config, "w", encoding="utf-8") as f:
-                yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
-
-            # Copy a prefix of the forcing file so the smoke test remains fast.
-            # The Rust CLI currently runs the full forcing file it is given.
-            # Accept both the new model.control.forcing.file shape (gh#1372)
-            # and the legacy model.control.forcing_file shape so this test
-            # works against pre- and post-migration sample configs.
-            control = cfg["model"]["control"]
-            forcing_name = None
-            if isinstance(control.get("forcing"), dict):
-                forcing_name = control["forcing"].get("file")
-            if forcing_name is None:
-                forcing_name = control.get("forcing_file")
-            if isinstance(forcing_name, dict):
-                forcing_name = forcing_name["value"]
-            forcing_src = sample_dir / forcing_name
-            forcing_dst = Path(tmpdir) / forcing_name
-            steps_per_forcing_row = max(1, 3600 // tstep)
-            forcing_rows = max(
-                2,
-                (validation_steps + steps_per_forcing_row - 1) // steps_per_forcing_row,
+            run_dir = Path(tmpdir)
+            config_path, forcing_rows = _write_run_inputs(
+                sample_dir, sample_config, run_dir, validation_steps, truncated
             )
-            if validation_steps < len(df_ref):
-                forcing_rows += 1
-            _write_forcing_prefix(forcing_src, forcing_dst, forcing_rows)
             print(
                 f"Validating first {validation_steps} timesteps "
                 f"from {forcing_rows} forcing rows"
             )
+            arrow_bytes = _run_engine(engine, config_path, run_dir, timeout)
 
-            result = subprocess.run(
-                [str(rust_binary), "run", str(tmp_config)],
-                capture_output=True,
-                text=True,
-                timeout=cli_timeout,
-            )
-
-            if result.returncode != 0:
-                self.fail(
-                    f"Rust CLI exited with code {result.returncode}\n"
-                    f"stderr: {result.stderr[:500]}"
-                )
-
-            # Load Rust Arrow output (all 1134 columns across 11 groups).
-            # Read into bytes first to avoid holding a file handle on Windows
-            # (pyarrow keeps the file open, blocking TemporaryDirectory cleanup).
-            rust_output_path = Path(tmpdir) / "suews_output.arrow"
-            assert rust_output_path.exists(), (
-                "Rust CLI did not produce suews_output.arrow"
-            )
-            arrow_bytes = rust_output_path.read_bytes()
-
-        reader = ipc.open_file(arrow_bytes)
-        table = reader.read_all()
-
-        # Project to the compared columns before converting to pandas. A full year
-        # of output is ~1.1 GB across 1350 columns, and converting all of them then
-        # copying the slice peaked at 3.3 GB to compare nine; projecting first holds
-        # it at ~1.2 GB, nearly all of which is arrow_bytes above. That matters
-        # because this test now runs in the core and standard tiers under xdist.
-        present = [name for name in TOLERANCE_CONFIG if name in table.schema.names]
-        df_rust_all = table.select(present).to_pandas()
-        del table, reader
-
-        # SUEWS group uses proper variable names (Kdown, Kup, QN, etc.)
-        # directly in the Arrow file. Slice to the requested smoke window
-        # because one extra forcing row is included to avoid interpolation
-        # boundary effects at the final checked timestep.
-        if len(df_rust_all) < validation_steps:
+        df_actual = _read_engine_output(arrow_bytes, TOLERANCE_CONFIG)
+        if len(df_actual) < validation_steps:
             self.fail(
-                "Rust CLI produced fewer rows than requested: "
-                f"Rust={len(df_rust_all)}, requested={validation_steps}"
+                "Engine produced fewer rows than requested: "
+                f"got {len(df_actual)}, requested {validation_steps}"
             )
-        df_rust = df_rust_all.iloc[:validation_steps]
+        df_actual = df_actual.iloc[:validation_steps]
 
-        print(f"Rust output: {df_rust.shape[0]} rows x {df_rust.shape[1]} columns")
-
-        # Verify row count alignment
-        n_rust = len(df_rust)
-        n_ref = len(df_ref)
         self.assertLessEqual(
-            n_rust,
-            n_ref,
-            f"Rust output is longer than reference: Rust={n_rust}, reference={n_ref}",
+            len(df_actual),
+            len(df_ref),
+            f"Engine output is longer than reference: "
+            f"{len(df_actual)} vs {len(df_ref)}",
         )
-        df_ref = df_ref.iloc[:n_rust].copy()
+        df_expected = df_ref.iloc[: len(df_actual)]
 
-        # Compare every variable in TOLERANCE_CONFIG (all timesteps)
-        variables_to_test = list(TOLERANCE_CONFIG.keys())
-        print(f"\nValidating variables: {', '.join(variables_to_test)}")
-        print(f"Comparing first {n_rust} timesteps")
+        print(
+            f"\nComparing {len(df_actual)} timesteps across "
+            f"{', '.join(TOLERANCE_CONFIG)}"
+        )
         print("=" * 70)
 
-        all_passed = True
-        failed_variables = []
-        full_report = []
+        all_passed, failed, report = _compare_frames(
+            df_actual, df_expected, TOLERANCE_CONFIG
+        )
 
-        for var in variables_to_test:
-            if var not in df_rust.columns:
-                report = f"\n[ERROR] Variable {var} not found in Rust output!"
-                full_report.append(report)
-                print(report)
-                all_passed = False
-                failed_variables.append(var)
-                continue
-
-            if var not in df_ref.columns:
-                report = f"\n[ERROR] Variable {var} not found in reference!"
-                full_report.append(report)
-                print(report)
-                all_passed = False
-                failed_variables.append(var)
-                continue
-
-            rust_arr = df_rust[var].values
-            ref_arr = df_ref[var].values
-
-            tolerance = get_tolerance_for_variable(var)
-            is_valid, report = compare_arrays_with_tolerance(
-                rust_arr,
-                ref_arr,
-                rtol=tolerance["rtol"],
-                atol=tolerance["atol"],
-                var_name=var,
-            )
-
-            status = "[PASS]" if is_valid else "[FAIL]"
-            print(f"{status} {report}")
-            full_report.append(f"{status} {report}")
-
-            if not is_valid:
-                all_passed = False
-                failed_variables.append(var)
-
-        # Summary
         print("\n" + "=" * 70)
-        print("SUMMARY")
-        print("=" * 70)
-        if all_passed:
-            print("[PASS] Rust bridge output matches sample reference!")
-        else:
-            print(f"[FAIL] Validation failed for: {', '.join(failed_variables)}")
+        print(
+            "[PASS] Output matches reference"
+            if all_passed
+            else f"[FAIL] Validation failed for: {', '.join(failed)}"
+        )
 
         self.assertTrue(
             all_passed,
-            f"Rust bridge vs reference failed for: {', '.join(failed_variables)}\n"
-            + "\n".join(full_report),
+            f"Engine vs reference failed for: {', '.join(failed)}\n"
+            + "\n".join(report),
         )
+
+
 
 
 if __name__ == "__main__":

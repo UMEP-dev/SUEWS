@@ -1463,7 +1463,7 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
 # Note: the former test_validate_model_option_rcmethod2_legacy_ext_params_supported
 # was retired in the dev6 -> dev7 rename pass. PascalCase -> dev7 backward-
 # compat is exercised by ``test_old_stebbs_ext_names_populate_new_attributes``
-# in ``test_field_renames.py``, which goes through the
+# in ``test_renames.py``, which goes through the
 # ``apply_field_renames`` chain at the Pydantic constructor level (the only
 # entry point that walks every rename hop in sequence). The validator's
 # direct lookup via ``read_renamed_key`` resolves one chain at a time, and

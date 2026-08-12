@@ -27,12 +27,22 @@ except ImportError:
     from supy.data_model.doc_utils import ModelDocExtractor
 
 
-# Reported for any parameter that carries no default value. Such parameters are
+# Shown for any parameter that carries no default value. Such parameters are
 # typically declared Optional so that a partial configuration still loads and
 # the validation layer can report what is missing, which is not the same thing
 # as the parameter being optional to the science. The wording therefore states
-# only what is certain: no default exists.
-NO_DEFAULT_STATUS = "No default value; may be required depending on your configuration"
+# only what is certain: no default exists, and whether one must be supplied
+# depends on the configuration.
+#
+# This is guidance addressed to the reader, so it is labelled as a note rather
+# than filed under "Status". "Status" is reserved for a short state token such
+# as "Required"; a sentence of advice is a different kind of content and gets
+# its own label.
+NO_DEFAULT_NOTE_LABEL = "Configuration Note"
+NO_DEFAULT_NOTE = (
+    "No default value. A value may be required depending on which physics "
+    "options and surface types are active in your configuration."
+)
 
 
 class RSTGenerator:
@@ -729,7 +739,7 @@ class RSTGenerator:
         Returns appropriate label-value pair based on field characteristics:
         - Required fields: ("Status", "Required")
         - Fields with defaults: ("Default", "value") or ("Example", "value")
-        - Fields with no default: ("Status", NO_DEFAULT_STATUS)
+        - Fields with no default: (NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE)
         - Nested models: (None, None) to skip display
 
         A ``Default`` label therefore always introduces a real default value.
@@ -762,7 +772,7 @@ class RSTGenerator:
         # are active. State the absence of a default without claiming that the
         # parameter itself is optional.
         if default is None:
-            return "Status", NO_DEFAULT_STATUS
+            return NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE
 
         # We have a non-None default value - format it
         # Use the is_site_specific flag from doc_utils.py extraction

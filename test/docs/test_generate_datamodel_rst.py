@@ -235,7 +235,9 @@ def test_field_without_default_is_not_described_as_optional() -> None:
 
     # ASSERT
     assert "optional" not in value.lower()
-    assert (label, value) == ("Status", module.NO_DEFAULT_STATUS)
+    assert (label, value) == (module.NO_DEFAULT_NOTE_LABEL, module.NO_DEFAULT_NOTE)
+    # "Status" stays reserved for the short state token, not a sentence of advice.
+    assert label != "Status"
 
 
 def test_required_field_still_reports_required() -> None:

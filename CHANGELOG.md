@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 12 Aug 2026
+
+- [bugfix] Stopped the YAML config reference describing parameters without a default as optional (#1677)
+  - Every parameter carrying no default previously rendered as `Default: None (optional)`, which asserted the opposite of the truth for parameters such as `store_cap` and `base_temperature_senescence`; these are declared `Optional[...] = None` only so a partial configuration still loads and the validation layer can then report what is missing.
+  - Such parameters now render as `Status: No default value; may be required depending on your configuration`, so a `Default` label always introduces a real default value and the absence of one is reported under `Status` alongside the unconditionally required case.
+  - Added regression coverage over the rendered pages, which is the only available gate because the generated config reference is not tracked in git.
+
 ### 22 Jul 2026
 
 - [bugfix] Relaxed SPARTACUS-Surface land-cover fraction validation so lowest-layer geometry no longer has to equal SUEWS land-cover fractions (#1642)

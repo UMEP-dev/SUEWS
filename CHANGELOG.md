@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 12 Aug 2026
 
+- [bugfix] Preserved elapsed model time across chunk and restart boundaries (#1692)
+  - Checkpoint schema version 2 stores `dt_since_start`, `dt_since_start_prev`, the new-day flag, and the model timestep alongside each grid state, making one-day chunks numerically equivalent to an uninterrupted run within a relative and absolute tolerance of `1e-12` across the 24-hour averaging boundary.
+  - State-only version-1 checkpoints are rejected with an actionable compatibility error because their missing elapsed timer cannot be reconstructed reliably.
+
 - [bugfix] Restored chunk checkpoints containing non-finite state sentinels (#1691)
   - Checkpoint generation now preserves `NaN` using the existing JSON `null` representation and rejects infinities with their exact state member and array index.
   - State-aware continuation restores `null` as `NaN`, so existing checkpoints no longer fail with only `invalid state payload`; other invalid JSON values report their exact path and type.

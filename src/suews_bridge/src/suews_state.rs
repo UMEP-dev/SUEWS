@@ -860,14 +860,10 @@ fn validate_suews_state_for_checkpoint(state: &SuewsState) -> Result<(), BridgeE
     Ok(())
 }
 
-/// Serialise checkpoint state while preserving NaN as JSON null and rejecting infinities.
-pub fn suews_state_to_checkpoint_json(state: &SuewsState) -> Result<String, BridgeError> {
+/// Prepare checkpoint state while preserving NaN as JSON null and rejecting infinities.
+pub(crate) fn suews_state_to_checkpoint_value(state: &SuewsState) -> Result<Value, BridgeError> {
     validate_suews_state_for_checkpoint(state)?;
-    serde_json::to_string(&suews_state_to_nested_payload(state)).map_err(|error| {
-        BridgeError::CheckpointSerialization {
-            message: error.to_string(),
-        }
-    })
+    Ok(suews_state_to_nested_payload(state))
 }
 
 pub fn suews_state_from_nested_payload(payload: &Value) -> Result<SuewsState, BridgeError> {
@@ -926,15 +922,13 @@ mod tests {
     }
 
     #[test]
-    fn checkpoint_json_preserves_nan_and_reports_infinities() {
+    fn checkpoint_value_preserves_nan_and_reports_infinities() {
         let mut state =
             suews_state_default_from_fortran().expect("default state should be available");
         state.ohm_state.qn_av = f64::NAN;
 
-        let checkpoint_json = suews_state_to_checkpoint_json(&state)
+        let checkpoint_value = suews_state_to_checkpoint_value(&state)
             .expect("NaN should use the checkpoint null marker");
-        let checkpoint_value: Value =
-            serde_json::from_str(&checkpoint_json).expect("checkpoint should be valid JSON");
         assert!(checkpoint_value["members"][MEMBER_OHM_STATE]["values"][0].is_null());
 
         let restored = suews_state_from_nested_payload(&checkpoint_value)
@@ -946,7 +940,7 @@ mod tests {
                 suews_state_default_from_fortran().expect("default state should be available");
             state.ohm_state.qn_av = value;
 
-            let err = suews_state_to_checkpoint_json(&state)
+            let err = suews_state_to_checkpoint_value(&state)
                 .expect_err("non-finite checkpoint state should fail before JSON conversion");
             assert_eq!(
                 err,

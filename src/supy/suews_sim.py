@@ -1051,7 +1051,9 @@ class SUEWSSimulation:
                 "call update_config() before continue_from()."
             )
 
-        self._checkpoint = self._coerce_checkpoint(checkpoint)
+        checkpoint_value = self._coerce_checkpoint(checkpoint)
+        checkpoint_value.validate_for_continuation()
+        self._checkpoint = checkpoint_value
         self._df_output = None
         self._df_state_final = None
         self._run_completed = False

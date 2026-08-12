@@ -17,6 +17,14 @@ pub enum BridgeError {
     InvalidCheckpointValue { path: String, found: String },
     #[error("failed to serialise checkpoint state: {message}")]
     CheckpointSerialization { message: String },
+    #[error(
+        "legacy checkpoint schema version 1 has no elapsed timer metadata; rerun the preceding segment with checkpoint schema version 2"
+    )]
+    LegacyCheckpointMissingTimer,
+    #[error("unsupported checkpoint schema version {found}; expected version {expected}")]
+    UnsupportedCheckpointVersion { found: u64, expected: u32 },
+    #[error("invalid checkpoint envelope: {message}")]
+    InvalidCheckpointEnvelope { message: String },
     #[error("simulation failed (code {code}): {message}")]
     SimulationError { code: i32, message: String },
     #[error("unknown Fortran bridge error code: {0}")]

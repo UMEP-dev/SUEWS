@@ -15,6 +15,41 @@ from typing import Any, Dict, List, Optional, Set, Type, Union, get_args, get_or
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
+from .core.field_renames import (
+    ARCHETYPEPROPERTIES_RENAMES,
+    DECTRPROPERTIES_RENAMES,
+    EVETRPROPERTIES_RENAMES,
+    LAIPARAMS_RENAMES,
+    MODELPHYSICS_RENAMES,
+    SNOWPARAMS_RENAMES,
+    STEBBSPROPERTIES_RENAMES,
+    SURFACEPROPERTIES_RENAMES,
+    VEGETATEDSURFACEPROPERTIES_RENAMES,
+)
+
+
+_MODEL_FIELD_RENAMES: dict[str, dict[str, str]] = {
+    "ModelPhysics": MODELPHYSICS_RENAMES,
+    "SurfaceProperties": SURFACEPROPERTIES_RENAMES,
+    "LAIParams": LAIPARAMS_RENAMES,
+    "VegetatedSurfaceProperties": VEGETATEDSURFACEPROPERTIES_RENAMES,
+    "EvetrProperties": EVETRPROPERTIES_RENAMES,
+    "DectrProperties": DECTRPROPERTIES_RENAMES,
+    "ArchetypeProperties": ARCHETYPEPROPERTIES_RENAMES,
+    "StebbsProperties": STEBBSPROPERTIES_RENAMES,
+    "SnowParams": SNOWPARAMS_RENAMES,
+}
+
+_LEGACY_NAMES_BY_MODEL: dict[str, dict[str, list[str]]] = {}
+for model_name, rename_table in _MODEL_FIELD_RENAMES.items():
+    names_by_current: dict[str, list[str]] = {}
+    for legacy_name, current_name in rename_table.items():
+        names_by_current.setdefault(current_name, []).append(legacy_name)
+    _LEGACY_NAMES_BY_MODEL[model_name] = {
+        current_name: sorted(legacy_names)
+        for current_name, legacy_names in names_by_current.items()
+    }
+
 
 class ModelDocExtractor:
     """Extract documentation from Pydantic models into structured JSON format."""
@@ -162,6 +197,10 @@ class ModelDocExtractor:
             "is_required": self._is_required_field(field_info),
             "is_site_specific": self._is_site_specific(field_name, model_name),
         }
+
+        legacy_names = _LEGACY_NAMES_BY_MODEL.get(model_name, {}).get(field_name)
+        if legacy_names:
+            field_doc["legacy_names"] = legacy_names.copy()
 
         # Extract default value
         default_info = self._extract_default(field_info)

@@ -293,6 +293,63 @@ def test_nested_model_still_skips_the_default_line() -> None:
     assert result == (None, None)
 
 
+def test_extractor_attaches_legacy_names_from_canonical_registry() -> None:
+    """Current fields expose aliases already accepted by the YAML loader."""
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    doc_data = module.ModelDocExtractor().extract_all_models()
+    lai_fields = {
+        field["name"]: field for field in doc_data["models"]["LAIParams"]["fields"]
+    }
+
+    # ASSERT
+    assert lai_fields["base_temperature_senescence"]["legacy_names"] == ["basete"]
+
+
+def test_extractor_does_not_attach_same_named_alias_to_another_model() -> None:
+    """An alias stays with the model whose validator accepts it."""
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    doc_data = module.ModelDocExtractor().extract_all_models()
+    model_physics_fields = {
+        field["name"]: field
+        for field in doc_data["models"]["ModelPhysics"]["fields"]
+    }
+    site_properties_fields = {
+        field["name"]: field
+        for field in doc_data["models"]["SiteProperties"]["fields"]
+    }
+
+    # ASSERT
+    assert model_physics_fields["stebbs"]["legacy_names"] == ["stebbsmethod"]
+    assert "legacy_names" not in site_properties_fields["stebbs"]
+
+
+def test_legacy_names_are_rendered_and_indexed() -> None:
+    """A legacy-name search can find the maintained current-name entry."""
+    # ARRANGE
+    module = _load_generator_module()
+    field_doc = {
+        "name": "base_temperature_senescence",
+        "type": "Optional[FlexibleRefValue(float)]",
+        "type_info": {},
+        "legacy_names": ["basete"],
+    }
+
+    # ACT
+    rendered = "\n".join(
+        module.RSTGenerator({})._format_field(field_doc, "LAIParams")
+    )
+
+    # ASSERT
+    assert "single: basete (legacy YAML parameter)" in rendered
+    assert ":Legacy Names: ``basete``" in rendered
+
+
 def test_generated_config_reference_never_claims_optional(tmp_path) -> None:
     """End-to-end gate over every rendered page.
 

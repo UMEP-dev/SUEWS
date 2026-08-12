@@ -397,12 +397,15 @@ class RSTGenerator:
         ]
 
     @staticmethod
-    def _add_field_index_entries(field_name: str, model_name: str) -> list[str]:
+    def _add_field_index_entries(
+        field_name: str, model_name: str, legacy_names: list[str] | None = None
+    ) -> list[str]:
         """Add index entries for a field.
 
         Args:
             field_name: Name of the field
             model_name: Name of the containing model
+            legacy_names: Legacy YAML names that resolve to the field
 
         Returns
         -------
@@ -412,8 +415,10 @@ class RSTGenerator:
             ".. index::",
             f"   single: {field_name} (YAML parameter)",
             f"   single: {model_name}; {field_name}",
-            "",
         ]
+        for legacy_name in legacy_names or []:
+            lines.append(f"   single: {legacy_name} (legacy YAML parameter)")
+        lines.append("")
 
         # Add reference label for physics method fields with relationships
         # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy rename)
@@ -502,6 +507,20 @@ class RSTGenerator:
 
         return lines
 
+    def _format_unit_and_legacy_names(self, field_doc: dict[str, Any]) -> list[str]:
+        """Format unit and legacy-name metadata for a field."""
+        lines = []
+        unit = field_doc.get("unit")
+        if unit and not field_doc.get("options"):
+            lines.append(f"   :Unit: {self._format_unit(unit)}")
+
+        legacy_names = field_doc.get("legacy_names", [])
+        if legacy_names:
+            formatted_names = ", ".join(f"``{name}``" for name in legacy_names)
+            lines.append(f"   :Legacy Names: {formatted_names}")
+
+        return lines
+
     def _format_field_metadata(
         self, field_doc: dict[str, Any], type_info: dict[str, Any], model_name: str = ""
     ) -> list[str]:
@@ -543,11 +562,7 @@ class RSTGenerator:
                 lines.append(f"      | {opt_str}")
             lines.append("")
 
-        # Add unit (not for enum fields)
-        unit = field_doc.get("unit")
-        if unit and not field_doc.get("options"):
-            formatted_unit = self._format_unit(unit)
-            lines.append(f"   :Unit: {formatted_unit}")
+        lines.extend(self._format_unit_and_legacy_names(field_doc))
 
         # Add default/sample value
         default_label, default_value = self._format_default(field_doc)
@@ -612,7 +627,11 @@ class RSTGenerator:
         type_info = field_doc.get("type_info", {})
 
         # Add index entries
-        lines.extend(self._add_field_index_entries(field_name, model_name))
+        lines.extend(
+            self._add_field_index_entries(
+                field_name, model_name, field_doc.get("legacy_names")
+            )
+        )
 
         # Use input:option directive for YAML configuration options
         lines.append(f".. input:option:: {field_name}")

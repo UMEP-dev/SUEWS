@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.util._tmy &#8212; SUEWS 2026.8.12.dev4 documentation</title>
+    <title>supy.util._tmy &#8212; SUEWS 2026.8.12.dev6 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=061f5e40"></script>
+    <script src="../../../_static/documentation_options.js?v=aa975c3b"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.12.dev4" />
+  <meta name="docsearch:version" content="2026.8.12.dev6" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.12.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/16c72511b96fb7683b68bd702d567b90b57f015b" style="color: #31708f;">16c7251</a>).
+        (2026.8.12.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0cf7f017d0513478fc32c31a263f0aa2ec82b891" style="color: #31708f;">0cf7f01</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -193,8 +193,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev4 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev4 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev6 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -336,13 +336,8 @@
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
 </ul>
@@ -603,7 +598,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">.._post</span><span class="w"> </span><span class="kn">import</span> <span class="n">resample_output</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.._post</span><span class="w"> </span><span class="kn">import</span> <span class="n">_resample_output</span>
 
 <span class="c1"># Logger for this module</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -803,7 +798,8 @@
     <span class="n">array_yr_mon</span> <span class="o">=</span> <span class="n">df_day</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">&quot;Day&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
 
     <span class="n">df_rmse</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+        <span class="n">pd</span>
+        <span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
             <span class="p">(</span><span class="n">yr</span><span class="p">,</span> <span class="n">mon</span><span class="p">):</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">df_day</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">yr</span><span class="p">,</span> <span class="n">mon</span><span class="p">)]</span> <span class="o">-</span> <span class="n">df_day_all_year</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mon</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
             <span class="p">)</span>
@@ -874,7 +870,7 @@
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    df_output : pandas.DataFrame</span>
-<span class="sd">        Output from `run_supy`: longterm (e.g., &gt;10 years) simulation results, otherwise not very useful.</span>
+<span class="sd">        Long-term ``SUEWSOutput.df`` results (e.g. more than 10 years).</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -1050,7 +1046,7 @@
 <span class="sd">    df_output : pandas.DataFrame</span>
 <span class="sd">        SUEWS simulation results. Can be either:</span>
 
-<span class="sd">        - Full MultiIndex output from `run_supy` (grid, datetime) x (group, var)</span>
+<span class="sd">        - Full MultiIndex ``SUEWSOutput.df`` (grid, datetime) x (group, var)</span>
 <span class="sd">        - Pre-extracted single-grid SUEWS output (datetime) x (var)</span>
 <span class="sd">    lat : float</span>
 <span class="sd">        Latitude of the site, used for calculating solar angle.</span>
@@ -1099,7 +1095,7 @@
 <span class="sd">    With automatic resampling and grid extraction:</span>
 
 <span class="sd">    &gt;&gt;&gt; df_epw, meta, path = sp.util.gen_epw(</span>
-<span class="sd">    ...     df_output,  # Full MultiIndex output from run_supy</span>
+<span class="sd">    ...     df_output,  # Full MultiIndex output from SUEWSSimulation.run</span>
 <span class="sd">    ...     lat=51.5,</span>
 <span class="sd">    ...     lon=-0.1,</span>
 <span class="sd">    ...     freq=&quot;h&quot;,  # Resample to hourly</span>
@@ -1107,10 +1103,11 @@
 
 <span class="sd">    See Also</span>
 <span class="sd">    --------</span>
-<span class="sd">    supy.resample_output : Resample output with variable-appropriate aggregation</span>
+<span class="sd">    supy.SUEWSOutput.resample : Resample with variable-appropriate aggregation</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">atmosp</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+    <span class="kn">import</span><span class="w"> </span><span class="nn">atmosp</span>
 
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">import</span><span class="w"> </span><span class="nn">pvlib</span>
@@ -1120,7 +1117,7 @@
             <span class="s2">&quot;Note: pvlib requires h5py which may need compilation on some systems.&quot;</span>
         <span class="p">)</span>
 
-    <span class="c1"># Handle MultiIndex input from run_supy</span>
+    <span class="c1"># Handle MultiIndex input from SUEWSOutput.df</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_output</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
         <span class="c1"># Extract grid if needed</span>
         <span class="k">if</span> <span class="n">grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1128,7 +1125,7 @@
 
         <span class="c1"># Resample if frequency specified (before extracting to single grid)</span>
         <span class="k">if</span> <span class="n">freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">df_output</span> <span class="o">=</span> <span class="n">resample_output</span><span class="p">(</span><span class="n">df_output</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">_internal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">df_output</span> <span class="o">=</span> <span class="n">_resample_output</span><span class="p">(</span><span class="n">df_output</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">)</span>
 
         <span class="c1"># Extract SUEWS group for the specified grid</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_output</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
@@ -1358,8 +1355,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.12.dev4 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/16c72511b96fb7683b68bd702d567b90b57f015b">16c7251</a> |
+  <p>Version: 2026.8.12.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0cf7f017d0513478fc32c31a263f0aa2ec82b891">0cf7f01</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

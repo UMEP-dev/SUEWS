@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-12T09:09:21+00:00" />
-    <title>6.7. Key IO Data Structures &#8212; SUEWS 2026.8.12.dev4 documentation</title>
+    <meta property="article:modified_time" content="2026-08-12T16:18:16+00:00" />
+    <title>6.7. Key IO Data Structures &#8212; SUEWS 2026.8.12.dev6 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=061f5e40"></script>
+    <script src="../_static/documentation_options.js?v=aa975c3b"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="6.6. Python API for CLI Users" href="python-cli-equivalents.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.12.dev4" />
+  <meta name="docsearch:version" content="2026.8.12.dev6" />
     <meta name="docbuild:last-update" content="2026-08-12"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.12.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/16c72511b96fb7683b68bd702d567b90b57f015b" style="color: #31708f;">16c7251</a>).
+        (2026.8.12.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0cf7f017d0513478fc32c31a263f0aa2ec82b891" style="color: #31708f;">0cf7f01</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev4 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev4 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev6 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -343,13 +343,8 @@
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../api.html">6. Python API Reference</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
 </ul>
@@ -832,11 +827,8 @@ model states.</p>
 <span class="go">[2 rows x 1200 columns]</span>
 </pre></div>
 </div>
-<p>This structure is retained for compatibility and state inspection:</p>
-<ul class="simple">
-<li><p><strong>Runtime diagnostics</strong>: Save intermediate states with <code class="docutils literal notranslate"><span class="pre">save_state=True</span></code> in <code class="docutils literal notranslate"><span class="pre">run_supy</span></code></p></li>
-<li><p><strong>Developer inspection</strong>: Examine flattened state variables in DataFrame form</p></li>
-</ul>
+<p>This structure is retained for compatibility and developer inspection of
+flattened state variables in DataFrame form.</p>
 <p>The meanings of state variables in <code class="docutils literal notranslate"><span class="pre">df_state_final</span></code> are the same as in <code class="docutils literal notranslate"><span class="pre">df_state_init</span></code>,
 documented in <a class="reference internal" href="../data-structures/df_state.html"><span class="doc">df_state variables</span></a>.</p>
 <p>For new object-oriented continuation workflows, use <code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code> rather
@@ -868,7 +860,7 @@ are keyed by grid ID, so checkpoint/configuration grid mismatches are rejected
 by the runtime.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="supy.SUEWSCheckpoint">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">supy.</span></span><span class="sig-name descname"><span class="pre">SUEWSCheckpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">grid_states:</span> <span class="pre">dict[int,</span> <span class="pre">str],</span> <span class="pre">supy_version:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'2026.8.12.dev9362',</span> <span class="pre">state_schema_version:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">created_at:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">last_timestamp:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint" title="Link to this definition">#</a></dt>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">supy.</span></span><span class="sig-name descname"><span class="pre">SUEWSCheckpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">grid_states:</span> <span class="pre">dict[int,</span> <span class="pre">str],</span> <span class="pre">supy_version:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'2026.8.12.dev9368',</span> <span class="pre">state_schema_version:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">created_at:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">last_timestamp:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint" title="Link to this definition">#</a></dt>
 <dd><p>Typed restart artifact carrying Rust SUEWS state JSON by grid ID.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSCheckpoint.from_file">
@@ -1006,8 +998,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.12.dev4 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/16c72511b96fb7683b68bd702d567b90b57f015b">16c7251</a> |
+  <p>Version: 2026.8.12.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0cf7f017d0513478fc32c31a263f0aa2ec82b891">0cf7f01</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

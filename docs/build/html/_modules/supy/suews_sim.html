@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.8.12.dev4 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.8.12.dev6 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=061f5e40"></script>
+    <script src="../../_static/documentation_options.js?v=aa975c3b"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.12.dev4" />
+  <meta name="docsearch:version" content="2026.8.12.dev6" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.12.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/16c72511b96fb7683b68bd702d567b90b57f015b" style="color: #31708f;">16c7251</a>).
+        (2026.8.12.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0cf7f017d0513478fc32c31a263f0aa2ec82b891" style="color: #31708f;">0cf7f01</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -193,8 +193,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev4 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev4 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -336,13 +336,8 @@
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
 </ul>
@@ -1287,6 +1282,7 @@
                 <span class="sa">f</span><span class="s2">&quot;Only the &#39;rust&#39; backend is available. &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;Remove the backend parameter or use backend=&#39;rust&#39;.&quot;</span>
             <span class="p">)</span>
+        <span class="n">validate_forcing</span> <span class="o">=</span> <span class="n">run_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;_validate_forcing&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
 
         <span class="n">max_workers</span> <span class="o">=</span> <span class="n">_validate_n_jobs</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">)</span>
         <span class="n">serial_mode</span> <span class="o">=</span> <span class="n">n_jobs</span> <span class="o">==</span> <span class="mi">1</span>
@@ -1335,28 +1331,70 @@
         <span class="c1"># Slice forcing data</span>
         <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_date</span><span class="p">:</span><span class="n">end_date</span><span class="p">]</span>
 
-        <span class="c1"># Validate forcing data, including physics-specific forcing requirements</span>
-        <span class="c1"># (e.g. laimethod=0 requires populated effective observed-LAI sources).</span>
-        <span class="n">physics_dict</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">):</span>
-            <span class="n">physics</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;physics&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">physics</span><span class="p">,</span> <span class="s2">&quot;model_dump&quot;</span><span class="p">):</span>
-                <span class="n">physics_dict</span> <span class="o">=</span> <span class="n">physics</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;python&quot;</span><span class="p">)</span>
-            <span class="c1"># Cross-check physics path against forcing columns.</span>
-            <span class="c1"># Helper is silent on success; raises ValueError on mismatch.</span>
-            <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="kn">from</span><span class="w"> </span><span class="nn">.data_model.core.forcing_validation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-                    <span class="n">validate_forcing_columns_against_physics</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="k">if</span> <span class="n">validate_forcing</span><span class="p">:</span>
+            <span class="c1"># Validate forcing data, including physics-specific forcing requirements</span>
+            <span class="c1"># (e.g. laimethod=0 requires populated effective observed-LAI sources).</span>
+            <span class="n">physics_dict</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">):</span>
+                <span class="n">physics</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;physics&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">physics</span><span class="p">,</span> <span class="s2">&quot;model_dump&quot;</span><span class="p">):</span>
+                    <span class="n">physics_dict</span> <span class="o">=</span> <span class="n">physics</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;python&quot;</span><span class="p">)</span>
+                <span class="c1"># Cross-check physics path against forcing columns.</span>
+                <span class="c1"># Helper is silent on success; raises ValueError on mismatch.</span>
+                <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="kn">from</span><span class="w"> </span><span class="nn">.data_model.core.forcing_validation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+                        <span class="n">validate_forcing_columns_against_physics</span><span class="p">,</span>
+                    <span class="p">)</span>
 
-                <span class="n">validate_forcing_columns_against_physics</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">physics</span><span class="p">)</span>
-        <span class="n">list_issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">physics</span><span class="o">=</span><span class="n">physics_dict</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">list_issues</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">issues_summary</span> <span class="o">=</span> <span class="n">list_issues</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">list_issues</span>
-            <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot; (and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">3</span><span class="si">}</span><span class="s2"> more)&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+                    <span class="n">validate_forcing_columns_against_physics</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">physics</span><span class="p">)</span>
+            <span class="n">list_issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">physics</span><span class="o">=</span><span class="n">physics_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">list_issues</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">issues_summary</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">list_issues</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">list_issues</span>
+                <span class="p">)</span>
+                <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot; (and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">3</span><span class="si">}</span><span class="s2"> more)&quot;</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span>
+                    <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid forcing data: </span><span class="si">{</span><span class="n">issues_summary</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># The retired runner always enforced observed-LAI completeness,</span>
+            <span class="c1"># even when its general ``check_input`` switch was false.</span>
+            <span class="n">lai_method</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">physics</span><span class="p">,</span> <span class="s2">&quot;leaf_area_index&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">lai_method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">lai_method</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">physics</span><span class="p">,</span> <span class="s2">&quot;laimethod&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">lai_method</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">):</span>
+                <span class="n">lai_method</span> <span class="o">=</span> <span class="n">lai_method</span><span class="o">.</span><span class="n">value</span>
+            <span class="k">if</span> <span class="n">lai_method</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">lai_method</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">._check</span><span class="w"> </span><span class="kn">import</span> <span class="n">_check_observed_lai_nonneg</span>
+
+                <span class="n">lai_issues</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">if</span> <span class="n">_check_observed_lai_nonneg</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">lai_issues</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">lai_issues</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># Preserve observed-soil-moisture preprocessing from the retired</span>
+        <span class="c1"># DataFrame runner on the single canonical execution path.</span>
+        <span class="n">soil_moisture_deficit</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">physics</span><span class="p">,</span>
+            <span class="s2">&quot;soil_moisture_deficit&quot;</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">soil_moisture_deficit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">soil_moisture_deficit</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">physics</span><span class="p">,</span>
+                <span class="s2">&quot;smdmethod&quot;</span><span class="p">,</span>
+                <span class="kc">None</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid forcing data: </span><span class="si">{</span><span class="n">issues_summary</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">soil_moisture_deficit</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">):</span>
+            <span class="n">soil_moisture_deficit</span> <span class="o">=</span> <span class="n">soil_moisture_deficit</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">if</span> <span class="n">soil_moisture_deficit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">soil_moisture_deficit</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">.util._forcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">convert_observed_soil_moisture</span>
+
+            <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="n">convert_observed_soil_moisture</span><span class="p">(</span>
+                <span class="n">df_forcing_slice</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="c1"># Run simulation via Rust bridge</span>
         <span class="n">initial_state_json_by_grid</span> <span class="o">=</span> <span class="p">(</span>
@@ -1512,7 +1550,7 @@
             <span class="n">freq_s</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">freq_s</span><span class="p">),</span>
             <span class="n">site</span><span class="o">=</span><span class="n">site</span><span class="p">,</span>
             <span class="n">path_dir_save</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">output_path</span><span class="p">),</span>
-            <span class="c1"># **save_kwargs # Problematic, save_supy expects explicit arguments</span>
+            <span class="c1"># **save_kwargs # The shared save backend expects explicit arguments</span>
             <span class="n">output_config</span><span class="o">=</span><span class="n">output_config</span><span class="p">,</span>
             <span class="n">output_format</span><span class="o">=</span><span class="n">output_format</span><span class="p">,</span>
             <span class="n">save_state</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -1578,39 +1616,9 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">trv_supy_module</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_load_sample_data</span>
 
-        <span class="c1"># Load core simulation data (state and forcing)</span>
-        <span class="n">df_state_init</span><span class="p">,</span> <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">_load_sample_data</span><span class="p">()</span>
-        <span class="n">sample_config_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">trv_supy_module</span> <span class="o">/</span> <span class="s2">&quot;sample_data&quot;</span> <span class="o">/</span> <span class="s2">&quot;sample_config.yml&quot;</span><span class="p">)</span>
-
-        <span class="n">sim</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
-
-        <span class="c1"># Try to load config for metadata (non-critical)</span>
-        <span class="c1"># The actual state is set from df_state_init below, so config is optional</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">(</span><span class="n">sample_config_path</span><span class="p">)</span>
-        <span class="k">except</span> <span class="p">(</span><span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="c1"># File access issues - warn but continue</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Could not load sample configuration file: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;Simulation will use data from df_state_init instead.&quot;</span><span class="p">,</span>
-                <span class="ne">UserWarning</span><span class="p">,</span>
-                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="c1"># Other unexpected errors - warn but continue</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Unexpected error loading sample configuration: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;Simulation will use data from df_state_init instead.&quot;</span><span class="p">,</span>
-                <span class="ne">UserWarning</span><span class="p">,</span>
-                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-            <span class="p">)</span>
-
-        <span class="c1"># Set core simulation data (overrides any config-derived state)</span>
-        <span class="n">sim</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="n">df_state_init</span>
-        <span class="n">sim</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">df_forcing</span>
-        <span class="k">return</span> <span class="n">sim</span></div>
+        <span class="n">sample_config_path</span> <span class="o">=</span> <span class="n">trv_supy_module</span> <span class="o">/</span> <span class="s2">&quot;sample_data&quot;</span> <span class="o">/</span> <span class="s2">&quot;sample_config.yml&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">sample_config_path</span><span class="p">)</span></div>
 
 
     <span class="nd">@staticmethod</span>
@@ -2308,8 +2316,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.12.dev4 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/16c72511b96fb7683b68bd702d567b90b57f015b">16c7251</a> |
+  <p>Version: 2026.8.12.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0cf7f017d0513478fc32c31a263f0aa2ec82b891">0cf7f01</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

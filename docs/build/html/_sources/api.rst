@@ -35,7 +35,7 @@ The Python interface provides the complete API for SUEWS with comprehensive func
        Performance-optimised direct Pydantic-to-Fortran execution path. See :doc:`api/dts`.
 
 **Core Functions**
-    Functional API for SUEWS simulations (init, run, save). See :doc:`api/core-functions`.
+    Migration reference for the retired procedural interface. See :doc:`api/core-functions`.
 
 **Utility Functions**
     Data processing, analysis, and visualisation functions. See :doc:`api/utility-functions`.

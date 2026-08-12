@@ -29,7 +29,7 @@ Scientific and physics validation tests:
 ### I/O Tests (`io_tests/`)
 Input/output and data handling tests:
 - **test_output_config.py** - Output configuration options
-- **test_save_supy.py** - Output saving functionality
+- **test_save_supy.py** - Shared output-saving backend
 - **test_resample_output.py** - Output resampling capabilities
 - **test_dailystate_output.py** - Daily state output handling
 - **test_forcing_file_list.py** - Forcing file list handling
@@ -45,7 +45,7 @@ UMEP plugin compatibility tests (Windows + Python 3.12 target, GH-901):
 
 These tests are still needed with the Rust backend. They do not duplicate the
 physics guardrails; they protect the UMEP/QGIS integration surface: import
-paths, YAML-backed runtime construction, output path handling, `run_supy`
+paths, YAML-backed runtime construction, output path handling, simulation
 calling patterns, and QGIS stdout/stderr behaviour. Current Windows QGIS 3 LTR
 and QGIS 4 runtimes both use Python 3.12, so a single Windows + Python 3.12
 lane is enough for this repository's plugin-facing compatibility checks.

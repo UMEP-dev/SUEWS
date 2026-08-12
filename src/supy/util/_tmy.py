@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from .._post import resample_output
+from .._post import _resample_output
 
 # Logger for this module
 logger = logging.getLogger(__name__)
@@ -205,7 +205,8 @@ def cal_rmsd_mon(df_output):
     array_yr_mon = df_day.index.droplevel("Day").to_frame().drop_duplicates().values
 
     df_rmse = (
-        pd.DataFrame({
+        pd
+        .DataFrame({
             (yr, mon): np.sqrt(
                 np.square(df_day.loc[(yr, mon)] - df_day_all_year.loc[mon]).mean()
             )
@@ -276,7 +277,7 @@ def gen_TMY(df_output):
     Parameters
     ----------
     df_output : pandas.DataFrame
-        Output from `run_supy`: longterm (e.g., >10 years) simulation results, otherwise not very useful.
+        Long-term ``SUEWSOutput.df`` results (e.g. more than 10 years).
 
     """
 
@@ -447,7 +448,7 @@ def gen_epw(
     df_output : pandas.DataFrame
         SUEWS simulation results. Can be either:
 
-        - Full MultiIndex output from `run_supy` (grid, datetime) x (group, var)
+        - Full MultiIndex ``SUEWSOutput.df`` (grid, datetime) x (group, var)
         - Pre-extracted single-grid SUEWS output (datetime) x (var)
     lat : float
         Latitude of the site, used for calculating solar angle.
@@ -496,7 +497,7 @@ def gen_epw(
     With automatic resampling and grid extraction:
 
     >>> df_epw, meta, path = sp.util.gen_epw(
-    ...     df_output,  # Full MultiIndex output from run_supy
+    ...     df_output,  # Full MultiIndex output from SUEWSSimulation.run
     ...     lat=51.5,
     ...     lon=-0.1,
     ...     freq="h",  # Resample to hourly
@@ -504,10 +505,11 @@ def gen_epw(
 
     See Also
     --------
-    supy.resample_output : Resample output with variable-appropriate aggregation
+    supy.SUEWSOutput.resample : Resample with variable-appropriate aggregation
     """
-    import atmosp
     from pathlib import Path
+
+    import atmosp
 
     try:
         import pvlib
@@ -517,7 +519,7 @@ def gen_epw(
             "Note: pvlib requires h5py which may need compilation on some systems."
         )
 
-    # Handle MultiIndex input from run_supy
+    # Handle MultiIndex input from SUEWSOutput.df
     if isinstance(df_output.index, pd.MultiIndex):
         # Extract grid if needed
         if grid is None:
@@ -525,7 +527,7 @@ def gen_epw(
 
         # Resample if frequency specified (before extracting to single grid)
         if freq is not None:
-            df_output = resample_output(df_output, freq=freq, _internal=True)
+            df_output = _resample_output(df_output, freq=freq)
 
         # Extract SUEWS group for the specified grid
         if isinstance(df_output.columns, pd.MultiIndex):

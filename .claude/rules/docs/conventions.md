@@ -124,7 +124,7 @@ Use Sphinx roles for proper linking to API documentation:
 
 - **Classes**: `:class:`~supy.SUEWSSimulation`` (tilde hides module path)
 - **Methods**: `:meth:`~supy.SUEWSSimulation.from_sample_data``
-- **Functions**: `:func:`~supy.run_supy``
+- **Functions**: `:func:`~supy.check_forcing``
 - **Attributes**: `:attr:`~supy.SUEWSSimulation.state_init``
 
 Examples:

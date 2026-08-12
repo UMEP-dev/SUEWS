@@ -1,7 +1,6 @@
 """Regression tests for smooth OHM coefficient transitions (gh#473)."""
 
 import json
-import logging
 import subprocess
 import sys
 import warnings
@@ -31,9 +30,7 @@ def _set_ohm_coefficients(state, surface, regime_values):
     """Set a3 by regime while keeping a1/a2 fixed to isolate blending."""
     for regime, a3 in regime_values.items():
         for coefficient, value in enumerate((0.5, 0.2, a3)):
-            state.loc[:, ("ohm_coef", f"({surface}, {regime}, {coefficient})")] = (
-                value
-            )
+            state.loc[:, ("ohm_coef", f"({surface}, {regime}, {coefficient})")] = value
 
 
 def _run_ohm_case_in_process(
@@ -80,14 +77,10 @@ def _run_ohm_case_in_process(
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        output, _ = sp.run_supy(
-            forcing_all.iloc[:2],
-            state,
-            logging_level=logging.CRITICAL,
-            check_input=False,
-            save_state=False,
-        )
-    return output.SUEWS["QS"].to_numpy()
+        simulation = sp.SUEWSSimulation.from_state(state)
+        simulation.update_forcing(forcing_all.iloc[:2])
+        output = simulation.run()
+    return output.df.SUEWS["QS"].to_numpy()
 
 
 def _run_ohm_cases(cases):
@@ -129,10 +122,10 @@ def _run_ohm_cases(cases):
 
 def _subprocess_main():
     cases = json.loads(sys.argv[1])
-    sample_data_loaded = sp.load_SampleData()
+    simulation = sp.SUEWSSimulation.from_sample_data()
+    sample_data_loaded = simulation.state_init, simulation.forcing.df
     results = [
-        _run_ohm_case_in_process(sample_data_loaded, **case).tolist()
-        for case in cases
+        _run_ohm_case_in_process(sample_data_loaded, **case).tolist() for case in cases
     ]
     print(f"{RESULT_PREFIX}{json.dumps(results)}")
 
@@ -140,26 +133,22 @@ def _subprocess_main():
 def test_temperature_threshold_is_continuous():
     """Tiny platform-level temperature differences must not switch regimes."""
     epsilon = 1.0e-10
-    below, above = _run_ohm_cases(
-        [
-            {"five_day_temperature": 10.0 - epsilon},
-            {"five_day_temperature": 10.0 + epsilon},
-        ]
-    )
+    below, above = _run_ohm_cases([
+        {"five_day_temperature": 10.0 - epsilon},
+        {"five_day_temperature": 10.0 + epsilon},
+    ])
 
     np.testing.assert_allclose(above, below, rtol=0.0, atol=1.0e-7)
 
 
 def test_temperature_blending_recovers_far_regimes():
     """Temperatures outside the transition zone retain legacy coefficients."""
-    winter_below, winter_edge, summer_edge, summer_above = _run_ohm_cases(
-        [
-            {"five_day_temperature": 7.0},
-            {"five_day_temperature": 8.0},
-            {"five_day_temperature": 12.0},
-            {"five_day_temperature": 13.0},
-        ]
-    )
+    winter_below, winter_edge, summer_edge, summer_above = _run_ohm_cases([
+        {"five_day_temperature": 7.0},
+        {"five_day_temperature": 8.0},
+        {"five_day_temperature": 12.0},
+        {"five_day_temperature": 13.0},
+    ])
 
     np.testing.assert_allclose(winter_edge, winter_below, rtol=0.0, atol=1.0e-7)
     np.testing.assert_allclose(summer_edge, summer_above, rtol=0.0, atol=1.0e-7)
@@ -167,13 +156,11 @@ def test_temperature_blending_recovers_far_regimes():
 
 def test_temperature_midpoint_blends_regimes():
     """The configured threshold must produce an interior coefficient blend."""
-    winter, midpoint, summer = _run_ohm_cases(
-        [
-            {"five_day_temperature": 8.0},
-            {"five_day_temperature": 10.0},
-            {"five_day_temperature": 12.0},
-        ]
-    )
+    winter, midpoint, summer = _run_ohm_cases([
+        {"five_day_temperature": 8.0},
+        {"five_day_temperature": 10.0},
+        {"five_day_temperature": 12.0},
+    ])
 
     lower = np.minimum(winter, summer)
     upper = np.maximum(winter, summer)
@@ -195,20 +182,18 @@ def test_soil_moisture_threshold_is_continuous():
     that while staying above the continuous response.
     """
     epsilon = 1.0e-10
-    below, above = _run_ohm_cases(
-        [
-            {
-                "surface": GRASS,
-                "five_day_temperature": 13.0,
-                "soil_moisture_ratio": 0.9 - epsilon,
-            },
-            {
-                "surface": GRASS,
-                "five_day_temperature": 13.0,
-                "soil_moisture_ratio": 0.9 + epsilon,
-            },
-        ]
-    )
+    below, above = _run_ohm_cases([
+        {
+            "surface": GRASS,
+            "five_day_temperature": 13.0,
+            "soil_moisture_ratio": 0.9 - epsilon,
+        },
+        {
+            "surface": GRASS,
+            "five_day_temperature": 13.0,
+            "soil_moisture_ratio": 0.9 + epsilon,
+        },
+    ])
 
     np.testing.assert_allclose(above, below, rtol=0.0, atol=1.0e-6)
 
@@ -216,12 +201,10 @@ def test_soil_moisture_threshold_is_continuous():
 def test_surface_wetness_zero_is_continuous():
     """A trace surface store must not switch directly to wet coefficients."""
     epsilon = 1.0e-10
-    dry, trace_wetness = _run_ohm_cases(
-        [
-            {"five_day_temperature": 13.0, "surface_wetness": 0.0},
-            {"five_day_temperature": 13.0, "surface_wetness": epsilon},
-        ]
-    )
+    dry, trace_wetness = _run_ohm_cases([
+        {"five_day_temperature": 13.0, "surface_wetness": 0.0},
+        {"five_day_temperature": 13.0, "surface_wetness": epsilon},
+    ])
 
     np.testing.assert_allclose(trace_wetness, dry, rtol=0.0, atol=1.0e-7)
 

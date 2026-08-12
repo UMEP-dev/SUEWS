@@ -330,9 +330,9 @@ remote-sensing product is available, users can bypass the internal scheme by:
    it to SUEWS.
 
 .. note::
-   When ``laimethod: 0`` is set, the single scalar ``lai`` value from the forcing file is
-   applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
-   grass) each day.
+   When ``laimethod: 0`` is set, bulk ``lai`` supplies any vegetation class
+   without its own ``lai_evetr``, ``lai_dectr``, or ``lai_grass`` column. A
+   land-cover-specific column overrides the bulk value for that class.
 
 .. important::
    Observed LAI values are clamped into each vegetation class's

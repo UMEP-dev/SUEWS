@@ -77,11 +77,6 @@ def test_published_forcing_contract_is_packaged(version: str) -> None:
     )
     assert contract.is_file()
 
-    utc_contract = importlib.resources.files("supy.data_model.forcing").joinpath(
-        "artefacts/1.1.0.json"
-    )
-    assert utc_contract.is_file()
-
 
 def test_forcing_reference_is_registry_derived_and_current() -> None:
     """Keep the tracked user reference equal to its registry projection."""

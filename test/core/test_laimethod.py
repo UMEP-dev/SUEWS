@@ -612,7 +612,7 @@ class TestLAIMethodMultiGrid:
 
         physics_dict = _physics_dict_from_df_state(df_state_multi)
         # Multi-grid: value should be a list spanning both grids' choices.
-        assert physics_dict.get("laimethod") == [0, 1]
+        assert physics_dict.get("laimethod") == [1, 0]
 
         df_forcing = _base_forcing_df()
         issues = check_forcing(df_forcing, fix=False, physics=physics_dict)
@@ -622,3 +622,28 @@ class TestLAIMethodMultiGrid:
             "Expected validator to require `lai` column when any grid sets "
             f"laimethod=0; got issues: {issues}"
         )
+
+    def test_multi_grid_compound_options_remain_aligned(self):
+        """Extract every compound selector without cross-grid false matches."""
+        from supy._supy_module import _physics_dict_from_df_state
+
+        sim = SUEWSSimulation.from_sample_data()
+        df_state = sim._config.to_df_state()
+        df_state_multi = pd.concat([df_state, df_state.copy()], ignore_index=True)
+        df_state_multi.loc[0, "snowuse"] = 1
+        df_state_multi.loc[1, "snowuse"] = 0
+        df_state_multi.loc[0, "netradiationmethod"] = 3
+        df_state_multi.loc[1, "netradiationmethod"] = 0
+
+        physics_dict = _physics_dict_from_df_state(df_state_multi)
+        assert physics_dict["snowuse"] == [1, 0]
+        assert physics_dict["netradiationmethod"] == [3, 0]
+
+        df_forcing = _base_forcing_df()
+        issues = check_forcing(df_forcing, fix=False, physics=physics_dict) or []
+        assert not any("snow" in issue.lower() for issue in issues)
+
+        df_state_multi.loc[0, "netradiationmethod"] = 0
+        physics_dict = _physics_dict_from_df_state(df_state_multi)
+        issues = check_forcing(df_forcing, fix=False, physics=physics_dict) or []
+        assert any("snow" in issue.lower() for issue in issues)

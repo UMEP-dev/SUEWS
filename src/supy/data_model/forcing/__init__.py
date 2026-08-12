@@ -22,7 +22,7 @@ _LAZY_ATTRS = {
 
 
 def __getattr__(name: str):
-    """Load the unpublished registry only when its API is requested."""
+    """Load the forcing registry only when its API is requested."""
     try:
         module_name, attribute_name = _LAZY_ATTRS[name]
     except KeyError as exc:

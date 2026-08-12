@@ -1,4 +1,4 @@
-"""Typed inventory models for the unpublished SUEWS forcing contract."""
+"""Typed inventory models for the SUEWS forcing contract."""
 
 from typing import Literal
 
@@ -18,7 +18,15 @@ class ForcingVariable(BaseModel):
     data_type: ForcingDataType
     role: ForcingRole
     unit: str | None = Field(
-        description="Input unit, or None while its scientific contract is unresolved"
+        description="Unconditional input unit, or None for selector-dependent units"
+    )
+    unit_selector: str | None = Field(
+        default=None,
+        description="Physics selector controlling the input unit",
+    )
+    units_by_value: dict[int, str] = Field(
+        default_factory=dict,
+        description="Input units keyed by the controlling selector value",
     )
     description: str
     temporal: TemporalSemantics
@@ -52,11 +60,6 @@ class ForcingVariable(BaseModel):
         default=1.0,
         description="Scale applied when converting the input to its runtime unit",
     )
-    metadata_note: str | None = Field(
-        default=None,
-        description="Known limitation that must be resolved before publication",
-    )
-
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     @model_validator(mode="after")
@@ -68,8 +71,19 @@ class ForcingVariable(BaseModel):
             raise ValueError("fallback missing policy requires a fallback column")
         if self.missing_policy != "fallback" and self.fallback is not None:
             raise ValueError("only fallback variables may name a fallback column")
-        if self.unit is None and self.metadata_note is None:
-            raise ValueError("an unresolved unit requires a metadata note")
+        has_conditional_unit = self.unit_selector is not None or bool(
+            self.units_by_value
+        )
+        if self.unit is None:
+            if self.unit_selector is None or not self.units_by_value:
+                raise ValueError(
+                    "a variable without an unconditional unit requires a complete "
+                    "conditional-unit declaration"
+                )
+        elif has_conditional_unit:
+            raise ValueError(
+                "a variable cannot declare unconditional and conditional units"
+            )
         if (
             self.runtime_unit is None and self.runtime_scale != 1.0  # ruff: ignore[float-equality-comparison]
         ):
@@ -78,41 +92,66 @@ class ForcingVariable(BaseModel):
 
 
 class RequirementRule(BaseModel):
-    """Columns required by one physics selector, including alternatives."""
+    """Columns required when every declared physics condition matches."""
 
-    selector: str = Field(description="Current ModelPhysics field name")
-    values: tuple[int, ...]
+    conditions: dict[str, tuple[int, ...]] = Field(
+        description="Current ModelPhysics fields and their activating values"
+    )
     alternatives: tuple[tuple[str, ...], ...] = Field(
         description=(
             "Any one complete alternative satisfies the requirement; columns within "
             "an alternative are jointly required"
         )
     )
-    legacy_selector: str | None = None
-    legacy_values: tuple[int, ...] = ()
+    legacy_conditions: dict[str, tuple[int, ...]] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     @model_validator(mode="after")
     def validate_rule_shape(self) -> "RequirementRule":
         """Reject empty or partially specified selector rules."""
-        if not self.values:
-            raise ValueError("requirement rule values cannot be empty")
+        if not self.conditions or any(
+            not values for values in self.conditions.values()
+        ):
+            raise ValueError("requirement rule conditions cannot be empty")
         if not self.alternatives or any(not item for item in self.alternatives):
             raise ValueError("requirement alternatives cannot be empty")
-        if (self.legacy_selector is None) != (not self.legacy_values):
-            raise ValueError("legacy selector and values must be declared together")
+        if any(not values for values in self.legacy_conditions.values()):
+            raise ValueError("legacy requirement conditions cannot be empty")
         return self
+
+    @property
+    def selector(self) -> str:
+        """Selector for a simple one-condition rule."""
+        return next(iter(self.conditions))
+
+    @property
+    def values(self) -> tuple[int, ...]:
+        """Activating values for a simple one-condition rule."""
+        return self.conditions[self.selector]
+
+    @property
+    def legacy_selector(self) -> str | None:
+        """Legacy selector for a simple one-condition rule."""
+        return next(iter(self.legacy_conditions), None)
+
+    @property
+    def legacy_values(self) -> tuple[int, ...]:
+        """Legacy activating values for a simple one-condition rule."""
+        selector = self.legacy_selector
+        return () if selector is None else self.legacy_conditions[selector]
 
 
 class ForcingRegistry(BaseModel):
-    """Unpublished forcing inventory with separate alias namespaces."""
+    """Forcing inventory with separate alias namespaces."""
 
     variables: tuple[ForcingVariable, ...]
     requirement_rules: tuple[RequirementRule, ...]
     missing_value: float = -999.0
     case_sensitive_headers: bool = False
     stripped_header_prefixes: tuple[str, ...] = ("%",)
+    timestamp_reference: Literal["local_standard_time"] = "local_standard_time"
+    timestamp_alignment: Literal["interval_end"] = "interval_end"
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -148,7 +187,7 @@ class ForcingRegistry(BaseModel):
                 unknown = set(alternative).difference(dict_variables)
                 if unknown:
                     raise ValueError(
-                        f"requirement {rule.selector!r} references unknown columns "
+                        f"requirement {sorted(rule.conditions)!r} references unknown columns "
                         f"{sorted(unknown)}"
                     )
         return self
@@ -280,6 +319,8 @@ class ForcingRegistry(BaseModel):
         """Project current physics selectors onto their bulk compatibility path."""
         projected: dict[tuple[str, int], frozenset[str]] = {}
         for rule in self.requirement_rules:
+            if len(rule.conditions) != 1:
+                continue
             required = frozenset(name.casefold() for name in rule.alternatives[0])
             for value in rule.values:
                 projected[rule.selector, value] = required
@@ -290,7 +331,7 @@ class ForcingRegistry(BaseModel):
         """Project legacy checker selectors without changing their vocabulary."""
         projected: dict[tuple[str, int], list[str]] = {}
         for rule in self.requirement_rules:
-            if rule.legacy_selector is None:
+            if len(rule.legacy_conditions) != 1:
                 continue
             for value in rule.legacy_values:
                 projected[rule.legacy_selector, value] = list(rule.alternatives[0])

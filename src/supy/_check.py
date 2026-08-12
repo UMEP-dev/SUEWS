@@ -15,6 +15,7 @@ from ._load import (
     dict_var_type_forcing,
     set_var_use,
 )
+from .data_model.core.forcing_validation import matching_requirement_conditions
 from .data_model.forcing import FORCING_REGISTRY
 
 LAI_VEG_COLUMNS = FORCING_REGISTRY.per_landcover_columns["lai"]
@@ -533,6 +534,39 @@ def check_forcing(
                                 )
                                 list_issues.append(str_issue)
                                 flag_valid = False
+
+        # Compound requirements cannot be represented by the historical
+        # FORCING_REQUIREMENTS mapping. Evaluate them directly from the same
+        # registry while preserving that public compatibility projection.
+        for rule in FORCING_REGISTRY.requirement_rules:
+            if len(rule.legacy_conditions) < 2:
+                continue
+            matched = matching_requirement_conditions(
+                physics, rule.legacy_conditions
+            )
+            if matched is None:
+                continue
+            condition = " and ".join(
+                f"{name}={value}" for name, value in matched.items()
+            )
+            for col in rule.alternatives[0]:
+                if col not in df_forcing.columns:
+                    str_issue = (
+                        f"Physics options '{condition}' require column '{col}', "
+                        "but it is missing."
+                    )
+                    list_issues.append(str_issue)
+                    flag_valid = False
+                    continue
+                from .util._missing import SUEWS_MISSING_THRESHOLD
+
+                if (df_forcing[col] <= SUEWS_MISSING_THRESHOLD).all():
+                    str_issue = (
+                        f"Physics options '{condition}' require valid data in "
+                        f"column '{col}', but it contains only missing values (-999)."
+                    )
+                    list_issues.append(str_issue)
+                    flag_valid = False
 
     if not flag_valid:
         str_issue = "\n".join(["Issues found in `df_forcing`:"] + list_issues)

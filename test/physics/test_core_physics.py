@@ -457,7 +457,7 @@ class TestNumericalStability(TestCase):
             elif col_lower == "tair":
                 df_zero[col] = 15  # Reasonable temperature
             elif col_lower == "pres":
-                df_zero[col] = 101.3  # Standard pressure [kPa]
+                df_zero[col] = 1013  # Standard pressure [hPa]
             elif col_lower == "rain":
                 df_zero[col] = 0
             elif col_lower == "u":

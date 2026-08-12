@@ -15,8 +15,8 @@ The previous shards are not copied aside: they are tracked in git, so `git diff`
 shows what moved and `git checkout` restores them.
 """
 
-import sys
 from pathlib import Path
+import sys
 
 import supy as sp
 
@@ -29,15 +29,20 @@ if not test_data_dir.is_dir():
 
 # Share the split/combine convention with the tests (single source of truth).
 sys.path.insert(0, str(test_data_dir))
-from sample_output_io import load_sample_output, write_sample_output_shards  # noqa: E402
+from sample_output_io import (  # noqa: E402
+    load_sample_output,
+    write_sample_output_shards,
+)
 
 print("\n========================================")
 print("Generating sample output for testing")
-df_state_init, df_forcing_tstep = sp.load_SampleData()
+simulation = sp.SUEWSSimulation.from_sample_data()
+df_forcing_tstep = simulation.forcing.df
 df_forcing_part = df_forcing_tstep.iloc[: 288 * 366]  # One year (2012 is a leap year)
 
 # single-step results
-df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
+simulation.update_forcing(df_forcing_part)
+df_output_s = simulation.run().df
 
 df_output = df_output_s.SUEWS
 print(f"Saving sample output shards to: {test_data_dir.as_posix()}")

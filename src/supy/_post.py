@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
-import copy
+
 from ._env import logger_supy
 from .data_model.output import OUTPUT_REGISTRY
+
 
 ##############################################################################
 # post-processing part
@@ -223,15 +224,8 @@ def _index_freq_matches(df_output, freq):
         return to_offset(inferred) == target_offset
 
 
-def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=False):
+def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     """Resample SUEWS simulation output to a different temporal frequency.
-
-    .. deprecated:: 2026.2
-        Direct use of this function is deprecated. Use :meth:`SUEWSOutput.resample`
-        instead for the recommended object-oriented interface::
-
-            output = sim.run()
-            resampled = output.resample(freq="h")
 
     This function resamples time series data using variable-appropriate
     aggregation methods. Different variable types are handled correctly:
@@ -243,8 +237,9 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=
     Parameters
     ----------
     df_output : pandas.DataFrame or SUEWSOutput
-        Output DataFrame from `run_supy`, with MultiIndex (grid, datetime)
-        and MultiIndex columns (group, var). Also accepts SUEWSOutput objects.
+        Output DataFrame from ``SUEWSOutput.df``, with MultiIndex
+        (grid, datetime) and MultiIndex columns (group, var). Also accepts
+        ``SUEWSOutput`` objects.
     freq : str, optional
         Target frequency using pandas offset aliases.
         Common values: '30min', '60min' or 'h', '3h', 'D'.
@@ -258,13 +253,19 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=
     pandas.DataFrame
         Resampled DataFrame with same structure as input.
 
+    See Also
+    --------
+    SUEWSOutput.resample : Recommended OOP interface for resampling
+    supy.util.gen_epw : Generate EPW files (supports freq parameter)
+    supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
+
     Notes
     -----
     **Recommended Usage**
 
     For new code, use the object-oriented interface::
 
-        sim = SUEWSSimulation('config.yml')
+        sim = SUEWSSimulation("config.yml")
         output = sim.run()
         resampled = output.resample(freq="h")  # Returns SUEWSOutput
 
@@ -307,28 +308,10 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=
     >>> sim = sp.SUEWSSimulation.from_sample_data()
     >>> output = sim.run()
     >>> resampled = output.resample(freq="h")  # Returns SUEWSOutput
-
-    Legacy usage (deprecated):
-
-    >>> df_state_init, df_forcing = sp.load_SampleData()
-    >>> df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
-    >>> df_hourly = sp.resample_output(df_output, freq="h")
-
-    See Also
-    --------
-    SUEWSOutput.resample : Recommended OOP interface for resampling
-    supy.util.gen_epw : Generate EPW files (supports freq parameter)
-    supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
     """
     # Unwrap SUEWSOutput to raw DataFrame if needed
     if hasattr(df_output, "_df_output"):
         df_output = df_output._df_output
-
-    # Issue deprecation warning for direct external calls
-    if not _internal:
-        from ._supy_module import _warn_functional_deprecation
-
-        _warn_functional_deprecation("resample_output")
 
     # Skip resampling entirely when the data is already at the requested
     # frequency
@@ -493,7 +476,8 @@ def proc_df_rsl(df_output, debug=False):
 
     # Convert column names from format "var_level" to MultiIndex (var, level)
     df_rsl.columns = (
-        df_rsl.columns.str.split("_")
+        df_rsl.columns.str
+        .split("_")
         .map(lambda l: tuple([l[0], int(l[1])]))
         .rename(["var", "level"])
     )

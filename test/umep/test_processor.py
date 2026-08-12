@@ -4,7 +4,7 @@ This module tests the functions used by UMEP Processor plugin:
 - init_config_from_yaml(): Load configuration
 - SUEWSSimulation(config.yml): Preferred YAML-backed runtime
 - load_forcing_grid(): Load forcing data
-- run_supy()/save_supy(): Legacy DFState compatibility
+- SUEWSSimulation.run()/SUEWSOutput.save(): Runtime and output handling
 
 Reference:
 https://github.com/UMEP-dev/UMEP-processing/blob/82bc3266d8cb4d04359994b1cae5cf082d09c47c/processor/suews_algorithm.py#L265
@@ -12,14 +12,14 @@ https://github.com/UMEP-dev/UMEP-processing/blob/82bc3266d8cb4d04359994b1cae5cf0
 See: https://github.com/UMEP-dev/SUEWS/issues/901
 """
 
-import tempfile
 from pathlib import Path
+import tempfile
 from unittest import TestCase
 
+from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
 
 import supy as sp
-from conftest import TIMESTEPS_PER_DAY
 
 
 class TestSUEWSProcessorAPI(TestCase):
@@ -87,71 +87,38 @@ class TestSUEWSProcessorAPI(TestCase):
         self.assertIsInstance(df_forcing, pd.DataFrame)
         self.assertFalse(df_forcing.empty)
         self.assertIsInstance(df_forcing.index, pd.DatetimeIndex)
+        expected = sp.SUEWSSimulation(self.sample_config).forcing.to_dataframe(
+            include_extras=True
+        )
+        pd.testing.assert_frame_equal(df_forcing, expected)
 
-    def test_run_supy_import(self):
-        """Test that run_supy is importable from expected location."""
-        self.assertIsNotNone(sp.run_supy)
-        self.assertTrue(callable(sp.run_supy))
-
-    def test_run_supy_with_chunk_day(self):
-        """Test run_supy with chunk_day parameter (UMEP pattern)."""
-        from supy.data_model import init_config_from_yaml
-
+    def test_simulation_run_with_chunk_day(self):
+        """Test the current UMEP simulation runtime pattern."""
         if not self.sample_config.exists():
             self.skipTest("Sample config not available")
 
-        config = init_config_from_yaml(self.sample_config)
-        df_state_init = config.to_df_state()
-        grid = df_state_init.index[0]
+        simulation = sp.SUEWSSimulation(self.sample_config)
 
-        df_forcing = sp.load_forcing_grid(
-            self.sample_config, grid=grid, df_state_init=df_state_init
-        )
-
-        # Run with chunk_day parameter as UMEP does
         # Use short forcing for test speed (one day of 5-min data)
-        df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:TIMESTEPS_PER_DAY],
-            df_state_init,
-            chunk_day=1,
-            check_input=False,
-        )
+        simulation.update_forcing(simulation.forcing.df.iloc[:TIMESTEPS_PER_DAY])
+        output = simulation.run(chunk_day=1)
 
         # Verify output structure
-        self.assertIsInstance(df_output, pd.DataFrame)
-        self.assertIsInstance(df_state_final, pd.DataFrame)
-        self.assertFalse(df_output.empty)
+        self.assertIsInstance(output.df, pd.DataFrame)
+        self.assertIsInstance(output.state_final, pd.DataFrame)
+        self.assertFalse(output.df.empty)
 
-    def test_save_supy_import(self):
-        """Test that save_supy is importable from expected location."""
-        self.assertIsNotNone(sp.save_supy)
-        self.assertTrue(callable(sp.save_supy))
-
-    def test_save_supy_functionality(self):
-        """Test save_supy saves output correctly."""
-        from supy.data_model import init_config_from_yaml
-
+    def test_output_save_functionality(self):
+        """Test the current UMEP output-saving pattern."""
         if not self.sample_config.exists():
             self.skipTest("Sample config not available")
 
-        config = init_config_from_yaml(self.sample_config)
-        df_state_init = config.to_df_state()
-        grid = df_state_init.index[0]
-
-        df_forcing = sp.load_forcing_grid(
-            self.sample_config, grid=grid, df_state_init=df_state_init
-        )
-
-        # One day of 5-min data
-        df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:TIMESTEPS_PER_DAY],
-            df_state_init,
-            check_input=False,
-        )
+        simulation = sp.SUEWSSimulation(self.sample_config)
+        simulation.update_forcing(simulation.forcing.df.iloc[:TIMESTEPS_PER_DAY])
+        output = simulation.run()
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            # This is how UMEP saves results
-            sp.save_supy(df_output, df_state_final, path_dir_save=temp_dir)
+            output.save(temp_dir)
 
             # Verify files were created
             output_files = list(Path(temp_dir).glob("*"))

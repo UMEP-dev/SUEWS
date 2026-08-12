@@ -20,16 +20,14 @@ These tests guard against regression in:
     through to `LAI_id_next`).
 """
 
+from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pandas as pd
 import pytest
-import supy as sp
 
 from supy import SUEWSSimulation
 from supy._check import FORCING_REQUIREMENTS, check_forcing
 from supy.data_model.core.model import LAIMethod
-
-from conftest import TIMESTEPS_PER_DAY
 
 pytestmark = pytest.mark.physics
 
@@ -94,9 +92,7 @@ class TestLAIMethodValidator:
         """laimethod=0 with an all-missing lai column emits an issue."""
         df_forcing = _base_forcing_df()
         issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
-        assert any(
-            "laimethod=0" in issue and "lai" in issue for issue in issues
-        )
+        assert any("laimethod=0" in issue and "lai" in issue for issue in issues)
 
     def test_laimethod_0_passes_with_valid_lai(self):
         """laimethod=0 with a valid lai column passes the requirement check."""
@@ -120,8 +116,7 @@ class TestLAIMethodValidator:
 
         if issues:
             assert not any(
-                "laimethod=0" in issue and "non-negative" in issue
-                for issue in issues
+                "laimethod=0" in issue and "non-negative" in issue for issue in issues
             ), issues
 
     def test_laimethod_0_rejects_single_invalid_per_vegetation_lai(self):
@@ -135,9 +130,7 @@ class TestLAIMethodValidator:
         issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
 
         assert any(
-            "laimethod=0" in issue
-            and "lai_dectr" in issue
-            and "non-negative" in issue
+            "laimethod=0" in issue and "lai_dectr" in issue and "non-negative" in issue
             for issue in issues
         ), issues
 
@@ -150,9 +143,7 @@ class TestLAIMethodValidator:
         issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
 
         assert any(
-            "laimethod=0" in issue
-            and "lai" in issue
-            and "non-negative" in issue
+            "laimethod=0" in issue and "lai" in issue and "non-negative" in issue
             for issue in issues
         ), issues
 
@@ -171,9 +162,7 @@ class TestLAIMethodValidator:
         issues = check_forcing(
             df_forcing, fix=False, physics={"laimethod": {"value": 0}}
         )
-        assert any(
-            "laimethod=0" in issue and "lai" in issue for issue in issues
-        )
+        assert any("laimethod=0" in issue and "lai" in issue for issue in issues)
 
 
 class TestLAIMethodNegativeRejected:
@@ -190,36 +179,28 @@ class TestLAIMethodNegativeRejected:
         """``lai == 0`` across all rows is a valid observation."""
         df_forcing = _base_forcing_df()
         df_forcing["lai"] = 0.0
-        issues = check_forcing(
-            df_forcing, fix=False, physics={"laimethod": 0}
-        )
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
         if issues:
-            assert not any(
-                "non-negative" in issue for issue in issues
-            ), issues
+            assert not any("non-negative" in issue for issue in issues), issues
 
     def test_validator_rejects_small_negative_lai(self):
         """Small negative values (above the -900 threshold) are rejected."""
         df_forcing = _base_forcing_df()
         df_forcing["lai"] = -5.0
-        issues = check_forcing(
-            df_forcing, fix=False, physics={"laimethod": 0}
-        )
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
         assert any(
-            "laimethod=0" in issue and "non-negative" in issue
-            for issue in issues
+            "laimethod=0" in issue and "non-negative" in issue for issue in issues
         ), issues
 
     def test_validator_rejects_missing_sentinel(self):
         """``lai == -999`` is not a permitted fallback under laimethod=0."""
         df_forcing = _base_forcing_df()  # lai column already set to -999
-        issues = check_forcing(
-            df_forcing, fix=False, physics={"laimethod": 0}
-        )
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
         # Exactly one non-negative issue is emitted for this column — the
         # generic all-missing check must be suppressed to avoid duplicates.
         matching = [
-            issue for issue in issues
+            issue
+            for issue in issues
             if "laimethod=0" in issue and "non-negative" in issue
         ]
         assert len(matching) == 1, (
@@ -232,11 +213,10 @@ class TestLAIMethodNegativeRejected:
         df_forcing = _base_forcing_df()
         df_forcing["lai"] = 3.5
         df_forcing.iloc[3:6, df_forcing.columns.get_loc("lai")] = -999.0
-        issues = check_forcing(
-            df_forcing, fix=False, physics={"laimethod": 0}
-        )
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
         matching = [
-            issue for issue in issues
+            issue
+            for issue in issues
             if "laimethod=0" in issue and "non-negative" in issue
         ]
         assert matching, issues
@@ -248,11 +228,10 @@ class TestLAIMethodNegativeRejected:
         df_forcing = _base_forcing_df()
         df_forcing["lai"] = 3.5
         df_forcing.iloc[3, df_forcing.columns.get_loc("lai")] = np.nan
-        issues = check_forcing(
-            df_forcing, fix=False, physics={"laimethod": 0}
-        )
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
         matching = [
-            issue for issue in issues
+            issue
+            for issue in issues
             if "laimethod=0" in issue and "missing/NaN" in issue
         ]
         assert matching, issues
@@ -261,13 +240,9 @@ class TestLAIMethodNegativeRejected:
         """Strictly positive ``lai`` values pass the non-negative check."""
         df_forcing = _base_forcing_df()
         df_forcing["lai"] = 3.5
-        issues = check_forcing(
-            df_forcing, fix=False, physics={"laimethod": 0}
-        )
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
         if issues:
-            assert not any(
-                "non-negative" in issue for issue in issues
-            ), issues
+            assert not any("non-negative" in issue for issue in issues), issues
 
 
 @pytest.mark.core
@@ -426,11 +401,13 @@ class TestLAIMethodRuntime:
         results = sim.run(end_date=df_forcing.index[-1])
 
         df_dailystate = results.xs("DailyState", level="group", axis=1)
-        df_lai = df_dailystate.xs(1, level="grid")[[
-            "LAI_EveTr",
-            "LAI_DecTr",
-            "LAI_Grass",
-        ]].dropna(how="all")
+        df_lai = df_dailystate.xs(1, level="grid")[
+            [
+                "LAI_EveTr",
+                "LAI_DecTr",
+                "LAI_Grass",
+            ]
+        ].dropna(how="all")
         df_lai_tail = df_lai.iloc[1:]
 
         expected = {
@@ -489,15 +466,19 @@ class TestLAIMethodRuntime:
         results = sim.run(end_date=df_forcing.index[-1])
 
         df_dailystate = results.xs("DailyState", level="group", axis=1)
-        df_lai = df_dailystate.xs(1, level="grid")[[
-            "LAI_EveTr",
-            "LAI_DecTr",
-            "LAI_Grass",
-        ]].dropna(how="all")
+        df_lai = df_dailystate.xs(1, level="grid")[
+            [
+                "LAI_EveTr",
+                "LAI_DecTr",
+                "LAI_Grass",
+            ]
+        ].dropna(how="all")
         # Skip the first day (initial state inherited from the config).
         df_lai_tail = df_lai.iloc[1:]
         np.testing.assert_allclose(
-            df_lai_tail.values, 0.0, atol=1e-9,
+            df_lai_tail.values,
+            0.0,
+            atol=1e-9,
             err_msg="lai=0.0 observation should drive LAI outputs to zero",
         )
 
@@ -540,20 +521,6 @@ class TestLAIMethodRuntime:
         with pytest.raises(ValueError, match="laimethod=0"):
             sim.run(end_date=df_forcing.index[-1])
 
-    def test_legacy_run_supy_unchecked_rejects_nan_gap(self):
-        """Legacy ``run_supy(..., check_input=False)`` still rejects NaN ``lai``."""
-        with pytest.deprecated_call():
-            df_state_init, df_forcing = sp.load_sample_data()
-
-        end_index = TIMESTEPS_PER_DAY * 2 - 1
-        df_forcing = df_forcing.iloc[: end_index + 1].copy()
-        df_forcing["lai"] = 3.5
-        df_forcing.iloc[0, df_forcing.columns.get_loc("lai")] = np.nan
-        df_state_init.loc[:, ("laimethod", "0")] = 0
-
-        with pytest.raises(Exception, match="laimethod=0"):
-            sp.run_supy(df_forcing, df_state_init, check_input=False)
-
 
 class TestLAIPassThroughPreflight:
     """Validator does not compare observed LAI against LAImin/LAImax."""
@@ -591,59 +558,3 @@ class TestLAIPassThroughPreflight:
         )
         messages = [rec.message for rec in supy_caplog.records]
         assert not any("clamped at runtime" in msg for msg in messages)
-
-
-class TestLAIMethodMultiGrid:
-    """Multi-grid legacy-path validation (see ``_physics_dict_from_df_state``)."""
-
-    def test_multi_grid_laimethod_triggers_requirement(self):
-        """If any grid selects ``laimethod=0``, the forcing requirement must
-        apply — even when grid 1 uses the default (``laimethod=1``)."""
-        from supy._supy_module import _physics_dict_from_df_state
-
-        sim = SUEWSSimulation.from_sample_data()
-        df_state = sim._config.to_df_state()
-
-        # Duplicate the single-grid state to simulate a two-grid run with
-        # grid 1 using the default and grid 2 selecting observed LAI.
-        df_state_multi = pd.concat([df_state, df_state.copy()], ignore_index=True)
-        df_state_multi.loc[0, "laimethod"] = 1
-        df_state_multi.loc[1, "laimethod"] = 0
-
-        physics_dict = _physics_dict_from_df_state(df_state_multi)
-        # Multi-grid: value should be a list spanning both grids' choices.
-        assert physics_dict.get("laimethod") == [1, 0]
-
-        df_forcing = _base_forcing_df()
-        issues = check_forcing(df_forcing, fix=False, physics=physics_dict)
-        assert any(
-            "laimethod=0" in issue and "lai" in issue for issue in issues
-        ), (
-            "Expected validator to require `lai` column when any grid sets "
-            f"laimethod=0; got issues: {issues}"
-        )
-
-    def test_multi_grid_compound_options_remain_aligned(self):
-        """Extract every compound selector without cross-grid false matches."""
-        from supy._supy_module import _physics_dict_from_df_state
-
-        sim = SUEWSSimulation.from_sample_data()
-        df_state = sim._config.to_df_state()
-        df_state_multi = pd.concat([df_state, df_state.copy()], ignore_index=True)
-        df_state_multi.loc[0, "snowuse"] = 1
-        df_state_multi.loc[1, "snowuse"] = 0
-        df_state_multi.loc[0, "netradiationmethod"] = 3
-        df_state_multi.loc[1, "netradiationmethod"] = 0
-
-        physics_dict = _physics_dict_from_df_state(df_state_multi)
-        assert physics_dict["snowuse"] == [1, 0]
-        assert physics_dict["netradiationmethod"] == [3, 0]
-
-        df_forcing = _base_forcing_df()
-        issues = check_forcing(df_forcing, fix=False, physics=physics_dict) or []
-        assert not any("snow" in issue.lower() for issue in issues)
-
-        df_state_multi.loc[0, "netradiationmethod"] = 0
-        physics_dict = _physics_dict_from_df_state(df_state_multi)
-        issues = check_forcing(df_forcing, fix=False, physics=physics_dict) or []
-        assert any("snow" in issue.lower() for issue in issues)

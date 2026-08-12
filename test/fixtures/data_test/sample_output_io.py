@@ -39,7 +39,7 @@ def write_sample_output_shards(df: pd.DataFrame, data_dir: Path) -> list[Path]:
     """Write ``df`` as twelve monthly plain-CSV shards under ``data_dir``.
 
     ``df`` must carry the ``(grid, datetime)`` MultiIndex produced by
-    ``run_supy``. Row order within each month is preserved.
+    ``SUEWSSimulation.run``. Row order within each month is preserved.
     """
     data_dir = Path(data_dir)
     datetimes = df.index.get_level_values("datetime")

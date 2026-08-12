@@ -4,11 +4,12 @@ This module defines the data structures for output variable metadata,
 transitioning from Fortran-first to Python-first architecture.
 """
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
 from enum import Enum
-from typing import List, Dict, Optional, Callable
-import pandas as pd
+from typing import Callable, Dict, List, Optional
+
 import numpy as np
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class AggregationMethod(str, Enum):
@@ -189,7 +190,7 @@ class OutputVariableRegistry(BaseModel):
         return next((v for v in self.variables if v.name == name), None)
 
     def get_aggregation_rules(self) -> Dict[str, Dict[str, Callable]]:
-        """Generate aggregation rules dict for resample_output().
+        """Generate aggregation rules dict for _resample_output().
 
         Returns:
             Dictionary mapping group -> {variable: aggregation_function}

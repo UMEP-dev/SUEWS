@@ -20,7 +20,9 @@ import supy as sp
 
 def create_multi_grid_state(n_grids: int):
     """Create N-grid initial state from sample data."""
-    df_state_init, df_forcing = sp.load_SampleData()
+    simulation = sp.SUEWSSimulation.from_sample_data()
+    df_state_init = simulation.state_init
+    df_forcing = simulation.forcing.df
 
     # Duplicate state for N grids with unique grid IDs
     df_state_multi = pd.concat([df_state_init] * n_grids)
@@ -45,11 +47,9 @@ def run_benchmark(n_grids: int, serial: bool = True):
 
     print(f"Running {n_grids} grids x {n_steps} timesteps ({mode})...")
     t0 = perf_counter()
-    df_output, df_state = sp.run_supy(
-        df_forcing_short,
-        df_state_multi,
-        serial_mode=serial,
-    )
+    simulation = sp.SUEWSSimulation.from_state(df_state_multi)
+    simulation.update_forcing(df_forcing_short)
+    simulation.run(n_jobs=1 if serial else -1)
     t_run = perf_counter() - t0
 
     total_steps = n_grids * n_steps
@@ -68,11 +68,9 @@ def run_with_profile(n_grids: int):
 
     pr = cProfile.Profile()
     pr.enable()
-    df_output, df_state = sp.run_supy(
-        df_forcing_short,
-        df_state_multi,
-        serial_mode=True,
-    )
+    simulation = sp.SUEWSSimulation.from_state(df_state_multi)
+    simulation.update_forcing(df_forcing_short)
+    simulation.run(n_jobs=1)
     pr.disable()
 
     # Print top 30 functions by cumulative time

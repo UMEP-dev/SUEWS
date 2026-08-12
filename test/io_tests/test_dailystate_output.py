@@ -1,14 +1,12 @@
 """Test DailyState output functionality."""
 
 import tempfile
-from pathlib import Path
 
-import numpy as np
+from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
 import pytest
 
-import supy as sp
-from conftest import TIMESTEPS_PER_DAY
+from supy._supy_module import _save_supy
 from supy.data_model.core.model import OutputControl
 
 pytestmark = pytest.mark.physics
@@ -58,7 +56,7 @@ class TestDailyStateOutput:
 
         # Save output with default settings (should include DailyState)
         with tempfile.TemporaryDirectory() as dir_temp:
-            list_files = sp.save_supy(df_output, df_state_final, path_dir_save=dir_temp)
+            list_files = _save_supy(df_output, df_state_final, path_dir_save=dir_temp)
 
             # Check that DailyState file was created
             dailystate_files = [f for f in list_files if "DailyState" in f.name]
@@ -100,7 +98,7 @@ class TestDailyStateOutput:
         # Test with different output frequencies
         for freq_s in [300, 1800, 3600]:  # 5min, 30min, 60min
             with tempfile.TemporaryDirectory() as dir_temp:
-                list_files = sp.save_supy(
+                list_files = _save_supy(
                     df_output, df_state_final, path_dir_save=dir_temp, freq_s=freq_s
                 )
 
@@ -117,7 +115,7 @@ class TestDailyStateOutput:
         df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY)
 
         with tempfile.TemporaryDirectory() as dir_temp:
-            list_files = sp.save_supy(
+            list_files = _save_supy(
                 df_output,
                 df_state_final,
                 path_dir_save=dir_temp,

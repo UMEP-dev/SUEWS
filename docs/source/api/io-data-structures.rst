@@ -134,7 +134,7 @@ and **output variables by group** in columns (MultiIndex: group, variable).
 
    [5 rows x 218 columns]
 
-The details of all output variables can be found in :doc:`/data-structures/df_output`.
+The details of all output variables can be found in :doc:`/outputs/variables/index`.
 
 Output is recorded at the same temporal resolution as the forcing data:
 
@@ -217,6 +217,6 @@ Related Documentation
 
 - :doc:`/data-structures/df_state` - Complete state variable reference
 - :doc:`/data-structures/df_forcing` - Forcing variable reference
-- :doc:`/data-structures/df_output` - Output variable reference
+- :doc:`/outputs/variables/index` - Output variable reference
 - :ref:`suews_checkpoint` - Typed checkpoint restart artefact
 - :doc:`/auto_examples/tutorial_01_quick_start` - Interactive tutorial with DataFrame examples

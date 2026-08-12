@@ -429,7 +429,6 @@ class TestSampleOutput(TestCase):
         """Validate the smoke window (one model day by default) against the reference."""
         self._validate_sample_output()
 
-    @pytest.mark.core
     @pytest.mark.rust
     def test_sample_output_validation_full_year(self):
         """Validate the whole simulated year against the reference.
@@ -441,15 +440,22 @@ class TestSampleOutput(TestCase):
         GDD and SDD take months to reach the values their branches test, and the
         day-140/170/250/300 gates are never evaluated inside a one-day run.
 
-        Marked `core`, which places it in the `core`, `standard` and full physics
-        expressions. That covers drafts touching Fortran or Rust, every ready PR
-        touching code, every merge-queue entry and the nightly, so the coverage
-        never depends on the hand-applied 0-physics:change label, which is the
-        mechanism that failed. Not `slow`, which would reinstate that dependency.
+        Carries no tier marker, which is deliberate. Per the tier definitions,
+        `standard` is "all non-slow tests for the relevant nature axis", so an
+        unmarked test lands in `standard` and the full physics tiers: every ready
+        PR touching code, every merge-queue entry, and the nightly. Since the
+        queue always runs `standard`, nothing merges without this having passed.
 
-        Not `smoke` either: a full year of engine time does not fit that tier's
-        stated budget. gh#1348 tried it and gh#1382 reverted it six days later
-        over a Windows per-test timeout.
+        Not `slow`: `standard` resolves to "physics and not slow", so that marker
+        would drop this from ready PRs and the queue too, leaving the coverage
+        dependent on someone applying the 0-physics:change label by hand. That
+        dependency is the mechanism that failed and produced this gap.
+
+        Not `core` or `smoke` either: those tiers are for fast feedback on drafts
+        and narrow changes, and a full year of engine time does not belong in a
+        tier defined as "fast enough for draft PRs". gh#1348 put a full-year run
+        in `smoke` and gh#1382 reverted it six days later over a Windows
+        per-test timeout.
 
         Measured runtimes, and the case for promoting this to `smoke` should
         Windows prove to have headroom, are recorded in gh#1679 where they carry

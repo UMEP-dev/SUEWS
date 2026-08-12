@@ -135,3 +135,34 @@ class TestDailyStateOutput:
 
             assert len(df_saved) == 1
             assert (df_saved[data_cols] != -999).any().any()
+
+
+    def test_dailystate_lai_responds_to_phenology(
+        self, sample_run_cached, sample_data_loaded
+    ):
+        """LAI increases during leaf growth and decreases during senescence."""
+
+        _, df_forcing = sample_data_loaded
+
+        # Run the full available forcing period.
+        df_output, _ = sample_run_cached()
+
+        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+
+        lai = df_dailystate["LAI_DecTr"]
+        gdd = df_dailystate["GDD_DecTr"]
+        sdd = df_dailystate["SDD_DecTr"]
+
+        lai_change = lai.diff()
+
+        # The simulation should contain both leaf growth and senescence.
+        assert (lai_change > 0).any(), "LAI should increase during leaf growth"
+        assert (lai_change < 0).any(), "LAI should decrease during senescence"
+
+        # LAI should increase while GDD is accumulating.
+        growth = (gdd > 0) & (lai_change > 0)
+        assert growth.any(), "No LAI increase found during GDD accumulation"
+
+        # LAI should decrease while SDD is driving senescence.
+        senescence = (sdd < 0) & (lai_change < 0)
+        assert senescence.any(), "No LAI decrease found during senescence"

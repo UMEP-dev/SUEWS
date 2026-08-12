@@ -223,9 +223,11 @@ from supy._env import trv_supy_module
 sample_dir = trv_supy_module / "sample_data"
 ```
 
-`trv_supy_module` is `importlib.resources.files("supy")`. It returns a
-`Traversable`, which is **not** a `Path` — and the difference is the point, so do
-not treat it as a drop-in.
+`trv_supy_module` is `importlib.resources.files("supy")`. It returns an
+object satisfying `Traversable`. It is **not guaranteed** to be a `Path`: a
+filesystem-backed loader may well hand you a real `pathlib.Path`, which is why
+`Path`-only calls appear to work locally, but nothing promises that. Write
+against the protocol rather than against what your install happens to return.
 
 The protocol guarantees exactly: `joinpath` (and so `/`), `name`, `is_dir`,
 `is_file`, `iterdir`, `open`, `read_bytes`, `read_text`. Use those:

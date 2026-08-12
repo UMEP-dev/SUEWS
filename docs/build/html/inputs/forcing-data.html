@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-09T23:05:45+00:00" />
-    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.8.9.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-08-12T06:57:05+00:00" />
+    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.8.12.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f8cc4a6d"></script>
+    <script src="../_static/documentation_options.js?v=3f82deea"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.2. Vertical and Material Layer Conventions" href="yaml/layer-conventions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.9.dev1" />
-    <meta name="docbuild:last-update" content="2026-08-09"/>
+  <meta name="docsearch:version" content="2026.8.12.dev1" />
+    <meta name="docbuild:last-update" content="2026-08-12"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.9.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a3756d536730b098f6165bae2e29b77b80fec374" style="color: #31708f;">a3756d5</a>).
+        (2026.8.12.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1ab643ddd88537fa33d4c17f8628b069e3edf7c0" style="color: #31708f;">1ab643d</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.9.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.9.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -998,13 +998,13 @@ order):</p>
 <td><p>qf</p></td>
 <td><p>If not modeled</p></td>
 </tr>
-<tr class="row-odd"><td><p>Snow fraction</p></td>
+<tr class="row-odd"><td><p>Observed snow-cover fraction</p></td>
 <td><p>0-1</p></td>
 <td><p>snow</p></td>
-<td><p>If SnowUse = 1</p></td>
+<td><p>If SnowUse = 1 and NetRadiationMethod = 0</p></td>
 </tr>
 <tr class="row-even"><td><p>Cloud fraction</p></td>
-<td><p>tenths</p></td>
+<td><p>fraction (0-1)</p></td>
 <td><p>fcld</p></td>
 <td><p>For radiation calculations</p></td>
 </tr>
@@ -1014,7 +1014,7 @@ order):</p>
 <td><p>For irrigation</p></td>
 </tr>
 <tr class="row-even"><td><p>Soil moisture</p></td>
-<td><p>m³/m³</p></td>
+<td><p>m3/m3 if <code class="docutils literal notranslate"><span class="pre">SMDMethod</span> <span class="pre">=</span> <span class="pre">1</span></code>; kg/kg if <code class="docutils literal notranslate"><span class="pre">SMDMethod</span> <span class="pre">=</span> <span class="pre">2</span></code></p></td>
 <td><p>xsmd</p></td>
 <td><p>For initialization</p></td>
 </tr>
@@ -1279,80 +1279,9 @@ unexpected outputs.</p>
 <li><p><strong>Physical ranges</strong>: Validates values are within physically plausible ranges</p></li>
 <li><p><strong>Physics-specific requirements</strong>: Ensures required data columns contain valid values based on selected model physics options (see below)</p></li>
 </ol>
-<p><strong>Variables and Physical Ranges</strong></p>
-<div class="pst-scrollable-table-container"><table class="table">
-<colgroup>
-<col style="width: 20.0%" />
-<col style="width: 30.0%" />
-<col style="width: 50.0%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Variable</p></th>
-<th class="head"><p>Valid Range</p></th>
-<th class="head"><p>Notes</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>U (wind speed)</p></td>
-<td><p>≥ 0.01 m/s</p></td>
-<td><p>Minimum to avoid division by zero</p></td>
-</tr>
-<tr class="row-odd"><td><p>RH (rel. humidity)</p></td>
-<td><p>0.0001 - 105%</p></td>
-<td><p>Small buffer for measurement uncertainty</p></td>
-</tr>
-<tr class="row-even"><td><p>Tair (temperature)</p></td>
-<td><p>-50 to 55°C</p></td>
-<td><p>Extreme climate conditions</p></td>
-</tr>
-<tr class="row-odd"><td><p>pres (pressure)</p></td>
-<td><p>680 - 1300 hPa</p></td>
-<td><p>Sea level to high altitude</p></td>
-</tr>
-<tr class="row-even"><td><p>rain (rainfall)</p></td>
-<td><p>≥ 0 mm</p></td>
-<td><p>Cannot be negative</p></td>
-</tr>
-<tr class="row-odd"><td><p>kdown (SW↓)</p></td>
-<td><p>0 - 1400 W/m²</p></td>
-<td><p>Solar constant at surface</p></td>
-</tr>
-<tr class="row-even"><td><p>ldown (LW↓)</p></td>
-<td><p>100 - 600 W/m²</p></td>
-<td><p>Atmospheric thermal radiation</p></td>
-</tr>
-<tr class="row-odd"><td><p>qn, qh, qe, qs, qf</p></td>
-<td><p>-800 to 1400 W/m²</p></td>
-<td><p>Energy flux physical limits</p></td>
-</tr>
-<tr class="row-even"><td><p>snow</p></td>
-<td><p>0 - 1</p></td>
-<td><p>Fraction (0-1, or 0-100%)</p></td>
-</tr>
-<tr class="row-odd"><td><p>fcld</p></td>
-<td><p>0 - 10</p></td>
-<td><p>Cloud cover (oktas, 0-10 tenths)</p></td>
-</tr>
-<tr class="row-even"><td><p>xsmd</p></td>
-<td><p>0 - 1 m³/m³</p></td>
-<td><p>Volumetric soil moisture</p></td>
-</tr>
-<tr class="row-odd"><td><p>lai</p></td>
-<td><p>0 - 15 m²/m²</p></td>
-<td><p>Observed leaf area index (consumed only when <code class="docutils literal notranslate"><span class="pre">model.physics.laimethod:</span> <span class="pre">0</span></code>;
-otherwise ignored — see <a class="reference internal" href="#prescribed-lai"><span class="std std-ref">Prescribing Observed LAI</span></a>)</p></td>
-</tr>
-<tr class="row-even"><td><p>kdiff, kdir</p></td>
-<td><p>0 - 1400 W/m²</p></td>
-<td><p>Radiation components</p></td>
-</tr>
-<tr class="row-odd"><td><p>wdir</p></td>
-<td><p>0 - 360°</p></td>
-<td><p>Wind direction</p></td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>Variable contract and enforced ranges</strong></p>
+<p>The registry-derived <a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">df_forcing variables</span></a> reference is authoritative for
+input units, enforced ranges, requiredness, aliases, and missing-value policy.</p>
 <p><strong>Usage</strong></p>
 <p>Basic validation from Python:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy._check</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_forcing</span>
@@ -1450,6 +1379,7 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <section id="see-also">
 <h2><span class="section-number">4.3.13. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">df_forcing variables</span></a> - Registry-derived forcing-variable reference</p></li>
 <li><p><a class="reference internal" href="yaml/index.html"><span class="doc">YAML Configuration Format</span></a> - YAML configuration including forcing file specification</p></li>
 <li><p><a class="reference internal" href="yaml/validation.html"><span class="doc">Validation Tool Reference</span></a> - Complete validation system documentation</p></li>
 <li><p><span class="xref std std-doc">/input_files/RunControl/RunControl</span> - Model physics options reference</p></li>
@@ -1551,7 +1481,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-09.
+  Last updated on 2026-08-12.
   <br/>
 </p>
   </div>
@@ -1559,8 +1489,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.9.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a3756d536730b098f6165bae2e29b77b80fec374">a3756d5</a> |
+  <p>Version: 2026.8.12.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1ab643ddd88537fa33d4c17f8628b069e3edf7c0">1ab643d</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

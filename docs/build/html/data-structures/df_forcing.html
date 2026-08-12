@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-09T23:05:45+00:00" />
-    <title>df_forcing variables &#8212; SUEWS 2026.8.9.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-08-12T06:57:05+00:00" />
+    <title>df_forcing variables &#8212; SUEWS 2026.8.12.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f8cc4a6d"></script>
+    <script src="../_static/documentation_options.js?v=3f82deea"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,8 +58,8 @@
     <link rel="search" title="Search" href="../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.9.dev1" />
-    <meta name="docbuild:last-update" content="2026-08-09"/>
+  <meta name="docsearch:version" content="2026.8.12.dev1" />
+    <meta name="docbuild:last-update" content="2026-08-12"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -107,7 +107,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.9.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a3756d536730b098f6165bae2e29b77b80fec374" style="color: #31708f;">a3756d5</a>).
+        (2026.8.12.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1ab643ddd88537fa33d4c17f8628b069e3edf7c0" style="color: #31708f;">1ab643d</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.9.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.9.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -678,58 +678,39 @@
 </dl>
 <section id="df-forcing-variables">
 <span id="df-forcing-var"></span><h1><code class="docutils literal notranslate"><span class="pre">df_forcing</span></code> variables<a class="headerlink" href="#df-forcing-variables" title="Link to this heading">#</a></h1>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><strong>For SUEWS users</strong>: These are the meteorological forcing variables required to run SUEWS.</p>
-<p>For the modern YAML configuration, specify your forcing file path using <code class="docutils literal notranslate"><span class="pre">model.control.forcing.file</span></code> in your configuration.</p>
-<p>Data structure of <code class="docutils literal notranslate"><span class="pre">df_forcing</span></code> is explained <a class="reference external" href="../api/io-data-structures.html#df-forcing">here</a>.</p>
-</div>
+<p>This reference is generated from the published forcing registry.
+File timestamps use the site’s fixed-offset local standard time and
+identify the end of each forcing interval. Daylight-saving transitions
+are not part of this timestamp convention.</p>
+<p>File-header aliases and programmatic accessor aliases are separate
+namespaces. The latter are not accepted as forcing-file headers.</p>
 <dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-RH">
-<span class="sig-name descname"><span class="pre">RH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-RH" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object std" id="cmdoption-arg-iy">
+<span class="sig-name descname"><span class="pre">iy</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-iy" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Relative Humidity [%] (measurement height <code class="docutils literal notranslate"><span class="pre">z</span></code> is specified in site properties)</p>
+<dd class="field-odd"><p>Calendar year of the interval-end timestamp</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-Tair">
-<span class="sig-name descname"><span class="pre">Tair</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Tair" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Air temperature [°C] (measurement height <code class="docutils literal notranslate"><span class="pre">z</span></code> is specified in site properties)</p>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>1</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-U">
-<span class="sig-name descname"><span class="pre">U</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-U" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wind speed [m s-1] (measurement height <code class="docutils literal notranslate"><span class="pre">z</span></code> is specified in site properties)</p>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>coordinate</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-Wuh">
-<span class="sig-name descname"><span class="pre">Wuh</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Wuh" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Site-mean external water-use depth accumulated over the forcing interval [mm]</p>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>time</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-fcld">
-<span class="sig-name descname"><span class="pre">fcld</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-fcld" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Cloud fraction [tenths]</p>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not range-checked</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>1</p>
 </dd>
 </dl>
 </dd></dl>
@@ -739,27 +720,28 @@
 <span class="sig-name descname"><span class="pre">id</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-id" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Day of year [DOY]</p>
+<dd class="field-odd"><p>Day of year of the interval-end timestamp</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-imin">
-<span class="sig-name descname"><span class="pre">imin</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-imin" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Minute [M]</p>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>1</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-isec">
-<span class="sig-name descname"><span class="pre">isec</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-isec" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Second [S]</p>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>coordinate</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>time</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not range-checked</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>2</p>
 </dd>
 </dl>
 </dd></dl>
@@ -769,119 +751,59 @@
 <span class="sig-name descname"><span class="pre">it</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-it" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Hour [H]</p>
+<dd class="field-odd"><p>Hour component of the interval-end timestamp</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>h</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>coordinate</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>time</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not range-checked</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>3</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-iy">
-<span class="sig-name descname"><span class="pre">iy</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-iy" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object std" id="cmdoption-arg-imin">
+<span class="sig-name descname"><span class="pre">imin</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-imin" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Year [YYYY]</p>
+<dd class="field-odd"><p>Minute component of the interval-end timestamp</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-kdiff">
-<span class="sig-name descname"><span class="pre">kdiff</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-kdiff" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Diffuse radiation [W m<sup>-2</sup>] <strong>Recommended in this version.</strong> if <a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html#cmdoption-arg-SOLWEIGUse"><code class="xref any std std-option docutils literal notranslate"><span class="pre">SOLWEIGUse</span></code></a> = 1</p>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>min</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-kdir">
-<span class="sig-name descname"><span class="pre">kdir</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-kdir" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Direct radiation [W m<sup>-2</sup>] <strong>Recommended in this version.</strong> if <a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html#cmdoption-arg-SOLWEIGUse"><code class="xref any std std-option docutils literal notranslate"><span class="pre">SOLWEIGUse</span></code></a> = 1</p>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>coordinate</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-kdown">
-<span class="sig-name descname"><span class="pre">kdown</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-kdown" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Incoming shortwave radiation [W m<sup>-2</sup>] Must be &gt; 0 W m<sup>-2</sup>.</p>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>time</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-lai">
-<span class="sig-name descname"><span class="pre">lai</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-lai" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Observed leaf area index [m<sup>-2</sup> m<sup>-2</sup>]. Used only when
-<code class="docutils literal notranslate"><span class="pre">model.physics.laimethod</span></code> is set to <code class="docutils literal notranslate"><span class="pre">0</span></code>; otherwise ignored. When active,
-the scalar value is applied uniformly to all three vegetation classes
-(evergreen trees, deciduous trees, grass) each day, and every timestep
-must carry a non-missing, non-negative observation. The <code class="docutils literal notranslate"><span class="pre">-999</span></code> missing
-sentinel (and other negative placeholders) is not permitted on this path;
-if observations are unavailable, either switch back to calculated LAI or
-gap-fill the forcing with non-negative values first. Observed values are
-clamped into each vegetation class’s <code class="docutils literal notranslate"><span class="pre">[laimin,</span> <span class="pre">laimax]</span></code> envelope at
-runtime — see <a class="reference internal" href="../inputs/forcing-data.html#prescribed-lai"><span class="std std-ref">Prescribing Observed LAI</span></a> for the rationale (downstream
-rescaling requires <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">&lt;=</span> <span class="pre">laimax</span></code>) and guidance on configuring
-<code class="docutils literal notranslate"><span class="pre">laimin</span></code>/<code class="docutils literal notranslate"><span class="pre">laimax</span></code> so legitimate observations (e.g. zero-LAI winter
-dieback) are not clipped.</p>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-ldown">
-<span class="sig-name descname"><span class="pre">ldown</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-ldown" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Incoming longwave radiation [W m<sup>-2</sup>]</p>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-pres">
-<span class="sig-name descname"><span class="pre">pres</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-pres" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Barometric pressure [kPa] (measurement height (<a class="reference internal" href="df_state.html#cmdoption-arg-z"><code class="xref any std std-option docutils literal notranslate"><span class="pre">z</span></code></a>) is needed in <a class="reference internal" href="../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html#suews-siteselect-txt"><span class="std std-ref">SUEWS_SiteSelect.txt</span></a>)</p>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not range-checked</p>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-qe">
-<span class="sig-name descname"><span class="pre">qe</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qe" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Latent heat flux [W m<sup>-2</sup>]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-qf">
-<span class="sig-name descname"><span class="pre">qf</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qf" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Anthropogenic heat flux [W m<sup>-2</sup>]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-qh">
-<span class="sig-name descname"><span class="pre">qh</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qh" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Sensible heat flux [W m<sup>-2</sup>]</p>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>4</p>
 </dd>
 </dl>
 </dd></dl>
@@ -891,7 +813,105 @@ dieback) are not clipped.</p>
 <span class="sig-name descname"><span class="pre">qn</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qn" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Net all-wave radiation [W m<sup>-2</sup>] (Required if <a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html#cmdoption-arg-NetRadiationMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">NetRadiationMethod</span></code></a> = 0.)</p>
+<dd class="field-odd"><p>Observed net all-wave radiation</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>observation</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>-500.0 to 1300.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>5</p>
+</dd>
+<dt class="field-odd">File aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>qn1_obs</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>net_radiation, qstar, q_star</p>
+</dd>
+<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
+<dd class="field-odd"><p>net_radiation in [0]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-qh">
+<span class="sig-name descname"><span class="pre">qh</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qh" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Reserved observed sensible heat-flux column; not currently consumed</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>reserved</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>optional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>-500.0 to 1300.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>6</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>sensible_heat, h</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-qe">
+<span class="sig-name descname"><span class="pre">qe</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qe" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Reserved observed latent heat-flux column; not currently consumed</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>reserved</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>optional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>-500.0 to 1300.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>7</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>latent_heat, le</p>
 </dd>
 </dl>
 </dd></dl>
@@ -901,7 +921,216 @@ dieback) are not clipped.</p>
 <span class="sig-name descname"><span class="pre">qs</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qs" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Storage heat flux [W m<sup>-2</sup>]</p>
+<dd class="field-odd"><p>Observed net storage heat flux</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>observation</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>-100.0 to 650.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>8</p>
+</dd>
+<dt class="field-odd">File aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>qs_obs</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>storage_heat</p>
+</dd>
+<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
+<dd class="field-odd"><p>storage_heat in [0]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-qf">
+<span class="sig-name descname"><span class="pre">qf</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qf" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Observed anthropogenic heat flux</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>observation</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>-500.0 to 1300.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>9</p>
+</dd>
+<dt class="field-odd">File aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>qf_obs</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>anthropogenic_heat</p>
+</dd>
+<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
+<dd class="field-odd"><p>emissions in [0]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-U">
+<span class="sig-name descname"><span class="pre">U</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-U" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Wind speed at the forcing measurement height</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>m s-1</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>0.01 to 60.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>10</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>wind_speed, wind, u</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-RH">
+<span class="sig-name descname"><span class="pre">RH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-RH" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Relative humidity</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>%</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>0.0001 to 105.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>11</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>relative_humidity, humidity, rh</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Tair">
+<span class="sig-name descname"><span class="pre">Tair</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Tair" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Air temperature</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>degC</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>-60.0 to 90.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>12</p>
+</dd>
+<dt class="field-odd">File aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>temp_c</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>temperature, air_temperature, temp, t_air, ta</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-pres">
+<span class="sig-name descname"><span class="pre">pres</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-pres" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Surface air pressure</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>kPa</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>68.0 to 130.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>13</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pressure, air_pressure, p</p>
 </dd>
 </dl>
 </dd></dl>
@@ -911,7 +1140,68 @@ dieback) are not clipped.</p>
 <span class="sig-name descname"><span class="pre">rain</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-rain" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Rainfall [mm] (measurement height (<a class="reference internal" href="df_state.html#cmdoption-arg-z"><code class="xref any std std-option docutils literal notranslate"><span class="pre">z</span></code></a>) is needed in <a class="reference internal" href="../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html#suews-siteselect-txt"><span class="std std-ref">SUEWS_SiteSelect.txt</span></a>)</p>
+<dd class="field-odd"><p>Precipitation accumulated over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>14</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>precipitation, rainfall, precip</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-kdown">
+<span class="sig-name descname"><span class="pre">kdown</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-kdown" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Incoming short-wave radiation averaged over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>baseline</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>forbidden</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>0.0 to 1400.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>15</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>shortwave_down, solar_radiation, sw_down, k_down</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>net_radiation in [2, 12, 200, 1002]; or net_radiation in [3, 13, 300, 1003]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -921,17 +1211,151 @@ dieback) are not clipped.</p>
 <span class="sig-name descname"><span class="pre">snow</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-snow" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Snow cover fraction (0 – 1) [-] (Required if <a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html#cmdoption-arg-SnowUse"><code class="xref any std std-option docutils literal notranslate"><span class="pre">SnowUse</span></code></a> = 1)</p>
+<dd class="field-odd"><p>Observed surface snow-cover fraction</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>1</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>optional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>0.0 to 1.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>16</p>
+</dd>
+<dt class="field-odd">File aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>snowfrac</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>snowfall</p>
+</dd>
+<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
+<dd class="field-odd"><p>snow_use in [1] and net_radiation in [0]</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-wdir">
-<span class="sig-name descname"><span class="pre">wdir</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wdir" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object std" id="cmdoption-arg-ldown">
+<span class="sig-name descname"><span class="pre">ldown</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-ldown" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wind direction [°] <strong>Not available in this version.</strong></p>
+<dd class="field-odd"><p>Incoming long-wave radiation averaged over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>100.0 to 600.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>17</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>longwave_down, lw_down, l_down</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>net_radiation in [1, 11, 100, 1001]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-fcld">
+<span class="sig-name descname"><span class="pre">fcld</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-fcld" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Cloud fraction</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>1</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>0.0 to 1.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>18</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>cloud_fraction, cloud_cover, clouds</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>net_radiation in [2, 12, 200, 1002]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Wuh">
+<span class="sig-name descname"><span class="pre">Wuh</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Wuh" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Bulk external water use accumulated over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>19</p>
+</dd>
+<dt class="field-odd">File aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>wu_mm</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>water_use, external_water, wu_mm</p>
+</dd>
+<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
+<dd class="field-odd"><p>water_use in [1]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -941,7 +1365,543 @@ dieback) are not clipped.</p>
 <span class="sig-name descname"><span class="pre">xsmd</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-xsmd" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Observed soil moisture [m<sup>3</sup> m<sup>-3</sup>] or [kg kg<sup>-1</sup>]</p>
+<dd class="field-odd"><p>Observed soil-moisture deficit input</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>soil_moisture_deficit=1: m3 m-3; soil_moisture_deficit=2: kg kg-1</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>observation</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>20</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>soil_moisture, smd</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>soil_moisture_deficit in [1, 2]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-lai">
+<span class="sig-name descname"><span class="pre">lai</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-lai" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Bulk observed leaf area index used as a surface fallback</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>m2 m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>observation</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>21</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>leaf_area_index</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>laimethod in [0]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-kdiff">
+<span class="sig-name descname"><span class="pre">kdiff</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-kdiff" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Diffuse component of incoming short-wave radiation</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>optional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>0.0 to 1000.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>22</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>diffuse_radiation</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-kdir">
+<span class="sig-name descname"><span class="pre">kdir</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-kdir" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Direct component of incoming short-wave radiation</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>avg</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>optional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>0.0 to 1400.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>23</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>direct_radiation</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-wdir">
+<span class="sig-name descname"><span class="pre">wdir</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wdir" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Accepted wind-direction column; not currently consumed</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>degree</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>reserved</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>optional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>sentinel</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>0.0 to 360.0</p>
+</dd>
+<dt class="field-even">Legacy position<span class="colon">:</span></dt>
+<dd class="field-even"><p>24</p>
+</dd>
+<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-odd"><p>wind_direction, wd</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-lai_evetr">
+<span class="sig-name descname"><span class="pre">lai_evetr</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-lai_evetr" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Observed leaf area index for evergreen trees</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>m2 m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>observation</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>leaf_area_index_evetr</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>lai</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>laimethod in [0]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-lai_dectr">
+<span class="sig-name descname"><span class="pre">lai_dectr</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-lai_dectr" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Observed leaf area index for deciduous trees</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>m2 m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>observation</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>leaf_area_index_dectr</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>lai</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>laimethod in [0]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-lai_grass">
+<span class="sig-name descname"><span class="pre">lai_grass</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-lai_grass" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Observed leaf area index for grass</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>m2 m-2</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>observation</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>inst</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>leaf_area_index_grass</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>lai</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>laimethod in [0]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-wuh_paved">
+<span class="sig-name descname"><span class="pre">wuh_paved</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wuh_paved" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>External water-use depth for the paved surface over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">File aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>wu_mm_paved</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Wuh</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>water_use in [1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-wuh_bldgs">
+<span class="sig-name descname"><span class="pre">wuh_bldgs</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wuh_bldgs" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>External water-use depth for the building surface over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">File aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>wu_mm_bldgs</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Wuh</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>water_use in [1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-wuh_evetr">
+<span class="sig-name descname"><span class="pre">wuh_evetr</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wuh_evetr" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>External water-use depth for evergreen trees over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">File aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>wu_mm_evetr</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Wuh</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>water_use in [1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-wuh_dectr">
+<span class="sig-name descname"><span class="pre">wuh_dectr</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wuh_dectr" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>External water-use depth for deciduous trees over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">File aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>wu_mm_dectr</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Wuh</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>water_use in [1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-wuh_grass">
+<span class="sig-name descname"><span class="pre">wuh_grass</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wuh_grass" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>External water-use depth for grass over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">File aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>wu_mm_grass</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Wuh</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>water_use in [1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-wuh_bsoil">
+<span class="sig-name descname"><span class="pre">wuh_bsoil</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wuh_bsoil" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>External water-use depth for bare soil over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">File aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>wu_mm_bsoil</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Wuh</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>water_use in [1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-wuh_water">
+<span class="sig-name descname"><span class="pre">wuh_water</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-wuh_water" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>External water-use depth for open water over the forcing interval</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>mm</p>
+</dd>
+<dt class="field-odd">Role<span class="colon">:</span></dt>
+<dd class="field-odd"><p>driver</p>
+</dd>
+<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
+<dd class="field-even"><p>sum</p>
+</dd>
+<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
+<dd class="field-odd"><p>conditional</p>
+</dd>
+<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
+<dd class="field-even"><p>fallback</p>
+</dd>
+<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
+<dd class="field-odd"><p>&gt;= 0.0</p>
+</dd>
+<dt class="field-even">File aliases<span class="colon">:</span></dt>
+<dd class="field-even"><p>wu_mm_water</p>
+</dd>
+<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Wuh</p>
+</dd>
+<dt class="field-even">Active requirement<span class="colon">:</span></dt>
+<dd class="field-even"><p>water_use in [1]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -994,7 +1954,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-09.
+  Last updated on 2026-08-12.
   <br/>
 </p>
   </div>
@@ -1002,8 +1962,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.9.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a3756d536730b098f6165bae2e29b77b80fec374">a3756d5</a> |
+  <p>Version: 2026.8.12.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1ab643ddd88537fa33d4c17f8628b069e3edf7c0">1ab643d</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

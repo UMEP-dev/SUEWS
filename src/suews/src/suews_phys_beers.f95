@@ -156,10 +156,10 @@ CONTAINS
             TSfc_C => heatState%TSfc_C, &
             zenith_deg => solarState%zenith_deg, &
             azimuth_deg => solarState%azimuth_deg, &
-            iy => timer%iy, &
-            it => timer%it, &
-            id => timer%id, &
-            dectime => timer%dectime, &
+            iy => timer%iy_st, &
+            it => timer%it_st, &
+            id => timer%id_st, &
+            dectime => timer%dectime_st, &
             SMDMethod => config%SMDMethod, &
             storageheatmethod => config%StorageHeatMethod, &
             RSLMethod => config%RSLMethod, &

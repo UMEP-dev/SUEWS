@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 import inspect
 from typing import List, Optional, Union
 
@@ -1354,6 +1354,13 @@ class OutputControl(BaseModel):
         return v
 
 
+class ForcingTimestampReference(StrEnum):
+    """Supported forcing timestamp references."""
+
+    LOCAL_STANDARD_TIME = "local_standard_time"
+    UTC = "utc"
+
+
 class ForcingControl(BaseModel):
     """Configuration block for meteorological forcing input.
 
@@ -1373,6 +1380,19 @@ class ForcingControl(BaseModel):
             "'forcing_2021.txt']). When multiple files are provided, they "
             "are concatenated in chronological order. For details, see "
             ":ref:`met_input`."
+        ),
+    )
+
+    timestamp_reference: FlexibleRefValue(ForcingTimestampReference) = Field(
+        default=ForcingTimestampReference.LOCAL_STANDARD_TIME,
+        description=(
+            "Clock used by the forcing timestamps. "
+            "'local_standard_time' preserves the historical fixed-offset, "
+            "interval-end convention. With 'utc', forcing timestamps, output "
+            "timestamps and daily state boundaries remain in UTC, while solar "
+            "calculations and local diurnal profiles use the site's derived "
+            "fixed-offset standard time. Daylight-saving civil time is not "
+            "supported."
         ),
     )
 

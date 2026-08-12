@@ -37,7 +37,7 @@ docs = _load_script(
 
 def test_committed_forcing_contract_is_current() -> None:
     """Require canonical bytes, registry state, and version digest to agree."""
-    assert audit.audit_forcing_contract(PROJECT_ROOT) == ["1.0.0"]
+    assert audit.audit_forcing_contract(PROJECT_ROOT) == ["1.0.0", "1.1.0"]
 
 
 def test_current_artefact_generation_is_deterministic() -> None:
@@ -71,6 +71,11 @@ def test_published_forcing_contract_is_packaged() -> None:
         "artefacts/1.0.0.json"
     )
     assert contract.is_file()
+
+    utc_contract = importlib.resources.files("supy.data_model.forcing").joinpath(
+        "artefacts/1.1.0.json"
+    )
+    assert utc_contract.is_file()
 
 
 def test_forcing_reference_is_registry_derived_and_current() -> None:

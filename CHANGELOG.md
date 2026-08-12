@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 86       | 31 | 81 | 40 | 319   |
+| 2026 | 80       | 86       | 32 | 81 | 40 | 320   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -71,6 +71,10 @@ EXAMPLES:
 - [maintenance] Guarded tests against locating bundled package data through imported modules' `__file__` (#1697)
   - Reached SuPy's packaged sample data through `importlib.resources`, materialising the whole directory where the YAML config depends on its sibling forcing file.
   - Added an AST-based CI lint, regression coverage, and test guidance to prevent the fragile path pattern from returning.
+
+- [change][experimental] Completed the naming-convention sweep for CO2 emission parameters (#1688)
+  - Renamed fourteen fused or unit-bearing YAML keys under `anthropogenic_emissions.co2` while preserving old YAML compatibility through the schema migrator and rename registry.
+  - Corrected point-source, metabolic-emission and traffic-rate units against the Fortran physics contract; legacy `df_state` columns remain unchanged.
 
 - [bugfix] Stopped the YAML config reference describing parameters without a default as optional (#1677)
   - Every parameter carrying no default previously rendered as `Default: None (optional)`, which asserted the opposite of the truth for parameters such as `store_cap` and `base_temperature_senescence`; these are declared `Optional[...] = None` only so a partial configuration still loads and the validation layer can then report what is missing.

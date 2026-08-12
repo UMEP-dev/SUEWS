@@ -32,6 +32,7 @@ from ...data_model.core.field_renames import (
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    CO2PARAMS_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
     STEBBSPROPERTIES_DEV12_RENAMES,
@@ -174,6 +175,16 @@ def _rename_field(arch: dict, old_name: str, new_name: str) -> bool:
     arch[new_name] = value
     _log(f"[yaml-upgrade]   renamed {old_name!r} -> {new_name!r}")
     return True
+
+
+def _apply_co2params_renames(cfg: dict) -> None:
+    """Apply the gh#1688 CO2Params naming-convention completion."""
+    for emissions in _walk_site_container(cfg, "anthropogenic_emissions"):
+        co2 = emissions.get("co2")
+        if not isinstance(co2, dict):
+            continue
+        for old_name, new_name in CO2PARAMS_RENAMES.items():
+            _rename_field(co2, old_name, new_name)
 
 
 def _drop_obsolete_field(arch: dict, name: str, reason: str) -> bool:
@@ -1202,6 +1213,8 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     * 2026.5.dev8 -> 2026.5.dev9 (gh#1372): cumulative model.control
       restructure - forcing_file -> forcing.file, then output_file ->
       output (with inner path -> dir, legacy string form dropped).
+    * 2026.6.dev2 -> 2026.6.dev3 (gh#1688): the omitted CO2Params fields
+      renamed to convention-compliant identifiers while preserving values.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The
@@ -1225,6 +1238,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
     _apply_fai_alias_canonicalisation(cfg)
+    _apply_co2params_renames(cfg)
     return cfg
 
 
@@ -1245,6 +1259,18 @@ def _migrate_2026_6_dev1_to_2026_6_dev2(cfg: dict) -> dict:
     selector. Existing 2026.6.dev1 YAML content does not need reshaping.
     """
     return cfg
+
+
+def _migrate_2026_6_dev2_to_2026_6_dev3(cfg: dict) -> dict:
+    """Rename the fourteen CO2Params fields omitted from the #1256 sweep."""
+    _apply_co2params_renames(cfg)
+    return cfg
+
+
+def _migrate_2026_6_dev1_to_current(cfg: dict) -> dict:
+    """Chain the dev2 identity delta and the dev3 CO2Params renames."""
+    cfg = _migrate_2026_6_dev1_to_2026_6_dev2(cfg)
+    return _migrate_2026_6_dev2_to_2026_6_dev3(cfg)
 
 
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
@@ -1311,8 +1337,9 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
-    ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_2026_6_dev2,
-    ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_2026_6_dev1,
+    ("2026.6.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev2_to_2026_6_dev3,
+    ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_current,
+    ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
     ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,

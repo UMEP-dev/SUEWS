@@ -25,16 +25,16 @@ No.,Column Name,Use,Description
 24,`TraffProfWE`,`MU` `O`,Code for traffic activity profile (weekends) linking to `Code` of `SUEWS_Profiles.txt`. Not used in v2018a.
 25,`PopProfWD`,`MU` `O`,Code for population density profile (weekdays) linking to `Code` of `SUEWS_Profiles.txt`.
 26,`PopProfWE`,`MU` `O`,Code for population density profile (weekends) linking to `Code` of `SUEWS_Profiles.txt`.
-27,`MinQFMetab`,`MU` `O`,Minimum value for human heat emission. [W |m^-2|]
-28,`MaxQFMetab`,`MU` `O`,Maximum value for human heat emission. [W |m^-2|]
-29,`MinFCMetab`,`MU` `O`,Minimum (night) CO2 from human metabolism. [W |m^-2|]
-30,`MaxFCMetab`,`MU` `O`,Maximum (day) CO2 from human metabolism. [W |m^-2|]
+27,`MinQFMetab`,`MU` `O`,Minimum (night) human heat emission [W |cap^-1|].
+28,`MaxQFMetab`,`MU` `O`,Maximum (day) human heat emission [W |cap^-1|].
+29,`MinFCMetab`,`MU` `O`,Minimum (night) CO2 emission from human metabolism [|umol| |cap^-1| |s^-1|].
+30,`MaxFCMetab`,`MU` `O`,Maximum (day) CO2 emission from human metabolism [|umol| |cap^-1| |s^-1|].
 31,`FrPDDwe`,`MU` `O`,Fraction of weekend population to weekday population. [-]
 32,`FrFossilFuel_Heat`,`MU` `O`,Fraction of fossil fuels used for building heating [-]
 33,`FrFossilFuel_NonHeat`,`MU` `O`,Fraction of fossil fuels used for building energy use [-]
-34,`EF_umolCO2perJ`,`MU` `O`,Emission factor for fuels used for building heating.
-35,`EnEF_v_Jkm`,`MU` `O`,Emission factor for heat [J k |m^-1| ].
-36,`FcEF_v_kgkmWD`,`MU` `O`,CO2 emission factor for weekdays [kg |km^-1|]
-37,`FcEF_v_kgkmWE`,`MU` `O`,CO2 emission factor for weekends [kg |km^-1|]
-38,`CO2PointSource`,`MU` `O`,CO2 emission factor [kg |km^-1|]
-39,`TrafficUnits`,`MU` `O`,Units for the traffic rate for the study area. Not used in v2018a.
+34,`EF_umolCO2perJ`,`MU` `O`,CO2 emission factor for fuels used for building energy [|umol| |J^-1|].
+35,`EnEF_v_Jkm`,`MU` `O`,Vehicle energy consumption per unit distance [J |km^-1|].
+36,`FcEF_v_kgkmWD`,`MU` `O`,Vehicle CO2 emission factor for weekdays [kg CO2 |km^-1|].
+37,`FcEF_v_kgkmWE`,`MU` `O`,Vehicle CO2 emission factor for weekends [kg CO2 |km^-1|].
+38,`CO2PointSource`,`MU` `O`,Whole-grid CO2 point-source emission expressed as carbon mass [kg C |day^-1|].
+39,`TrafficUnits`,`MU` `O`,Traffic-rate basis: 1 for vehicle km |m^-2| |day^-1|; 2 for vehicle km |cap^-1| |day^-1|. Not used in v2018a.

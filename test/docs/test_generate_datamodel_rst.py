@@ -308,6 +308,8 @@ def test_generated_config_reference_never_claims_optional(tmp_path) -> None:
     pages = sorted(tmp_path.glob("*.rst"))
     assert pages, "no RST pages were generated"
     offenders = [
-        page.name for page in pages if "None (optional)" in page.read_text("utf-8")
+        page.name
+        for page in pages
+        if "None (optional)" in page.read_text(encoding="utf-8")
     ]
     assert not offenders

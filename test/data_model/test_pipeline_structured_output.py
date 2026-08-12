@@ -11,13 +11,10 @@ machine-readable representation of the validator's findings.
 from __future__ import annotations
 
 import json
-from importlib.resources import as_file
 from pathlib import Path
-from typing import Iterator
 
 import pytest
 
-from supy._env import trv_supy_module
 from supy.data_model.validation.pipeline.orchestrator import (
     run_phase_a,
     run_phase_b,
@@ -28,25 +25,14 @@ from supy.data_model.validation.pipeline.report_schema import PhaseReport
 pytestmark = pytest.mark.api
 
 
-@pytest.fixture
-def sample_config_path() -> Iterator[Path]:
-    """The bundled sample config as a real filesystem path.
-
-    The pipeline entry points below take ``str`` paths, so the
-    packaged resource is materialised with ``as_file``.
-    """
-    with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as path_sample:
-        yield path_sample
-
-
-def test_phase_a_emits_json_sidecar(tmp_path, sample_config_path):
+def test_phase_a_emits_json_sidecar(tmp_path, sample_yaml_path):
     """Phase A writes a JSON sidecar alongside its text report."""
     uptodate_file = tmp_path / "uptodate.yml"
     report_file = tmp_path / "report.txt"
 
     report = run_phase_a(
-        user_yaml_file=str(sample_config_path),
-        standard_yaml_file=str(sample_config_path),
+        user_yaml_file=str(sample_yaml_path),
+        standard_yaml_file=str(sample_yaml_path),
         uptodate_file=str(uptodate_file),
         report_file=str(report_file),
         silent=True,
@@ -71,15 +57,15 @@ def test_phase_a_emits_json_sidecar(tmp_path, sample_config_path):
         assert issue["code"].startswith("A.")
 
 
-def test_phase_b_emits_json_sidecar(tmp_path, sample_config_path):
+def test_phase_b_emits_json_sidecar(tmp_path, sample_yaml_path):
     """Phase B writes a JSON sidecar alongside its text report."""
     science_yaml = tmp_path / "science.yml"
     science_report = tmp_path / "science_report.txt"
 
     report = run_phase_b(
-        user_yaml_file=str(sample_config_path),
-        uptodate_file=str(sample_config_path),  # Skip Phase A
-        standard_yaml_file=str(sample_config_path),
+        user_yaml_file=str(sample_yaml_path),
+        uptodate_file=str(sample_yaml_path),  # Skip Phase A
+        standard_yaml_file=str(sample_yaml_path),
         science_yaml_file=str(science_yaml),
         science_report_file=str(science_report),
         phase_a_report_file=str(tmp_path / "phase_a_report.txt"),
@@ -105,13 +91,13 @@ def test_phase_b_emits_json_sidecar(tmp_path, sample_config_path):
         assert "message" in issue
 
 
-def test_phase_c_emits_json_for_passing_config(tmp_path, sample_config_path):
+def test_phase_c_emits_json_for_passing_config(tmp_path, sample_yaml_path):
     """Phase C writes a JSON sidecar even on the success path."""
     pydantic_yaml = tmp_path / "pydantic.yml"
     pydantic_report = tmp_path / "pydantic_report.txt"
 
     report = run_phase_c(
-        input_yaml_file=str(sample_config_path),
+        input_yaml_file=str(sample_yaml_path),
         pydantic_yaml_file=str(pydantic_yaml),
         pydantic_report_file=str(pydantic_report),
         phases_run=["C"],
@@ -161,15 +147,15 @@ def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
     assert pydantic_codes, "Expected at least one C.PYDANTIC.* issue"
 
 
-def test_phase_b_text_report_unchanged(tmp_path, sample_config_path):
+def test_phase_b_text_report_unchanged(tmp_path, sample_yaml_path):
     """Confirm the text report still exists and is non-empty (no regression)."""
     science_yaml = tmp_path / "science.yml"
     science_report = tmp_path / "science_report.txt"
 
     run_phase_b(
-        user_yaml_file=str(sample_config_path),
-        uptodate_file=str(sample_config_path),
-        standard_yaml_file=str(sample_config_path),
+        user_yaml_file=str(sample_yaml_path),
+        uptodate_file=str(sample_yaml_path),
+        standard_yaml_file=str(sample_yaml_path),
         science_yaml_file=str(science_yaml),
         science_report_file=str(science_report),
         phase_a_report_file=str(tmp_path / "phase_a_report.txt"),
@@ -185,7 +171,7 @@ def test_phase_b_text_report_unchanged(tmp_path, sample_config_path):
     assert "SUEWS" in text or "Phase B" in text or "Science" in text
 
 
-def test_pipeline_writes_json_sidecars_alongside_text_reports(tmp_path, sample_config_path):
+def test_pipeline_writes_json_sidecars_alongside_text_reports(tmp_path, sample_yaml_path):
     """Running A then B then C produces a JSON sidecar for every text report.
 
     This is the end-to-end machine-format contract: any tool that wants the
@@ -200,17 +186,17 @@ def test_pipeline_writes_json_sidecars_alongside_text_reports(tmp_path, sample_c
     pydantic_report = tmp_path / "pydantic_report.txt"
 
     a_report = run_phase_a(
-        user_yaml_file=str(sample_config_path),
-        standard_yaml_file=str(sample_config_path),
+        user_yaml_file=str(sample_yaml_path),
+        standard_yaml_file=str(sample_yaml_path),
         uptodate_file=str(uptodate_file),
         report_file=str(report_file),
         silent=True,
         forcing="off",
     )
     b_report = run_phase_b(
-        user_yaml_file=str(sample_config_path),
+        user_yaml_file=str(sample_yaml_path),
         uptodate_file=str(uptodate_file),
-        standard_yaml_file=str(sample_config_path),
+        standard_yaml_file=str(sample_yaml_path),
         science_yaml_file=str(science_yaml),
         science_report_file=str(science_report),
         phase_a_report_file=str(report_file),
@@ -218,7 +204,7 @@ def test_pipeline_writes_json_sidecars_alongside_text_reports(tmp_path, sample_c
         silent=True,
     )
     c_report = run_phase_c(
-        input_yaml_file=str(sample_config_path),
+        input_yaml_file=str(sample_yaml_path),
         pydantic_yaml_file=str(pydantic_yaml),
         pydantic_report_file=str(pydantic_report),
         phases_run=["A", "B", "C"],

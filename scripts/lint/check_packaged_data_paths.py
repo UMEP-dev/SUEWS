@@ -14,6 +14,11 @@ What it flags: any ``<something>.__file__`` attribute access under ``test/``.
 Bare ``__file__`` (the test module's own location, used for fixture paths) is
 an ``ast.Name`` rather than an ``ast.Attribute``, so it is never flagged.
 
+Scope is deliberately ``test/`` only. Do not widen it to ``src/``:
+``src/supy/cmd/json_envelope.py`` reads ``supy.__file__`` legitimately, to
+find the install root when walking up for a ``.git`` directory. That is
+locating the package, not reaching into its data, and it is correct.
+
 Exits 0 when the tree is clean, 1 otherwise.
 """
 
@@ -23,71 +28,44 @@ import ast
 import sys
 from pathlib import Path
 
-# Files exempted from the check, each with the reason it is exempt.
-#
-# Deliberately empty: the sweep was complete, so nothing needs exempting. Keep
-# it that way. An allowlist that carries one entry tends to acquire a second,
-# and the check is only worth having while it covers the whole tree. If you
-# think you need an entry here, the bar is a file another in-flight branch owns
-# -- and it comes with a note saying when to delete it.
-ALLOWLIST: dict[str, str] = {}
-
 REMEDIATION = """\
-Reach packaged data through the package's own resource handle instead:
+Reach packaged data through the package's own resource handle:
 
     from supy._env import trv_supy_module
 
-    sample_dir = trv_supy_module / "sample_data"
-    config = sample_dir / "sample_config.yml"
+    config = trv_supy_module / "sample_data" / "sample_config.yml"
 
-`trv_supy_module` is `importlib.resources.files("supy")`, which returns a
-Traversable. The protocol guarantees only `/` (joinpath), `name`, `is_dir`,
-`is_file`, `iterdir`, `open`, `read_bytes` and `read_text` -- so:
+That returns a Traversable, not a Path, so:
 
-  - existence check      ->  `config.is_file()`, NOT `config.exists()`
-  - read text            ->  `config.open(encoding="utf-8")` / `.read_text(...)`
-  - a real path is needed (a str() path, subprocess, or any API that opens the
-    file itself) ->  materialise it:
+  - existence check  ->  `config.is_file()`, NOT `config.exists()`
+  - read text        ->  `config.open(encoding="utf-8")` / `.read_text(...)`
+  - a real path (a str() path, subprocess, or any API that opens the file
+    itself)          ->  `importlib.resources.as_file(config)`
 
-        from importlib.resources import as_file
+Every wrong form passes under an editable install, so a green test run is not
+evidence the conversion is right.
 
-        with as_file(config) as path_config:
-            SUEWSConfig.from_yaml(str(path_config))
-
-    In a unittest.TestCase, `self.enterContext(as_file(config))` binds it for
-    the lifetime of the test.
-
-All of the wrong forms happen to work under an editable install, where the
-Traversable wraps a real filesystem path -- so a passing test run is NOT
-evidence that a conversion is correct.
-
-See `.claude/rules/tests/patterns.md` ("Locating packaged data") and the
-existing `_sample_yaml_path` helper in `test/cmd/test_validate_config.py`.\
+Full guidance, including how to bind a real path for a test's lifetime:
+`.claude/rules/tests/patterns.md` ("Locating packaged data"). Worked examples:
+`_sample_yaml_path` / `_copy_sample_data` in `test/cmd/test_validate_config.py`.\
 """
 
 
-class PackagedFileVisitor(ast.NodeVisitor):
-    """Collect ``<something>.__file__`` attribute accesses."""
-
-    def __init__(self) -> None:
-        self.hits: list[tuple[int, str]] = []
-
-    def visit_Attribute(self, node: ast.Attribute) -> None:
-        if node.attr == "__file__":
-            self.hits.append((node.lineno, ast.unparse(node)))
-        self.generic_visit(node)
-
-
 def find_hits(source: str) -> list[tuple[int, str]]:
+    """Return (line, expression) for each ``<something>.__file__`` access."""
     try:
         tree = ast.parse(source)
     except SyntaxError:
         # A file that does not parse is not this lint's problem; pytest and
         # ruff both surface it far more usefully.
         return []
-    visitor = PackagedFileVisitor()
-    visitor.visit(tree)
-    return visitor.hits
+    # sorted() because ast.walk is breadth-first, so hits would otherwise be
+    # reported in tree order rather than line order.
+    return sorted(
+        (node.lineno, ast.unparse(node))
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and node.attr == "__file__"
+    )
 
 
 def main(argv: list[str]) -> int:
@@ -99,22 +77,15 @@ def main(argv: list[str]) -> int:
 
     offenders: list[str] = []
     checked = 0
-    exempted: list[str] = []
 
     # Every .py file, not just `test_*.py` -- conftest.py and test helpers reach
     # for packaged data too, and a glob restricted to `test_*.py` would let a
     # reintroduction land there unseen.
     for path in sorted(test_root.rglob("*.py")):
         rel = path.relative_to(repo_root).as_posix()
-        if rel in ALLOWLIST:
-            exempted.append(rel)
-            continue
         checked += 1
         for lineno, expr in find_hits(path.read_text(encoding="utf-8")):
             offenders.append(f"{rel}:{lineno}: {expr}")
-
-    for rel in exempted:
-        print(f"[!] EXEMPT {rel} -- {ALLOWLIST[rel]}")
 
     if offenders:
         print(
@@ -129,7 +100,7 @@ def main(argv: list[str]) -> int:
 
     print(
         f"[OK] {checked} files under test/ reach packaged data without "
-        f"`<module>.__file__`; {len(exempted)} exempted."
+        f"`<module>.__file__`."
     )
     return 0
 

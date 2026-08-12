@@ -13,8 +13,9 @@ Three properties matter beyond the basic pass/fail:
 - Bare ``__file__`` stays legal. Dozens of tests locate their own fixtures
   with ``Path(__file__).parent``; flagging those would make the lint
   unusable.
-- The allowlist is honoured, so the one file owned by another branch can be
-  exempted without disabling the check everywhere.
+- Offenders are reported in line order. ``find_hits`` walks the AST
+  breadth-first, so without an explicit sort the report would come out in
+  tree order, which reads as noise in a CI log.
 """
 
 from __future__ import annotations
@@ -141,17 +142,32 @@ def test_indirect_reach_is_flagged(tmp_path):
     assert _run(repo) == 1
 
 
-def test_allowlisted_file_is_exempt(tmp_path, monkeypatch, capsys):
-    """An allowlisted offender passes, and says loudly that it was skipped."""
-    repo = _make_repo(tmp_path, {"test/core/test_owned_elsewhere.py": OFFENDING_SOURCE})
-    monkeypatch.setattr(
-        check_packaged_data_paths,
-        "ALLOWLIST",
-        {"test/core/test_owned_elsewhere.py": "owned by another branch"},
-    )
+def test_offenders_are_reported_in_line_order(tmp_path, capsys):
+    """Offenders are listed by line number, not AST walk order.
 
-    assert _run(repo) == 0
-    assert "EXEMPT test/core/test_owned_elsewhere.py" in capsys.readouterr().out
+    `find_hits` uses `ast.walk`, which is breadth-first, so a shallow late
+    hit would otherwise be printed before a deeply nested early one.
+    """
+    source = (
+        "import supy\n"
+        "\n"
+        "def f():\n"
+        "    if True:\n"
+        "        if True:\n"
+        "            early = supy.__file__\n"
+        "\n"
+        "late = supy.__file__\n"
+    )
+    repo = _make_repo(tmp_path, {"test/test_order.py": source})
+
+    assert _run(repo) == 1
+    reported = [
+        line for line in capsys.readouterr().err.splitlines() if "test_order.py:" in line
+    ]
+    assert reported == [
+        "  - test/test_order.py:6: supy.__file__",
+        "  - test/test_order.py:8: supy.__file__",
+    ], reported
 
 
 def test_missing_test_dir_fails(tmp_path):

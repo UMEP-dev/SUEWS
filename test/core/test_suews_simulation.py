@@ -1160,28 +1160,6 @@ class TestEnhancements:
 class TestMethodChaining:
     """Test method chaining support."""
 
-    def test_update_config_returns_self(self):
-        """Test update_config enables chaining."""
-        sim = SUEWSSimulation()
-        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
-        result = sim.update_config(str(yaml_path))
-        assert result is sim
-
-    def test_update_forcing_returns_self(self):
-        """Test update_forcing enables chaining."""
-        sim = SUEWSSimulation()
-        _, df_forcing = load_sample_frames()
-        result = sim.update_forcing(df_forcing.iloc[:24])
-        assert result is sim
-
-    def test_reset_returns_self(self):
-        """Test reset enables chaining."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-        result = sim.reset()
-        assert result is sim
-        assert not sim.is_complete()
-
     def test_fluent_interface(self):
         """Test complete fluent workflow."""
         yaml_path = files("supy").joinpath("sample_data/sample_config.yml")

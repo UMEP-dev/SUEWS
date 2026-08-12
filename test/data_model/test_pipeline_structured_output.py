@@ -11,11 +11,13 @@ machine-readable representation of the validator's findings.
 from __future__ import annotations
 
 import json
+from importlib.resources import as_file
 from pathlib import Path
+from typing import Iterator
 
 import pytest
 
-import supy as sp
+from supy._env import trv_supy_module
 from supy.data_model.validation.pipeline.orchestrator import (
     run_phase_a,
     run_phase_b,
@@ -27,8 +29,14 @@ pytestmark = pytest.mark.api
 
 
 @pytest.fixture
-def sample_config_path() -> Path:
-    return Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+def sample_config_path() -> Iterator[Path]:
+    """The bundled sample config as a real filesystem path.
+
+    The pipeline entry points below take ``str`` paths, so the
+    packaged resource is materialised with ``as_file``.
+    """
+    with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as path_sample:
+        yield path_sample
 
 
 def test_phase_a_emits_json_sidecar(tmp_path, sample_config_path):

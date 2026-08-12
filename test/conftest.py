@@ -1,9 +1,11 @@
 """pytest configuration for SUEWS test suite."""
 
-from pathlib import Path
 import subprocess
 import sys
 import warnings
+from importlib.resources import as_file
+from pathlib import Path
+from typing import Iterator
 
 # Make the standalone suews_mcp package importable when it is not pip-installed
 # (e.g. wheel CI installs only the supy wheel). Done at the root conftest rather
@@ -19,6 +21,7 @@ from click.testing import CliRunner
 import pytest
 
 import supy
+from supy._env import trv_supy_module
 
 # =============================================================================
 # Debug Decorators - Centralised to avoid duplication in test files
@@ -380,12 +383,15 @@ def pytest_collection_finish(session):
 
 
 @pytest.fixture(scope="session")
-def sample_yaml_path() -> Path:
+def sample_yaml_path() -> Iterator[Path]:
     """Path to the bundled SUEWS sample YAML configuration.
 
     Session-scoped since the path is fixed for the process lifetime.
+    ``as_file`` materialises the packaged resource as a real filesystem
+    path, which is what the consumers below hand to ``str()``-taking APIs.
     """
-    return Path(supy.__file__).parent / "sample_data" / "sample_config.yml"
+    with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as path_sample:
+        yield path_sample
 
 
 @pytest.fixture(scope="session")

@@ -10,14 +10,13 @@ fraction are all constant over the run and the MacDonald relations can be
 asserted in closed form.
 """
 
-import pathlib
-
 from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
 import yaml
 
 import supy as sp
+from supy._env import trv_supy_module
 from supy.data_model import SUEWSConfig
 
 pytestmark = pytest.mark.physics
@@ -44,7 +43,7 @@ def _tree_free_macdonald_config(tmp_path):
     Zeroing the deciduous fraction removes the phenology feedback on porosity,
     so Zh, FAI and PAI stay constant and the closed-form check below is exact.
     """
-    src = pathlib.Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+    src = trv_supy_module / "sample_data" / "sample_config.yml"
     raw = yaml.safe_load(src.read_text(encoding="utf-8"))
 
     raw["model"]["physics"]["roughness_length_momentum"] = "macdonald"

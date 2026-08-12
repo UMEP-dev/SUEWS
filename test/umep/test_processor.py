@@ -12,6 +12,7 @@ https://github.com/UMEP-dev/UMEP-processing/blob/82bc3266d8cb4d04359994b1cae5cf0
 See: https://github.com/UMEP-dev/SUEWS/issues/901
 """
 
+from importlib.resources import as_file
 from pathlib import Path
 import tempfile
 from unittest import TestCase
@@ -20,6 +21,7 @@ from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
 
 import supy as sp
+from supy._env import trv_supy_module
 
 
 class TestSUEWSProcessorAPI(TestCase):
@@ -27,8 +29,10 @@ class TestSUEWSProcessorAPI(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        self.sample_config = (
-            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        # `as_file` because the UMEP entry points below take real
+        # filesystem paths, not packaged-resource handles.
+        self.sample_config = self.enterContext(
+            as_file(trv_supy_module / "sample_data" / "sample_config.yml")
         )
 
     def test_init_config_from_yaml_import(self):

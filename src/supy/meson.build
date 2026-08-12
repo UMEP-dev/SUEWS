@@ -172,6 +172,7 @@ py.install_sources(
             'data_model/validation/core/feedback.py',
             'data_model/validation/core/utils.py',
             'data_model/validation/core/yaml_helpers.py',
+            'data_model/validation/required_fields.py',
             'data_model/validation/pipeline/__init__.py',
             'data_model/validation/pipeline/orchestrator.py',
             'data_model/validation/pipeline/phase_a.py',

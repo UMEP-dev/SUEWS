@@ -38,6 +38,17 @@ from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
+from ..validation.required_fields import (
+    BUILDING_REQUIRED,
+    BUILDING_REQUIRED_PROVIDED_FAI,
+    CONDUCTANCE_REQUIRED,
+    DECIDUOUS_REQUIRED,
+    DECIDUOUS_REQUIRED_PROVIDED_FAI,
+    EVERGREEN_REQUIRED,
+    EVERGREEN_REQUIRED_PROVIDED_FAI,
+    LAI_CALCULATED_ONLY_REQUIRED,
+    LAI_REQUIRED,
+)
 
 from datetime import datetime
 import pytz
@@ -3113,109 +3124,22 @@ class SUEWSConfig(BaseModel):
             raw_surface = raw_lc.get(surface_name)
             return raw_surface is None or isinstance(raw_surface, dict)
 
-        lai_required = {
-            "lai_max": (
-                "Maximum LAI is required for active vegetation",
-                "Add maximum leaf area index for full leaf-on conditions",
-            ),
-        }
-        lai_calculated_only_required = {
-            "base_temperature": (
-                "Base temperature is required for active vegetation",
-                "Add the base temperature for growing degree day accumulation",
-            ),
-            "base_temperature_senescence": (
-                "Senescence base temperature is required for active vegetation",
-                "Add the base temperature for senescence degree day accumulation",
-            ),
-            "gdd_full": (
-                "Growing degree days for full LAI are required for active vegetation",
-                "Add the growing degree day threshold for full leaf-on conditions",
-            ),
-            "sdd_full": (
-                "Senescence degree days are required for active vegetation",
-                "Add the senescence degree day threshold for leaf-off conditions",
-            ),
-        }
-        conductance_required = {
-            "g_max": (
-                "Maximum surface conductance is required for active vegetation",
-                "Add g_max for evapotranspiration calculations",
-            ),
-            "g_k": (
-                "Solar radiation response parameter is required for active vegetation",
-                "Add g_k for evapotranspiration calculations",
-            ),
-            "g_q_base": (
-                "Vapour pressure deficit base parameter is required for active vegetation",
-                "Add g_q_base for evapotranspiration calculations",
-            ),
-            "g_q_shape": (
-                "Vapour pressure deficit shape parameter is required for active vegetation",
-                "Add g_q_shape for evapotranspiration calculations",
-            ),
-            "g_t": (
-                "Temperature response parameter is required for active vegetation",
-                "Add g_t for evapotranspiration calculations",
-            ),
-            "g_sm": (
-                "Soil moisture response parameter is required for active vegetation",
-                "Add g_sm for evapotranspiration calculations",
-            ),
-            "kmax": (
-                "Maximum shortwave radiation parameter is required for active vegetation",
-                "Add kmax for evapotranspiration calculations",
-            ),
-            "s1": (
-                "Lower soil moisture threshold is required for active vegetation",
-                "Add s1 for evapotranspiration calculations",
-            ),
-            "s2": (
-                "Soil moisture dependence parameter is required for active vegetation",
-                "Add s2 for evapotranspiration calculations",
-            ),
-            "tl": (
-                "Lower temperature threshold is required for active vegetation",
-                "Add tl for evapotranspiration calculations",
-            ),
-            "th": (
-                "Upper temperature threshold is required for active vegetation",
-                "Add th for evapotranspiration calculations",
-            ),
-        }
-        building_required = {
-            "bldgh": (
-                "Building height is required when buildings are active",
-                "Add building height in meters",
-            ),
-        }
+        # Sourced from the shared registry so the documentation generator can
+        # describe the same conditions to readers. Copied rather than aliased,
+        # because the FAI entries below are added conditionally per call.
+        lai_required = dict(LAI_REQUIRED)
+        lai_calculated_only_required = dict(LAI_CALCULATED_ONLY_REQUIRED)
+        conductance_required = dict(CONDUCTANCE_REQUIRED)
+
+        building_required = dict(BUILDING_REQUIRED)
         if require_provided_fai:
-            building_required["faibldg"] = (
-                "Building frontal area index is required when buildings are active",
-                "Add frontal area index for wind and roughness calculations",
-            )
-        evergreen_required = {
-            "height_evergreen_tree": (
-                "Evergreen tree height is required when evergreen vegetation is active",
-                "Add evergreen tree height in meters",
-            ),
-        }
+            building_required.update(BUILDING_REQUIRED_PROVIDED_FAI)
+        evergreen_required = dict(EVERGREEN_REQUIRED)
         if require_provided_fai:
-            evergreen_required["fai_evergreen_tree"] = (
-                "Evergreen tree frontal area index is required when evergreen vegetation is active",
-                "Add evergreen tree frontal area index",
-            )
-        deciduous_required = {
-            "height_deciduous_tree": (
-                "Deciduous tree height is required when deciduous vegetation is active",
-                "Add deciduous tree height in meters",
-            ),
-        }
+            evergreen_required.update(EVERGREEN_REQUIRED_PROVIDED_FAI)
+        deciduous_required = dict(DECIDUOUS_REQUIRED)
         if require_provided_fai:
-            deciduous_required["fai_deciduous_tree"] = (
-                "Deciduous tree frontal area index is required when deciduous vegetation is active",
-                "Add deciduous tree frontal area index",
-            )
+            deciduous_required.update(DECIDUOUS_REQUIRED_PROVIDED_FAI)
 
         def _add_issue(
             *,

@@ -98,6 +98,20 @@ def _write_forcing_prefix(source: Path, destination: Path, data_rows: int) -> No
     destination.write_text("\n".join(rows_to_write) + "\n", encoding="utf-8")
 
 
+def _sample_data_dir():
+    """Return supy's bundled sample_data directory.
+
+    Uses the package's own resource handle rather than `Path(supy.__file__).parent`.
+    The latter assumes the package is an unpacked directory on disk, which is not
+    guaranteed by the import system, and it couples tests to supy's internal
+    layout. supy resolves its own data this way in `_env.py`; the tests simply
+    never adopted it, because there is no public accessor for this path.
+    """
+    from supy._env import trv_supy_module
+
+    return trv_supy_module / "sample_data"
+
+
 def _locate_engine() -> Path:
     """Return the Rust CLI binary, skipping the test if it has not been built.
 
@@ -633,7 +647,7 @@ class TestSampleOutput(TestCase):
         print("=" * 70)
 
         engine = _locate_engine()
-        sample_dir = Path(sp.__file__).parent / "sample_data"
+        sample_dir = _sample_data_dir()
         sample_config = sample_dir / "sample_config.yml"
         assert sample_config.exists(), f"Sample config not found: {sample_config}"
 

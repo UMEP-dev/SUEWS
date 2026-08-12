@@ -497,8 +497,8 @@ jobs:
   #     runtime counterpart is a pytest_collection_finish hook in
   #     test/conftest.py, which catches the same thing during normal
   #     full-tree pytest runs.
-  #  2. No test may reach packaged data through `<module>.__file__`; use
-  #     `supy._env.trv_supy_module` instead. See
+  #  2. No test may inspect an imported module through `<module>.__file__`;
+  #     use `importlib.resources` for packaged data instead. See
   #     `.claude/rules/tests/patterns.md` ("Locating packaged data").
   #
   # The job id and display name are unchanged so nothing that references

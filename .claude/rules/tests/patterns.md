@@ -214,7 +214,8 @@ sample_dir = Path(supy.__file__).parent / "sample_data"
 sample_dir = Path(sp.__file__).parent / "sample_data"
 ```
 
-Use the package's own resource handle instead:
+Use `importlib.resources` instead. In SUEWS tests, prefer the package's existing
+resource handle:
 
 ```python
 # RIGHT - what supy itself uses, in src/supy/_env.py
@@ -223,11 +224,14 @@ from supy._env import trv_supy_module
 sample_dir = trv_supy_module / "sample_data"
 ```
 
-`trv_supy_module` is `importlib.resources.files("supy")`. It returns an
-object satisfying `Traversable`. It is **not guaranteed** to be a `Path`: a
-filesystem-backed loader may well hand you a real `pathlib.Path`, which is why
-`Path`-only calls appear to work locally, but nothing promises that. Write
-against the protocol rather than against what your install happens to return.
+`trv_supy_module` is the project's shared `importlib.resources.files("supy")`
+handle. Calling `files("supy")` directly is equally resource-safe and is not
+forbidden; reusing the existing handle is simply the in-tree convention. Both
+forms return an object satisfying `Traversable`. It is **not guaranteed** to be
+a `Path`: a filesystem-backed loader may well hand you a real `pathlib.Path`,
+which is why `Path`-only calls appear to work locally, but nothing promises
+that. Write against the protocol rather than against what your install happens
+to return.
 
 The protocol guarantees exactly: `joinpath` (and so `/`), `name`, `is_dir`,
 `is_file`, `iterdir`, `open`, `read_bytes`, `read_text`. Use those:
@@ -264,8 +268,10 @@ obvious reach and is *not* in the protocol.
 **Materialise the directory whenever the resource has siblings it depends on.**
 `as_file()` on a single file extracts *only that file* under a non-filesystem
 loader. `sample_config.yml` names its forcing file as a bare sibling
-(`Kc_2012_data_60.txt`), so anything that loads forcing — `load_forcing_grid`,
-`init_supy`, `SUEWSSimulation` — needs the directory, not the file:
+(`Kc_2012_data_60.txt`), so anything that loads forcing —
+`load_forcing_grid` or `SUEWSSimulation` — needs the directory, not the file.
+`init_supy` only parses the config into initial state, so file materialisation
+is sufficient there:
 
 ```python
 with as_file(trv_supy_module / "sample_data") as path_sample_dir:
@@ -290,8 +296,8 @@ with as_file(trv_supy_module / "sample_data") as path_sample_dir:
 test around a `with` block.
 
 In a `unittest.TestCase`, `self.enterContext()` (3.11+) binds it for the
-lifetime of the test and unwinds it on cleanup, so `setUp` stays one line and
-every downstream use in the class is unchanged:
+lifetime of the test and unwinds it on cleanup. A parse-only class can
+materialise just the file:
 
 ```python
 def setUp(self):
@@ -300,14 +306,14 @@ def setUp(self):
     )
 ```
 
-In pytest, use a yield fixture. Consumers then receive a real `Path` and need
-no changes at all:
+In pytest, use a yield fixture. If any fixture consumer loads forcing,
+materialise the directory so the sibling file remains available:
 
 ```python
 @pytest.fixture(scope="session")
 def sample_yaml_path() -> Iterator[Path]:
-    with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as path_sample:
-        yield path_sample
+    with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+        yield path_sample_dir / "sample_config.yml"
 ```
 
 ### Worked examples already in the tree
@@ -363,17 +369,20 @@ compiled extensions cannot zip-import. Verify a conversion by reading the
 protocol, not by running the suite. Green tests are necessary, never sufficient.
 
 Until a public accessor exists, importing `trv_supy_module` from `supy._env` is
-the correct thing for a test to do: a test importing a private helper is normal,
-and matching the package's own convention is what stops the two drifting apart.
-If you are adding a new test that needs packaged data, use it rather than
-inventing a twenty-fourth variant.
+the project convention: a test importing a private helper is normal, and
+matching the package's own convention stops the two drifting apart. Direct
+`files("supy")` use remains valid and the lint does not forbid it. If you are
+adding a new test that needs packaged data, use one of these resource forms
+rather than inventing a `__file__` reach.
 
 ### What is and is not mechanically enforced
 
-`scripts/lint/check_packaged_data_paths.py` fails CI on any `<module>.__file__`
-access under `test/` (bare `__file__` stays legal, so fixture-relative
-`Path(__file__).parent` is unaffected). It runs as a step of the
-`check_test_markers` job — static AST, no build required.
+`scripts/lint/check_packaged_data_paths.py` fails CI on any imported-module
+`<module>.__file__` access under `test/`. This is deliberately a syntax-wide
+test policy: the lint does not try to infer whether a particular reach is for
+packaged data or module provenance. Bare `__file__` stays legal, so
+fixture-relative `Path(__file__).parent` is unaffected. The lint runs as a step
+of the `check_test_markers` job — static AST, no build required.
 
 It does **not** catch Traversable misuse: calling `.exists()`, passing the
 handle to builtin `open()`, or handing `str(...)` to something that opens the

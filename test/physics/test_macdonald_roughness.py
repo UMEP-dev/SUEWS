@@ -15,7 +15,6 @@ import numpy as np
 import pytest
 import yaml
 
-import supy as sp
 from supy._env import trv_supy_module
 from supy.data_model import SUEWSConfig
 

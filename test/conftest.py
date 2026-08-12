@@ -1,11 +1,11 @@
 """pytest configuration for SUEWS test suite."""
 
+from collections.abc import Iterator
+from importlib.resources import as_file
+from pathlib import Path
 import subprocess
 import sys
 import warnings
-from importlib.resources import as_file
-from pathlib import Path
-from typing import Iterator
 
 # Make the standalone suews_mcp package importable when it is not pip-installed
 # (e.g. wheel CI installs only the supy wheel). Done at the root conftest rather

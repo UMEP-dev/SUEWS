@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Static lint: tests must not reach packaged data through ``<module>.__file__``.
+"""Static lint: tests must not inspect imported modules via ``__file__``.
 
 ``Path(supy.__file__).parent / "sample_data"`` assumes the package is an
 unpacked directory on disk. The import system does not guarantee that, and it
 couples the test to supy's internal layout. supy resolves its own data with
 ``importlib.resources`` (``src/supy/_env.py``: ``trv_supy_module =
-files("supy")``); tests should do the same.
+files("supy")``); tests should do the same for packaged resources.
 
 This is a supy-free static pass, so CI can run it without building -- the same
 reasoning as ``check_test_markers.py``, which this script is modelled on.
 
 What it flags: any ``<something>.__file__`` attribute access under ``test/``.
-Bare ``__file__`` (the test module's own location, used for fixture paths) is
-an ``ast.Name`` rather than an ``ast.Attribute``, so it is never flagged.
+This is deliberately syntax-wide: the lint does not guess whether a reach is
+for packaged data or module provenance. Bare ``__file__`` (the test module's
+own location, used for fixture paths) is an ``ast.Name`` rather than an
+``ast.Attribute``, so it is never flagged.
 
 Scope is deliberately ``test/`` only. Do not widen it to ``src/``:
 ``src/supy/cmd/json_envelope.py`` reads ``supy.__file__`` legitimately, to
@@ -25,17 +27,20 @@ Exits 0 when the tree is clean, 1 otherwise.
 from __future__ import annotations
 
 import ast
-import sys
 from pathlib import Path
+import sys
 
 REMEDIATION = """\
-Reach packaged data through the package's own resource handle:
+Do not inspect an imported module's `__file__` in tests. For packaged data,
+use `importlib.resources`. supy's in-tree convention is its shared handle:
 
     from supy._env import trv_supy_module
 
     config = trv_supy_module / "sample_data" / "sample_config.yml"
 
-That returns a Traversable, not a Path, so:
+Calling `importlib.resources.files("supy")` directly is equally resource-safe;
+the lint forbids the `__file__` reach, not a particular resource-handle name.
+Either form returns a Traversable, not a Path, so:
 
   - existence check  ->  `config.is_file()`, NOT `config.exists()`
   - read text        ->  `config.open(encoding="utf-8")` / `.read_text(...)`
@@ -69,6 +74,7 @@ def find_hits(source: str) -> list[tuple[int, str]]:
 
 
 def main(argv: list[str]) -> int:
+    """Check every Python file under the repository's test directory."""
     repo_root = Path(argv[1]).resolve() if len(argv) > 1 else Path.cwd()
     test_root = repo_root / "test"
     if not test_root.is_dir():
@@ -78,8 +84,8 @@ def main(argv: list[str]) -> int:
     offenders: list[str] = []
     checked = 0
 
-    # Every .py file, not just `test_*.py` -- conftest.py and test helpers reach
-    # for packaged data too, and a glob restricted to `test_*.py` would let a
+    # Every .py file, not just `test_*.py` -- conftest.py and test helpers can
+    # inspect imported modules too, and a restricted glob would let a
     # reintroduction land there unseen.
     for path in sorted(test_root.rglob("*.py")):
         rel = path.relative_to(repo_root).as_posix()
@@ -89,7 +95,7 @@ def main(argv: list[str]) -> int:
 
     if offenders:
         print(
-            "[X] packaged-data lint: tests reaching package data via `<module>.__file__`:",
+            "[X] module-location lint: tests inspecting imported modules via `__file__`:",
             file=sys.stderr,
         )
         for offender in offenders:
@@ -99,8 +105,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     print(
-        f"[OK] {checked} files under test/ reach packaged data without "
-        f"`<module>.__file__`."
+        f"[OK] {checked} files under test/ avoid imported-module `__file__`."
     )
     return 0
 

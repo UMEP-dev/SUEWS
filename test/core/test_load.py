@@ -182,8 +182,8 @@ class TestConfigLoading(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        # The directory, not just the config: the config names its forcing
-        # file as a bare sibling, so a file-only as_file() would not carry it.
+        # The object-oriented state conversion below constructs a simulation,
+        # which auto-loads the forcing file named as a sibling of the config.
         sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
         self.sample_config = sample_dir / "sample_config.yml"
 

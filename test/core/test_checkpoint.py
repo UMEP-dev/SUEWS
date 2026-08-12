@@ -18,6 +18,8 @@ from supy.suews_sim import SUEWSSimulation
 
 pytestmark = pytest.mark.api
 
+SAMPLE_BUILDING_DYOHM_PROFILE_INDEX = 70
+
 
 def test_checkpoint_json_roundtrip(tmp_path):
     """Checkpoint files preserve typed Rust state by grid ID."""
@@ -77,6 +79,65 @@ def test_checkpoint_continuation_calls_rust_state_path(monkeypatch):
     sim2.run()
 
     assert calls["count"] >= 1
+
+
+def test_checkpoint_continuation_restores_legacy_null_marker():
+    """A legacy null state value is restored as a NaN sentinel."""
+    sim_first = SUEWSSimulation.from_sample_data()
+    forcing = sim_first.forcing.df.iloc[:24]
+    sim_first.update_forcing(forcing.iloc[:12])
+    sim_first.run()
+
+    dict_grid_states = {
+        grid_id: json.loads(state_json)
+        for grid_id, state_json in sim_first.checkpoint.grid_states.items()
+    }
+    first_grid_id = next(iter(dict_grid_states))
+    dict_grid_states[first_grid_id]["members"]["heat_state"]["values"][
+        SAMPLE_BUILDING_DYOHM_PROFILE_INDEX
+    ] = None
+    checkpoint = SUEWSCheckpoint.from_grid_states(
+        dict_grid_states,
+        last_timestamp=sim_first.checkpoint.last_timestamp,
+    )
+
+    sim_second = SUEWSSimulation.from_checkpoint(sim_first.config, checkpoint)
+    sim_second.update_forcing(forcing.iloc[12:24])
+
+    output = sim_second.run()
+
+    assert not output.df.empty
+
+
+def test_checkpoint_continuation_reports_invalid_value_path():
+    """An unsupported state value reports its exact checkpoint path."""
+    sim_first = SUEWSSimulation.from_sample_data()
+    forcing = sim_first.forcing.df.iloc[:24]
+    sim_first.update_forcing(forcing.iloc[:12])
+    sim_first.run()
+
+    dict_grid_states = {
+        grid_id: json.loads(state_json)
+        for grid_id, state_json in sim_first.checkpoint.grid_states.items()
+    }
+    first_grid_id = next(iter(dict_grid_states))
+    dict_grid_states[first_grid_id]["members"]["atm_state"]["values"][0] = "NaN"
+    checkpoint = SUEWSCheckpoint.from_grid_states(
+        dict_grid_states,
+        last_timestamp=sim_first.checkpoint.last_timestamp,
+    )
+
+    sim_second = SUEWSSimulation.from_checkpoint(sim_first.config, checkpoint)
+    sim_second.update_forcing(forcing.iloc[12:24])
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            r"invalid checkpoint state value at members\.atm_state\.values\[0\]: "
+            r"expected a JSON number or null NaN marker, found string"
+        ),
+    ):
+        sim_second.run()
 
 
 def test_split_run_matches_continuous_run_with_checkpoint():

@@ -60,6 +60,10 @@ EXAMPLES:
   - Checkpoint schema version 2 stores `dt_since_start`, `dt_since_start_prev`, the new-day flag, and the model timestep alongside each grid state, making one-day chunks numerically equivalent to an uninterrupted run within a relative and absolute tolerance of `1e-12` across the 24-hour averaging boundary.
   - State-only version-1 checkpoints are rejected with an actionable compatibility error because their missing elapsed timer cannot be reconstructed reliably.
 
+- [feature][experimental] Added forcing timestamp-reference control (#1590)
+  - `model.control.forcing.timestamp_reference: utc` keeps forcing timestamps, outputs, daily state boundaries and run bounds in UTC while solar calculations and local diurnal profiles use the site's fixed-offset local standard time.
+  - Omitting the option, or selecting `local_standard_time`, preserves the historical local-standard-time interval-end behaviour.
+
 - [bugfix] Restored chunk checkpoints containing non-finite state sentinels (#1691)
   - Checkpoint generation now preserves `NaN` using the existing JSON `null` representation and rejects infinities with their exact state member and array index.
   - State-aware continuation restores `null` as `NaN`, so existing checkpoints no longer fail with only `invalid state payload`; other invalid JSON values report their exact path and type.

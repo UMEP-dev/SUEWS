@@ -54,7 +54,7 @@ SUEWS requires the following meteorological variables:
      - RH
      - 0-100%
    * - Air temperature
-     - °C
+     - :math:`^{\circ}C`
      - Tair
      - 
    * - Atmospheric pressure
@@ -66,11 +66,11 @@ SUEWS requires the following meteorological variables:
      - rain
      - Per time step
    * - Incoming shortwave
-     - W/m²
+     - W |m^-2|
      - kdown
-     - Must be ≥ 0 (0 at night)
+     - Must be >= 0 (0 at night)
    * - Incoming longwave
-     - W/m²
+     - W |m^-2|
      - ldown
      - Optional (use -999 if not available)
 
@@ -149,11 +149,11 @@ matched, case-insensitively, against the canonical column list above.
 * **Per-landcover variants**: the loader also accepts whitelisted
   ``<var>_<surface>`` columns:
 
-  - ``lai_<surface>`` is accepted **only for vegetated surfaces** —
+  - ``lai_<surface>`` is accepted **only for vegetated surfaces** --
     ``evetr``, ``dectr``, ``grass``. ``lai_paved`` / ``lai_bldgs`` /
     ``lai_bsoil`` / ``lai_water`` are not meaningful and are treated
     as unknown (warn-and-drop).
-  - ``wuh_<surface>`` (external water use — irrigation,
+  - ``wuh_<surface>`` (external water use -- irrigation,
     impervious-surface washing, fountains, ornamental water features)
     is accepted on every surface, including the open-water surface
     via ``wuh_water`` (a fountain or pond top-up adds water to the
@@ -161,13 +161,13 @@ matched, case-insensitively, against the canonical column list above.
 
     **Units and convention**: each ``wuh_<surface>`` value is a depth
     in **mm per forcing time step**, the same unit as ``rain``. The
-    depth is interpreted as falling on **that surface only** — not
+    depth is interpreted as falling on **that surface only** -- not
     spread over the whole grid. The grid-total contribution is
-    therefore ``wuh_<surface> × sfr_<surface>``. Worked example: with
+    therefore ``wuh_<surface> * sfr_<surface>``. Worked example: with
     grass occupying 20% of the grid and ``wuh_grass = 5`` (mm in this
     time step), the grass surface receives 5 mm of irrigation depth
     and the site-mean external water-use input is
-    ``5 × 0.20 = 1`` mm. The rainfall-aligned unit also lets users
+    ``5 * 0.20 = 1`` mm. The rainfall-aligned unit also lets users
     drop ERA5-style hourly water-flux columns straight in without
     extra rescaling.
 
@@ -196,18 +196,43 @@ Important Requirements
   - For hourly data at 13:00, the measurement covers 12:00-13:00
   - For 5-minute data at 10:05, the measurement covers 10:00-10:05
 
-- **Time zone**: Use **local standard time** (i.e. a fixed UTC offset), not UTC and not civil time with daylight-saving transitions
+- **Timestamp reference**: The default is **local standard time** (a fixed UTC
+  offset). UTC is accepted when declared in YAML. Civil time with
+  daylight-saving transitions is not supported.
 - **Complete days**: Files must contain whole days of data
 
-.. important:: **Local standard time, not civil time**
+.. important:: **Declare UTC; never supply daylight-saving civil time**
 
-   "Local time" in SUEWS means **local standard time** -- the fixed UTC offset for the site's time zone, applied uniformly throughout the year. Do **not** use civil time that includes daylight-saving (summer-time) transitions.
+   By default, SUEWS interprets forcing timestamps as **local standard time** --
+   the fixed UTC offset for the site's time zone, applied uniformly throughout
+   the year. UTC forcing may instead be declared explicitly::
+
+      model:
+        control:
+          forcing:
+            file: forcing_utc.txt
+            timestamp_reference: utc
+
+   With declared UTC forcing, the main model clock, output timestamps, daily
+   state boundaries and ``start_time``/``end_time`` bounds remain in UTC.
+   SUEWS derives the site's fixed-offset local standard time only for solar
+   calculations and local diurnal activity profiles. Interval-end alignment is
+   unchanged. Do **not** supply civil time that includes daylight-saving
+   (summer-time) transitions.
 
    For example, a UK site uses GMT (UTC+0) year-round. Converting to ``Europe/London`` would introduce DST shifts that create one missing row in spring and one duplicate row in autumn, causing SUEWS to reject the forcing file. For a site in France, use CET (UTC+1) year-round, not CEST in summer.
 
-   The :input:option:`timezone` parameter in the YAML configuration is this same fixed offset (``0`` for the UK, ``1`` for France). SUEWS accounts for daylight saving internally through the :input:option:`startdls` and :input:option:`enddls` parameters, which adjust diurnal activity profiles for anthropogenic heat and water use -- the forcing timestamps themselves always stay in standard time.
+   The :input:option:`timezone` parameter in the YAML configuration is this
+   same fixed offset (``0`` for the UK, ``1`` for France). SUEWS accounts for
+   daylight saving internally through the :input:option:`startdls` and
+   :input:option:`enddls` parameters, which adjust diurnal activity profiles for
+   anthropogenic heat and water use; this does not change the forcing or output
+   clock.
 
-   When comparing SUEWS output against observational data, verify that both datasets use the same time convention. Observations recorded in civil time (with DST) must be converted to local standard time before comparison.
+   When comparing SUEWS output against observational data, verify that both
+   datasets use the same time convention. Observations recorded in civil time
+   (with DST) must be converted to the declared fixed reference before
+   comparison.
 
 **File Naming**
 
@@ -275,23 +300,23 @@ These additional variables can enhance model performance but are not required:
      - Column
      - Usage
    * - Net radiation
-     - W/m²
+     - W |m^-2|
      - qn
      - If NetRadiationMethod = 0
    * - Sensible heat flux
-     - W/m²
+     - W |m^-2|
      - qh
      - For validation/comparison
    * - Latent heat flux
-     - W/m²
+     - W |m^-2|
      - qe
      - For validation/comparison
    * - Storage heat flux
-     - W/m²
+     - W |m^-2|
      - qs
      - For validation/comparison
    * - Anthropogenic heat
-     - W/m²
+     - W |m^-2|
      - qf
      - If not modeled
    * - Observed snow-cover fraction
@@ -311,15 +336,15 @@ These additional variables can enhance model performance but are not required:
      - xsmd
      - For initialization
    * - Leaf area index
-     - m²/m²
+     - |m^2| |m^-2|
      - ``lai`` or ``lai_evetr`` / ``lai_dectr`` / ``lai_grass``
      - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
    * - Diffuse radiation
-     - W/m²
+     - W |m^-2|
      - kdiff
      - For SOLWEIG
    * - Direct radiation
-     - W/m²
+     - W |m^-2|
      - kdir
      - For SOLWEIG
    * - Wind direction
@@ -363,8 +388,8 @@ remote-sensing product is available, users can bypass the internal scheme by:
    ``suews_phys_biogenco2``) require ``LAI <= laimax`` to stay physically
    meaningful.
 
-   If you supply observations that should pass through unchanged — e.g. a genuine
-   winter dieback with ``LAI = 0`` — configure the corresponding class's
+   If you supply observations that should pass through unchanged -- e.g. a genuine
+   winter dieback with ``LAI = 0`` -- configure the corresponding class's
    ``laimin`` to zero in the site configuration. Similarly, widen ``laimax`` if
    observations legitimately exceed the default site canopy capacity. The
    pre-flight validator (:func:`~supy._check.check_forcing`) issues a warning
@@ -554,8 +579,9 @@ Check your data for:
 **Common Issues**
 
 - **"Division by zero"**: Wind speed < 0.01 m/s
-- **"Negative radiation"**: Check kdown is always ≥ 0
-- **"Time mismatch"**: Ensure local standard time is used (see note above)
+- **"Negative radiation"**: Check kdown is always >= 0
+- **"Time mismatch"**: Ensure timestamps match the declared reference and
+  interval-end convention (see note above)
 - **"Missing data"**: Use -999, not blank or NaN
 
 Validating Forcing Data
@@ -644,10 +670,10 @@ Certain model physics options require specific forcing data columns to contain v
      - Models Q* with observed incoming longwave
    * - ``netradiationmethod: 2``
      - ``kdown``, ``fcld``
-     - Models Q* and L↓ using cloud fraction
+     - Models Q* and Ldown using cloud fraction
    * - ``netradiationmethod: 3``
      - ``kdown``
-     - Models L↓ from Tair and RH
+     - Models Ldown from Tair and RH
    * - ``storageheatmethod: 0``
      - ``qs``
      - Uses observed storage heat flux

@@ -9,6 +9,7 @@ model:
     forcing:
       file:
         value: Kc_2012_data_60.txt
+      timestamp_reference: local_standard_time
     output:
       format: txt
       freq: 3600

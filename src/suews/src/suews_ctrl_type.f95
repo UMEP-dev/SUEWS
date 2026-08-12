@@ -78,6 +78,7 @@ MODULE module_ctrl_type
       INTEGER :: rcmethod = 0 ! method to split building envelope heat capacity in STEBBS [-]
       INTEGER :: setpointmethod = 0 ! method to determine heating/cooling setpoints in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
+      INTEGER :: ForcingTimestampReference = 0 ! forcing timestamp reference: 0=local standard time, 1=UTC [-]
    END TYPE SUEWS_CONFIG
 
    TYPE, PUBLIC :: SUEWS_SITE
@@ -243,6 +244,16 @@ MODULE module_ctrl_type
       INTEGER :: DLS = 0 !daylight saving time offset [h]
 
       INTEGER :: new_day = 0 ! flag to indicate a new day !TODO: Should this be bool?
+
+      ! Fixed-offset local-standard-time fields for solar and profile consumers.
+      ! They are derived internally and intentionally excluded from the C timer ABI.
+      INTEGER :: iy_st = 0
+      INTEGER :: id_st = 0
+      INTEGER :: it_st = 0
+      INTEGER :: imin_st = 0
+      REAL(KIND(1D0)) :: dectime_st = 0.0D0
+      INTEGER, DIMENSION(3) :: dayofWeek_id_st = 0
+      REAL(KIND(1D0)) :: tz_solar = 0.0D0
 
    END TYPE SUEWS_TIMER
 

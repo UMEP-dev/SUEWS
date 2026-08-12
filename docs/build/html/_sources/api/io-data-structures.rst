@@ -179,13 +179,17 @@ than ``df_state_final`` as the restart artefact.
 ``SUEWSCheckpoint``: typed restart state
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``SUEWSCheckpoint`` carries typed backend runtime state keyed by grid ID. It is
-the preferred restart artefact for new object-oriented workflows.
+``SUEWSCheckpoint`` carries typed backend runtime state, elapsed model-time
+metadata, and schema versions keyed by grid ID. It is the preferred restart
+artefact for new object-oriented workflows.
 
-The checkpoint is intentionally only the typed runtime state. It does not
-contain the full YAML configuration or forcing data. To continue a run, load the
-same YAML configuration, attach the next forcing period, and run from
-``SUEWSSimulation.from_checkpoint(...)``:
+The checkpoint does not contain the full YAML configuration or forcing data. To
+continue a run, load the same YAML configuration, attach the next forcing
+period, and run from ``SUEWSSimulation.from_checkpoint(...)``. State-only
+checkpoint schema version 1 lacks the elapsed timer metadata required for
+correct continuation and must be regenerated with schema version 2. Chunked
+and restarted outputs are expected to match uninterrupted outputs within
+relative and absolute tolerances of ``1e-12``.
 
 .. code-block:: python
 

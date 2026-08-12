@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_checkpoint &#8212; SUEWS 2026.8.12.dev6 documentation</title>
+    <title>supy.suews_checkpoint &#8212; SUEWS 2026.8.12.dev7 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=aa975c3b"></script>
+    <script src="../../_static/documentation_options.js?v=116bde26"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.12.dev6" />
+  <meta name="docsearch:version" content="2026.8.12.dev7" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.12.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0cf7f017d0513478fc32c31a263f0aa2ec82b891" style="color: #31708f;">0cf7f01</a>).
+        (2026.8.12.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4a4e52cd420a09b631c7fb2be0c0b8b777e6e480" style="color: #31708f;">4a4e52c</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -193,8 +193,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev6 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev7 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev7 documentation - Home"/>
   
   
 </a></div>
@@ -605,6 +605,9 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">._version_scm</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
 
+<span class="n">CURRENT_CHECKPOINT_SCHEMA_VERSION</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">LEGACY_CHECKPOINT_SCHEMA_VERSION</span> <span class="o">=</span> <span class="mi">1</span>
+
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_utc_now_iso</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;+00:00&quot;</span><span class="p">,</span> <span class="s2">&quot;Z&quot;</span><span class="p">)</span>
@@ -645,8 +648,14 @@
     <span class="n">versions</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">state_json</span> <span class="ow">in</span> <span class="n">grid_states</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
         <span class="n">payload</span> <span class="o">=</span> <span class="n">_state_to_object</span><span class="p">(</span><span class="n">state_json</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;schema_version&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">versions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;schema_version&quot;</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="n">state_payload</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;state&quot;</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">state_payload</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">state_payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;schema_version&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="n">versions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">state_payload</span><span class="p">[</span><span class="s2">&quot;schema_version&quot;</span><span class="p">]))</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">versions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -656,23 +665,68 @@
     <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">versions</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_infer_checkpoint_schema_version</span><span class="p">(</span><span class="n">grid_states</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">versions</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">state_json</span> <span class="ow">in</span> <span class="n">grid_states</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">_state_to_object</span><span class="p">(</span><span class="n">state_json</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;checkpoint_schema_version&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">versions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;checkpoint_schema_version&quot;</span><span class="p">]))</span>
+        <span class="k">elif</span> <span class="s2">&quot;schema_version&quot;</span> <span class="ow">in</span> <span class="n">payload</span> <span class="ow">and</span> <span class="s2">&quot;members&quot;</span> <span class="ow">in</span> <span class="n">payload</span><span class="p">:</span>
+            <span class="n">versions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">LEGACY_CHECKPOINT_SCHEMA_VERSION</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">versions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;SUEWSCheckpoint grid states contain multiple checkpoint schema &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;versions: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">versions</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">versions</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="SUEWSCheckpoint">
 <a class="viewcode-back" href="../../api/io-data-structures.html#supy.SUEWSCheckpoint">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SUEWSCheckpoint</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Typed restart artifact carrying Rust SUEWS state JSON by grid ID.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Typed restart artifact carrying Rust state and timer JSON by grid ID.&quot;&quot;&quot;</span>
 
     <span class="n">grid_states</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
     <span class="n">supy_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">__version__</span>
     <span class="n">state_schema_version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">created_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">_utc_now_iso</span><span class="p">)</span>
     <span class="n">last_timestamp</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">checkpoint_schema_version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">normalised_states</span> <span class="o">=</span> <span class="n">_normalise_grid_states</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid_states</span><span class="p">)</span>
         <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;grid_states&quot;</span><span class="p">,</span> <span class="n">normalised_states</span><span class="p">)</span>
         <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;supy_version&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">supy_version</span> <span class="ow">or</span> <span class="n">__version__</span><span class="p">)</span>
         <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;created_at&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span> <span class="ow">or</span> <span class="n">_utc_now_iso</span><span class="p">())</span>
+
+        <span class="n">inferred_checkpoint_version</span> <span class="o">=</span> <span class="n">_infer_checkpoint_schema_version</span><span class="p">(</span>
+            <span class="n">normalised_states</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_schema_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span>
+                <span class="s2">&quot;checkpoint_schema_version&quot;</span><span class="p">,</span>
+                <span class="n">inferred_checkpoint_version</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">checkpoint_schema_version</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_schema_version</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">inferred_checkpoint_version</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="n">checkpoint_schema_version</span> <span class="o">!=</span> <span class="n">inferred_checkpoint_version</span>
+            <span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;SUEWSCheckpoint checkpoint_schema_version does not match &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;grid state version </span><span class="si">{</span><span class="n">inferred_checkpoint_version</span><span class="si">}</span><span class="s2">.&quot;</span>
+                <span class="p">)</span>
+            <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span>
+                <span class="s2">&quot;checkpoint_schema_version&quot;</span><span class="p">,</span>
+                <span class="n">checkpoint_schema_version</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_schema_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span>
@@ -695,6 +749,7 @@
         <span class="n">grid_states</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">supy_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">checkpoint_schema_version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">state_schema_version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">created_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">last_timestamp</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -703,6 +758,7 @@
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
             <span class="n">grid_states</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">grid_states</span><span class="p">),</span>
             <span class="n">supy_version</span><span class="o">=</span><span class="n">supy_version</span> <span class="ow">or</span> <span class="n">__version__</span><span class="p">,</span>
+            <span class="n">checkpoint_schema_version</span><span class="o">=</span><span class="n">checkpoint_schema_version</span><span class="p">,</span>
             <span class="n">state_schema_version</span><span class="o">=</span><span class="n">state_schema_version</span><span class="p">,</span>
             <span class="n">created_at</span><span class="o">=</span><span class="n">created_at</span> <span class="ow">or</span> <span class="n">_utc_now_iso</span><span class="p">(),</span>
             <span class="n">last_timestamp</span><span class="o">=</span><span class="n">_normalise_timestamp</span><span class="p">(</span><span class="n">last_timestamp</span><span class="p">),</span>
@@ -716,6 +772,7 @@
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
             <span class="n">grid_states</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;grid_states&quot;</span><span class="p">]),</span>
             <span class="n">supy_version</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;supy_version&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">__version__</span><span class="p">),</span>
+            <span class="n">checkpoint_schema_version</span><span class="o">=</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;checkpoint_schema_version&quot;</span><span class="p">),</span>
             <span class="n">state_schema_version</span><span class="o">=</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;state_schema_version&quot;</span><span class="p">),</span>
             <span class="n">created_at</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;created_at&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">_utc_now_iso</span><span class="p">()),</span>
             <span class="n">last_timestamp</span><span class="o">=</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_timestamp&quot;</span><span class="p">),</span>
@@ -736,6 +793,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a JSON-serialisable checkpoint payload.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">{</span>
             <span class="s2">&quot;supy_version&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">supy_version</span><span class="p">,</span>
+            <span class="s2">&quot;checkpoint_schema_version&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_schema_version</span><span class="p">,</span>
             <span class="s2">&quot;state_schema_version&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_schema_version</span><span class="p">,</span>
             <span class="s2">&quot;created_at&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
             <span class="s2">&quot;last_timestamp&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_timestamp</span><span class="p">,</span>
@@ -755,7 +813,23 @@
             <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">checkpoint_file</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">checkpoint_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">path</span></div>
-</div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_for_continuation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Raise an actionable error when restart timer metadata is unavailable.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_schema_version</span> <span class="o">==</span> <span class="n">CURRENT_CHECKPOINT_SCHEMA_VERSION</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_schema_version</span> <span class="o">==</span> <span class="n">LEGACY_CHECKPOINT_SCHEMA_VERSION</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Checkpoint schema version 1 has no elapsed timer metadata. &quot;</span>
+                <span class="s2">&quot;Rerun the preceding segment with checkpoint schema version 2 &quot;</span>
+                <span class="s2">&quot;before continuing.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Unsupported checkpoint schema version &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_schema_version</span><span class="si">!r}</span><span class="s2">; expected &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">CURRENT_CHECKPOINT_SCHEMA_VERSION</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span></div>
 
 </pre></div>
 
@@ -809,8 +883,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.12.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0cf7f017d0513478fc32c31a263f0aa2ec82b891">0cf7f01</a> |
+  <p>Version: 2026.8.12.dev7 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4a4e52cd420a09b631c7fb2be0c0b8b777e6e480">4a4e52c</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -4099,8 +4099,7 @@ mod python_bindings {
         let (output_block, state, actual_len) =
             run_from_config_str_and_forcing(config_yaml, forcing_block, len_sim)
                 .map_err(map_bridge_error)?;
-        let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let state_json = suews_state_to_checkpoint_json(&state).map_err(map_bridge_error)?;
         Ok((output_block, state_json, actual_len))
     }
 
@@ -4112,13 +4111,14 @@ mod python_bindings {
         len_sim: usize,
         state_json: &str,
     ) -> PyResult<(Vec<f64>, String, usize)> {
-        let (output_block, state, actual_len) =
-            run_from_config_str_and_forcing_with_state(
-                config_yaml, forcing_block, len_sim, state_json,
-            )
-            .map_err(map_bridge_error)?;
-        let state_json_out = serde_json::to_string(&suews_state_to_nested_payload(&state))
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let (output_block, state, actual_len) = run_from_config_str_and_forcing_with_state(
+            config_yaml,
+            forcing_block,
+            len_sim,
+            state_json,
+        )
+        .map_err(map_bridge_error)?;
+        let state_json_out = suews_state_to_checkpoint_json(&state).map_err(map_bridge_error)?;
         Ok((output_block, state_json_out, actual_len))
     }
 
@@ -4154,8 +4154,8 @@ mod python_bindings {
                     let (output_block, state, actual_len) =
                         run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
                             .map_err(|e| e.to_string())?;
-                    let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
-                        .map_err(|e| e.to_string())?;
+                    let state_json =
+                        suews_state_to_checkpoint_json(&state).map_err(|e| e.to_string())?;
                     Ok((idx, output_block, state_json, actual_len))
                 })
                 .collect()
@@ -4222,8 +4222,8 @@ mod python_bindings {
                             state_json_in,
                         )
                         .map_err(|e| e.to_string())?;
-                    let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
-                        .map_err(|e| e.to_string())?;
+                    let state_json =
+                        suews_state_to_checkpoint_json(&state).map_err(|e| e.to_string())?;
                     Ok((idx, output_block, state_json, actual_len))
                 })
                 .collect()

@@ -641,6 +641,21 @@ class TestSampleOutput(TestCase):
         Compares every variable in TOLERANCE_CONFIG. The horizon is the whole
         reference when full_year, otherwise the fail-fast window. Skipped if the
         engine binary has not been built.
+
+        Why the CLI binary rather than SUEWSSimulation, which is what users call:
+        memory. A full year through the library holds the whole 105,408 x 1295
+        output as a DataFrame, measured at 8.2 GB peak resident memory. The CLI
+        writes Arrow, so the columns under test can be projected before
+        conversion, measured at 1.2 GB. Under xdist the difference decides
+        whether this test can run at all on hosted runners.
+
+        What that trades away is real and worth knowing: this path exercises the
+        engine and its Arrow output, not the PyO3 bridge, DataFrame construction
+        or the rest of the supy wrapper. That surface is covered by
+        test_library_cli_parity, which currently runs 3 days. So the library, the
+        thing users actually call, has a much shorter reference comparison than
+        the CLI does. gh#1209 originally ran both over a full year; gh#1236 cut
+        the library side to 3 days and the CLI side is what survived.
         """
         print("\n" + "=" * 70)
         print("Sample Output Validation")

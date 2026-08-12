@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for conductance parameters" name="description" />
 <meta content="SUEWS, YAML, conductance, parameters, configuration" name="keywords" />
 
-    <title>4.4.8. Conductance &#8212; SUEWS 2026.8.12.dev7 documentation</title>
+    <title>4.4.8. Conductance &#8212; SUEWS 2026.8.12.dev8 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=116bde26"></script>
+    <script src="../../../_static/documentation_options.js?v=5bcd5fd8"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.4.7. CO2 Emissions" href="co2params.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.12.dev7" />
+  <meta name="docsearch:version" content="2026.8.12.dev8" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.12.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4a4e52cd420a09b631c7fb2be0c0b8b777e6e480" style="color: #31708f;">4a4e52c</a>).
+        (2026.8.12.dev8, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e5cdbb3f1176734b5098e80bff97854e61584730" style="color: #31708f;">e5cdbb3</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev7 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev7 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev8 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev8 documentation - Home"/>
   
   
 </a></div>
@@ -615,8 +615,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm s<sup>-1</sup></p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -629,8 +629,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -643,8 +643,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>kPa^-1</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -657,8 +657,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -671,8 +671,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -685,8 +685,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -699,8 +699,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -713,8 +713,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -727,8 +727,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -741,8 +741,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -755,8 +755,8 @@ which is critical for calculating evapotranspiration rates.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Status<span class="colon">:</span></dt>
+<dd class="field-even"><p>Required when a vegetated surface using these parameters is present</p>
 </dd>
 </dl>
 </dd></dl>
@@ -838,8 +838,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.12.dev7 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4a4e52cd420a09b631c7fb2be0c0b8b777e6e480">4a4e52c</a> |
+  <p>Version: 2026.8.12.dev8 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e5cdbb3f1176734b5098e80bff97854e61584730">e5cdbb3</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

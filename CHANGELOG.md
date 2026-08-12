@@ -64,6 +64,10 @@ EXAMPLES:
   - Checkpoint generation now preserves `NaN` using the existing JSON `null` representation and rejects infinities with their exact state member and array index.
   - State-aware continuation restores `null` as `NaN`, so existing checkpoints no longer fail with only `invalid state payload`; other invalid JSON values report their exact path and type.
 
+- [maintenance] Guarded tests against locating bundled package data through imported modules' `__file__` (#1697)
+  - Reached SuPy's packaged sample data through `importlib.resources`, materialising the whole directory where the YAML config depends on its sibling forcing file.
+  - Added an AST-based CI lint, regression coverage, and test guidance to prevent the fragile path pattern from returning.
+
 - [bugfix] Stopped the YAML config reference describing parameters without a default as optional (#1677)
   - Every parameter carrying no default previously rendered as `Default: None (optional)`, which asserted the opposite of the truth for parameters such as `store_cap` and `base_temperature_senescence`; these are declared `Optional[...] = None` only so a partial configuration still loads and the validation layer can then report what is missing.
   - Such parameters now render under a `Configuration Note` label stating that no default exists and that a value may be required depending on which physics options and surface types are active. A `Default` label therefore always introduces a real default value, and `Status` stays reserved for the short state token `Required`.

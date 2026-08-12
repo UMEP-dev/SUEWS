@@ -1,5 +1,7 @@
 """pytest configuration for SUEWS test suite."""
 
+from collections.abc import Iterator
+from importlib.resources import as_file
 from pathlib import Path
 import subprocess
 import sys
@@ -19,6 +21,7 @@ from click.testing import CliRunner
 import pytest
 
 import supy
+from supy._env import trv_supy_module
 
 # =============================================================================
 # Debug Decorators - Centralised to avoid duplication in test files
@@ -380,12 +383,20 @@ def pytest_collection_finish(session):
 
 
 @pytest.fixture(scope="session")
-def sample_yaml_path() -> Path:
+def sample_yaml_path() -> Iterator[Path]:
     """Path to the bundled SUEWS sample YAML configuration.
 
     Session-scoped since the path is fixed for the process lifetime.
+    ``as_file`` materialises the packaged resource as a real filesystem
+    path, which is what the consumers below hand to ``str()``-taking APIs.
+
+    The **directory** is materialised, not just the config: the config names
+    its forcing file as a bare sibling (``Kc_2012_data_60.txt``), so a
+    file-only ``as_file`` would hand back a config whose forcing cannot
+    resolve under any non-filesystem loader.
     """
-    return Path(supy.__file__).parent / "sample_data" / "sample_config.yml"
+    with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+        yield path_sample_dir / "sample_config.yml"
 
 
 @pytest.fixture(scope="session")

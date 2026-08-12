@@ -36,12 +36,12 @@ Check against Python code in `src/supy/`:
 
 ```
 ISSUE: Function signature changed but docstring not updated
-  Code: def run_supy(df_forcing, df_state_init, save_state=False, n_yr=1)
-  Docs: Parameters section missing n_yr
+  Code: def run(self, start_date=None, end_date=None, chunk_day=3660)
+  Docs: Parameters section missing chunk_day
 
 ISSUE: Return type changed
-  Code: -> Tuple[pd.DataFrame, pd.DataFrame]
-  Docs: Still describes single DataFrame return
+  Code: -> SUEWSOutput
+  Docs: Still describes a DataFrame tuple return
 ```
 
 **Verify**:

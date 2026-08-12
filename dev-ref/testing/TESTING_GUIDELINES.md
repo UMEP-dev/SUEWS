@@ -281,8 +281,8 @@ fixtures in `test/conftest.py` rather than building or running a fresh
 - `completed_sample_sim` -- a short `SUEWSSimulation` built from the sample
   YAML with `.run()` already called (read-only; do not `.reset()`, mutate, or
   re-run)
-- `sample_run_cached` -- a session-scoped factory memoising functional-API
-  (`supy.run_supy`) sample runs by forcing window
+- `sample_run_cached` -- a session-scoped factory memoising OOP sample runs by
+  forcing window
 
 Use these for any test that only *reads* a completed run's config, forcing,
 state, or output. Tests exercising running, mutation, or lifecycle behaviour
@@ -323,7 +323,7 @@ with sample_config.open() as f:
 
 # Method 2: Extract to temporary path for functions expecting file paths
 with as_file(files("supy") / "sample_data" / "sample_config.yml") as config_path:
-    df_state_init = sp.init_supy(config_path)
+    df_state_init = sp.SUEWSSimulation(config_path).state_init
 ```
 
 #### Why This Approach?
@@ -344,8 +344,10 @@ config_path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
 
 #### Use supy's API When Available
 ```python
-# Preferred: Use supy's built-in functions
-df_state_init, df_forcing = sp.load_sample_data()
+# Preferred: Use SuPy's sample simulation factory
+simulation = sp.SUEWSSimulation.from_sample_data()
+df_state_init = simulation.state_init
+df_forcing = simulation.forcing.df
 
 # Instead of manually accessing files
 ```

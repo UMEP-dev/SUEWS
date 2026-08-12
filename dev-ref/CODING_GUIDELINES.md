@@ -52,7 +52,7 @@ from ._load import df_var_info
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Functions | snake_case | `run_supy`, `check_forcing` |
+| Functions | snake_case | `check_forcing`, `get_spinup_state` |
 | Variables | snake_case | `df_forcing`, `dict_state` |
 | Classes | PascalCase | `SUEWSConfig`, `BaseModel` |
 | Constants | UPPER_CASE | `DEFAULT_TIMESTEP`, `NSURF` |
@@ -292,12 +292,12 @@ class TestSuPy(TestCase):
     def setUp(self):
         """Set up test fixtures."""
         warnings.simplefilter("ignore", category=ImportWarning)
-        self.df_input = sp.load_SampleData()
+        self.simulation = sp.SUEWSSimulation.from_sample_data()
     
     def test_normal_operation(self):
         """Test feature under normal conditions."""
-        result = sp.run_supy(self.df_input)
-        self.assertIsNotNone(result)
+        output = self.simulation.run()
+        self.assertIsNotNone(output)
     
     def tearDown(self):
         """Clean up after tests."""
@@ -308,9 +308,9 @@ class TestSuPy(TestCase):
 ```python
 def test_sample_output_validation():
     """Validate sample output against expected results."""
-    df_input = sp.load_SampleData()
-    result = sp.run_supy(df_input)
-    assert result is not None
+    simulation = sp.SUEWSSimulation.from_sample_data()
+    output = simulation.run()
+    assert output is not None
 ```
 
 ### 5.4 Assertion Patterns
@@ -323,7 +323,7 @@ def test_sample_output_validation():
 
 ### 5.5 Test Data Management
 
-- **Sample data**: Use `sp.load_SampleData()` for consistent test data
+- **Sample data**: Use `sp.SUEWSSimulation.from_sample_data()` for consistent test data
 - **Fixtures**: Store test data in `test/fixtures/` directory
 - **Temporary files**: Use `tempfile.TemporaryDirectory()` for file operations
 - **Benchmark data**: Store expected results in `.pkl` files for regression testing
@@ -334,7 +334,8 @@ When testing scientific functionality:
 ```python
 def test_energy_balance_closure(self):
     """Test energy balance: Rn = QH + QE + QS + QF."""
-    result = sp.run_supy(df_input)
+    output = sp.SUEWSSimulation.from_sample_data().run()
+    result = output.df.SUEWS
     
     # Extract fluxes
     rn = result.SUEWS['Rn']
@@ -445,10 +446,10 @@ Configuration objects should be handled at high levels:
 # Good: High-level extracts configuration
 def high_level_method(self):
     freq_s = self._config.output.freq.value if self._config else 3600
-    save_supy(df_output, df_state, freq_s=freq_s)
+    save_df_output(df_output, freq_s=freq_s)
 
 # Bad: Low-level accepts configuration
-def save_supy(df_output, df_state, config):  # Don't do this: including config in the function signature is bad practice
+def save_df_output(df_output, config):  # Don't do this: including config in the function signature is bad practice
 ```
 
 ### 7.2 Pydantic Models

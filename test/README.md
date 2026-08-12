@@ -79,14 +79,20 @@ Test data and resources:
 ## Running Tests
 
 ```bash
-# Run all tests
-pytest test/ -v
+# Everyday development default: core, data_model, physics, io_tests
+# (excludes slow tests and the peripheral surfaces cmd/mcp/docs/knowledge/umep)
+make test
+
+# Everything, including slow tests and peripheral surfaces
+make test-all
 
 # Run tests by category
 pytest test/core/ -v              # Core functionality
 pytest test/data_model/ -v        # Data model tests
 pytest test/physics/ -v           # Physics validation
 pytest test/io_tests/ -v          # I/O tests
+pytest test/cmd/ -v               # CLI entry points (run when touched)
+pytest test/mcp/ -v               # MCP server (run when touched)
 pytest test/umep/ -v -m qgis      # UMEP/QGIS tests (Windows + Python 3.12 target)
 make test-qgis                    # Same QGIS/UMEP lane via Makefile
 

@@ -11,6 +11,7 @@ This file combines:
 from pathlib import Path
 import unittest
 
+from conftest import load_sample_frames
 import pandas as pd
 import pytest
 
@@ -84,7 +85,7 @@ class TestSUEWSConfig(unittest.TestCase):
         # TODO: Fix loopholes for bad sample data
 
         # Load initial DataFrame state
-        df_state_init = sp.load_sample_data()[0]
+        df_state_init = load_sample_frames()[0]
         df_state_init2 = df_state_init.copy()
 
         # Fix sample data to pass validation
@@ -150,15 +151,19 @@ class TestSUEWSConfig(unittest.TestCase):
 
         self.assertEqual(config_reconst.model.physics.stebbs.setpoint.value.value, 2)
         self.assertEqual(
-            config_reconst.sites[0]
-            .properties.building_archetype.profile_setpoint_temperature_heating_air
-            .working_day["1"],
+            config_reconst.sites[
+                0
+            ].properties.building_archetype.profile_setpoint_temperature_heating_air.working_day[
+                "1"
+            ],
             18.0,
         )
         self.assertEqual(
-            config_reconst.sites[0]
-            .properties.building_archetype.profile_setpoint_temperature_cooling_air
-            .holiday["144"],
+            config_reconst.sites[
+                0
+            ].properties.building_archetype.profile_setpoint_temperature_cooling_air.holiday[
+                "144"
+            ],
             27.0,
         )
 
@@ -166,10 +171,18 @@ class TestSUEWSConfig(unittest.TestCase):
         config = SUEWSConfig(sites=[{}])
         archetype = config.sites[0].properties.building_archetype
 
-        self.assertEqual(archetype.profile_setpoint_temperature_heating_air.working_day["1"], 0.0)
-        self.assertEqual(archetype.profile_setpoint_temperature_heating_air.holiday["144"], 0.0)
-        self.assertEqual(archetype.profile_setpoint_temperature_cooling_air.working_day["1"], 100.0)
-        self.assertEqual(archetype.profile_setpoint_temperature_cooling_air.holiday["144"], 100.0)
+        self.assertEqual(
+            archetype.profile_setpoint_temperature_heating_air.working_day["1"], 0.0
+        )
+        self.assertEqual(
+            archetype.profile_setpoint_temperature_heating_air.holiday["144"], 0.0
+        )
+        self.assertEqual(
+            archetype.profile_setpoint_temperature_cooling_air.working_day["1"], 100.0
+        )
+        self.assertEqual(
+            archetype.profile_setpoint_temperature_cooling_air.holiday["144"], 100.0
+        )
 
     def test_internal_mass_area_roundtrip(self):
         config = SUEWSConfig(
@@ -192,7 +205,9 @@ class TestSUEWSConfig(unittest.TestCase):
         config_reconst = SUEWSConfig.from_df_state(config.to_df_state())
 
         self.assertEqual(
-            config_reconst.sites[0].properties.building_archetype.area_internal_mass.value,
+            config_reconst.sites[
+                0
+            ].properties.building_archetype.area_internal_mass.value,
             100.0,
         )
 
@@ -364,9 +379,7 @@ class TestLegacyDfStateStebbsDefaults(unittest.TestCase):
         df = self.df_physics.drop(columns=[("stebbsmethod", "0")])
         phys = ModelPhysics.from_df_state(df, grid_id=1)
         self.assertFalse(phys.stebbs.enabled.value)
-        self.assertEqual(
-            phys.stebbs.parameters.value, StebbsParameterSource.DEFAULT
-        )
+        self.assertEqual(phys.stebbs.parameters.value, StebbsParameterSource.DEFAULT)
 
     def test_invalid_stebbsmethod_still_rejected(self):
         """A present-but-invalid ``stebbsmethod`` value is still rejected; only
@@ -393,8 +406,8 @@ class TestGrididErrorTransformation(unittest.TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        import tempfile
         import shutil
+        import tempfile
 
         self.temp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.temp_dir, ignore_errors=True)
@@ -467,9 +480,7 @@ class TestGrididErrorTransformation(unittest.TestCase):
         """Test GRIDID extraction from RefValue format."""
         import yaml
 
-        sites = [
-            {"gridiv": {"value": 777}, "properties": {"lat": None, "lng": 0.0}}
-        ]
+        sites = [{"gridiv": {"value": 777}, "properties": {"lat": None, "lng": 0.0}}]
         config_path = Path(self.temp_dir) / "config_refvalue.yml"
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump({"name": "Test", "sites": sites}, f)
@@ -714,7 +725,9 @@ model:
     diagnose: 0
 """
 
-    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        encoding="utf-8", mode="w", suffix=".yml", delete=False
+    ) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -749,7 +762,9 @@ model:
         desc: "Full diagnostics enabled"
 """
 
-    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        encoding="utf-8", mode="w", suffix=".yml", delete=False
+    ) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -786,7 +801,9 @@ model:
         desc: "Basic diagnostics"
 """
 
-    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        encoding="utf-8", mode="w", suffix=".yml", delete=False
+    ) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -884,7 +901,9 @@ class TestSUEWSSimulationRefValue:
         sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
         # Load sample config
-        original_data = yaml.safe_load(sample_config_resource.read_text(encoding="utf-8"))
+        original_data = yaml.safe_load(
+            sample_config_resource.read_text(encoding="utf-8")
+        )
 
         # Create RefValue list with the sample forcing file
         forcing_list = [str(sample_forcing)]
@@ -917,7 +936,9 @@ class TestSUEWSSimulationRefValue:
         sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
         # Load sample config
-        original_data = yaml.safe_load(sample_config_resource.read_text(encoding="utf-8"))
+        original_data = yaml.safe_load(
+            sample_config_resource.read_text(encoding="utf-8")
+        )
 
         # Create RefValue string with the sample forcing file
         ref_forcing = RefValue(str(sample_forcing))

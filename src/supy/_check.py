@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from ._env import logger_supy, trv_supy_module, trv_supy_module
+from ._env import logger_supy, trv_supy_module
 from ._load import (
     CANONICAL_FORCING_COLUMNS,
     _is_per_landcover_column,
@@ -462,9 +462,7 @@ def check_forcing(
                 # treat the requirement as active if any grid selects the
                 # option value that triggers it.
                 if _matches_option_value(actual_value, option_value):
-                    is_observed_lai = (
-                        option_name == "laimethod" and option_value == 0
-                    )
+                    is_observed_lai = option_name == "laimethod" and option_value == 0
                     # Under laimethod=0 the completeness/non-negative check
                     # is strictly stronger than the generic "all-missing"
                     # rejection — it runs first and shadows the per-column
@@ -541,9 +539,7 @@ def check_forcing(
         for rule in FORCING_REGISTRY.requirement_rules:
             if len(rule.legacy_conditions) < 2:
                 continue
-            matched = matching_requirement_conditions(
-                physics, rule.legacy_conditions
-            )
+            matched = matching_requirement_conditions(physics, rule.legacy_conditions)
             if matched is None:
                 continue
             condition = " and ".join(
@@ -670,7 +666,8 @@ def flatten_col(df_state: pd.DataFrame):
     # flattened columns
     col_flat = col_mi.map(
         lambda s: (
-            "_".join(s)
+            "_"
+            .join(s)
             .replace("_0", "")
             .replace("(", "")
             .replace(", ", "_")
@@ -763,12 +760,12 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
 
     # if so, upgrade it
     if flag_deprecated:
-        from ._supy_module import _init_supy
+        from ._supy_module import _load_namelist_state
 
         # load base df_state
         path_SampleData = trv_supy_module.joinpath("sample_data")
         path_runcontrol = path_SampleData / "RunControl.nml"
-        df_state_base = _init_supy(path_runcontrol, force_reload=False)
+        df_state_base = _load_namelist_state(path_runcontrol, force_reload=False)
 
         # rename columns
         list_col_rename = [

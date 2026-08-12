@@ -3,10 +3,9 @@
 import logging
 import warnings
 
+from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
-
-import supy as sp
 
 pytestmark = [pytest.mark.physics, pytest.mark.core]
 
@@ -37,18 +36,16 @@ def _forest_only_direct_albedo_state(df_state_init):
 
 
 def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays():
-    df_state_init, df_forcing = sp.load_SampleData()
+    df_state_init, df_forcing = load_sample_frames()
     df_state = _forest_only_direct_albedo_state(df_state_init)
     df_forcing_daytime = df_forcing.loc[df_forcing["kdown"] > 100].iloc[:2]
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        df_output, _ = sp.run_supy(
+        df_output, _ = run_simulation(
             df_forcing_daytime,
             df_state,
             logging_level=logging.CRITICAL,
-            check_input=False,
-            save_state=False,
         )
 
     assert "SPARTACUS" in df_output.columns.get_level_values(0)

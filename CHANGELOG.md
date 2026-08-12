@@ -61,6 +61,10 @@ EXAMPLES:
   - Such parameters now render under a `Configuration Note` label stating that no default exists and that a value may be required depending on which physics options and surface types are active. A `Default` label therefore always introduces a real default value, and `Status` stays reserved for the short state token `Required`.
   - Added regression coverage over the rendered pages, which is the only available gate because the generated config reference is not tracked in git.
 
+- [change][stable] Retired the procedural Python API in favour of `SUEWSSimulation`, `SUEWSConfig`, and `SUEWSOutput` (#1370)
+  - Removed `init_supy`, sample/config loaders, `run_supy` helpers, `save_supy`, and the top-level output-resampling function.
+  - Retained `load_forcing_grid` only as a warning-emitting forwarding shim for the UMEP YAML single-grid workflow; `check_forcing` and `check_state` remain supported utilities.
+
 ### 22 Jul 2026
 
 - [bugfix] Relaxed SPARTACUS-Surface land-cover fraction validation so lowest-layer geometry no longer has to equal SUEWS land-cover fractions (#1642)

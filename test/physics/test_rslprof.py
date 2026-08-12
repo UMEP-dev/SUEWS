@@ -8,10 +8,9 @@ caused negative LOG arguments and negative wind speeds for tall buildings.
 import logging
 import warnings
 
+from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
-
-import supy as sp
 
 pytestmark = pytest.mark.physics
 
@@ -22,7 +21,7 @@ class TestWindProfiles:
     @pytest.fixture
     def sample_data(self):
         """Load sample data for testing."""
-        df_state_init, df_forcing = sp.load_SampleData()
+        df_state_init, df_forcing = load_sample_frames()
         return df_state_init, df_forcing
 
     def test_most_height_array_monotonic(self, sample_data):
@@ -34,7 +33,7 @@ class TestWindProfiles:
             df_state_init.loc[:, "bldgh"] = bldgh
             df_state_init.loc[:, "rslmethod"] = 0  # MOST diagnostic
 
-            df_output, _ = sp.run_supy(df_forcing_short, df_state_init)
+            df_output, _ = run_simulation(df_forcing_short, df_state_init)
 
             z_cols = [col for col in df_output.columns if col[1].startswith("z_")]
             heights = df_output[z_cols].iloc[0].values
@@ -52,12 +51,12 @@ class TestWindProfiles:
 
         # Test MOST
         df_state_init.loc[:, "rslmethod"] = 0
-        df_output_most, _ = sp.run_supy(df_forcing_short, df_state_init)
+        df_output_most, _ = run_simulation(df_forcing_short, df_state_init)
         assert not df_output_most.empty, "MOST failed to run"
 
         # Test RSL
         df_state_init.loc[:, "rslmethod"] = 1
-        df_output_rsl, _ = sp.run_supy(df_forcing_short, df_state_init)
+        df_output_rsl, _ = run_simulation(df_forcing_short, df_state_init)
         assert not df_output_rsl.empty, "RSL failed to run"
 
     def test_rsl_grid_includes_exact_canopy_top(self, sample_data):
@@ -68,7 +67,7 @@ class TestWindProfiles:
         df_state.loc[:, ("rslmethod", "0")] = 1
         df_state.loc[:, ("bldgh", "0")] = 40.0
 
-        df_output, _ = sp.run_supy(df_forcing.iloc[:1], df_state, save_state=False)
+        df_output, _ = run_simulation(df_forcing.iloc[:1], df_state)
         rsl = df_output.xs("RSL", axis=1, level=0).iloc[0]
 
         assert rsl["flag_RSL"] == 1
@@ -95,7 +94,7 @@ class TestWindProfiles:
         df_state_init.loc[:, "rslmethod"] = 0
         df_state_init.loc[:, "stabilitymethod"] = 2
 
-        df_output, _ = sp.run_supy(df_forcing_short, df_state_init, save_state=False)
+        df_output, _ = run_simulation(df_forcing_short, df_state_init)
 
         # Check U10 wind speeds
         if "SUEWS" in df_output.columns.get_level_values(0):
@@ -119,7 +118,7 @@ class TestWindProfiles:
         df_state_init.loc[:, "z"] = 60.0  # Above building height
         df_state_init.loc[:, "rslmethod"] = 0
 
-        df_output, _ = sp.run_supy(df_forcing_short, df_state_init)
+        df_output, _ = run_simulation(df_forcing_short, df_state_init)
 
         u_cols = [col for col in df_output.columns if col[1].startswith("U_")]
         if u_cols:
@@ -153,12 +152,13 @@ class TestWindProfiles:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            df_output, _ = sp.run_supy(
+            df_output, _ = run_simulation(
                 df_forcing_short,
                 df_state_issue,
                 logging_level=logging.CRITICAL,
-                check_input=False,
             )
 
         u10 = df_output[("SUEWS", "U10")]
-        assert not u10.isna().all(), "Full-building auto MOST grid returned only NaN wind output"
+        assert not u10.isna().all(), (
+            "Full-building auto MOST grid returned only NaN wind output"
+        )

@@ -381,7 +381,8 @@ class SUEWSOutput:
         for group in self.groups:
             try:
                 vars_in_group = (
-                    self._df_output[group]
+                    self
+                    ._df_output[group]
                     .columns.get_level_values("var")
                     .unique()
                     .tolist()
@@ -414,9 +415,9 @@ class SUEWSOutput:
         SUEWSOutput
             New output at resampled frequency
         """
-        from ._post import resample_output
+        from ._post import _resample_output
 
-        resampled = resample_output(self, freq, _internal=True)
+        resampled = _resample_output(self, freq)
         return SUEWSOutput(
             df_output=resampled,
             df_state_final=self._df_state_final,

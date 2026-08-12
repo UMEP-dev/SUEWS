@@ -750,6 +750,29 @@ class SUEWSSimulation:
             )
             raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
 
+        # Preserve observed-soil-moisture preprocessing from the retired
+        # DataFrame runner on the single canonical execution path.
+        soil_moisture_deficit = getattr(
+            self._config.model.physics,
+            "soil_moisture_deficit",
+            None,
+        )
+        if soil_moisture_deficit is None:
+            soil_moisture_deficit = getattr(
+                self._config.model.physics,
+                "smdmethod",
+                None,
+            )
+        if hasattr(soil_moisture_deficit, "value"):
+            soil_moisture_deficit = soil_moisture_deficit.value
+        if soil_moisture_deficit is not None and int(soil_moisture_deficit) > 0:
+            from .util._forcing import convert_observed_soil_moisture
+
+            df_forcing_slice = convert_observed_soil_moisture(
+                df_forcing_slice.copy(),
+                self._df_state_init,
+            )
+
         # Run simulation via Rust bridge
         initial_state_json_by_grid = (
             self._checkpoint.grid_states if self._checkpoint is not None else None
@@ -901,7 +924,7 @@ class SUEWSSimulation:
             freq_s=int(freq_s),
             site=site,
             path_dir_save=str(output_path),
-            # **save_kwargs # Problematic, save_supy expects explicit arguments
+            # **save_kwargs # The shared save backend expects explicit arguments
             output_config=output_config,
             output_format=output_format,
             save_state=False,
@@ -961,39 +984,9 @@ class SUEWSSimulation:
 
         """
         from ._env import trv_supy_module
-        from ._supy_module import _load_sample_data
 
-        # Load core simulation data (state and forcing)
-        df_state_init, df_forcing = _load_sample_data()
-        sample_config_path = Path(trv_supy_module / "sample_data" / "sample_config.yml")
-
-        sim = cls()
-
-        # Try to load config for metadata (non-critical)
-        # The actual state is set from df_state_init below, so config is optional
-        try:
-            sim.update_config(sample_config_path)
-        except (FileNotFoundError, IOError) as exc:
-            # File access issues - warn but continue
-            warnings.warn(
-                f"Could not load sample configuration file: {exc}\n"
-                "Simulation will use data from df_state_init instead.",
-                UserWarning,
-                stacklevel=2,
-            )
-        except Exception as exc:
-            # Other unexpected errors - warn but continue
-            warnings.warn(
-                f"Unexpected error loading sample configuration: {exc}\n"
-                "Simulation will use data from df_state_init instead.",
-                UserWarning,
-                stacklevel=2,
-            )
-
-        # Set core simulation data (overrides any config-derived state)
-        sim._df_state_init = df_state_init
-        sim._df_forcing = df_forcing
-        return sim
+        sample_config_path = trv_supy_module / "sample_data" / "sample_config.yml"
+        return cls(sample_config_path)
 
     @staticmethod
     def _coerce_checkpoint(

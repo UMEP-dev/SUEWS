@@ -56,7 +56,7 @@ tests that state the bypass contract explicitly.
 - **DO**: Transform config data into concrete parameters
 - **DON'T**: Pass configuration objects to lower-level methods
 
-## Low-Level Methods (e.g., save_supy, run_supy)
+## Low-Level Methods (e.g. shared save and resampling engines)
 
 - **DO**: Accept explicit, typed parameters (int, str, float, etc.)
 - **DO**: Focus on core functionality without config knowledge
@@ -71,7 +71,7 @@ tests that state the bypass contract explicitly.
 # WRONG - passing config directly
 def save(self, output_path, format=None):
     if format == "txt":
-        save_supy(df_output, df_state, output_config=self._config.output)
+        save_backend(df_output, df_state, output_config=self._config.output)
 
 # CORRECT - extracting and transforming config
 def save(self, output_path, format=None):
@@ -82,7 +82,7 @@ def save(self, output_path, format=None):
             freq_s = self._config.output.freq.value  # Handle RefValue
 
         # Pass concrete parameters to low-level method
-        save_supy(df_output, df_state, freq_s=int(freq_s), site=site_name)
+        save_backend(df_output, df_state, freq_s=int(freq_s), site=site_name)
 ```
 
 ---

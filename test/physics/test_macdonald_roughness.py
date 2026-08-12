@@ -12,6 +12,7 @@ asserted in closed form.
 
 import pathlib
 
+from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
 import yaml
@@ -103,8 +104,8 @@ def macdonald_run(tmp_path_factory):
     config_path, land_cover = _tree_free_macdonald_config(tmp_path)
 
     df_state = SUEWSConfig.from_yaml(str(config_path)).to_df_state()
-    _, df_forcing = sp.load_SampleData()
-    df_output, _ = sp.run_supy(df_forcing.iloc[:N_STEPS], df_state)
+    _, df_forcing = load_sample_frames()
+    df_output, _ = run_simulation(df_forcing.iloc[:N_STEPS], df_state)
 
     return df_output.loc[:, "SUEWS"], land_cover
 

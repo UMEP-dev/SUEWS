@@ -164,10 +164,8 @@ model states.
 
    [2 rows x 1200 columns]
 
-This structure is retained for compatibility and state inspection:
-
-- **Runtime diagnostics**: Save intermediate states with ``save_state=True`` in ``run_supy``
-- **Developer inspection**: Examine flattened state variables in DataFrame form
+This structure is retained for compatibility and developer inspection of
+flattened state variables in DataFrame form.
 
 The meanings of state variables in ``df_state_final`` are the same as in ``df_state_init``,
 documented in :doc:`/data-structures/df_state`.

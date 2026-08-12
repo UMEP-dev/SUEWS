@@ -1,9 +1,9 @@
 """pytest configuration for SUEWS test suite."""
 
+from pathlib import Path
 import subprocess
 import sys
 import warnings
-from pathlib import Path
 
 # Make the standalone suews_mcp package importable when it is not pip-installed
 # (e.g. wheel CI installs only the supy wheel). Done at the root conftest rather
@@ -15,10 +15,10 @@ _MCP_SRC = Path(__file__).resolve().parents[1] / "mcp" / "src"
 if _MCP_SRC.is_dir() and str(_MCP_SRC) not in sys.path:
     sys.path.insert(0, str(_MCP_SRC))
 
-import pytest
-import supy
 from click.testing import CliRunner
+import pytest
 
+import supy
 
 # =============================================================================
 # Debug Decorators - Centralised to avoid duplication in test files
@@ -26,11 +26,11 @@ from click.testing import CliRunner
 
 try:
     from debug_utils import (
-        debug_on_ci,
-        debug_dataframe_output,
-        debug_water_balance,
-        capture_test_artifacts,
         analyze_dailystate_nan,
+        capture_test_artifacts,
+        debug_dataframe_output,
+        debug_on_ci,
+        debug_water_balance,
     )
 except ImportError:
     # No-op fallbacks when debug_utils is not available
@@ -239,42 +239,27 @@ def run_cli_command(runner, command, args, *, check=False):
     return result
 
 
-from supy._supy_module import (
-    _init_config,
-    _init_supy,
-    _load_forcing_grid,
-    _load_sample_data,
-    _run_supy,
-    _run_supy_sample,
-    _save_supy,
-)
+def load_sample_frames():
+    """Return copies of the bundled sample state and forcing frames."""
+    simulation = supy.SUEWSSimulation.from_sample_data()
+    return simulation.state_init.copy(), simulation.forcing.df.copy()
 
 
-def pytest_configure():
-    """Monkey patch legacy public functions to private implementations for tests."""
-    # Stash the originals by reading them off _supy_module rather than through the
-    # package surface. supy.__getattr__ resolves each of these names to exactly
-    # this object, but emits a FutureWarning on the way, so going through the
-    # public surface opened every session with seven warnings before a single test
-    # ran. Reading the source module gets the same callables silently and avoids
-    # pre-populating supy._lazy_cache as a side effect of harness setup.
-    from supy import _supy_module
-
-    supy._deprecated_init_supy = _supy_module.init_supy
-    supy._deprecated_load_forcing_grid = _supy_module.load_forcing_grid
-    supy._deprecated_run_supy = _supy_module.run_supy
-    supy._deprecated_run_supy_sample = _supy_module.run_supy_sample
-    supy._deprecated_save_supy = _supy_module.save_supy
-    supy._deprecated_load_sample_data = _supy_module.load_sample_data
-    supy._deprecated_init_config = _supy_module.init_config
-
-    supy.init_supy = _init_supy
-    supy.load_forcing_grid = _load_forcing_grid
-    supy.load_sample_data = _load_sample_data
-    supy.run_supy = _run_supy
-    supy.run_supy_sample = _run_supy_sample
-    supy.save_supy = _save_supy
-    supy.init_config = _init_config
+def run_simulation(
+    df_forcing,
+    df_state_init,
+    *,
+    chunk_day=3660,
+    serial_mode=False,
+):
+    """Run DataFrame fixtures through the supported OOP interface."""
+    simulation = supy.SUEWSSimulation.from_state(df_state_init)
+    simulation.update_forcing(df_forcing)
+    output = simulation.run(
+        chunk_day=chunk_day,
+        n_jobs=1 if serial_mode else -1,
+    )
+    return output.df, output.state_final
 
 
 def pytest_collection_modifyitems(items):
@@ -282,10 +267,9 @@ def pytest_collection_modifyitems(items):
 
     Native simulation calls own fresh state at the Rust/Fortran boundary.  Tests
     that need continuation pass the previous state explicitly, so reference and
-    API-equivalence tests no longer need collection-order protection.
+    output-reference tests no longer need collection-order protection.
 
-    The removed workaround moved every ``test_sample_output.py`` item plus
-    ``TestPublicAPIEquivalence`` and ``test_functional_matches_oop`` nodes.  The
+    The removed workaround moved every ``test_sample_output.py`` item. The
     bounded real-node set has an executable collection regression in
     ``test_api_surface.py``.
     """
@@ -345,8 +329,10 @@ def pytest_collection_finish(session):
         if "physics" in marker_names or "api" in marker_names:
             continue
         try:
-            rel = Path(str(item.fspath)).resolve().relative_to(
-                Path(str(session.config.rootpath)).resolve()
+            rel = (
+                Path(str(item.fspath))
+                .resolve()
+                .relative_to(Path(str(session.config.rootpath)).resolve())
             )
         except ValueError:
             rel = Path(str(item.fspath))
@@ -379,8 +365,8 @@ def pytest_collection_finish(session):
 # constructing and running their own `SUEWSSimulation` instance - do not
 # retrofit them onto these fixtures.
 #
-# `sample_run_cached` extends the same idea to the functional API
-# (`supy.run_supy`), memoising by forcing window rather than always the full
+# `sample_run_cached` extends the same idea to the OOP simulation runtime,
+# memoising by forcing window rather than always the full
 # range - see its own docstring for the copy contract.
 #
 # All six fixtures are lazy (nothing runs at import or collection time) and
@@ -420,7 +406,8 @@ def sample_data_loaded():
     repeated file I/O and parsing across every test that only needs to read
     the sample state or forcing.
     """
-    return supy.load_sample_data()
+    simulation = supy.SUEWSSimulation.from_sample_data()
+    return simulation.state_init, simulation.forcing.df
 
 
 @pytest.fixture(scope="session")
@@ -455,21 +442,20 @@ def sample_run_output(completed_sample_sim):
 
 @pytest.fixture(scope="session")
 def sample_run_cached(sample_data_loaded):
-    """Session-scoped factory memoising functional-API sample runs by window.
+    """Session-scoped factory memoising OOP sample runs by window.
 
     Returns a callable ``_run(n_steps=None)`` that runs
-    ``supy.run_supy(df_forcing.iloc[:n_steps], df_state_init)`` on the
+    ``SUEWSSimulation.run()`` on the
     bundled sample data (full range when ``n_steps`` is ``None``) and
     computes it at most once per distinct window for the session.
 
     CONTRACT:
     - Every call returns ``.copy()`` of both ``(df_output, df_state_final)``
       so no consumer can poison the cache by mutating what it gets back.
-    - ``df_state_init`` is copied before being passed into ``run_supy``,
-      since the run may mutate it.
+    - ``df_state_init`` is copied before creating the simulation.
     - Identical windows share one run across the whole session.
     - CAVEAT: the cache key is ``n_steps`` ONLY - any other run parameter
-      (extra ``run_supy`` kwargs such as ``debug_mode``, or a mutated
+      (extra run options or a mutated
       ``df_state_init``) is invisible to the cache, so a test that varies
       one of those must NOT go through this factory.
     - Use this only when a test consumes the OUTPUT of a run and does not
@@ -484,7 +470,10 @@ def sample_run_cached(sample_data_loaded):
             df_forcing_window = (
                 df_forcing if n_steps is None else df_forcing.iloc[:n_steps]
             )
-            cache[n_steps] = supy.run_supy(df_forcing_window, df_state_init.copy())
+            simulation = supy.SUEWSSimulation.from_state(df_state_init.copy())
+            simulation.update_forcing(df_forcing_window)
+            output = simulation.run()
+            cache[n_steps] = output.df, output.state_final
         df_output, df_state_final = cache[n_steps]
         return df_output.copy(), df_state_final.copy()
 

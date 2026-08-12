@@ -764,10 +764,10 @@ CONTAINS
       ASSOCIATE ( &
          timestep => timer%tstep, &
          dt_start => timer%dt_since_start, &
-         it => timer%it, &!hour of day
-         id => timer%id, & !day of year
-         imin => timer%imin, & !minute of hour
-         dayofWeek_id => timer%dayofWeek_id, & !1 - day of week; 2 - month; 3 - season
+         it => timer%it_st, &!local-standard hour for profiles
+         id => timer%id_st, & !local-standard day of year
+         imin => timer%imin_st, & !local-standard minute for profiles
+         dayofWeek_id => timer%dayofWeek_id_st, & !local-standard weekday/month/season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &

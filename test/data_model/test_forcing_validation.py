@@ -21,6 +21,27 @@ def test_forcing_control_accepts_list_of_paths():
     assert file_value == ["a.txt", "b.txt"]
 
 
+def test_forcing_timestamp_reference_defaults_to_local_standard_time():
+    """Omitted forcing-clock declarations preserve the 1.0 behaviour."""
+    control = ForcingControl()
+    reference = control.timestamp_reference
+    while hasattr(reference, "value"):
+        reference = reference.value
+    assert reference == "local_standard_time"
+
+
+def test_forcing_timestamp_reference_accepts_utc_and_rejects_civil_time():
+    """UTC is opt-in; daylight-saving civil clocks remain unsupported."""
+    control = ForcingControl(timestamp_reference="utc")
+    reference = control.timestamp_reference
+    while hasattr(reference, "value"):
+        reference = reference.value
+    assert reference == "utc"
+
+    with pytest.raises(ValueError, match="timestamp_reference"):
+        ForcingControl(timestamp_reference="civil_time")
+
+
 def test_model_control_holds_forcing_subobject():
     """ModelControl exposes .forcing and keeps legacy forcing_file as an alias."""
     control = ModelControl(forcing={"file": "forcing.txt"})

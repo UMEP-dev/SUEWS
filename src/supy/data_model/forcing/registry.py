@@ -151,6 +151,9 @@ class ForcingRegistry(BaseModel):
     case_sensitive_headers: bool = False
     stripped_header_prefixes: tuple[str, ...] = ("%",)
     timestamp_reference: Literal["local_standard_time"] = "local_standard_time"
+    supported_timestamp_references: tuple[
+        Literal["local_standard_time", "utc"], ...
+    ] = ("local_standard_time", "utc")
     timestamp_alignment: Literal["interval_end"] = "interval_end"
 
     model_config = ConfigDict(extra="forbid", frozen=True)

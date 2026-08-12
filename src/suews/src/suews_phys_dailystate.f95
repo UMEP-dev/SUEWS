@@ -615,6 +615,11 @@ CONTAINS
             gdd_id=GDD_id(iv), &
             sdd_id=SDD_id(iv) &
          )
+         
+         ! Possibility for cold spring
+         IF (SDD_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
+            GDD_id(iv) = 0
+         END IF
 
          call limit_gdd_sdd( &
             GDD_id=GDD_id(iv), &
@@ -623,11 +628,6 @@ CONTAINS
             SDDFull=SDDFull(iv), &
             critDays=critDays &
          )
-
-         ! Possibility for cold spring
-         IF (SDD_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
-            GDD_id(iv) = 0
-         END IF
 
          ! With these limits SDD, GDD is set to zero
          if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0

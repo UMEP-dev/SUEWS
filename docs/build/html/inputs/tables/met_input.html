@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-10T09:33:20+00:00" />
-    <title>4.8.3.1. Meteorological Input File &#8212; SUEWS 2026.8.12.dev8 documentation</title>
+    <meta property="article:modified_time" content="2026-08-12T19:59:44+00:00" />
+    <title>4.8.3.1. Meteorological Input File &#8212; SUEWS 2026.8.12.dev10 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=5bcd5fd8"></script>
+    <script src="../../_static/documentation_options.js?v=892bfb54"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.8. Table-based Input Files (Legacy Format)" href="index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.12.dev8" />
-    <meta name="docbuild:last-update" content="2026-06-10"/>
+  <meta name="docsearch:version" content="2026.8.12.dev10" />
+    <meta name="docbuild:last-update" content="2026-08-12"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.12.dev8, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e5cdbb3f1176734b5098e80bff97854e61584730" style="color: #31708f;">e5cdbb3</a>).
+        (2026.8.12.dev10, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/daf7219d8d965e8c24724803274fe1a77efc59e4" style="color: #31708f;">daf7219</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev8 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev8 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev10 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev10 documentation - Home"/>
   
   
 </a></div>
@@ -693,7 +693,14 @@ See our <a class="reference internal" href="../transition_guide.html"><span clas
 <p>When preparing this input file, please note the following:</p>
 <ul>
 <li><p>Required inputs must be continuous – i.e. <strong>gap fill</strong> any missing data.</p></li>
-<li><p>Temporal information (i.e., <code class="docutils literal notranslate"><span class="pre">iy</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">it</span></code> and <code class="docutils literal notranslate"><span class="pre">imin</span></code>) should be in <strong>local standard time</strong> (i.e. a fixed UTC offset with no daylight-saving transitions; see <a class="reference internal" href="../forcing-data.html#met-forcing"><span class="std std-ref">Meteorological Forcing Data</span></a>) and indicate the ending timestamp of corresponding periods: e.g. for hourly data, <code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">13:00</span></code> indicates a record for the period between <code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">12:00</span></code> (inclusive) and <code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">13:00</span></code> (exclusive).</p></li>
+<li><p>Temporal information (i.e., <code class="docutils literal notranslate"><span class="pre">iy</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">it</span></code> and <code class="docutils literal notranslate"><span class="pre">imin</span></code>) indicates
+the ending timestamp of corresponding periods: e.g. for hourly data,
+<code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">13:00</span></code> indicates a record for the period between
+<code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">12:00</span></code> (inclusive) and <code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">13:00</span></code> (exclusive).
+The default reference is <strong>local standard time</strong> (a fixed UTC offset with no
+daylight-saving transitions). UTC is also accepted when
+<code class="docutils literal notranslate"><span class="pre">model.control.forcing.timestamp_reference:</span> <span class="pre">utc</span></code> is declared in YAML;
+outputs then remain in UTC. See <a class="reference internal" href="../forcing-data.html#met-forcing"><span class="std std-ref">Meteorological Forcing Data</span></a>.</p></li>
 <li><p>The <a class="reference internal" href="#ssss-yyyy-data-tt-txt"><span class="std std-ref">table</span></a> below gives the must-use (<a class="reference internal" href="SUEWS_SiteInfo/SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a>) and optional (<a class="reference internal" href="SUEWS_SiteInfo/SUEWS_SiteInfo.html#cmdoption-arg-O"><code class="xref any std std-option docutils literal notranslate"><span class="pre">O</span></code></a>) additional input variables. If an optional input variable (<a class="reference internal" href="SUEWS_SiteInfo/SUEWS_SiteInfo.html#cmdoption-arg-O"><code class="xref any std std-option docutils literal notranslate"><span class="pre">O</span></code></a>) is not available or will not be used by the model, enter ‘-999’ for this column.</p></li>
 <li><p>One single meteorological file can be used for all grids (<strong>MultipleMetFiles=0</strong> in <a class="reference internal" href="SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>, no grid number in file name) if appropriate for the study area.</p></li>
 <li><p>Separate met files can be used for each grid if data are available (<strong>MultipleMetFiles=1</strong> in <a class="reference internal" href="SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>, filename includes grid number).</p></li>
@@ -705,10 +712,10 @@ See our <a class="reference internal" href="../transition_guide.html"><span clas
 <li><p>If a <em>partial year</em> is used that specific year must be given in SUEWS_SiteSelect.txt.</p></li>
 <li><p>If <em>multiple years</em> are used, all years should be included in SUEWS_SiteSelect.txt.</p></li>
 <li><p>If a <em>whole year</em> (e.g. 2011) is intended to be modelled using and hourly resolution dataset, the number of lines in the met data file should be 8760 and begin and end with:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>iy     id  it  imin
-2011   1   1   0 …
-…
-2012   1   0   0 …
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">iy</span>      <span class="nb">id</span>  <span class="n">it</span>  <span class="n">imin</span>
+<span class="mi">2011</span>    <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">0</span> <span class="o">...</span>
+<span class="o">...</span>
+<span class="mi">2012</span>    <span class="mi">1</span>   <span class="mi">0</span>   <span class="mi">0</span> <span class="o">...</span>
 </pre></div>
 </div>
 </li>
@@ -860,7 +867,8 @@ See our <a class="reference internal" href="../transition_guide.html"><span clas
 <ul class="simple">
 <li><p><strong>Temporal consistency</strong>: Regular time intervals (hourly, sub-hourly, or multi-hourly)</p></li>
 <li><p><strong>Gap-free</strong>: All missing values must be filled or interpolated</p></li>
-<li><p><strong>Local time</strong>: Timestamps represent the <strong>end</strong> of each measurement period</p></li>
+<li><p><strong>Time reference</strong>: Timestamps represent the <strong>end</strong> of each measurement
+period and use local standard time by default, or UTC when declared in YAML</p></li>
 <li><p><strong>Physical units</strong>: Data must be in the units specified in the variable table above</p></li>
 <li><p><strong>Quality control</strong>: Remove or flag obviously erroneous values</p></li>
 </ul>
@@ -904,8 +912,8 @@ See our <a class="reference internal" href="../transition_guide.html"><span clas
 <span class="n">df</span><span class="p">[</span><span class="s1">&#39;datetime&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">])</span>
 <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;datetime&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<span class="c1"># Unit conversions (example: K to °C, m/s to specific humidity)</span>
-<span class="n">df</span><span class="p">[</span><span class="s1">&#39;Tair&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;temperature&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">273.15</span>  <span class="c1"># K to °C</span>
+<span class="c1"># Unit conversions (example: K to degC, m/s to specific humidity)</span>
+<span class="n">df</span><span class="p">[</span><span class="s1">&#39;Tair&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;temperature&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">273.15</span>  <span class="c1"># K to degC</span>
 <span class="n">df</span><span class="p">[</span><span class="s1">&#39;RH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;relative_humidity&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span>  <span class="c1"># fraction to percentage</span>
 
 <span class="c1"># Resample to required frequency if needed</span>
@@ -974,7 +982,7 @@ See our <a class="reference internal" href="../transition_guide.html"><span clas
 
     <span class="c1"># Physical range checks</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;Tair&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">50</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="ow">or</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;Tair&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">60</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
-        <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Temperature outside reasonable range (-50 to 60°C)&quot;</span><span class="p">)</span>
+        <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Temperature outside reasonable range (-50 to 60 degC)&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;RH&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="ow">or</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;RH&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
         <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Relative humidity outside 0-100</span><span class="si">% r</span><span class="s2">ange&quot;</span><span class="p">)</span>
@@ -1037,7 +1045,7 @@ See our <a class="reference internal" href="../transition_guide.html"><span clas
 <p><strong>Common Issues and Solutions</strong></p>
 <ul class="simple">
 <li><p><strong>Missing longwave radiation</strong>: Use empirical relationships based on air temperature and humidity</p></li>
-<li><p><strong>Inconsistent time zones</strong>: Ensure all data is in local standard time for the study location (see <a class="reference internal" href="../forcing-data.html#met-forcing"><span class="std std-ref">Meteorological Forcing Data</span></a>)</p></li>
+<li><p><strong>Inconsistent time zones</strong>: Use local standard time, or declare UTC explicitly, for every forcing timestamp (see <a class="reference internal" href="../forcing-data.html#met-forcing"><span class="std std-ref">Meteorological Forcing Data</span></a>)</p></li>
 <li><p><strong>Sub-daily precipitation</strong>: Aggregate appropriately while preserving intensity patterns</p></li>
 <li><p><strong>Wind speed at different heights</strong>: Apply logarithmic wind profile corrections if needed</p></li>
 <li><p><strong>Pressure measurements</strong>: Distinguish between station and sea-level pressure corrections</p></li>
@@ -1128,7 +1136,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-10.
+  Last updated on 2026-08-12.
   <br/>
 </p>
   </div>
@@ -1136,8 +1144,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.12.dev8 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e5cdbb3f1176734b5098e80bff97854e61584730">e5cdbb3</a> |
+  <p>Version: 2026.8.12.dev10 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/daf7219d8d965e8c24724803274fe1a77efc59e4">daf7219</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

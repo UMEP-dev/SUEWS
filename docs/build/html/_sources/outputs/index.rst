@@ -57,11 +57,14 @@ Temporal Information
 
 .. note::
 
-   Temporal information in output files (``iy``, ``id``, ``it``, ``imin``) are in **local standard time**
-   (consistent with :ref:`met_forcing`) and indicate the **ending timestamp** of each period.
+   Temporal information in output files (``iy``, ``id``, ``it``, ``imin``)
+   follows the configured forcing timestamp reference (see :ref:`met_forcing`):
+   local standard time by default, or UTC when ``timestamp_reference: utc``.
+   It indicates the **ending timestamp** of each period.
 
    For example, for hourly data, ``2021-09-12 13:00`` indicates a record for the period
    between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
 
-   **Exception for DailyState**: When resampled to daily frequency, DailyState uses
-   day-start labelling for readability. See :ref:`output-dailystate` for details.
+   **Exception for DailyState**: Its daily boundary follows the same forcing/main
+   clock. When resampled to daily frequency, DailyState uses day-start labelling
+   for readability. See :ref:`output-dailystate` for details.

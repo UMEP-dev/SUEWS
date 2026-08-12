@@ -52,8 +52,10 @@ def _run_namelist_frames(df_forcing, df_state_init):
     from ..suews_sim import SUEWSSimulation
 
     simulation = SUEWSSimulation.from_state(df_state_init)
-    simulation.update_forcing(df_forcing)
-    output = simulation.run()
+    # The supported namelist CLI historically accepted its loader's model-ready
+    # frame without applying the public OOP DataFrame validation contract.
+    simulation._df_forcing = df_forcing
+    output = simulation.run(_validate_forcing=False)
     return output.df, output.state_final
 
 

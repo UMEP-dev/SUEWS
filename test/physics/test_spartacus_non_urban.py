@@ -1,6 +1,5 @@
 """Regression tests for non-urban SPARTACUS paths."""
 
-import logging
 import warnings
 
 from conftest import load_sample_frames, run_simulation
@@ -45,7 +44,7 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays():
         df_output, _ = run_simulation(
             df_forcing_daytime,
             df_state,
-            logging_level=logging.CRITICAL,
+            validate_forcing=False,
         )
 
     assert "SPARTACUS" in df_output.columns.get_level_values(0)

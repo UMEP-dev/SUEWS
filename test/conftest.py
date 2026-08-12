@@ -251,13 +251,18 @@ def run_simulation(
     *,
     chunk_day=3660,
     serial_mode=False,
+    validate_forcing=True,
 ):
     """Run DataFrame fixtures through the supported OOP interface."""
     simulation = supy.SUEWSSimulation.from_state(df_state_init)
-    simulation.update_forcing(df_forcing)
+    if validate_forcing:
+        simulation.update_forcing(df_forcing)
+    else:
+        simulation._df_forcing = df_forcing
     output = simulation.run(
         chunk_day=chunk_day,
         n_jobs=1 if serial_mode else -1,
+        _validate_forcing=validate_forcing,
     )
     return output.df, output.state_final
 

@@ -679,6 +679,7 @@ class SUEWSSimulation:
                 f"Only the 'rust' backend is available. "
                 f"Remove the backend parameter or use backend='rust'."
             )
+        validate_forcing = run_kwargs.pop("_validate_forcing", True)
 
         max_workers = _validate_n_jobs(n_jobs)
         serial_mode = n_jobs == 1
@@ -727,28 +728,47 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
-        # Validate forcing data, including physics-specific forcing requirements
-        # (e.g. laimethod=0 requires populated effective observed-LAI sources).
-        physics_dict = None
-        if self._config is not None and hasattr(self._config, "model"):
-            physics = getattr(self._config.model, "physics", None)
-            if physics is not None and hasattr(physics, "model_dump"):
-                physics_dict = physics.model_dump(mode="python")
-            # Cross-check physics path against forcing columns.
-            # Helper is silent on success; raises ValueError on mismatch.
-            if physics is not None:
-                from .data_model.core.forcing_validation import (
-                    validate_forcing_columns_against_physics,
-                )
+        if validate_forcing:
+            # Validate forcing data, including physics-specific forcing requirements
+            # (e.g. laimethod=0 requires populated effective observed-LAI sources).
+            physics_dict = None
+            if self._config is not None and hasattr(self._config, "model"):
+                physics = getattr(self._config.model, "physics", None)
+                if physics is not None and hasattr(physics, "model_dump"):
+                    physics_dict = physics.model_dump(mode="python")
+                # Cross-check physics path against forcing columns.
+                # Helper is silent on success; raises ValueError on mismatch.
+                if physics is not None:
+                    from .data_model.core.forcing_validation import (
+                        validate_forcing_columns_against_physics,
+                    )
 
-                validate_forcing_columns_against_physics(df_forcing_slice, physics)
-        list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
-        if isinstance(list_issues, list) and len(list_issues) > 0:
-            issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
-            suffix = (
-                f" (and {len(list_issues) - 3} more)" if len(list_issues) > 3 else ""
-            )
-            raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
+                    validate_forcing_columns_against_physics(df_forcing_slice, physics)
+            list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
+            if isinstance(list_issues, list) and len(list_issues) > 0:
+                issues_summary = (
+                    list_issues[:3] if len(list_issues) > 3 else list_issues
+                )
+                suffix = (
+                    f" (and {len(list_issues) - 3} more)"
+                    if len(list_issues) > 3
+                    else ""
+                )
+                raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
+        else:
+            # The retired runner always enforced observed-LAI completeness,
+            # even when its general ``check_input`` switch was false.
+            lai_method = getattr(self._config.model.physics, "leaf_area_index", None)
+            if lai_method is None:
+                lai_method = getattr(self._config.model.physics, "laimethod", None)
+            if hasattr(lai_method, "value"):
+                lai_method = lai_method.value
+            if lai_method is not None and int(lai_method) == 0:
+                from ._check import _check_observed_lai_nonneg
+
+                lai_issues = []
+                if _check_observed_lai_nonneg(df_forcing_slice, lai_issues):
+                    raise RuntimeError(lai_issues[0])
 
         # Preserve observed-soil-moisture preprocessing from the retired
         # DataFrame runner on the single canonical execution path.

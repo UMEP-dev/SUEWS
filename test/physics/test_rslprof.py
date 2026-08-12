@@ -5,7 +5,6 @@ Regression tests for Issue #572 where the MIN constraint on height arrays
 caused negative LOG arguments and negative wind speeds for tall buildings.
 """
 
-import logging
 import warnings
 
 from conftest import load_sample_frames, run_simulation
@@ -27,7 +26,7 @@ class TestWindProfiles:
     def test_most_height_array_monotonic(self, sample_data):
         """Test that MOST generates monotonic height arrays for various building heights."""
         df_state_init, df_forcing = sample_data
-        df_forcing_short = df_forcing.iloc[:1]
+        df_forcing_short = df_forcing.iloc[:2]
 
         for bldgh in [2.0, 10.0, 50.0]:
             df_state_init.loc[:, "bldgh"] = bldgh
@@ -46,7 +45,7 @@ class TestWindProfiles:
     def test_most_and_rsl_methods_run(self, sample_data):
         """Test that both MOST and RSL methods run without errors."""
         df_state_init, df_forcing = sample_data
-        df_forcing_short = df_forcing.iloc[:1]
+        df_forcing_short = df_forcing.iloc[:2]
         df_state_init.loc[:, "bldgh"] = 10.0
 
         # Test MOST
@@ -67,7 +66,7 @@ class TestWindProfiles:
         df_state.loc[:, ("rslmethod", "0")] = 1
         df_state.loc[:, ("bldgh", "0")] = 40.0
 
-        df_output, _ = run_simulation(df_forcing.iloc[:1], df_state)
+        df_output, _ = run_simulation(df_forcing.iloc[:2], df_state)
         rsl = df_output.xs("RSL", axis=1, level=0).iloc[0]
 
         assert rsl["flag_RSL"] == 1
@@ -109,7 +108,7 @@ class TestWindProfiles:
     def test_tall_building_no_negative_winds(self, sample_data):
         """Test that tall buildings don't cause negative wind speeds."""
         df_state_init, df_forcing = sample_data
-        df_forcing_short = df_forcing.iloc[:1]
+        df_forcing_short = df_forcing.iloc[:2]
 
         # Tall building configuration
         df_state_init.loc[:, "bldgh"] = 50.0
@@ -155,7 +154,6 @@ class TestWindProfiles:
             df_output, _ = run_simulation(
                 df_forcing_short,
                 df_state_issue,
-                logging_level=logging.CRITICAL,
             )
 
         u10 = df_output[("SUEWS", "U10")]

@@ -1,14 +1,14 @@
 """Regression tests for smooth OHM coefficient transitions (gh#473)."""
 
 import json
-import logging
 import subprocess
 import sys
 import warnings
 
-from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
+
+import supy as sp
 
 pytestmark = [pytest.mark.physics, pytest.mark.core]
 
@@ -77,12 +77,10 @@ def _run_ohm_case_in_process(
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        output, _ = run_simulation(
-            forcing_all.iloc[:2],
-            state,
-            logging_level=logging.CRITICAL,
-        )
-    return output.SUEWS["QS"].to_numpy()
+        simulation = sp.SUEWSSimulation.from_state(state)
+        simulation.update_forcing(forcing_all.iloc[:2])
+        output = simulation.run()
+    return output.df.SUEWS["QS"].to_numpy()
 
 
 def _run_ohm_cases(cases):
@@ -124,7 +122,8 @@ def _run_ohm_cases(cases):
 
 def _subprocess_main():
     cases = json.loads(sys.argv[1])
-    sample_data_loaded = load_sample_frames()
+    simulation = sp.SUEWSSimulation.from_sample_data()
+    sample_data_loaded = simulation.state_init, simulation.forcing.df
     results = [
         _run_ohm_case_in_process(sample_data_loaded, **case).tolist() for case in cases
     ]

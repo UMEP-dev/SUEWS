@@ -1,7 +1,6 @@
 """Regression tests for the DyOHM-building storage-heat option."""
 
 from importlib import import_module
-import logging
 from pathlib import Path
 import warnings
 
@@ -73,13 +72,10 @@ def _run_storage_case(df_state_init, df_forcing, method: int, building_fraction:
     df_state = _state_for_storage_method(df_state_init, method, building_fraction)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        # check_input=False: the state is hand-edited above (surface fractions,
-        # storage-heat method) and deliberately bypasses YAML-level validation;
-        # the physics contract under test does not depend on it.
         df_output, _ = run_simulation(
             df_forcing,
             df_state,
-            logging_level=logging.CRITICAL,
+            validate_forcing=False,
         )
     return df_output.SUEWS
 
@@ -237,10 +233,12 @@ def test_method7_stebbs_owns_building_temperature_and_materials():
         baseline, _ = run_simulation(
             df_forcing,
             df_state,
+            validate_forcing=False,
         )
         changed_building, _ = run_simulation(
             df_forcing,
             changed_building_state,
+            validate_forcing=False,
         )
 
     np.testing.assert_allclose(

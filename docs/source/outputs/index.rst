@@ -38,11 +38,14 @@ Restart Checkpoint
 
 Object-oriented SUEWS runs save ``{site}_SUEWS_checkpoint.json`` as the
 preferred restart artefact. It contains typed runtime state from the backend,
-keyed by grid ID.
+elapsed model-time metadata, and schema versions, keyed by grid ID.
 
-The checkpoint is intentionally only the typed runtime state. To continue a run,
-load the same YAML configuration, attach the next forcing period, and run from
-``SUEWSSimulation.from_checkpoint(...)``.
+The checkpoint does not contain the YAML configuration or forcing data. To
+continue a run, load the same YAML configuration, attach the next forcing
+period, and run from ``SUEWSSimulation.from_checkpoint(...)``. State-only
+checkpoint schema version 1 must be regenerated with schema version 2 before it
+can provide timer continuity. Chunked and restarted outputs are expected to match
+uninterrupted outputs within relative and absolute tolerances of ``1e-12``.
 
 Legacy ``df_state_SSss.csv`` and state parquet files remain documented for
 backwards compatibility and developer inspection, but they are not the preferred

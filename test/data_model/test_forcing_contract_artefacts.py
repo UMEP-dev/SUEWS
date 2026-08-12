@@ -37,7 +37,11 @@ docs = _load_script(
 
 def test_committed_forcing_contract_is_current() -> None:
     """Require canonical bytes, registry state, and version digest to agree."""
-    assert audit.audit_forcing_contract(PROJECT_ROOT) == ["1.0.0", "1.1.0"]
+    assert audit.audit_forcing_contract(PROJECT_ROOT) == [
+        "1.0.0",
+        "1.1.0",
+        "1.2.0",
+    ]
 
 
 def test_current_artefact_generation_is_deterministic() -> None:
@@ -65,10 +69,11 @@ def test_audit_rejects_tampered_and_extra_files(tmp_path: Path) -> None:
         audit.audit_forcing_contract(tmp_path)
 
 
-def test_published_forcing_contract_is_packaged() -> None:
+@pytest.mark.parametrize("version", ("1.0.0", "1.1.0", "1.2.0"))
+def test_published_forcing_contract_is_packaged(version: str) -> None:
     """Expose the versioned contract through installed package resources."""
     contract = importlib.resources.files("supy.data_model.forcing").joinpath(
-        "artefacts/1.0.0.json"
+        f"artefacts/{version}.json"
     )
     assert contract.is_file()
 
@@ -85,3 +90,25 @@ def test_forcing_reference_is_registry_derived_and_current() -> None:
     assert reference.read_text(encoding="utf-8") == rendered
     assert ".. option:: isec" not in rendered
     assert rendered.count(".. option:: ") == len(audit.FORCING_REGISTRY.variables)
+    assert ":orphan:" not in rendered
+    assert ".. _df_forcing_requirements:" in rendered
+    assert ":Data type:" not in rendered
+    assert ":Role:" not in rendered
+    assert ":Loaded unit:" not in rendered
+    assert ":Legacy position:" not in rendered
+    assert ":Accessor aliases:" not in rendered
+    assert ":Accepted file aliases:" not in rendered
+    assert "snowfall" not in rendered
+    assert "input values multiplied" not in rendered
+    assert ":Time meaning:" not in rendered
+    assert ":Interval basis: mean over the forcing interval" in rendered
+    assert ":Interval basis: total accumulated over the forcing interval" in rendered
+    assert ":Interval basis: state at the interval-end timestamp" in rendered
+    assert "Land-cover-specific alternatives" in rendered
+    assert "Surface-specific alternatives" not in rendered
+    assert "W |m^-2|" in rendered
+    assert "m |s^-1|" in rendered
+    assert "|m^2| |m^-2|" in rendered
+    assert r":math:`\geq 0`" in rendered
+    assert ">=" not in rendered
+    assert "(``lai_evetr`` + ``lai_dectr`` + ``lai_grass``)" in rendered

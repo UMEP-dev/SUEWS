@@ -163,6 +163,22 @@ def test_validate_forcing_columns_against_physics_rejects_all_sentinel_data():
         validate_forcing_columns_against_physics(df, physics)
 
 
+def test_validate_forcing_columns_against_physics_rejects_nonfinite_data():
+    """An active requirement needs finite data at every forcing row."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(soil_moisture_deficit=1)
+    df = pd.DataFrame({"xsmd": [0.2, float("inf")]})
+
+    with pytest.raises(ValueError, match=r"xsmd.*valid data"):
+        validate_forcing_columns_against_physics(df, physics)
+
+
 @pytest.mark.parametrize(
     ("snow_use", "net_radiation", "must_fail"),
     (

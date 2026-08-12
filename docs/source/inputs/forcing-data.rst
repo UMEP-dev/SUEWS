@@ -5,6 +5,12 @@ Meteorological Forcing Data
 
 SUEWS requires continuous meteorological data representative of the neighbourhood scale, within the inertial sublayer (i.e. a blended response above the roughness elements of buildings and trees), to drive the urban energy and water balance calculations. This page describes the format and requirements for forcing data files.
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   /data-structures/df_forcing
+
 .. important:: **Forcing Height**
 
    Forcing data must represent the urban neighbourhood as a whole, not individual buildings or trees. This requires measurements from within the inertial sublayer, where turbulent mixing produces spatially blended values. The forcing height (``z``) tells SUEWS where your data originate, enabling correct profile calculations between this reference level and the surface. In urban environments, the atmospheric boundary layer is divided into:
@@ -35,7 +41,10 @@ Data Requirements
 
 **Essential Variables**
 
-SUEWS requires the following meteorological variables:
+SUEWS requires the following meteorological variables. This table is a quick
+preparation checklist; the generated :ref:`df_forcing_var` reference is
+authoritative for units, valid ranges, requiredness, interval semantics, and
+missing-value policies.
 
 .. list-table::
    :header-rows: 1
@@ -46,15 +55,15 @@ SUEWS requires the following meteorological variables:
      - Column Name
      - Notes
    * - Wind speed
-     - m/s
+     - m |s^-1|
      - U
-     - Minimum 0.01 m/s (to avoid division by zero)
+     - Minimum 0.01 m |s^-1| (to avoid division by zero)
    * - Relative humidity
      - %
      - RH
      - 0-100%
    * - Air temperature
-     - :math:`^{\circ}C`
+     - :math:`{}^{\circ}\mathrm{C}`
      - Tair
      - 
    * - Atmospheric pressure
@@ -64,19 +73,16 @@ SUEWS requires the following meteorological variables:
    * - Rainfall
      - mm
      - rain
-     - Per time step
+     - Total accumulated over the interval
    * - Incoming shortwave
      - W |m^-2|
      - kdown
-     - Must be >= 0 (0 at night)
-   * - Incoming longwave
-     - W |m^-2|
-     - ldown
-     - Optional (use -999 if not available)
+     - Must be :math:`\geq 0` (0 at night)
 
 **Time Information**
 
-Each row must include time stamps with these columns (in order):
+Each row must include these timestamp columns. Their position is unrestricted
+in a named-column file:
 
 1. ``iy`` - Year (YYYY)
 2. ``id`` - Day of year (1-365/366)
@@ -91,7 +97,8 @@ File Format
 - **Format**: Space or tab-delimited text file
 - **Extension**: ``.txt``
 - **Header**: Required; canonical names are matched case-insensitively
-- **Missing values**: Use ``-999`` for optional variables
+- **Missing values**: Use ``-999`` only for optional fields and inactive
+  conditional fields; do not use blanks or ``NaN``
 
 **Canonical columns**
 
@@ -105,9 +112,9 @@ may use any column order:
 Where:
 
 - Columns 1-4: Time stamps (required)
-- Columns 5-9: Energy fluxes (optional, use -999)
+- Columns 5-9: Energy fluxes (requiredness depends on the selected physics)
 - Columns 10-15: Essential meteorological variables (required)
-- Columns 16-24: Additional optional variables (use -999 if not available)
+- Columns 16-24: Additional conditional or optional variables
 
 **Example**
 
@@ -115,8 +122,8 @@ Where:
 
    iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  xsmd  lai  kdiff  kdir  wdir
    2020  1  1   0  -999  -999  -999  -999  -999  2.1  85  5.2  101.3  0.0  0  -999  315  -999  -999  -999  -999  -999  -999  -999
-   2020  1  1  60  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
-   2020  1  2   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
+   2020  1  2   0  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
+   2020  1  3   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
 
 .. _named_column_forcing:
 
@@ -127,26 +134,23 @@ Since schema 2026.5, SUEWS reads forcing files by **column name**,
 not by column position. The header line is required and its content is
 matched, case-insensitively, against the canonical column list above.
 
-* **Required (baseline)**: ``iy``, ``id``, ``it``, ``imin``, ``Tair``,
-  ``RH``, ``U``, ``pres``, ``kdown``, ``rain``. Missing any of these
-  raises ``ValueError`` at load time.
-* **Required (physics-conditional)**: depending on the chosen physics
-  path, additional columns become mandatory. For example,
-  ``model.physics.net_radiation = 0`` requires ``qn``;
-  ``net_radiation = 1`` or ``11`` requires ``ldown``;
-  ``net_radiation = 2`` or ``12`` requires ``fcld``. The error
-  message cites the offending column and the physics method that
-  requires it.
+* **Required (baseline)**: All timestamp and essential-variable columns listed
+  above must be present and contain valid values at every timestamp.
+* **Required (physics-conditional)**: Additional columns become mandatory for
+  particular physics paths. Use the complete generated
+  :ref:`df_forcing_requirements` table for compound and alternative
+  requirements. Validation errors identify the offending column and physics
+  method.
 * **Optional canonical columns**: missing canonical columns outside the
-  required set are filled with ``-999.0`` (the SUEWS sentinel). Column
+  required set are filled with the ``-999.0`` missing marker. Column
   order is irrelevant.
-* **External water use**: bulk ``Wuh`` (also accepted as ``wu_mm``) is a
+* **External water use**: bulk ``Wuh`` is a
   non-negative, site-mean depth in **mm accumulated over the forcing time
   step**. It has no finite upper validation cap and is resampled as a sum,
-  like ``rain``. Use ``-999`` when this optional input is missing. Legacy
-  bulk values in m3 must be converted explicitly; see
+  like ``rain``. Use ``-999`` only when the ``water_use`` requirement is
+  inactive. Legacy bulk values in |m^3| must be converted explicitly; see
   :ref:`migrate_bulk_wuh`.
-* **Per-landcover variants**: the loader also accepts whitelisted
+* **Land-cover-specific variants**: the loader also accepts whitelisted
   ``<var>_<surface>`` columns:
 
   - ``lai_<surface>`` is accepted **only for vegetated surfaces** --
@@ -172,16 +176,16 @@ matched, case-insensitively, against the canonical column list above.
     extra rescaling.
 
   Whitelisted columns are preserved on ``SUEWSForcing.extras`` for
-  downstream physics work. Surface-specific ``lai_<surface>`` and
+  downstream physics work. Land-cover-specific ``lai_<surface>`` and
   ``wuh_<surface>`` columns are passed through to the kernel, which
   continues to use the bulk ``lai`` and ``Wuh`` columns as default
   values for legacy or bulk calculations. These bulk values are applied
   to all applicable surfaces unless a corresponding land-cover-specific
   column is provided, in which case its value overrides the bulk value.
-  An explicit ``-999`` in a surface-specific column is preserved as missing;
-  it does not silently fall back to bulk ``Wuh``. Soil-moisture deficit
-  (``xsmd``) is a bulk site-level quantity and is intentionally not
-  per-landcover.
+  Fallback is based on column absence: an explicitly supplied ``-999`` does
+  not request the bulk value and is invalid while that physics path is active.
+  Soil-moisture deficit (``xsmd``) is a bulk site-level quantity and is
+  intentionally not land-cover-specific.
 * **Unknown columns**: any column not in the canonical or whitelisted
   sets emits a ``UserWarning`` and is dropped.
 
@@ -191,10 +195,18 @@ Important Requirements
 **Temporal Aspects**
 
 - **Continuous data**: No gaps allowed - missing periods must be gap-filled
-- **Time stamps**: Indicate the **END** of each measurement period
+- **Timestamps**: Label the **end** of each forcing interval; they are not
+  instantaneous sampling times
   
-  - For hourly data at 13:00, the measurement covers 12:00-13:00
-  - For 5-minute data at 10:05, the measurement covers 10:00-10:05
+  - For hourly data at 13:00, the interval covers 12:00--13:00
+  - For 5-minute data at 10:05, the interval covers 10:00--10:05
+
+- **Weather, radiation, and energy fluxes**: Values are means over the
+  interval ending at the timestamp
+- **Rainfall and external water use**: Values are totals accumulated over that
+  interval
+- **State inputs**: LAI, snow cover, and soil moisture apply at the interval
+  end
 
 - **Timestamp reference**: The default is **local standard time** (a fixed UTC
   offset). UTC is accepted when declared in YAML. Civil time with
@@ -286,71 +298,14 @@ order):
            - "forcing/Kc_2021_data_60.txt"
            - "forcing/Kc_2022_data_60.txt"
 
-Optional Variables
-------------------
+Choosing Conditional and Additional Variables
+---------------------------------------------
 
-These additional variables can enhance model performance but are not required:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 25 15 15 45
-
-   * - Variable
-     - Units
-     - Column
-     - Usage
-   * - Net radiation
-     - W |m^-2|
-     - qn
-     - If NetRadiationMethod = 0
-   * - Sensible heat flux
-     - W |m^-2|
-     - qh
-     - For validation/comparison
-   * - Latent heat flux
-     - W |m^-2|
-     - qe
-     - For validation/comparison
-   * - Storage heat flux
-     - W |m^-2|
-     - qs
-     - For validation/comparison
-   * - Anthropogenic heat
-     - W |m^-2|
-     - qf
-     - If not modeled
-   * - Observed snow-cover fraction
-     - 0-1
-     - snow
-     - If SnowUse = 1 and NetRadiationMethod = 0
-   * - Cloud fraction
-     - fraction (0-1)
-     - fcld
-     - For radiation calculations
-   * - External water use
-     - mm per forcing interval (accumulated)
-     - ``Wuh`` or ``wuh_<surface>``
-     - For irrigation
-   * - Soil moisture
-     - m3/m3 if ``SMDMethod = 1``; kg/kg if ``SMDMethod = 2``
-     - xsmd
-     - For initialization
-   * - Leaf area index
-     - |m^2| |m^-2|
-     - ``lai`` or ``lai_evetr`` / ``lai_dectr`` / ``lai_grass``
-     - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
-   * - Diffuse radiation
-     - W |m^-2|
-     - kdiff
-     - For SOLWEIG
-   * - Direct radiation
-     - W |m^-2|
-     - kdir
-     - For SOLWEIG
-   * - Wind direction
-     - degrees
-     - wdir
-     - Currently not used
+Use :ref:`df_forcing_requirements` to determine which extra columns an active
+physics path requires. The per-variable :ref:`df_forcing_var` reference gives
+the authoritative units, ranges, requiredness, interval basis, and
+missing-value policies. The following sections provide task-specific
+preparation guidance where more context than a field catalogue is useful.
 
 .. _prescribed-lai:
 
@@ -367,9 +322,9 @@ remote-sensing product is available, users can bypass the internal scheme by:
 2. Populating the ``lai`` column of the meteorological forcing file with a **non-negative**
    observation at every timestep, in |m^2| |m^-2|. A genuine zero observation (e.g.
    complete winter dieback) is valid. Choosing the observed path commits the user to
-   providing an observation for every timestep; the ``-999`` missing sentinel is
+   providing an observation for every timestep; the ``-999`` missing marker is
    **not** a permitted fallback here and the pre-flight validator rejects any strictly
-   negative value (including ``-999`` and other sentinels). If observations are
+   negative value (including ``-999``). If observations are
    unavailable for part of the run, either switch to ``laimethod: 1`` (internally
    calculated) or gap-fill the ``lai`` column with non-negative values before feeding
    it to SUEWS.
@@ -385,14 +340,15 @@ remote-sensing product is available, users can bypass the internal scheme by:
    parameterised branch (``laimethod: 1``); the observed branch enforces it too
    for consistency and because the downstream conductance and active-vegetation
    fraction calculations (``LAI / laimax`` in ``suews_phys_resist`` and
-   ``suews_phys_biogenco2``) require ``LAI <= laimax`` to stay physically
+   ``suews_phys_biogenco2``) require
+   :math:`\mathrm{LAI} \leq \mathrm{LAI}_{max}` to stay physically
    meaningful.
 
    If you supply observations that should pass through unchanged -- e.g. a genuine
    winter dieback with ``LAI = 0`` -- configure the corresponding class's
    ``laimin`` to zero in the site configuration. Similarly, widen ``laimax`` if
    observations legitimately exceed the default site canopy capacity. The
-   pre-flight validator (:func:`~supy._check.check_forcing`) issues a warning
+   pre-flight validator (``check_forcing()``) issues a warning
    when any forcing value would be clamped, so the user sees once that
    observations are being modified rather than discovering it through
    unexpected outputs.
@@ -578,11 +534,13 @@ Check your data for:
 
 **Common Issues**
 
-- **"Division by zero"**: Wind speed < 0.01 m/s
-- **"Negative radiation"**: Check kdown is always >= 0
+- **"Division by zero"**: Wind speed below 0.01 m |s^-1|
+- **"Negative radiation"**: Check ``kdown`` is always :math:`\geq 0`
 - **"Time mismatch"**: Ensure timestamps match the declared reference and
   interval-end convention (see note above)
-- **"Missing data"**: Use -999, not blank or NaN
+- **"Missing data"**: Gap-fill baseline and active conditional inputs. Use
+  ``-999`` only for optional or inactive conditional fields, never blanks or
+  ``NaN``
 
 Validating Forcing Data
 -----------------------
@@ -592,12 +550,14 @@ SUEWS provides the ``check_forcing()`` function to validate your forcing data fi
 1. **Column completeness**: Verifies all expected columns are present
 2. **Timestamp validity**: Checks for proper DatetimeIndex, no duplicates, monotonic increasing
 3. **Physical ranges**: Validates values are within physically plausible ranges
-4. **Physics-specific requirements**: Ensures required data columns contain valid values based on selected model physics options (see below)
+4. **Physics-specific requirements**: Applies the generated
+   :ref:`df_forcing_requirements` rules for the selected model physics options
 
 **Variable contract and enforced ranges**
 
 The registry-derived :ref:`df_forcing_var` reference is authoritative for
-input units, enforced ranges, requiredness, aliases, and missing-value policy.
+canonical names, input units, enforced ranges, requiredness, interval basis,
+and missing-value policy.
 
 **Usage**
 
@@ -650,48 +610,11 @@ The validation report shows any issues found:
 
 For comprehensive quality control, combine ``check_forcing()`` with visual inspection of time series plots.
 
-Physics-Specific Data Requirements
------------------------------------
-
-Certain model physics options require specific forcing data columns to contain valid (non-missing) values.
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 20 50
-
-   * - Physics Option
-     - Required Column
-     - Description
-   * - ``netradiationmethod: 0``
-     - ``qn``
-     - Uses observed net radiation
-   * - ``netradiationmethod: 1``
-     - ``ldown``
-     - Models Q* with observed incoming longwave
-   * - ``netradiationmethod: 2``
-     - ``kdown``, ``fcld``
-     - Models Q* and Ldown using cloud fraction
-   * - ``netradiationmethod: 3``
-     - ``kdown``
-     - Models Ldown from Tair and RH
-   * - ``storageheatmethod: 0``
-     - ``qs``
-     - Uses observed storage heat flux
-   * - ``emissionsmethod: 0``
-     - ``qf``
-     - Uses observed anthropogenic heat flux
-   * - ``smdmethod: 1``
-     - ``xsmd``
-     - Uses observed volumetric soil moisture
-   * - ``smdmethod: 2``
-     - ``xsmd``
-     - Uses observed gravimetric soil moisture
-
 See Also
 --------
 
 - :ref:`df_forcing_var` - Registry-derived forcing-variable reference
 - :doc:`/inputs/yaml/index` - YAML configuration including forcing file specification
 - :doc:`/inputs/yaml/validation` - Complete validation system documentation
-- :doc:`/input_files/RunControl/RunControl` - Model physics options reference
+- :doc:`/inputs/tables/RunControl/RunControl` - Legacy model physics options reference
 - :doc:`/troubleshooting` - Common forcing data issues and solutions

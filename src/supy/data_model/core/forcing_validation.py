@@ -103,12 +103,15 @@ def _columns_by_lower(forcing: Any) -> dict[str, Any]:
 
 def _series_has_valid_data(series: Any) -> bool:
     """Return True only when every row is non-missing/non-sentinel."""
+    import numpy as np
     import pandas as pd
 
     from ...util._missing import SUEWS_MISSING_THRESHOLD
 
     numeric = pd.to_numeric(series, errors="coerce")
-    valid_mask = (numeric.notna()) & (numeric > SUEWS_MISSING_THRESHOLD)
+    valid_mask = (
+        numeric.notna() & np.isfinite(numeric) & (numeric > SUEWS_MISSING_THRESHOLD)
+    )
     return bool(valid_mask.to_numpy().all())
 
 
@@ -146,7 +149,7 @@ def _lai_validity_issue(forcing: Any) -> str | None:
 
 
 def _wuh_validity_issue(forcing: Any) -> str | None:
-    """Return the validation issue reason for water_use=0, or None."""
+    """Return the validation issue reason for water_use=1, or None."""
     columns_by_lower = _columns_by_lower(forcing)
     bulk_wuh_col = columns_by_lower.get("wuh")
     source_cols: list[Any] = []

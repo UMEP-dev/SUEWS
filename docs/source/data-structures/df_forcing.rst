@@ -1,446 +1,399 @@
-:orphan:
-
 .. _df_forcing_var:
 
 ``df_forcing`` variables
 ========================
 
-This reference is generated from the published forcing registry.
-File timestamps identify the end of each forcing interval. The default
-reference is the site's fixed-offset local standard time; UTC input is
-also supported when ``model.control.forcing.timestamp_reference`` is set
-to ``utc``. Model output follows the declared forcing clock. Daylight-saving
-civil time is not supported.
+This reference is generated from forcing contract ``1.2.0``.
+It describes columns supplied in an external forcing file. For file
+layout and preparation, see :doc:`/inputs/forcing-data`; for the loaded
+Python object, see :doc:`/api/io-data-structures`.
 
-File-header aliases and programmatic accessor aliases are separate
-namespaces. The latter are not accepted as forcing-file headers.
+How to read this page
+---------------------
+
+All units and valid ranges describe values in the external forcing file.
+Use each canonical option name as the file header.
+
+File timestamps identify the end of each forcing interval. The default
+reference is the site's fixed-offset local standard time; UTC is accepted
+when ``model.control.forcing.timestamp_reference`` is ``utc``. Model output
+follows the declared forcing clock. Daylight-saving civil time is unsupported.
+
+The timestamp labels the interval; it is not an instantaneous sampling time.
+Weather, radiation, and energy-flux values are means over the interval
+ending at that timestamp. Rainfall and external water use are totals
+accumulated over the same interval. State inputs such as LAI, snow cover,
+and soil moisture apply at the interval end.
+
+Every row needs valid values for always-required columns and for any
+physics-conditional columns selected by the table below. Use ``-999`` only
+for optional or inactive columns. Land-cover-specific columns use their named
+bulk fallback only when that land-cover column is absent, not when it contains
+``-999``.
+
+.. _df_forcing_requirements:
+
+Physics-conditional requirements
+--------------------------------
+
+Each row below is active only when all listed selector conditions match. Any
+one complete alternative satisfies the rule; columns joined by ``+`` are
+jointly required. Selector definitions are in :ref:`modelphysics`.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 45 55
+
+   * - Active when
+     - Valid forcing alternative
+   * - ``net_radiation`` in [0]
+     - ``qn``
+   * - ``net_radiation`` in [1, 11, 100, 1001]
+     - ``ldown``
+   * - ``net_radiation`` in [2, 12, 200, 1002]
+     - (``kdown`` + ``fcld``)
+   * - ``net_radiation`` in [3, 13, 300, 1003]
+     - ``kdown``
+   * - ``storage_heat`` in [0]
+     - ``qs``
+   * - ``emissions`` in [0]
+     - ``qf``
+   * - ``soil_moisture_deficit`` in [1, 2]
+     - ``xsmd``
+   * - ``laimethod`` in [0]
+     - ``lai`` OR (``lai_evetr`` + ``lai_dectr`` + ``lai_grass``)
+   * - ``water_use`` in [1]
+     - ``Wuh`` OR (``wuh_paved`` + ``wuh_bldgs`` + ``wuh_evetr`` + ``wuh_dectr`` + ``wuh_grass`` + ``wuh_bsoil`` + ``wuh_water``)
+   * - ``snow_use`` in [1] and ``net_radiation`` in [0]
+     - ``snow``
+
+Timestamp columns
+-----------------
+
+Every forcing row must include these coordinates for the declared timestamp reference.
 
 .. option:: iy
 
    :Description: Calendar year of the interval-end timestamp
-   :Input unit: 1
-   :Role: coordinate
-   :Temporal semantics: time
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: not range-checked
-   :Legacy position: 1
+   :Input unit: dimensionless
+   :Interval basis: component of the interval-end timestamp
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: integer calendar coordinate; calendar validity checked on load
 
 .. option:: id
 
    :Description: Day of year of the interval-end timestamp
-   :Input unit: 1
-   :Role: coordinate
-   :Temporal semantics: time
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: not range-checked
-   :Legacy position: 2
+   :Input unit: dimensionless
+   :Interval basis: component of the interval-end timestamp
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: integer calendar coordinate; calendar validity checked on load
 
 .. option:: it
 
    :Description: Hour component of the interval-end timestamp
    :Input unit: h
-   :Role: coordinate
-   :Temporal semantics: time
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: not range-checked
-   :Legacy position: 3
+   :Interval basis: component of the interval-end timestamp
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: integer calendar coordinate; calendar validity checked on load
 
 .. option:: imin
 
    :Description: Minute component of the interval-end timestamp
    :Input unit: min
-   :Role: coordinate
-   :Temporal semantics: time
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: not range-checked
-   :Legacy position: 4
+   :Interval basis: component of the interval-end timestamp
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: integer calendar coordinate; calendar validity checked on load
 
-.. option:: qn
+Always-required weather inputs
+------------------------------
 
-   :Description: Observed net all-wave radiation
-   :Input unit: W m-2
-   :Role: observation
-   :Temporal semantics: avg
-   :Requiredness: conditional
-   :Missing-value policy: sentinel
-   :Enforced input range: -500.0 to 1300.0
-   :Legacy position: 5
-   :File aliases: qn1_obs
-   :Accessor aliases: net_radiation, qstar, q_star
-   :Active requirement: net_radiation in [0]
-
-.. option:: qh
-
-   :Description: Reserved observed sensible heat-flux column; not currently consumed
-   :Input unit: W m-2
-   :Role: reserved
-   :Temporal semantics: avg
-   :Requiredness: optional
-   :Missing-value policy: sentinel
-   :Enforced input range: -500.0 to 1300.0
-   :Legacy position: 6
-   :Accessor aliases: sensible_heat, h
-
-.. option:: qe
-
-   :Description: Reserved observed latent heat-flux column; not currently consumed
-   :Input unit: W m-2
-   :Role: reserved
-   :Temporal semantics: avg
-   :Requiredness: optional
-   :Missing-value policy: sentinel
-   :Enforced input range: -500.0 to 1300.0
-   :Legacy position: 7
-   :Accessor aliases: latent_heat, le
-
-.. option:: qs
-
-   :Description: Observed net storage heat flux
-   :Input unit: W m-2
-   :Role: observation
-   :Temporal semantics: avg
-   :Requiredness: conditional
-   :Missing-value policy: sentinel
-   :Enforced input range: -100.0 to 650.0
-   :Legacy position: 8
-   :File aliases: qs_obs
-   :Accessor aliases: storage_heat
-   :Active requirement: storage_heat in [0]
-
-.. option:: qf
-
-   :Description: Observed anthropogenic heat flux
-   :Input unit: W m-2
-   :Role: observation
-   :Temporal semantics: avg
-   :Requiredness: conditional
-   :Missing-value policy: sentinel
-   :Enforced input range: -500.0 to 1300.0
-   :Legacy position: 9
-   :File aliases: qf_obs
-   :Accessor aliases: anthropogenic_heat
-   :Active requirement: emissions in [0]
+Every forcing row must contain valid values for these variables.
 
 .. option:: U
 
    :Description: Wind speed at the forcing measurement height
-   :Input unit: m s-1
-   :Role: driver
-   :Temporal semantics: inst
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: 0.01 to 60.0
-   :Legacy position: 10
-   :Accessor aliases: wind_speed, wind, u
+   :Input unit: m |s^-1|
+   :Interval basis: mean over the forcing interval
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: 0.01 to 60 (inclusive)
 
 .. option:: RH
 
    :Description: Relative humidity
    :Input unit: %
-   :Role: driver
-   :Temporal semantics: inst
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: 0.0001 to 105.0
-   :Legacy position: 11
-   :Accessor aliases: relative_humidity, humidity, rh
+   :Interval basis: mean over the forcing interval
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: 0.0001 to 105 (inclusive)
 
 .. option:: Tair
 
    :Description: Air temperature
-   :Input unit: degC
-   :Role: driver
-   :Temporal semantics: inst
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: -60.0 to 90.0
-   :Legacy position: 12
-   :File aliases: temp_c
-   :Accessor aliases: temperature, air_temperature, temp, t_air, ta
+   :Input unit: :math:`{}^{\circ}\mathrm{C}`
+   :Interval basis: mean over the forcing interval
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: -60 to 90 (inclusive)
 
 .. option:: pres
 
    :Description: Surface air pressure
    :Input unit: kPa
-   :Role: driver
-   :Temporal semantics: inst
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: 68.0 to 130.0
-   :Legacy position: 13
-   :Accessor aliases: pressure, air_pressure, p
+   :Interval basis: mean over the forcing interval
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: 68 to 130 (inclusive)
 
 .. option:: rain
 
    :Description: Precipitation accumulated over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: >= 0.0
-   :Legacy position: 14
-   :Accessor aliases: precipitation, rainfall, precip
+   :Interval basis: total accumulated over the forcing interval
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: :math:`\geq 0`
 
 .. option:: kdown
 
    :Description: Incoming short-wave radiation averaged over the forcing interval
-   :Input unit: W m-2
-   :Role: driver
-   :Temporal semantics: avg
-   :Requiredness: baseline
-   :Missing-value policy: forbidden
-   :Enforced input range: 0.0 to 1400.0
-   :Legacy position: 15
-   :Accessor aliases: shortwave_down, solar_radiation, sw_down, k_down
-   :Active requirement: net_radiation in [2, 12, 200, 1002]; or net_radiation in [3, 13, 300, 1003]
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: always
+   :Missing values: not allowed
+   :Valid input range: 0 to 1400 (inclusive)
+
+Physics-conditional inputs
+--------------------------
+
+These are required only when selected by the requirements table above.
+
+.. option:: qn
+
+   :Description: Observed net all-wave radiation
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: -500 to 1300 (inclusive)
+
+.. option:: qs
+
+   :Description: Observed net storage heat flux
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: -100 to 650 (inclusive)
+
+.. option:: qf
+
+   :Description: Observed anthropogenic heat flux
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: -500 to 1300 (inclusive)
 
 .. option:: snow
 
    :Description: Observed surface snow-cover fraction
-   :Input unit: 1
-   :Role: driver
-   :Temporal semantics: inst
-   :Requiredness: optional
-   :Missing-value policy: sentinel
-   :Enforced input range: 0.0 to 1.0
-   :Legacy position: 16
-   :File aliases: snowfrac
-   :Accessor aliases: snowfall
-   :Active requirement: snow_use in [1] and net_radiation in [0]
+   :Input unit: dimensionless
+   :Interval basis: state at the interval-end timestamp
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: 0 to 1 (inclusive)
 
 .. option:: ldown
 
    :Description: Incoming long-wave radiation averaged over the forcing interval
-   :Input unit: W m-2
-   :Role: driver
-   :Temporal semantics: avg
-   :Requiredness: conditional
-   :Missing-value policy: sentinel
-   :Enforced input range: 100.0 to 600.0
-   :Legacy position: 17
-   :Accessor aliases: longwave_down, lw_down, l_down
-   :Active requirement: net_radiation in [1, 11, 100, 1001]
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: 100 to 600 (inclusive)
 
 .. option:: fcld
 
    :Description: Cloud fraction
-   :Input unit: 1
-   :Role: driver
-   :Temporal semantics: inst
-   :Requiredness: conditional
-   :Missing-value policy: sentinel
-   :Enforced input range: 0.0 to 1.0
-   :Legacy position: 18
-   :Accessor aliases: cloud_fraction, cloud_cover, clouds
-   :Active requirement: net_radiation in [2, 12, 200, 1002]
+   :Input unit: dimensionless
+   :Interval basis: mean over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: 0 to 1 (inclusive)
 
 .. option:: Wuh
 
    :Description: Bulk external water use accumulated over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: conditional
-   :Missing-value policy: sentinel
-   :Enforced input range: >= 0.0
-   :Legacy position: 19
-   :File aliases: wu_mm
-   :Accessor aliases: water_use, external_water, wu_mm
-   :Active requirement: water_use in [1]
+   :Interval basis: total accumulated over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: :math:`\geq 0`
 
 .. option:: xsmd
 
    :Description: Observed soil-moisture deficit input
-   :Input unit: soil_moisture_deficit=1: m3 m-3; soil_moisture_deficit=2: kg kg-1
-   :Role: observation
-   :Temporal semantics: inst
-   :Requiredness: conditional
-   :Missing-value policy: sentinel
-   :Enforced input range: >= 0.0
-   :Legacy position: 20
-   :Accessor aliases: soil_moisture, smd
-   :Active requirement: soil_moisture_deficit in [1, 2]
+   :Input unit: ``soil_moisture_deficit=1``: |m^3| |m^-3|; ``soil_moisture_deficit=2``: kg |kg^-1|
+   :Interval basis: state at the interval-end timestamp
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: :math:`\geq 0`
 
 .. option:: lai
 
    :Description: Bulk observed leaf area index used as a surface fallback
-   :Input unit: m2 m-2
-   :Role: observation
-   :Temporal semantics: inst
-   :Requiredness: conditional
-   :Missing-value policy: sentinel
-   :Enforced input range: >= 0.0
-   :Legacy position: 21
-   :Accessor aliases: leaf_area_index
-   :Active requirement: laimethod in [0]
+   :Input unit: |m^2| |m^-2|
+   :Interval basis: state at the interval-end timestamp
+   :Required: only for selected physics; see the requirements above
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: :math:`\geq 0`
+
+Optional accepted columns
+-------------------------
+
+These columns are accepted but are never required by SUEWS.
+
+.. option:: qh
+
+   :Description: Reserved observed sensible heat-flux column; not currently consumed
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: no
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: -500 to 1300 (inclusive)
+
+.. option:: qe
+
+   :Description: Reserved observed latent heat-flux column; not currently consumed
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: no
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: -500 to 1300 (inclusive)
 
 .. option:: kdiff
 
    :Description: Diffuse component of incoming short-wave radiation
-   :Input unit: W m-2
-   :Role: driver
-   :Temporal semantics: avg
-   :Requiredness: optional
-   :Missing-value policy: sentinel
-   :Enforced input range: 0.0 to 1000.0
-   :Legacy position: 22
-   :Accessor aliases: diffuse_radiation
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: no
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: 0 to 1000 (inclusive)
 
 .. option:: kdir
 
    :Description: Direct component of incoming short-wave radiation
-   :Input unit: W m-2
-   :Role: driver
-   :Temporal semantics: avg
-   :Requiredness: optional
-   :Missing-value policy: sentinel
-   :Enforced input range: 0.0 to 1400.0
-   :Legacy position: 23
-   :Accessor aliases: direct_radiation
+   :Input unit: W |m^-2|
+   :Interval basis: mean over the forcing interval
+   :Required: no
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: 0 to 1400 (inclusive)
 
 .. option:: wdir
 
    :Description: Accepted wind-direction column; not currently consumed
-   :Input unit: degree
-   :Role: reserved
-   :Temporal semantics: inst
-   :Requiredness: optional
-   :Missing-value policy: sentinel
-   :Enforced input range: 0.0 to 360.0
-   :Legacy position: 24
-   :Accessor aliases: wind_direction, wd
+   :Input unit: :math:`{}^{\circ}`
+   :Interval basis: state at the interval-end timestamp
+   :Required: no
+   :Missing values: ``-999`` only while this column is optional or inactive
+   :Valid input range: 0 to 360 (inclusive)
+
+Land-cover-specific alternatives
+--------------------------------
+
+These may replace the corresponding bulk LAI or water-use column.
 
 .. option:: lai_evetr
 
    :Description: Observed leaf area index for evergreen trees
-   :Input unit: m2 m-2
-   :Role: observation
-   :Temporal semantics: inst
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :Accessor aliases: leaf_area_index_evetr
-   :Fallback column: lai
-   :Active requirement: laimethod in [0]
+   :Input unit: |m^2| |m^-2|
+   :Interval basis: state at the interval-end timestamp
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``lai`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: lai_dectr
 
    :Description: Observed leaf area index for deciduous trees
-   :Input unit: m2 m-2
-   :Role: observation
-   :Temporal semantics: inst
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :Accessor aliases: leaf_area_index_dectr
-   :Fallback column: lai
-   :Active requirement: laimethod in [0]
+   :Input unit: |m^2| |m^-2|
+   :Interval basis: state at the interval-end timestamp
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``lai`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: lai_grass
 
    :Description: Observed leaf area index for grass
-   :Input unit: m2 m-2
-   :Role: observation
-   :Temporal semantics: inst
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :Accessor aliases: leaf_area_index_grass
-   :Fallback column: lai
-   :Active requirement: laimethod in [0]
+   :Input unit: |m^2| |m^-2|
+   :Interval basis: state at the interval-end timestamp
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``lai`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: wuh_paved
 
    :Description: External water-use depth for the paved surface over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :File aliases: wu_mm_paved
-   :Fallback column: Wuh
-   :Active requirement: water_use in [1]
+   :Interval basis: total accumulated over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: wuh_bldgs
 
    :Description: External water-use depth for the building surface over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :File aliases: wu_mm_bldgs
-   :Fallback column: Wuh
-   :Active requirement: water_use in [1]
+   :Interval basis: total accumulated over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: wuh_evetr
 
    :Description: External water-use depth for evergreen trees over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :File aliases: wu_mm_evetr
-   :Fallback column: Wuh
-   :Active requirement: water_use in [1]
+   :Interval basis: total accumulated over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: wuh_dectr
 
    :Description: External water-use depth for deciduous trees over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :File aliases: wu_mm_dectr
-   :Fallback column: Wuh
-   :Active requirement: water_use in [1]
+   :Interval basis: total accumulated over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: wuh_grass
 
    :Description: External water-use depth for grass over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :File aliases: wu_mm_grass
-   :Fallback column: Wuh
-   :Active requirement: water_use in [1]
+   :Interval basis: total accumulated over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: wuh_bsoil
 
    :Description: External water-use depth for bare soil over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :File aliases: wu_mm_bsoil
-   :Fallback column: Wuh
-   :Active requirement: water_use in [1]
+   :Interval basis: total accumulated over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`
 
 .. option:: wuh_water
 
    :Description: External water-use depth for open water over the forcing interval
    :Input unit: mm
-   :Role: driver
-   :Temporal semantics: sum
-   :Requiredness: conditional
-   :Missing-value policy: fallback
-   :Enforced input range: >= 0.0
-   :File aliases: wu_mm_water
-   :Fallback column: Wuh
-   :Active requirement: water_use in [1]
+   :Interval basis: total accumulated over the forcing interval
+   :Required: only for selected physics; see the requirements above
+   :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
+   :Valid input range: :math:`\geq 0`

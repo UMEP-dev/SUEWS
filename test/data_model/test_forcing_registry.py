@@ -339,6 +339,7 @@ def test_publication_metadata_is_fully_resolved() -> None:
         2: "kg kg-1",
     }
     assert dict_variables["snow"].description == "Observed surface snow-cover fraction"
+    assert dict_variables["snow"].requiredness == "conditional"
     assert all(
         "metadata_note" not in variable.model_dump()
         for variable in dict_variables.values()

@@ -192,6 +192,7 @@ skips (no coverage). See `test/fixtures/legacy_tables/` for the pattern.
 - Magic number tolerances without justification
 - Testing implementation details rather than behaviour
 - Relative paths from repository root
+- `Path(supy.__file__).parent` to reach packaged data (see "Locating packaged data" below)
 - Tests depending on execution order
 - Duplicating setup logic across multiple test files (use conftest.py)
 - Warning suppression in setUp methods (use autouse fixtures)
@@ -202,6 +203,82 @@ skips (no coverage). See `test/fixtures/legacy_tables/` for the pattern.
 - `try/except ImportError: pytest.skip(...)` — use `pytest.importorskip` instead
 
 ---
+
+## Locating packaged data
+
+Never reach for packaged data through the module's file location:
+
+```python
+# WRONG - assumes the package is an unpacked directory on disk
+sample_dir = Path(supy.__file__).parent / "sample_data"
+sample_dir = Path(sp.__file__).parent / "sample_data"
+```
+
+Use the package's own resource handle instead:
+
+```python
+# RIGHT - what supy itself uses, in src/supy/_env.py
+from supy._env import trv_supy_module
+
+sample_dir = trv_supy_module / "sample_data"
+```
+
+`trv_supy_module` is `importlib.resources.files("supy")`. It returns an
+object satisfying `Traversable`. It is **not guaranteed** to be a `Path`: a
+filesystem-backed loader may well hand you a real `pathlib.Path`, which is why
+`Path`-only calls appear to work locally, but nothing promises that. Write
+against the protocol rather than against what your install happens to return.
+
+The protocol guarantees exactly: `joinpath` (and so `/`), `name`, `is_dir`,
+`is_file`, `iterdir`, `open`, `read_bytes`, `read_text`. Use those:
+
+```python
+sample_config = trv_supy_module / "sample_data" / "sample_config.yml"
+
+assert sample_config.is_file()                  # NOT .exists(), not in the protocol
+with sample_config.open(encoding="utf-8") as f: # NOT builtin open(...)
+    cfg = yaml.safe_load(f)
+text = sample_config.read_text(encoding="utf-8")
+```
+
+Anything that requires `os.PathLike` — builtin `open()`, `shutil.copy()`,
+subprocess arguments — needs a real filesystem path, which means
+`importlib.resources.as_file()`:
+
+```python
+from importlib.resources import as_file
+
+with as_file(sample_config) as real_path:
+    shutil.copy(real_path, destination)
+```
+
+Under an editable install these all appear to work regardless, because the
+Traversable happens to wrap a real path. That is what makes the mistake easy: it
+passes locally and only fails where the abstraction was supposed to help.
+
+### Why
+
+- `__file__` assumes the package is an unpacked directory on disk. The import
+  system does not guarantee that; zip imports and some packaging layouts break it.
+  `importlib.resources` exists precisely to abstract over this.
+- It couples the test to supy's internal directory layout, so a package
+  reorganisation breaks tests that are not testing packaging.
+- It reimplements, less safely, something the package already does. `_env.py` has
+  resolved its own data with `files("supy")` since May 2024.
+
+### Why this keeps happening
+
+There is no public accessor for the sample-data path. `dir(supy)` exposes nothing
+for it and `trv_supy_module` is private, so a test author who needs the directory
+has no supported route and reaches for the obvious one. As of August 2026 there
+are around two dozen occurrences across roughly ten test modules, each invented
+independently.
+
+Until a public accessor exists, importing `trv_supy_module` from `supy._env` is
+the correct thing for a test to do: a test importing a private helper is normal,
+and matching the package's own convention is what stops the two drifting apart.
+If you are adding a new test that needs packaged data, use it rather than adding
+a twenty-fifth variant.
 
 ## Skipping Tests
 

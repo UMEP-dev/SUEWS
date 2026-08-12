@@ -252,13 +252,21 @@ from supy._supy_module import (
 
 def pytest_configure():
     """Monkey patch legacy public functions to private implementations for tests."""
-    supy._deprecated_init_supy = supy.init_supy
-    supy._deprecated_load_forcing_grid = supy.load_forcing_grid
-    supy._deprecated_run_supy = supy.run_supy
-    supy._deprecated_run_supy_sample = supy.run_supy_sample
-    supy._deprecated_save_supy = supy.save_supy
-    supy._deprecated_load_sample_data = supy.load_sample_data
-    supy._deprecated_init_config = supy.init_config
+    # Stash the originals by reading them off _supy_module rather than through the
+    # package surface. supy.__getattr__ resolves each of these names to exactly
+    # this object, but emits a FutureWarning on the way, so going through the
+    # public surface opened every session with seven warnings before a single test
+    # ran. Reading the source module gets the same callables silently and avoids
+    # pre-populating supy._lazy_cache as a side effect of harness setup.
+    from supy import _supy_module
+
+    supy._deprecated_init_supy = _supy_module.init_supy
+    supy._deprecated_load_forcing_grid = _supy_module.load_forcing_grid
+    supy._deprecated_run_supy = _supy_module.run_supy
+    supy._deprecated_run_supy_sample = _supy_module.run_supy_sample
+    supy._deprecated_save_supy = _supy_module.save_supy
+    supy._deprecated_load_sample_data = _supy_module.load_sample_data
+    supy._deprecated_init_config = _supy_module.init_config
 
     supy.init_supy = _init_supy
     supy.load_forcing_grid = _load_forcing_grid

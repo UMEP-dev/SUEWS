@@ -199,6 +199,11 @@ install_subdir(
   install_dir: py.get_install_dir() / 'supy/data_model/output',
 )
 
+install_subdir(
+  'data_model/forcing/artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model/forcing',
+)
+
 knowledge_pack = custom_target(
   'suews_knowledge_pack',
   command: [

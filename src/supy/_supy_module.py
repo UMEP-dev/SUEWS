@@ -27,7 +27,6 @@ import pandas
 import pandas as pd
 
 from ._check import (
-    FORCING_REQUIREMENTS,
     _check_observed_lai_nonneg,
     check_forcing,
     check_state,
@@ -54,6 +53,7 @@ from ._version import __version__
 
 # from .util._config import init_config_from_yaml
 from .data_model import SUEWSConfig, init_config_from_yaml
+from .data_model.forcing import FORCING_REGISTRY
 
 # set up logging module
 logger_supy.setLevel(logging.INFO)
@@ -610,20 +610,23 @@ def _physics_dict_from_df_state(df_state: pd.DataFrame) -> dict:
 
     Returns a dict keyed by option name (e.g. ``"laimethod"``). A single-grid
     state stores a scalar ``int`` so existing callers continue to work; a
-    multi-grid state stores a sorted list of the unique per-grid values so
-    ``check_forcing`` can enforce the forcing requirement whenever any grid
-    selects the triggering value. Only the options referenced by
-    ``FORCING_REQUIREMENTS`` are considered.
+    multi-grid state stores its aligned per-grid values so compound
+    requirements cannot match selectors from different grids. Only options
+    referenced by the forcing registry's legacy conditions are considered.
     """
     physics_dict: dict = {}
     top_level = set(df_state.columns.get_level_values(0))
-    option_names = {option for option, _ in FORCING_REQUIREMENTS.keys()}
+    option_names = {
+        option
+        for rule in FORCING_REGISTRY.requirement_rules
+        for option in rule.legacy_conditions
+    }
     for option in option_names:
         if option in top_level:
             values = df_state[option].values.ravel()
             if len(values) > 0:
-                unique = sorted({int(v) for v in values})
-                physics_dict[option] = unique[0] if len(unique) == 1 else unique
+                aligned = [int(value) for value in values]
+                physics_dict[option] = aligned[0] if len(set(aligned)) == 1 else aligned
     return physics_dict
 
 
@@ -688,7 +691,7 @@ def _run_supy(
     # validate input dataframes
     if check_input:
         # Build a physics dict from df_state_init so physics-gated forcing
-        # requirements (see `FORCING_REQUIREMENTS`) are enforced on the legacy
+        # requirements from the forcing registry are enforced on the legacy
         # path as well as the modern SUEWSSimulation path.
         physics_dict = _physics_dict_from_df_state(df_state_init)
         list_issues_forcing = check_forcing(df_forcing, physics=physics_dict)

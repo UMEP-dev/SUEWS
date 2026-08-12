@@ -177,4 +177,4 @@ Related Documentation
 - :doc:`/inputs/yaml/index` - YAML configuration guide
 - :ref:`suews_checkpoint` - Typed checkpoint restart artefact
 - :doc:`/data-structures/df_forcing` - Forcing data format
-- :doc:`/data-structures/df_output` - Output data format
+- :doc:`/outputs/variables/index` - Output variable reference

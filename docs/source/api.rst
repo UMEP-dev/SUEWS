@@ -15,7 +15,6 @@ The Python interface provides the complete API for SUEWS with comprehensive func
    api/command-line
    api/knowledge-pack
    api/python-cli-equivalents
-   api/data-structures
    api/io-data-structures
    api/converter
 
@@ -51,7 +50,7 @@ The Python interface provides the complete API for SUEWS with comprehensive func
     Python equivalents for all command-line operations. See :doc:`api/python-cli-equivalents`.
 
 **Data Structures**
-    DataFrame structures for model inputs and outputs. See :doc:`api/data-structures`.
+    DataFrame structures for model inputs and outputs. See :doc:`api/io-data-structures`.
 
 **Configuration Converter**
     Python functions for converting between SUEWS formats and versions. See :doc:`api/converter`.

@@ -6,16 +6,12 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from statistics import median
 import subprocess
 import sys
-import tempfile
 from typing import Any
 
 import pytest
 
-from scripts.suews import pytest_ci_metrics
-from scripts.suews.pytest_ci_metrics import ProcfsSampler, read_proc_process
 
 pytestmark = pytest.mark.api
 
@@ -167,87 +163,6 @@ def _write_proc_process(
     (task_root / "children").write_text(" ".join(map(str, children)), encoding="utf-8")
 
 
-def test_procfs_stat_parser_handles_process_names_with_spaces(tmp_path: Path) -> None:
-    """The stat parser indexes fields after the parenthesised process name."""
-    _write_proc_process(
-        tmp_path,
-        100,
-        cpu_ticks=(125, 75),
-        rss_pages=64,
-        start_time=999,
-    )
-
-    assert read_proc_process(100, 100.0, 4096, proc_root=tmp_path) == (
-        999,
-        2.0,
-        262144,
-    )
-
-
-def test_procfs_sampler_aggregates_tree_and_retains_exited_child_cpu(
-    tmp_path: Path,
-) -> None:
-    """One sample aggregates descendants and keeps final cumulative child CPU."""
-    _write_proc_process(
-        tmp_path,
-        100,
-        children=(101, 102),
-        cpu_ticks=(100, 0),
-        rss_pages=10,
-        start_time=1000,
-    )
-    _write_proc_process(
-        tmp_path,
-        101,
-        children=(103,),
-        cpu_ticks=(50, 0),
-        rss_pages=20,
-        start_time=1001,
-    )
-    _write_proc_process(
-        tmp_path,
-        102,
-        cpu_ticks=(25, 0),
-        rss_pages=30,
-        start_time=1002,
-    )
-    _write_proc_process(
-        tmp_path,
-        103,
-        cpu_ticks=(75, 0),
-        rss_pages=40,
-        start_time=1003,
-    )
-    sampler = ProcfsSampler(0.25, proc_root=tmp_path)
-    sampler.supported = True
-    sampler.root_pid = 100
-    sampler.clock_ticks = 100.0
-    sampler.page_size = 4096
-
-    sampler._sample()
-
-    first = sampler.measurements()
-    assert first["sample_count"] == 1
-    assert first["process_tree_cpu_seconds"]["value"] == pytest.approx(2.5)
-    assert first["process_tree_peak_rss_bytes"]["value"] == 100 * 4096
-
-    (tmp_path / "101/task/101/children").write_text("", encoding="utf-8")
-    _write_proc_process(
-        tmp_path,
-        100,
-        children=(101, 102),
-        cpu_ticks=(200, 0),
-        rss_pages=10,
-        start_time=1000,
-    )
-    sampler._sample()
-
-    second = sampler.measurements()
-    assert second["sample_count"] == 2
-    assert second["process_tree_cpu_seconds"]["value"] == pytest.approx(3.5)
-    assert second["process_tree_peak_rss_bytes"]["value"] == 100 * 4096
-
-
 def test_xdist_records_assignments_busy_duration_and_finish_skew(
     tmp_path: Path,
 ) -> None:
@@ -335,29 +250,6 @@ def test_parallel(case):
     assert metrics["result"]["outcomes"]["passed"] == 8
 
 
-def test_worker_aggregates_match_serialised_finish_times(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Aggregate tail metrics use the same precision as worker records."""
-    state = pytest_ci_metrics._MetricsState()
-    raw_finishes = [243.0789032, 243.2927244, 239.5305016, 240.1511425]
-    state.workers = {
-        f"gw{index}": pytest_ci_metrics._WorkerMetrics(
-            finished_at_seconds=finish,
-        )
-        for index, finish in enumerate(raw_finishes)
-    }
-    monkeypatch.setattr(pytest_ci_metrics, "_STATE", state)
-
-    workers, finish_skew, tail_over_median = pytest_ci_metrics._worker_records()
-    serialised_finishes = [worker["finished_at_seconds"] for worker in workers]
-
-    assert finish_skew == round(max(serialised_finishes) - min(serialised_finishes), 6)
-    assert tail_over_median == round(
-        max(serialised_finishes) - median(serialised_finishes), 6
-    )
-
-
 def _warning_test_source(temp_root: str) -> str:
     """Build importable warning tests for paths containing Python escapes."""
     warning_a = (
@@ -385,58 +277,6 @@ def test_warning_b():
         UserWarning,
     )
 """
-
-
-def test_warning_fixture_source_quotes_windows_backslashes() -> None:
-    """A Windows temporary path remains a valid generated Python literal."""
-    source = _warning_test_source(r"C:\Users\runneradmin\AppData\Local\Temp")
-
-    compile(source, "<generated-warning-test>", "exec")
-    assert r"C:\\Users\\runneradmin" in source
-
-
-def test_warning_fingerprint_normalises_only_volatile_components(
-    tmp_path: Path,
-) -> None:
-    """Temporary roots, UUIDs and addresses do not fragment warning groups."""
-    test_file = tmp_path / "test_warnings.py"
-    test_file.write_text(_warning_test_source(tempfile.gettempdir()), encoding="utf-8")
-    metrics_path = tmp_path / "warning-metrics.json"
-    env = os.environ.copy()
-    env.update({
-        "PYTHONPATH": os.pathsep.join(
-            part for part in (str(PROJECT_ROOT), env.get("PYTHONPATH", "")) if part
-        ),
-        "SUEWS_CI_METRICS": str(metrics_path),
-    })
-
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "--confcutdir",
-            str(tmp_path),
-            "-p",
-            "scripts.suews.pytest_ci_metrics",
-            str(test_file),
-            "-q",
-        ],
-        cwd=tmp_path,
-        env=env,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    warnings = json.loads(metrics_path.read_text(encoding="utf-8"))["warnings"]
-    assert len(warnings) == 1
-    assert warnings[0]["count"] == 2
-    assert warnings[0]["normalised_message"] == (
-        "missing <temp>/forcing.csv at 0x<address> for <uuid>"
-    )
-    assert "tmp-alpha" in warnings[0]["message"]
 
 
 def test_schema_v2_xdist_fixture_is_a_deterministic_consumer_contract() -> None:

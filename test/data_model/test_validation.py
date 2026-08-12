@@ -10,6 +10,7 @@ This file combines:
 """
 
 import io
+from importlib.resources import as_file
 import logging
 from pathlib import Path
 import tempfile
@@ -21,7 +22,6 @@ import copy
 import pytest
 import yaml
 
-import supy as sp
 from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.site import (
@@ -3552,10 +3552,10 @@ def test_nlayer_height_array_dimension_error():
     from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
     import yaml
 
-    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    sample_data_dir = trv_supy_module / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r", encoding="utf-8") as f:
+    with config_path.open("r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=3 but truncate height array to 2 elements
@@ -3593,10 +3593,10 @@ def test_nlayer_veg_frac_array_dimension_error():
     from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
     import yaml
 
-    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    sample_data_dir = trv_supy_module / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r", encoding="utf-8") as f:
+    with config_path.open("r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=5 but truncate veg_frac to 3 elements
@@ -3634,10 +3634,10 @@ def test_nlayer_multiple_arrays_dimension_errors():
     from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
     import yaml
 
-    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    sample_data_dir = trv_supy_module / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r", encoding="utf-8") as f:
+    with config_path.open("r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=4 but truncate multiple arrays
@@ -3669,10 +3669,10 @@ def test_nlayer_no_errors_when_correct():
     from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
     import yaml
 
-    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    sample_data_dir = trv_supy_module / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r", encoding="utf-8") as f:
+    with config_path.open("r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Detect nlayer from the config
@@ -3699,10 +3699,10 @@ def test_nlayer_roofs_walls_dimension_error_with_templates():
     from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
     import yaml
 
-    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    sample_data_dir = trv_supy_module / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r", encoding="utf-8") as f:
+    with config_path.open("r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer to 2 but keep only 1 roof and 1 wall element
@@ -3984,7 +3984,7 @@ def test_forcing_validation_can_be_disabled():
         annotate_missing_parameters,
     )
 
-    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    sample_data_dir = trv_supy_module / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
     # Create temporary output files
@@ -3994,17 +3994,20 @@ def test_forcing_validation_can_be_disabled():
         report_path = report_f.name
 
     try:
-        # Run Phase A validation with forcing="off"
-        annotate_missing_parameters(
-            user_file=str(config_path),
-            standard_file=str(config_path),
-            uptodate_file=uptodate_path,
-            report_file=report_path,
-            mode="public",
-            phase="A",
-            nlayer=3,
-            forcing="off",
-        )
+        # Run Phase A validation with forcing="off".
+        # `annotate_missing_parameters` takes str paths, so the packaged
+        # resource is materialised as a real file first.
+        with as_file(config_path) as config_file:
+            annotate_missing_parameters(
+                user_file=str(config_file),
+                standard_file=str(config_file),
+                uptodate_file=uptodate_path,
+                report_file=report_path,
+                mode="public",
+                phase="A",
+                nlayer=3,
+                forcing="off",
+            )
 
         # Verify report does not contain forcing validation errors
         with open(report_path, "r", encoding="utf-8") as f:
@@ -4248,11 +4251,11 @@ def test_forcing_validation_cli_integration(cli_runner):
     import pandas as pd
     from supy.cmd.validate_config import cli as validate_cli
 
-    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    sample_data_dir = trv_supy_module / "sample_data"
     sample_config = sample_data_dir / "sample_config.yml"
 
     # Read sample config and get forcing file path
-    with open(sample_config, "r", encoding="utf-8") as f:
+    with sample_config.open("r", encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Create a temporary config with invalid forcing data
@@ -4341,7 +4344,7 @@ def test_validate_cli_success_removes_temp_report_json_sidecars(cli_runner):
     """Successful ABC validation should not leak intermediate JSON reports."""
     from supy.cmd.validate_config import cli as validate_cli
 
-    sample_config = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+    sample_config = trv_supy_module / "sample_data" / "sample_config.yml"
 
     with cli_runner.isolated_filesystem() as tmpdir:
         tmpdir_path = Path(tmpdir)
@@ -4766,7 +4769,7 @@ class TestSparseYmlCriticalMissing:
     SPARSE_FIXTURE = (
         Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
     )
-    SAMPLE_CONFIG = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+    SAMPLE_CONFIG = trv_supy_module / "sample_data" / "sample_config.yml"
 
     def test_sparse_yml_raises_validation_error(self):
         """Sparse config raises on load, naming each missing block.
@@ -4803,16 +4806,18 @@ class TestSparseYmlCriticalMissing:
 
     def test_sample_config_still_loads(self):
         """Packaged sample config is complete and must not trigger the new check."""
-        assert self.SAMPLE_CONFIG.exists(), (
+        assert self.SAMPLE_CONFIG.is_file(), (
             f"Sample config missing: {self.SAMPLE_CONFIG}"
         )
         # Must not raise; a successful load is the assertion.
-        config = SUEWSConfig.from_yaml(str(self.SAMPLE_CONFIG))
+        with as_file(self.SAMPLE_CONFIG) as sample_path:
+            config = SUEWSConfig.from_yaml(str(sample_path))
         assert config is not None
 
     def test_site_params_check_returns_empty_on_complete_config(self):
         """Direct method check — complete config yields no critical issues."""
-        config = SUEWSConfig.from_yaml(str(self.SAMPLE_CONFIG))
+        with as_file(self.SAMPLE_CONFIG) as sample_path:
+            config = SUEWSConfig.from_yaml(str(sample_path))
         assert config._check_critical_null_site_params() == []
 
     def test_partial_land_cover_still_checks_omitted_active_defaults(self, tmp_path):

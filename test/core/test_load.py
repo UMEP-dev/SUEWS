@@ -5,6 +5,7 @@ This module tests all data loading and initialization functions in supy,
 including state initialization, forcing data loading, and configuration loading.
 """
 
+from importlib.resources import as_file
 from pathlib import Path
 import tempfile
 from unittest import TestCase
@@ -15,6 +16,7 @@ import pytest
 import yaml
 
 import supy as sp
+from supy._env import trv_supy_module
 from supy.data_model import SUEWSConfig
 from supy.util.converter import convert_table, detect_table_version
 
@@ -27,9 +29,10 @@ class TestSimulationLoading(TestCase):
     def setUp(self):
         """Set up test environment."""
         # Get the sample config path
-        self.sample_config = (
-            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-        )
+        # The directory, not just the config: the config names its forcing
+        # file as a bare sibling, so a file-only as_file() would not carry it.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
         self.benchmark_config = (
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
@@ -86,9 +89,10 @@ class TestLoadForcing(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        self.sample_config = (
-            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-        )
+        # The directory, not just the config: the config names its forcing
+        # file as a bare sibling, so a file-only as_file() would not carry it.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
         self.benchmark_config = (
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
@@ -178,9 +182,10 @@ class TestConfigLoading(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        self.sample_config = (
-            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-        )
+        # The object-oriented state conversion below constructs a simulation,
+        # which auto-loads the forcing file named as a sibling of the config.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
 
     def test_init_config_from_yaml(self):
         """Test loading configuration from YAML."""

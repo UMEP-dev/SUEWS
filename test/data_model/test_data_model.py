@@ -8,6 +8,7 @@ This file combines:
 """
 
 # Import section will be combined from all relevant files
+from importlib.resources import as_file
 from pathlib import Path
 import unittest
 
@@ -16,6 +17,7 @@ import pandas as pd
 import pytest
 
 import supy as sp
+from supy._env import trv_supy_module
 from supy._load import trim_df_state
 from supy.data_model import (
     InitialStates,
@@ -37,8 +39,8 @@ pytestmark = pytest.mark.api
 class TestSUEWSConfig(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
-        self.path_sample_config = (
-            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        self.path_sample_config = self.enterContext(
+            as_file(trv_supy_module / "sample_data" / "sample_config.yml")
         )
         self.config = SUEWSConfig.from_yaml(self.path_sample_config)
 
@@ -361,7 +363,9 @@ class TestLegacyDfStateStebbsDefaults(unittest.TestCase):
     """
 
     def setUp(self):
-        path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        path = self.enterContext(
+            as_file(trv_supy_module / "sample_data" / "sample_config.yml")
+        )
         self.df_physics = SUEWSConfig.from_yaml(path).model.physics.to_df_state(
             grid_id=1
         )
@@ -392,7 +396,9 @@ class TestLegacyDfStateStebbsDefaults(unittest.TestCase):
     def test_issue_minimal_repro_via_suews_config(self):
         """The gh#1500 symptom at config level: drop ``setpointmethod`` from a
         full df_state and round-trip through ``SUEWSConfig.from_df_state``."""
-        path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        path = self.enterContext(
+            as_file(trv_supy_module / "sample_data" / "sample_config.yml")
+        )
         df = SUEWSConfig.from_yaml(path).to_df_state()
         df_legacy = df.drop(columns=[("setpointmethod", "0")])
         config = SUEWSConfig.from_df_state(df_legacy)

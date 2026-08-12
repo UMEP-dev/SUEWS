@@ -8,6 +8,8 @@ once a value is customised, it must move out of the assumed list.
 from __future__ import annotations
 
 import shutil
+from importlib.resources import as_file
+from importlib.resources.abc import Traversable
 from pathlib import Path
 
 import pytest
@@ -21,10 +23,16 @@ _requires_suews_cli = pytest.mark.skipif(
 )
 
 
-def _sample() -> Path:
-    import supy
+def _sample_dir() -> Traversable:
+    """The bundled ``sample_data`` directory as a packaged resource."""
+    from supy._env import trv_supy_module
 
-    return Path(supy.__file__).resolve().parent / "sample_data" / "sample_config.yml"
+    return trv_supy_module / "sample_data"
+
+
+def _sample() -> Traversable:
+    """The bundled sample config as a packaged resource (read-only)."""
+    return _sample_dir() / "sample_config.yml"
 
 
 @_requires_suews_cli
@@ -32,7 +40,12 @@ def test_fresh_sample_is_all_assumed() -> None:
     """The bundled sample, unedited, flags location / land_cover / forcing as assumed."""
     from suews_mcp.tools import assess_readiness
 
-    env = assess_readiness(str(_sample()), project_root=str(_sample().parent))
+    # `assess_readiness` shells out to the `suews` CLI, so both the
+    # config and the project root must be real filesystem paths.
+    with as_file(_sample_dir()) as sample_dir:
+        env = assess_readiness(
+            str(sample_dir / "sample_config.yml"), project_root=str(sample_dir)
+        )
     assert env["status"] == "success", env.get("errors")
     data = env["data"]
     assert data["ready"] is False

@@ -146,3 +146,34 @@ def _timestamp(offset_seconds: int) -> str:
     """Return an ISO timestamp at the requested midnight offset."""
     timestamp = datetime(2026, 7, 15, tzinfo=UTC).timestamp() + offset_seconds
     return datetime.fromtimestamp(timestamp, tz=UTC).isoformat().replace("+00:00", "Z")
+
+
+@pytest.mark.smoke
+def test_checkout_abba_workflow_is_manual_sequential_and_non_production() -> None:
+    """The blob-filter experiment stays on one Windows runner and out of CI."""
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github/workflows/benchmark-checkout-provenance.yml").read_text(
+        encoding="utf-8"
+    )
+    path_filters = (root / ".github/path-filters.yml").read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in workflow
+    assert "pull_request:" not in workflow
+    assert "push:" not in workflow
+    assert workflow.count("runs-on: windows-2025") == 1
+    assert "A1 - full checkout" in workflow
+    assert "B1 - blob:none checkout" in workflow
+    assert "B2 - blob:none checkout" in workflow
+    assert "A2 - full checkout" in workflow
+    assert (
+        workflow.index("A1 - full checkout")
+        < workflow.index("B1 - blob:none checkout")
+        < workflow.index("B2 - blob:none checkout")
+        < workflow.index("A2 - full checkout")
+    )
+    assert workflow.count("filter: blob:none") == 3  # B1, B2, final build source
+    assert "fetch-depth: 0" in workflow
+    assert "expected_sha must equal the dispatched default-branch SHA" in workflow
+    assert "test_tier: smoke" in workflow
+    assert "uses: ./.github/actions/build-suews" in workflow
+    assert "- '.github/workflows/benchmark-checkout-provenance.yml'" in path_filters

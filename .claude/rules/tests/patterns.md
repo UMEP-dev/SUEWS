@@ -261,6 +261,21 @@ is 3.12). Reach for that when a test needs both a config and the directory
 holding it: one context gives you both, and it avoids `.parent`, which is the
 obvious reach and is *not* in the protocol.
 
+**Materialise the directory whenever the resource has siblings it depends on.**
+`as_file()` on a single file extracts *only that file* under a non-filesystem
+loader. `sample_config.yml` names its forcing file as a bare sibling
+(`Kc_2012_data_60.txt`), so anything that loads forcing — `load_forcing_grid`,
+`init_supy`, `SUEWSSimulation` — needs the directory, not the file:
+
+```python
+with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+    yield path_sample_dir / "sample_config.yml"
+```
+
+This is the one mistake that survives the `__file__` sweep: it is still a
+layout assumption, just a subtler one, and like the rest of them it passes
+locally.
+
 ```python
 with as_file(trv_supy_module / "sample_data") as path_sample_dir:
     env = assess_readiness(

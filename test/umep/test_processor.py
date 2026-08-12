@@ -29,11 +29,11 @@ class TestSUEWSProcessorAPI(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        # `as_file` because the UMEP entry points below take real
-        # filesystem paths, not packaged-resource handles.
-        self.sample_config = self.enterContext(
-            as_file(trv_supy_module / "sample_data" / "sample_config.yml")
-        )
+        # `as_file` because the UMEP entry points below take real filesystem
+        # paths, not packaged-resource handles. The whole directory, because
+        # load_forcing_grid resolves the forcing file as a sibling of the config.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
 
     def test_init_config_from_yaml_import(self):
         """Test that init_config_from_yaml is importable from expected location."""

@@ -389,9 +389,14 @@ def sample_yaml_path() -> Iterator[Path]:
     Session-scoped since the path is fixed for the process lifetime.
     ``as_file`` materialises the packaged resource as a real filesystem
     path, which is what the consumers below hand to ``str()``-taking APIs.
+
+    The **directory** is materialised, not just the config: the config names
+    its forcing file as a bare sibling (``Kc_2012_data_60.txt``), so a
+    file-only ``as_file`` would hand back a config whose forcing cannot
+    resolve under any non-filesystem loader.
     """
-    with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as path_sample:
-        yield path_sample
+    with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+        yield path_sample_dir / "sample_config.yml"
 
 
 @pytest.fixture(scope="session")

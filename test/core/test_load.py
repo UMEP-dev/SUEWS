@@ -29,9 +29,10 @@ class TestSimulationLoading(TestCase):
     def setUp(self):
         """Set up test environment."""
         # Get the sample config path
-        self.sample_config = self.enterContext(
-            as_file(trv_supy_module / "sample_data" / "sample_config.yml")
-        )
+        # The directory, not just the config: the config names its forcing
+        # file as a bare sibling, so a file-only as_file() would not carry it.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
         self.benchmark_config = (
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
@@ -88,9 +89,10 @@ class TestLoadForcing(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        self.sample_config = self.enterContext(
-            as_file(trv_supy_module / "sample_data" / "sample_config.yml")
-        )
+        # The directory, not just the config: the config names its forcing
+        # file as a bare sibling, so a file-only as_file() would not carry it.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
         self.benchmark_config = (
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
@@ -180,9 +182,10 @@ class TestConfigLoading(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        self.sample_config = self.enterContext(
-            as_file(trv_supy_module / "sample_data" / "sample_config.yml")
-        )
+        # The directory, not just the config: the config names its forcing
+        # file as a bare sibling, so a file-only as_file() would not carry it.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
 
     def test_init_config_from_yaml(self):
         """Test loading configuration from YAML."""

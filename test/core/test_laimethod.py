@@ -83,11 +83,6 @@ def _base_forcing_df(n_timesteps: int = 24) -> pd.DataFrame:
 class TestLAIMethodValidator:
     """Unit tests for the `laimethod=0 -> lai column required` validator entry."""
 
-    def test_requirements_entry_exists(self):
-        """FORCING_REQUIREMENTS must include the laimethod entry for #1291."""
-        assert ("laimethod", 0) in FORCING_REQUIREMENTS
-        assert FORCING_REQUIREMENTS[("laimethod", 0)] == ["lai"]
-
     def test_laimethod_0_requires_lai(self):
         """laimethod=0 with an all-missing lai column emits an issue."""
         df_forcing = _base_forcing_df()

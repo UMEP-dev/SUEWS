@@ -125,43 +125,6 @@ class TestRegistryShape:
     def test_exemplar_fields_present(self):
         assert set(PHYSICS_FAMILIES) >= {"net_radiation", "storage_heat", "emissions"}
 
-    def test_net_radiation_families(self):
-        fams = PHYSICS_FAMILIES["net_radiation"]
-        assert set(fams) == {"forcing", "narp", "spartacus"}
-        assert 0 in fams["forcing"]
-        assert 3 in fams["narp"]
-        assert 1001 in fams["spartacus"]
-
-    def test_storage_heat_families(self):
-        fams = PHYSICS_FAMILIES["storage_heat"]
-        assert set(fams) == {
-            "observed",
-            "ohm",
-            "anohm",
-            "estm",
-            "ehc",
-            "dyohm",
-            "stebbs",
-            "dyohm_building",
-        }
-        assert fams["ohm"] == frozenset({1})
-        assert fams["ehc"] == frozenset({5})
-        assert fams["dyohm_building"] == frozenset({8})
-
-    def test_emissions_families(self):
-        fams = PHYSICS_FAMILIES["emissions"]
-        assert set(fams) == {
-            "observed",
-            "simple",
-            "biogenic_rectangular",
-            "biogenic_bellucco_local",
-            "biogenic_bellucco_general",
-            "biogenic_conductance",
-        }
-        assert fams["simple"] == frozenset({1, 2, 3, 4, 5, 6})
-        assert fams["biogenic_rectangular"] == frozenset(range(11, 17))
-        assert fams["biogenic_bellucco_general"] == frozenset(range(31, 37))
-
     def test_families_disjoint(self):
         for field_name, fams in PHYSICS_FAMILIES.items():
             seen: dict[int, str] = {}
@@ -376,32 +339,6 @@ class TestCoerceScalarNames:
     def test_unknown_scalar_name_lists_valid_names(self):
         with pytest.raises(ValueError, match="campbell_norman"):
             coerce_nested_to_flat("stability", "bogus")
-
-    def test_registry_exposes_agent_facing_names(self):
-        from supy.data_model.core.physics_families import (
-            accepted_physics_names,
-            canonical_physics_name,
-            preferred_physics_name,
-            public_model_physics_key,
-            public_stebbs_physics_key,
-        )
-
-        assert canonical_physics_name("surface_conductance", 2) == "ward"
-        assert preferred_physics_name("surface_conductance", 2) == "W16"
-        assert preferred_physics_name("roughness_length_heat", 2) == "K09"
-        assert preferred_physics_name("stability", 3) == "CN98"
-        assert preferred_physics_name("laimethod", 1) == "modelled"
-        assert preferred_physics_name("storage_heat", 3) == "anohm"
-        assert preferred_physics_name("storage_heat", 4) == "estm"
-        assert preferred_physics_name("storage_heat", 6) == "dyohm"
-        assert preferred_physics_name("storage_heat", 8) == "dyohm_building"
-        assert preferred_physics_name("roughness_sublayer", 1) == "rst"
-        assert preferred_physics_name("soil_moisture_deficit", 2) == "observed"
-        assert "w16" in accepted_physics_names("surface_conductance")
-        assert public_model_physics_key("laimethod") == "leaf_area_index"
-        assert public_model_physics_key("snow_use") == "snow"
-        assert public_stebbs_physics_key("parameters") == "parameter_source"
-
 
 class TestReadableNamesInModels:
     def test_model_physics_accepts_top_level_readable_names(self):

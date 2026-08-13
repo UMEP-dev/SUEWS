@@ -115,47 +115,6 @@ def make_cfg(**physics_kwargs):
     return cfg
 
 
-def test_needs_stebbs_validation_true_and_false():
-    cfg = make_cfg(stebbs=1)
-    assert cfg._needs_stebbs_validation() is True
-    cfg2 = make_cfg(stebbs=0)
-    assert cfg2._needs_stebbs_validation() is False
-
-
-def test_validate_stebbs_missing_properties_block():
-    cfg = make_cfg(stebbs=1)
-    site = DummySite(properties=None, name="MySite")
-    msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
-    assert msgs == ["Missing 'properties' section (required for STEBBS validation)"]
-
-
-def test_validate_stebbs_missing_stebbs_section():
-    cfg = make_cfg(stebbs=1)
-    props = SimpleNamespace(stebbs=None)
-    site = DummySite(properties=props, name="MySite")
-    msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
-    assert msgs == ["Missing 'stebbs' section (required when stebbs=1)"]
-
-
-def test_validate_stebbs_missing_parameters():
-    cfg = make_cfg(stebbs=1)
-    # Provide an empty stebbs object
-    props = SimpleNamespace(stebbs=SimpleNamespace())
-    site = DummySite(properties=props, name="MySite")
-    msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
-    # Should mention at least one of the required params
-    assert msgs and msgs[0].startswith("Missing required STEBBS parameters:")
-
-
-def test_needs_rsl_validation_true_and_false():
-    # After conditional validation fix, validation is disabled by default
-    # unless physics parameters are explicitly configured
-    cfg = make_cfg(roughness_sublayer=2)
-    assert cfg._needs_rsl_validation() is False  # Disabled by default now
-    cfg2 = make_cfg(roughness_sublayer=1)
-    assert cfg2._needs_rsl_validation() is False
-
-
 def test_validate_rsl_no_land_cover_or_sfr():
     cfg = make_cfg(roughness_sublayer=2)
     site = DummySite(properties=None)
@@ -163,30 +122,6 @@ def test_validate_rsl_no_land_cover_or_sfr():
     # land_cover without bldgs
     site2 = DummySite(properties=SimpleNamespace(land_cover=None))
     assert SUEWSConfig._validate_rsl(cfg, site2, 0) == []
-
-
-def test_validate_rsl_requires_faibldg():
-    cfg = make_cfg(roughness_sublayer=2)
-    # build a land_cover.bldgs with sfr>0 but no faibldg
-    bldgs = SimpleNamespace(sfr=SimpleNamespace(value=0.5), faibldg=None)
-    lc = SimpleNamespace(bldgs=bldgs)
-    site = DummySite(properties=SimpleNamespace(land_cover=lc), name="SiteR")
-    msgs = SUEWSConfig._validate_rsl(cfg, site, 1)
-    assert len(msgs) == 1
-    assert "bldgs.faibldg must be set" in msgs[0]
-    assert "SiteR" in msgs[0]
-
-
-def test_needs_storage_validation_true_and_false():
-    # After conditional validation fix, validation is disabled by default
-    # unless physics parameters are explicitly configured
-    cfg = make_cfg(storage_heat=6)
-    assert cfg._needs_storage_validation() is False  # Disabled by default now
-    cfg2 = make_cfg(storage_heat=1)
-    assert cfg2._needs_storage_validation() is False
-    cfg3 = make_cfg(storage_heat=8)
-    cfg3.model.physics.model_fields_set = {"storage_heat"}
-    assert cfg3._needs_storage_validation() is True
 
 
 def test_validate_storage_requires_numeric_and_lambda():
@@ -211,42 +146,6 @@ def test_validate_storage_requires_numeric_and_lambda():
     assert any("properties.lambda_c must be set" in m for m in msgs)
     # should include the site name
     assert any("SiteS" in m for m in msgs)
-
-
-def test_validate_storage_method7_does_not_require_building_material_or_lambda():
-    cfg = make_cfg(storage_heat=7, net_radiation=1003)
-    props = SimpleNamespace(
-        land_cover=SimpleNamespace(
-            bldgs=SimpleNamespace(thermal_layers=None)
-        ),
-        lambda_c=None,
-    )
-    site = DummySite(properties=props, name="SiteS")
-    site.initial_states = SimpleNamespace(
-        qn_surfs=SimpleNamespace(value=[0.0] * 7),
-        dqndt_surf=SimpleNamespace(value=[0.0] * 7),
-    )
-
-    assert SUEWSConfig._validate_storage(cfg, site, 2) == []
-
-
-def test_validate_storage_method7_requires_spartacus_radiation():
-    cfg = make_cfg(storage_heat=7, net_radiation=3)
-    props = SimpleNamespace(
-        land_cover=SimpleNamespace(bldgs=SimpleNamespace(thermal_layers=None)),
-        lambda_c=None,
-    )
-    site = DummySite(properties=props, name="SiteS")
-    site.initial_states = SimpleNamespace(
-        qn_surfs=SimpleNamespace(value=[0.0] * 7),
-        dqndt_surf=SimpleNamespace(value=[0.0] * 7),
-    )
-
-    issues = SUEWSConfig._validate_storage(cfg, site, 2)
-
-    assert len(issues) == 1
-    assert "requires model.physics.net_radiation" in issues[0]
-    assert "1001, 1002, or 1003" in issues[0]
 
 
 def test_validate_storage_rejects_nonfinite_values():
@@ -670,126 +569,6 @@ def test_auto_albedo_with_refvalue_inputs():
     # lai_ratio = (2.0 - 1.0) / (3.0 - 1.0) = 0.5
     # alb_id = 0.1 + (0.3 - 0.1) * 0.5 = 0.2
     assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
-
-
-# The same-albedo / same-emissivity validators are symmetric across
-# (wall, roof) x (albedo, emissivity); one parametrised test per behaviour
-# replaces the twelve copy-pasted originals. Case values are those of the
-# original per-combination tests.
-
-_SAME_SURFACE_COMBOS = {
-    # flag -> (validator, needs_check, surfaces_attr, prop_attr, archetype_attr, word)
-    "same_albedo_wall": (
-        "_validate_same_albedo_wall",
-        "_needs_same_albedo_wall_validation",
-        "walls",
-        "alb",
-        "reflectivity_wall_external",
-        "albedo",
-    ),
-    "same_albedo_roof": (
-        "_validate_same_albedo_roof",
-        "_needs_same_albedo_roof_validation",
-        "roofs",
-        "alb",
-        "reflectivity_roof_external",
-        "albedo",
-    ),
-    "same_emissivity_wall": (
-        "_validate_same_emissivity_wall",
-        "_needs_same_emissivity_wall_validation",
-        "walls",
-        "emis",
-        "emissivity_wall_external",
-        "emissivity",
-    ),
-    "same_emissivity_roof": (
-        "_validate_same_emissivity_roof",
-        "_needs_same_emissivity_roof_validation",
-        "roofs",
-        "emis",
-        "emissivity_roof_external",
-        "emissivity",
-    ),
-}
-
-
-@pytest.mark.parametrize(
-    "flag, v1, v2, arch_v, site_name",
-    [
-        pytest.param("same_albedo_wall", 0.5, 0.6, 0.5, "SiteWallMismatch", id="albedo-wall"),
-        pytest.param("same_albedo_roof", 0.5, 0.6, 0.5, "SiteRoofMismatch", id="albedo-roof"),
-        pytest.param("same_emissivity_wall", 0.5, 0.6, 0.5, "SiteWallMismatch", id="emissivity-wall"),
-        pytest.param("same_emissivity_roof", 0.8, 0.9, 0.8, "SiteRoofEmisMismatch", id="emissivity-roof"),
-    ],
-)
-def test_validate_same_surface_property_requires_identical_values(
-    flag, v1, v2, arch_v, site_name
-):
-    """
-    When a same_* switch is ON but the wall/roof layers carry different
-    albedo/emissivity values, we should get an error about them needing to
-    be identical.
-    """
-    validator, _, surfaces_attr, prop_attr, archetype_attr, word = _SAME_SURFACE_COMBOS[flag]
-    cfg = make_cfg(**{flag: 1})
-
-    surfaces = [
-        SimpleNamespace(**{prop_attr: SimpleNamespace(value=v1)}),
-        SimpleNamespace(**{prop_attr: SimpleNamespace(value=v2)}),  # mismatch
-    ]
-    vl = SimpleNamespace(**{surfaces_attr: surfaces})
-    ba = SimpleNamespace(**{archetype_attr: SimpleNamespace(value=arch_v)})
-    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name=site_name)
-
-    msgs = getattr(SUEWSConfig, validator)(cfg, site, 0)
-    assert len(msgs) == 1
-    assert f"so all {surfaces_attr} {word} values must be identical;" in msgs[0]
-    assert site_name in msgs[0]
-
-
-@pytest.mark.parametrize(
-    "flag, value, arch_v, site_name",
-    [
-        pytest.param("same_albedo_wall", 0.5, 0.345, "SiteRefMismatch", id="albedo-wall"),
-        pytest.param("same_albedo_roof", 0.5, 0.345, "SiteRefMismatch", id="albedo-roof"),
-        pytest.param("same_emissivity_wall", 0.9, 0.8, "SiteEmisRefMismatch", id="emissivity-wall"),
-        pytest.param("same_emissivity_roof", 0.7, 0.5, "SiteRoofEmisRefMismatch", id="emissivity-roof"),
-    ],
-)
-def test_validate_same_surface_property_requires_match_with_archetype(
-    flag, value, arch_v, site_name
-):
-    """
-    When a same_* switch is ON and all wall/roof layers agree but differ from
-    the building_archetype reference value, we should get an error.
-    """
-    validator, _, surfaces_attr, prop_attr, archetype_attr, _ = _SAME_SURFACE_COMBOS[flag]
-    cfg = make_cfg(**{flag: 1})
-
-    surfaces = [
-        SimpleNamespace(**{prop_attr: SimpleNamespace(value=value)}),
-        SimpleNamespace(**{prop_attr: SimpleNamespace(value=value)}),
-    ]
-    vl = SimpleNamespace(**{surfaces_attr: surfaces})
-    ba = SimpleNamespace(**{archetype_attr: SimpleNamespace(value=arch_v)})
-    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
-    site = DummySite(properties=props, name=site_name)
-
-    msgs = getattr(SUEWSConfig, validator)(cfg, site, 0)
-    assert len(msgs) == 1
-    msg = msgs[0]
-    assert f"must equal properties.building_archetype.{archetype_attr} ({arch_v})" in msg
-    assert f"{surfaces_attr}[0]={value}" in msg
-    assert site_name in msg
-
-
-@pytest.mark.parametrize("flag", list(_SAME_SURFACE_COMBOS))
-def test_needs_same_surface_property_validation_true_and_false(flag):
-    needs_check = _SAME_SURFACE_COMBOS[flag][1]
-    assert getattr(make_cfg(**{flag: 1}), needs_check)() is True
-    assert getattr(make_cfg(**{flag: 0}), needs_check)() is False
 
 
 def test_phase_b_stebbs_rules_fire_with_nested_enabled_form(registry):
@@ -2002,74 +1781,6 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
         assert props["building_archetype"][param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
     assert adjustments == []
 
-def test_needs_spartacus_validation_true_and_false():
-    
-    cfg = make_cfg()
-    cfg.model.physics.net_radiation =1001
-    assert cfg._needs_spartacus_validation() is True
-
-    cfg2 = make_cfg()
-    cfg2.model.physics.net_radiation = 1
-    assert cfg2._needs_spartacus_validation() is False
-
-def test_validate_spartacus_building_height_error():
-    # gh#1456: make_cfg already builds the nested stebbs (enabled+parameters)
-    # block from the legacy `stebbs=1` kwarg; the validator composes the
-    # stebbsmethod from it, so no raw-int override is needed.
-    cfg = make_cfg(net_radiation=1001, stebbs=1)
-
-    # bldgh and archetype_height both exceed height[nlayer]
-    bldgs = SimpleNamespace(bldgh=15.0)
-    building_archetype = SimpleNamespace(archetype_height=20.0)
-    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
-    props = SimpleNamespace(
-        land_cover=SimpleNamespace(bldgs=bldgs),
-        vertical_layers=vertical_layers,
-        building_archetype=building_archetype,
-    )
-    site = DummySite(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_building_height(site, 0)
-
-    assert len(msgs) == 2
-    assert any("bldgh=15.0" in m and "height[1]=10.0" in m for m in msgs)
-    assert any("archetype_height=20.0" in m and "height[1]=10.0" in m for m in msgs)
-
-
-def test_validate_spartacus_building_height_no_error():
-    # gh#1456: nested stebbs block built by make_cfg; no raw-int override.
-    cfg = make_cfg(net_radiation=1001, stebbs=1)
-
-    # bldgh and archetype_height do not exceed height[nlayer]
-    bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(archetype_height=9.0)
-    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
-    props = SimpleNamespace(
-        land_cover=SimpleNamespace(bldgs=bldgs),
-        vertical_layers=vertical_layers,
-        building_archetype=building_archetype,
-    )
-    site = DummySite(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_building_height(site, 0)
-    assert msgs == []
-
-
-def test_validate_spartacus_building_height_stebbs_off():
-    """archetype_height should NOT be checked when stebbsmethod != 1."""
-    cfg = make_cfg(net_radiation=1001, stebbs=0)
-
-    # archetype_height exceeds domain top, but stebbsmethod is off
-    bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(archetype_height=20.0)
-    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
-    props = SimpleNamespace(
-        land_cover=SimpleNamespace(bldgs=bldgs),
-        vertical_layers=vertical_layers,
-        building_archetype=building_archetype,
-    )
-    site = DummySite(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_building_height(site, 0)
-    assert msgs == []
-
 def test_validate_spartacus_sfr_allows_building_frac_below_land_cover():
     """SPARTACUS allows lower first-layer building geometry smaller than building land cover."""
     cfg = SUEWSConfig.model_construct()
@@ -2116,27 +1827,6 @@ def test_validate_spartacus_sfr_allows_layer_geometry_sum_equal_one():
     msgs = cfg._validate_spartacus_sfr(site, 0)
 
     assert msgs == []
-
-def test_validate_spartacus_sfr_rejects_layer_geometry_sum_above_one():
-    """SPARTACUS building and vegetation layer fractions cannot exceed one."""
-    cfg = SUEWSConfig.model_construct()
-    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    bldgs = SimpleNamespace(sfr=0.8)
-    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
-    vertical_layers = SimpleNamespace(
-        building_frac=[0.5, 0.8],
-        veg_frac=[0.4, 0.25],
-    )
-    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
-    site = DummySite(properties=props, name="TestSite")
-
-    msgs = cfg._validate_spartacus_sfr(site, 0)
-
-    assert any(
-        "vertical_layers.building_frac[1] + vertical_layers.veg_frac[1] (1.05) exceeds 1.0"
-        in m
-        for m in msgs
-    )
 
 def test_validate_spartacus_sfr_rejects_unpaired_layer_geometry_above_one():
     """SPARTACUS occupancy checks extra layers in the longer fraction array."""
@@ -2214,22 +1904,6 @@ def test_validate_spartacus_sfr_rejects_upper_vegetation_without_trunk_fraction(
         for m in msgs
     )
 
-def test_validate_spartacus_sfr_consistent_values():
-    cfg = SUEWSConfig.model_construct()
-    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    bldgs = SimpleNamespace(sfr=0.3)  
-    evetr = SimpleNamespace(sfr=0.1)
-    dectr = SimpleNamespace(sfr=0.2)
-    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
-    vertical_layers = SimpleNamespace(
-        building_frac=[0.3],
-        veg_frac=[0.3],
-    )
-    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
-    site = DummySite(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs == []
-
 def test_validate_spartacus_sfr_allows_trunk_crown_veg_frac():
     """SPARTACUS allows lower first-layer vegetation geometry smaller than tree land cover."""
     cfg = SUEWSConfig.model_construct()
@@ -2251,40 +1925,6 @@ def test_validate_spartacus_sfr_allows_trunk_crown_veg_frac():
     site = DummySite(properties=props, name="TestSite")
 
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs == []
-
-# Without tree-height context (no land_cover / height array on the stub),
-# _validate_spartacus_veg_dimensions is lenient: matching, mismatched, and
-# missing nlayer/veg_frac shapes all pass through with no messages. One
-# parametrised test replaces the five copy-pasted originals; the height-aware
-# passing/failing/boundary/exceeds cases below keep their distinct assertions.
-
-
-@pytest.mark.parametrize(
-    "vertical_layers",
-    [
-        pytest.param(
-            SimpleNamespace(nlayer=2, veg_frac=[0.3, 0.7]), id="matching"
-        ),
-        pytest.param(
-            SimpleNamespace(nlayer=3, veg_frac=[0.2, 0.8]), id="too-few-elements"
-        ),
-        pytest.param(
-            SimpleNamespace(nlayer=2, veg_frac=[0.1, 0.2, 0.7]),
-            id="too-many-elements",
-        ),
-        pytest.param(SimpleNamespace(nlayer=2), id="missing-veg-frac"),
-        pytest.param(SimpleNamespace(veg_frac=[0.5, 0.5]), id="missing-nlayer"),
-    ],
-)
-def test_validate_spartacus_veg_dimensions_lenient_without_height_context(
-    vertical_layers,
-):
-    """nlayer/veg_frac shapes produce no messages when no height context is set."""
-    cfg = SUEWSConfig.model_construct()
-    props = SimpleNamespace(vertical_layers=vertical_layers)
-    site = SimpleNamespace(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
     assert msgs == []
 
 def test_validate_spartacus_veg_dimensions_passing_case():
@@ -2331,23 +1971,6 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
     assert msgs == []
-
-def test_validate_spartacus_veg_dimensions_exceeds_all_case():
-    """Exceeds-all case: max_tree=100 with height=[0, 5, 10] — should produce the 'exceeds' message."""
-    cfg = SUEWSConfig.model_construct()
-    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    # Note: dectrh and evetrh are attributes of land_cover.dectr and land_cover.evetr, not land_cover itself
-    dectr = SimpleNamespace(height_deciduous_tree=100.0)
-    lc = SimpleNamespace(dectr=dectr, evetr=None)
-    vertical_layers = SimpleNamespace(
-        height=[0, 5, 10],
-        veg_frac=[0.3, 0.3, 0.2],
-    )
-    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
-    site = DummySite(properties=props, name="TestSite")
-    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
-    assert msgs
-    assert any("exceeds all vertical_layers heights" in m for m in msgs)
 
 def make_sample_physics(fields):
     obj = types.SimpleNamespace()

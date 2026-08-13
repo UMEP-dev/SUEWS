@@ -186,6 +186,53 @@ skips (no coverage). See `test/fixtures/legacy_tables/` for the pattern.
 
 ---
 
+## Test Placement: the Level Taxonomy
+
+Before writing a test, decide what its FAILURE would mean. If it can fail
+while user-visible behaviour is unchanged (a private method renamed, a
+registry dict reorganised, an internal call signature changed, an error
+message reworded), it is pinned to the implementation, not to a contract —
+do not write it. "Add a function, add a test" is not the rule; "add a
+contract, add a test at the lowest level that can express it" is.
+
+Levels, and what each one owns:
+
+- **Config/validator contracts** -> test through `SUEWSConfig.from_yaml` /
+  `from_dict` (or the CLI). A validation rule's contract is "this YAML is
+  rejected with a message the user can act on" — not the return value of a
+  private `_validate_*` method on a stub.
+- **Pipeline behaviour** (Phase A/B/C processing) -> real user-shaped YAML
+  through the pipeline entry points, asserting the surfaced report/error.
+  Invoking one internal rule at a time is unit scaffolding, acceptable only
+  in addition to at least one surface-level witness for the same rule.
+- **Model physics** -> a model run with tolerance-based assertions
+  (`test/physics/`, `test_sample_output.py`).
+- **Adaptor layers** (CLI wrapping supy; MCP wrapping the CLI) -> assert
+  DELEGATION: argument construction, envelope pass-through, error mapping.
+  Do not re-test the wrapped layer's outcomes; those belong to that layer's
+  own tests. (`test/mcp/` is the reference implementation of this style.)
+- **Pure helpers** (public, no I/O) -> plain unit tests are correct.
+
+Banned test constructions (each has produced real dead weight here):
+
+- `SimpleNamespace` / hand-rolled stubs passed to private methods of the
+  system under test — the stub drifts from the real object shape and the
+  test keeps passing while production breaks (`RefValue` vs raw float).
+- `model_construct()` + `object.__setattr__` to defeat validation so a
+  fake config can be injected — the test then asserts against an object
+  the public API would refuse to build.
+- Monkeypatching the system under test (patching `SUEWSConfig.__init__`,
+  neutering a rules registry) — the test exercises the mock.
+- Restating a source literal (registry dict contents, enum values, hand
+  copied column lists) — a change-detector that fails on legitimate change
+  and never on real breakage. Derived invariants (disjointness, parity
+  across artefacts) are fine.
+- Asserting through private attributes (`sim._df_state_init`) when a
+  public property (`sim.state_init`) exposes the same thing.
+
+Migration is on-touch, not big-bang: when you edit a file that violates
+this taxonomy, move the touched tests to the right level in the same PR.
+
 ## Anti-Patterns to Avoid
 
 - Exact floating-point equality (`==`)

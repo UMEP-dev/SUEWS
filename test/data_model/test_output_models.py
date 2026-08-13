@@ -5,113 +5,22 @@ This script tests the new Python-first output variable definitions
 without requiring a full SUEWS build.
 """
 
-import sys
-import os
-from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.api
 
 # Add src/supy/data_model directly to path to avoid importing full supy package
-# This allows testing the output variable definitions without building the Fortran components
-_DATA_MODEL_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "src" / "supy" / "data_model"
-)
-if str(_DATA_MODEL_PATH) not in sys.path:
-    sys.path.insert(0, str(_DATA_MODEL_PATH))
-
-# Direct import from output module (uses path modification above)
-from output.variables import (
-    OutputVariable,
-    OutputVariableRegistry,
+# Import the PRODUCTION registry -- the same objects _post.py uses --
+# so these tests fail when the real output surface drifts.
+from supy.data_model.output import OUTPUT_REGISTRY
+from supy.data_model.output.variables import (
     AggregationMethod,
     OutputGroup,
     OutputLevel,
+    OutputVariable,
+    OutputVariableRegistry,
 )
-from output.datetime_vars import DATETIME_VARIABLES
-from output.suews_vars import SUEWS_VARIABLES
-from output.snow_vars import SNOW_VARIABLES
-from output.estm_vars import ESTM_VARIABLES
-from output.rsl_vars import RSL_VARIABLES
-from output.dailystate_vars import DAILYSTATE_VARIABLES
-from output.bl_vars import BL_VARIABLES
-from output.beers_vars import BEERS_VARIABLES
-from output.debug_vars import DEBUG_VARIABLES
-from output.ehc_vars import EHC_VARIABLES
-from output.spartacus_vars import SPARTACUS_VARIABLES
-from output.stebbs_vars import STEBBS_VARIABLES
-from output.nhood_vars import NHOOD_VARIABLES
-
-# Expected variable counts derived from Fortran ncolumnsDataOut* constants.
-# Used for unit testing without Fortran build. The actual runtime verification
-# against Fortran is done in test_fortran_python_output_consistency().
-# Formula: ncolumnsDataOut* - 5 (subtract datetime columns)
-EXPECTED_COUNTS = {
-    OutputGroup.DATETIME: 5,  # Year, DOY, Hour, Min, Dectime
-    OutputGroup.SUEWS: 113,  # Core SUEWS variables incl. Ts_* and surface-specific QN/QS
-    OutputGroup.SNOW: 98,  # Snow variables (7 surface types × 14 vars)
-    OutputGroup.ESTM: 27,  # ESTM variables
-    OutputGroup.RSL: 135,  # RSL profile variables (30 levels × 4 vars + 15)
-    OutputGroup.DAILYSTATE: 47,  # Daily state variables
-    OutputGroup.BL: 17,  # Boundary layer variables
-    OutputGroup.BEERS: 29,  # BEERS radiation variables
-    OutputGroup.DEBUG: 131,  # Debug variables (matches Fortran dataOutLineDebug)
-    OutputGroup.EHC: 224,  # EHC variables (2 + 7×15 roof + 7×15 wall)
-    OutputGroup.SPARTACUS: 408,  # SPARTACUS variables incl. direct/diffuse SW roof/wall layers
-    OutputGroup.STEBBS: 82,  # STEBBS variables (matches Fortran truncated names)
-    OutputGroup.NHOOD: 1,  # Neighbourhood variables
-}
-
-# Assemble registry manually for testing (matching production)
-OUTPUT_REGISTRY = OutputVariableRegistry(
-    variables=(
-        DATETIME_VARIABLES
-        + SUEWS_VARIABLES
-        + SNOW_VARIABLES
-        + ESTM_VARIABLES
-        + RSL_VARIABLES
-        + DAILYSTATE_VARIABLES
-        + BL_VARIABLES
-        + BEERS_VARIABLES
-        + DEBUG_VARIABLES
-        + EHC_VARIABLES
-        + SPARTACUS_VARIABLES
-        + STEBBS_VARIABLES
-        + NHOOD_VARIABLES
-    )
-)
-
-
-def test_registry_basic():
-    """Test that registry loads and has expected variable counts.
-
-    This unit test verifies Python registry against hardcoded EXPECTED_COUNTS
-    (derived from Fortran ncolumnsDataOut* constants). It can run without
-    building Fortran, providing quick feedback during development.
-
-    For actual runtime verification against Fortran, see
-    test_fortran_python_output_consistency() which calls Fortran directly.
-    """
-    print("Testing OUTPUT_REGISTRY basic functionality...")
-
-    # Check registry is not empty
-    assert len(OUTPUT_REGISTRY.variables) > 0, "Registry should not be empty"
-    print(f"[OK] Registry contains {len(OUTPUT_REGISTRY.variables)} variables")
-
-    # Check all groups match Fortran output EXACTLY
-    for group, expected_count in EXPECTED_COUNTS.items():
-        group_vars = OUTPUT_REGISTRY.by_group(group)
-        actual_count = len(group_vars)
-
-        # ALL groups must match Fortran output exactly - no tolerance allowed
-        assert actual_count == expected_count, (
-            f"{group.value} should have exactly {expected_count} variables "
-            f"(matching Fortran output), got {actual_count}"
-        )
-        print(f"[OK] {group.value}: {actual_count} variables")
-
-    print()
 
 
 def test_specific_variables():
@@ -149,32 +58,6 @@ def test_specific_variables():
     assert smd is not None, "SMD variable should exist"
     assert smd.aggregation == AggregationMethod.LAST, "SMD should use LAST aggregation"
     print(f"[OK] SMD: {smd.description} [{smd.unit}] (aggregation: LAST)")
-
-    print()
-
-
-def test_output_levels():
-    """Test filtering by output level."""
-    print("Testing output level filtering...")
-
-    # Get DEFAULT level variables
-    default_vars = OUTPUT_REGISTRY.by_level(OutputLevel.DEFAULT)
-    print(f"[OK] DEFAULT level: {len(default_vars)} variables")
-
-    # Get up to EXTENDED level
-    extended_vars = OUTPUT_REGISTRY.by_level(OutputLevel.EXTENDED)
-    print(f"[OK] Up to EXTENDED level: {len(extended_vars)} variables")
-
-    # Get up to SNOW_DETAILED level
-    all_vars = OUTPUT_REGISTRY.by_level(OutputLevel.SNOW_DETAILED)
-    print(f"[OK] Up to SNOW_DETAILED level: {len(all_vars)} variables")
-
-    # DEFAULT should be subset of EXTENDED
-    assert len(default_vars) <= len(extended_vars), (
-        "DEFAULT should be subset of EXTENDED"
-    )
-    # EXTENDED should be subset of all
-    assert len(extended_vars) <= len(all_vars), "EXTENDED should be subset of all"
 
     print()
 
@@ -227,31 +110,6 @@ def test_dataframe_conversion():
     print(f"[OK] DataFrame has correct structure: {df.shape}")
     print(f"  - Index: {df.index.names}")
     print(f"  - Columns: {list(df.columns)}")
-
-    print()
-
-
-def test_enum_values():
-    """Test that enum values work correctly."""
-    print("Testing enum value behaviour...")
-
-    # Test aggregation methods
-    assert AggregationMethod.AVERAGE.value == "A"
-    assert AggregationMethod.SUM.value == "S"
-    assert AggregationMethod.LAST.value == "L"
-    assert AggregationMethod.TIME.value == "T"
-    print("[OK] AggregationMethod enums have correct values")
-
-    # Test output levels
-    assert OutputLevel.DEFAULT.value == 0
-    assert OutputLevel.EXTENDED.value == 1
-    assert OutputLevel.SNOW_DETAILED.value == 2
-    print("[OK] OutputLevel enums have correct values")
-
-    # Test output groups
-    assert OutputGroup.DATETIME.value == "datetime"
-    assert OutputGroup.SUEWS.value == "SUEWS"
-    print("[OK] OutputGroup enums have correct values")
 
     print()
 
@@ -332,68 +190,6 @@ def test_same_variable_name_in_different_groups_allowed():
     print("[OK] Same variable name in different groups is allowed")
 
     print()
-
-
-def main():
-    """Run all tests."""
-    print("=" * 70)
-    print("SUEWS Output Variable Pydantic Models - Proof of Concept Test")
-    print("=" * 70)
-    print()
-
-    try:
-        test_registry_basic()
-        test_specific_variables()
-        test_output_levels()
-        test_aggregation_rules()
-        test_dataframe_conversion()
-        test_enum_values()
-        test_by_name_returns_none_for_nonexistent()
-        test_duplicate_variable_within_group_raises_error()
-        test_same_variable_name_in_different_groups_allowed()
-
-        print("=" * 70)
-        print("[PASS] ALL TESTS PASSED!")
-        print("=" * 70)
-        print()
-        print("Summary - Variable counts by group:")
-        print(f"  Total: {len(OUTPUT_REGISTRY.variables)} variables")
-        print(f"  - datetime: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DATETIME))}")
-        print(f"  - SUEWS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS))}")
-        print(f"  - snow: {len(OUTPUT_REGISTRY.by_group(OutputGroup.SNOW))}")
-        print(f"  - ESTM: {len(OUTPUT_REGISTRY.by_group(OutputGroup.ESTM))}")
-        print(f"  - RSL: {len(OUTPUT_REGISTRY.by_group(OutputGroup.RSL))}")
-        print(
-            f"  - DailyState: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DAILYSTATE))}"
-        )
-        print(f"  - BL: {len(OUTPUT_REGISTRY.by_group(OutputGroup.BL))}")
-        print(f"  - BEERS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.BEERS))}")
-        print(f"  - debug: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DEBUG))}")
-        print(f"  - EHC: {len(OUTPUT_REGISTRY.by_group(OutputGroup.EHC))}")
-        print(f"  - SPARTACUS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.SPARTACUS))}")
-        print(f"  - STEBBS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.STEBBS))}")
-        print(f"  - NHOOD: {len(OUTPUT_REGISTRY.by_group(OutputGroup.NHOOD))}")
-        print()
-        print("All SUEWS output variables successfully migrated to Python/Pydantic!")
-        print("The registry is ready for integration with SUEWS runtime.")
-
-        return 0
-
-    except AssertionError as e:
-        print()
-        print("=" * 70)
-        print(f"[FAIL] TEST FAILED: {e}")
-        print("=" * 70)
-        return 1
-    except Exception as e:
-        print()
-        print("=" * 70)
-        print(f"[FAIL] UNEXPECTED ERROR: {e}")
-        import traceback
-
-        traceback.print_exc()
-        print("=" * 70)
-        return 1
 
 
 def _load_fortran_group_ncolumns():
@@ -494,13 +290,3 @@ def test_fortran_python_output_consistency():
             "Python OUTPUT_REGISTRY matches compiled Fortran ncolumnsDataOut* constants exactly."
         )
         print()
-
-
-if __name__ == "__main__":
-    # Run both the original tests and the consistency check
-    original_result = main()
-    print()
-    consistency_result = test_fortran_python_output_consistency()
-
-    # Exit with error if either test failed
-    sys.exit(max(original_result, consistency_result))

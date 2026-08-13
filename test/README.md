@@ -23,6 +23,7 @@ Configuration and data model validation tests:
 - **test_physics_options.py** - Physics-option input forms: flat codes, nested family tags, orthogonal form, readable names
 - **test_renames.py** - Rename registries: Pydantic field renames and DataFrame column renames, dual-read helpers, Rust bridge alignment
 - **test_yaml_roundtrip.py** - `SUEWSConfig` YAML I/O: from_yaml error handling and drift hints, to_yaml round-trips, serialisation warnings
+- **test_output_config.py** - Output configuration options (Pydantic surface)
 - **test_yaml_upgrade.py** - Schema migration handlers (includes `TestNoSilentFieldDrops`)
 - **test_schema_versioning.py** - Schema version constant, lineage, and sample-config sync
 - **test_release_compat.py** - Vendored release fixtures round-trip through the current validator
@@ -34,7 +35,6 @@ Scientific and physics validation tests:
 
 ### I/O Tests (`io_tests/`)
 Input/output and data handling tests:
-- **test_output_config.py** - Output configuration options
 - **test_save_supy.py** - Shared output-saving backend
 - **test_resample_output.py** - Output resampling capabilities
 - **test_dailystate_output.py** - Daily state output handling

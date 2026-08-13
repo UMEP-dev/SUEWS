@@ -196,6 +196,24 @@ def test_spartacus_rejects_archetype_above_domain():
     _assert_public_rejection(data, "exceeding SPARTACUS domain top")
 
 
+def test_spartacus_rejects_building_above_domain():
+    data = _sample_config()
+    _enable_spartacus(data)
+    _site_properties(data)["land_cover"]["bldgs"]["bldgh"] = {"value": 999.0}
+
+    _assert_public_rejection(data, "bldgh=999.0", "exceeding SPARTACUS domain top")
+
+
+def test_spartacus_allows_archetype_above_domain_when_stebbs_is_disabled():
+    data = _sample_config()
+    _enable_spartacus(data)
+    _site_properties(data)["building_archetype"]["archetype_height"] = {
+        "value": 999.0
+    }
+
+    SUEWSConfig.from_dict(data)
+
+
 def test_spartacus_rejects_invalid_layer_geometry():
     data = _sample_config()
     _enable_spartacus(data)

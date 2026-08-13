@@ -913,6 +913,7 @@ class SUEWSSimulation:
         # Extract parameters from config
         output_format = None
         output_config = None
+        forcing_timestamp_reference = "local_standard_time"
         freq_s = DEFAULT_OUTPUT_FREQ_SECONDS
         site = ""
 
@@ -929,6 +930,9 @@ class SUEWSSimulation:
                 # Removed for now - can't update from YAML (TODO)
                 # if hasattr(output_config, 'format') and output_config.format is not None:
                 #     output_format = output_config.format
+                control = self._config.model.control
+                if hasattr(control, "forcing"):
+                    forcing_timestamp_reference = control.forcing.timestamp_reference
 
             # Get site name from first site
             if hasattr(self._config, "sites") and len(self._config.sites) > 0:
@@ -948,6 +952,7 @@ class SUEWSSimulation:
             output_config=output_config,
             output_format=output_format,
             save_state=False,
+            forcing_timestamp_reference=forcing_timestamp_reference,
         )
 
         if self._checkpoint is not None:

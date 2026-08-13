@@ -55,6 +55,10 @@ class OutputRepresentation(BaseModel):
     value_type: Literal["number"] = "number"
     shape: Literal["scalar"] = "scalar"
     missing_values: OutputMissingValues = Field(default_factory=OutputMissingValues)
+    timestamp_reference: Literal["follow"] = "follow"
+    supported_timestamp_references: tuple[
+        Literal["follow", "utc", "local_standard_time", "daylight"], ...
+    ] = ("follow", "utc", "local_standard_time", "daylight")
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 

@@ -256,14 +256,17 @@ class SurfaceProperties(BaseModel):
     )
     state_limit: FlexibleRefValue(float) = Field(
         default=10.0,  # TODO: Check if this is an appropriate default
-        description="Minimum water storage capacity for state change",
+        description="Upper limit to the surface water state",
         json_schema_extra={"unit": "mm", "display_name": "State Limit"},
     )
     wet_threshold: FlexibleRefValue(float) = Field(
         default=0.5,
-        description="Surface wetness threshold for OHM calculations",
+        description=(
+            "Surface water-depth threshold above which the surface is treated as "
+            "fully wet and surface resistance becomes zero"
+        ),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "mm",
             "display_name": "Wetness Threshold",
         },
     )
@@ -404,7 +407,12 @@ class SurfaceProperties(BaseModel):
                 value = getattr(self, field_name)
                 value = value.value if isinstance(value, RefValue) else value
                 cols[(f"{col_name}{surf_name}", "0")] = value
-            elif field_name in ["sfr", "soil_store_capacity", "state_limit", "wet_threshold"]:
+            elif field_name in [
+                "sfr",
+                "soil_store_capacity",
+                "state_limit",
+                "wet_threshold",
+            ]:
                 value = getattr(self, field_name)
                 if value is not None:
                     value = value.value if isinstance(value, RefValue) else value
@@ -581,9 +589,7 @@ class NonVegetatedSurfaceProperties(SurfaceProperties):
 
         field_val = self.alb
         val = field_val.value if isinstance(field_val, RefValue) else field_val
-        df_alb = df_from_cols(
-            {("alb", f"({surf_idx},)"): val}, index=df_base.index
-        )
+        df_alb = df_from_cols({("alb", f"({surf_idx},)"): val}, index=df_base.index)
         frames.append(df_alb)
 
         return pd.concat(frames, axis=1).sort_index(axis=1)
@@ -662,7 +668,12 @@ class PavedProperties(
             dfs.append(df)
 
         # Add nested property DataFrames
-        for nested_prop in ["waterdist", "storage_drain_params", "thermal_layers", "ohm_coef"]:
+        for nested_prop in [
+            "waterdist",
+            "storage_drain_params",
+            "thermal_layers",
+            "ohm_coef",
+        ]:
             nested_obj = getattr(self, nested_prop)
             if nested_obj is not None and hasattr(nested_obj, "to_df_state"):
                 if nested_prop == "thermal_layers":
@@ -1193,7 +1204,13 @@ class VerticalLayers(BaseModel):
             cols[("height", f"({i},)")] = height_val[i]
 
         # Set vegetation and building parameters for each layer
-        for var in ["veg_frac", "veg_scale", "veg_ext", "building_frac", "building_scale"]:
+        for var in [
+            "veg_frac",
+            "veg_scale",
+            "veg_ext",
+            "building_frac",
+            "building_scale",
+        ]:
             field_val = getattr(self, var)
             var_values = (
                 field_val.value if isinstance(field_val, RefValue) else field_val

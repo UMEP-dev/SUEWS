@@ -403,7 +403,11 @@ class StorageDrainParams(BaseModel):
     )
     drain_eq: FlexibleRefValue(int) = Field(
         default=0,
-        description="Drainage equation selection (0: linear, 1: exponential)",
+        description=(
+            "Drainage equation selection (1: threshold power law; 2: modified "
+            "Rutter exponential equation; 3: power law). The default 0 is an "
+            "unset placeholder and should be replaced for configured surfaces"
+        ),
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Drainage Equation",
@@ -411,14 +415,21 @@ class StorageDrainParams(BaseModel):
     )
     drain_coef_1: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Drainage coefficient 1 (rate parameter)",
-        json_schema_extra={"unit": "mm h^-1", "display_name": "Drainage Coefficient 1"},
+        description=(
+            "Drainage coefficient 1; interpretation and units depend on drain_eq"
+        ),
+        json_schema_extra={
+            "unit": "equation-dependent",
+            "display_name": "Drainage Coefficient 1",
+        },
     )
     drain_coef_2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Drainage coefficient 2 (shape parameter)",
+        description=(
+            "Drainage coefficient 2; interpretation and units depend on drain_eq"
+        ),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "equation-dependent",
             "display_name": "Drainage Coefficient 2",
         },
     )

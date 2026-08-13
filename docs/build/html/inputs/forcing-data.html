@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-12T19:59:44+00:00" />
-    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.8.13.dev3 documentation</title>
+    <meta property="article:modified_time" content="2026-08-13T11:34:22+00:00" />
+    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.8.13.dev5 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f7c50cd5"></script>
+    <script src="../_static/documentation_options.js?v=d92c0c19"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="4.2. Vertical and Material Layer Conventions" href="yaml/layer-conventions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.13.dev3" />
-    <meta name="docbuild:last-update" content="2026-08-12"/>
+  <meta name="docsearch:version" content="2026.8.13.dev5" />
+    <meta name="docbuild:last-update" content="2026-08-13"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.13.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12" style="color: #31708f;">4328ab1</a>).
+        (2026.8.13.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/22213d21849ad327e2e2c722f8e21c57207a1214" style="color: #31708f;">22213d2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -201,8 +201,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev5 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev5 documentation - Home"/>
   
   
 </a></div>
@@ -666,14 +666,13 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files">4.3.3. Named-column forcing files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.3.4. Important Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.3.5. YAML Configuration</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.3.6. Optional Variables</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-conditional-and-additional-variables">4.3.6. Choosing Conditional and Additional Variables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.3.7. Prescribing Observed LAI</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.3.8. Generating Forcing Data from ERA5</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.3.9. Using EPW Weather Files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.3.10. Data Preparation Tips</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.3.11. Validating Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.3.12. Physics-Specific Data Requirements</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.13. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.12. See Also</a></li>
 </ul>
             </nav>
         </div>
@@ -723,7 +722,10 @@
 <section id="data-requirements">
 <h2><span class="section-number">4.3.1. </span>Data Requirements<a class="headerlink" href="#data-requirements" title="Link to this heading">#</a></h2>
 <p><strong>Essential Variables</strong></p>
-<p>SUEWS requires the following meteorological variables:</p>
+<p>SUEWS requires the following meteorological variables. This table is a quick
+preparation checklist; the generated <a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">Forcing variable reference</span></a> is
+authoritative for units, valid ranges, requiredness, interval semantics, and
+missing-value policies.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
 <col style="width: 20.0%" />
@@ -740,9 +742,9 @@
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Wind speed</p></td>
-<td><p>m/s</p></td>
+<td><p>m s<sup>-1</sup></p></td>
 <td><p>U</p></td>
-<td><p>Minimum 0.01 m/s (to avoid division by zero)</p></td>
+<td><p>Minimum 0.01 m s<sup>-1</sup> (to avoid division by zero)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Relative humidity</p></td>
 <td><p>%</p></td>
@@ -750,7 +752,7 @@
 <td><p>0-100%</p></td>
 </tr>
 <tr class="row-even"><td><p>Air temperature</p></td>
-<td><p><span class="math notranslate nohighlight">\(^{\circ}C\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\({}^{\circ}\mathrm{C}\)</span></p></td>
 <td><p>Tair</p></td>
 <td></td>
 </tr>
@@ -762,23 +764,19 @@
 <tr class="row-even"><td><p>Rainfall</p></td>
 <td><p>mm</p></td>
 <td><p>rain</p></td>
-<td><p>Per time step</p></td>
+<td><p>Total accumulated over the interval</p></td>
 </tr>
 <tr class="row-odd"><td><p>Incoming shortwave</p></td>
 <td><p>W m<sup>-2</sup></p></td>
 <td><p>kdown</p></td>
-<td><p>Must be &gt;= 0 (0 at night)</p></td>
-</tr>
-<tr class="row-even"><td><p>Incoming longwave</p></td>
-<td><p>W m<sup>-2</sup></p></td>
-<td><p>ldown</p></td>
-<td><p>Optional (use -999 if not available)</p></td>
+<td><p>Must be <span class="math notranslate nohighlight">\(\geq 0\)</span> (0 at night)</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p><strong>Time Information</strong></p>
-<p>Each row must include time stamps with these columns (in order):</p>
+<p>Each row must include these timestamp columns. Their position is unrestricted
+in a named-column file:</p>
 <ol class="arabic simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">iy</span></code> - Year (YYYY)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> - Day of year (1-365/366)</p></li>
@@ -793,7 +791,8 @@
 <li><p><strong>Format</strong>: Space or tab-delimited text file</p></li>
 <li><p><strong>Extension</strong>: <code class="docutils literal notranslate"><span class="pre">.txt</span></code></p></li>
 <li><p><strong>Header</strong>: Required; canonical names are matched case-insensitively</p></li>
-<li><p><strong>Missing values</strong>: Use <code class="docutils literal notranslate"><span class="pre">-999</span></code> for optional variables</p></li>
+<li><p><strong>Missing values</strong>: Use <code class="docutils literal notranslate"><span class="pre">-999</span></code> only for optional fields and inactive
+conditional fields; do not use blanks or <code class="docutils literal notranslate"><span class="pre">NaN</span></code></p></li>
 </ul>
 <p><strong>Canonical columns</strong></p>
 <p>The historical compatibility order is shown below. Modern named-column files
@@ -804,15 +803,15 @@ may use any column order:</p>
 <p>Where:</p>
 <ul class="simple">
 <li><p>Columns 1-4: Time stamps (required)</p></li>
-<li><p>Columns 5-9: Energy fluxes (optional, use -999)</p></li>
+<li><p>Columns 5-9: Energy fluxes (requiredness depends on the selected physics)</p></li>
 <li><p>Columns 10-15: Essential meteorological variables (required)</p></li>
-<li><p>Columns 16-24: Additional optional variables (use -999 if not available)</p></li>
+<li><p>Columns 16-24: Additional conditional or optional variables</p></li>
 </ul>
 <p><strong>Example</strong></p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  xsmd  lai  kdiff  kdir  wdir
 2020  1  1   0  -999  -999  -999  -999  -999  2.1  85  5.2  101.3  0.0  0  -999  315  -999  -999  -999  -999  -999  -999  -999
-2020  1  1  60  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
-2020  1  2   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
+2020  1  2   0  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
+2020  1  3   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
 </pre></div>
 </div>
 </section>
@@ -822,26 +821,23 @@ may use any column order:</p>
 not by column position. The header line is required and its content is
 matched, case-insensitively, against the canonical column list above.</p>
 <ul>
-<li><p><strong>Required (baseline)</strong>: <code class="docutils literal notranslate"><span class="pre">iy</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">it</span></code>, <code class="docutils literal notranslate"><span class="pre">imin</span></code>, <code class="docutils literal notranslate"><span class="pre">Tair</span></code>,
-<code class="docutils literal notranslate"><span class="pre">RH</span></code>, <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">pres</span></code>, <code class="docutils literal notranslate"><span class="pre">kdown</span></code>, <code class="docutils literal notranslate"><span class="pre">rain</span></code>. Missing any of these
-raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> at load time.</p></li>
-<li><p><strong>Required (physics-conditional)</strong>: depending on the chosen physics
-path, additional columns become mandatory. For example,
-<code class="docutils literal notranslate"><span class="pre">model.physics.net_radiation</span> <span class="pre">=</span> <span class="pre">0</span></code> requires <code class="docutils literal notranslate"><span class="pre">qn</span></code>;
-<code class="docutils literal notranslate"><span class="pre">net_radiation</span> <span class="pre">=</span> <span class="pre">1</span></code> or <code class="docutils literal notranslate"><span class="pre">11</span></code> requires <code class="docutils literal notranslate"><span class="pre">ldown</span></code>;
-<code class="docutils literal notranslate"><span class="pre">net_radiation</span> <span class="pre">=</span> <span class="pre">2</span></code> or <code class="docutils literal notranslate"><span class="pre">12</span></code> requires <code class="docutils literal notranslate"><span class="pre">fcld</span></code>. The error
-message cites the offending column and the physics method that
-requires it.</p></li>
+<li><p><strong>Required (baseline)</strong>: All timestamp and essential-variable columns listed
+above must be present and contain valid values at every timestamp.</p></li>
+<li><p><strong>Required (physics-conditional)</strong>: Additional columns become mandatory for
+particular physics paths. Use the complete generated
+<a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-requirements"><span class="std std-ref">Physics-conditional requirements</span></a> table for compound and alternative
+requirements. Validation errors identify the offending column and physics
+method.</p></li>
 <li><p><strong>Optional canonical columns</strong>: missing canonical columns outside the
-required set are filled with <code class="docutils literal notranslate"><span class="pre">-999.0</span></code> (the SUEWS sentinel). Column
+required set are filled with the <code class="docutils literal notranslate"><span class="pre">-999.0</span></code> missing marker. Column
 order is irrelevant.</p></li>
-<li><p><strong>External water use</strong>: bulk <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> (also accepted as <code class="docutils literal notranslate"><span class="pre">wu_mm</span></code>) is a
+<li><p><strong>External water use</strong>: bulk <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> is a
 non-negative, site-mean depth in <strong>mm accumulated over the forcing time
 step</strong>. It has no finite upper validation cap and is resampled as a sum,
-like <code class="docutils literal notranslate"><span class="pre">rain</span></code>. Use <code class="docutils literal notranslate"><span class="pre">-999</span></code> when this optional input is missing. Legacy
-bulk values in m3 must be converted explicitly; see
+like <code class="docutils literal notranslate"><span class="pre">rain</span></code>. Use <code class="docutils literal notranslate"><span class="pre">-999</span></code> only when the <code class="docutils literal notranslate"><span class="pre">water_use</span></code> requirement is
+inactive. Legacy bulk values in m<sup>3</sup> must be converted explicitly; see
 <a class="reference internal" href="transition_guide.html#migrate-bulk-wuh"><span class="std std-ref">Migrating legacy bulk Wuh volumes</span></a>.</p></li>
-<li><p><strong>Per-landcover variants</strong>: the loader also accepts whitelisted
+<li><p><strong>Land-cover-specific variants</strong>: the loader also accepts whitelisted
 <code class="docutils literal notranslate"><span class="pre">&lt;var&gt;_&lt;surface&gt;</span></code> columns:</p>
 <ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">lai_&lt;surface&gt;</span></code> is accepted <strong>only for vegetated surfaces</strong> –
@@ -867,16 +863,16 @@ extra rescaling.</p>
 </li>
 </ul>
 <p>Whitelisted columns are preserved on <code class="docutils literal notranslate"><span class="pre">SUEWSForcing.extras</span></code> for
-downstream physics work. Surface-specific <code class="docutils literal notranslate"><span class="pre">lai_&lt;surface&gt;</span></code> and
+downstream physics work. Land-cover-specific <code class="docutils literal notranslate"><span class="pre">lai_&lt;surface&gt;</span></code> and
 <code class="docutils literal notranslate"><span class="pre">wuh_&lt;surface&gt;</span></code> columns are passed through to the kernel, which
 continues to use the bulk <code class="docutils literal notranslate"><span class="pre">lai</span></code> and <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> columns as default
 values for legacy or bulk calculations. These bulk values are applied
 to all applicable surfaces unless a corresponding land-cover-specific
 column is provided, in which case its value overrides the bulk value.
-An explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> in a surface-specific column is preserved as missing;
-it does not silently fall back to bulk <code class="docutils literal notranslate"><span class="pre">Wuh</span></code>. Soil-moisture deficit
-(<code class="docutils literal notranslate"><span class="pre">xsmd</span></code>) is a bulk site-level quantity and is intentionally not
-per-landcover.</p>
+Fallback is based on column absence: an explicitly supplied <code class="docutils literal notranslate"><span class="pre">-999</span></code> does
+not request the bulk value and is invalid while that physics path is active.
+Soil-moisture deficit (<code class="docutils literal notranslate"><span class="pre">xsmd</span></code>) is a bulk site-level quantity and is
+intentionally not land-cover-specific.</p>
 </li>
 <li><p><strong>Unknown columns</strong>: any column not in the canonical or whitelisted
 sets emits a <code class="docutils literal notranslate"><span class="pre">UserWarning</span></code> and is dropped.</p></li>
@@ -887,12 +883,19 @@ sets emits a <code class="docutils literal notranslate"><span class="pre">UserWa
 <p><strong>Temporal Aspects</strong></p>
 <ul class="simple">
 <li><p><strong>Continuous data</strong>: No gaps allowed - missing periods must be gap-filled</p></li>
-<li><p><strong>Time stamps</strong>: Indicate the <strong>END</strong> of each measurement period</p>
+<li><p><strong>Timestamps</strong>: Label the <strong>end</strong> of each forcing interval; they are not
+instantaneous sampling times</p>
 <ul>
-<li><p>For hourly data at 13:00, the measurement covers 12:00-13:00</p></li>
-<li><p>For 5-minute data at 10:05, the measurement covers 10:00-10:05</p></li>
+<li><p>For hourly data at 13:00, the interval covers 12:00–13:00</p></li>
+<li><p>For 5-minute data at 10:05, the interval covers 10:00–10:05</p></li>
 </ul>
 </li>
+<li><p><strong>Weather, radiation, and energy fluxes</strong>: Values are means over the
+interval ending at the timestamp</p></li>
+<li><p><strong>Rainfall and external water use</strong>: Values are totals accumulated over that
+interval</p></li>
+<li><p><strong>State inputs</strong>: LAI, snow cover, and soil moisture apply at the interval
+end</p></li>
 <li><p><strong>Timestamp reference</strong>: The default is <strong>local standard time</strong> (a fixed UTC
 offset). UTC is accepted when declared in YAML. Civil time with
 daylight-saving transitions is not supported.</p></li>
@@ -975,92 +978,13 @@ order):</p>
 </pre></div>
 </div>
 </section>
-<section id="optional-variables">
-<h2><span class="section-number">4.3.6. </span>Optional Variables<a class="headerlink" href="#optional-variables" title="Link to this heading">#</a></h2>
-<p>These additional variables can enhance model performance but are not required:</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<colgroup>
-<col style="width: 25.0%" />
-<col style="width: 15.0%" />
-<col style="width: 15.0%" />
-<col style="width: 45.0%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Variable</p></th>
-<th class="head"><p>Units</p></th>
-<th class="head"><p>Column</p></th>
-<th class="head"><p>Usage</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Net radiation</p></td>
-<td><p>W m<sup>-2</sup></p></td>
-<td><p>qn</p></td>
-<td><p>If NetRadiationMethod = 0</p></td>
-</tr>
-<tr class="row-odd"><td><p>Sensible heat flux</p></td>
-<td><p>W m<sup>-2</sup></p></td>
-<td><p>qh</p></td>
-<td><p>For validation/comparison</p></td>
-</tr>
-<tr class="row-even"><td><p>Latent heat flux</p></td>
-<td><p>W m<sup>-2</sup></p></td>
-<td><p>qe</p></td>
-<td><p>For validation/comparison</p></td>
-</tr>
-<tr class="row-odd"><td><p>Storage heat flux</p></td>
-<td><p>W m<sup>-2</sup></p></td>
-<td><p>qs</p></td>
-<td><p>For validation/comparison</p></td>
-</tr>
-<tr class="row-even"><td><p>Anthropogenic heat</p></td>
-<td><p>W m<sup>-2</sup></p></td>
-<td><p>qf</p></td>
-<td><p>If not modeled</p></td>
-</tr>
-<tr class="row-odd"><td><p>Observed snow-cover fraction</p></td>
-<td><p>0-1</p></td>
-<td><p>snow</p></td>
-<td><p>If SnowUse = 1 and NetRadiationMethod = 0</p></td>
-</tr>
-<tr class="row-even"><td><p>Cloud fraction</p></td>
-<td><p>fraction (0-1)</p></td>
-<td><p>fcld</p></td>
-<td><p>For radiation calculations</p></td>
-</tr>
-<tr class="row-odd"><td><p>External water use</p></td>
-<td><p>mm per forcing interval (accumulated)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Wuh</span></code> or <code class="docutils literal notranslate"><span class="pre">wuh_&lt;surface&gt;</span></code></p></td>
-<td><p>For irrigation</p></td>
-</tr>
-<tr class="row-even"><td><p>Soil moisture</p></td>
-<td><p>m3/m3 if <code class="docutils literal notranslate"><span class="pre">SMDMethod</span> <span class="pre">=</span> <span class="pre">1</span></code>; kg/kg if <code class="docutils literal notranslate"><span class="pre">SMDMethod</span> <span class="pre">=</span> <span class="pre">2</span></code></p></td>
-<td><p>xsmd</p></td>
-<td><p>For initialization</p></td>
-</tr>
-<tr class="row-odd"><td><p>Leaf area index</p></td>
-<td><p>m<sup>2</sup> m<sup>-2</sup></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">lai</span></code> or <code class="docutils literal notranslate"><span class="pre">lai_evetr</span></code> / <code class="docutils literal notranslate"><span class="pre">lai_dectr</span></code> / <code class="docutils literal notranslate"><span class="pre">lai_grass</span></code></p></td>
-<td><p>If <code class="docutils literal notranslate"><span class="pre">model.physics.laimethod</span> <span class="pre">=</span> <span class="pre">0</span></code> (see <a class="reference internal" href="#prescribed-lai"><span class="std std-ref">Prescribing Observed LAI</span></a>)</p></td>
-</tr>
-<tr class="row-even"><td><p>Diffuse radiation</p></td>
-<td><p>W m<sup>-2</sup></p></td>
-<td><p>kdiff</p></td>
-<td><p>For SOLWEIG</p></td>
-</tr>
-<tr class="row-odd"><td><p>Direct radiation</p></td>
-<td><p>W m<sup>-2</sup></p></td>
-<td><p>kdir</p></td>
-<td><p>For SOLWEIG</p></td>
-</tr>
-<tr class="row-even"><td><p>Wind direction</p></td>
-<td><p>degrees</p></td>
-<td><p>wdir</p></td>
-<td><p>Currently not used</p></td>
-</tr>
-</tbody>
-</table>
-</div>
+<section id="choosing-conditional-and-additional-variables">
+<h2><span class="section-number">4.3.6. </span>Choosing Conditional and Additional Variables<a class="headerlink" href="#choosing-conditional-and-additional-variables" title="Link to this heading">#</a></h2>
+<p>Use <a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-requirements"><span class="std std-ref">Physics-conditional requirements</span></a> to determine which extra columns an active
+physics path requires. The per-variable <a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">Forcing variable reference</span></a> gives
+the authoritative units, ranges, requiredness, interval basis, and
+missing-value policies. The following sections provide task-specific
+preparation guidance where more context than a field catalogue is useful.</p>
 </section>
 <section id="prescribing-observed-lai">
 <span id="prescribed-lai"></span><h2><span class="section-number">4.3.7. </span>Prescribing Observed LAI<a class="headerlink" href="#prescribing-observed-lai" title="Link to this heading">#</a></h2>
@@ -1074,18 +998,18 @@ remote-sensing product is available, users can bypass the internal scheme by:</p
 <li><p>Populating the <code class="docutils literal notranslate"><span class="pre">lai</span></code> column of the meteorological forcing file with a <strong>non-negative</strong>
 observation at every timestep, in m<sup>2</sup> m<sup>-2</sup>. A genuine zero observation (e.g.
 complete winter dieback) is valid. Choosing the observed path commits the user to
-providing an observation for every timestep; the <code class="docutils literal notranslate"><span class="pre">-999</span></code> missing sentinel is
+providing an observation for every timestep; the <code class="docutils literal notranslate"><span class="pre">-999</span></code> missing marker is
 <strong>not</strong> a permitted fallback here and the pre-flight validator rejects any strictly
-negative value (including <code class="docutils literal notranslate"><span class="pre">-999</span></code> and other sentinels). If observations are
+negative value (including <code class="docutils literal notranslate"><span class="pre">-999</span></code>). If observations are
 unavailable for part of the run, either switch to <code class="docutils literal notranslate"><span class="pre">laimethod:</span> <span class="pre">1</span></code> (internally
 calculated) or gap-fill the <code class="docutils literal notranslate"><span class="pre">lai</span></code> column with non-negative values before feeding
 it to SUEWS.</p></li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>When <code class="docutils literal notranslate"><span class="pre">laimethod:</span> <span class="pre">0</span></code> is set, the single scalar <code class="docutils literal notranslate"><span class="pre">lai</span></code> value from the forcing file is
-applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
-grass) each day.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">laimethod:</span> <span class="pre">0</span></code> is set, bulk <code class="docutils literal notranslate"><span class="pre">lai</span></code> supplies any vegetation class
+without its own <code class="docutils literal notranslate"><span class="pre">lai_evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">lai_dectr</span></code>, or <code class="docutils literal notranslate"><span class="pre">lai_grass</span></code> column. A
+land-cover-specific column overrides the bulk value for that class.</p>
 </div>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
@@ -1094,13 +1018,14 @@ grass) each day.</p>
 parameterised branch (<code class="docutils literal notranslate"><span class="pre">laimethod:</span> <span class="pre">1</span></code>); the observed branch enforces it too
 for consistency and because the downstream conductance and active-vegetation
 fraction calculations (<code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">/</span> <span class="pre">laimax</span></code> in <code class="docutils literal notranslate"><span class="pre">suews_phys_resist</span></code> and
-<code class="docutils literal notranslate"><span class="pre">suews_phys_biogenco2</span></code>) require <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">&lt;=</span> <span class="pre">laimax</span></code> to stay physically
+<code class="docutils literal notranslate"><span class="pre">suews_phys_biogenco2</span></code>) require
+<span class="math notranslate nohighlight">\(\mathrm{LAI} \leq \mathrm{LAI}_{max}\)</span> to stay physically
 meaningful.</p>
 <p>If you supply observations that should pass through unchanged – e.g. a genuine
 winter dieback with <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">=</span> <span class="pre">0</span></code> – configure the corresponding class’s
 <code class="docutils literal notranslate"><span class="pre">laimin</span></code> to zero in the site configuration. Similarly, widen <code class="docutils literal notranslate"><span class="pre">laimax</span></code> if
 observations legitimately exceed the default site canopy capacity. The
-pre-flight validator (<code class="xref py py-func docutils literal notranslate"><span class="pre">check_forcing()</span></code>) issues a warning
+pre-flight validator (<code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code>) issues a warning
 when any forcing value would be clamped, so the user sees once that
 observations are being modified rather than discovering it through
 unexpected outputs.</p>
@@ -1284,11 +1209,13 @@ unexpected outputs.</p>
 </ul>
 <p><strong>Common Issues</strong></p>
 <ul class="simple">
-<li><p><strong>“Division by zero”</strong>: Wind speed &lt; 0.01 m/s</p></li>
-<li><p><strong>“Negative radiation”</strong>: Check kdown is always &gt;= 0</p></li>
+<li><p><strong>“Division by zero”</strong>: Wind speed below 0.01 m s<sup>-1</sup></p></li>
+<li><p><strong>“Negative radiation”</strong>: Check <code class="docutils literal notranslate"><span class="pre">kdown</span></code> is always <span class="math notranslate nohighlight">\(\geq 0\)</span></p></li>
 <li><p><strong>“Time mismatch”</strong>: Ensure timestamps match the declared reference and
 interval-end convention (see note above)</p></li>
-<li><p><strong>“Missing data”</strong>: Use -999, not blank or NaN</p></li>
+<li><p><strong>“Missing data”</strong>: Gap-fill baseline and active conditional inputs. Use
+<code class="docutils literal notranslate"><span class="pre">-999</span></code> only for optional or inactive conditional fields, never blanks or
+<code class="docutils literal notranslate"><span class="pre">NaN</span></code></p></li>
 </ul>
 </section>
 <section id="validating-forcing-data">
@@ -1298,11 +1225,13 @@ interval-end convention (see note above)</p></li>
 <li><p><strong>Column completeness</strong>: Verifies all expected columns are present</p></li>
 <li><p><strong>Timestamp validity</strong>: Checks for proper DatetimeIndex, no duplicates, monotonic increasing</p></li>
 <li><p><strong>Physical ranges</strong>: Validates values are within physically plausible ranges</p></li>
-<li><p><strong>Physics-specific requirements</strong>: Ensures required data columns contain valid values based on selected model physics options (see below)</p></li>
+<li><p><strong>Physics-specific requirements</strong>: Applies the generated
+<a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-requirements"><span class="std std-ref">Physics-conditional requirements</span></a> rules for the selected model physics options</p></li>
 </ol>
 <p><strong>Variable contract and enforced ranges</strong></p>
-<p>The registry-derived <a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">df_forcing variables</span></a> reference is authoritative for
-input units, enforced ranges, requiredness, aliases, and missing-value policy.</p>
+<p>The registry-derived <a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">Forcing variable reference</span></a> is authoritative for
+canonical names, input units, enforced ranges, requiredness, interval basis,
+and missing-value policy.</p>
 <p><strong>Usage</strong></p>
 <p>Basic validation from Python:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy._check</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_forcing</span>
@@ -1345,65 +1274,13 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 </div>
 <p>For comprehensive quality control, combine <code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code> with visual inspection of time series plots.</p>
 </section>
-<section id="physics-specific-data-requirements">
-<h2><span class="section-number">4.3.12. </span>Physics-Specific Data Requirements<a class="headerlink" href="#physics-specific-data-requirements" title="Link to this heading">#</a></h2>
-<p>Certain model physics options require specific forcing data columns to contain valid (non-missing) values.</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<colgroup>
-<col style="width: 30.0%" />
-<col style="width: 20.0%" />
-<col style="width: 50.0%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Physics Option</p></th>
-<th class="head"><p>Required Column</p></th>
-<th class="head"><p>Description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">netradiationmethod:</span> <span class="pre">0</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">qn</span></code></p></td>
-<td><p>Uses observed net radiation</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">netradiationmethod:</span> <span class="pre">1</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">ldown</span></code></p></td>
-<td><p>Models Q* with observed incoming longwave</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">netradiationmethod:</span> <span class="pre">2</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">kdown</span></code>, <code class="docutils literal notranslate"><span class="pre">fcld</span></code></p></td>
-<td><p>Models Q* and Ldown using cloud fraction</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">netradiationmethod:</span> <span class="pre">3</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">kdown</span></code></p></td>
-<td><p>Models Ldown from Tair and RH</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">storageheatmethod:</span> <span class="pre">0</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">qs</span></code></p></td>
-<td><p>Uses observed storage heat flux</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">emissionsmethod:</span> <span class="pre">0</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">qf</span></code></p></td>
-<td><p>Uses observed anthropogenic heat flux</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">smdmethod:</span> <span class="pre">1</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">xsmd</span></code></p></td>
-<td><p>Uses observed volumetric soil moisture</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">smdmethod:</span> <span class="pre">2</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">xsmd</span></code></p></td>
-<td><p>Uses observed gravimetric soil moisture</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
 <section id="see-also">
-<h2><span class="section-number">4.3.13. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.3.12. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">df_forcing variables</span></a> - Registry-derived forcing-variable reference</p></li>
+<li><p><a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">Forcing variable reference</span></a> - Canonical variables, units, ranges, and conditions</p></li>
 <li><p><a class="reference internal" href="yaml/index.html"><span class="doc">YAML Configuration Format</span></a> - YAML configuration including forcing file specification</p></li>
 <li><p><a class="reference internal" href="yaml/validation.html"><span class="doc">Validation Tool Reference</span></a> - Complete validation system documentation</p></li>
-<li><p><span class="xref std std-doc">/input_files/RunControl/RunControl</span> - Model physics options reference</p></li>
+<li><p><a class="reference internal" href="tables/RunControl/RunControl.html"><span class="doc">RunControl.nml</span></a> - Legacy model physics options reference</p></li>
 <li><p><a class="reference internal" href="../troubleshooting.html"><span class="doc">Troubleshooting</span></a> - Common forcing data issues and solutions</p></li>
 </ul>
 </section>
@@ -1461,14 +1338,13 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files">4.3.3. Named-column forcing files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.3.4. Important Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.3.5. YAML Configuration</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.3.6. Optional Variables</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-conditional-and-additional-variables">4.3.6. Choosing Conditional and Additional Variables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.3.7. Prescribing Observed LAI</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.3.8. Generating Forcing Data from ERA5</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.3.9. Using EPW Weather Files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.3.10. Data Preparation Tips</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.3.11. Validating Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.3.12. Physics-Specific Data Requirements</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.13. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.12. See Also</a></li>
 </ul>
   </nav></div>
 
@@ -1502,7 +1378,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-12.
+  Last updated on 2026-08-13.
   <br/>
 </p>
   </div>
@@ -1510,8 +1386,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.13.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12">4328ab1</a> |
+  <p>Version: 2026.8.13.dev5 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/22213d21849ad327e2e2c722f8e21c57207a1214">22213d2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

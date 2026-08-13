@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-12T19:59:44+00:00" />
-    <title>df_forcing variables &#8212; SUEWS 2026.8.13.dev3 documentation</title>
+    <meta property="article:modified_time" content="2026-08-13T11:34:22+00:00" />
+    <title>Forcing variable reference &#8212; SUEWS 2026.8.13.dev5 documentation</title>
   
   
   
@@ -45,11 +45,12 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f7c50cd5"></script>
+    <script src="../_static/documentation_options.js?v=d92c0c19"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'data-structures/df_forcing';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
@@ -58,8 +59,8 @@
     <link rel="search" title="Search" href="../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.13.dev3" />
-    <meta name="docbuild:last-update" content="2026-08-12"/>
+  <meta name="docsearch:version" content="2026.8.13.dev5" />
+    <meta name="docbuild:last-update" content="2026-08-13"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -107,7 +108,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.13.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12" style="color: #31708f;">4328ab1</a>).
+        (2026.8.13.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/22213d21849ad327e2e2c722f8e21c57207a1214" style="color: #31708f;">22213d2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,6 +155,10 @@
   
 
   
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
 </div>
 
     </header>
@@ -196,8 +201,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev5 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev5 documentation - Home"/>
   
   
 </a></div>
@@ -633,7 +638,9 @@
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
 </button>
-
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
 </div></div>
       
     </div>
@@ -644,11 +651,25 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>df_forcing variables</h1>
+    <h1>Forcing variable reference</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
             
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-to-read-this-page">How to read this page</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-conditional-requirements">Physics-conditional requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#timestamp-columns">Timestamp columns</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#always-required-weather-inputs">Always-required weather inputs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-conditional-inputs">Physics-conditional inputs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-accepted-columns">Optional accepted columns</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-specific-alternatives">Land-cover-specific alternatives</a></li>
+</ul>
+            </nav>
         </div>
     </div>
 </div>
@@ -666,20 +687,84 @@
 <li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
 </ol>
 </div>
-<dl class="field-list simple">
-<dt class="field-odd">orphan<span class="colon">:</span></dt>
-<dd class="field-odd"><p></p></dd>
-</dl>
-<section id="df-forcing-variables">
-<span id="df-forcing-var"></span><h1><code class="docutils literal notranslate"><span class="pre">df_forcing</span></code> variables<a class="headerlink" href="#df-forcing-variables" title="Link to this heading">#</a></h1>
-<p>This reference is generated from the published forcing registry.
-File timestamps identify the end of each forcing interval. The default
-reference is the site’s fixed-offset local standard time; UTC input is
-also supported when <code class="docutils literal notranslate"><span class="pre">model.control.forcing.timestamp_reference</span></code> is set
-to <code class="docutils literal notranslate"><span class="pre">utc</span></code>. Model output follows the declared forcing clock. Daylight-saving
-civil time is not supported.</p>
-<p>File-header aliases and programmatic accessor aliases are separate
-namespaces. The latter are not accepted as forcing-file headers.</p>
+<section id="forcing-variable-reference">
+<span id="df-forcing-var"></span><h1>Forcing variable reference<a class="headerlink" href="#forcing-variable-reference" title="Link to this heading">#</a></h1>
+<p>This reference is generated from forcing contract <code class="docutils literal notranslate"><span class="pre">1.2.0</span></code>.
+It describes the <code class="docutils literal notranslate"><span class="pre">df_forcing</span></code> columns supplied in an external forcing file.
+For file layout and preparation, see <a class="reference internal" href="../inputs/forcing-data.html"><span class="doc">Meteorological Forcing Data</span></a>; for the loaded
+Python object, see <a class="reference internal" href="../api/io-data-structures.html"><span class="doc">Key IO Data Structures</span></a>.</p>
+<section id="how-to-read-this-page">
+<h2>How to read this page<a class="headerlink" href="#how-to-read-this-page" title="Link to this heading">#</a></h2>
+<p>All units and valid ranges describe values in the external forcing file.
+Use each canonical option name as the file header.</p>
+<p>File timestamps identify the end of each forcing interval. The default
+reference is the site’s fixed-offset local standard time; UTC is accepted
+when <code class="docutils literal notranslate"><span class="pre">model.control.forcing.timestamp_reference</span></code> is <code class="docutils literal notranslate"><span class="pre">utc</span></code>. Model output
+follows the declared forcing clock. Daylight-saving civil time is unsupported.</p>
+<p>The timestamp labels the interval; it is not an instantaneous sampling time.
+Weather, radiation, and energy-flux values are means over the interval
+ending at that timestamp. Rainfall and external water use are totals
+accumulated over the same interval. State inputs such as LAI, snow cover,
+and soil moisture apply at the interval end.</p>
+<p>Every row needs valid values for always-required columns and for any
+physics-conditional columns selected by the table below. Use <code class="docutils literal notranslate"><span class="pre">-999</span></code> only
+for optional or inactive columns. Land-cover-specific columns use their named
+bulk fallback only when that land-cover column is absent, not when it contains
+<code class="docutils literal notranslate"><span class="pre">-999</span></code>.</p>
+</section>
+<section id="physics-conditional-requirements">
+<span id="df-forcing-requirements"></span><h2>Physics-conditional requirements<a class="headerlink" href="#physics-conditional-requirements" title="Link to this heading">#</a></h2>
+<p>Each row below is active only when all listed selector conditions match. Any
+one complete alternative satisfies the rule; columns joined by <code class="docutils literal notranslate"><span class="pre">+</span></code> are
+jointly required. Selector definitions are in <a class="reference internal" href="../inputs/yaml/config-reference/modelphysics.html#modelphysics"><span class="std std-ref">Physics Methods</span></a>.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 45.0%" />
+<col style="width: 55.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Active when</p></th>
+<th class="head"><p>Valid forcing alternative</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> in [0]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qn</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> in [1, 11, 100, 1001]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ldown</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> in [2, 12, 200, 1002]</p></td>
+<td><p>(<code class="docutils literal notranslate"><span class="pre">kdown</span></code> + <code class="docutils literal notranslate"><span class="pre">fcld</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> in [3, 13, 300, 1003]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">kdown</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">storage_heat</span></code> in [0]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qs</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">emissions</span></code> in [0]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qf</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">soil_moisture_deficit</span></code> in [1, 2]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xsmd</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">laimethod</span></code> in [0]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lai</span></code> OR (<code class="docutils literal notranslate"><span class="pre">lai_evetr</span></code> + <code class="docutils literal notranslate"><span class="pre">lai_dectr</span></code> + <code class="docutils literal notranslate"><span class="pre">lai_grass</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">water_use</span></code> in [1]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Wuh</span></code> OR (<code class="docutils literal notranslate"><span class="pre">wuh_paved</span></code> + <code class="docutils literal notranslate"><span class="pre">wuh_bldgs</span></code> + <code class="docutils literal notranslate"><span class="pre">wuh_evetr</span></code> + <code class="docutils literal notranslate"><span class="pre">wuh_dectr</span></code> + <code class="docutils literal notranslate"><span class="pre">wuh_grass</span></code> + <code class="docutils literal notranslate"><span class="pre">wuh_bsoil</span></code> + <code class="docutils literal notranslate"><span class="pre">wuh_water</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">snow_use</span></code> in [1] and <code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> in [0]</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">snow</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="timestamp-columns">
+<h2>Timestamp columns<a class="headerlink" href="#timestamp-columns" title="Link to this heading">#</a></h2>
+<p>Every forcing row must include these coordinates for the declared timestamp reference.</p>
 <dl class="std option">
 <dt class="sig sig-object std" id="cmdoption-arg-iy">
 <span class="sig-name descname"><span class="pre">iy</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-iy" title="Link to this definition">#</a></dt>
@@ -688,25 +773,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Calendar year of the interval-end timestamp</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>1</p>
+<dd class="field-even"><p>dimensionless</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>coordinate</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>component of the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>time</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>not range-checked</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>1</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>integer calendar coordinate; calendar validity checked on load</p>
 </dd>
 </dl>
 </dd></dl>
@@ -719,25 +798,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Day of year of the interval-end timestamp</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>1</p>
+<dd class="field-even"><p>dimensionless</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>coordinate</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>component of the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>time</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>not range-checked</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>2</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>integer calendar coordinate; calendar validity checked on load</p>
 </dd>
 </dl>
 </dd></dl>
@@ -752,23 +825,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>h</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>coordinate</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>component of the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>time</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>not range-checked</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>3</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>integer calendar coordinate; calendar validity checked on load</p>
 </dd>
 </dl>
 </dd></dl>
@@ -783,215 +850,25 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>min</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>coordinate</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>component of the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>time</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>not range-checked</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>4</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>integer calendar coordinate; calendar validity checked on load</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-qn">
-<span class="sig-name descname"><span class="pre">qn</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qn" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Observed net all-wave radiation</p>
-</dd>
-<dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
-</dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>observation</p>
-</dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
-</dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
-</dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>-500.0 to 1300.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>5</p>
-</dd>
-<dt class="field-odd">File aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>qn1_obs</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>net_radiation, qstar, q_star</p>
-</dd>
-<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
-<dd class="field-odd"><p>net_radiation in [0]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-qh">
-<span class="sig-name descname"><span class="pre">qh</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qh" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Reserved observed sensible heat-flux column; not currently consumed</p>
-</dd>
-<dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
-</dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>reserved</p>
-</dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
-</dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>optional</p>
-</dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>-500.0 to 1300.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>6</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>sensible_heat, h</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-qe">
-<span class="sig-name descname"><span class="pre">qe</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qe" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Reserved observed latent heat-flux column; not currently consumed</p>
-</dd>
-<dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
-</dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>reserved</p>
-</dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
-</dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>optional</p>
-</dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>-500.0 to 1300.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>7</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>latent_heat, le</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-qs">
-<span class="sig-name descname"><span class="pre">qs</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qs" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Observed net storage heat flux</p>
-</dd>
-<dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
-</dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>observation</p>
-</dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
-</dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
-</dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>-100.0 to 650.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>8</p>
-</dd>
-<dt class="field-odd">File aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>qs_obs</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>storage_heat</p>
-</dd>
-<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
-<dd class="field-odd"><p>storage_heat in [0]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-arg-qf">
-<span class="sig-name descname"><span class="pre">qf</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qf" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Observed anthropogenic heat flux</p>
-</dd>
-<dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
-</dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>observation</p>
-</dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
-</dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
-</dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>-500.0 to 1300.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>9</p>
-</dd>
-<dt class="field-odd">File aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>qf_obs</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>anthropogenic_heat</p>
-</dd>
-<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
-<dd class="field-odd"><p>emissions in [0]</p>
-</dd>
-</dl>
-</dd></dl>
-
+</section>
+<section id="always-required-weather-inputs">
+<h2>Always-required weather inputs<a class="headerlink" href="#always-required-weather-inputs" title="Link to this heading">#</a></h2>
+<p>Every forcing row must contain valid values for these variables.</p>
 <dl class="std option">
 <dt class="sig sig-object std" id="cmdoption-arg-U">
 <span class="sig-name descname"><span class="pre">U</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-U" title="Link to this definition">#</a></dt>
@@ -1000,28 +877,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Wind speed at the forcing measurement height</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>m s-1</p>
+<dd class="field-even"><p>m s<sup>-1</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>0.01 to 60.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>10</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>wind_speed, wind, u</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>0.01 to 60 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1036,26 +904,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>%</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>0.0001 to 105.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>11</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>relative_humidity, humidity, rh</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>0.0001 to 105 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1068,31 +927,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Air temperature</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>degC</p>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\({}^{\circ}\mathrm{C}\)</span></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>-60.0 to 90.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>12</p>
-</dd>
-<dt class="field-odd">File aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>temp_c</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>temperature, air_temperature, temp, t_air, ta</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>-60 to 90 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1107,26 +954,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>kPa</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>68.0 to 130.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>13</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>pressure, air_pressure, p</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>68 to 130 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1141,26 +979,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>14</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>precipitation, rainfall, precip</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1173,31 +1002,98 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Incoming short-wave radiation averaged over the forcing interval</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>always</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>baseline</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>not allowed</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>forbidden</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 to 1400 (inclusive)</p>
 </dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>0.0 to 1400.0</p>
+</dl>
+</dd></dl>
+
+</section>
+<section id="physics-conditional-inputs">
+<h2>Physics-conditional inputs<a class="headerlink" href="#physics-conditional-inputs" title="Link to this heading">#</a></h2>
+<p>These are required only when selected by the requirements table above.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-qn">
+<span class="sig-name descname"><span class="pre">qn</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qn" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Observed net all-wave radiation</p>
 </dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>15</p>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>shortwave_down, solar_radiation, sw_down, k_down</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>net_radiation in [2, 12, 200, 1002]; or net_radiation in [3, 13, 300, 1003]</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
+</dd>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
+</dd>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>-500 to 1300 (inclusive)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-qs">
+<span class="sig-name descname"><span class="pre">qs</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qs" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Observed net storage heat flux</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
+</dd>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
+</dd>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
+</dd>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>-100 to 650 (inclusive)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-qf">
+<span class="sig-name descname"><span class="pre">qf</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qf" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Observed anthropogenic heat flux</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
+</dd>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
+</dd>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
+</dd>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>-500 to 1300 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1210,34 +1106,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Observed surface snow-cover fraction</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>1</p>
+<dd class="field-even"><p>dimensionless</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>state at the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>optional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>0.0 to 1.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>16</p>
-</dd>
-<dt class="field-odd">File aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>snowfrac</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>snowfall</p>
-</dd>
-<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
-<dd class="field-odd"><p>snow_use in [1] and net_radiation in [0]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 to 1 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1250,31 +1131,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Incoming long-wave radiation averaged over the forcing interval</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>100.0 to 600.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>17</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>longwave_down, lw_down, l_down</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>net_radiation in [1, 11, 100, 1001]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>100 to 600 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1287,31 +1156,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Cloud fraction</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>1</p>
+<dd class="field-even"><p>dimensionless</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>0.0 to 1.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>18</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>cloud_fraction, cloud_cover, clouds</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>net_radiation in [2, 12, 200, 1002]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 to 1 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1326,32 +1183,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>19</p>
-</dd>
-<dt class="field-odd">File aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>wu_mm</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>water_use, external_water, wu_mm</p>
-</dd>
-<dt class="field-odd">Active requirement<span class="colon">:</span></dt>
-<dd class="field-odd"><p>water_use in [1]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1364,31 +1206,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Observed soil-moisture deficit input</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>soil_moisture_deficit=1: m3 m-3; soil_moisture_deficit=2: kg kg-1</p>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">soil_moisture_deficit=1</span></code>: m<sup>3</sup> m<sup>-3</sup>; <code class="docutils literal notranslate"><span class="pre">soil_moisture_deficit=2</span></code>: kg kg<sup>-1</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>observation</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>state at the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>20</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>soil_moisture, smd</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>soil_moisture_deficit in [1, 2]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1401,31 +1231,73 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Bulk observed leaf area index used as a surface fallback</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>m2 m-2</p>
+<dd class="field-even"><p>m<sup>2</sup> m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>observation</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>state at the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
+</dl>
+</dd></dl>
+
+</section>
+<section id="optional-accepted-columns">
+<h2>Optional accepted columns<a class="headerlink" href="#optional-accepted-columns" title="Link to this heading">#</a></h2>
+<p>These columns are accepted but are never required by SUEWS.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-qh">
+<span class="sig-name descname"><span class="pre">qh</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qh" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Reserved observed sensible heat-flux column; not currently consumed</p>
 </dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>21</p>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>leaf_area_index</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>laimethod in [0]</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>no</p>
+</dd>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
+</dd>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>-500 to 1300 (inclusive)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-qe">
+<span class="sig-name descname"><span class="pre">qe</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-qe" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Reserved observed latent heat-flux column; not currently consumed</p>
+</dd>
+<dt class="field-even">Input unit<span class="colon">:</span></dt>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
+</dd>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>no</p>
+</dd>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
+</dd>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>-500 to 1300 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1438,28 +1310,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Diffuse component of incoming short-wave radiation</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>no</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>optional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>0.0 to 1000.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>22</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>diffuse_radiation</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 to 1000 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1472,28 +1335,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Direct component of incoming short-wave radiation</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>W m-2</p>
+<dd class="field-even"><p>W m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mean over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>avg</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>no</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>optional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>0.0 to 1400.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>23</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>direct_radiation</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 to 1400 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1506,32 +1360,27 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Accepted wind-direction column; not currently consumed</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>degree</p>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\({}^{\circ}\)</span></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>reserved</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>state at the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>no</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>optional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">-999</span></code> only while this column is optional or inactive</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>sentinel</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>0.0 to 360.0</p>
-</dd>
-<dt class="field-even">Legacy position<span class="colon">:</span></dt>
-<dd class="field-even"><p>24</p>
-</dd>
-<dt class="field-odd">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-odd"><p>wind_direction, wd</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 to 360 (inclusive)</p>
 </dd>
 </dl>
 </dd></dl>
 
+</section>
+<section id="land-cover-specific-alternatives">
+<h2>Land-cover-specific alternatives<a class="headerlink" href="#land-cover-specific-alternatives" title="Link to this heading">#</a></h2>
+<p>These may replace the corresponding bulk LAI or water-use column.</p>
 <dl class="std option">
 <dt class="sig sig-object std" id="cmdoption-arg-lai_evetr">
 <span class="sig-name descname"><span class="pre">lai_evetr</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-lai_evetr" title="Link to this definition">#</a></dt>
@@ -1540,31 +1389,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Observed leaf area index for evergreen trees</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>m2 m-2</p>
+<dd class="field-even"><p>m<sup>2</sup> m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>observation</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>state at the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">lai</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>leaf_area_index_evetr</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>lai</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>laimethod in [0]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1577,31 +1414,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Observed leaf area index for deciduous trees</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>m2 m-2</p>
+<dd class="field-even"><p>m<sup>2</sup> m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>observation</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>state at the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">lai</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>leaf_area_index_dectr</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>lai</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>laimethod in [0]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1614,31 +1439,19 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dd class="field-odd"><p>Observed leaf area index for grass</p>
 </dd>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
-<dd class="field-even"><p>m2 m-2</p>
+<dd class="field-even"><p>m<sup>2</sup> m<sup>-2</sup></p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>observation</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>state at the interval-end timestamp</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>inst</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">lai</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">Accessor aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>leaf_area_index_grass</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>lai</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>laimethod in [0]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1653,29 +1466,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">File aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>wu_mm_paved</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wuh</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>water_use in [1]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1690,29 +1491,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">File aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>wu_mm_bldgs</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wuh</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>water_use in [1]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1727,29 +1516,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">File aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>wu_mm_evetr</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wuh</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>water_use in [1]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1764,29 +1541,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">File aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>wu_mm_dectr</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wuh</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>water_use in [1]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1801,29 +1566,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">File aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>wu_mm_grass</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wuh</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>water_use in [1]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1838,29 +1591,17 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">File aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>wu_mm_bsoil</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wuh</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>water_use in [1]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1875,33 +1616,22 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
 <dt class="field-even">Input unit<span class="colon">:</span></dt>
 <dd class="field-even"><p>mm</p>
 </dd>
-<dt class="field-odd">Role<span class="colon">:</span></dt>
-<dd class="field-odd"><p>driver</p>
+<dt class="field-odd">Interval basis<span class="colon">:</span></dt>
+<dd class="field-odd"><p>total accumulated over the forcing interval</p>
 </dd>
-<dt class="field-even">Temporal semantics<span class="colon">:</span></dt>
-<dd class="field-even"><p>sum</p>
+<dt class="field-even">Required<span class="colon">:</span></dt>
+<dd class="field-even"><p>only for selected physics; see the requirements above</p>
 </dd>
-<dt class="field-odd">Requiredness<span class="colon">:</span></dt>
-<dd class="field-odd"><p>conditional</p>
+<dt class="field-odd">Missing values<span class="colon">:</span></dt>
+<dd class="field-odd"><p>use <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> only when this column is absent; an explicit <code class="docutils literal notranslate"><span class="pre">-999</span></code> remains missing</p>
 </dd>
-<dt class="field-even">Missing-value policy<span class="colon">:</span></dt>
-<dd class="field-even"><p>fallback</p>
-</dd>
-<dt class="field-odd">Enforced input range<span class="colon">:</span></dt>
-<dd class="field-odd"><p>&gt;= 0.0</p>
-</dd>
-<dt class="field-even">File aliases<span class="colon">:</span></dt>
-<dd class="field-even"><p>wu_mm_water</p>
-</dd>
-<dt class="field-odd">Fallback column<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Wuh</p>
-</dd>
-<dt class="field-even">Active requirement<span class="colon">:</span></dt>
-<dd class="field-even"><p>water_use in [1]</p>
+<dt class="field-even">Valid input range<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\(\geq 0\)</span></p>
 </dd>
 </dl>
 </dd></dl>
 
+</section>
 </section>
 
 
@@ -1921,6 +1651,29 @@ namespaces. The latter are not accepted as forcing-file headers.</p>
             </div>
             
             
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-to-read-this-page">How to read this page</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-conditional-requirements">Physics-conditional requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#timestamp-columns">Timestamp columns</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#always-required-weather-inputs">Always-required weather inputs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-conditional-inputs">Physics-conditional inputs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-accepted-columns">Optional accepted columns</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-specific-alternatives">Land-cover-specific alternatives</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
               
             
           </div>
@@ -1950,7 +1703,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-12.
+  Last updated on 2026-08-13.
   <br/>
 </p>
   </div>
@@ -1958,8 +1711,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.13.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12">4328ab1</a> |
+  <p>Version: 2026.8.13.dev5 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/22213d21849ad327e2e2c722f8e21c57207a1214">22213d2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-10T09:33:20+00:00" />
-    <title>df_state variables &#8212; SUEWS 2026.8.13.dev3 documentation</title>
+    <meta property="article:modified_time" content="2026-08-13T11:34:22+00:00" />
+    <title>df_state variables &#8212; SUEWS 2026.8.13.dev5 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f7c50cd5"></script>
+    <script src="../_static/documentation_options.js?v=d92c0c19"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,8 +58,8 @@
     <link rel="search" title="Search" href="../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.13.dev3" />
-    <meta name="docbuild:last-update" content="2026-06-10"/>
+  <meta name="docsearch:version" content="2026.8.13.dev5" />
+    <meta name="docbuild:last-update" content="2026-08-13"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -107,7 +107,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.13.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12" style="color: #31708f;">4328ab1</a>).
+        (2026.8.13.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/22213d21849ad327e2e2c722f8e21c57207a1214" style="color: #31708f;">22213d2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev5 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev5 documentation - Home"/>
   
   
 </a></div>
@@ -666,10 +666,6 @@
 <li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
 </ol>
 </div>
-<dl class="field-list simple">
-<dt class="field-odd">orphan<span class="colon">:</span></dt>
-<dd class="field-odd"><p></p></dd>
-</dl>
 <section id="df-state-variables">
 <span id="df-state-var"></span><h1><code class="docutils literal notranslate"><span class="pre">df_state</span></code> variables<a class="headerlink" href="#df-state-variables" title="Link to this heading">#</a></h1>
 <div class="admonition warning">
@@ -1334,7 +1330,7 @@
 <span class="sig-name descname"><span class="pre">co2pointsource</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-co2pointsource" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>CO2 emission factor [kg km<sup>-1</sup>]</p>
+<dd class="field-odd"><p>Whole-grid CO2 point-source emission expressed as carbon mass [kg C day<sup>-1</sup>].</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>0</p>
@@ -1581,7 +1577,7 @@
 <span class="sig-name descname"><span class="pre">ef_umolco2perj</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-ef_umolco2perj" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Emission factor for fuels used for building heating.</p>
+<dd class="field-odd"><p>CO2 emission factor for fuels used for building energy [<a href="#id1"><span class="problematic" id="id2">|umol|</span></a> J<sup>-1</sup>].</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>0</p>
@@ -1657,7 +1653,7 @@
 <span class="sig-name descname"><span class="pre">enef_v_jkm</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-enef_v_jkm" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Emission factor for heat [J k m<sup>-1</sup> ].</p>
+<dd class="field-odd"><p>Vehicle energy consumption per unit distance [J km<sup>-1</sup>].</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>0</p>
@@ -1790,7 +1786,7 @@
 <span class="sig-name descname"><span class="pre">fcef_v_kgkm</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-fcef_v_kgkm" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>CO2 emission factor for weekdays [kg km<sup>-1</sup>];;CO2 emission factor for weekends [kg km<sup>-1</sup>]</p>
+<dd class="field-odd"><p>Vehicle CO2 emission factor for weekdays [kg CO2 km<sup>-1</sup>];;vehicle CO2 emission factor for weekends [kg CO2 km<sup>-1</sup>].</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>(2,)</p>
@@ -2514,7 +2510,7 @@
 <span class="sig-name descname"><span class="pre">maxfcmetab</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-maxfcmetab" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Maximum (day) CO2 from human metabolism. [W m<sup>-2</sup>]</p>
+<dd class="field-odd"><p>Maximum (day) CO2 emission from human metabolism [<a href="#id3"><span class="problematic" id="id4">|umol|</span></a> cap<sup>-1</sup> s<sup>-1</sup>].</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>0</p>
@@ -2533,7 +2529,7 @@
 <span class="sig-name descname"><span class="pre">maxqfmetab</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-maxqfmetab" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Maximum value for human heat emission. [W m<sup>-2</sup>]</p>
+<dd class="field-odd"><p>Maximum (day) human heat emission [W cap<sup>-1</sup>].</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>0</p>
@@ -2571,7 +2567,7 @@
 <span class="sig-name descname"><span class="pre">minfcmetab</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-minfcmetab" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Minimum (night) CO2 from human metabolism. [W m<sup>-2</sup>]</p>
+<dd class="field-odd"><p>Minimum (night) CO2 emission from human metabolism [<a href="#id5"><span class="problematic" id="id6">|umol|</span></a> cap<sup>-1</sup> s<sup>-1</sup>].</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>0</p>
@@ -2590,7 +2586,7 @@
 <span class="sig-name descname"><span class="pre">minqfmetab</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-minqfmetab" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Minimum value for human heat emission. [W m<sup>-2</sup>]</p>
+<dd class="field-odd"><p>Minimum (night) human heat emission [W cap<sup>-1</sup>].</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>0</p>
@@ -3944,7 +3940,7 @@
 <span class="sig-name descname"><span class="pre">trafficrate</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-trafficrate" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Traffic rate used for CO2 flux calculation.</p>
+<dd class="field-odd"><p>Traffic rate used for CO2 flux calculation: vehicle km m<sup>-2</sup> day<sup>-1</sup> for type 1 or vehicle km cap<sup>-1</sup> day<sup>-1</sup> for type 2.</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>(2,)</p>
@@ -3963,7 +3959,7 @@
 <span class="sig-name descname"><span class="pre">trafficunits</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-trafficunits" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Units for the traffic rate for the study area. Not used in v2018a.</p>
+<dd class="field-odd"><p>Dimensionless traffic-rate basis: 1 for per area, 2 for per capita. Not used in v2018a.</p>
 </dd>
 <dt class="field-even">Dimensionality<span class="colon">:</span></dt>
 <dd class="field-even"><p>0</p>
@@ -4333,7 +4329,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-10.
+  Last updated on 2026-08-13.
   <br/>
 </p>
   </div>
@@ -4341,8 +4337,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.13.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12">4328ab1</a> |
+  <p>Version: 2026.8.13.dev5 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/22213d21849ad327e2e2c722f8e21c57207a1214">22213d2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

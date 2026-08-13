@@ -536,6 +536,9 @@ class RSTGenerator:
             return []
 
         unit = self._format_unit(field_doc.get("unit", ""))
+        display_unit = (
+            unit if unit not in {"equation-dependent", "model-dependent"} else ""
+        )
         lines = [
             "",
             "   .. rubric:: Example values",
@@ -550,9 +553,12 @@ class RSTGenerator:
         ]
 
         for example in examples:
-            value = f"``{example['value']}``"
-            if unit:
-                value = f"{value} {unit}"
+            example_value = example["value"]
+            if isinstance(example_value, float):
+                example_value = format(example_value, ".7g")
+            value = f"``{example_value}``"
+            if display_unit:
+                value = f"{value} {display_unit}"
 
             surfaces = example.get("surfaces", [])
             context_parts = [example["origin"]]
@@ -566,6 +572,8 @@ class RSTGenerator:
                 context_parts.append(example["description"])
             if example.get("season"):
                 context_parts.append(example["season"])
+            if selector := example.get("selector"):
+                context_parts.append(f"{selector['name']}={selector['value']}")
             context = "; ".join(context_parts)
 
             reference = example["reference"]

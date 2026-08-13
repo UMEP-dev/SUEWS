@@ -105,9 +105,11 @@ def test_model_page_does_not_add_redundant_parameters_label() -> None:
 def test_relationship_targets_ref_only_documented_fields() -> None:
     module = _load_generator_module()
 
-    rendered = module.RSTGenerator._format_relationship_targets(
-        ["storage_heat", "energy_balance", "stebbs.capacitance"]
-    )
+    rendered = module.RSTGenerator._format_relationship_targets([
+        "storage_heat",
+        "energy_balance",
+        "stebbs.capacitance",
+    ])
 
     assert ":ref:`storage_heat <storage_heat>`" in rendered
     assert "``energy_balance``" in rendered
@@ -203,12 +205,8 @@ CHOICE_RESOLVERS = {
         "surface_conductance", choice
     ),
     "stebbs.enabled": _resolve_boolean_choice,
-    "stebbs.parameter_source": lambda choice: resolve_scalar_name(
-        "parameters", choice
-    ),
-    "stebbs.capacitance": lambda choice: resolve_scalar_name(
-        "capacitance", choice
-    ),
+    "stebbs.parameter_source": lambda choice: resolve_scalar_name("parameters", choice),
+    "stebbs.capacitance": lambda choice: resolve_scalar_name("capacitance", choice),
     "stebbs.setpoint": lambda choice: resolve_scalar_name("setpoint", choice),
     "stebbs.same_albedo_wall": lambda choice: resolve_scalar_name(
         "same_albedo_wall", choice
@@ -307,9 +305,10 @@ def test_site_specific_default_is_not_relabelled_as_an_example() -> None:
     module = _load_generator_module()
 
     # ACT
-    label, value = module.RSTGenerator._format_default(
-        {"default": 0.1, "is_site_specific": True}
-    )
+    label, value = module.RSTGenerator._format_default({
+        "default": 0.1,
+        "is_site_specific": True,
+    })
 
     # ASSERT
     assert (label, value) == ("Default", "``0.1``")
@@ -343,6 +342,58 @@ def test_extractor_attaches_legacy_name_from_canonical_registry() -> None:
 
     # ASSERT
     assert lai_fields["base_temperature_senescence"]["legacy_name"] == "basete"
+
+
+def test_extractor_uses_only_the_immediately_preceding_migration_name() -> None:
+    """Multi-stage renames show the last hop rather than the oldest alias."""
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    models = module.ModelDocExtractor().extract_all_models()["models"]
+    fields = {
+        model_name: {field["name"]: field for field in models[model_name]["fields"]}
+        for model_name in (
+            "ModelPhysics",
+            "SnowParams",
+            "ArchetypeProperties",
+            "StebbsProperties",
+        )
+    }
+
+    # ASSERT
+    assert fields["ModelPhysics"]["net_radiation"]["legacy_name"] == (
+        "net_radiation_method"
+    )
+    assert fields["SnowParams"]["radiation_melt_factor"]["legacy_name"] == (
+        "rad_melt_factor"
+    )
+    assert (
+        fields["ArchetypeProperties"]["max_power_heating_system_air"]["legacy_name"]
+        == "power_air_heating_max"
+    )
+    assert fields["StebbsProperties"]["depth_ground"]["legacy_name"] == ("ground_depth")
+
+
+def test_extractor_inherits_legacy_names_and_parameter_examples() -> None:
+    """Concrete surface pages include metadata accepted by base validators."""
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    models = module.ModelDocExtractor().extract_all_models()["models"]
+    paved_fields = {
+        field["name"]: field for field in models["PavedProperties"]["fields"]
+    }
+    evetr_fields = {
+        field["name"]: field for field in models["EvetrProperties"]["fields"]
+    }
+
+    # ASSERT
+    assert paved_fields["soil_depth"]["legacy_name"] == "soildepth"
+    assert len(paved_fields["soil_depth"]["examples"]) == 9
+    assert evetr_fields["max_conductance"]["legacy_name"] == "maxconductance"
+    assert evetr_fields["max_conductance"]["examples"]
 
 
 def test_extractor_attaches_cited_lai_parameter_examples() -> None:
@@ -387,9 +438,15 @@ def test_parameter_example_catalogue_rejects_missing_value_sentinels() -> None:
 def test_parameter_example_internal_citations_exist_in_docs_bibliography() -> None:
     """Internal citation keys must resolve on the documentation references page."""
     # ARRANGE
-    bibliography = (
-        PROJECT_ROOT / "docs" / "source" / "assets" / "refs" / "refs-SUEWS.bib"
-    ).read_text(encoding="utf-8")
+    references_dir = PROJECT_ROOT / "docs" / "source" / "assets" / "refs"
+    bibliography = "\n".join(
+        (references_dir / filename).read_text(encoding="utf-8")
+        for filename in (
+            "refs-SUEWS.bib",
+            "refs-others.bib",
+            "refs-community.bib",
+        )
+    )
     examples = [
         example
         for field_examples in get_all_parameter_examples().values()
@@ -401,7 +458,17 @@ def test_parameter_example_internal_citations_exist_in_docs_bibliography() -> No
 
     # ASSERT
     citation_keys.discard(None)
-    assert citation_keys == {"A16", "J11", "J14", "W16", "Z23"}
+    assert citation_keys == {
+        "A16",
+        "F02",
+        "J11",
+        "J14",
+        "Kotthaus2014Aug",
+        "R95",
+        "S00",
+        "W16",
+        "Z23",
+    }
     for citation_key in citation_keys:
         assert re.search(rf"@\w+\{{{re.escape(citation_key)},", bibliography)
 
@@ -411,15 +478,13 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
     # ACT
     index = get_all_parameter_examples()
     examples = [
-        example
-        for field_examples in index.values()
-        for example in field_examples
+        example for field_examples in index.values() for example in field_examples
     ]
     sheets = {example["source"]["sheet"] for example in examples}
 
     # ASSERT
-    assert len(index) == 95
-    assert len(examples) == 525
+    assert len(index) == 108
+    assert len(examples) == 554
     assert sheets == {
         "Albedo",
         "Biogen CO2",
@@ -432,13 +497,35 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
         "OHM",
         "Porosity",
         "Snow",
+        "SnowLimPatch",
         "Soil",
         "Vegetation Growth",
+        "Water State",
         "Water Storage",
     }
     assert len(get_parameter_examples("Conductance", "g_max")) == 3
     assert len(get_parameter_examples("SnowParams", "radiation_melt_factor")) == 1
     assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 9
+    assert len(get_parameter_examples("PavedProperties", "snowpack_limit")) == 1
+    assert len(get_parameter_examples("WaterProperties", "state_limit")) == 2
+    assert len(get_parameter_examples("EvetrProperties", "alpha_bio_co2")) == 8
+
+
+def test_parameter_example_catalogue_keys_are_documented_fields() -> None:
+    """A misspelt model or field mapping must not become an orphaned example."""
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    models = module.ModelDocExtractor().extract_all_models()["models"]
+    documented_fields = {
+        (model_name, field["name"])
+        for model_name, model_doc in models.items()
+        for field in model_doc["fields"]
+    }
+
+    # ASSERT
+    assert set(get_all_parameter_examples()) <= documented_fields
 
 
 def test_parameter_example_catalogue_excludes_unreliable_references() -> None:
@@ -452,6 +539,7 @@ def test_parameter_example_catalogue_excludes_unreliable_references() -> None:
 
     # ASSERT
     assert not reference_ids & {
+        "90240000",
         "90240027",
         "90240064",
         "90240991",
@@ -479,16 +567,14 @@ def test_extractor_does_not_attach_same_named_alias_to_another_model() -> None:
     # ACT
     doc_data = module.ModelDocExtractor().extract_all_models()
     model_physics_fields = {
-        field["name"]: field
-        for field in doc_data["models"]["ModelPhysics"]["fields"]
+        field["name"]: field for field in doc_data["models"]["ModelPhysics"]["fields"]
     }
     site_properties_fields = {
-        field["name"]: field
-        for field in doc_data["models"]["SiteProperties"]["fields"]
+        field["name"]: field for field in doc_data["models"]["SiteProperties"]["fields"]
     }
 
     # ASSERT
-    assert model_physics_fields["stebbs"]["legacy_name"] == "stebbsmethod"
+    assert model_physics_fields["stebbs"]["legacy_name"] == "stebbs_method"
     assert "legacy_name" not in site_properties_fields["stebbs"]
 
 
@@ -504,9 +590,7 @@ def test_legacy_name_is_rendered_and_indexed() -> None:
     }
 
     # ACT
-    rendered = "\n".join(
-        module.RSTGenerator({})._format_field(field_doc, "LAIParams")
-    )
+    rendered = "\n".join(module.RSTGenerator({})._format_field(field_doc, "LAIParams"))
 
     # ASSERT
     assert "single: basete (legacy YAML parameter)" in rendered
@@ -567,6 +651,113 @@ def test_parameter_example_uses_doi_when_docs_citation_is_unavailable() -> None:
     # ASSERT
     assert "`Example et al. (2026) <https://doi.org/10.0000/example>`__" in rendered
     assert "Example site; grass; Irrigated lawn; summer" in rendered
+
+
+def test_parameter_examples_limit_display_precision_without_changing_raw_data() -> None:
+    """Workbook averages remain exact in data but concise in the public table."""
+    # ARRANGE
+    module = _load_generator_module()
+    examples = get_parameter_examples("PavedProperties", "emis")
+    raw_value = next(
+        example["value"]
+        for example in examples
+        if example["source"]["record_ids"] == [40241247]
+    )
+
+    # ACT
+    rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples({
+            "unit": "dimensionless",
+            "examples": examples,
+        })
+    )
+
+    # ASSERT
+    assert raw_value == pytest.approx(0.9366666666666666)
+    assert "``0.9366667`` dimensionless" in rendered
+    assert "0.9366666666666666" not in rendered
+
+
+def test_selector_dependent_examples_keep_their_method_context() -> None:
+    """Flattened rows retain the selector needed to interpret their values."""
+    # ARRANGE
+    module = _load_generator_module()
+    conductance_examples = get_parameter_examples("Conductance", "g_q_base")
+    drainage_examples = get_parameter_examples("StorageDrainParams", "drain_coef_2")
+
+    # ACT
+    conductance_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples({
+            "unit": "model-dependent",
+            "examples": conductance_examples,
+        })
+    )
+    drainage_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples({
+            "unit": "equation-dependent",
+            "examples": drainage_examples,
+        })
+    )
+
+    # ASSERT
+    assert [example["selector"]["value"] for example in conductance_examples] == [
+        1,
+        2,
+        1,
+    ]
+    assert "gs_model=1" in conductance_rendered
+    assert "gs_model=2" in conductance_rendered
+    assert "drain_eq=2" in drainage_rendered
+    assert "drain_eq=3" in drainage_rendered
+    assert "``0.2163`` model-dependent" not in conductance_rendered
+
+
+def test_published_example_fields_use_physically_consistent_units() -> None:
+    """Metadata units agree with equations for newly published examples."""
+    # ARRANGE
+    module = _load_generator_module()
+
+    # ACT
+    models = module.ModelDocExtractor().extract_all_models()["models"]
+    fields = {
+        model_name: {field["name"]: field for field in models[model_name]["fields"]}
+        for model_name in (
+            "Conductance",
+            "LAIPowerCoefficients",
+            "PavedProperties",
+            "StorageDrainParams",
+        )
+    }
+
+    # ASSERT
+    assert fields["Conductance"]["g_k"]["unit"] == "W m^-2"
+    assert fields["Conductance"]["g_sm"]["unit"] == "mm^-1"
+    assert fields["Conductance"]["g_q_base"]["unit"] == "model-dependent"
+    assert fields["Conductance"]["g_q_shape"]["unit"] == "model-dependent"
+    assert fields["LAIPowerCoefficients"]["growth_gdd"]["unit"] == "K^-1"
+    assert fields["LAIPowerCoefficients"]["senescence_sdd"]["unit"] == "K^-1"
+    assert fields["PavedProperties"]["wet_threshold"]["unit"] == "mm"
+    assert (
+        "surface resistance becomes zero"
+        in fields["PavedProperties"]["wet_threshold"]["description"]
+    )
+    assert fields["StorageDrainParams"]["drain_coef_1"]["unit"] == (
+        "equation-dependent"
+    )
+    assert "modified Rutter" in fields["StorageDrainParams"]["drain_eq"]["description"]
+
+    wet_threshold_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples(
+            fields["PavedProperties"]["wet_threshold"]
+        )
+    )
+    conductance_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples(
+            fields["Conductance"]["g_k"]
+        )
+    )
+    assert "``0.48`` mm" in wet_threshold_rendered
+    assert "``566.0923`` W |m^-2|" in conductance_rendered
 
 
 def test_generated_config_reference_never_claims_optional(tmp_path) -> None:

@@ -131,20 +131,29 @@ class Conductance(BaseModel):
         default=None,
         description="Conductance parameter related to incoming solar radiation",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "W m^-2",
             "display_name": "Radiation Response Parameter",
         },
     )
     g_q_base: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Base value for conductance parameter related to vapour pressure deficit",
-        json_schema_extra={"unit": "kPa^-1", "display_name": "VPD Response Base Value"},
+        description=(
+            "Base conductance response parameter for vapour pressure deficit; "
+            "its interpretation and units depend on the surface-conductance model"
+        ),
+        json_schema_extra={
+            "unit": "model-dependent",
+            "display_name": "VPD Response Base Value",
+        },
     )
     g_q_shape: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Shape parameter for conductance related to vapour pressure deficit",
+        description=(
+            "Shape conductance response parameter for vapour pressure deficit; "
+            "its interpretation and units depend on the surface-conductance model"
+        ),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "model-dependent",
             "display_name": "VPD Response Shape Parameter",
         },
     )
@@ -160,7 +169,7 @@ class Conductance(BaseModel):
         default=None,
         description="Conductance parameter related to soil moisture",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "mm^-1",
             "display_name": "Soil Moisture Response Parameter",
         },
     )
@@ -285,7 +294,7 @@ class LAIPowerCoefficients(BaseModel):
         default=None,
         description="Power coefficient for GDD in growth equation (LAIPower[2])",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "K^-1",
             "display_name": "GDD Growth Power Coefficient",
         },
     )
@@ -301,7 +310,7 @@ class LAIPowerCoefficients(BaseModel):
         default=None,
         description="Power coefficient for SDD in senescence equation (LAIPower[4])",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "K^-1",
             "display_name": "SDD Senescence Power Coefficient",
         },
     )

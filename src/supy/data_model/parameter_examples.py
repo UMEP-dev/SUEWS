@@ -78,9 +78,7 @@ def _validate_record(
     }
 
 
-def _record_models(
-    source_table: dict[str, Any], record: dict[str, Any]
-) -> list[str]:
+def _record_models(source_table: dict[str, Any], record: dict[str, Any]) -> list[str]:
     """Resolve the data-model targets for one source record."""
     models = record.get("models")
     if models is None:
@@ -98,6 +96,24 @@ def _record_models(
     return models
 
 
+def _selector_details(source_table: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Validate and return an optional source-column selector definition."""
+    selector_config = source_table.get("selector")
+    if selector_config is None:
+        return None, None
+    if not isinstance(selector_config, dict):
+        raise ValueError("Parameter-example selectors must be mappings")
+
+    selector_source_column = selector_config.get("source_column")
+    selector_name = selector_config.get("name")
+    if not all(
+        isinstance(item, str) and item
+        for item in (selector_source_column, selector_name)
+    ):
+        raise ValueError("Parameter-example selectors need a column and name")
+    return selector_source_column, selector_name
+
+
 def _add_source_table_examples(
     index: dict[tuple[str, str], list[dict[str, Any]]],
     seen_examples: set[tuple[str, str, str, str, str, str]],
@@ -108,14 +124,30 @@ def _add_source_table_examples(
     sheet_name = source_table.get("sheet")
     field_map = source_table.get("field_map", {})
     if not sheet_name or not isinstance(field_map, dict) or not field_map:
-        raise ValueError("Each parameter-example source table needs a sheet and field map")
+        raise ValueError(
+            "Each parameter-example source table needs a sheet and field map"
+        )
+
+    selector_source_column, selector_name = _selector_details(source_table)
 
     for record in source_table.get("records", []):
         context = _validate_record(record, references)
+        selector = None
+        if selector_source_column is not None:
+            if selector_source_column not in context["values"]:
+                raise ValueError(
+                    f"Parameter example is missing selector {selector_source_column!r}"
+                )
+            selector = {
+                "name": selector_name,
+                "value": context["values"][selector_source_column],
+            }
         for model_name in _record_models(source_table, record):
             for source_column, value in context["values"].items():
                 field_name = field_map.get(source_column)
                 if field_name is None:
+                    if source_column == selector_source_column:
+                        continue
                     raise ValueError(
                         f"No current field mapping for source column {source_column!r}"
                     )
@@ -156,6 +188,8 @@ def _add_source_table_examples(
                     example["description"] = context["description"]
                 if context["season"]:
                     example["season"] = context["season"]
+                if selector is not None and source_column != selector_source_column:
+                    example["selector"] = selector.copy()
                 index.setdefault((model_name, field_name), []).append(example)
 
 

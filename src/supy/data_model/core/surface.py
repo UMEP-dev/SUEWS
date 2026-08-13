@@ -261,9 +261,12 @@ class SurfaceProperties(BaseModel):
     )
     wet_threshold: FlexibleRefValue(float) = Field(
         default=0.5,
-        description="Surface wetness threshold for OHM calculations",
+        description=(
+            "Surface water-depth threshold above which the surface is treated as "
+            "fully wet and surface resistance becomes zero"
+        ),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "mm",
             "display_name": "Wetness Threshold",
         },
     )

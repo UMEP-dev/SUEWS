@@ -6,6 +6,7 @@ import pytest
 import yaml
 
 from supy.data_model.core import SUEWSConfig
+from supy.data_model.core.model import NetRadiationMethod, StorageHeatMethod
 
 pytestmark = pytest.mark.api
 
@@ -25,7 +26,9 @@ def _site_properties(data):
 
 def _enable_spartacus(data):
     """Enable SPARTACUS while working around the sample-data issue in #1699."""
-    data["model"]["physics"]["net_radiation"] = {"value": 1001}
+    data["model"]["physics"]["net_radiation"] = {
+        "value": NetRadiationMethod.LDOWN_SS_OBSERVED.value
+    }
     vertical_layers = _site_properties(data)["vertical_layers"]
     for key in ("veg_frac", "veg_scale"):
         values = vertical_layers[key]["value"]
@@ -52,7 +55,7 @@ def test_rsl_requires_building_frontal_area_index():
 
 def test_stebbs_storage_heat_requires_spartacus_radiation():
     data = _sample_config()
-    data["model"]["physics"]["storage_heat"] = {"value": 7}
+    data["model"]["physics"]["storage_heat"] = {"value": StorageHeatMethod.STEBBS.value}
 
     _assert_public_rejection(
         data,
@@ -62,13 +65,15 @@ def test_stebbs_storage_heat_requires_spartacus_radiation():
 
 def test_stebbs_storage_heat_loads_with_spartacus_radiation():
     data = _sample_config()
-    data["model"]["physics"]["storage_heat"] = {"value": 7}
+    data["model"]["physics"]["storage_heat"] = {"value": StorageHeatMethod.STEBBS.value}
     _enable_spartacus(data)
 
     SUEWSConfig.from_dict(data)
 
 
-@pytest.mark.parametrize("method", [6, 8])
+@pytest.mark.parametrize(
+    "method", [StorageHeatMethod.DyOHM.value, StorageHeatMethod.DyOHM_BUILDING.value]
+)
 def test_dyohm_variants_load_without_spartacus(method):
     data = _sample_config()
     data["model"]["physics"]["storage_heat"] = {"value": method}

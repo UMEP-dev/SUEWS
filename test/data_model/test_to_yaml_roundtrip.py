@@ -163,10 +163,10 @@ class TestToYamlRoundTrip:
         # ARRANGE
         co2 = sample_config.sites[0].properties.anthropogenic_emissions.co2
         fields = [
-            "co2pointsource",
-            "ef_umolco2perj",
-            "enef_v_jkm",
-            "trafficunits",
+            "emission_co2_point_source",
+            "emission_factor_co2_fuel",
+            "emission_factor_energy_vehicle",
+            "type_traffic_rate",
         ]
         for field in fields:
             setattr(co2, field, RefValue(None))

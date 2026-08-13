@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.6.dev2'
+schema_version: '2026.6.dev3'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -2100,33 +2100,33 @@ sites:
             '23': 0.87
             '24': 0.74
       co2:
-        co2pointsource:
+        emission_co2_point_source:
           value: 0.0
-        ef_umolco2perj:
+        emission_factor_co2_fuel:
           value: 1.159
-        enef_v_jkm:
+        emission_factor_energy_vehicle:
           value: 3970000.0
-        fcef_v_kgkm:
+        emission_factor_co2_vehicle:
           working_day: 0.285
           holiday: 0.285
-        frfossilfuel_heat:
+        fraction_fossil_fuel_heating:
           value: 0.05
-        frfossilfuel_nonheat:
+        fraction_fossil_fuel_non_heating:
           value: 0.0
-        maxfcmetab:
+        emission_co2_metabolism_max:
           value: 280.0
-        maxqfmetab:
+        emission_heat_metabolism_max:
           value: 175.0
-        minfcmetab:
+        emission_co2_metabolism_min:
           value: 120.0
-        minqfmetab:
+        emission_heat_metabolism_min:
           value: 75.0
-        trafficrate:
+        traffic_rate:
           working_day: 0.01
           holiday: 0.01
-        trafficunits:
+        type_traffic_rate:
           value: 1.0
-        traffprof_24hr:
+        profile_traffic_24hr:
           working_day:
             '1': 0.57
             '2': 0.45
@@ -2177,7 +2177,7 @@ sites:
             '22': 0.85
             '23': 0.8
             '24': 0.7
-        humactivity_24hr:
+        profile_human_activity_24hr:
           working_day:
             '1': 0.57
             '2': 0.45

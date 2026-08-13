@@ -1326,20 +1326,20 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         The following parameters are checked:
-        - co2pointsource: CO2 point source emission factor
-        - ef_umolco2perj: CO2 emission factor per unit of fuel energy
-        - frfossilfuel_heat: Fraction of heating energy from fossil fuels
-        - frfossilfuel_nonheat: Fraction of non-heating energy from fossil fuels
+        - emission_co2_point_source: CO2 point source emission factor
+        - emission_factor_co2_fuel: CO2 emission factor per unit of fuel energy
+        - fraction_fossil_fuel_heating: Fraction of heating energy from fossil fuels
+        - fraction_fossil_fuel_non_heating: Fraction of non-heating energy from fossil fuels
 
         Any missing parameters are added to the validation summary.
         """
         from ..validation.core.utils import check_missing_params
 
         critical_params = {
-            "co2pointsource": "CO2 point source emission factor",
-            "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-            "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-            "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
+            "emission_co2_point_source": "CO2 point source emission factor",
+            "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+            "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
+            "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
         }
 
         missing_params = check_missing_params(
@@ -3466,10 +3466,10 @@ class SUEWSConfig(BaseModel):
             from ..validation.core.utils import check_missing_params
 
             critical_params = {
-                "co2pointsource": "CO2 point source emission factor",
-                "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-                "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-                "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
+                "emission_co2_point_source": "CO2 point source emission factor",
+                "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+                "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
+                "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
             }
 
             missing_params = check_missing_params(
@@ -4078,12 +4078,12 @@ class SUEWSConfig(BaseModel):
                 anthro_co2 = site.properties.anthropogenic_emissions.co2
                 hourly_profiles.extend([
                     (
-                        "anthropogenic_emissions.co2.traffprof_24hr",
-                        anthro_co2.traffprof_24hr,
+                        "anthropogenic_emissions.co2.profile_traffic_24hr",
+                        anthro_co2.profile_traffic_24hr,
                     ),
                     (
-                        "anthropogenic_emissions.co2.humactivity_24hr",
-                        anthro_co2.humactivity_24hr,
+                        "anthropogenic_emissions.co2.profile_human_activity_24hr",
+                        anthro_co2.profile_human_activity_24hr,
                     ),
                 ])
 

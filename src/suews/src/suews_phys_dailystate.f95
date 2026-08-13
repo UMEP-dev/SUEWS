@@ -715,6 +715,7 @@ CONTAINS
             ! Keep internally computed phenology within the configured canopy envelope.
             call limit_lai( &
                LAI_id_next=LAI_id_next(iv), &
+               stress_days=stress_days(iv), &
                LAImax=LAImax(iv), &
                LAImin=LAImin(iv) &
             )
@@ -1107,18 +1108,20 @@ CONTAINS
 
       end subroutine calculate_sdd_type1
 
-      subroutine limit_lai(LAI_id_next, LAImax, LAImin)
+      subroutine limit_lai(LAI_id_next, stress_days, LAImax, LAImin)
 
          ! Keep internally computed phenology within the configured canopy envelope.
 
          implicit none
 
          real(kind(1D0)), intent(inout) :: LAI_id_next
+         real(kind(1D0)), intent(inout) :: stress_days
          real(kind(1D0)), intent(in) :: LAImax
          real(kind(1D0)), intent(in) :: LAImin
 
          if (LAI_id_next > LAImax) then
             LAI_id_next = LAImax
+            stress_days = 0
          else if (LAI_id_next < LAImin) then
             LAI_id_next = LAImin
          end if

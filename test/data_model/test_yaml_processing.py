@@ -1342,6 +1342,55 @@ sites:
             print(f"   - Generated report: {os.path.getsize(report_file)} bytes")
             print("   - All scenarios tested: MISSING, RENAMED, NOT IN STANDARD")
 
+    def test_annotation_preserves_multiple_sites(self):
+        """Keep every site and its custom properties in the updated YAML."""
+        multi_site_config = {
+            "name": "multi-site test config",
+            "model": {
+                "control": {"tstep": 300},
+                "physics": {"emissions": {"value": 2}},
+            },
+            "sites": [
+                {
+                    "name": f"Site_{index}",
+                    "gridiv": 1,
+                    "properties": {
+                        "alb": {"value": 0.15},
+                        f"custom_param_{index}": {"value": f"custom_value_{index}"},
+                    },
+                }
+                for index in range(3)
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            user_file = os.path.join(temp_dir, "multi_site_user.yml")
+            uptodate_file = os.path.join(temp_dir, "uptodate_multi_site_user.yml")
+            report_file = os.path.join(temp_dir, "report_multi_site_user.txt")
+            with open(user_file, "w", encoding="utf-8") as stream:
+                yaml.dump(multi_site_config, stream)
+
+            with as_file(
+                trv_supy_module / "sample_data" / "sample_config.yml"
+            ) as standard_path:
+                annotate_missing_parameters(
+                    user_file=user_file,
+                    standard_file=str(standard_path),
+                    uptodate_file=uptodate_file,
+                    report_file=report_file,
+                )
+
+            with open(uptodate_file, encoding="utf-8") as stream:
+                updated_data = yaml.safe_load(stream)
+
+        self.assertEqual(len(updated_data["sites"]), 3)
+        for index, site in enumerate(updated_data["sites"]):
+            self.assertEqual(site["name"], f"Site_{index}")
+            self.assertEqual(
+                site["properties"][f"custom_param_{index}"]["value"],
+                f"custom_value_{index}",
+            )
+
 
 # ============================================================================
 # From test_precheck.py - Phase B Scientific Validation Tests

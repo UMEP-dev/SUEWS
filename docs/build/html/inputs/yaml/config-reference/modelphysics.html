@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.4.33. Physics Methods &#8212; SUEWS 2026.8.12.dev10 documentation</title>
+    <title>4.4.33. Physics Methods &#8212; SUEWS 2026.8.13.dev3 documentation</title>
   
   
   
@@ -35,7 +35,7 @@
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=bab574ae" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=892bfb54"></script>
+    <script src="../../../_static/documentation_options.js?v=f7c50cd5"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.4.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.12.dev10" />
+  <meta name="docsearch:version" content="2026.8.13.dev3" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.12.dev10, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/daf7219d8d965e8c24724803274fe1a77efc59e4" style="color: #31708f;">daf7219</a>).
+        (2026.8.13.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12" style="color: #31708f;">4328ab1</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev10 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev10 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -829,7 +829,6 @@
 <p class="admonition-title">Note</p>
 <p>The generated parameter list below still includes implementation field    names where they differ from public aliases. In user YAML, prefer    <code class="docutils literal notranslate"><span class="pre">leaf_area_index</span></code> over <code class="docutils literal notranslate"><span class="pre">laimethod</span></code>, <code class="docutils literal notranslate"><span class="pre">snow</span></code> over    <code class="docutils literal notranslate"><span class="pre">snow_use</span></code>, <code class="docutils literal notranslate"><span class="pre">storage_heat.ohm.include_qf</span></code> over flat    <code class="docutils literal notranslate"><span class="pre">ohm_inc_qf</span></code>, and <code class="docutils literal notranslate"><span class="pre">stebbs.parameter_source</span></code> over    <code class="docutils literal notranslate"><span class="pre">stebbs.parameters</span></code>.</p>
 </div>
-<p><strong>Parameters:</strong></p>
 <dl class="input option" id="net-radiation">
 <span id="index-1"></span><dt class="sig sig-object input" id="input-option-net_radiation">
 <span class="sig-name descname"><span class="pre">net_radiation</span></span><a class="headerlink" href="#input-option-net_radiation" title="Link to this definition">#</a></dt>
@@ -843,8 +842,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">3</span></code> (LDOWN_AIR) = Models Q* using NARP with L↓ estimated from air temperature and relative humidity</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (LDOWN_AIR)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">net_radiation_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (LDOWN_AIR)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -919,8 +921,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">46</span></code> (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (J11)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">emissions_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (J11)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -945,8 +950,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">8</span></code> (DyOHM_BUILDING) = DyOHM using the outermost building material layer</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (OHM_WITHOUT_QF)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">storage_heat_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (OHM_WITHOUT_QF)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -968,8 +976,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (INCLUDE) = Use Q*+QF (for other OHM-based storage heat methods)</div>
 </div>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (EXCLUDE)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">ohmincqf</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (EXCLUDE)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -993,8 +1004,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">4</span></code> (LAMBDAP_DEPENDENT) = Varies with plan area fraction λp (Grimmond &amp; Oke 1999)</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (VARIABLE)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">roughness_length_momentum_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (VARIABLE)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -1018,8 +1032,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">5</span></code> (ADAPTIVE) = Adaptively using z0m based on pervious coverage: if fully pervious, use method 1</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (KAWAI)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">roughness_length_heat_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (KAWAI)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -1040,8 +1057,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">3</span></code> (CAMPBELL_NORMAN) = Campbell &amp; Norman (1998) formulations for both momentum and heat</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (CAMPBELL_NORMAN)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">stability_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (CAMPBELL_NORMAN)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -1063,8 +1083,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (OBSERVED_GRAVIMETRIC) = Uses observed gravimetric soil moisture content (kg/kg) from forcing file</div>
 </div>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (MODELLED)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">smd_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (MODELLED)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1080,8 +1103,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (OBSERVED) = Uses observed water use values from forcing file</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (MODELLED)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">water_use_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (MODELLED)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1097,7 +1123,7 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (MODELLED) = LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.</div>
 </div>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
+<dt class="field-even">Default<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (MODELLED)</p>
 </dd>
 </dl>
@@ -1117,8 +1143,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (VARIABLE) = Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (VARIABLE)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">rsl_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (VARIABLE)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -1139,8 +1168,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (MODELLED) = Calculate FAI using simple scheme based on surface fractions and heights</div>
 </div>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (OBSERVED)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">fai_method</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (OBSERVED)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1157,8 +1189,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (NONE)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">rsl_level</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (NONE)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -1180,8 +1215,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (WARD) = Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses</div>
 </div>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (WARD)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">gs_model</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (WARD)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -1202,8 +1240,11 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (ENABLED) = Snow accumulation, melt, and albedo effects included</div>
 </div>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">snowuse</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -1217,6 +1258,11 @@
 <span id="index-17"></span><dt class="sig sig-object input" id="input-option-stebbs">
 <span class="sig-name descname"><span class="pre">stebbs</span></span><a class="headerlink" href="#input-option-stebbs" title="Link to this definition">#</a></dt>
 <dd><p>STEBBS physics switches: master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Legacy name<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">stebbs_method</span></code></p>
+</dd>
+</dl>
 <div class="note admonition">
 <p class="admonition-title">Method Interactions</p>
 <p>When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.</p>
@@ -1303,8 +1349,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.12.dev10 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/daf7219d8d965e8c24724803274fe1a77efc59e4">daf7219</a> |
+  <p>Version: 2026.8.13.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12">4328ab1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

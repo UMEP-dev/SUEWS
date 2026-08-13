@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for water surfaces parameters" name="description" />
 <meta content="SUEWS, YAML, waterproperties, parameters, configuration" name="keywords" />
 
-    <title>4.4.58. Water Surfaces &#8212; SUEWS 2026.8.12.dev10 documentation</title>
+    <title>4.4.58. Water Surfaces &#8212; SUEWS 2026.8.13.dev3 documentation</title>
   
   
   
@@ -35,7 +35,7 @@
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=bab574ae" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=892bfb54"></script>
+    <script src="../../../_static/documentation_options.js?v=f7c50cd5"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.4.57. Water Distribution" href="waterdistribution.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.12.dev10" />
+  <meta name="docsearch:version" content="2026.8.13.dev3" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.12.dev10, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/daf7219d8d965e8c24724803274fe1a77efc59e4" style="color: #31708f;">daf7219</a>).
+        (2026.8.13.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12" style="color: #31708f;">4328ab1</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.12.dev10 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.12.dev10 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -607,7 +607,10 @@
 <p>Water surfaces have unique thermal properties with high heat capacity
 and evaporative cooling effects. They moderate local temperatures but
 have very low albedo values.</p>
-<p><strong>Parameters:</strong></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Example values below are parameter choices compiled in the SUEWS parameter database, which is being prepared for publication. Until its release, the cited studies provide the supporting evidence. These values are not defaults or recommendations; select or calibrate values for the site.</p>
+</div>
 <dl class="input option" id="index-1">
 <dt class="sig sig-object input" id="input-option-sfr">
 <span class="sig-name descname"><span class="pre">sfr</span></span><a class="headerlink" href="#input-option-sfr" title="Link to this definition">#</a></dt>
@@ -616,7 +619,7 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
+<dt class="field-even">Default<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.14285714285714285</span></code></p>
 </dd>
 </dl>
@@ -630,10 +633,31 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
+<dt class="field-even">Default<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.95</span></code></p>
 </dd>
 </dl>
+<p class="rubric">Example values</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Context</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.95</span></code> dimensionless</p></td>
+<td><p>UK, SE England; water; Water</p></td>
+<td><p><span class="bibtex-citation" id="id1">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 <dl class="input option" id="index-3">
@@ -644,8 +668,11 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">ohm_threshsw</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -658,8 +685,11 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">ohm_threshwd</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -678,10 +708,66 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">soildepth</span></code></p>
+</dd>
+<dt class="field-odd">Configuration Note<span class="colon">:</span></dt>
+<dd class="field-odd"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
 </dd>
 </dl>
+<p class="rubric">Example values</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Context</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1000</span></code> mm</p></td>
+<td><p>Beijing; subsurface soil; Below mixed vegetation</p></td>
+<td><p><span class="bibtex-citation" id="id2">Zheng <em>et al.</em> [<a class="reference internal" href="../../../references.html#id34" title="Zheng, Y., Havu, M., Liu, H., Cheng, X., Wen, Y., Lee, H. S., Ahongshangbam, J., and Järvi, L. Simulating heat and CO$_2$ fluxes in Beijing using SUEWS V2020b: sensitivity to vegetation phenology and maximum conductance. Geoscientific Model Development, 16(15):4551–4579, August 2023. doi:10.5194/gmd-16-4551-2023.">2023</a>]</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">349</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Below Grass</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">349</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Below low vegetation</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1000</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Mixed forest</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1000</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Mixed Street trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1000</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Mixed Park trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">349</span></code> mm</p></td>
+<td><p>Zurich; subsurface soil; Trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.5194/egusphere-2024-2475">Stagakis et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">349</span></code> mm</p></td>
+<td><p>Zurich; subsurface soil; Below Grass</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.5194/egusphere-2024-2475">Stagakis et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">350</span></code> mm</p></td>
+<td><p>SE England; subsurface soil; Below all surfaces (generic)</p></td>
+<td><p><span class="bibtex-citation" id="id3">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 <dl class="input option" id="index-7">
@@ -692,38 +778,146 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">soilstorecap</span></code></p>
+</dd>
+<dt class="field-odd">Configuration Note<span class="colon">:</span></dt>
+<dd class="field-odd"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
 </dd>
 </dl>
+<p class="rubric">Example values</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Context</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">141</span></code> mm</p></td>
+<td><p>Beijing; subsurface soil; Below mixed vegetation</p></td>
+<td><p><span class="bibtex-citation" id="id4">Zheng <em>et al.</em> [<a class="reference internal" href="../../../references.html#id34" title="Zheng, Y., Havu, M., Liu, H., Cheng, X., Wen, Y., Lee, H. S., Ahongshangbam, J., and Järvi, L. Simulating heat and CO$_2$ fluxes in Beijing using SUEWS V2020b: sensitivity to vegetation phenology and maximum conductance. Geoscientific Model Development, 16(15):4551–4579, August 2023. doi:10.5194/gmd-16-4551-2023.">2023</a>]</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">150</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Below Grass</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">150</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Below low vegetation</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">312</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Mixed forest</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">141</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Mixed Street trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">229</span></code> mm</p></td>
+<td><p>Helsinki; subsurface soil; Mixed Park trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">130</span></code> mm</p></td>
+<td><p>Zurich; subsurface soil; Trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.5194/egusphere-2024-2475">Stagakis et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">150</span></code> mm</p></td>
+<td><p>Zurich; subsurface soil; Below Grass</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.5194/egusphere-2024-2475">Stagakis et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">150</span></code> mm</p></td>
+<td><p>SE England; subsurface soil; Below all surfaces (generic)</p></td>
+<td><p><span class="bibtex-citation" id="id5">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 <dl class="input option" id="index-8">
 <dt class="sig sig-object input" id="input-option-state_limit">
 <span class="sig-name descname"><span class="pre">state_limit</span></span><a class="headerlink" href="#input-option-state_limit" title="Link to this definition">#</a></dt>
-<dd><p>Minimum water storage capacity for state change</p>
+<dd><p>Upper limit to the surface water state</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">statelimit</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
 </dd>
 </dl>
+<p class="rubric">Example values</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Context</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2000</span></code> mm</p></td>
+<td><p>Helsinki; water; Open water</p></td>
+<td><p><span class="bibtex-citation" id="id6">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">30000</span></code> mm</p></td>
+<td><p>London (River Thames); water; River Thames</p></td>
+<td><p><span class="bibtex-citation" id="id7">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 <dl class="input option" id="index-9">
 <dt class="sig sig-object input" id="input-option-wet_threshold">
 <span class="sig-name descname"><span class="pre">wet_threshold</span></span><a class="headerlink" href="#input-option-wet_threshold" title="Link to this definition">#</a></dt>
-<dd><p>Surface wetness threshold for OHM calculations</p>
+<dd><p>Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>dimensionless</p>
+<dd class="field-odd"><p>mm</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">wetthresh</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
 </dd>
 </dl>
+<p class="rubric">Example values</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Context</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code> mm</p></td>
+<td><p>SE England; water; Water</p></td>
+<td><p><span class="bibtex-citation" id="id8">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 <dl class="input option" id="index-10">
@@ -734,10 +928,66 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm s<sup>-1</sup></p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">sathydraulicconduct</span></code></p>
+</dd>
+<dt class="field-odd">Configuration Note<span class="colon">:</span></dt>
+<dd class="field-odd"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
 </dd>
 </dl>
+<p class="rubric">Example values</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Context</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>Beijing; subsurface soil; Below mixed vegetation</p></td>
+<td><p><span class="bibtex-citation" id="id9">Zheng <em>et al.</em> [<a class="reference internal" href="../../../references.html#id34" title="Zheng, Y., Havu, M., Liu, H., Cheng, X., Wen, Y., Lee, H. S., Ahongshangbam, J., and Järvi, L. Simulating heat and CO$_2$ fluxes in Beijing using SUEWS V2020b: sensitivity to vegetation phenology and maximum conductance. Geoscientific Model Development, 16(15):4551–4579, August 2023. doi:10.5194/gmd-16-4551-2023.">2023</a>]</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>Helsinki; subsurface soil; Below Grass</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>Helsinki; subsurface soil; Below low vegetation</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>Helsinki; subsurface soil; Mixed forest</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>Helsinki; subsurface soil; Mixed Street trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>Helsinki; subsurface soil; Mixed Park trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>Zurich; subsurface soil; Trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.5194/egusphere-2024-2475">Stagakis et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>Zurich; subsurface soil; Below Grass</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.5194/egusphere-2024-2475">Stagakis et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.0005</span></code> mm s<sup>-1</sup></p></td>
+<td><p>SE England; subsurface soil; Below all surfaces (generic)</p></td>
+<td><p><span class="bibtex-citation" id="id10">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 <dl class="input option" id="index-11">
@@ -748,10 +998,62 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>g cm^-3</p>
 </dd>
-<dt class="field-even">Configuration Note<span class="colon">:</span></dt>
-<dd class="field-even"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">soildensity</span></code></p>
+</dd>
+<dt class="field-odd">Configuration Note<span class="colon">:</span></dt>
+<dd class="field-odd"><p>No default value. A value may be required depending on which physics options and surface types are active in your configuration.</p>
 </dd>
 </dl>
+<p class="rubric">Example values</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Context</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.16</span></code> g cm^-3</p></td>
+<td><p>Beijing; subsurface soil; Below mixed vegetation</p></td>
+<td><p><span class="bibtex-citation" id="id11">Zheng <em>et al.</em> [<a class="reference internal" href="../../../references.html#id34" title="Zheng, Y., Havu, M., Liu, H., Cheng, X., Wen, Y., Lee, H. S., Ahongshangbam, J., and Järvi, L. Simulating heat and CO$_2$ fluxes in Beijing using SUEWS V2020b: sensitivity to vegetation phenology and maximum conductance. Geoscientific Model Development, 16(15):4551–4579, August 2023. doi:10.5194/gmd-16-4551-2023.">2023</a>]</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.16</span></code> g cm^-3</p></td>
+<td><p>Helsinki; subsurface soil; Below Grass</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.16</span></code> g cm^-3</p></td>
+<td><p>Helsinki; subsurface soil; Below low vegetation</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.16</span></code> g cm^-3</p></td>
+<td><p>Helsinki; subsurface soil; Mixed forest</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.16</span></code> g cm^-3</p></td>
+<td><p>Helsinki; subsurface soil; Mixed Street trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.16</span></code> g cm^-3</p></td>
+<td><p>Helsinki; subsurface soil; Mixed Park trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.1016/j.ufug.2024.128261">Havu et al. (2024)</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.16</span></code> g cm^-3</p></td>
+<td><p>Zurich; subsurface soil; Trees</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.5194/egusphere-2024-2475">Stagakis et al. (2024)</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.16</span></code> g cm^-3</p></td>
+<td><p>Zurich; subsurface soil; Below Grass</p></td>
+<td><p><a class="reference external" href="https://doi.org/10.5194/egusphere-2024-2475">Stagakis et al. (2024)</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 <dl class="input option" id="index-12">
@@ -765,6 +1067,11 @@ have very low albedo values.</p>
 <dt class="sig sig-object input" id="input-option-storage_drain_params">
 <span class="sig-name descname"><span class="pre">storage_drain_params</span></span><a class="headerlink" href="#input-option-storage_drain_params" title="Link to this definition">#</a></dt>
 <dd><p>Storage and drain parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Legacy name<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">storedrainprm</span></code></p>
+</dd>
+</dl>
 <p>The <code class="docutils literal notranslate"><span class="pre">storage_drain_params</span></code> parameter group is defined by the <a class="reference internal" href="storagedrainparams.html"><span class="doc">Drainage Parameters</span></a> structure.</p>
 </dd></dl>
 
@@ -776,8 +1083,11 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">snowpacklimit</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -797,8 +1107,11 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-even">Legacy name<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">irrfrac</span></code></p>
+</dd>
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -817,10 +1130,35 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
+<dt class="field-even">Default<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.1</span></code></p>
 </dd>
 </dl>
+<p class="rubric">Example values</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Context</p></th>
+<th class="head"><p>Source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.1</span></code> dimensionless</p></td>
+<td><p>Helsinki; water; Water</p></td>
+<td><p><span class="bibtex-citation" id="id12">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.1</span></code> dimensionless</p></td>
+<td><p>UK, SE England; water; Water</p></td>
+<td><p><span class="bibtex-citation" id="id13">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 <dl class="input option" id="index-19">
@@ -831,7 +1169,7 @@ have very low albedo values.</p>
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm h<sup>-1</sup></p>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
+<dt class="field-even">Default<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
@@ -908,8 +1246,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.12.dev10 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/daf7219d8d965e8c24724803274fe1a77efc59e4">daf7219</a> |
+  <p>Version: 2026.8.13.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4328ab125402349e893d28761ee05621d698aa12">4328ab1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -217,3 +217,73 @@ class TestDailyStateOutput:
         # SDD should remain within its expected range.
         assert (sdd <= 0).all()
         assert (sdd >= sdd_full_dectr).all()
+
+
+    def test_dailystate_gdd_sdd_reset_conditions(
+        self, sample_run_cached, sample_data_loaded, sample_config_loaded
+    ):
+        """GDD and SDD are reset under their seasonal reset conditions."""
+
+        crit_days = 50
+
+        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
+        gdd_full_dectr = config_lai_dectr.gdd_full.value
+        sdd_full_dectr = config_lai_dectr.sdd_full.value
+
+        df_output, _ = sample_run_cached()
+
+        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+
+        gdd = df_dailystate["GDD_DecTr"].dropna()
+        sdd = df_dailystate["SDD_DecTr"].dropna()
+
+        doy = df_dailystate.loc[gdd.index].index.get_level_values("datetime").dayofyear
+
+        # ---------------------------------------------------------------
+        # SDD reset on the transition day.
+        #
+        # Northern hemisphere reset day is hard-coded as DOY 140.
+        # ---------------------------------------------------------------
+        transition_day = doy == 140
+
+        if transition_day.any():
+            sdd_transition = sdd.loc[transition_day]
+
+            assert (sdd_transition == 0).all(), (
+                "SDD should be reset to 0 on the SDD transition day"
+            )
+
+        # ---------------------------------------------------------------
+        # SDD reset during summer.
+        #
+        # Once GDD exceeds crit_days, SDD is reset while DOY < 170.
+        # ---------------------------------------------------------------
+        summer_reset = (doy < 170) & (gdd > crit_days)
+
+        if summer_reset.any():
+            assert (sdd.loc[summer_reset] == 0).all(), (
+                "SDD should be reset to 0 when GDD > crit_days "
+                "during the summer period"
+            )
+
+        # ---------------------------------------------------------------
+        # GDD reset during winter.
+        #
+        # Once SDD falls below -crit_days, GDD is reset while DOY > 170.
+        # ---------------------------------------------------------------
+        winter_reset = (doy > 170) & (sdd < -crit_days)
+
+        if winter_reset.any():
+            assert (gdd.loc[winter_reset] == 0).all(), (
+                "GDD should be reset to 0 when SDD < -crit_days "
+                "during the winter period"
+            )
+
+        # At least one of the reset conditions should occur in the
+        # available simulation; otherwise the test could pass without
+        # exercising any reset behaviour.
+        assert (
+            transition_day.any()
+            or summer_reset.any()
+            or winter_reset.any()
+        ), "No GDD/SDD reset condition occurred in the available simulation"

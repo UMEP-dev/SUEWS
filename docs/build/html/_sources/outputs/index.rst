@@ -68,3 +68,34 @@ Temporal Information
    **Exception for DailyState**: Its daily boundary follows the same forcing/main
    clock. When resampled to daily frequency, DailyState uses day-start labelling
    for readability. See :ref:`output-dailystate` for details.
+
+Saved Timestamp Reference
+-------------------------
+
+Saved output follows the configured forcing clock by default. To relabel the
+saved timestamps without changing simulated values, set
+``model.control.output.timestamp_reference``:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       forcing:
+         timestamp_reference: utc
+       output:
+         timestamp_reference: local_standard_time
+
+The supported output values are:
+
+- ``follow``: keep the forcing clock (default);
+- ``utc``: label saved output in UTC;
+- ``local_standard_time``: label saved output in the site's fixed-offset local
+  standard time;
+- ``daylight``: label saved output in local daylight time, adding one hour to
+  local standard time inside the configured ``startdls`` / ``enddls`` window.
+
+``daylight`` requires both DLS boundaries. Relabelling is presentation-only: it
+does not change forcing interpretation, daily boundaries, model timesteps,
+fluxes, or state values. Explicit ``utc``, ``local_standard_time``, and
+``daylight`` selections add ``_UTC``, ``_STANDARD``, or ``_DAYLIGHT`` to saved
+output filenames. ``follow`` retains the existing filenames.

@@ -36,7 +36,7 @@ File Naming Convention
 
 Output files follow the naming pattern::
 
-    SSss_YYYY_GROUP_TT.txt
+    SSss_YYYY_GROUP_TT[_REFERENCE].txt
 
 Where:
 
@@ -45,6 +45,9 @@ Where:
 - **YYYY** - Simulation year
 - **GROUP** - Output group name (e.g., SUEWS, snow, ESTM)
 - **TT** - Time resolution in minutes
+- **REFERENCE** - Optional timestamp-reference suffix for an explicit output
+  selection: ``UTC``, ``STANDARD``, or ``DAYLIGHT``. The default ``follow``
+  policy has no suffix.
 
 **Examples:**
 
@@ -56,6 +59,8 @@ Where:
      - Meaning
    * - ``Kc01_2012_SUEWS_60.txt``
      - Site "Kc", grid 01, year 2012, main SUEWS output, 60-min resolution
+   * - ``Kc01_2012_SUEWS_60_UTC.txt``
+     - The same output explicitly relabelled to UTC
    * - ``London05_2021_snow_30.txt``
      - Site "London", grid 05, year 2021, snow module output, 30-min resolution
    * - ``Sm12_2020_ESTM_60.txt``

@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.8.13.dev5 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.8.13.dev10 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=d92c0c19"></script>
+    <script src="../../_static/documentation_options.js?v=f8feb10d"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.13.dev5" />
+  <meta name="docsearch:version" content="2026.8.13.dev10" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.13.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/22213d21849ad327e2e2c722f8e21c57207a1214" style="color: #31708f;">22213d2</a>).
+        (2026.8.13.dev10, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3181574d01a33c01af729ce2df759dad1e0b4db9" style="color: #31708f;">3181574</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -193,8 +193,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev5 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev5 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.13.dev10 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.13.dev10 documentation - Home"/>
   
   
 </a></div>
@@ -1519,6 +1519,7 @@
         <span class="c1"># Extract parameters from config</span>
         <span class="n">output_format</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">output_config</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">forcing_timestamp_reference</span> <span class="o">=</span> <span class="s2">&quot;local_standard_time&quot;</span>
         <span class="n">freq_s</span> <span class="o">=</span> <span class="n">DEFAULT_OUTPUT_FREQ_SECONDS</span>
         <span class="n">site</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
 
@@ -1535,6 +1536,9 @@
                 <span class="c1"># Removed for now - can&#39;t update from YAML (TODO)</span>
                 <span class="c1"># if hasattr(output_config, &#39;format&#39;) and output_config.format is not None:</span>
                 <span class="c1">#     output_format = output_config.format</span>
+                <span class="n">control</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">control</span><span class="p">,</span> <span class="s2">&quot;forcing&quot;</span><span class="p">):</span>
+                    <span class="n">forcing_timestamp_reference</span> <span class="o">=</span> <span class="n">control</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">timestamp_reference</span>
 
             <span class="c1"># Get site name from first site</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;sites&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -1554,6 +1558,7 @@
             <span class="n">output_config</span><span class="o">=</span><span class="n">output_config</span><span class="p">,</span>
             <span class="n">output_format</span><span class="o">=</span><span class="n">output_format</span><span class="p">,</span>
             <span class="n">save_state</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">forcing_timestamp_reference</span><span class="o">=</span><span class="n">forcing_timestamp_reference</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -2318,8 +2323,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.13.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/22213d21849ad327e2e2c722f8e21c57207a1214">22213d2</a> |
+  <p>Version: 2026.8.13.dev10 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3181574d01a33c01af729ce2df759dad1e0b4db9">3181574</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

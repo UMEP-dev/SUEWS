@@ -604,8 +604,9 @@ CONTAINS
       real(kind(1D0)) :: LAI_loss_rate_perc = 0.005D0   ! percentage per day⁻¹
       real(kind(1D0)) :: wilting_point
 
+      logical :: stressed
+
       wilting_point = theta_r - (theta_r * soilmoisture_stress_limit)
-      
       
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
@@ -614,10 +615,18 @@ CONTAINS
       if (LAICalcYes == 0) then
          call observed_lai()
       end if
+
+      stressed = (smd > wilting_point)
       
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
 
+         stress_state(iv) = determine_stress_state_surf( &
+            stressed=stressed, &
+            stress_state=stress_state(iv), &
+            stress_days=stress_days(iv), &
+         )
+         
          call calc_delta_gdd_sdd( &
             tmin_prev=Tmin_id_prev, &
             tmax_prev=Tmax_id_prev, &
@@ -746,6 +755,28 @@ CONTAINS
          end do
 
       end subroutine observed_lai
+
+      function determine_stress_state_surf( &
+         stressed, stress_state, stress_days &
+         ) result(stress_state)
+         
+         implicit none
+
+         logical, intent(in) :: stressed ! Flag indicating if soil under stress
+         real(kind(1D0)), dimension(nvegsurf), intent(in) :: stress_days
+         real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_state
+
+         if (stressed) then 
+            stress_state = 1.0 ! Stressed, losing LAI
+         else
+            if (stress_days > 0.0) then
+               stress_state = 2.0 ! No longer stressed, recovering LAI
+            else
+               stress_state = 0.0 ! No stress or required recovery
+            end if
+         end if
+
+      end function determine_stress_state_surf
 
       subroutine calc_delta_gdd_sdd( &
             tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &

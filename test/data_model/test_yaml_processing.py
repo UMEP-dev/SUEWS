@@ -49,7 +49,6 @@ except ImportError:
 # Import the functions we want to test
 from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
-    RENAMED_PARAMS,
     _is_default_backed_control_path,
     _normalise_phase_a_compatibility,
     annotate_missing_parameters,

@@ -6,13 +6,110 @@ from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 import re
-import zipfile
 
 import pytest
 import yaml
 
+from scripts.suews.analyse_ci_run import analyse_run
 
 pytestmark = pytest.mark.api
+
+
+@pytest.mark.core
+def test_analysis_separates_dependency_queue_and_execution_time() -> None:
+    """Workflow jobs retain distinct readiness, queue and execution durations."""
+    run = {
+        "id": 42,
+        "created_at": "2026-07-15T00:00:00Z",
+        "updated_at": "2026-07-15T00:01:54Z",
+        "event": "pull_request",
+        "head_sha": "abc123",
+    }
+    jobs = {
+        "jobs": [
+            _job("Detect", 0, 2, 10),
+            _job("Build", 10, 15, 75, steps=[("Checkout", 15, 20), ("Build", 20, 75)]),
+            _job("API", 75, 78, 108),
+            _job("Gate", 108, 109, 114),
+        ]
+    }
+
+    metrics = analyse_run(
+        run,
+        jobs,
+        declared_needs={
+            "Build": ["Detect"],
+            "API": ["Build"],
+            "Gate": ["API"],
+        },
+        target_job_pattern="Gate",
+    )
+
+    assert metrics["schema_version"] == 1
+    assert metrics["workflow"]["elapsed_seconds"] == pytest.approx(114.0)
+    assert metrics["observed_critical_path"]["job_names"] == [
+        "Detect",
+        "Build",
+        "API",
+        "Gate",
+    ]
+    assert metrics["observed_critical_path"][
+        "orchestration_delay_seconds"
+    ] == pytest.approx(0.0)
+    assert metrics["observed_critical_path"]["runner_queue_seconds"] == pytest.approx(
+        11.0
+    )
+    assert metrics["observed_critical_path"]["execution_seconds"] == pytest.approx(
+        103.0
+    )
+    by_name = {job["name"]: job for job in metrics["jobs"]}
+    assert by_name["Build"]["orchestration_delay_seconds"] == pytest.approx(0.0)
+    assert by_name["Build"]["ready_offset_seconds"] == pytest.approx(10.0)
+    assert by_name["Build"]["fan_in_spread_seconds"] == pytest.approx(0.0)
+    assert by_name["Build"]["runner_queue_seconds"] == pytest.approx(5.0)
+    assert by_name["Build"]["execution_seconds"] == pytest.approx(60.0)
+    assert by_name["Build"]["steps"] == [
+        {"duration_seconds": 5.0, "name": "Checkout"},
+        {"duration_seconds": 55.0, "name": "Build"},
+    ]
+
+
+@pytest.mark.core
+def test_analysis_follows_dependency_fan_in_and_ignores_later_non_gate_job() -> None:
+    """The latest declared predecessor, not a later summary, sets the gate path."""
+    run = {
+        "id": 43,
+        "created_at": "2026-07-15T00:00:00Z",
+        "updated_at": "2026-07-15T00:01:20Z",
+        "event": "pull_request",
+        "head_sha": "def456",
+    }
+    jobs = {
+        "jobs": [
+            _job("Build / linux", 0, 0, 20),
+            _job("Build / windows", 0, 1, 40),
+            _job("Gate", 42, 45, 55),
+            _job("Later diagnostics", 55, 56, 80),
+        ]
+    }
+
+    metrics = analyse_run(
+        run,
+        jobs,
+        declared_needs={"Gate": ["Build / *"]},
+        target_job_pattern="Gate",
+    )
+
+    gate = {job["name"]: job for job in metrics["jobs"]}["Gate"]
+    assert gate["ready_offset_seconds"] == pytest.approx(40.0)
+    assert gate["orchestration_delay_seconds"] == pytest.approx(2.0)
+    assert gate["fan_in_spread_seconds"] == pytest.approx(20.0)
+    assert gate["critical_predecessor"] == "Build / windows"
+    assert metrics["workflow"]["gate_completed_at"] == "2026-07-15T00:00:55Z"
+    assert metrics["observed_critical_path"]["job_names"] == [
+        "Build / windows",
+        "Gate",
+    ]
 
 
 @pytest.mark.core
@@ -71,48 +168,6 @@ def test_publish_jobs_download_only_cpython_wheel_artifacts() -> None:
     assert not fnmatchcase("ci-metrics-api-cp312-manylinux-x86_64", wheel_pattern)
     assert not fnmatchcase("ci-metrics-physics-cp312-macosx-arm64", wheel_pattern)
     assert not fnmatchcase("suews-mcp-dist", wheel_pattern)
-
-
-def _write_test_wheel(path: Path) -> Path:
-    """Create a minimal deterministic wheel archive for provenance contracts."""
-    with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr(
-            "supy-2026.7.16.dist-info/METADATA",
-            "Metadata-Version: 2.4\nName: supy\nVersion: 2026.7.16.dev3\n",
-        )
-        archive.writestr(
-            "supy-2026.7.16.dist-info/WHEEL",
-            "Wheel-Version: 1.0\nTag: cp312-abi3-win_amd64\n",
-        )
-        archive.writestr(
-            "supy/_version_scm.py",
-            "__version__ = '2026.7.16.dev3'\n__commit_hash__ = 'aaaaaaa'\n",
-        )
-    return path
-
-
-def _measured_wheel_metrics() -> dict[str, object]:
-    phases = {
-        phase: {"available": True, "status": "measured", "duration_seconds": 1.0}
-        for phase in (
-            "checkout",
-            "toolchain_setup",
-            "build",
-            "repair",
-            "install",
-            "tests",
-        )
-    }
-    return {
-        "schema_version": 1,
-        "kind": "wheel-job-ci-metrics",
-        "job_name": "physics-cp312-win-AMD64",
-        "phases": phases,
-        "pytest_metrics": {
-            "result": {"exit_code": 0},
-            "inventory": {"node_id_sha256": "f" * 64},
-        },
-    }
 
 
 def _job(

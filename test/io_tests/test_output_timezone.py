@@ -363,6 +363,35 @@ def test_text_daylight_saves_single_dailystate_record(tmp_path: Path):
     assert len(saved) == 1
 
 
+@pytest.mark.parametrize("save_tstep", [False, True])
+def test_text_daylight_skips_empty_dailystate_group(tmp_path: Path, save_tstep: bool):
+    dates = pd.date_range("2020-04-01 00:05", periods=25, freq="5min")
+    index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
+    suews_columns = [("SUEWS", var) for var in df_var_out.loc["SUEWS"].index]
+    columns = pd.MultiIndex.from_tuples(
+        [*suews_columns, ("DailyState", "Tmin")], names=["group", "var"]
+    )
+    df_output = pd.DataFrame(0.0, index=index, columns=columns)
+    df_output.loc[:, ("DailyState", "Tmin")] = float("nan")
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 0, "startdls": 80, "enddls": 300}
+    ])
+
+    paths = save_df_output(
+        df_output,
+        freq_s=3600,
+        path_dir_save=tmp_path,
+        save_tstep=save_tstep,
+        output_groups=["SUEWS", "DailyState"],
+        timestamp_reference="daylight",
+        forcing_timestamp_reference="local_standard_time",
+        df_state_final=df_state,
+    )
+
+    assert paths
+    assert all("DailyState" not in path.name for path in paths)
+
+
 def test_text_explicit_reference_keeps_native_and_resampled_cadences(
     tmp_path: Path,
 ):

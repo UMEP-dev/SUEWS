@@ -248,6 +248,8 @@ def _output_group_frequencies(
     dict_group_frequency_s = {}
     for group in df_output.columns.get_level_values("group").unique():
         df_group = df_output[group].dropna(how="all")
+        if df_group.empty:
+            continue
         if isinstance(df_group.index, pd.MultiIndex) and "grid" in df_group.index.names:
             grid = df_group.index.get_level_values("grid")[0]
             df_group = df_group.xs(grid, level="grid")

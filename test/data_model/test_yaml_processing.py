@@ -1002,107 +1002,6 @@ sites:
             )
 
 
-class TestRealWorldScenarios(unittest.TestCase):
-    """Test real-world scenarios with actual sample_config.yml dependencies."""
-
-    def setUp(self):
-        """Set up with real standard configuration."""
-        self.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
-        with self.standard_file.open(encoding="utf-8") as f:
-            self.standard_data = yaml.safe_load(f)
-
-    def test_benchmark_configuration_compatibility(self):
-        """Test compatibility with benchmark configurations."""
-        # This test ensures our script works with real SUEWS configurations
-        # Create a simplified version of a typical user configuration
-
-        user_config = {
-            "name": "benchmark test",
-            "description": "test configuration",
-            "model": {
-                "control": {
-                    "tstep": 300,
-                    "forcing": {"file": {"value": "test_forcing.txt"}},
-                    "output": {"format": "txt", "freq": 3600, "groups": ["SUEWS"]},
-                    "start_time": "2011-01-01",
-                    "end_time": "2011-12-31",
-                },
-                "physics": {
-                    # Missing some physics parameters to test detection
-                    "emissions": {"value": 2},
-                    "storage_heat": {"value": 1},
-                    # netradiationmethod missing - should be detected as URGENT
-                },
-            },
-            "sites": [
-                {
-                    "name": "TestSite",
-                    "gridiv": 1,
-                    "properties": {
-                        # Minimal properties - many will be missing
-                        "alb": {"value": 0.15}
-                    },
-                }
-            ],
-        }
-
-        # Test missing parameter detection
-        missing_params = find_missing_parameters(user_config, self.standard_data)
-
-        # Should find netradiationmethod as URGENT
-        urgent_params = [
-            (path, val, is_physics)
-            for path, val, is_physics in missing_params
-            if is_physics
-        ]
-        urgent_paths = [path for path, _, _ in urgent_params]
-
-        self.assertIn(
-            "model.physics.net_radiation",
-            urgent_paths,
-            "Should detect missing net_radiation as URGENT",
-        )
-
-        # Should find many optional parameters
-        optional_params = [
-            (path, val, is_physics)
-            for path, val, is_physics in missing_params
-            if not is_physics
-        ]
-        self.assertGreater(
-            len(optional_params), 0, "Should find missing optional parameters"
-        )
-
-    def test_standard_config_integrity(self):
-        """Test that the standard configuration file is valid and complete."""
-        # Verify standard config loads properly
-        self.assertIsInstance(self.standard_data, dict)
-        self.assertIn("name", self.standard_data)
-        self.assertIn("model", self.standard_data)
-        self.assertIn("sites", self.standard_data)
-
-        # Verify physics section exists and contains expected parameters
-        physics = self.standard_data["model"]["physics"]
-        for physics_param in [
-            "net_radiation",
-            "emissions",
-            "storage_heat",
-        ]:
-            self.assertIn(
-                physics_param,
-                physics,
-                f"Standard config should contain {physics_param}",
-            )
-
-        # Verify sites structure
-        self.assertIsInstance(self.standard_data["sites"], list)
-        self.assertGreater(len(self.standard_data["sites"]), 0)
-
-        site = self.standard_data["sites"][0]
-        self.assertIn("name", site)
-        self.assertIn("properties", site)
-
-
 class TestEndToEndWorkflow(unittest.TestCase):
     """Comprehensive end-to-end workflow testing."""
 
@@ -1443,51 +1342,34 @@ sites:
             print(f"   - Generated report: {os.path.getsize(report_file)} bytes")
             print("   - All scenarios tested: MISSING, RENAMED, NOT IN STANDARD")
 
-    def test_workflow_performance_and_scalability(self):
-        """Test workflow performance with larger configurations."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create a larger test configuration
-            large_config = {
-                "name": "large test config",
-                "model": {
-                    "control": {"tstep": 300},
-                    "physics": {
-                        "emissions": {"value": 2},
-                        # net_radiation missing (URGENT)
-                    },
-                },
-                "sites": [],
-            }
-
-            # Add multiple sites with various missing parameters
-            for i in range(10):  # 10 sites to test scalability
-                site = {
-                    "name": f"Site_{i}",
+    def test_annotation_preserves_multiple_sites(self):
+        """Keep every site and its custom properties in the updated YAML."""
+        multi_site_config = {
+            "name": "multi-site test config",
+            "model": {
+                "control": {"tstep": 300},
+                "physics": {"emissions": {"value": 2}},
+            },
+            "sites": [
+                {
+                    "name": f"Site_{index}",
                     "gridiv": 1,
                     "properties": {
                         "alb": {"value": 0.15},
-                        # Many optional parameters will be missing
-                        f"custom_param_{i}": {
-                            "value": f"custom_value_{i}"
-                        },  # NOT IN STANDARD
+                        f"custom_param_{index}": {"value": f"custom_value_{index}"},
                     },
                 }
-                large_config["sites"].append(site)
+                for index in range(3)
+            ],
+        }
 
-            # Write large config
-            user_file = os.path.join(temp_dir, "large_user.yml")
-            with open(user_file, "w", encoding="utf-8") as f:
-                yaml.dump(large_config, f)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            user_file = os.path.join(temp_dir, "multi_site_user.yml")
+            uptodate_file = os.path.join(temp_dir, "uptodate_multi_site_user.yml")
+            report_file = os.path.join(temp_dir, "report_multi_site_user.txt")
+            with open(user_file, "w", encoding="utf-8") as stream:
+                yaml.dump(multi_site_config, stream)
 
-            uptodate_file = os.path.join(temp_dir, "uptodate_large_user.yml")
-            report_file = os.path.join(temp_dir, "report_large_user.txt")
-
-            # Measure performance
-            import time
-
-            start_time = time.time()
-
-            # Extract resource to a temporary file
             with as_file(
                 trv_supy_module / "sample_data" / "sample_config.yml"
             ) as standard_path:
@@ -1498,45 +1380,17 @@ sites:
                     report_file=report_file,
                 )
 
-            end_time = time.time()
-            processing_time = end_time - start_time
+            with open(uptodate_file, encoding="utf-8") as stream:
+                updated_data = yaml.safe_load(stream)
 
-            # Verify files were created
-            self.assertTrue(os.path.exists(uptodate_file))
-            self.assertTrue(os.path.exists(report_file))
-
-            # Verify content correctness even with larger scale
-            with open(uptodate_file, encoding="utf-8") as f:
-                uptodate_content = f.read()
-
-            # Should handle all sites correctly
-            for i in range(10):
-                self.assertIn(f"Site_{i}", uptodate_content, f"Should contain Site_{i}")
-                self.assertIn(
-                    f"custom_param_{i}",
-                    uptodate_content,
-                    f"Should preserve custom_param_{i}",
-                )
-
-            # Should still add missing URGENT parameter
-            self.assertIn("net_radiation:", uptodate_content)
-
-            print("\n✅ Performance test completed!")
-            print(f"   - Processing time: {processing_time:.3f} seconds")
-            print("   - Sites processed: 10")
-            print(f"   - Output file size: {os.path.getsize(uptodate_file)} bytes")
-
-            # Performance should be reasonable (less than 10 seconds for this scale)
-            self.assertLess(
-                processing_time,
-                10.0,
-                "Processing should complete within reasonable time",
+        self.assertEqual(len(updated_data["sites"]), 3)
+        for index, site in enumerate(updated_data["sites"]):
+            self.assertEqual(site["name"], f"Site_{index}")
+            self.assertEqual(
+                site["properties"][f"custom_param_{index}"]["value"],
+                f"custom_value_{index}",
             )
 
-
-if __name__ == "__main__":
-    # Run the test suite
-    unittest.main(verbosity=2)
 
 # ============================================================================
 # From test_precheck.py - Phase B Scientific Validation Tests

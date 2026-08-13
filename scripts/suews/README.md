@@ -104,7 +104,7 @@ worker cap and alternating order.
 
 The manual `CI metrics overhead check` workflow runs only from the default
 branch. It verifies and installs one Linux wheel once, records the source SHA
-and wheel SHA-256, and runs the standard non-slow physics selection in
+and wheel SHA-256, and runs the standard physics selection in
 the fixed order metrics-off/on/on/off. Every run uses four workers,
 `--maxprocesses=4`, work stealing, a unique base temporary directory and no
 pytest cache. It uploads four raw JSON files, captured logs and a comparison
@@ -121,7 +121,7 @@ host load is uncontrolled.
 The manual workflow compares `loadscope` and `worksteal` without changing the
 fixed GitHub-hosted worker budget. It downloads one successful
 `cp312-manylinux-x86_64` wheel, checks out the exact SHA that produced it, and
-runs the same `physics and not slow` nodes four times in A/B/B/A order:
+runs the same `physics and (core or not slow)` nodes four times in A/B/B/A order:
 
 1. `loadscope`
 2. `worksteal`

@@ -143,9 +143,10 @@ test/physics/
 
 ## 5. pytest Markers and Configuration
 
-### Two-Axis Marker System (gh#1300)
+### Composed Marker Properties (gh#1300, gh#1680)
 
-Markers sit on two orthogonal axes, declared in `pyproject.toml` (see
+Markers compose across orthogonal nature, importance, and cost properties,
+declared in `pyproject.toml` (see
 `.claude/rules/tests/patterns.md` for the full authoring guide):
 
 - **Nature axis** -- what the test actually exercises. Every test file must
@@ -156,8 +157,8 @@ Markers sit on two orthogonal axes, declared in `pyproject.toml` (see
   - `api` -- Python wrapper correctness (pandas/numpy/pydantic, CLI,
     `SUEWSSimulation`); run across `(platform x Python)` because the
     dependency surface varies per interpreter.
-- **Tier axis** -- how fast/expensive the test is, applied as a per-test
-  decorator on top of the nature marker:
+- **Importance and cost** -- independent properties applied as per-test
+  decorators on top of the nature marker; absence of a cost marker means fast:
   - `smoke` -- minimal wheel validation (~6 tests, ~60s)
   - `smoke_bridge` -- bridge-loading subset run across `cp312..cp3xx` after a
     single abi3 build
@@ -166,7 +167,8 @@ Markers sit on two orthogonal axes, declared in `pyproject.toml` (see
   - `util` -- utility function tests (non-critical)
   - `rust` -- Rust bridge backend tests (requires `suews_bridge` built with
     the `physics` feature)
-  - `slow` -- tests taking >30s individually
+  - `medium` -- tests taking roughly 30-60s on the slowest normal CI platform
+  - `slow` -- tests taking over 60s individually, or unsuitable for routine PR runs
   - `qgis` -- UMEP plugin integration tests in `test/umep/`, targeting
     Windows + Python 3.12 (current QGIS 3 LTR / QGIS 4 runtime); auto-applied
     by `test/umep/conftest.py`, stays out of normal PR/merge-queue tiers
@@ -178,20 +180,22 @@ markers = [
     # Nature axis
     "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
     "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
-    # Tier axis
+    # Importance markers
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
     "smoke_bridge: Bridge-loading subset run across cp312..cp3xx after a single abi3 build",
     "core: Core physics & logic tests (Fortran, driver)",
     "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
-    "slow: Tests taking >30s individually",
+    # Cost markers
+    "medium: Tests taking roughly 30-60s individually on the slowest normal CI platform",
+    "slow: Tests taking over 60s individually, or unsuitable for routine PR runs",
     "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 ```
 
-A CI expression composes the two axes, e.g. `-m "api and smoke"` or
-`-m "physics and not slow"`. A static lint
+A CI expression composes nature, importance, and cost, e.g. `-m "api and smoke
+and not (medium or slow)"` or `-m "physics and (core or not slow)"`. A static lint
 (`scripts/lint/check_test_markers.py`) plus a `pytest_collection_finish` hook
 in `test/conftest.py` fail any PR that adds a test file without a nature
 marker.
@@ -251,7 +255,7 @@ def test_urban_canyon_radiation(self):
 
 ### Tier Structure
 
-CI tiers are driven by the two-axis marker system in Section 5, not a
+CI tiers are driven by the composed marker properties in Section 5, not a
 separate taxonomy. The `determine_matrix` job in
 `.github/workflows/build-publish_to_pypi.yml` assigns a tier per event; see
 `.claude/rules/ci/conventions.md` ("Test Tier Definitions" and "Test Tier
@@ -259,7 +263,8 @@ Assignment by Event") for the authoritative mapping:
 
 - **Draft PR**: `smoke`, `core`, or `cfg` depending on what changed -- fastest
   feedback (~60s-3 min)
-- **Ready PR / merge queue**: `standard` (all non-`slow` tests, ~5-10 min), or
+- **Ready PR / merge queue**: `standard` (all non-`slow` tests plus `core`
+  regressions regardless of cost, ~5-10 min), or
   `physics-full` when the PR carries `0-physics:change` (gh#1576)
 - **Nightly / tag push / manual dispatch (`full`)**: `all` -- the complete
   suite including `slow` and `qgis` (~15-30 min)

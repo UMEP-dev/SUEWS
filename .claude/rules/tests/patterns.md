@@ -103,30 +103,37 @@ that introduces a test file without a nature marker.** If you see the
 lint fire, add a `pytestmark = pytest.mark.api` (or physics) line — do
 not bypass.
 
-### Tier axis — per-test decorators
+### Importance and cost — independent per-test decorators
 
 ```python
 @pytest.mark.smoke   # Critical, fast tests (~60s total)
-@pytest.mark.core    # Core physics/logic tests
-@pytest.mark.slow    # Tests taking >30s individually
+@pytest.mark.core    # Essential physics/logic contract
+@pytest.mark.medium  # Roughly 30-60s on the slowest normal CI platform
+@pytest.mark.slow    # Over 60s, or unsuitable for routine PR runs
 @pytest.mark.util    # Utility function tests (non-critical)
 @pytest.mark.cfg     # Config/schema validation tests
 ```
 
-The tier axis composes with the nature axis. CI expressions like
-`-m "api and smoke"` and `-m "physics and not slow"` select the right
+Importance and cost compose independently with the nature axis. Absence of a
+cost marker means fast. CI expressions such as `-m "api and smoke and not
+(medium or slow)"` and `-m "physics and (core or not slow)"` select the right
 subset per matrix cell.
 
 ### PR/CR placement
 
 - `smoke`: minimal fail-fast checks only. Keep this tier small enough for quick
-  wheel validation.
-- `core`: essential guardrails that are fast enough for draft PRs and merge
-  queue. Do not mark a test `core` merely because the feature matters; use
-  `slow` if the regression is important but expensive.
-- `standard`: all non-slow tests for the relevant nature axis.
-- `slow`: long regressions and reproductions. These belong in `make test-all`,
-  scheduled/release builds, or explicit manual validation, not normal PR/CR.
+  wheel validation; smoke selection excludes both `medium` and `slow`.
+- `core`: essential guardrails, independently of cost. Draft `core` selection
+  still excludes `slow`; ready PRs and merge queue use `(core or not slow)`, so
+  an essential expensive regression is honestly marked `core` + `slow`.
+- `standard`: all non-slow tests plus essential `core` tests for the relevant
+  nature axis.
+- `medium`: roughly 30-60 seconds on the slowest normal CI platform. These stay
+  eligible for `standard` and for any importance tier they also carry.
+- `slow`: over 60 seconds individually, or otherwise unsuitable for routine PR
+  runs. A slow test runs before merge only when it also carries `core`; other
+  slow tests belong in `make test-all`, scheduled/release builds, or explicit
+  manual validation.
 - `qgis`: UMEP/QGIS tests only. These target Windows + Python 3.12, which
   matches the current Windows runtime line for both QGIS 3 LTR and QGIS 4.
   They should stay out of local `make test` and normal PR/CR tiers unless

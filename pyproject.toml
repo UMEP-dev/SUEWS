@@ -151,23 +151,25 @@ filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
 # Test markers.
-# Two orthogonal axes (gh#1300):
-#   nature:  physics | api   -- what the test actually exercises
-#   tier:    smoke | core | cfg | slow | util -- how fast/expensive it is
-# Every test file must carry at least one of {physics, api}; tier markers
-# compose with the nature axis.
+# Three orthogonal properties (gh#1300, gh#1680):
+#   nature:     physics | api       -- what the test actually exercises
+#   importance: smoke | core | cfg  -- where the contract must run
+#   cost:       medium | slow       -- absence means fast
+# Every test file must carry at least one of {physics, api}; importance and
+# cost markers compose independently with the nature axis.
 markers = [
-    # Nature axis (gh#1300) -- orthogonal to tier.
+    # Nature axis (gh#1300) -- orthogonal to importance and cost.
     "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
     "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
-    # Tier axis
+    # Importance markers
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
     "smoke_bridge: Bridge-loading subset run across cp312..cp3xx after a single abi3 build",
     "core: Core physics & logic tests (Fortran, driver)",
     "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
-    "slow: Tests taking >30s individually",
+    "medium: Tests taking roughly 30-60s individually on the slowest normal CI platform",
+    "slow: Tests taking over 60s individually, or unsuitable for routine PR runs",
     "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 

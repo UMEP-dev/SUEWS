@@ -323,8 +323,8 @@ def _invocation_targets_full_test_tree(config):
 def pytest_collection_finish(session):
     """Enforce that every collected test carries `physics` or `api` (gh#1300).
 
-    Rationale: the two-axis taxonomy only works if every file declares which
-    axis it belongs to. A missing nature marker would silently drop a file
+    Rationale: the composed marker taxonomy only works if every file declares
+    its nature. A missing nature marker would silently drop a file
     out of CI once the matrix is split in a follow-up PR. Fail loudly at
     collection time on full-tree runs so the gap is caught before CI.
     """

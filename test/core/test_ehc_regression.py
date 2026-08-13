@@ -144,6 +144,7 @@ def _run_short_spartacus_ehc_with_building_cp(rho_cp):
 
 
 @pytest.mark.core
+@pytest.mark.medium
 def test_ehc_lumped_storage_is_sensitive_to_surface_rho_cp():
     low_cp_qs = _run_short_ehc_with_surface_cp(1.0e6)
     high_cp_qs = _run_short_ehc_with_surface_cp(4.0e6)
@@ -159,6 +160,7 @@ def test_ehc_lumped_storage_skips_invalid_surface_without_zeroing_grid():
     assert np.max(np.abs(qs)) > 1.0
 
 
+@pytest.mark.medium
 def test_ehc_dual_timescale_lumped_branch_changes_storage_response(monkeypatch):
     env_keys = [
         EHC_EXPERIMENTAL_CONTROLS_KEY,
@@ -186,6 +188,7 @@ def test_ehc_dual_timescale_lumped_branch_changes_storage_response(monkeypatch):
     assert np.max(np.abs(dual_qs - default_qs)) > 0.1
 
 
+@pytest.mark.medium
 def test_ehc_state_admittance_changes_lumped_storage_response(monkeypatch):
     for key in (
         EHC_EXPERIMENTAL_CONTROLS_KEY,
@@ -210,6 +213,7 @@ def test_ehc_state_admittance_changes_lumped_storage_response(monkeypatch):
     assert np.max(np.abs(state_qs - default_qs)) > 0.1
 
 
+@pytest.mark.medium
 def test_ehc_impervious_qf_allocation_changes_lumped_storage_response(monkeypatch):
     monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_SURF_MODE", raising=False)
@@ -224,6 +228,7 @@ def test_ehc_impervious_qf_allocation_changes_lumped_storage_response(monkeypatc
     assert np.max(np.abs(impervious_qf_qs - default_qs)) > 0.1
 
 
+@pytest.mark.medium
 def test_ehc_direct_air_qf_mode_changes_lumped_storage_response(monkeypatch):
     monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_IMPERVIOUS_ONLY", raising=False)
@@ -253,6 +258,7 @@ def test_ehc_direct_air_qf_mode_changes_coupled_qe_response(monkeypatch):
     assert np.max(np.abs(direct_air_fluxes[:, 1] - default_fluxes[:, 1])) > 0.1
 
 
+@pytest.mark.medium
 def test_ehc_experimental_qf_env_is_ignored_without_gate(monkeypatch):
     monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_SURF_MODE", raising=False)
@@ -338,6 +344,7 @@ def test_ehc_converged_lumped_storage_is_nearly_relaxation_invariant(monkeypatch
     assert np.max(np.abs(fast_relax_qs - slow_relax_qs)) < 0.75
 
 
+@pytest.mark.medium
 def test_ehc_ra_heat_factor_changes_lumped_storage_response(monkeypatch):
     for key in EHC_RA_HEAT_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
@@ -386,6 +393,7 @@ def test_ehc_state_dependent_ra_heat_guard_includes_zero_kdown(monkeypatch):
     assert np.max(np.abs(guarded_qs - default_qs)) > 0.1
 
 
+@pytest.mark.medium
 def test_ehc_adaptive_relax_limits_high_relax_response(monkeypatch):
     for key in (
         EHC_EXPERIMENTAL_CONTROLS_KEY,
@@ -431,6 +439,7 @@ def test_ehc_restore_best_iteration_path_runs(monkeypatch):
 
 
 @pytest.mark.core
+@pytest.mark.medium
 def test_ehc_spartacus_facet_storage_is_sensitive_to_building_rho_cp():
     low_cp_qs = _run_short_spartacus_ehc_with_building_cp(1.0e6)
     high_cp_qs = _run_short_spartacus_ehc_with_building_cp(4.0e6)

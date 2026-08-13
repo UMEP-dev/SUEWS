@@ -144,6 +144,34 @@ def test_api_lane_installs_xdist_contract_without_parallelising_main_suite() -> 
 
 
 @pytest.mark.core
+def test_standard_marker_expressions_preserve_core_slow_override() -> None:
+    """All duplicated standard selectors keep importance independent of cost."""
+    root = Path(__file__).resolve().parents[2]
+    action = (root / ".github/actions/build-suews/action.yml").read_text(
+        encoding="utf-8"
+    )
+    api_workflow = (
+        root / ".github/workflows/test-api-cross-python-reusable.yml"
+    ).read_text(encoding="utf-8")
+    overhead = (root / ".github/workflows/ci-metrics-overhead.yml").read_text(
+        encoding="utf-8"
+    )
+    scheduler = (root / ".github/workflows/benchmark-pytest-scheduler.yml").read_text(
+        encoding="utf-8"
+    )
+
+    physics_standard = "physics and (core or not slow)"
+    assert action.count(physics_standard) == 1
+    assert overhead.count(physics_standard) == 1
+    assert scheduler.count(physics_standard) == 4
+
+    api_standard = "EXPR='api and (core or not slow) and not qgis'"
+    assert api_workflow.count(api_standard) == 2  # standard and physics-full
+    assert "physics and smoke and not (medium or slow)" in action
+    assert "api and smoke and not (medium or slow) and not qgis" in api_workflow
+
+
+@pytest.mark.core
 def test_publish_jobs_download_only_cpython_wheel_artifacts() -> None:
     """PyPI publishers must not merge metrics or MCP files into ``dist``."""
     workflow_path = (

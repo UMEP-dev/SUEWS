@@ -602,6 +602,8 @@ class TestSampleOutput(TestCase):
         """Validate the smoke window (one model day by default) against the reference."""
         self._validate_sample_output()
 
+    @pytest.mark.core
+    @pytest.mark.slow
     @pytest.mark.rust
     def test_sample_output_validation_full_year(self):
         """Validate the whole simulated year against the reference.
@@ -613,21 +615,12 @@ class TestSampleOutput(TestCase):
         GDD and SDD take months to reach the values their branches test, and the
         day-140/170/250/300 gates are never evaluated inside a one-day run.
 
-        Carries no tier marker, which is deliberate. Per the tier definitions,
-        `standard` is "all non-slow tests for the relevant nature axis", so an
-        unmarked test lands in `standard` and the full physics tiers: every ready
-        PR touching code, every merge-queue entry, and the nightly. Since the
-        queue always runs `standard`, nothing merges without this having passed.
-
-        Not `slow`: `standard` resolves to "physics and not slow", so that marker
-        would drop this from ready PRs and the queue too, leaving the coverage
-        dependent on someone applying the 0-physics:change label by hand. That
-        dependency is the mechanism that failed and produced this gap.
-
-        Not `core` or `smoke` either: those tiers are for fast feedback on drafts
-        and narrow changes, and a full year of engine time does not belong in a
-        tier defined as "fast enough for draft PRs". gh#1348 put a full-year run
-        in `smoke` and gh#1382 reverted it six days later over a Windows
+        Carries both `core` and `slow`: the regression is essential before merge
+        and expensive. Ready PRs and merge queue resolve `standard` to "physics
+        and (core or not slow)", so importance overrides cost there. Draft
+        `core` selection still ends in `and not slow`, keeping the full-year run
+        off fast feedback paths. It is deliberately not `smoke`: gh#1348 put a
+        full-year run there and gh#1382 reverted it six days later over a Windows
         per-test timeout.
 
         Measured runtimes, and the case for promoting this to `smoke` should
@@ -745,7 +738,7 @@ if __name__ == "__main__":
 
 
 @pytest.mark.core
-@pytest.mark.slow  # Runs in test-all, scheduled builds, release builds, or manual all-tier validation.
+@pytest.mark.slow  # Expensive, but core keeps it in ready-PR and queue standard tiers.
 class TestSTEBBSOutput(TestCase):
     """Test class for validating STEBBS building energy outputs."""
 

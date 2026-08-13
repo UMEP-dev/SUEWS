@@ -76,7 +76,7 @@ _FORCING_RUNTIME_RULES.update({
         "unit": variable.runtime_unit or variable.unit or "unresolved",
     }
     for variable in FORCING_REGISTRY.variables
-    if variable.fallback == "Wuh" and variable.validation_range is not None
+    if variable.fallback is not None and variable.validation_range is not None
 })
 
 
@@ -108,9 +108,9 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
         ser_to_check_nan = to_nan(ser_to_check)
     if flag_optional and not is_wuh:
         ser_to_check_nan = ser_to_check_nan.dropna()
-    ser_flag = ~ser_to_check_nan.between(min_v, max_v)
-    if is_wuh:
-        ser_flag = ser_flag | ~np.isfinite(ser_to_check_nan)
+    ser_flag = ~ser_to_check_nan.between(min_v, max_v) | ~np.isfinite(
+        ser_to_check_nan
+    )
     n_flag = ser_flag.sum()
     if ser_flag.sum() > 0:
         is_accepted_flag = False
@@ -220,6 +220,14 @@ def _matches_option_value(actual_value, option_value) -> bool:
     return actual_value == option_value
 
 
+def _invalid_required_data_mask(series: pd.Series) -> pd.Series:
+    """Return rows that cannot satisfy an active forcing requirement."""
+    from .util._missing import SUEWS_MISSING_THRESHOLD
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    return numeric.isna() | ~np.isfinite(numeric) | (numeric <= SUEWS_MISSING_THRESHOLD)
+
+
 def _observed_lai_source_columns(
     df_forcing: pd.DataFrame,
 ) -> tuple[list[tuple[str, str]], list[str]]:
@@ -242,7 +250,7 @@ def _check_observed_lai_nonneg(
 ) -> bool:
     """Reject missing or negative effective LAI rows for ``laimethod=0``.
 
-    Under the observed-LAI path every timestep must carry a non-missing,
+    Under the observed-LAI path every timestep must carry a finite,
     non-negative observation (``lai >= 0``). A genuine zero observation
     is valid and passes through the runtime unchanged. Any missing value,
     strictly negative value, or sentinel placeholder — including ``NaN``
@@ -270,8 +278,9 @@ def _check_observed_lai_nonneg(
     ser_lai = pd.to_numeric(df_forcing[lai_col], errors="coerce")
 
     mask_missing = ser_lai.isna()
+    mask_nonfinite = ~np.isfinite(ser_lai) & ~mask_missing
     mask_negative = ser_lai < 0.0
-    mask_invalid = mask_missing | mask_negative
+    mask_invalid = mask_missing | mask_nonfinite | mask_negative
     n_invalid = int(mask_invalid.sum())
     if n_invalid == 0:
         return False
@@ -284,6 +293,8 @@ def _check_observed_lai_nonneg(
     parts = []
     if n_missing > 0:
         parts.append(f"{n_missing} row(s) with missing/NaN values")
+    if mask_nonfinite.any():
+        parts.append(f"{int(mask_nonfinite.sum())} row(s) with infinite values")
     if n_sentinel > 0:
         parts.append(f"{n_sentinel} row(s) at/below the missing sentinel (-999)")
     if n_physically_invalid > 0:
@@ -504,15 +515,10 @@ def check_forcing(
                             # duplicate issues.
                             if is_observed_lai and col == "lai":
                                 continue
-                            # Treat any value at or below the missing
-                            # threshold (-900) as missing, matching the Fortran
-                            # runtime's defensive sentinel handling.
-                            col_data = df_forcing[col]
-                            from .util._missing import SUEWS_MISSING_THRESHOLD
+                            invalid_mask = _invalid_required_data_mask(df_forcing[col])
+                            n_invalid = int(invalid_mask.sum())
 
-                            is_all_missing = (col_data <= SUEWS_MISSING_THRESHOLD).all()
-
-                            if is_all_missing:
+                            if n_invalid:
                                 # Add helpful note for emissionsmethod about setting to zero
                                 if (
                                     option_name == "emissionsmethod"
@@ -524,8 +530,9 @@ def check_forcing(
 
                                 str_issue = (
                                     f"Physics option '{option_name}={option_value}' requires "
-                                    f"valid data in column '{col}', but it contains only missing "
-                                    f"values (-999). Please provide valid forcing data or change "
+                                    f"valid data in every row of column '{col}', but "
+                                    f"{n_invalid} row(s) contain missing, non-numeric, or "
+                                    f"sentinel values. Please provide valid forcing data or change "
                                     f"the physics option.{extra_help} "
                                     f"See documentation: "
                                     f"https://docs.suews.io/stable/inputs/tables/RunControl/scheme_options.html"
@@ -554,12 +561,13 @@ def check_forcing(
                     list_issues.append(str_issue)
                     flag_valid = False
                     continue
-                from .util._missing import SUEWS_MISSING_THRESHOLD
-
-                if (df_forcing[col] <= SUEWS_MISSING_THRESHOLD).all():
+                invalid_mask = _invalid_required_data_mask(df_forcing[col])
+                n_invalid = int(invalid_mask.sum())
+                if n_invalid:
                     str_issue = (
-                        f"Physics options '{condition}' require valid data in "
-                        f"column '{col}', but it contains only missing values (-999)."
+                        f"Physics options '{condition}' require valid data in every "
+                        f"row of column '{col}', but {n_invalid} row(s) contain "
+                        "missing, non-numeric, or sentinel values."
                     )
                     list_issues.append(str_issue)
                     flag_valid = False

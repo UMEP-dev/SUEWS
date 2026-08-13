@@ -137,6 +137,29 @@ def test_missing_optional_column_filled_with_sentinel(tmp_path):
     assert (df["snow"] == -999.0).all()
 
 
+@pytest.mark.parametrize(
+    ("column", "value"),
+    (("iy", "2012.5"), ("id", "1.5"), ("it", "1.5"), ("imin", "0.5")),
+)
+def test_fractional_timestamp_coordinate_is_rejected(tmp_path, column, value):
+    """Timestamp coordinates must not be silently truncated to integers."""
+    from supy.util._io import read_forcing
+
+    lines = CANONICAL_FIXTURE.read_text(encoding="utf-8").splitlines()
+    header = lines[0].split()
+    column_index = header.index(column)
+    first_row = lines[1].split()
+    first_row[column_index] = value
+    path = tmp_path / f"fractional-{column}.txt"
+    path.write_text(
+        "\n".join([lines[0], " ".join(first_row), *lines[2:]]),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=rf"timestamp column '{column}'.*integer"):
+        read_forcing(str(path), tstep_mod=None)
+
+
 def test_per_landcover_columns_separated_into_extras(tmp_path):
     """T3/T4: lai_evetr/dectr/grass and wuh_paved end up in SUEWSForcing.extras,
     not in the kernel-facing DataFrame; main DataFrame shape unchanged."""
@@ -406,6 +429,23 @@ def test_check_forcing_enforces_wuh_depth_range_without_finite_cap():
     issues = check_forcing(df_forcing, fix=False)
     assert any("`wuh`" in issue for issue in issues)
     assert any("wuh_paved" in issue for issue in issues)
+
+
+def test_check_forcing_enforces_surface_lai_range_and_preserves_sentinel():
+    """Surface LAI extensions share the registry range and missing policy."""
+    from supy._check import check_forcing
+
+    df_forcing = _read_canonical()
+    df_forcing["lai_evetr"] = -0.1
+    issues = check_forcing(df_forcing, fix=False)
+    assert any("lai_evetr" in issue for issue in issues)
+
+    df_forcing["lai_evetr"] = -999.0
+    assert check_forcing(df_forcing, fix=False) is None
+
+    df_forcing["lai_evetr"] = np.inf
+    issues = check_forcing(df_forcing, fix=False)
+    assert any("lai_evetr" in issue for issue in issues)
 
 
 def test_check_forcing_fixes_invalid_wuh_without_clipping_missing_sentinel():

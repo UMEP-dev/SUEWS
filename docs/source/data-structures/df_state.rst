@@ -428,7 +428,7 @@
 .. option:: co2pointsource
 
     :Description:
-        CO2 emission factor [kg |km^-1|]
+        Whole-grid CO2 point-source emission expressed as carbon mass [kg C |day^-1|].
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -584,7 +584,7 @@
 .. option:: ef_umolco2perj
 
     :Description:
-        Emission factor for fuels used for building heating.
+        CO2 emission factor for fuels used for building energy [|umol| |J^-1|].
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -632,7 +632,7 @@
 .. option:: enef_v_jkm
 
     :Description:
-        Emission factor for heat [J k |m^-1| ].
+        Vehicle energy consumption per unit distance [J |km^-1|].
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -716,7 +716,7 @@
 .. option:: fcef_v_kgkm
 
     :Description:
-        CO2 emission factor for weekdays [kg |km^-1|];;CO2 emission factor for weekends [kg |km^-1|]
+        Vehicle CO2 emission factor for weekdays [kg CO2 |km^-1|];;vehicle CO2 emission factor for weekends [kg CO2 |km^-1|].
     :Dimensionality:
         (2,)
     :Dimensionality Remarks:
@@ -1176,7 +1176,7 @@
 .. option:: maxfcmetab
 
     :Description:
-        Maximum (day) CO2 from human metabolism. [W |m^-2|]
+        Maximum (day) CO2 emission from human metabolism [|umol| |cap^-1| |s^-1|].
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -1188,7 +1188,7 @@
 .. option:: maxqfmetab
 
     :Description:
-        Maximum value for human heat emission. [W |m^-2|]
+        Maximum (day) human heat emission [W |cap^-1|].
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -1212,7 +1212,7 @@
 .. option:: minfcmetab
 
     :Description:
-        Minimum (night) CO2 from human metabolism. [W |m^-2|]
+        Minimum (night) CO2 emission from human metabolism [|umol| |cap^-1| |s^-1|].
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -1224,7 +1224,7 @@
 .. option:: minqfmetab
 
     :Description:
-        Minimum value for human heat emission. [W |m^-2|]
+        Minimum (night) human heat emission [W |cap^-1|].
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -2086,7 +2086,7 @@
 .. option:: trafficrate
 
     :Description:
-        Traffic rate used for CO2 flux calculation.
+        Traffic rate used for CO2 flux calculation: vehicle km |m^-2| |day^-1| for type 1 or vehicle km |cap^-1| |day^-1| for type 2.
     :Dimensionality:
         (2,)
     :Dimensionality Remarks:
@@ -2098,7 +2098,7 @@
 .. option:: trafficunits
 
     :Description:
-        Units for the traffic rate for the study area. Not used in v2018a.
+        Dimensionless traffic-rate basis: 1 for per area, 2 for per capita. Not used in v2018a.
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -2305,4 +2305,3 @@
         Scalar
     :SUEWS-related variables:
         `zd`
-

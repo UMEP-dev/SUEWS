@@ -38,9 +38,7 @@ use serde_yaml::Value;
 /// wrote in legacy YAMLs). The preprocessor's downstream
 /// `normalise_field_name` then lowercases/fuses before the hand-written
 /// parser reads the Fortran-indexed key.
-/// Total: 174 pairs (gh#1334 full STEBBS + Snow snake_case sweep; building_type
-/// and the two hot_water_tank view-factor params dropped per the Reading STEBBS
-/// team review, gh#1392).
+/// Total: 188 pairs (including the gh#1688 CO2Params naming completion).
 pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // ModelPhysics (17) — fused -> final (Cat 2+3, gh#1321) + flags
     ("net_radiation", "netradiationmethod"),
@@ -319,6 +317,21 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("tau_refreezing_snow", "tau_r"),
     ("snow_profile_24hr", "snowprof_24hr"),
     ("narp_emissivity_snow", "narp_emis_snow"),
+    // CO2Params (14) — user-facing names omitted from the original #1256 sweep.
+    ("emission_co2_point_source", "co2pointsource"),
+    ("emission_factor_co2_fuel", "ef_umolco2perj"),
+    ("emission_factor_energy_vehicle", "enef_v_jkm"),
+    ("emission_factor_co2_vehicle", "fcef_v_kgkm"),
+    ("fraction_fossil_fuel_heating", "frfossilfuel_heat"),
+    ("fraction_fossil_fuel_non_heating", "frfossilfuel_nonheat"),
+    ("emission_co2_metabolism_max", "maxfcmetab"),
+    ("emission_heat_metabolism_max", "maxqfmetab"),
+    ("emission_co2_metabolism_min", "minfcmetab"),
+    ("emission_heat_metabolism_min", "minqfmetab"),
+    ("traffic_rate", "trafficrate"),
+    ("type_traffic_rate", "trafficunits"),
+    ("profile_traffic_24hr", "traffprof_24hr"),
+    ("profile_human_activity_24hr", "humactivity_24hr"),
 ];
 
 /// Additional compatibility aliases for short-lived schema-intermediate
@@ -2203,7 +2216,7 @@ mod tests {
     fn field_renames_registry_has_expected_size() {
         // Matches the Python ALL_FIELD_RENAMES total (see field_renames.py).
         // Bump when ModelPhysics / SurfaceProperties / ... dicts change.
-        assert_eq!(FIELD_RENAMES.len(), 174);
+        assert_eq!(FIELD_RENAMES.len(), 188);
     }
 
     #[test]
@@ -2254,6 +2267,38 @@ mod tests {
         assert!(physics.get("netradiationmethod").is_some());
         assert!(physics.get("storageheatmethod").is_some());
         assert!(physics.get("net_radiation").is_none());
+    }
+
+    #[test]
+    fn normalises_co2_param_names() {
+        let renames = [
+            ("emission_co2_point_source", "co2pointsource"),
+            ("emission_factor_co2_fuel", "ef_umolco2perj"),
+            ("emission_factor_energy_vehicle", "enef_v_jkm"),
+            ("emission_factor_co2_vehicle", "fcef_v_kgkm"),
+            ("fraction_fossil_fuel_heating", "frfossilfuel_heat"),
+            ("fraction_fossil_fuel_non_heating", "frfossilfuel_nonheat"),
+            ("emission_co2_metabolism_max", "maxfcmetab"),
+            ("emission_heat_metabolism_max", "maxqfmetab"),
+            ("emission_co2_metabolism_min", "minfcmetab"),
+            ("emission_heat_metabolism_min", "minqfmetab"),
+            ("traffic_rate", "trafficrate"),
+            ("type_traffic_rate", "trafficunits"),
+            ("profile_traffic_24hr", "traffprof_24hr"),
+            ("profile_human_activity_24hr", "humactivity_24hr"),
+        ];
+        let mut co2 = serde_yaml::Mapping::new();
+        for (new_name, _) in renames {
+            co2.insert(Value::String(new_name.to_string()), Value::Null);
+        }
+        let mut root = Value::Mapping(co2);
+
+        normalize_field_names(&mut root).unwrap();
+
+        for (new_name, old_name) in renames {
+            assert!(root.get(old_name).is_some(), "missing {old_name}");
+            assert!(root.get(new_name).is_none(), "retained {new_name}");
+        }
     }
 
     #[test]

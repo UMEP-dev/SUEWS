@@ -31,6 +31,7 @@ pytestmark = pytest.mark.api
 from supy.data_model.core.df_column_renames import (
     ALL_DF_COLUMN_RENAMES,
     ARCHETYPEPROPERTIES_DF_RENAMES,
+    CO2PARAMS_DF_RENAMES,
     DECTRPROPERTIES_DF_RENAMES,
     EVETRPROPERTIES_DF_RENAMES,
     LAIPARAMS_DF_RENAMES,
@@ -71,6 +72,7 @@ class TestRegistryIntegrity:
             + len(ARCHETYPEPROPERTIES_DF_RENAMES)
             + len(STEBBSPROPERTIES_DF_RENAMES)
             + len(SNOWPARAMS_DF_RENAMES)
+            + len(CO2PARAMS_DF_RENAMES)
         )
         assert len(ALL_DF_COLUMN_RENAMES) == expected
 

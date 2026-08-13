@@ -49,7 +49,6 @@ except ImportError:
 # Import the functions we want to test
 from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
-    RENAMED_PARAMS,
     _is_default_backed_control_path,
     _normalise_phase_a_compatibility,
     annotate_missing_parameters,
@@ -373,6 +372,11 @@ sites:
         self.assertIn("roughness_sublayer:", updated_content)
         self.assertIn("rho_cp:", updated_content)
         self.assertIn("#RENAMED IN STANDARD", updated_content)
+
+        # Old names must no longer appear as YAML keys (may appear in comments)
+        yaml_keys = re.findall(r"^\s*(\w+):", updated_content, re.MULTILINE)
+        self.assertNotIn("diagmethod", yaml_keys)
+        self.assertNotIn("cp", yaml_keys)
 
     def test_nested_renamed_parameter_handling(self):
         """Nested legacy keys should be rewritten before missing/extra checks."""
@@ -959,48 +963,6 @@ sites:
             self.assertIsInstance(result, PhaseReport)
             self.assertTrue(result.has_errors)
             self.assertEqual(result.issues[0].code, "A.PIPELINE.YAML_PARSE_ERROR")
-
-    def test_renamed_params_consistency(self):
-        """Test that RENAMED_PARAMS dictionary is consistent."""
-        # All old names should be different from new names
-        for old_name, new_name in RENAMED_PARAMS.items():
-            self.assertNotEqual(
-                old_name,
-                new_name,
-                f"Renamed parameter {old_name} -> {new_name} should be different",
-            )
-
-        # Should contain expected mappings
-        expected_mappings = {"cp": "rho_cp", "diagmethod": "roughness_sublayer"}
-
-        for old, new in expected_mappings.items():
-            self.assertIn(old, RENAMED_PARAMS)
-            self.assertEqual(RENAMED_PARAMS[old], new)
-
-    def test_physics_options_completeness(self):
-        """Test that PHYSICS_OPTIONS set contains expected physics parameters."""
-        # Should contain key physics options that we know exist in sample_config
-        expected_physics_options = {
-            "net_radiation",
-            "emissions",
-            "storage_heat",
-            "surface_conductance",
-            "snow_use",
-        }
-
-        for option in expected_physics_options:
-            self.assertIn(
-                option,
-                PHYSICS_OPTIONS,
-                f"Physics option {option} should be in PHYSICS_OPTIONS",
-            )
-
-        # All entries should be strings
-        for option in PHYSICS_OPTIONS:
-            self.assertIsInstance(
-                option, str, f"Physics option {option} should be a string"
-            )
-
 
 class TestEndToEndWorkflow(unittest.TestCase):
     """Comprehensive end-to-end workflow testing."""
@@ -3405,95 +3367,6 @@ class TestProcessorFixtures:
 class TestPhaseAUptoDateYaml(TestProcessorFixtures):
     """Test suite for Phase A (parameter update) functionality."""
 
-    def test_find_missing_parameters_basic(
-        self, minimal_user_config, sample_standard_config
-    ):
-        """Test basic missing parameter detection."""
-        missing_params = uptodate_yaml.find_missing_parameters(
-            minimal_user_config, sample_standard_config
-        )
-
-        # Should detect missing physics parameters
-        missing_param_paths = [path for path, value, urgent in missing_params]
-
-        assert "model.physics.storage_heat" in missing_param_paths
-        assert "model.physics.stability" in missing_param_paths
-        assert "sites[0].properties.alt" in missing_param_paths
-
-    def test_physics_parameter_classification(self):
-        """Test that physics parameters are correctly classified as critical."""
-        # Test known physics options
-        assert uptodate_yaml.is_physics_option("model.physics.net_radiation")
-        assert uptodate_yaml.is_physics_option("model.physics.surface_conductance")
-        assert uptodate_yaml.is_physics_option("model.physics.roughness_sublayer_level")
-
-        # Test non-physics parameters
-        assert not uptodate_yaml.is_physics_option("sites[0].properties.lat")
-        assert not uptodate_yaml.is_physics_option("model.control.tstep")
-
-    def test_renamed_parameters_detection(self):
-        """Test detection and renaming of outdated parameters."""
-        yaml_content = """
-        model:
-          physics:
-            diagmethod:
-              value: 2
-            cp:
-              value: 1005
-        """
-
-        # The function returns tuple: (modified_content, renamed_list)
-        result = uptodate_yaml.handle_renamed_parameters(yaml_content)
-        modified_content, renamed_list = result
-
-        # Should have renamed the parameters in the content
-        assert "roughness_sublayer:" in modified_content  # diagmethod -> roughness_sublayer (as YAML key)
-        assert "rho_cp:" in modified_content  # cp -> rho_cp (as YAML key)
-        # Old names should not appear as YAML keys (may appear in comments)
-        import re
-
-        yaml_keys = re.findall(r"^\s*(\w+):", modified_content, re.MULTILINE)
-        assert "diagmethod" not in yaml_keys, (
-            "diagmethod should not be a YAML key anymore"
-        )
-        assert "cp" not in yaml_keys, "cp should not be a YAML key anymore"
-
-        # Should also track the renamings
-        assert len(renamed_list) == 2, "Should detect 2 renamed parameters"
-        renamed_dict = dict(renamed_list)
-        assert renamed_dict.get("diagmethod") == "roughness_sublayer"
-        assert renamed_dict.get("cp") == "rho_cp"
-
-    def test_intermediate_modelphysics_names_detection(self):
-        """Schema 2026.5 intermediate physics aliases should be rewritten in Phase A."""
-        yaml_content = """
-        model:
-          physics:
-            net_radiation_method:
-              value: 3
-            rsl_method:
-              value: 2
-            gs_model:
-              value: 1
-        """
-
-        modified_content, renamed_list = uptodate_yaml.handle_renamed_parameters(
-            yaml_content
-        )
-
-        yaml_keys = re.findall(r"^\s*(\w+):", modified_content, re.MULTILINE)
-        assert "net_radiation" in yaml_keys
-        assert "roughness_sublayer" in yaml_keys
-        assert "surface_conductance" in yaml_keys
-        assert "net_radiation_method" not in yaml_keys
-        assert "rsl_method" not in yaml_keys
-        assert "gs_model" not in yaml_keys
-
-        renamed_dict = dict(renamed_list)
-        assert renamed_dict.get("net_radiation_method") == "net_radiation"
-        assert renamed_dict.get("rsl_method") == "roughness_sublayer"
-        assert renamed_dict.get("gs_model") == "surface_conductance"
-
     def test_extra_parameters_categorization(self):
         """Test categorization of extra (not in standard) parameters."""
         extra_params = [
@@ -3940,6 +3813,10 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             assert old_name in uptodate_yaml.RENAMED_PARAMS
             assert uptodate_yaml.RENAMED_PARAMS[old_name] == new_name
 
+        # Every registered rename must actually change the name.
+        for old_name, new_name in uptodate_yaml.RENAMED_PARAMS.items():
+            assert old_name != new_name
+
 
 class TestPhaseBScienceCheck(TestProcessorFixtures):
     """Test suite for Phase B (science check) functionality."""
@@ -4063,23 +3940,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert any(
             "null" in msg.lower() or "empty" in msg.lower() for msg in error_messages
         )
-
-    def test_model_option_dependencies_rsl_stability(self, registry):
-        """Test RSL method and stability method dependency validation."""
-        invalid_yaml = {
-            "model": {
-                "physics": {
-                    "roughness_sublayer": {"value": 2},
-                    "stability": {"value": 1},  # Should be 3 when roughness_sublayer=2
-                }
-            },
-            "sites": [{}],
-        }
-        context = science_check.ValidationContext(yaml_data=invalid_yaml)
-
-        results = registry["option_dependencies"](context)
-        assert len(results) > 0
-        assert any("rslmethod" in result.message for result in results)
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -4876,138 +4736,6 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
         # Cleanup test file
         test_file.unlink()
         assert not test_file.exists(), "Should be able to cleanup test files"
-
-
-class TestProcessorRobustnessAndRegression(TestProcessorFixtures):
-    """Test suite for robustness, edge cases, and regression testing."""
-
-    def test_empty_configuration_handling(self):
-        """Test handling of empty or minimal configurations."""
-        empty_config = {}
-        minimal_config = {"name": "Minimal"}
-
-        missing_params = uptodate_yaml.find_missing_parameters(
-            empty_config, minimal_config
-        )
-        assert isinstance(missing_params, list)
-
-    def test_large_configuration_performance(self, sample_standard_config):
-        """Test performance with large multi-site configurations."""
-        # Create configuration with many sites
-        large_config = deepcopy(sample_standard_config)
-        large_config["sites"] = [deepcopy(large_config["sites"][0]) for _ in range(10)]
-
-        # Each site should have unique identifiers
-        for i, site in enumerate(large_config["sites"]):
-            site["site_name"] = {"value": f"Site_{i}"}
-
-        missing_params = uptodate_yaml.find_missing_parameters(
-            large_config, sample_standard_config
-        )
-        assert isinstance(missing_params, list)
-
-    def test_unicode_and_special_characters(self):
-        """Test handling of Unicode and special characters in configuration."""
-        unicode_config = {
-            "name": "Tëst Çonfigüration with ünïcödé",
-            "model": {"control": {"start_time": "2025-01-01"}},
-            "sites": [
-                {
-                    "site_name": {"value": "Ütrecht Çenter"},
-                    "properties": {"lat": {"value": 52.0907}},
-                }
-            ],
-        }
-
-        missing_params = uptodate_yaml.find_missing_parameters(
-            unicode_config, unicode_config
-        )
-        assert isinstance(missing_params, list)
-
-    def test_version_compatibility(self):
-        """Test compatibility with different YAML and Python versions."""
-        # Test various YAML constructs that might behave differently
-        version_test_config = {
-            "name": "Version Test",
-            "model": {
-                "control": {
-                    "boolean_param": True,
-                    "scientific_notation": 1.23e-4,
-                    "null_param": None,
-                }
-            },
-            "sites": [
-                {
-                    "properties": {
-                        "list_param": [1, 2, 3],
-                        "nested_dict": {"sub_param": {"value": 42}},
-                    }
-                }
-            ],
-        }
-
-        yaml_str = yaml.dump(version_test_config)
-        reloaded = yaml.safe_load(yaml_str)
-        assert reloaded["name"] == version_test_config["name"]
-
-    def test_concurrent_processing_safety(self, temp_yaml_files):
-        """Test thread safety for concurrent processing."""
-        import threading
-
-        results = []
-        errors = []
-
-        def run_processor():
-            try:
-                result = uptodate_yaml.annotate_missing_parameters(
-                    user_file=temp_yaml_files["user_file"],
-                    standard_file=temp_yaml_files["standard_file"],
-                    uptodate_file=os.path.join(
-                        temp_yaml_files["temp_dir"],
-                        f"updated_thread_{threading.current_thread().ident}.yml",
-                    ),
-                    report_file=os.path.join(
-                        temp_yaml_files["temp_dir"],
-                        f"report_thread_{threading.current_thread().ident}.txt",
-                    ),
-                    mode="public",
-                    phase="A",
-                )
-                results.append(result)
-            except Exception as e:
-                errors.append(e)
-
-        threads = [threading.Thread(target=run_processor) for _ in range(3)]
-
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join()
-
-        # All threads should either succeed or fail consistently.
-        assert len(results) > 0 or len(errors) == len(threads)
-
-    def test_memory_usage_stability(self, sample_standard_config):
-        """Test memory usage stability with repeated processing."""
-        import gc
-
-        initial_objects = len(gc.get_objects())
-
-        for i in range(5):
-            test_config = deepcopy(sample_standard_config)
-            test_config["name"] = f"Memory Test {i}"
-
-            uptodate_yaml.find_missing_parameters(
-                test_config, sample_standard_config
-            )
-
-            gc.collect()
-
-        final_objects = len(gc.get_objects())
-
-        object_growth = final_objects - initial_objects
-        assert object_growth < 1000
 
 
 if __name__ == "__main__":

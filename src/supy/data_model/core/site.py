@@ -294,7 +294,7 @@ class LAIPowerCoefficients(BaseModel):
         default=None,
         description="Power coefficient for GDD in growth equation (LAIPower[2])",
         json_schema_extra={
-            "unit": "K^-1",
+            "unit": "K^-1 d^-1",
             "display_name": "GDD Growth Power Coefficient",
         },
     )
@@ -310,7 +310,7 @@ class LAIPowerCoefficients(BaseModel):
         default=None,
         description="Power coefficient for SDD in senescence equation (LAIPower[4])",
         json_schema_extra={
-            "unit": "K^-1",
+            "unit": "K^-1 d^-1",
             "display_name": "SDD Senescence Power Coefficient",
         },
     )
@@ -649,7 +649,9 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     @classmethod
     def _rename_vegetation_fields(cls, values):
         if isinstance(values, dict):
-            return apply_field_renames(values, VEGETATEDSURFACEPROPERTIES_RENAMES, cls.__name__)
+            return apply_field_renames(
+                values, VEGETATEDSURFACEPROPERTIES_RENAMES, cls.__name__
+            )
         return values
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -717,7 +719,9 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             ("ie_m", "ie_m"),
         ]:
             setattr(
-                instance, new_attr, RefValue(df.loc[grid_id, (col_name, f"({surf_idx - 2},)")])
+                instance,
+                new_attr,
+                RefValue(df.loc[grid_id, (col_name, f"({surf_idx - 2},)")]),
             )
 
         instance.lai = LAIParams.from_df_state(df, grid_id, surf_idx)
@@ -771,7 +775,10 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         defaults = {"faievetree": 0.1, "evetreeh": 15.0}
         values_to_assign = {}
 
-        for attr, col_name in [("fai_evergreen_tree", "faievetree"), ("height_evergreen_tree", "evetreeh")]:
+        for attr, col_name in [
+            ("fai_evergreen_tree", "faievetree"),
+            ("height_evergreen_tree", "evetreeh"),
+        ]:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
@@ -1039,7 +1046,10 @@ class SnowParams(BaseModel):
         description="Snow surface emissivity used in the NARP net all-wave radiation scheme",
         ge=0.0,
         le=1.0,
-        json_schema_extra={"unit": "dimensionless", "display_name": "NARP Snow Emissivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "NARP Snow Emissivity",
+        },
     )
     temperature_rain_snow_threshold: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -1052,7 +1062,10 @@ class SnowParams(BaseModel):
     precipitation_threshold_albedo_reset: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Precipitation threshold above which snow albedo resets (cf. aging)",
-        json_schema_extra={"unit": "mm", "display_name": "Precipitation Threshold for Albedo Reset"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Precipitation Threshold for Albedo Reset",
+        },
         ge=0.0,
     )
     snow_albedo_max: FlexibleRefValue(float) = Field(
@@ -1224,7 +1237,9 @@ class SnowParams(BaseModel):
 
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
-        ohm_coef = self.ohm_coef if self.ohm_coef is not None else _default_snow_ohm_coef()
+        ohm_coef = (
+            self.ohm_coef if self.ohm_coef is not None else _default_snow_ohm_coef()
+        )
         df_ohm = ohm_coef.to_df_state(grid_id, 7)
         df_state = df_state.combine_first(df_ohm)
 
@@ -1904,7 +1919,7 @@ class ArchetypeProperties(BaseModel):
             "unit": "degC",
             "display_name": "Cooling Setpoint Temperature",
         },
-        gt=15.0
+        gt=15.0,
     )
     profile_setpoint_temperature_heating_air: Optional[HeatingSetpointProfile] = Field(
         default_factory=HeatingSetpointProfile,
@@ -1948,7 +1963,8 @@ class ArchetypeProperties(BaseModel):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         string_fields = {"archetype_name"}
         ten_minute_profile_fields = {
-            "profile_metabolism", "profile_setpoint_temperature_heating_air",
+            "profile_metabolism",
+            "profile_setpoint_temperature_heating_air",
             "profile_setpoint_temperature_cooling_air",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
@@ -1959,12 +1975,16 @@ class ArchetypeProperties(BaseModel):
                 continue
             field_val = getattr(self, field_name)
             value = field_val.value if isinstance(field_val, RefValue) else field_val
-            col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(
+                field_name, field_name
+            ).lower()
             cols[(col_name, "0")] = value
 
         for field_name in string_fields:
             value = getattr(self, field_name)
-            col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(
+                field_name, field_name
+            ).lower()
             cols[(col_name, "0")] = value
 
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
@@ -1973,7 +1993,9 @@ class ArchetypeProperties(BaseModel):
             profile = getattr(self, field_name)
             if profile is None:
                 continue
-            col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(
+                field_name, field_name
+            ).lower()
             df_profile = profile.to_df_state(grid_id, col_name)
             df_state = df_state.combine_first(df_profile)
 
@@ -1982,7 +2004,11 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         string_fields = {"archetype_name"}
-        ten_minute_profile_fields = {"profile_metabolism", "profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air",}
+        ten_minute_profile_fields = {
+            "profile_metabolism",
+            "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
+        }
         ten_minute_profile_classes = {
             "profile_metabolism": TenMinuteProfile,
             "profile_setpoint_temperature_heating_air": HeatingSetpointProfile,
@@ -1997,7 +2023,9 @@ class ArchetypeProperties(BaseModel):
                 continue
 
             if field_name in string_fields:
-                col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+                col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(
+                    field_name, field_name
+                ).lower()
                 col = (col_name, "0")
                 if col in df.columns:
                     value = df.loc[grid_id, col]
@@ -2011,20 +2039,24 @@ class ArchetypeProperties(BaseModel):
                 continue
 
             if field_name in ten_minute_profile_fields:
-                col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+                col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(
+                    field_name, field_name
+                ).lower()
                 has_profile_columns = any(col[0] == col_name for col in df.columns)
                 if has_profile_columns:
                     try:
-                        params[field_name] = ten_minute_profile_classes[field_name].from_df_state(
-                            df, grid_id, col_name
-                        )
+                        params[field_name] = ten_minute_profile_classes[
+                            field_name
+                        ].from_df_state(df, grid_id, col_name)
                     except KeyError:
                         params[field_name] = getattr(default_instance, field_name)
                 else:
                     params[field_name] = getattr(default_instance, field_name)
                 continue
 
-            col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(
+                field_name, field_name
+            ).lower()
             col = (col_name, "0")
             if col in df.columns:
                 value = df.loc[grid_id, col]
@@ -2036,7 +2068,6 @@ class ArchetypeProperties(BaseModel):
                 params[field_name] = getattr(default_instance, field_name)
 
         return cls(**params)
-
 
 
 class StebbsProperties(BaseModel):
@@ -2068,9 +2099,7 @@ class StebbsProperties(BaseModel):
     @classmethod
     def _rename_stebbs_fields(cls, values):
         if isinstance(values, dict):
-            values = apply_field_renames(
-                values, STEBBSPROPERTIES_RENAMES, cls.__name__
-            )
+            values = apply_field_renames(values, STEBBSPROPERTIES_RENAMES, cls.__name__)
             values = apply_field_renames(
                 values, STEBBSPROPERTIES_DEV3_RENAMES, cls.__name__
             )
@@ -2111,14 +2140,16 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    convection_coefficient_ground_floor_internal: Optional[FlexibleRefValue(float)] = Field(
-        default=5.88,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
-        description="Internal convection coefficient of ground floor [W m-2 K-1]",
-        json_schema_extra={
-            "unit": "W m^-2 K^-1",
-            "display_name": "Floor Internal Convection Coefficient",
-        },
-        gt=0.0,
+    convection_coefficient_ground_floor_internal: Optional[FlexibleRefValue(float)] = (
+        Field(
+            default=5.88,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
+            description="Internal convection coefficient of ground floor [W m-2 K-1]",
+            json_schema_extra={
+                "unit": "W m^-2 K^-1",
+                "display_name": "Floor Internal Convection Coefficient",
+            },
+            gt=0.0,
+        )
     )
     convection_coefficient_window_internal: Optional[FlexibleRefValue(float)] = Field(
         default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
@@ -2266,7 +2297,7 @@ class StebbsProperties(BaseModel):
             "unit": "degC",
             "display_name": "Maximum difference in monthly outdoor air temperature",
         },
-        gt = 0.0,
+        gt=0.0,
     )
     thickness_hot_water_tank_wall: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
@@ -2307,7 +2338,10 @@ class StebbsProperties(BaseModel):
     thickness_hot_water_vessel_wall: Optional[FlexibleRefValue(float)] = Field(
         default=0.005,
         description="Hot water vessel wall thickness [m]",
-        json_schema_extra={"unit": "m", "display_name": "Hot Water Vessel Wall Thickness"},
+        json_schema_extra={
+            "unit": "m",
+            "display_name": "Hot Water Vessel Wall Thickness",
+        },
         gt=0.0,
     )
     volume_hot_water: Optional[FlexibleRefValue(float)] = Field(
@@ -2338,9 +2372,10 @@ class StebbsProperties(BaseModel):
         default_factory=TenMinuteProfile,
         description="Profile of hot water flow rate from tank to vessel [m3 s-1]",
         json_schema_extra={
-            "unit": "m^3 s^-1", "display_name": "Hot Water Flow Profile"
+            "unit": "m^3 s^-1",
+            "display_name": "Hot Water Flow Profile",
         },
-    )   
+    )
 
     specific_heat_capacity_hot_water: Optional[FlexibleRefValue(float)] = Field(
         default=4186.0,
@@ -2351,23 +2386,27 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    specific_heat_capacity_hot_water_tank_wall: Optional[FlexibleRefValue(float)] = Field(
-        default=500.0,
-        description="Specific heat capacity of hot water tank wall [J kg-1 K-1]",
-        json_schema_extra={
-            "unit": "J kg^-1 K^-1",
-            "display_name": "Hot Water Tank Specific Heat Capacity",
-        },
-        gt=0.0,
+    specific_heat_capacity_hot_water_tank_wall: Optional[FlexibleRefValue(float)] = (
+        Field(
+            default=500.0,
+            description="Specific heat capacity of hot water tank wall [J kg-1 K-1]",
+            json_schema_extra={
+                "unit": "J kg^-1 K^-1",
+                "display_name": "Hot Water Tank Specific Heat Capacity",
+            },
+            gt=0.0,
+        )
     )
-    specific_heat_capacity_hot_water_vessel_wall: Optional[FlexibleRefValue(float)] = Field(
-        default=500.0,
-        description="Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]",
-        json_schema_extra={
-            "unit": "J kg^-1 K^-1",
-            "display_name": "Hot Water Vessel Specific Heat Capacity",
-        },
-        gt=0.0,
+    specific_heat_capacity_hot_water_vessel_wall: Optional[FlexibleRefValue(float)] = (
+        Field(
+            default=500.0,
+            description="Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]",
+            json_schema_extra={
+                "unit": "J kg^-1 K^-1",
+                "display_name": "Hot Water Vessel Specific Heat Capacity",
+            },
+            gt=0.0,
+        )
     )
     density_hot_water: Optional[FlexibleRefValue(float)] = Field(
         default=1000.0,
@@ -2387,7 +2426,10 @@ class StebbsProperties(BaseModel):
     density_hot_water_vessel_wall: Optional[FlexibleRefValue(float)] = Field(
         default=2500.0,
         description="Density of vessels containing hot water in use [kg m-3]",
-        json_schema_extra={"unit": "kg m^-3", "display_name": "Hot Water Vessel Density"},
+        json_schema_extra={
+            "unit": "kg m^-3",
+            "display_name": "Hot Water Vessel Density",
+        },
         gt=0.0,
     )
     # hot_water_tank_building_wall_view_factor / hot_water_tank_internal_mass_view_factor
@@ -2404,27 +2446,27 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    convection_coefficient_hot_water_tank_wall_internal: Optional[FlexibleRefValue(float)] = (
-        Field(
-            default=7.7,
-            description="Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
-            json_schema_extra={
-                "unit": "W m^-2 K^-1",
-                "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
-            },
+    convection_coefficient_hot_water_tank_wall_internal: Optional[
+        FlexibleRefValue(float)
+    ] = Field(
+        default=7.7,
+        description="Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
+        },
         gt=0.0,
-        )
     )
-    convection_coefficient_hot_water_tank_wall_external: Optional[FlexibleRefValue(float)] = (
-        Field(
-            default=7.7,
-            description="Effective external wall convection coefficient of the hot water tank [W m-2 K-1]",
-            json_schema_extra={
-                "unit": "W m^-2 K^-1",
-                "display_name": "Hot Water Tank External Wall Convection Coefficient",
-            },
+    convection_coefficient_hot_water_tank_wall_external: Optional[
+        FlexibleRefValue(float)
+    ] = Field(
+        default=7.7,
+        description="Effective external wall convection coefficient of the hot water tank [W m-2 K-1]",
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Hot Water Tank External Wall Convection Coefficient",
+        },
         gt=0.0,
-        )
     )
     conductivity_hot_water_vessel_wall: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
@@ -2435,27 +2477,27 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    convection_coefficient_hot_water_tank_vessel_internal: Optional[FlexibleRefValue(float)] = (
-        Field(
-            default=7.7,
-            description="Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
-            json_schema_extra={
-                "unit": "W m^-2 K^-1",
-                "display_name": "Hot Water Vessel Internal Wall Convection Coefficient",
-            },
+    convection_coefficient_hot_water_tank_vessel_internal: Optional[
+        FlexibleRefValue(float)
+    ] = Field(
+        default=7.7,
+        description="Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Hot Water Vessel Internal Wall Convection Coefficient",
+        },
         gt=0.0,
-        )
     )
-    convection_coefficient_hot_water_tank_vessel_external: Optional[FlexibleRefValue(float)] = (
-        Field(
-            default=7.7,
-            description="Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
-            json_schema_extra={
-                "unit": "W m^-2 K^-1",
-                "display_name": "Hot Water Vessel External Wall Convection Coefficient",
-            },
+    convection_coefficient_hot_water_tank_vessel_external: Optional[
+        FlexibleRefValue(float)
+    ] = Field(
+        default=7.7,
+        description="Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Hot Water Vessel External Wall Convection Coefficient",
+        },
         gt=0.0,
-        )
     )
     emissivity_hot_water_vessel_wall: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
@@ -2485,16 +2527,14 @@ class StebbsProperties(BaseModel):
             "display_name": "Appliance Profile",
         },
     )
-    power_density_lighting: Optional[FlexibleRefValue(float)] = (
-        Field(
-            default=2,
-            description="Lighting power per building floor area [W m-2]",
-            json_schema_extra={
-                "unit": "W m^-2",
-                "display_name": "Lighting Power Density",
-            },
+    power_density_lighting: Optional[FlexibleRefValue(float)] = Field(
+        default=2,
+        description="Lighting power per building floor area [W m-2]",
+        json_schema_extra={
+            "unit": "W m^-2",
+            "display_name": "Lighting Power Density",
+        },
         ge=0.0,
-        )
     )
     ref: Optional[Reference] = None
 
@@ -2541,7 +2581,9 @@ class StebbsProperties(BaseModel):
                 continue
 
             if field_name in tenmin_profile_fields:
-                col_name = cls._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+                col_name = cls._STEBBS_LEGACY_COL_NAMES.get(
+                    field_name, field_name
+                ).lower()
                 has_profile_columns = any(col[0] == col_name for col in df.columns)
                 if has_profile_columns:
                     try:

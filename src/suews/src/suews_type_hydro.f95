@@ -72,9 +72,9 @@ module module_type_hydro
       REAL(KIND(1D0)), DIMENSION(NSURF) :: add_water = 0.0D0
       REAL(KIND(1D0)), DIMENSION(NSURF) :: frac_water2runoff = 0.0D0
 
-      ! MP: 3rd October 2026
-      REAL(KIND(1D0)), DIMENSION(NVEGSURF) :: stress_state = 0.0D0 ! State of vegetated stress (triggers LAI growth/senescence)
-      REAL(KIND(1D0)), DIMENSION(NVEGSURF) :: stress_days = 0.0D0 ! Count of days under stress triggering LAI growth/senescence
+      ! MP: 3rd August 2026
+      REAL(KIND(1D0)), DIMENSION(NVEGSURF) :: stress_state = 0 ! State of vegetated stress (triggers LAI growth/senescence)
+      REAL(KIND(1D0)), DIMENSION(NVEGSURF) :: stress_days = 0 ! Count of days under stress triggering LAI growth/senescence
 
       ! flag for iteration safety - NO
       ! multiple variables (e.g. soilstore_surf, state_surf, etc) include extensive quantities and thus cannot be used for iteration safety

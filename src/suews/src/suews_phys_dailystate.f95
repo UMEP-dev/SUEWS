@@ -565,8 +565,8 @@ CONTAINS
       real(kind(1D0)), intent(in) :: theta_r
       real(kind(1D0)), intent(in) :: smd
 
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: stress_state
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: stress_days
+      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_state
+      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_days
 
       ! --- Vegetation phenology ---------------------------------------------------------------------
       ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
@@ -624,6 +624,16 @@ CONTAINS
          stress_state(iv) = determine_stress_state_surf( &
             stressed=stressed, &
             stress_days=stress_days(iv) &
+         )
+
+         call lai_stress_response_surf( &
+            lai_id_prev=lai_id_prev(iv), &
+            laimin=laimin(iv), &
+            laimax=laimax(iv), &
+            LAI_loss_rate_perc=LAI_loss_rate_perc, &
+            stress_state=stress_state(iv), &
+            stress_days=stress_days(iv) &
+
          )
          
          call calc_delta_gdd_sdd( &
@@ -766,16 +776,47 @@ CONTAINS
          real(kind(1D0)) :: stress_state
 
          if (stressed) then 
-            stress_state = 1.0 ! Stressed, losing LAI
+            stress_state = 1 ! Stressed, losing LAI
          else
-            if (stress_days > 0.0) then
-               stress_state = 2.0 ! No longer stressed, recovering LAI
+            if (stress_days > 0) then
+               stress_state = 2 ! No longer stressed, recovering LAI
             else
-               stress_state = 0.0 ! No stress or required recovery
+               stress_state = 0 ! No stress or required recovery
             end if
          end if
 
       end function determine_stress_state_surf
+
+      subroutine lai_stress_response_surf( &
+         laimin, laimax, lai_loss_rate_perc, &
+         lai_id_prev, stress_state, stress_days &
+         )
+         
+         implicit none
+         
+         integer :: delta_stress_days
+
+         real(kind(1D0)), intent(in) :: laimin
+         real(kind(1D0)), intent(in) :: laimax
+         real(kind(1D0)), intent(in) :: lai_loss_rate_perc
+         
+         real(kind(1D0)), intent(inout) :: lai_id_prev
+         real(kind(1D0)), intent(inout) :: stress_state
+         real(kind(1D0)), intent(inout) :: stress_days
+
+         if (stress_state == 0) return
+
+         if (stress_state == 1) then
+            lai_id_prev = MAX(laimin, lai_id_prev * (1 - lai_loss_rate_perc))
+            delta_stress_days = 1
+         else if (stress_state == 2) then
+            lai_id_prev = MIN(laimax, lai_id_prev * (1 + lai_loss_rate_perc))
+            delta_stress_days = -1
+         end if
+
+         stress_days = MAX(0.0, stress_days + delta_stress_days)
+   
+      end subroutine lai_stress_response_surf
 
       subroutine calc_delta_gdd_sdd( &
             tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &

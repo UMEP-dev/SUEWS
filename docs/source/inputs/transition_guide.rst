@@ -223,6 +223,55 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.6.dev3
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev3`` completes the naming-convention sweep for the
+``sites[*].properties.anthropogenic_emissions.co2`` section. The migration
+renames fourteen YAML keys while preserving their values:
+
+.. list-table:: CO2 parameter renames
+   :header-rows: 1
+
+   * - Previous key
+     - Current key
+   * - ``co2pointsource``
+     - ``emission_co2_point_source``
+   * - ``ef_umolco2perj``
+     - ``emission_factor_co2_fuel``
+   * - ``enef_v_jkm``
+     - ``emission_factor_energy_vehicle``
+   * - ``fcef_v_kgkm``
+     - ``emission_factor_co2_vehicle``
+   * - ``frfossilfuel_heat``
+     - ``fraction_fossil_fuel_heating``
+   * - ``frfossilfuel_nonheat``
+     - ``fraction_fossil_fuel_non_heating``
+   * - ``maxfcmetab`` / ``minfcmetab``
+     - ``emission_co2_metabolism_max`` / ``emission_co2_metabolism_min``
+   * - ``maxqfmetab`` / ``minqfmetab``
+     - ``emission_heat_metabolism_max`` / ``emission_heat_metabolism_min``
+   * - ``trafficrate``
+     - ``traffic_rate``
+   * - ``trafficunits``
+     - ``type_traffic_rate``
+   * - ``traffprof_24hr``
+     - ``profile_traffic_24hr``
+   * - ``humactivity_24hr``
+     - ``profile_human_activity_24hr``
+
+``type_traffic_rate`` keeps the existing numeric values: ``1`` selects a
+per-area traffic rate and ``2`` selects a per-capita rate. The point-source
+input is a whole-grid CO2 emission expressed as kg C |day^-1|; the
+metabolic inputs are per capita. Legacy ``df_state`` column names do not
+change.
+
+Upgrade a ``2026.6.dev2`` YAML with:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
 Upgrading to Schema 2026.6.dev2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

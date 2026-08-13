@@ -1,0 +1,4053 @@
+{
+  "schema_version": 1,
+  "catalogue_version": "workbook-snapshot-1",
+  "source": {
+    "title": "SUEWS parameter database",
+    "status": "working database snapshot",
+    "snapshot_modified_at": "2026-08-12T14:42:33+01:00",
+    "workbook_sha256": "5ce45d1656ff9300a2398783ed3c30007253a94025c54b5c40c68e017bfc6515",
+    "dataset_doi": null
+  },
+  "selection": {
+    "policy": "Only direct scalar mappings with a usable published source are included.",
+    "excluded_reference_ids": [
+      "90240000",
+      "90240027",
+      "90240064",
+      "90241000",
+      "90240991",
+      "99240099"
+    ],
+    "excluded_record_ids": [
+      23240040,
+      41240048,
+      42240047,
+      50240017,
+      50240024,
+      50240043
+    ]
+  },
+  "references": {
+    "90240002": {
+      "citation": "Ward et al. (2016)",
+      "title": "Surface Urban Energy and Water Balance Scheme (SUEWS): Development and evaluation at two UK sites",
+      "doi": "https://doi.org/10.1016/j.uclim.2016.05.001",
+      "docs_citation_key": "W16"
+    },
+    "90240015": {
+      "citation": "J\u00e4rvi et al. (2014)",
+      "title": "Development of the Surface Urban Energy and Water Balance Scheme (SUEWS) for cold climate cities",
+      "doi": "https://doi.org/10.5194/gmd-7-1691-2014",
+      "docs_citation_key": "J14"
+    },
+    "90240042": {
+      "citation": "Schmid et al. (2000)",
+      "title": "Measurements of CO2 and energy fluxes over a mixed hardwood forest in the Mid-Western United States",
+      "doi": "https://doi.org/10.1016/S0168-1923(00)00140-4",
+      "docs_citation_key": "S00"
+    },
+    "90240043": {
+      "citation": "Ruimy et al. (1995)",
+      "title": "CO2 fluxes over plant canopies and solar radiation: A review",
+      "doi": "https://doi.org/10.1016/S0065-2504(08)60063-X",
+      "docs_citation_key": "R95"
+    },
+    "90240046": {
+      "citation": "Flanagan et al. (2002)",
+      "title": "Seasonal and interannual variation in carbon dioxide exchange and carbon balance in a northern temperate grassland",
+      "doi": "https://doi.org/10.1046/j.1365-2486.2002.00491.x",
+      "docs_citation_key": "F02"
+    },
+    "90240054": {
+      "citation": "J\u00e4rvi et al. (2011)",
+      "title": "The Surface Urban Energy and Water Balance Scheme (SUEWS): Evaluation in Los Angeles and Vancouver",
+      "doi": "https://doi.org/10.1016/j.jhydrol.2011.10.001",
+      "docs_citation_key": "J11"
+    },
+    "90240055": {
+      "citation": "Kotthaus et al. (2014)",
+      "title": "Derivation of an urban materials spectral library through emittance and reflectance spectroscopy",
+      "doi": "https://doi.org/10.1016/j.isprsjprs.2014.05.005",
+      "docs_citation_key": "Kotthaus2014Aug"
+    },
+    "90240056": {
+      "citation": "Ward et al. (2013)",
+      "title": "Multi-season eddy covariance observations of energy, water and carbon fluxes over a suburban area in Swindon, UK",
+      "doi": "https://doi.org/10.5194/acp-13-4645-2013",
+      "docs_citation_key": null
+    },
+    "90240058": {
+      "citation": "Stewart (1988)",
+      "title": "Modelling surface conductance of pine forest",
+      "doi": "https://doi.org/10.1016/0168-1923(88)90003-2",
+      "docs_citation_key": null
+    },
+    "90240060": {
+      "citation": "Vargo et al. (2013)",
+      "title": "The importance of land cover change across urban-rural typologies for climate modeling",
+      "doi": "https://doi.org/10.1016/j.jenvman.2012.10.007",
+      "docs_citation_key": null
+    },
+    "90240061": {
+      "citation": "Xie et al. (2024)",
+      "title": "Could residential air-source heat pumps exacerbate outdoor summer overheating and winter overcooling in UK 2050s climate scenarios?",
+      "doi": "https://doi.org/10.1016/j.scs.2024.105811",
+      "docs_citation_key": null
+    },
+    "90240062": {
+      "citation": "Dou et al. (2023)",
+      "title": "Surface energy balance fluxes in a suburban area of Beijing: energy partitioning variability",
+      "doi": "https://doi.org/10.5194/acp-23-13143-2023",
+      "docs_citation_key": null
+    },
+    "90240065": {
+      "citation": "Ao et al. (2016)",
+      "title": "Radiation fluxes in a business district of Shanghai, China",
+      "doi": "https://doi.org/10.1175/JAMC-D-16-0082.1",
+      "docs_citation_key": "A16"
+    },
+    "90240066": {
+      "citation": "Havu et al. (2024)",
+      "title": "CO2 uptake of urban vegetation in a warming Nordic city",
+      "doi": "https://doi.org/10.1016/j.ufug.2024.128261",
+      "docs_citation_key": null
+    },
+    "90240067": {
+      "citation": "Zheng et al. (2023)",
+      "title": "Simulating heat and CO2 fluxes in Beijing using SUEWS V2020b: Sensitivity to vegetation phenology and maximum conductance",
+      "doi": "https://doi.org/10.5194/gmd-16-4551-2023",
+      "docs_citation_key": "Z23"
+    },
+    "90240068": {
+      "citation": "Stagakis et al. (2024)",
+      "title": "Intercomparison of biogenic CO2 flux models in four urban parks in the city of Zurich",
+      "doi": "https://doi.org/10.5194/egusphere-2024-2475",
+      "docs_citation_key": null
+    }
+  },
+  "source_tables": [
+    {
+      "sheet": "Vegetation Growth",
+      "model": "LAIParams",
+      "field_map": {
+        "BaseT": "base_temperature",
+        "BaseTe": "base_temperature_senescence",
+        "GDDFull": "gdd_full",
+        "SDDFull": "sdd_full"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "evergreen tree",
+            "deciduous tree",
+            "grass"
+          ],
+          "source_record_ids": [
+            35240001,
+            35240002,
+            35240003
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "BaseT": 5,
+            "BaseTe": 10,
+            "GDDFull": 300,
+            "SDDFull": -450
+          }
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "evergreen tree",
+            "deciduous tree",
+            "grass"
+          ],
+          "source_record_ids": [
+            35240044,
+            35240045,
+            35240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "BaseT": 6,
+            "BaseTe": 11,
+            "GDDFull": 300,
+            "SDDFull": -450
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "Emissivity",
+      "field_map": {
+        "Emissivity": "emis"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40240001
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "Emissivity": 0.95
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            40240005
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "Emissivity": 0.91
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Building"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40241247
+          ],
+          "reference_id": "90240055",
+          "values": {
+            "Emissivity": 0.9366666666666666
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Black/grey asphalt, weathered"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40241248
+          ],
+          "reference_id": "90240055",
+          "values": {
+            "Emissivity": 0.9533333333333333
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Black tarmac, weathered"
+        },
+        {
+          "origin": "Generic",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40241249
+          ],
+          "reference_id": "90240055",
+          "values": {
+            "Emissivity": 0.94
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Grey/ochre Cement, Weathered"
+        },
+        {
+          "origin": "Generic",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40241250
+          ],
+          "reference_id": "90240055",
+          "values": {
+            "Emissivity": 0.92
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Grey/white Concrete, New"
+        },
+        {
+          "origin": "Generic",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40241251
+          ],
+          "reference_id": "90240055",
+          "values": {
+            "Emissivity": 0.91
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Grey Cement, Weathered"
+        },
+        {
+          "origin": "Generic",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40241252
+          ],
+          "reference_id": "90240055",
+          "values": {
+            "Emissivity": 0.95
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Grey Concrete, Weathered"
+        },
+        {
+          "origin": "Generic",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40241254
+          ],
+          "reference_id": "90240055",
+          "values": {
+            "Emissivity": 0.95
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "White Concrete, Weathered"
+        },
+        {
+          "origin": "Shanghai",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40241259
+          ],
+          "reference_id": "90240065",
+          "values": {
+            "Emissivity": 0.95
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "Shanghai",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            40241260
+          ],
+          "reference_id": "90240065",
+          "values": {
+            "Emissivity": 0.91
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "CBD roofs"
+        },
+        {
+          "origin": "Swindon, UK",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40240041
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.95
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "Swindon, UK",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            40240042
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.91
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Suburban residential"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            40240043
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.94
+          },
+          "models": [
+            "BsoilProperties"
+          ],
+          "description": "Bare soil"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            40240044
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.98
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen trees"
+        },
+        {
+          "origin": "Swindon, UK",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            40240045
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.98
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous trees"
+        },
+        {
+          "origin": "London, UK",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            40240051
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.95
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Central London"
+        },
+        {
+          "origin": "London, UK",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            40240052
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.91
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Central London"
+        },
+        {
+          "origin": "London, UK",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            40240055
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.98
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous trees"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            40240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.93
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            40240057
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Emissivity": 0.95
+          },
+          "models": [
+            "WaterProperties"
+          ],
+          "description": "Water"
+        }
+      ]
+    },
+    {
+      "sheet": "Emissivity",
+      "model": "SnowParams",
+      "field_map": {
+        "Emissivity": "narp_emissivity_snow"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "snow"
+          ],
+          "source_record_ids": [
+            40241245
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "Emissivity": 0.99
+          },
+          "models": [
+            "SnowParams"
+          ],
+          "description": "Snow (sample data)"
+        }
+      ]
+    },
+    {
+      "sheet": "Albedo",
+      "field_map": {
+        "Alb_min": "alb"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            41240001
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "Alb_min": 0.09
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            41240006
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.21
+          },
+          "models": [
+            "BsoilProperties"
+          ],
+          "description": "BareSoil"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            41240013
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "Alb_min": 0.1
+          },
+          "models": [
+            "WaterProperties"
+          ],
+          "description": "Water"
+        },
+        {
+          "origin": "Shanghai",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            41240031
+          ],
+          "reference_id": "90240065",
+          "values": {
+            "Alb_min": 0.18
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "CBD roofs"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            41240041
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.1
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "Swindon, UK",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            41240042
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.12
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Suburban residential"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            41240043
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.18
+          },
+          "models": [
+            "BsoilProperties"
+          ],
+          "description": "Bare soil"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            41240047
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.1
+          },
+          "models": [
+            "WaterProperties"
+          ],
+          "description": "Water"
+        },
+        {
+          "origin": "London, UK",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            41240052
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.12
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Central London"
+        }
+      ]
+    },
+    {
+      "sheet": "Albedo",
+      "field_map": {
+        "Alb_min": "alb_min",
+        "Alb_max": "alb_max"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            41240027
+          ],
+          "reference_id": "90240060",
+          "values": {
+            "Alb_min": 0.16,
+            "Alb_max": 0.16
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Mixed Deciduous Tree"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            41240029
+          ],
+          "reference_id": "90240060",
+          "values": {
+            "Alb_min": 0.19,
+            "Alb_max": 0.19
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Unirrigated Grass"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            41240044
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.1,
+            "Alb_max": 0.1
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen trees"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            41240045
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.12,
+            "Alb_max": 0.18
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous trees"
+        },
+        {
+          "origin": "UK, SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            41240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "Alb_min": 0.18,
+            "Alb_max": 0.21
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        }
+      ]
+    },
+    {
+      "sheet": "Albedo",
+      "model": "SnowParams",
+      "field_map": {
+        "Alb_min": "snow_albedo_min",
+        "Alb_max": "snow_albedo_max"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "snow"
+          ],
+          "source_record_ids": [
+            41240016
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "Alb_min": 0.18,
+            "Alb_max": 0.85
+          },
+          "models": [
+            "SnowParams"
+          ],
+          "description": "Snow"
+        }
+      ]
+    },
+    {
+      "sheet": "OHM",
+      "model": "OHMCoefficients",
+      "field_map": {
+        "a1": "a1",
+        "a2": "a2",
+        "a3": "a3"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240002
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "a1": 0.19,
+            "a2": 0.54,
+            "a3": -15.125
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Roof (own for SMEAR III, Helsinki) [750]"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "all vegetation"
+          ],
+          "source_record_ids": [
+            50240010
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.23,
+            "a2": 0.325,
+            "a3": -16.91
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 201 x Multiplier for summer [2011]",
+          "season": "summer"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "all vegetation"
+          ],
+          "source_record_ids": [
+            50240011
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.27,
+            "a2": 0.325,
+            "a3": 6.62
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 201 x Multiplier for winter [2012]",
+          "season": "winter"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "all non-vegetated surfaces"
+          ],
+          "source_record_ids": [
+            50240015
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.676,
+            "a2": 0.3,
+            "a3": -42.42
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "NEW Impervious (average). This is the average of Codes 801, 802, 901, 902, 910. [851]"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "snow"
+          ],
+          "source_record_ids": [
+            50240016
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "a1": 0.25,
+            "a2": 0.6,
+            "a3": -30
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Snow [61]"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            50240018
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.379,
+            "a2": 0.335,
+            "a3": -30.05
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 55 x Multiplier for summer [551]",
+          "season": "summer"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            50240019
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.445,
+            "a2": 0.335,
+            "a3": 11.77
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 55 x Multiplier for winter [552]",
+          "season": "winter"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            50240021
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.534,
+            "a2": 0.21,
+            "a3": -33.31
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 60 x Multiplier for summer [601]",
+          "season": "summer"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            50240022
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.627,
+            "a2": 0.21,
+            "a3": 13.05
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 60 x Multiplier for winter [602]",
+          "season": "winter"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240025
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.51,
+            "a2": 0.337,
+            "a3": -28.85
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 798 x Multiplier for summer [7981]",
+          "season": "summer"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240026
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.598,
+            "a2": 0.337,
+            "a3": 11.3
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 798 x Multiplier for winter [7982]",
+          "season": "winter"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            50240027
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.722,
+            "a2": 0.3,
+            "a3": -36.14
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 851 x Multiplier for summer [8512]",
+          "season": "summer"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            50240028
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "a1": 0.848,
+            "a2": 0.3,
+            "a3": 14.16
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Code 851 x Multiplier for winter [8512]",
+          "season": "winter"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240029
+          ],
+          "reference_id": "90240061",
+          "values": {
+            "a1": 0.411,
+            "a2": 0.289,
+            "a3": -34.7
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Detached houses with air source heat pumps operated in occupied rooms only"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240030
+          ],
+          "reference_id": "90240061",
+          "values": {
+            "a1": 0.413,
+            "a2": 0.282,
+            "a3": -34.9
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Detached houses with gas boilers operated in occupied rooms only"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240031
+          ],
+          "reference_id": "90240061",
+          "values": {
+            "a1": 0.336,
+            "a2": 0.173,
+            "a3": -43.6
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Flats with air source heat pumps operated in occupied rooms only"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240032
+          ],
+          "reference_id": "90240061",
+          "values": {
+            "a1": 0.343,
+            "a2": 0.152,
+            "a3": -44.4
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Flats with gas boilers operated in occupied rooms only"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240033
+          ],
+          "reference_id": "90240061",
+          "values": {
+            "a1": 0.383,
+            "a2": 0.343,
+            "a3": -37.9
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Detached houses with air source heat pumps operated in whole buildings"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240034
+          ],
+          "reference_id": "90240061",
+          "values": {
+            "a1": 0.388,
+            "a2": 0.326,
+            "a3": -40.9
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Detached houses with gas boilers operated in whole buildings"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240035
+          ],
+          "reference_id": "90240061",
+          "values": {
+            "a1": 0.319,
+            "a2": 0.213,
+            "a3": -41.6
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Flats with air source heat pumps operated in whole buildings"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240036
+          ],
+          "reference_id": "90240061",
+          "values": {
+            "a1": 0.344,
+            "a2": 0.147,
+            "a3": -44.7
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Flats with gas boilers operated in whole buildings"
+        },
+        {
+          "origin": "Weishan, Shandong Province, China",
+          "surfaces": [
+            "cropland"
+          ],
+          "source_record_ids": [
+            50240037
+          ],
+          "reference_id": "90240062",
+          "values": {
+            "a1": 0.29,
+            "a2": -0.19,
+            "a3": -20.7
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Wheat",
+          "season": "spring"
+        },
+        {
+          "origin": "Weishan, Shandong Province, China",
+          "surfaces": [
+            "cropland"
+          ],
+          "source_record_ids": [
+            50240038
+          ],
+          "reference_id": "90240062",
+          "values": {
+            "a1": 0.23,
+            "a2": -0.07,
+            "a3": -17.2
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Wheat-maize",
+          "season": "summer"
+        },
+        {
+          "origin": "Weishan, Shandong Province, China",
+          "surfaces": [
+            "cropland"
+          ],
+          "source_record_ids": [
+            50240039
+          ],
+          "reference_id": "90240062",
+          "values": {
+            "a1": 0.21,
+            "a2": -0.14,
+            "a3": -17.6
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Maize-wheat",
+          "season": "autumn"
+        },
+        {
+          "origin": "Weishan, Shandong Province, China",
+          "surfaces": [
+            "cropland"
+          ],
+          "source_record_ids": [
+            50240040
+          ],
+          "reference_id": "90240062",
+          "values": {
+            "a1": 0.07,
+            "a2": -0.29,
+            "a3": -11.8
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Wheat",
+          "season": "winter"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            50240044
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "a1": 0.805,
+            "a2": -0.193,
+            "a3": -9.39
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "An99 weighted average (all year)"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            50240045
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "a1": 0.238,
+            "a2": 0.427,
+            "a3": -16.7
+          },
+          "models": [
+            "OHMCoefficients"
+          ],
+          "description": "Original roof average"
+        }
+      ]
+    },
+    {
+      "sheet": "Water Storage",
+      "model": "StorageDrainParams",
+      "field_map": {
+        "StorageMin": "store_min",
+        "StorageMax": "store_max"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            43240001
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "StorageMin": 0.48,
+            "StorageMax": 0.48
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            43240005
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StorageMin": 0.25,
+            "StorageMax": 0.25
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Building"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            43240041
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StorageMin": 0.48,
+            "StorageMax": 0.48
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            43240042
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StorageMin": 0.25,
+            "StorageMax": 0.25
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Buildings"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            43240043
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StorageMin": 0.8,
+            "StorageMax": 0.8
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Bare Soil"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            43240044
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StorageMin": 1.3,
+            "StorageMax": 1.3
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            43240045
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StorageMin": 0.3,
+            "StorageMax": 0.8
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            43240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StorageMin": 1.9,
+            "StorageMax": 1.9
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            43240047
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StorageMin": 0.5,
+            "StorageMax": 0.5
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Water"
+        }
+      ]
+    },
+    {
+      "sheet": "Water State",
+      "field_map": {
+        "StateLimit": "state_limit"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            42240000
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "StateLimit": 2000
+          },
+          "models": [
+            "WaterProperties"
+          ],
+          "description": "Open water"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            42240041
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StateLimit": 0.48
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            42240042
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StateLimit": 0.25
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Buildings"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            42240043
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StateLimit": 0.8
+          },
+          "models": [
+            "BsoilProperties"
+          ],
+          "description": "Bare Soil"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            42240044
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StateLimit": 1.3
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            42240045
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StateLimit": 0.8
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            42240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StateLimit": 1.9
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "London (River Thames)",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            42240057
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "StateLimit": 30000
+          },
+          "models": [
+            "WaterProperties"
+          ],
+          "description": "River Thames"
+        }
+      ]
+    },
+    {
+      "sheet": "Drainage",
+      "model": "StorageDrainParams",
+      "field_map": {
+        "DrainageEq": "drain_eq",
+        "DrainageCoef1": "drain_coef_1",
+        "DrainageCoef2": "drain_coef_2"
+      },
+      "selector": {
+        "source_column": "DrainageEq",
+        "name": "drain_eq"
+      },
+      "records": [
+        {
+          "origin": "London",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            45240001
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 10,
+            "DrainageCoef2": 3
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Paved [sample run]"
+        },
+        {
+          "origin": "Swindon",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            45240004
+          ],
+          "reference_id": "90240056",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            45240007
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "DrainageEq": 2,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "EvergreenTree [sample run]"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            45240008
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "DrainageEq": 2,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Deciduous Tree [sample run]"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240015
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 10,
+            "DrainageCoef2": 3
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Grass, irrigated"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240012
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "DrainageEq": 2,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Grass, unirrigated"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240009
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "DrainageEq": 2,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.17
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Grass [sample run]"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            45240060
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 10,
+            "DrainageCoef2": 3
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Building"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            45240061
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "EvergreenTree - Helsinki, Zurich, Beijing"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            45240062
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Deciduous Tree - Helsinki, Zurich, Beijing"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240063
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Grass - Helsinki, Zurich, Beijing"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            45240041
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 10,
+            "DrainageCoef2": 3
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            45240042
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 10,
+            "DrainageCoef2": 3
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Buildings"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            45240043
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "DrainageEq": 3,
+            "DrainageCoef1": 10,
+            "DrainageCoef2": 3
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Bare Soil"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            45240044
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "DrainageEq": 2,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            45240045
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "DrainageEq": 2,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "DrainageEq": 2,
+            "DrainageCoef1": 0.013,
+            "DrainageCoef2": 1.71
+          },
+          "models": [
+            "StorageDrainParams"
+          ],
+          "description": "Grass"
+        }
+      ]
+    },
+    {
+      "sheet": "Drainage",
+      "field_map": {
+        "WetThreshold": "wet_threshold"
+      },
+      "records": [
+        {
+          "origin": "London",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            45240001
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "WetThreshold": 0.48
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved [sample run]"
+        },
+        {
+          "origin": "Swindon",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            45240004
+          ],
+          "reference_id": "90240056",
+          "values": {
+            "WetThreshold": 0.6
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            45240007
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "WetThreshold": 1.3
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "EvergreenTree [sample run]"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            45240008
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "WetThreshold": 0.8
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree [sample run]"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240015
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "WetThreshold": 1.9
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass, irrigated"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240012
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "WetThreshold": 1.9
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass, unirrigated"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240009
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "WetThreshold": 1.9
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass [sample run]"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            45240060
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "WetThreshold": 0.25
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Building"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            45240061
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "WetThreshold": 1.3
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "EvergreenTree - Helsinki, Zurich, Beijing"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            45240062
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "WetThreshold": 0.8
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree - Helsinki, Zurich, Beijing"
+        },
+        {
+          "origin": "London",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240063
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "WetThreshold": 0.8
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass - Helsinki, Zurich, Beijing"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            45240041
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "WetThreshold": 0.6
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            45240042
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "WetThreshold": 0.6
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Buildings"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            45240043
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "WetThreshold": 1
+          },
+          "models": [
+            "BsoilProperties"
+          ],
+          "description": "Bare Soil"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            45240044
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "WetThreshold": 1.8
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            45240045
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "WetThreshold": 1
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            45240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "WetThreshold": 2
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "water"
+          ],
+          "source_record_ids": [
+            45240047
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "WetThreshold": 0.5
+          },
+          "models": [
+            "WaterProperties"
+          ],
+          "description": "Water"
+        }
+      ]
+    },
+    {
+      "sheet": "Conductance",
+      "model": "Conductance",
+      "field_map": {
+        "G1": "g_max",
+        "G2": "g_k",
+        "G3": "g_q_base",
+        "G4": "g_q_shape",
+        "G5": "g_t",
+        "G6": "g_sm",
+        "Kmax": "kmax",
+        "S1": "s1",
+        "S2": "s2",
+        "TL": "tl",
+        "TH": "th"
+      },
+      "selector": {
+        "source_column": "gsModel",
+        "name": "gs_model"
+      },
+      "records": [
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "vegetation"
+          ],
+          "source_record_ids": [
+            44240001
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "G1": 16.4764,
+            "G2": 566.0923,
+            "G3": 0.2163,
+            "G4": 3.3649,
+            "G5": 11.0764,
+            "G6": 0.0176,
+            "Kmax": 1200,
+            "S1": 0.45,
+            "S2": 15,
+            "TL": 0,
+            "TH": 40,
+            "gsModel": 1
+          },
+          "models": [
+            "Conductance"
+          ],
+          "description": "Jarvi et al. (2011) default"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "vegetation"
+          ],
+          "source_record_ids": [
+            44240002
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "G1": 3.5,
+            "G2": 200,
+            "G3": 0.13,
+            "G4": 0.7,
+            "G5": 30,
+            "G6": 0.05,
+            "Kmax": 1200,
+            "S1": 5.56,
+            "S2": 0,
+            "TL": -10,
+            "TH": 55,
+            "gsModel": 2
+          },
+          "models": [
+            "Conductance"
+          ],
+          "description": "Ward et al. (2016) sample run"
+        },
+        {
+          "origin": "Unspecified",
+          "surfaces": [
+            "vegetation"
+          ],
+          "source_record_ids": [
+            44240003
+          ],
+          "reference_id": "90240058",
+          "values": {
+            "G1": 23.53,
+            "G2": 104.4,
+            "G3": 0.0812,
+            "G4": 9.44,
+            "G5": 18.35,
+            "G6": 0.081,
+            "Kmax": 1000,
+            "S1": 1.08,
+            "S2": 69.7,
+            "TL": 0,
+            "TH": 40,
+            "gsModel": 1
+          },
+          "models": [
+            "Conductance"
+          ],
+          "description": "pine forest"
+        }
+      ]
+    },
+    {
+      "sheet": "Leaf Area Index",
+      "model": "LAIParams",
+      "field_map": {
+        "LAIEq": "lai_type",
+        "LAIMin": "lai_min",
+        "LAIMax": "lai_max"
+      },
+      "records": [
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            31240021
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "LAIEq": 1,
+            "LAIMin": 0,
+            "LAIMax": 4.8
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Deciduous tree sample (LAI range 0-4.8)"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            31240023
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "LAIEq": 0,
+            "LAIMin": 4,
+            "LAIMax": 5.1
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Evergreen Tree (sample data)"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            31240024
+          ],
+          "reference_id": "90240056",
+          "values": {
+            "LAIEq": 0,
+            "LAIMin": 1,
+            "LAIMax": 5.5
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            31240025
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "LAIEq": 1,
+            "LAIMin": 1,
+            "LAIMax": 4.63
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Deciduous tree sample (LAI range 1-4.63)"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            31240026
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "LAIEq": 1,
+            "LAIMin": 1,
+            "LAIMax": 4.8
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Deciduous tree sample (LAI range 1-4.8)"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            31240044
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "LAIEq": 1,
+            "LAIMin": 4,
+            "LAIMax": 5.1
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Evergreen Tree (SE England)"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            31240045
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "LAIEq": 1,
+            "LAIMin": 1,
+            "LAIMax": 5.5
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Deciduous Tree (SE England)"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            31240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "LAIEq": 0,
+            "LAIMin": 1.6,
+            "LAIMax": 5.9
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Grass (London)"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            31240047
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "LAIEq": 1,
+            "LAIMin": 1.6,
+            "LAIMax": 5.9
+          },
+          "models": [
+            "LAIParams"
+          ],
+          "description": "Grass (SE England)"
+        }
+      ]
+    },
+    {
+      "sheet": "Leaf Growth Power",
+      "model": "LAIPowerCoefficients",
+      "field_map": {
+        "LeafGrowthPower1": "growth_lai",
+        "LeafGrowthPower2": "growth_gdd",
+        "LeafOffPower1": "senescence_lai",
+        "LeafOffPower2": "senescence_sdd"
+      },
+      "records": [
+        {
+          "origin": "Vancouver",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            32240004
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "LeafGrowthPower1": 0.03,
+            "LeafGrowthPower2": 0.0005,
+            "LeafOffPower1": 0.03,
+            "LeafOffPower2": 0.0005
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Evergreen Tree, LaiEq = 0"
+        },
+        {
+          "origin": "Vancouver",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            32240005
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "LeafGrowthPower1": 0.03,
+            "LeafGrowthPower2": 0.0005,
+            "LeafOffPower1": 0.03,
+            "LeafOffPower2": 0.0005
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Deciduous Tree, LaiEq = 0"
+        },
+        {
+          "origin": "Vancouver",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            32240006
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "LeafGrowthPower1": 0.03,
+            "LeafGrowthPower2": 0.0005,
+            "LeafOffPower1": 0.03,
+            "LeafOffPower2": 0.0005
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Grass, LaiEq = 0"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            32240007
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "LeafGrowthPower1": -1.42,
+            "LeafGrowthPower2": 0.00258,
+            "LeafOffPower1": 2,
+            "LeafOffPower2": 0.001
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Evergreen Tree, LaiEq = 0"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            32240008
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "LeafGrowthPower1": -1.42,
+            "LeafGrowthPower2": 0.00258,
+            "LeafOffPower1": 2,
+            "LeafOffPower2": 0.001
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Deciduous Tree, LaiEq = 0"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            32240009
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "LeafGrowthPower1": -1.42,
+            "LeafGrowthPower2": 0.00258,
+            "LeafOffPower1": 2,
+            "LeafOffPower2": 0.001
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Grass, LaiEq = 0"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            32240030
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.0005,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0025
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Evergreen Tree, LaiEq = 1"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            32240031
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.0005,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0025
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Deciduous Tree, LaiEq = 1"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            32240032
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.0005,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0025
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Grass, LaiEq = 1"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            32240033
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.001,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0015
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Evergreen Tree, LaiEq = 1"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            32240034
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.002,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0015
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Deciduous Tree, LaiEq = 1"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            32240035
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.002,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0005
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Grass, LaiEq = 1"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            32240044
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.001,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0015
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Evergreen Tree (SE England)"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            32240045
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.001,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0015
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Deciduous Tree (SE England)"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            32240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "LeafGrowthPower1": 0.04,
+            "LeafGrowthPower2": 0.001,
+            "LeafOffPower1": -1.5,
+            "LeafOffPower2": 0.0015
+          },
+          "models": [
+            "LAIPowerCoefficients"
+          ],
+          "description": "Grass (SE England)"
+        }
+      ]
+    },
+    {
+      "sheet": "Max Vegetation Conductance",
+      "field_map": {
+        "MaxConductance": "max_conductance"
+      },
+      "records": [
+        {
+          "origin": "Vancouver",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            33240001
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "MaxConductance": 40
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Irrigated Grass"
+        },
+        {
+          "origin": "Vancouver",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            33240002
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "MaxConductance": 33.1
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Unirrigated Grass"
+        },
+        {
+          "origin": "Vancouver",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            33240003
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "MaxConductance": 7.4
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "Vancouver",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            33240004
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "MaxConductance": 11.7
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            33240006
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "MaxConductance": 1.4
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            33240007
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "MaxConductance": 7
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            33240008
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "MaxConductance": 3.7
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            33240009
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "MaxConductance": 7.4
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            33240040
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "MaxConductance": 3.1
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            33240041
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "MaxConductance": 3.7
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            33240042
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "MaxConductance": 1.7
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            33240043
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "MaxConductance": 3.6
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Dec Tree - forest"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            33240044
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "MaxConductance": 3.1
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Dec Tree"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            33240045
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "MaxConductance": 3.7
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            33240046
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "MaxConductance": 7.4
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen Tree (SE England)"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            33240047
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "MaxConductance": 11.7
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree (SE England)"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            33240048
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "MaxConductance": 33.1
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass (SE England)"
+        }
+      ]
+    },
+    {
+      "sheet": "Porosity",
+      "model": "DectrProperties",
+      "field_map": {
+        "PorosityMin": "porosity_min_deciduous",
+        "PorosityMax": "porosity_max_deciduous"
+      },
+      "records": [
+        {
+          "origin": "London",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            34240002
+          ],
+          "reference_id": "90240054",
+          "values": {
+            "PorosityMin": 0.2,
+            "PorosityMax": 0.6
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree"
+        }
+      ]
+    },
+    {
+      "sheet": "Soil",
+      "model": "SurfaceProperties",
+      "field_map": {
+        "SoilDepth": "soil_depth",
+        "SoilStoreCap": "soil_store_capacity",
+        "SatHydraulicCond": "saturated_hydraulic_conductivity",
+        "SoilDensity": "soil_density"
+      },
+      "records": [
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240058
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "SoilDepth": 1000,
+            "SoilStoreCap": 141,
+            "SatHydraulicCond": 0.0005,
+            "SoilDensity": 1.16
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Below mixed vegetation"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240059
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "SoilDepth": 349,
+            "SoilStoreCap": 150,
+            "SatHydraulicCond": 0.0005,
+            "SoilDensity": 1.16
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Below Grass"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240060
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "SoilDepth": 349,
+            "SoilStoreCap": 150,
+            "SatHydraulicCond": 0.0005,
+            "SoilDensity": 1.16
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Below low vegetation"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240061
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "SoilDepth": 1000,
+            "SoilStoreCap": 312,
+            "SatHydraulicCond": 0.0005,
+            "SoilDensity": 1.16
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Mixed forest"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240062
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "SoilDepth": 1000,
+            "SoilStoreCap": 141,
+            "SatHydraulicCond": 0.0005,
+            "SoilDensity": 1.16
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Mixed Street trees"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240063
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "SoilDepth": 1000,
+            "SoilStoreCap": 229,
+            "SatHydraulicCond": 0.0005,
+            "SoilDensity": 1.16
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Mixed Park trees"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240064
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "SoilDepth": 349,
+            "SoilStoreCap": 130,
+            "SatHydraulicCond": 0.0005,
+            "SoilDensity": 1.16
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Trees"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240065
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "SoilDepth": 349,
+            "SoilStoreCap": 150,
+            "SatHydraulicCond": 0.0005,
+            "SoilDensity": 1.16
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Below Grass"
+        },
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "subsurface soil"
+          ],
+          "source_record_ids": [
+            22240040
+          ],
+          "reference_id": "90240002",
+          "values": {
+            "SoilDepth": 350,
+            "SoilStoreCap": 150,
+            "SatHydraulicCond": 0.0005
+          },
+          "models": [
+            "SurfaceProperties"
+          ],
+          "description": "Below all surfaces (generic)"
+        }
+      ]
+    },
+    {
+      "sheet": "SnowLimPatch",
+      "field_map": {
+        "SnowLimPatch": "snowpack_limit"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "paved"
+          ],
+          "source_record_ids": [
+            38240001
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "SnowLimPatch": 190
+          },
+          "models": [
+            "PavedProperties"
+          ],
+          "description": "Paved"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "buildings"
+          ],
+          "source_record_ids": [
+            38240002
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "SnowLimPatch": 190
+          },
+          "models": [
+            "BldgsProperties"
+          ],
+          "description": "Buildings"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "bare soil"
+          ],
+          "source_record_ids": [
+            38240003
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "SnowLimPatch": 190
+          },
+          "models": [
+            "BsoilProperties"
+          ],
+          "description": "Bare Soil"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            38240004
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "SnowLimPatch": 190
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen Tree"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            38240005
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "SnowLimPatch": 190
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous Tree"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            38240006
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "SnowLimPatch": 190
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        }
+      ]
+    },
+    {
+      "sheet": "Snow",
+      "model": "SnowParams",
+      "field_map": {
+        "RadMeltFactor": "radiation_melt_factor",
+        "TempMeltFactor": "temperature_melt_factor",
+        "tau_a": "tau_cold_snow",
+        "tau_f": "tau_melting_snow",
+        "PrecipLimAlb": "precipitation_threshold_albedo_reset",
+        "SnowDensMin": "snow_density_min",
+        "SnowDensMax": "snow_density_max",
+        "tau_r": "tau_refreezing_snow",
+        "CRWMin": "water_holding_capacity_min",
+        "CRWMax": "water_holding_capacity_max",
+        "PrecipLimSnow": "temperature_rain_snow_threshold"
+      },
+      "records": [
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "snow"
+          ],
+          "source_record_ids": [
+            23240006
+          ],
+          "reference_id": "90240015",
+          "values": {
+            "RadMeltFactor": 0.0016,
+            "TempMeltFactor": 0.12,
+            "tau_a": 0.018,
+            "tau_f": 0.11,
+            "PrecipLimAlb": 2,
+            "SnowDensMin": 100,
+            "SnowDensMax": 400,
+            "tau_r": 0.043,
+            "CRWMin": 0.05,
+            "CRWMax": 0.2,
+            "PrecipLimSnow": 2.2
+          },
+          "models": [
+            "SnowParams"
+          ],
+          "description": "Snow"
+        }
+      ]
+    },
+    {
+      "sheet": "Biogen CO2",
+      "field_map": {
+        "alpha": "alpha_bio_co2",
+        "beta": "beta_bio_co2",
+        "theta": "theta_bio_co2",
+        "alpha_enh": "alpha_enh_bioco2",
+        "beta_enh": "beta_enh_bioco2",
+        "resp_a": "resp_a",
+        "resp_b": "resp_b",
+        "min_respi": "min_res_bioco2"
+      },
+      "records": [
+        {
+          "origin": "SE England",
+          "surfaces": [
+            "all vegetation"
+          ],
+          "source_record_ids": [
+            30240007
+          ],
+          "reference_id": "90240043",
+          "values": {
+            "alpha": 0.044,
+            "beta": 43.35,
+            "resp_a": 1.08,
+            "resp_b": 0.064,
+            "min_respi": 0.6
+          },
+          "models": [
+            "EvetrProperties",
+            "DectrProperties",
+            "GrassProperties"
+          ],
+          "description": "Plant canopies"
+        },
+        {
+          "origin": "Midwest America",
+          "surfaces": [
+            "all vegetation"
+          ],
+          "source_record_ids": [
+            30240008
+          ],
+          "reference_id": "90240042",
+          "values": {
+            "alpha": 0.0593,
+            "beta": 35,
+            "resp_a": 1.08,
+            "resp_b": 0.064,
+            "min_respi": 0.6
+          },
+          "models": [
+            "EvetrProperties",
+            "DectrProperties",
+            "GrassProperties"
+          ],
+          "description": "Mixed Hardwood Forest"
+        },
+        {
+          "origin": "Lethbridge, Alberta, Canada",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            30240009
+          ],
+          "reference_id": "90240046",
+          "values": {
+            "alpha": 0.0205,
+            "beta": 16.3,
+            "resp_a": 1.08,
+            "resp_b": 0.064,
+            "min_respi": 0.6
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Temperate grassland"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "all vegetation"
+          ],
+          "source_record_ids": [
+            30240000
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "alpha": 0.031,
+            "beta": 8.3463,
+            "theta": 0.723,
+            "resp_a": 0.78,
+            "resp_b": 0.08,
+            "min_respi": 0.6
+          },
+          "models": [
+            "EvetrProperties",
+            "DectrProperties",
+            "GrassProperties"
+          ],
+          "description": "Mixed trees"
+        },
+        {
+          "origin": "Beijing",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            30240001
+          ],
+          "reference_id": "90240067",
+          "values": {
+            "alpha": 0.031,
+            "beta": 5.4973,
+            "resp_a": 2.1,
+            "resp_b": 0.06,
+            "min_respi": 0.6
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            30240100
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "alpha": 0.031,
+            "beta": 29.2138,
+            "theta": 0.723,
+            "resp_a": 2.88,
+            "resp_b": 0.06,
+            "min_respi": 0.6
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen trees"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            30240101
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "alpha": 0.031,
+            "beta": 27.0892,
+            "theta": 0.723,
+            "resp_a": 2.88,
+            "resp_b": 0.06,
+            "min_respi": 0.6
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous trees"
+        },
+        {
+          "origin": "Zurich",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            30240102
+          ],
+          "reference_id": "90240068",
+          "values": {
+            "alpha": 0.031,
+            "beta": 8.92,
+            "theta": 0.723,
+            "resp_a": 1.7,
+            "resp_b": 0.06,
+            "min_respi": 0.6
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            30240013
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 7,
+            "theta": 0.723,
+            "resp_a": 1.5,
+            "resp_b": 0.064,
+            "min_respi": 0.6
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen trees - forest"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            30240014
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 9.899,
+            "theta": 0.723,
+            "resp_a": 1.7,
+            "resp_b": 0.057,
+            "min_respi": 0.6
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous trees- forest"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            30240015
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 7,
+            "theta": 0.723,
+            "resp_a": 0.78,
+            "resp_b": 0.08,
+            "min_respi": 0.6
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen trees - street"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            30240016
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 8.3463,
+            "theta": 0.723,
+            "resp_a": 0.78,
+            "resp_b": 0.08,
+            "min_respi": 0.6
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous trees - street"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            30240017
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 7,
+            "theta": 0.723,
+            "resp_a": 2.3,
+            "resp_b": 0.046,
+            "min_respi": 0.6
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen trees + grass"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "evergreen tree"
+          ],
+          "source_record_ids": [
+            30240018
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 7,
+            "theta": 0.723,
+            "resp_a": 3.22,
+            "resp_b": 0.045,
+            "min_respi": 0.6
+          },
+          "models": [
+            "EvetrProperties"
+          ],
+          "description": "Evergreen trees + low veg"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            30240019
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 11.5,
+            "theta": 0.723,
+            "resp_a": 2.3,
+            "resp_b": 0.046,
+            "min_respi": 0.6
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous trees + grass"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "deciduous tree"
+          ],
+          "source_record_ids": [
+            30240020
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 11.5,
+            "theta": 0.723,
+            "resp_a": 3.22,
+            "resp_b": 0.045,
+            "min_respi": 0.6
+          },
+          "models": [
+            "DectrProperties"
+          ],
+          "description": "Deciduous trees + low veg"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            30240021
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 5.312,
+            "theta": 0.723,
+            "resp_a": 1.2,
+            "resp_b": 0.09,
+            "min_respi": 0.6
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Grass (lawn)"
+        },
+        {
+          "origin": "Helsinki",
+          "surfaces": [
+            "grass"
+          ],
+          "source_record_ids": [
+            30240022
+          ],
+          "reference_id": "90240066",
+          "values": {
+            "alpha": 0.031,
+            "beta": 5.312,
+            "theta": 0.723,
+            "resp_a": 2.1,
+            "resp_b": 0.06,
+            "min_respi": 0.6
+          },
+          "models": [
+            "GrassProperties"
+          ],
+          "description": "Mixed low vegetation"
+        }
+      ]
+    }
+  ]
+}

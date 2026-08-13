@@ -224,7 +224,7 @@ _FORCING_VARIABLES = (
         "Observed surface snow-cover fraction",
         "driver",
         "inst",
-        "optional",
+        "conditional",
         "sentinel",
         accessor_aliases=("snowfall",),
         file_aliases=("snowfrac",),

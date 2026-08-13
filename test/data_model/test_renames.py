@@ -34,6 +34,7 @@ pytestmark = pytest.mark.api
 from supy.data_model.core.df_column_renames import (
     ALL_DF_COLUMN_RENAMES,
     ARCHETYPEPROPERTIES_DF_RENAMES,
+    CO2PARAMS_DF_RENAMES,
     DECTRPROPERTIES_DF_RENAMES,
     EVETRPROPERTIES_DF_RENAMES,
     LAIPARAMS_DF_RENAMES,
@@ -50,6 +51,7 @@ from supy.data_model.core.field_renames import (
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    CO2PARAMS_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
     ATMOSPHERE_RENAMES,
     DECTRPROPERTIES_RENAMES,
@@ -76,6 +78,7 @@ from supy.data_model.core.field_renames import (
     rename_keys_recursive,
 )
 from supy.data_model.core.model import ModelPhysics, StebbsPhysics
+from supy.data_model.core.human_activity import CO2Params
 from supy.data_model.core.site import (
     ArchetypeProperties,
     DectrProperties,
@@ -100,6 +103,7 @@ _RENAMED_CLASSES = [
     (EvetrProperties, EVETRPROPERTIES_RENAMES),
     (DectrProperties, DECTRPROPERTIES_RENAMES),
     (SnowParams, SNOWPARAMS_RENAMES),
+    (CO2Params, CO2PARAMS_RENAMES),
     (ArchetypeProperties, ARCHETYPEPROPERTIES_RENAMES),
     (StebbsProperties, STEBBSPROPERTIES_RENAMES),
     # VEGETATEDSURFACEPROPERTIES_RENAMES is covered by subclasses EvetrProperties
@@ -127,6 +131,7 @@ class TestRegistryIntegrity:
             + len(ARCHETYPEPROPERTIES_RENAMES)
             + len(STEBBSPROPERTIES_RENAMES)
             + len(SNOWPARAMS_RENAMES)
+            + len(CO2PARAMS_RENAMES)
         )
         assert len(ALL_FIELD_RENAMES) == expected
 
@@ -249,6 +254,32 @@ class TestNewNamesAccepted:
 
 
 class TestBackwardCompat:
+    def test_old_co2_names_populate_new_attributes(self):
+        with pytest.warns(DeprecationWarning):
+            co2 = CO2Params(
+                co2pointsource=4.0,
+                maxqfmetab=175.0,
+                trafficunits=1.0,
+            )
+
+        assert _unwrap(co2.emission_co2_point_source) == 4.0
+        assert _unwrap(co2.emission_heat_metabolism_max) == 175.0
+        assert _unwrap(co2.type_traffic_rate) == 1.0
+
+    def test_co2_metadata_matches_fortran_units(self):
+        expected_units = {
+            "emission_co2_point_source": "kg C day^-1",
+            "emission_co2_metabolism_min": "umol cap^-1 s^-1",
+            "emission_co2_metabolism_max": "umol cap^-1 s^-1",
+            "emission_heat_metabolism_min": "W cap^-1",
+            "emission_heat_metabolism_max": "W cap^-1",
+            "type_traffic_rate": "dimensionless",
+        }
+
+        for field_name, expected_unit in expected_units.items():
+            metadata = CO2Params.model_fields[field_name].json_schema_extra
+            assert metadata["unit"] == expected_unit
+
     def test_old_name_constructor_populates_new_attribute(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
@@ -1181,6 +1212,15 @@ class TestDataFrameColumnsPreserveLegacyNames:
         for old_name in MODELPHYSICS_RENAMES:
             assert old_name in flat_cols, f"Missing legacy column {old_name!r}"
 
+    def test_co2_params_columns(self):
+        df = CO2Params().to_df_state(grid_id=1)
+        flat_cols = {col[0] for col in df.columns}
+        for old_name, new_name in CO2PARAMS_RENAMES.items():
+            assert old_name in flat_cols, f"Missing legacy column {old_name!r}"
+            assert new_name not in flat_cols, (
+                f"Unexpected new-name column {new_name!r} in bridge output"
+            )
+
     def test_lai_params_columns(self):
         df = LAIParams(base_temperature=5.0).to_df_state(grid_id=1, surf_idx=2)
         flat_cols = {col[0] for col in df.columns}
@@ -1251,6 +1291,7 @@ class TestDfRegistryIntegrity:
             + len(ARCHETYPEPROPERTIES_DF_RENAMES)
             + len(STEBBSPROPERTIES_DF_RENAMES)
             + len(SNOWPARAMS_DF_RENAMES)
+            + len(CO2PARAMS_DF_RENAMES)
         )
         assert len(ALL_DF_COLUMN_RENAMES) == expected
 

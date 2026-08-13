@@ -163,6 +163,7 @@ written and **not** reordered under Rule 2:
 
 - `ground_depth`
 - `ventilation_rate`
+- `traffic_rate`
 - `lighting_power_density`
 
 The test for membership: the phrase is one a domain reader would say

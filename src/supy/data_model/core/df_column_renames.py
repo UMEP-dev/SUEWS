@@ -33,6 +33,7 @@ import pandas as pd
 
 from .field_renames import (
     ARCHETYPEPROPERTIES_DEV7_TO_PASCAL,
+    CO2PARAMS_RENAMES,
     DECTRPROPERTIES_RENAMES,
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
@@ -64,6 +65,7 @@ VEGETATEDSURFACEPROPERTIES_DF_RENAMES: Dict[str, str] = dict(
 EVETRPROPERTIES_DF_RENAMES: Dict[str, str] = dict(EVETRPROPERTIES_RENAMES)
 DECTRPROPERTIES_DF_RENAMES: Dict[str, str] = dict(DECTRPROPERTIES_RENAMES)
 SNOWPARAMS_DF_RENAMES: Dict[str, str] = dict(SNOWPARAMS_RENAMES)
+CO2PARAMS_DF_RENAMES: Dict[str, str] = dict(CO2PARAMS_RENAMES)
 
 # ``ArchetypeProperties``: ``to_df_state`` lowercases the Pydantic
 # attribute name before writing it into the DataFrame (see ``site.py``
@@ -125,6 +127,7 @@ ALL_DF_COLUMN_RENAMES: Dict[str, str] = {
     **ARCHETYPEPROPERTIES_DF_RENAMES,
     **STEBBSPROPERTIES_DF_RENAMES,
     **SNOWPARAMS_DF_RENAMES,
+    **CO2PARAMS_DF_RENAMES,
 }
 
 # Reverse map: new -> legacy. Required by ``read_df_column`` when the
@@ -151,6 +154,7 @@ def _assert_registry_invariants() -> None:
         + len(ARCHETYPEPROPERTIES_DF_RENAMES)
         + len(STEBBSPROPERTIES_DF_RENAMES)
         + len(SNOWPARAMS_DF_RENAMES)
+        + len(CO2PARAMS_DF_RENAMES)
     )
     if len(ALL_DF_COLUMN_RENAMES) != per_class_total:
         raise RuntimeError(

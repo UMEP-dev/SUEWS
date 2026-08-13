@@ -71,9 +71,10 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
 - Wheel-build jobs run `physics` tests once per selected platform/architecture.
 - API cross-CPython jobs install the built wheel and run `api` tests across the
   selected Python versions.
-- `smoke`, `core`, `cfg`, and `standard` all exclude `slow` and `qgis`; `all`
-  is reserved for scheduled builds, tagged releases, and explicit manual
-  validation.
+- `smoke` excludes both `medium` and `slow`; `core` and `cfg` exclude `slow`.
+  `standard` includes non-slow tests plus essential `core` regressions even
+  when they are slow. All normal tiers exclude `qgis`; `all` is reserved for
+  scheduled builds, tagged releases, and explicit manual validation.
 - UMEP/QGIS tests are `api + qgis`: they are not physics backend tests, and
   run only when `all` reaches the Windows + Python 3.12 compatibility cell or
   when selected explicitly.

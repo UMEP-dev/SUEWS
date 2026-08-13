@@ -27,6 +27,7 @@ from .core.field_renames import (
     VEGETATEDSURFACEPROPERTIES_RENAMES,
 )
 
+from .parameter_examples import get_parameter_examples
 
 _MODEL_FIELD_RENAMES: dict[str, dict[str, str]] = {
     "ModelPhysics": MODELPHYSICS_RENAMES,
@@ -40,15 +41,16 @@ _MODEL_FIELD_RENAMES: dict[str, dict[str, str]] = {
     "SnowParams": SNOWPARAMS_RENAMES,
 }
 
-_LEGACY_NAMES_BY_MODEL: dict[str, dict[str, list[str]]] = {}
+_LEGACY_NAME_BY_MODEL: dict[str, dict[str, str]] = {}
 for model_name, rename_table in _MODEL_FIELD_RENAMES.items():
-    names_by_current: dict[str, list[str]] = {}
+    name_by_current: dict[str, str] = {}
     for legacy_name, current_name in rename_table.items():
-        names_by_current.setdefault(current_name, []).append(legacy_name)
-    _LEGACY_NAMES_BY_MODEL[model_name] = {
-        current_name: sorted(legacy_names)
-        for current_name, legacy_names in names_by_current.items()
-    }
+        if current_name in name_by_current:
+            raise ValueError(
+                f"Multiple legacy names registered for {model_name}.{current_name}"
+            )
+        name_by_current[current_name] = legacy_name
+    _LEGACY_NAME_BY_MODEL[model_name] = name_by_current
 
 
 class ModelDocExtractor:
@@ -198,9 +200,13 @@ class ModelDocExtractor:
             "is_site_specific": self._is_site_specific(field_name, model_name),
         }
 
-        legacy_names = _LEGACY_NAMES_BY_MODEL.get(model_name, {}).get(field_name)
-        if legacy_names:
-            field_doc["legacy_names"] = legacy_names.copy()
+        legacy_name = _LEGACY_NAME_BY_MODEL.get(model_name, {}).get(field_name)
+        if legacy_name:
+            field_doc["legacy_name"] = legacy_name
+
+        examples = get_parameter_examples(model_name, field_name)
+        if examples:
+            field_doc["examples"] = examples
 
         # Extract default value
         default_info = self._extract_default(field_info)

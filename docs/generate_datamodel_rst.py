@@ -188,15 +188,24 @@ class RSTGenerator:
                 ]
             )
 
+        if any(field.get("examples") for field in model_doc.get("fields", [])):
+            lines.extend([
+                ".. note::",
+                "",
+                "   Example values below are parameter choices compiled in the "
+                "SUEWS parameter database, which is being prepared for publication. "
+                "Until its release, the cited studies provide the supporting "
+                "evidence. These values are not defaults or recommendations; "
+                "select or calibrate values for the site.",
+                "",
+            ])
+
         if model_name == "ModelPhysics":
             lines.extend(self._format_modelphysics_selector_guide())
 
-        # Add parameters section
+        # Add fields directly; the page and option directives already provide
+        # the necessary structure, so a generic "Parameters" label is redundant.
         if model_doc.get("fields"):
-            lines.append("**Parameters:**")
-            lines.append("")
-
-            # Format each field
             for field_doc in model_doc["fields"]:
                 lines.extend(self._format_field(field_doc, model_name))
                 lines.append("")  # Blank line between fields
@@ -398,14 +407,14 @@ class RSTGenerator:
 
     @staticmethod
     def _add_field_index_entries(
-        field_name: str, model_name: str, legacy_names: list[str] | None = None
+        field_name: str, model_name: str, legacy_name: str | None = None
     ) -> list[str]:
         """Add index entries for a field.
 
         Args:
             field_name: Name of the field
             model_name: Name of the containing model
-            legacy_names: Legacy YAML names that resolve to the field
+            legacy_name: Most recent legacy YAML name that resolves to the field
 
         Returns
         -------
@@ -416,7 +425,7 @@ class RSTGenerator:
             f"   single: {field_name} (YAML parameter)",
             f"   single: {model_name}; {field_name}",
         ]
-        for legacy_name in legacy_names or []:
+        if legacy_name:
             lines.append(f"   single: {legacy_name} (legacy YAML parameter)")
         lines.append("")
 
@@ -507,17 +516,69 @@ class RSTGenerator:
 
         return lines
 
-    def _format_unit_and_legacy_names(self, field_doc: dict[str, Any]) -> list[str]:
+    def _format_unit_and_legacy_name(self, field_doc: dict[str, Any]) -> list[str]:
         """Format unit and legacy-name metadata for a field."""
         lines = []
         unit = field_doc.get("unit")
         if unit and not field_doc.get("options"):
             lines.append(f"   :Unit: {self._format_unit(unit)}")
 
-        legacy_names = field_doc.get("legacy_names", [])
-        if legacy_names:
-            formatted_names = ", ".join(f"``{name}``" for name in legacy_names)
-            lines.append(f"   :Legacy Names: {formatted_names}")
+        legacy_name = field_doc.get("legacy_name")
+        if legacy_name:
+            lines.append(f"   :Legacy name: ``{legacy_name}``")
+
+        return lines
+
+    def _format_parameter_examples(self, field_doc: dict[str, Any]) -> list[str]:
+        """Format literature-backed parameter examples as a compact table."""
+        examples = field_doc.get("examples", [])
+        if not examples:
+            return []
+
+        unit = self._format_unit(field_doc.get("unit", ""))
+        lines = [
+            "",
+            "   .. rubric:: Example values",
+            "",
+            "   .. list-table::",
+            "      :header-rows: 1",
+            "      :widths: 15 40 45",
+            "",
+            "      * - Value",
+            "        - Context",
+            "        - Source",
+        ]
+
+        for example in examples:
+            value = f"``{example['value']}``"
+            if unit:
+                value = f"{value} {unit}"
+
+            surfaces = example.get("surfaces", [])
+            context_parts = [example["origin"]]
+            if surfaces:
+                if len(surfaces) == 1:
+                    surface_text = surfaces[0]
+                else:
+                    surface_text = f"{', '.join(surfaces[:-1])} and {surfaces[-1]}"
+                context_parts.append(surface_text)
+            if example.get("description"):
+                context_parts.append(example["description"])
+            if example.get("season"):
+                context_parts.append(example["season"])
+            context = "; ".join(context_parts)
+
+            reference = example["reference"]
+            docs_citation_key = reference.get("docs_citation_key")
+            if docs_citation_key:
+                source = f":cite:t:`{docs_citation_key}`"
+            else:
+                source = f"`{reference['citation']} <{reference['doi']}>`__"
+            lines.extend([
+                f"      * - {value}",
+                f"        - {context}",
+                f"        - {source}",
+            ])
 
         return lines
 
@@ -562,7 +623,7 @@ class RSTGenerator:
                 lines.append(f"      | {opt_str}")
             lines.append("")
 
-        lines.extend(self._format_unit_and_legacy_names(field_doc))
+        lines.extend(self._format_unit_and_legacy_name(field_doc))
 
         # Add default/sample value
         default_label, default_value = self._format_default(field_doc)
@@ -629,7 +690,7 @@ class RSTGenerator:
         # Add index entries
         lines.extend(
             self._add_field_index_entries(
-                field_name, model_name, field_doc.get("legacy_names")
+                field_name, model_name, field_doc.get("legacy_name")
             )
         )
 
@@ -645,6 +706,9 @@ class RSTGenerator:
 
         # Add metadata (options, unit, default, constraints)
         lines.extend(self._format_field_metadata(field_doc, type_info, model_name))
+
+        # Add literature-backed examples independently of defaults
+        lines.extend(self._format_parameter_examples(field_doc))
 
         # Add link to nested model documentation
         nested_model = field_doc.get("nested_model")
@@ -757,7 +821,7 @@ class RSTGenerator:
 
         Returns appropriate label-value pair based on field characteristics:
         - Required fields: ("Status", "Required")
-        - Fields with defaults: ("Default", "value") or ("Example", "value")
+        - Fields with defaults: ("Default", "value")
         - Fields with no default: (NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE)
         - Nested models: (None, None) to skip display
 
@@ -765,8 +829,8 @@ class RSTGenerator:
         Absence of a value is reported under ``Status``, alongside the
         unconditionally required case.
 
-        Site-specific fields (detected by doc_utils.py pattern matching) show
-        "Example" instead of "Default" to indicate values are illustrative.
+        Site-specific defaults remain defaults. Literature-backed examples are
+        rendered separately from the parameter-example catalogue.
 
         Args:
             field_doc: Field documentation dictionary with is_site_specific flag
@@ -794,11 +858,6 @@ class RSTGenerator:
             return NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE
 
         # We have a non-None default value - format it
-        # Use the is_site_specific flag from doc_utils.py extraction
-        # This provides field-level granularity based on pattern matching
-        is_site_specific = field_doc.get("is_site_specific", False)
-
-        # Format the value for display
         if isinstance(default, (str, int, float, bool)):
             if isinstance(default, str):
                 display_value = (
@@ -825,11 +884,7 @@ class RSTGenerator:
             except (TypeError, ValueError):
                 display_value = f"``{default}``"
 
-        # Choose appropriate label based on field type
-        if is_site_specific:
-            return "Example", display_value
-        else:
-            return "Default", display_value
+        return "Default", display_value
 
     @staticmethod
     def _format_constraints(constraints: dict[str, Any]) -> str:

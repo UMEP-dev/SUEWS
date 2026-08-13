@@ -1,10 +1,10 @@
 """Regression tests for the DyOHM-building storage-heat option."""
 
 from importlib import import_module
-import logging
 from pathlib import Path
 import warnings
 
+from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pandas as pd
 import pytest
@@ -72,15 +72,10 @@ def _run_storage_case(df_state_init, df_forcing, method: int, building_fraction:
     df_state = _state_for_storage_method(df_state_init, method, building_fraction)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        # check_input=False: the state is hand-edited above (surface fractions,
-        # storage-heat method) and deliberately bypasses YAML-level validation;
-        # the physics contract under test does not depend on it.
-        df_output, _ = sp.run_supy(
+        df_output, _ = run_simulation(
             df_forcing,
             df_state,
-            logging_level=logging.CRITICAL,
-            check_input=False,
-            save_state=False,
+            validate_forcing=False,
         )
     return df_output.SUEWS
 
@@ -98,7 +93,7 @@ def _set_outer_material(df_state, surface_kind: str, first_index: int, values):
     reason="Rust library backend not available (install src/suews_bridge with physics feature)",
 )
 def test_dyohm_building_qs_behavior_relative_to_ohm():
-    df_state_init, df_forcing_all = sp.load_SampleData()
+    df_state_init, df_forcing_all = load_sample_frames()
     df_forcing = df_forcing_all.loc["2012-06-01 00:05:00":"2012-06-03 00:00:00"]
 
     ohm_paved = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.0)
@@ -144,7 +139,7 @@ def test_dyohm_building_qs_behavior_relative_to_ohm():
 )
 @pytest.mark.parametrize("storage_heat_method", [6, 8])
 def test_dyohm_uses_building_material_not_wall(storage_heat_method):
-    df_state_init, df_forcing_all = sp.load_SampleData()
+    df_state_init, df_forcing_all = load_sample_frames()
     df_forcing = df_forcing_all.loc["2012-06-01 00:05:00":"2012-06-03 00:00:00"]
 
     baseline = _run_storage_case(
@@ -195,7 +190,7 @@ def test_dyohm_tsurf_diagnostic_scope():
     for ordinary OHM runs, silently diverging from the vendored reference
     outputs.
     """
-    df_state_init, df_forcing_all = sp.load_SampleData()
+    df_state_init, df_forcing_all = load_sample_frames()
     df_forcing = df_forcing_all.loc["2012-06-01 00:05:00":"2012-06-02 00:00:00"]
 
     ohm_run = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.3)
@@ -205,7 +200,9 @@ def test_dyohm_tsurf_diagnostic_scope():
             "diagnostic must keep evolving for pre-existing storage-heat methods"
         )
 
-    dyohm_bldg_run = _run_storage_case(df_state_init, df_forcing, 8, building_fraction=0.3)
+    dyohm_bldg_run = _run_storage_case(
+        df_state_init, df_forcing, 8, building_fraction=0.3
+    )
     for col in TS_DYOHM_COLUMNS:
         assert dyohm_bldg_run[col].nunique() == 1, (
             f"{col} varies under storage_heat=8; dyohm_building does not "
@@ -225,30 +222,23 @@ def test_method7_stebbs_owns_building_temperature_and_materials():
         / "stebbs_test"
         / "sample_config.yml"
     )
-    df_state = sp.init_supy(str(config_path))
-    df_forcing_all = sp.load_forcing_grid(
-        str(config_path), df_state.index[0], df_state_init=df_state
-    )
+    simulation = sp.SUEWSSimulation(config_path)
+    df_state = simulation.state_init
+    df_forcing_all = simulation.forcing.df
     df_forcing = df_forcing_all.loc["2017-08-26"].iloc[:12]
-    changed_building_state = _set_outer_material(
-        df_state, "surf", 1, (0.0, 0.0, 0.0)
-    )
+    changed_building_state = _set_outer_material(df_state, "surf", 1, (0.0, 0.0, 0.0))
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        baseline, _ = sp.run_supy(
+        baseline, _ = run_simulation(
             df_forcing,
             df_state,
-            logging_level=logging.CRITICAL,
-            check_input=False,
-            save_state=False,
+            validate_forcing=False,
         )
-        changed_building, _ = sp.run_supy(
+        changed_building, _ = run_simulation(
             df_forcing,
             changed_building_state,
-            logging_level=logging.CRITICAL,
-            check_input=False,
-            save_state=False,
+            validate_forcing=False,
         )
 
     np.testing.assert_allclose(

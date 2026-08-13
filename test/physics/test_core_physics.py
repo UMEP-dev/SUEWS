@@ -18,15 +18,11 @@ Test Categories:
 These tests catch unphysical behavior that might pass numerical tests.
 """
 
-from pathlib import Path
-from unittest import TestCase, skipIf
+from unittest import TestCase
 
+from conftest import TIMESTEPS_PER_DAY, run_simulation
 import numpy as np
-import pandas as pd
 import pytest
-
-import supy as sp
-from conftest import TIMESTEPS_PER_DAY
 
 pytestmark = [pytest.mark.physics, pytest.mark.core]
 
@@ -39,9 +35,8 @@ class TestPhysicalValidation(TestCase):
     def _sample_fixtures(cls, request, sample_data_loaded, sample_run_cached):
         """Bridge session-scoped sample fixtures onto this unittest.TestCase.
 
-        Runs the shared weekly window once via the cached functional-API
-        factory (``sample_run_cached``, see conftest.py) instead of calling
-        ``run_supy`` directly in ``setUpClass``.
+        Runs the shared weekly window once via ``sample_run_cached`` instead
+        of constructing another simulation in ``setUpClass``.
 
         ``@classmethod``: a class-scoped fixture runs once per class, not
         once per test instance, so it must set attributes on ``cls`` rather
@@ -424,7 +419,7 @@ class TestNumericalStability(TestCase):
         """Bridge the shared sample-data load onto this unittest.TestCase.
 
         These tests mutate forcing (zero/extreme conditions) and must run
-        their own ``run_supy`` call per scenario, so only the read-only
+        their own simulation per scenario, so only the read-only
         ``(df_state_init, df_forcing)`` load is shared via
         ``sample_data_loaded`` - not the cached run factory (see conftest.py).
         """
@@ -462,7 +457,7 @@ class TestNumericalStability(TestCase):
             elif col_lower == "tair":
                 df_zero[col] = 15  # Reasonable temperature
             elif col_lower == "pres":
-                df_zero[col] = 101.3  # Standard pressure [kPa]
+                df_zero[col] = 1013  # Standard pressure [hPa]
             elif col_lower == "rain":
                 df_zero[col] = 0
             elif col_lower == "u":
@@ -470,7 +465,7 @@ class TestNumericalStability(TestCase):
 
         # Model should run without crashing
         try:
-            df_output, df_state = sp.run_supy(df_zero, df_state_init.copy())
+            df_output, df_state = run_simulation(df_zero, df_state_init.copy())
             success = True
         except Exception as e:
             success = False
@@ -526,7 +521,7 @@ class TestNumericalStability(TestCase):
         df_hot["RH"] = 20  # Low humidity
 
         try:
-            df_out_hot, _ = sp.run_supy(df_hot, df_state_init.copy())
+            df_out_hot, _ = run_simulation(df_hot, df_state_init.copy())
             hot_success = True
         except:
             hot_success = False
@@ -539,7 +534,7 @@ class TestNumericalStability(TestCase):
         df_cold["RH"] = 80  # High humidity
 
         try:
-            df_out_cold, _ = sp.run_supy(df_cold, df_state_init.copy())
+            df_out_cold, _ = run_simulation(df_cold, df_state_init.copy())
             cold_success = True
         except:
             cold_success = False

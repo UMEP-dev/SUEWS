@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from conftest import TIMESTEPS_PER_DAY
+from conftest import TIMESTEPS_PER_DAY, load_sample_frames
 import pandas as pd
 import pytest
 
@@ -11,7 +11,6 @@ try:
 except ImportError:
     from importlib_resources import files
 
-import supy as sp
 import supy._run_rust as run_rust_module
 from supy.suews_checkpoint import SUEWSCheckpoint
 import supy.suews_sim as suews_sim_module
@@ -51,17 +50,15 @@ class TestInit:
         assert sim._df_forcing.shape[0] == 105408  # Expected timesteps
         assert sim._df_forcing.shape[1] > 20  # Expected forcing variables
 
-    def test_from_sample_data_matches_load_sample_data(self):
-        """Test that from_sample_data() produces equivalent data to load_sample_data()."""
-        # Factory method approach
+    def test_from_sample_data_matches_sample_yaml(self):
+        """Test that the factory loads the canonical sample YAML data."""
         sim = SUEWSSimulation.from_sample_data()
-
-        # Functional approach
-        df_state, df_forcing = sp.load_sample_data()
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        direct = SUEWSSimulation(str(yaml_path))
 
         # Should have same shapes
-        assert sim._df_state_init.shape == df_state.shape
-        assert sim._df_forcing.shape == df_forcing.shape
+        assert sim._df_state_init.shape == direct._df_state_init.shape
+        assert sim._df_forcing.shape == direct._df_forcing.shape
 
     @pytest.mark.core
     def test_from_sample_data_can_run(self):
@@ -664,7 +661,7 @@ class TestForcing:
 
     def test_dataframe_forcing(self):
         """Test loading forcing from DataFrame."""
-        _, df_forcing = sp.load_SampleData()
+        _, df_forcing = load_sample_frames()
         sim = SUEWSSimulation()
         sim.update_forcing(df_forcing.iloc[:24])  # 2 hours only
         assert len(sim.forcing) == 24
@@ -968,7 +965,7 @@ class TestRun:
 
     def test_basic_run(self):
         """Test basic simulation run."""
-        df_state, df_forcing = sp.load_SampleData()
+        df_state, df_forcing = load_sample_frames()
         sim = SUEWSSimulation()
         sim._df_state_init = df_state
         sim.update_forcing(df_forcing.iloc[:24])  # 2 hours
@@ -981,7 +978,7 @@ class TestRun:
     def test_run_without_forcing(self):
         """Test run fails without forcing."""
         sim = SUEWSSimulation()
-        sim._df_state_init, _ = sp.load_SampleData()
+        sim._df_state_init, _ = load_sample_frames()
 
         with pytest.raises(RuntimeError, match="No forcing"):
             sim.run()
@@ -1075,7 +1072,7 @@ class TestReset:
     def test_reset_clears_results(self):
         """Test reset clears results."""
         # Run simulation
-        df_state, df_forcing = sp.load_SampleData()
+        df_state, df_forcing = load_sample_frames()
         sim = SUEWSSimulation()
         sim._df_state_init = df_state
         sim.update_forcing(df_forcing.iloc[:24])
@@ -1102,7 +1099,7 @@ class TestIntegration:
         sim = SUEWSSimulation(str(yaml_path))
 
         # Override with short forcing
-        _, df_forcing = sp.load_SampleData()
+        _, df_forcing = load_sample_frames()
         sim.update_forcing(df_forcing.iloc[:48])  # 4 hours
 
         # Run and save
@@ -1173,7 +1170,7 @@ class TestMethodChaining:
     def test_update_forcing_returns_self(self):
         """Test update_forcing enables chaining."""
         sim = SUEWSSimulation()
-        _, df_forcing = sp.load_sample_data()
+        _, df_forcing = load_sample_frames()
         result = sim.update_forcing(df_forcing.iloc[:24])
         assert result is sim
 
@@ -1188,7 +1185,7 @@ class TestMethodChaining:
     def test_fluent_interface(self):
         """Test complete fluent workflow."""
         yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
-        _, df_forcing = sp.load_sample_data()
+        _, df_forcing = load_sample_frames()
 
         sim = (
             SUEWSSimulation()
@@ -1422,7 +1419,6 @@ class TestContinuationRuns:
 
     def test_from_state_version_warning(self, tmp_path):
         """Test version compatibility warning."""
-        import pandas as pd
 
         # Create a state file with different version
         sim1 = SUEWSSimulation.from_sample_data()

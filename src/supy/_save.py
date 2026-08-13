@@ -7,7 +7,7 @@ import pandas as pd
 # import ray
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
-from ._post import df_var as df_var_out, resample_output
+from ._post import _resample_output, df_var as df_var_out
 
 
 def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
@@ -266,7 +266,7 @@ def save_df_output(
 
     # resample `df_output` at `freq_save` (excluding DailyState)
     if len(df_save_no_daily.columns) > 0:
-        df_rsmp = resample_output(df_save_no_daily, freq_save, _internal=True)
+        df_rsmp = _resample_output(df_save_no_daily, freq_save)
     else:
         df_rsmp = None
 
@@ -651,7 +651,7 @@ def save_df_output_parquet(
 
     if not save_tstep:
         # Resample output
-        df_rsmp = resample_output(df_save, freq_save, _internal=True)
+        df_rsmp = _resample_output(df_save, freq_save)
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution
@@ -691,9 +691,7 @@ def save_df_output_parquet(
 
     if save_state:
         filename_state = (
-            f"{site}_SUEWS_state_final.parquet"
-            if site
-            else "SUEWS_state_final.parquet"
+            f"{site}_SUEWS_state_final.parquet" if site else "SUEWS_state_final.parquet"
         )
         path_state = path_dir_save / filename_state
         df_state_final.to_parquet(

@@ -33,18 +33,6 @@ def old_function(..., _internal=False):
 
 ## Key Patterns
 
-### Internal vs External Calls
-
-Use `_internal=True` parameter to suppress warnings for internal calls:
-
-```python
-# External call (user code) - warns
-result = sp.resample_output(df, freq="h")
-
-# Internal call (within supy) - silent
-result = resample_output(df, freq="h", _internal=True)
-```
-
 ### Docstring Format
 
 Include deprecation notice at the top of docstring:
@@ -96,16 +84,10 @@ Where `{replacement}` comes from `_FUNCTIONAL_DEPRECATIONS[name]`.
 
 ## Currently Deprecated Functions
 
-Functions using this mechanism (as of 2026.2):
-
-- `init_supy` -> `SUEWSSimulation`
-- `load_forcing_grid` -> `SUEWSSimulation.update_forcing`
-- `load_sample_data` -> `SUEWSSimulation.from_sample_data()`
-- `run_supy` -> `SUEWSSimulation.run`
-- `run_supy_sample` -> `SUEWSSimulation` sample workflows
-- `save_supy` -> `SUEWSSimulation.save`
-- `init_config` -> `SUEWSSimulation` or `SUEWSConfig`
-- `resample_output` -> `SUEWSOutput.resample`
+Only ``load_forcing_grid`` remains, as a narrow YAML forwarding shim for the
+UMEP processor. The rest of the former procedural simulation API was removed
+in the phase-3 closeout. Do not add compatibility names without a concrete
+supported external workflow.
 
 ---
 
@@ -120,7 +102,4 @@ with warnings.catch_warnings(record=True) as w:
     result = sp.old_function(...)
     assert any("deprecated" in str(x.message) for x in w)
 
-# Test that warning is NOT raised for internal calls
-warnings.filterwarnings("error", message=".*old_function.*")
-result = old_function(..., _internal=True)  # Should not raise
 ```

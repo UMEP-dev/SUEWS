@@ -26,6 +26,26 @@ except ImportError:
     sys.path.insert(0, str(SRC_PATH))
     from supy.data_model.doc_utils import ModelDocExtractor
 
+try:
+    from supy.data_model.validation.required_fields import required_when
+except ImportError:
+    # The installed supy predates the conditionally-required field registry.
+    # Degrade to the wording used for parameters whose requirement nothing
+    # records, rather than aborting the whole docs build, but say so plainly:
+    # silently shipping pages that omit the conditions is the failure mode this
+    # registry exists to end.
+    print(
+        "WARNING: the installed supy has no conditionally-required field "
+        "registry, so requirement conditions will be omitted from the "
+        "generated configuration reference. Rebuild supy from this checkout "
+        "(make dev) to include them.",
+        file=sys.stderr,
+    )
+
+    def required_when(model_name: str, field_name: str) -> str:
+        """Fall back to recording no condition."""
+        return ""
+
 
 # Shown for any parameter that carries no default value. Such parameters are
 # typically declared Optional so that a partial configuration still loads and
@@ -634,7 +654,7 @@ class RSTGenerator:
         lines.extend(self._format_unit_and_legacy_name(field_doc))
 
         # Add default/sample value
-        default_label, default_value = self._format_default(field_doc)
+        default_label, default_value = self._format_default(field_doc, model_name)
         if default_label is not None and default_value is not None:
             lines.append(f"   :{default_label}: {default_value}")
 
@@ -824,24 +844,32 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:
+    def _format_default(
+        field_doc: dict[str, Any], model_name: str = ""
+    ) -> tuple[str, str]:
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
         - Required fields: ("Status", "Required")
+        - Conditionally required fields: ("Status", "Required when ...")
         - Fields with defaults: ("Default", "value")
-        - Fields with no default: (NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE)
+        - Fields with no default and no known condition:
+          (NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE)
         - Nested models: (None, None) to skip display
 
         A ``Default`` label therefore always introduces a real default value.
-        Absence of a value is reported under ``Status``, alongside the
-        unconditionally required case.
+        ``Status`` carries what the validator demands, conditionally or not,
+        and the configuration note carries advice for the parameters whose
+        requirement no validator records.
 
         Site-specific defaults remain defaults. Literature-backed examples are
         rendered separately from the parameter-example catalogue.
 
         Args:
             field_doc: Field documentation dictionary with is_site_specific flag
+            model_name: Name of the model declaring the field, used to look up
+                a conditional requirement. Omitted for callers that have no
+                model context, which simply skips that lookup.
         """
         nested_model = field_doc.get("nested_model")
 
@@ -856,13 +884,18 @@ class RSTGenerator:
         if str(default) == "PydanticUndefined":
             return "Status", "Required"
 
-        # No default value to report. Most such parameters are declared
-        # Optional purely so a partial configuration still loads and the
-        # validation layer can then report what is missing; whether a value
-        # must be supplied depends on which physics options and surface types
-        # are active. State the absence of a default without claiming that the
-        # parameter itself is optional.
         if default is None:
+            # The validation layer may record the exact condition under which
+            # this parameter must be supplied. Prefer it: it tells the reader
+            # something specific rather than leaving them to guess.
+            condition = required_when(model_name, field_doc.get("name", ""))
+            if condition:
+                return "Status", f"Required when {condition}"
+
+            # Otherwise say only what is certain. Most such parameters are
+            # declared Optional purely so a partial configuration still loads
+            # and the validation layer can then report what is missing, which
+            # is not the same as the parameter being optional to the science.
             return NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE
 
         # We have a non-None default value - format it

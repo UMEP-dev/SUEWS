@@ -1,5 +1,6 @@
 import os
 
+from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pandas as pd
 import pytest
@@ -287,10 +288,9 @@ class TestObservedSoilMoistureIntegration:
         vegetation, so the soil moisture effect on QE is small but measurable.
         We increase vegetation fraction to better demonstrate the physics.
         """
-        import supy as sp
 
         # Load sample data
-        df_state, df_forcing = sp.load_sample_data()
+        df_state, df_forcing = load_sample_frames()
 
         # Increase vegetation fraction (original KCL site is ~5% veg) to amplify
         # the soil moisture effect on QE. Soil moisture stress only affects
@@ -315,9 +315,7 @@ class TestObservedSoilMoistureIntegration:
         df_state_baseline = df_state.copy()
         df_state_baseline[("smdmethod", "0")] = 0
 
-        df_output_baseline, _ = sp.run_supy(
-            df_forcing_period, df_state_baseline, save_state=False
-        )
+        df_output_baseline, _ = run_simulation(df_forcing_period, df_state_baseline)
 
         # === Run 2: Observed soil moisture with DRY conditions ===
         # Set up SMDMethod=1 (volumetric) with soil observation metadata
@@ -333,7 +331,7 @@ class TestObservedSoilMoistureIntegration:
         df_forcing_dry = df_forcing_period.copy()
         df_forcing_dry["xsmd"] = 0.05  # Very dry soil
 
-        df_output_dry, _ = sp.run_supy(df_forcing_dry, df_state_dry, save_state=False)
+        df_output_dry, _ = run_simulation(df_forcing_dry, df_state_dry)
 
         # === Run 3: Observed soil moisture with WET conditions ===
         df_state_wet = df_state_dry.copy()  # Same config
@@ -342,7 +340,7 @@ class TestObservedSoilMoistureIntegration:
             0.38  # Near saturation; deficit = (0.4-0.38)*200*0.9 = 3.6mm
         )
 
-        df_output_wet, _ = sp.run_supy(df_forcing_wet, df_state_wet, save_state=False)
+        df_output_wet, _ = run_simulation(df_forcing_wet, df_state_wet)
 
         # === Assertions ===
         # Extract daytime QE (when evaporation is active, Kdown > 100 W/m²)
@@ -391,9 +389,8 @@ class TestObservedSoilMoistureIntegration:
     @pytest.mark.slow
     def test_smdmethod_config_propagates_to_kernel(self):
         """Verify that SMDMethod setting propagates correctly through the pipeline."""
-        import supy as sp
 
-        df_state, df_forcing = sp.load_sample_data()
+        df_state, df_forcing = load_sample_frames()
 
         # Short run for speed
         df_forcing_short = df_forcing.iloc[:48].copy()  # 4 hours at 5-min resolution
@@ -410,9 +407,7 @@ class TestObservedSoilMoistureIntegration:
         df_forcing_short["xsmd"] = 0.20
 
         # This should run without errors - proving the config propagates correctly
-        df_output, df_state_final = sp.run_supy(
-            df_forcing_short, df_state_obs, save_state=True
-        )
+        df_output, df_state_final = run_simulation(df_forcing_short, df_state_obs)
 
         # Verify output is generated
         assert df_output is not None
@@ -422,14 +417,13 @@ class TestObservedSoilMoistureIntegration:
         # The conversion should have happened: deficit = (0.35-0.20)*150*0.85 = 19.125mm
         # We can't easily check the internal xsmd, but we verified the run succeeded
 
-    def test_run_supy_reads_renamed_smd_method(self, monkeypatch):
+    def test_simulation_reads_renamed_smd_method(self, monkeypatch):
         """Observed-soil-moisture preprocessing should still run after the rename."""
         import supy as sp
-        import supy._run_rust as rust_module
-        import supy._supy_module as supy_module
+        import supy.suews_sim as simulation_module
         import supy.util._forcing as forcing_module
 
-        df_state, df_forcing = sp.load_sample_data()
+        df_state, df_forcing = load_sample_frames()
         df_state_obs = df_state.copy()
         df_state_obs[("smdmethod", "0")] = 1
         df_state_obs[("obs_sm_depth", "0")] = 150.0
@@ -445,10 +439,8 @@ class TestObservedSoilMoistureIntegration:
             called["convert"] = True
             return df_forcing_in
 
-        def fake_run_suews_rust_chunked(
-            config, df_forcing_in, chunk_day, serial_mode=False
-        ):
-            return pd.DataFrame(index=df_forcing_in.index), None
+        def fake_run_suews_rust_chunked(config, df_forcing, *args, **kwargs):
+            return pd.DataFrame(index=df_forcing.index), {}
 
         monkeypatch.setattr(
             forcing_module,
@@ -456,16 +448,13 @@ class TestObservedSoilMoistureIntegration:
             fake_convert,
         )
         monkeypatch.setattr(
-            rust_module,
+            simulation_module,
             "run_suews_rust_chunked",
             fake_run_suews_rust_chunked,
         )
 
-        supy_module._run_supy(
-            df_forcing=df_forcing_short,
-            df_state_init=df_state_obs,
-            save_state=False,
-            serial_mode=True,
-        )
+        simulation = sp.SUEWSSimulation.from_state(df_state_obs)
+        simulation.update_forcing(df_forcing_short)
+        simulation.run(n_jobs=1)
 
         assert called["convert"] is True

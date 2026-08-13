@@ -68,5 +68,5 @@ This lens is also wired into the `audit-pr` checklist
 Distilled from the review of gh#1599, where a "skip resample when the output frequency
 matches the model timestep" optimisation was added at one save-time call site. The
 output was verified byte-identical to the previous path, but the guard belonged inside
-`resample_output` (five callers, one patched) and re-derived the native frequency by
-hand instead of reading the timestep the data already carried.
+the shared resampling engine (five callers, one patched) and re-derived the native
+frequency by hand instead of reading the timestep the data already carried.

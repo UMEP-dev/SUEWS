@@ -5,41 +5,45 @@ This module tests all data loading and initialization functions in supy,
 including state initialization, forcing data loading, and configuration loading.
 """
 
+from importlib.resources import as_file
 from pathlib import Path
 import tempfile
 from unittest import TestCase
 
+from conftest import TIMESTEPS_PER_DAY, load_sample_frames, run_simulation
 import pandas as pd
 import pytest
 import yaml
 
 import supy as sp
-from conftest import TIMESTEPS_PER_DAY
+from supy._env import trv_supy_module
+from supy.data_model import SUEWSConfig
 from supy.util.converter import convert_table, detect_table_version
 
 pytestmark = pytest.mark.api
 
 
-class TestInitSuPy(TestCase):
-    """Test init_supy functionality."""
+class TestSimulationLoading(TestCase):
+    """Test object-oriented configuration loading."""
 
     def setUp(self):
         """Set up test environment."""
         # Get the sample config path
-        self.sample_config = (
-            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-        )
+        # The directory, not just the config: the config names its forcing
+        # file as a bare sibling, so a file-only as_file() would not carry it.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
         self.benchmark_config = (
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
 
     @pytest.mark.core
-    def test_init_supy_sample_config(self):
+    def test_sample_config(self):
         """Test initializing with sample configuration."""
         print("\n========================================")
-        print("Testing init_supy with sample config...")
+        print("Testing SUEWSSimulation with sample config...")
 
-        df_state = sp.init_supy(self.sample_config)
+        df_state = sp.SUEWSSimulation(self.sample_config).state_init
 
         # Basic validation
         self.assertIsInstance(df_state, pd.DataFrame)
@@ -52,15 +56,15 @@ class TestInitSuPy(TestCase):
 
         print(f"✓ Loaded state with {len(df_state.columns)} columns")
 
-    def test_init_supy_benchmark_config(self):
+    def test_benchmark_config(self):
         """Test initializing with benchmark configuration if available."""
         print("\n========================================")
-        print("Testing init_supy with benchmark config...")
+        print("Testing SUEWSSimulation with benchmark config...")
 
         if not self.benchmark_config.exists():
             self.skipTest("Benchmark config not available")
 
-        df_state = sp.init_supy(self.benchmark_config)
+        df_state = sp.SUEWSSimulation(self.benchmark_config).state_init
 
         # Validation
         self.assertIsInstance(df_state, pd.DataFrame)
@@ -69,30 +73,13 @@ class TestInitSuPy(TestCase):
 
         print(f"✓ Loaded benchmark state with {len(df_state.columns)} columns")
 
-    def test_init_supy_force_reload(self):
-        """Test force_reload parameter."""
-        print("\n========================================")
-        print("Testing init_supy force_reload...")
-
-        # First load
-        df_state1 = sp.init_supy(self.sample_config, force_reload=False)
-
-        # Second load with force_reload=True
-        df_state2 = sp.init_supy(self.sample_config, force_reload=True)
-
-        # Should be equivalent but different objects
-        pd.testing.assert_frame_equal(df_state1, df_state2)
-        self.assertIsNot(df_state1, df_state2)
-
-        print("✓ Force reload working correctly")
-
-    def test_init_supy_invalid_path(self):
+    def test_invalid_path(self):
         """Test error handling for invalid path."""
         print("\n========================================")
-        print("Testing init_supy error handling...")
+        print("Testing SUEWSSimulation error handling...")
 
         with self.assertRaises((FileNotFoundError, ValueError, RuntimeError)):
-            sp.init_supy("nonexistent.yml")
+            sp.SUEWSSimulation("nonexistent.yml")
 
         print("✓ Error handling works correctly")
 
@@ -102,26 +89,20 @@ class TestLoadForcing(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        self.sample_config = (
-            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-        )
+        # The directory, not just the config: the config names its forcing
+        # file as a bare sibling, so a file-only as_file() would not carry it.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
         self.benchmark_config = (
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
 
-    def test_load_forcing_grid_sample(self):
+    def test_sample_forcing(self):
         """Test loading forcing data for sample configuration."""
         print("\n========================================")
-        print("Testing load_forcing_grid with sample data...")
+        print("Testing sample forcing loading...")
 
-        # Initialize state first
-        df_state = sp.init_supy(self.sample_config)
-        grid_id = df_state.index[0]
-
-        # Load forcing
-        df_forcing = sp.load_forcing_grid(
-            self.sample_config, grid=grid_id, df_state_init=df_state
-        )
+        df_forcing = sp.SUEWSSimulation(self.sample_config).forcing.df
 
         # Validation
         self.assertIsInstance(df_forcing, pd.DataFrame)
@@ -140,10 +121,10 @@ class TestLoadForcing(TestCase):
             f"✓ Loaded forcing with {len(df_forcing)} timesteps and {len(df_forcing.columns)} columns"
         )
 
-    def test_load_forcing_grid_benchmark(self):
+    def test_benchmark_forcing(self):
         """Test loading forcing data for benchmark configuration."""
         print("\n========================================")
-        print("Testing load_forcing_grid with benchmark data...")
+        print("Testing benchmark forcing loading...")
 
         # Use short benchmark config for faster testing
         benchmark_short = (
@@ -159,14 +140,7 @@ class TestLoadForcing(TestCase):
         if not benchmark_short.exists():
             self.skipTest("Benchmark config not available")
 
-        # Initialize state first
-        df_state = sp.init_supy(benchmark_short)
-        grid_id = df_state.index[0]
-
-        # Load forcing
-        df_forcing = sp.load_forcing_grid(
-            benchmark_short, grid=grid_id, df_state_init=df_state
-        )
+        df_forcing = sp.SUEWSSimulation(benchmark_short).forcing.df
 
         # Validation
         self.assertIsInstance(df_forcing, pd.DataFrame)
@@ -181,12 +155,12 @@ class TestLoadForcing(TestCase):
 
         print(f"✓ Loaded benchmark forcing with {len(df_forcing)} timesteps")
 
-    def test_load_sample_data(self):
-        """Test load_SampleData convenience function."""
+    def test_sample_data_factory(self):
+        """Test the object-oriented sample-data factory."""
         print("\n========================================")
-        print("Testing load_SampleData...")
+        print("Testing sample-data factory...")
 
-        df_state, df_forcing = sp.load_SampleData()
+        df_state, df_forcing = load_sample_frames()
 
         # Validate state
         self.assertIsInstance(df_state, pd.DataFrame)
@@ -208,9 +182,10 @@ class TestConfigLoading(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        self.sample_config = (
-            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-        )
+        # The object-oriented state conversion below constructs a simulation,
+        # which auto-loads the forcing file named as a sibling of the config.
+        sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
+        self.sample_config = sample_dir / "sample_config.yml"
 
     def test_init_config_from_yaml(self):
         """Test loading configuration from YAML."""
@@ -238,17 +213,14 @@ class TestConfigLoading(TestCase):
 
         print("✓ YAML config loading works correctly")
 
-    def test_load_config_from_df(self):
+    def test_config_from_df_state(self):
         """Test loading configuration from DataFrame."""
         print("\n========================================")
-        print("Testing load_config_from_df...")
+        print("Testing SUEWSConfig.from_df_state...")
 
         # Get state DataFrame
-        df_state = sp.init_supy(self.sample_config)
-
-        # Try to load config from DataFrame
-        with self.assertWarns(FutureWarning):
-            config = sp.load_config_from_df(df_state)
+        df_state = sp.SUEWSSimulation(self.sample_config).state_init
+        config = SUEWSConfig.from_df_state(df_state)
 
         self.assertIsNotNone(config)
         self.assertTrue(hasattr(config, "model"))
@@ -265,13 +237,12 @@ class TestLoadingScenarios(TestCase):
         print("Testing load-modify-reload cycle...")
 
         # Load sample data
-        df_state, df_forcing = sp.load_SampleData()
+        df_state, df_forcing = load_sample_frames()
 
         # Run simulation with modified state
-        df_output, df_state_final = sp.run_supy(
+        df_output, df_state_final = run_simulation(
             df_forcing.iloc[:TIMESTEPS_PER_DAY],  # One day
             df_state,
-            check_input=False,
         )
 
         # Validate results
@@ -287,7 +258,7 @@ class TestLoadingScenarios(TestCase):
         print("Testing multi-grid initialization...")
 
         # Load single grid
-        df_state_single, _ = sp.load_SampleData()
+        df_state_single, _ = load_sample_frames()
 
         # Create multi-grid state
         n_grids = 3
@@ -309,18 +280,17 @@ class TestErrorHandling(TestCase):
         print("\n========================================")
         print("Testing error handling for invalid paths...")
 
-        # Test init_supy
         with self.assertRaises((FileNotFoundError, ValueError, RuntimeError)):
-            sp.init_supy("nonexistent.yml")
+            sp.SUEWSSimulation("nonexistent.yml")
 
-        # Test load_forcing_grid
+        # Test forcing loading
         with self.assertRaises((
             FileNotFoundError,
             ValueError,
             RuntimeError,
             AttributeError,
         )):
-            sp.load_forcing_grid("nonexistent.yml", grid=0)
+            sp.SUEWSSimulation("nonexistent.yml")
 
         print("✓ Error handling works correctly")
 
@@ -356,7 +326,8 @@ class TestErrorHandling(TestCase):
 
             # Create minimal RunControl.nml (similar to bug report)
             runcontrol = temp_path / "RunControl.nml"
-            runcontrol.write_text("""
+            runcontrol.write_text(
+                """
 &RunControl
 CBLUse=0
 SnowUse=0
@@ -367,7 +338,9 @@ FileCode='test'
 FileInputPath="./Input/"
 FileOutputPath="./Output/"
 /
-""", encoding="utf-8")
+""",
+                encoding="utf-8",
+            )
 
             # Deliberately do NOT create SPARTACUS.nml
             # This simulates old (pre-2018) runcontrol files
@@ -402,6 +375,7 @@ FileOutputPath="./Output/"
         print("Testing logger with None stdout...")
 
         import sys
+
         from supy._env import get_console_handler  # noqa: PLC0415
 
         # Save original stdout
@@ -527,7 +501,7 @@ FileOutputPath="./Output/"
             bad_yaml.write_text("{{invalid yaml", encoding="utf-8")
 
             with self.assertRaises((ValueError, RuntimeError, yaml.YAMLError)):
-                sp.init_supy(bad_yaml)
+                sp.SUEWSSimulation(bad_yaml)
 
         print("✓ Malformed data handling works correctly")
 

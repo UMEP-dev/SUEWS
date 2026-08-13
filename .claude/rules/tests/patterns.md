@@ -214,7 +214,8 @@ sample_dir = Path(supy.__file__).parent / "sample_data"
 sample_dir = Path(sp.__file__).parent / "sample_data"
 ```
 
-Use the package's own resource handle instead:
+Use `importlib.resources` instead. In SUEWS tests, prefer the package's existing
+resource handle:
 
 ```python
 # RIGHT - what supy itself uses, in src/supy/_env.py
@@ -223,11 +224,14 @@ from supy._env import trv_supy_module
 sample_dir = trv_supy_module / "sample_data"
 ```
 
-`trv_supy_module` is `importlib.resources.files("supy")`. It returns an
-object satisfying `Traversable`. It is **not guaranteed** to be a `Path`: a
-filesystem-backed loader may well hand you a real `pathlib.Path`, which is why
-`Path`-only calls appear to work locally, but nothing promises that. Write
-against the protocol rather than against what your install happens to return.
+`trv_supy_module` is the project's shared `importlib.resources.files("supy")`
+handle. Calling `files("supy")` directly is equally resource-safe and is not
+forbidden; reusing the existing handle is simply the in-tree convention. Both
+forms return an object satisfying `Traversable`. It is **not guaranteed** to be
+a `Path`: a filesystem-backed loader may well hand you a real `pathlib.Path`,
+which is why `Path`-only calls appear to work locally, but nothing promises
+that. Write against the protocol rather than against what your install happens
+to return.
 
 The protocol guarantees exactly: `joinpath` (and so `/`), `name`, `is_dir`,
 `is_file`, `iterdir`, `open`, `read_bytes`, `read_text`. Use those:
@@ -241,20 +245,90 @@ with sample_config.open(encoding="utf-8") as f: # NOT builtin open(...)
 text = sample_config.read_text(encoding="utf-8")
 ```
 
-Anything that requires `os.PathLike` — builtin `open()`, `shutil.copy()`,
-subprocess arguments — needs a real filesystem path, which means
-`importlib.resources.as_file()`:
+Anything that requires `os.PathLike` needs a real filesystem path, which means
+`importlib.resources.as_file()`. That covers more than it first appears:
+builtin `open()`, `shutil.copy()`, subprocess arguments, `str(...)` used as a
+path, and **any library function that opens the file itself** — including
+`SUEWSConfig.from_yaml()`, `init_config_from_yaml()`, `sp.init_supy()` and
+`SUEWSSimulation(...)`.
 
 ```python
 from importlib.resources import as_file
 
-with as_file(sample_config) as real_path:
-    shutil.copy(real_path, destination)
+with as_file(sample_config) as path_config:
+    shutil.copy(path_config, destination)
+    config = SUEWSConfig.from_yaml(str(path_config))
 ```
 
-Under an editable install these all appear to work regardless, because the
-Traversable happens to wrap a real path. That is what makes the mistake easy: it
-passes locally and only fails where the abstraction was supposed to help.
+`as_file()` also accepts a **directory** (Python 3.12+, and the project floor
+is 3.12). Reach for that when a test needs both a config and the directory
+holding it: one context gives you both, and it avoids `.parent`, which is the
+obvious reach and is *not* in the protocol.
+
+**Materialise the directory whenever the resource has siblings it depends on.**
+`as_file()` on a single file extracts *only that file* under a non-filesystem
+loader. `sample_config.yml` names its forcing file as a bare sibling
+(`Kc_2012_data_60.txt`), so anything that loads forcing —
+`load_forcing_grid` or `SUEWSSimulation` — needs the directory, not the file.
+`init_supy` only parses the config into initial state, so file materialisation
+is sufficient there:
+
+```python
+with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+    yield path_sample_dir / "sample_config.yml"
+```
+
+This is the one mistake that survives the `__file__` sweep: it is still a
+layout assumption, just a subtler one, and like the rest of them it passes
+locally.
+
+```python
+with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+    env = assess_readiness(
+        str(path_sample_dir / "sample_config.yml"),
+        project_root=str(path_sample_dir),
+    )
+```
+
+### Binding the real path for a test's lifetime
+
+`as_file()` is a context manager, but it does not force you to restructure a
+test around a `with` block.
+
+In a `unittest.TestCase`, `self.enterContext()` (3.11+) binds it for the
+lifetime of the test and unwinds it on cleanup. A parse-only class can
+materialise just the file:
+
+```python
+def setUp(self):
+    self.sample_config = self.enterContext(
+        as_file(trv_supy_module / "sample_data" / "sample_config.yml")
+    )
+```
+
+In pytest, use a yield fixture. If any fixture consumer loads forcing,
+materialise the directory so the sibling file remains available:
+
+```python
+@pytest.fixture(scope="session")
+def sample_yaml_path() -> Iterator[Path]:
+    with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+        yield path_sample_dir / "sample_config.yml"
+```
+
+### Worked examples already in the tree
+
+Two helpers in `test/cmd/test_validate_config.py` are the reference
+implementations. Copy those rather than reinventing:
+
+- `_sample_yaml_path()` — the `as_file` context-manager helper, for handing a
+  real path to Click.
+- `_copy_sample_data()` — copies the whole `sample_data` directory using
+  `iterdir()` / `is_file()` / `read_bytes()` / `write_bytes()`, all protocol
+  methods, so it needs no `as_file()` at all. Note it guards with
+  `.is_file()`, not `.exists()`.
+
+`test/conftest.py::sample_yaml_path` is the yield-fixture shape.
 
 ### Why
 
@@ -270,15 +344,52 @@ passes locally and only fails where the abstraction was supposed to help.
 
 There is no public accessor for the sample-data path. `dir(supy)` exposes nothing
 for it and `trv_supy_module` is private, so a test author who needs the directory
-has no supported route and reaches for the obvious one. As of August 2026 there
-are around two dozen occurrences across roughly ten test modules, each invented
-independently.
+has no supported route and reaches for the obvious one. In August 2026 there were
+23 occurrences across eleven test modules, each invented independently. All 23
+have since been converted, and `scripts/lint/check_packaged_data_paths.py` fails
+CI on a reintroduction.
+
+The second half of the trap is mechanical, and worth stating precisely rather
+than as "the Traversable happens to wrap a real path". Under the editable
+(meson-python) install the two levels differ:
+
+```python
+trv_supy_module / "sample_data"                        # MesonpyTraversable — no .parent
+trv_supy_module / "sample_data" / "sample_config.yml"  # plain pathlib.PosixPath
+```
+
+The loader returns a real `Path` one level down. So `.exists()`, builtin
+`open()`, `shutil.copy()` and `str()`-as-a-path all succeed on the *file*, and a
+full green test run says nothing about whether the code is correct. Under a
+wheel, `files("supy")` returns a real `Path` throughout, so that mode passes
+too. Both of supy's real install modes hide the error.
+
+This means the non-filesystem branch cannot be exercised for supy at all —
+compiled extensions cannot zip-import. Verify a conversion by reading the
+protocol, not by running the suite. Green tests are necessary, never sufficient.
 
 Until a public accessor exists, importing `trv_supy_module` from `supy._env` is
-the correct thing for a test to do: a test importing a private helper is normal,
-and matching the package's own convention is what stops the two drifting apart.
-If you are adding a new test that needs packaged data, use it rather than adding
-a twenty-fifth variant.
+the project convention: a test importing a private helper is normal, and
+matching the package's own convention stops the two drifting apart. Direct
+`files("supy")` use remains valid and the lint does not forbid it. If you are
+adding a new test that needs packaged data, use one of these resource forms
+rather than inventing a `__file__` reach.
+
+### What is and is not mechanically enforced
+
+`scripts/lint/check_packaged_data_paths.py` fails CI on any imported-module
+`<module>.__file__` access under `test/`. This is deliberately a syntax-wide
+test policy: the lint does not try to infer whether a particular reach is for
+packaged data or module provenance. Bare `__file__` stays legal, so
+fixture-relative `Path(__file__).parent` is unaffected. The lint runs as a step
+of the `check_test_markers` job — static AST, no build required.
+
+It does **not** catch Traversable misuse: calling `.exists()`, passing the
+handle to builtin `open()`, or handing `str(...)` to something that opens the
+file. That class is not statically catchable at reasonable cost, and every
+instance of it passes locally. This section is what owns it. Do not read a
+green lint as "the problem is now mechanically prevented" — only the first half
+of it is.
 
 ## Skipping Tests
 

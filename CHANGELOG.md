@@ -56,14 +56,30 @@ EXAMPLES:
 
 ### 12 Aug 2026
 
+- [bugfix] Preserved elapsed model time across chunk and restart boundaries (#1692)
+  - Checkpoint schema version 2 stores `dt_since_start`, `dt_since_start_prev`, the new-day flag, and the model timestep alongside each grid state, making one-day chunks numerically equivalent to an uninterrupted run within a relative and absolute tolerance of `1e-12` across the 24-hour averaging boundary.
+  - State-only version-1 checkpoints are rejected with an actionable compatibility error because their missing elapsed timer cannot be reconstructed reliably.
+
+- [feature][experimental] Added forcing timestamp-reference control (#1590)
+  - `model.control.forcing.timestamp_reference: utc` keeps forcing timestamps, outputs, daily state boundaries and run bounds in UTC while solar calculations and local diurnal profiles use the site's fixed-offset local standard time.
+  - Omitting the option, or selecting `local_standard_time`, preserves the historical local-standard-time interval-end behaviour.
+
 - [bugfix] Restored chunk checkpoints containing non-finite state sentinels (#1691)
   - Checkpoint generation now preserves `NaN` using the existing JSON `null` representation and rejects infinities with their exact state member and array index.
   - State-aware continuation restores `null` as `NaN`, so existing checkpoints no longer fail with only `invalid state payload`; other invalid JSON values report their exact path and type.
+
+- [maintenance] Guarded tests against locating bundled package data through imported modules' `__file__` (#1697)
+  - Reached SuPy's packaged sample data through `importlib.resources`, materialising the whole directory where the YAML config depends on its sibling forcing file.
+  - Added an AST-based CI lint, regression coverage, and test guidance to prevent the fragile path pattern from returning.
 
 - [bugfix] Stopped the YAML config reference describing parameters without a default as optional (#1677)
   - Every parameter carrying no default previously rendered as `Default: None (optional)`, which asserted the opposite of the truth for parameters such as `store_cap` and `base_temperature_senescence`; these are declared `Optional[...] = None` only so a partial configuration still loads and the validation layer can then report what is missing.
   - Such parameters now render under a `Configuration Note` label stating that no default exists and that a value may be required depending on which physics options and surface types are active. A `Default` label therefore always introduces a real default value, and `Status` stays reserved for the short state token `Required`.
   - Added regression coverage over the rendered pages, which is the only available gate because the generated config reference is not tracked in git.
+
+- [change][stable] Retired the procedural Python API in favour of `SUEWSSimulation`, `SUEWSConfig`, and `SUEWSOutput` (#1370)
+  - Removed `init_supy`, sample/config loaders, `run_supy` helpers, `save_supy`, and the top-level output-resampling function.
+  - Retained `load_forcing_grid` only as a warning-emitting forwarding shim for the UMEP YAML single-grid workflow; `check_forcing` and `check_state` remain supported utilities.
 
 ### 22 Jul 2026
 

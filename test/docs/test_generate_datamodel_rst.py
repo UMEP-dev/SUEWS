@@ -261,6 +261,45 @@ def test_field_without_default_is_not_described_as_optional() -> None:
     assert label != "Status"
 
 
+def test_conditionally_required_field_reports_its_condition(monkeypatch) -> None:
+    """A recorded condition is preferred over the generic note.
+
+    The lookup is injected rather than relied upon, so this holds whether or
+    not the installed supy carries the registry.
+    """
+    # ARRANGE
+    module = _load_generator_module()
+    monkeypatch.setattr(
+        module,
+        "required_when",
+        lambda model, field: "buildings are present" if field == "bldgh" else "",
+    )
+
+    # ACT
+    label, value = module.RSTGenerator._format_default(
+        {"name": "bldgh", "default": None}, "BldgsProperties"
+    )
+
+    # ASSERT
+    assert (label, value) == ("Status", "Required when buildings are present")
+
+
+def test_field_without_recorded_condition_keeps_the_note(monkeypatch) -> None:
+    """Where nothing records a condition, no requirement may be claimed."""
+    # ARRANGE
+    module = _load_generator_module()
+    monkeypatch.setattr(module, "required_when", lambda model, field: "")
+
+    # ACT
+    label, value = module.RSTGenerator._format_default(
+        {"name": "store_cap", "default": None}, "StorageDrainParams"
+    )
+
+    # ASSERT
+    assert (label, value) == (module.NO_DEFAULT_NOTE_LABEL, module.NO_DEFAULT_NOTE)
+    assert "required" not in value.lower().split("may be required")[0]
+
+
 def test_required_field_still_reports_required() -> None:
     """The unconditionally required rendering must be left intact."""
     # ARRANGE

@@ -23,6 +23,7 @@ mod anthroemis;
 mod atm;
 mod bioco2;
 mod building_archetype_prm;
+mod checkpoint;
 mod codec;
 mod conductance;
 mod config;
@@ -86,6 +87,7 @@ pub use anthroemis::*;
 pub use atm::*;
 pub use bioco2::*;
 pub use building_archetype_prm::*;
+pub use checkpoint::*;
 pub use codec::*;
 pub use conductance::*;
 pub use config::*;
@@ -4096,10 +4098,10 @@ mod python_bindings {
         forcing_block: Vec<f64>,
         len_sim: usize,
     ) -> PyResult<(Vec<f64>, String, usize)> {
-        let (output_block, state, actual_len) =
+        let (output_block, state, timer, actual_len) =
             run_from_config_str_and_forcing(config_yaml, forcing_block, len_sim)
                 .map_err(map_bridge_error)?;
-        let state_json = suews_state_to_checkpoint_json(&state).map_err(map_bridge_error)?;
+        let state_json = suews_checkpoint_to_json(&state, &timer).map_err(map_bridge_error)?;
         Ok((output_block, state_json, actual_len))
     }
 
@@ -4111,14 +4113,14 @@ mod python_bindings {
         len_sim: usize,
         state_json: &str,
     ) -> PyResult<(Vec<f64>, String, usize)> {
-        let (output_block, state, actual_len) = run_from_config_str_and_forcing_with_state(
+        let (output_block, state, timer, actual_len) = run_from_config_str_and_forcing_with_state(
             config_yaml,
             forcing_block,
             len_sim,
             state_json,
         )
         .map_err(map_bridge_error)?;
-        let state_json_out = suews_state_to_checkpoint_json(&state).map_err(map_bridge_error)?;
+        let state_json_out = suews_checkpoint_to_json(&state, &timer).map_err(map_bridge_error)?;
         Ok((output_block, state_json_out, actual_len))
     }
 
@@ -4151,11 +4153,11 @@ mod python_bindings {
                 .map(|(idx, config_json)| {
                     // Each thread gets its own copy of forcing (Fortran mutates it)
                     let forcing_copy = forcing_block.clone();
-                    let (output_block, state, actual_len) =
+                    let (output_block, state, timer, actual_len) =
                         run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
                             .map_err(|e| e.to_string())?;
                     let state_json =
-                        suews_state_to_checkpoint_json(&state).map_err(|e| e.to_string())?;
+                        suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
                     Ok((idx, output_block, state_json, actual_len))
                 })
                 .collect()
@@ -4214,7 +4216,7 @@ mod python_bindings {
                 .map(|(idx, (config_json, state_json_in))| {
                     // Each thread gets its own copy of forcing (Fortran mutates it)
                     let forcing_copy = forcing_block.clone();
-                    let (output_block, state, actual_len) =
+                    let (output_block, state, timer, actual_len) =
                         run_from_config_str_and_forcing_with_state(
                             config_json,
                             forcing_copy,
@@ -4223,7 +4225,7 @@ mod python_bindings {
                         )
                         .map_err(|e| e.to_string())?;
                     let state_json =
-                        suews_state_to_checkpoint_json(&state).map_err(|e| e.to_string())?;
+                        suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
                     Ok((idx, output_block, state_json, actual_len))
                 })
                 .collect()

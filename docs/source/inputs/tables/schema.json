@@ -3910,10 +3910,32 @@
           "default": "forcing.txt",
           "description": "Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt']). When multiple files are provided, they are concatenated in chronological order. For details, see :ref:`met_input`.",
           "title": "File"
+        },
+        "timestamp_reference": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_ForcingTimestampReference_"
+            },
+            {
+              "$ref": "#/$defs/ForcingTimestampReference"
+            }
+          ],
+          "default": "local_standard_time",
+          "description": "Clock used by the forcing timestamps. 'local_standard_time' preserves the historical fixed-offset, interval-end convention. With 'utc', forcing timestamps, output timestamps and daily state boundaries remain in UTC, while solar calculations and local diurnal profiles use the site's derived fixed-offset standard time. Daylight-saving civil time is not supported.",
+          "title": "Timestamp Reference"
         }
       },
       "title": "Forcing Control",
       "type": "object"
+    },
+    "ForcingTimestampReference": {
+      "description": "Supported forcing timestamp references.",
+      "enum": [
+        "local_standard_time",
+        "utc"
+      ],
+      "title": "ForcingTimestampReference",
+      "type": "string"
     },
     "GSModel": {
       "description": "Stomatal conductance parameterisation method for vegetation surfaces.\n\n1: JARVI - Original parameterisation (J\u00e4rvi et al. 2011) based on environmental controls\n2: WARD - Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses",
@@ -8077,6 +8099,37 @@
         "value"
       ],
       "title": "RefValue[FAIMethod]",
+      "type": "object"
+    },
+    "RefValue_ForcingTimestampReference_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForcingTimestampReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[ForcingTimestampReference]",
       "type": "object"
     },
     "RefValue_GSModel_": {

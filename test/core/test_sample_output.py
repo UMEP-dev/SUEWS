@@ -30,14 +30,13 @@ import sys
 import tempfile
 from unittest import TestCase
 
+from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pandas as pd
 import pytest
 import yaml
 
 import supy as sp
-
-from conftest import TIMESTEPS_PER_DAY
 
 pytestmark = pytest.mark.physics
 
@@ -48,6 +47,7 @@ test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 # convention in fixtures/data_test/sample_output_io.py.
 sys.path.insert(0, str(test_data_dir))
 from sample_output_io import load_sample_output  # noqa: E402
+
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
 # Default the smoke path to one model day. Set SUEWS_FAIL_FAST_STEPS to a larger
 # value, or to 0 for the whole window, when an exhaustive local comparison is
@@ -802,14 +802,10 @@ class TestSTEBBSOutput(TestCase):
 
         print(f"\nLoading STEBBS test configuration from: {config_path}")
 
-        # Initialize and run simulation
+        # Initialise and run simulation
         print("Initializing SUEWS with STEBBS...")
-        df_state_init = sp.init_supy(str(config_path))
-
-        print("Loading forcing data...")
-        df_forcing_full = sp.load_forcing_grid(
-            str(config_path), df_state_init.index[0], df_state_init=df_state_init
-        )
+        simulation = sp.SUEWSSimulation(config_path)
+        df_forcing_full = simulation.forcing.df
 
         # Subset forcing data to match config period (2017-08-26 to 2017-08-27).
         # Run day 1 as spin-up and validate only the first N timesteps of day 2
@@ -824,14 +820,21 @@ class TestSTEBBSOutput(TestCase):
         validation_steps = _resolve_fail_fast_steps(max_validation_steps)
         if validation_steps == max_validation_steps:
             print(f"[INFO] Validating all {validation_steps} available steps.")
-        df_forcing = df_forcing_window.iloc[: TIMESTEPS_PER_DAY + validation_steps]
+        df_forcing = df_forcing_window.iloc[
+            : TIMESTEPS_PER_DAY + validation_steps
+        ].copy()
+        # The supported OOP path validates forcing before execution. The STEBBS
+        # fixture uses -999 as a dry-period sentinel, so normalise it to zero.
+        df_forcing["rain"] = df_forcing["rain"].clip(lower=0)
 
         print(
             "Running STEBBS simulation "
             f"({len(df_forcing)} timesteps: day-1 spin-up + "
             f"{validation_steps} validation steps)..."
         )
-        df_output, df_state = sp.run_supy(df_forcing, df_state_init)
+        simulation.update_forcing(df_forcing)
+        output = simulation.run()
+        df_output = output.df
 
         # Load reference output
         print("Loading reference output...")

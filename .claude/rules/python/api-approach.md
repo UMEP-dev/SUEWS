@@ -72,24 +72,6 @@ df_output = sim.results  # Triggers deprecation warning
 
 ---
 
-## Legacy Approach (Deprecated)
-
-The DataFrame-centric approach using `init_supy()`, `run_supy()`, `save_supy()` directly:
-
-```python
-# DEPRECATED - avoid in new code
-df_state_init, df_forcing = sp.load_forcing_grid(path)
-df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
-sp.save_supy(df_output, df_state_final, path_output)
-```
-
-**When legacy is acceptable:**
-- Maintaining existing scripts
-- Backwards compatibility requirements
-- Direct Fortran driver integration
-
----
-
 ## Hybrid Pattern (Scenario Building)
 
 For impact studies and scenario analysis, extracting DataFrames from the simulation object is appropriate:
@@ -136,8 +118,6 @@ Always include a docstring note explaining the API approach used (why DataFrame 
 
 When updating existing code:
 
-- [ ] Replace `sp.load_forcing_grid()` with `SUEWSSimulation.from_sample_data()`
-- [ ] Replace `sp.run_supy()` with `sim.run()`
 - [ ] Replace direct DataFrame access with `sim.state_init`, `sim.forcing`
 - [ ] Use `sim.results` instead of returned tuple unpacking
 - [ ] Add context notes if hybrid approach is required

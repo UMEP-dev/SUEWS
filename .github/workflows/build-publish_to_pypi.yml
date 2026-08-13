@@ -489,12 +489,20 @@ jobs:
         ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
 
-  # Standalone lint: every test file must declare `physics` or `api`
-  # (gh#1300). Uses a static AST-based script so CI can verify marker
-  # coverage without building supy — keeps the check cheap for
-  # test-only PRs. The runtime counterpart is a pytest_collection_finish
-  # hook in test/conftest.py, which catches the same thing during normal
-  # full-tree pytest runs.
+  # Standalone static lints over the test tree. Both use AST-based scripts
+  # that never import supy, so CI can run them without building — that is
+  # what keeps the check cheap for test-only PRs.
+  #
+  #  1. Every test file must declare `physics` or `api` (gh#1300). The
+  #     runtime counterpart is a pytest_collection_finish hook in
+  #     test/conftest.py, which catches the same thing during normal
+  #     full-tree pytest runs.
+  #  2. No test may inspect an imported module through `<module>.__file__`;
+  #     use `importlib.resources` for packaged data instead. See
+  #     `.claude/rules/tests/patterns.md` ("Locating packaged data").
+  #
+  # The job id and display name are unchanged so nothing that references
+  # them (needs:, .github/scripts/pr-gate.sh, branch protection) breaks.
   check_test_markers:
     name: Check pytest marker axis
     runs-on: ubuntu-latest
@@ -516,6 +524,13 @@ jobs:
       - name: Lint physics/api marker coverage
         shell: bash
         run: python scripts/lint/check_test_markers.py
+
+      # `always()` so a marker failure does not mask a packaged-data
+      # failure: a contributor should see both in one run, not one per push.
+      - name: Lint packaged-data path access
+        if: always()
+        shell: bash
+        run: python scripts/lint/check_packaged_data_paths.py
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:

@@ -1177,6 +1177,10 @@ class TestMethodChaining:
         sim.run()
         assert sim.is_complete()
 
+        assert sim.reset() is sim
+        sim.run()
+        assert sim.is_complete()
+
 
 class TestGetVariable:
     """Test variable extraction helper method."""

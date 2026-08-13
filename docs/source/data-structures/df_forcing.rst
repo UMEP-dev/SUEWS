@@ -1,11 +1,13 @@
+:orphan:
+
 .. _df_forcing_var:
 
-``df_forcing`` variables
-========================
+Forcing variable reference
+==========================
 
 This reference is generated from forcing contract ``1.2.0``.
-It describes columns supplied in an external forcing file. For file
-layout and preparation, see :doc:`/inputs/forcing-data`; for the loaded
+It describes the ``df_forcing`` columns supplied in an external forcing file.
+For file layout and preparation, see :doc:`/inputs/forcing-data`; for the loaded
 Python object, see :doc:`/api/io-data-structures`.
 
 How to read this page

@@ -85,7 +85,7 @@ def test_forcing_reference_is_registry_derived_and_current() -> None:
     assert reference.read_text(encoding="utf-8") == rendered
     assert ".. option:: isec" not in rendered
     assert rendered.count(".. option:: ") == len(audit.FORCING_REGISTRY.variables)
-    assert ":orphan:" not in rendered
+    assert rendered.startswith(":orphan:\n")
     assert ".. _df_forcing_requirements:" in rendered
     assert ":Data type:" not in rendered
     assert ":Role:" not in rendered

@@ -678,8 +678,6 @@ import urllib.parse
 
 
 def source_read_handler(app, docname, source):
-    if app.builder.format != "html":
-        return
     src = source[0]
     # base location for `docname`
     if ('"metadata":' in src) and ('"nbformat":' in src):
@@ -687,14 +685,17 @@ def source_read_handler(app, docname, source):
         # and do nothing
         return
 
-    # Handle :orphan: directive in sphinx-gallery generated files only.
-    # rst_prolog prepends content which breaks :orphan:, causing it to render as text.
-    # We only strip :orphan: from auto_examples/ files (sphinx-gallery output)
-    # because these are included in a toctree and don't need it.
-    if docname.startswith("auto_examples/") and src.lstrip().startswith(":orphan:"):
-        # Remove :orphan: and any following blank lines
+    # ``rst_prolog`` prepends content before parsing, which prevents top-of-file
+    # ``:orphan:`` fields from becoming document metadata. Preserve that metadata
+    # explicitly and remove the source field so it is not rendered to users.
+    if src.lstrip().startswith(":orphan:"):
+        app.env.metadata[docname]["orphan"] = ""
         src = src.lstrip()
         src = src[len(":orphan:") :].lstrip("\n")
+
+    if app.builder.format != "html":
+        source[0] = src
+        return
 
     # Add deprecation warning to table-based input documentation
     deprecation_warning = ""

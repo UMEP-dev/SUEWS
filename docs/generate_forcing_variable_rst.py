@@ -144,14 +144,16 @@ def _render_variable(variable) -> list[str]:
 def render_forcing_reference() -> str:
     """Return the complete deterministic RST reference page."""
     lines = [
+        ":orphan:",
+        "",
         ".. _df_forcing_var:",
         "",
-        "``df_forcing`` variables",
-        "========================",
+        "Forcing variable reference",
+        "==========================",
         "",
         f"This reference is generated from forcing contract ``{CURRENT_FORCING_VERSION}``.",
-        "It describes columns supplied in an external forcing file. For file",
-        "layout and preparation, see :doc:`/inputs/forcing-data`; for the loaded",
+        "It describes the ``df_forcing`` columns supplied in an external forcing file.",
+        "For file layout and preparation, see :doc:`/inputs/forcing-data`; for the loaded",
         "Python object, see :doc:`/api/io-data-structures`.",
         "",
     ]

@@ -5,12 +5,6 @@ Meteorological Forcing Data
 
 SUEWS requires continuous meteorological data representative of the neighbourhood scale, within the inertial sublayer (i.e. a blended response above the roughness elements of buildings and trees), to drive the urban energy and water balance calculations. This page describes the format and requirements for forcing data files.
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   /data-structures/df_forcing
-
 .. important:: **Forcing Height**
 
    Forcing data must represent the urban neighbourhood as a whole, not individual buildings or trees. This requires measurements from within the inertial sublayer, where turbulent mixing produces spatially blended values. The forcing height (``z``) tells SUEWS where your data originate, enabling correct profile calculations between this reference level and the surface. In urban environments, the atmospheric boundary layer is divided into:
@@ -42,7 +36,7 @@ Data Requirements
 **Essential Variables**
 
 SUEWS requires the following meteorological variables. This table is a quick
-preparation checklist; the generated :ref:`df_forcing_var` reference is
+preparation checklist; the generated :ref:`df_forcing_var` is
 authoritative for units, valid ranges, requiredness, interval semantics, and
 missing-value policies.
 
@@ -302,7 +296,7 @@ Choosing Conditional and Additional Variables
 ---------------------------------------------
 
 Use :ref:`df_forcing_requirements` to determine which extra columns an active
-physics path requires. The per-variable :ref:`df_forcing_var` reference gives
+physics path requires. The per-variable :ref:`df_forcing_var` gives
 the authoritative units, ranges, requiredness, interval basis, and
 missing-value policies. The following sections provide task-specific
 preparation guidance where more context than a field catalogue is useful.
@@ -555,7 +549,7 @@ SUEWS provides the ``check_forcing()`` function to validate your forcing data fi
 
 **Variable contract and enforced ranges**
 
-The registry-derived :ref:`df_forcing_var` reference is authoritative for
+The registry-derived :ref:`df_forcing_var` is authoritative for
 canonical names, input units, enforced ranges, requiredness, interval basis,
 and missing-value policy.
 
@@ -613,7 +607,7 @@ For comprehensive quality control, combine ``check_forcing()`` with visual inspe
 See Also
 --------
 
-- :ref:`df_forcing_var` - Registry-derived forcing-variable reference
+- :ref:`df_forcing_var` - Canonical variables, units, ranges, and conditions
 - :doc:`/inputs/yaml/index` - YAML configuration including forcing file specification
 - :doc:`/inputs/yaml/validation` - Complete validation system documentation
 - :doc:`/inputs/tables/RunControl/RunControl` - Legacy model physics options reference

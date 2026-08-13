@@ -295,3 +295,181 @@ class TestDailyStateOutput:
             "GDD should be reset to 0 when SDD < -crit_days "
             "during the winter period"
         )
+
+    def test_dailystate_lai_gdd_growth_branch(
+        self, sample_data_loaded, sample_run_cached, sample_config_loaded
+    ):
+        """LAI increases while GDD is between zero and GDDFull."""
+
+        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
+        gdd_full = config_lai_dectr.gdd_full.value
+        lai_max = config_lai_dectr.lai_max.value
+
+        df_output, _ = sample_run_cached()
+
+        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+
+        lai = df_dailystate["LAI_DecTr"]
+        gdd = df_dailystate["GDD_DecTr"]
+
+        lai_change = lai.diff().iloc[1:]
+        gdd = gdd.iloc[1:]
+        lai = lai.iloc[1:]
+
+        # calculate_lai() uses the GDD growth branch when:
+        #
+        #     GDD > 0 AND GDD < GDDFull
+        #
+        growth = (gdd > 0) & (gdd < gdd_full)
+
+        valid_growth = (
+            (lai_change > 0)
+            | (lai >= lai_max)
+        )
+
+        assert growth.any(), (
+            "The GDD growth condition did not occur in the available simulation"
+        )
+
+        assert valid_growth[growth].all(), (
+            "LAI should increase when GDD > 0 and GDD < GDDFull"
+        )
+
+
+    def test_dailystate_lai_northern_lai_type_0_sdd_senescence(
+        self, sample_data_loaded, sample_config_loaded, sample_yaml_path
+    ):
+        """Northern Hemisphere LAItype 0 uses SDD to drive senescence."""
+
+        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+
+        # Check that this is a Northern Hemisphere simulation.
+        assert sim._config.sites[0].properties.lat.value > 0
+
+        # Configure LAItype 0 on the simulation itself.
+        lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
+        lai_config.lai_type.value = 0
+
+        gdd_full = lai_config.gdd_full.value
+        sdd_full = lai_config.sdd_full.value
+        lai_min = lai_config.lai_min.value
+
+        _, df_forcing = sample_data_loaded
+
+        sim.update_forcing(df_forcing.copy())
+        sim.run()
+
+        df_output = sim.output
+        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+
+        lai = df_dailystate["LAI_DecTr"]
+        gdd = df_dailystate["GDD_DecTr"]
+        sdd = df_dailystate["SDD_DecTr"]
+
+        lai_change = lai.diff().iloc[1:]
+        sdd = sdd.iloc[1:]
+        gdd = gdd.iloc[1:]
+        lai = lai.iloc[1:]
+
+        # calculate_lai() first checks the GDD growth branch.
+        #
+        # Therefore LAItype 0 can only reach the SDD branch when:
+        #
+        #   NOT (GDD > 0 AND GDD < GDDFull)
+        #
+        not_growing = ~((gdd > 0) & (gdd < gdd_full))
+
+        # LAItype 0 calls calculate_sdd_type0 when:
+        #
+        #   SDD < 0 AND SDD > SDDFull
+        #
+        senescence = (
+            not_growing
+            & (sdd < 0)
+            & (sdd > sdd_full)
+        )
+
+        valid_senescence = (
+            (lai_change < 0)
+            | (lai <= lai_min)
+        )
+
+        assert senescence.any(), (
+            "Northern Hemisphere LAItype 0 did not encounter "
+            "the SDD senescence condition"
+        )
+
+        assert valid_senescence[senescence].all(), (
+            "Northern Hemisphere LAItype 0 should decrease LAI "
+            "when SDD < 0 and SDD > SDDFull"
+        )
+
+    def test_dailystate_lai_northern_lai_type_1_daylength_senescence(
+        self, sample_data_loaded, sample_yaml_path
+    ):
+        """Northern Hemisphere LAItype 1 uses day length to start senescence."""
+
+        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+
+        # Check that this is a Northern Hemisphere simulation.
+        assert sim._config.sites[0].properties.lat.value > 0
+
+        # Configure LAItype 1 on the simulation itself.
+        lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
+        lai_config.lai_type.value = 1
+
+        gdd_full = lai_config.gdd_full.value
+        sdd_full = lai_config.sdd_full.value
+        lai_min = lai_config.lai_min.value
+
+        _, df_forcing = sample_data_loaded
+
+        sim.update_forcing(df_forcing.copy())
+        sim.run()
+
+        df_output = sim.output
+        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+
+        lai = df_dailystate["LAI_DecTr"]
+        gdd = df_dailystate["GDD_DecTr"]
+        sdd = df_dailystate["SDD_DecTr"]
+
+        # Replace this with the actual DailyState day-length column name
+        # if it differs in the model output.
+        daylength = df_dailystate["DLHrs"].iloc[1:]
+
+        lai_change = lai.diff().iloc[1:]
+        gdd = gdd.iloc[1:]
+        sdd = sdd.iloc[1:]
+        lai = lai.iloc[1:]
+
+        # calculate_lai() first checks the GDD growth branch.
+        not_growing = ~((gdd > 0) & (gdd < gdd_full))
+
+        # For Northern Hemisphere LAItype 1 using SEN_DAYLENGTH,
+        # check_start_senescence() requires:
+        #
+        #   lenDay <= 12
+        #   AND
+        #   SDD > SDDFull
+        #
+        senescence = (
+            not_growing
+            & (daylength <= 12)
+            & (sdd > sdd_full)
+        )
+
+        valid_senescence = (
+            (lai_change < 0)
+            | (lai <= lai_min)
+        )
+
+        assert senescence.any(), (
+            "Northern Hemisphere LAItype 1 did not encounter "
+            "the day-length senescence condition"
+        )
+
+        assert valid_senescence[senescence].all(), (
+            "Northern Hemisphere LAItype 1 should decrease LAI "
+            "when day length <= 12 and SDD > SDDFull"
+        )

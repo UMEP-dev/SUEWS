@@ -13,7 +13,8 @@ OUTPUT_RST_OUTDIR = $(SOURCEDIR)/outputs/variables
 OUTPUT_RST_STAMP  = $(OUTPUT_RST_OUTDIR)/.generated.stamp
 
 # Data model sources that affect generated RST
-DM_SRC        = $(shell find ../src/supy/data_model -type f -name '*.py' 2>/dev/null)
+DM_PY_SRC     = $(shell find ../src/supy/data_model -type f -name '*.py' 2>/dev/null)
+DM_DOC_SRC    = $(DM_PY_SRC) ../src/supy/data_model/parameter_examples.json
 
 .PHONY: help html clean livehtml
 
@@ -52,13 +53,13 @@ livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 		$(SPHINXOPTS)
 
 # Generate RST from input data models only when sources change
-$(RST_STAMP): generate_datamodel_rst.py $(DM_SRC)
+$(RST_STAMP): generate_datamodel_rst.py $(DM_DOC_SRC)
 	@echo "Generating RST files for input data models..."
 	@python3 generate_datamodel_rst.py --output-dir $(RST_OUTDIR)
 	@touch $(RST_STAMP)
 
 # Generate RST from output variable registry only when sources change
-$(OUTPUT_RST_STAMP): generate_output_variable_rst.py $(DM_SRC)
+$(OUTPUT_RST_STAMP): generate_output_variable_rst.py $(DM_PY_SRC)
 	@echo "Generating RST files for output variables..."
 	@python3 generate_output_variable_rst.py --output-dir $(OUTPUT_RST_OUTDIR)
 	@touch $(OUTPUT_RST_STAMP)

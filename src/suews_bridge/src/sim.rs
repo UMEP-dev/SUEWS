@@ -109,7 +109,7 @@ const STATE_MEMBER_HEAT_STATE: usize = 9;
 const STATE_MEMBER_ROUGHNESS_STATE: usize = 10;
 const STATE_MEMBER_STEBBS_STATE: usize = 11;
 const STATE_MEMBER_NHOOD_STATE: usize = 12;
-pub const SUEWS_CAPI_SITE_SCALARS_LEN: usize = 24;
+pub const SUEWS_CAPI_SITE_SCALARS_LEN: usize = 26;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SiteScalars {
@@ -129,6 +129,8 @@ pub struct SiteScalars {
     pub n_buildings: f64,
     pub h_std: f64,
     pub lambda_c: f64,
+    pub theta_r: f64,
+    pub porosity: f64,
     pub sfr_surf: [f64; 7],
     pub gridiv: i32,
 }
@@ -152,6 +154,8 @@ impl Default for SiteScalars {
             n_buildings: 0.0,
             h_std: 0.0,
             lambda_c: 0.0,
+            theta_r: 0.1, // 0.1 taken from HW as prev hard coded value
+            porosity: 0.451,
             sfr_surf: [0.0; 7],
             gridiv: 1,
         }
@@ -306,8 +310,10 @@ fn encode_site_scalars(site_scalars: &SiteScalars) -> [f64; SUEWS_CAPI_SITE_SCAL
     out[13] = site_scalars.n_buildings;
     out[14] = site_scalars.h_std;
     out[15] = site_scalars.lambda_c;
-    out[16..23].copy_from_slice(&site_scalars.sfr_surf);
-    out[23] = f64::from(site_scalars.gridiv);
+    out[16] = site_scalars.theta_r;
+    out[17] = site_scalars.porosity;
+    out[18..25].copy_from_slice(&site_scalars.sfr_surf);
+    out[25] = f64::from(site_scalars.gridiv);
     out
 }
 

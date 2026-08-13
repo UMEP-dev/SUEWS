@@ -184,6 +184,8 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: NotUsed = -55.5
 
       !Threshold for intense precipitation [mm hr-1]
+      
+      ! Change to be Ksat (mm s-1)
       REAL(KIND(1D0)), PARAMETER :: IPThreshold_mmhr = 10 ! NB:this should be an input and can be specified. SG 25 Apr 2018
 
       !Initialise extra evaporation to zero
@@ -986,7 +988,9 @@ CONTAINS
       tstep_real, & !tstep cast as a real for use in calculations
       soilstore_surf, & ! inout: !Soil moisture of each surface type [mm]
       runoffSoil_surf, & !Soil runoff from each soil sub-surface [mm]
-      runoffSoil_per_tstep & !  output:!Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
+      runoffSoil_per_tstep, & !  output:!Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
+      theta_r, & ! Residual volumetric soil moisture [m3 m-3]
+      porosity & ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
       )
       !Transfers water in soil stores of land surfaces LJ (2010)
       !Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011)
@@ -1011,6 +1015,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: SurfaceArea !Surface area of the study area [m2]
       REAL(KIND(1D0)), INTENT(in) :: NonWaterFraction ! sum of surface cover fractions for all except water surfaces
       REAL(KIND(1D0)), INTENT(in) :: tstep_real !tstep cast as a real for use in calculations
+      REAL(KIND(1D0)), INTENT(in) :: theta_r ! Residual volumetric soil moisture [m3 m-3]
+      REAL(KIND(1D0)), INTENT(in) :: porosity ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: soilstore_surf !Soil moisture of each surface type [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: runoffSoil_surf !Soil runoff from each soil sub-surface [mm]
@@ -1038,7 +1044,7 @@ CONTAINS
       ! MatPot1,2            = Water potential (i.e. pressure head) of store [mm]
       ! DimenWaterCon1,2     = Dimensionless water content, or relative saturation [-]
       ! Distance             = Distance between two stores [m]
-      ! B_r1,2               = Residual volumetric soil moisture [m3 m-3]
+      ! B_r1 (now theta_r),2               = Residual volumetric soil moisture [m3 m-3]
       ! Km1,2                = Hydraulic conductivity of store [mm s-1]
       ! KmWeight             = Weighted hydraulic conductivity [mm s-1]
       ! alphavG              = Parameter (could depend on soil texture) [mm-1]
@@ -1047,6 +1053,12 @@ CONTAINS
       ! NUnits               = Number of repeating units (e.g. properties, blocks) for distance calculation [-]
       runoffSoil_surf = 0
       runoffSoil_per_tstep = 0
+      
+      B_r1 = porosity - theta_r
+      B_r2 = B_r1
+
+      SoilMoistCap_vol1 = porosity
+      SoilMoistCap_Vol2 = porosity
 
       DO is = 1, nsurf - 1 !nsurf-1,1,-1  !Loop through each surface, excluding water surface (runs backwards as of 13/08/2014, HCW)
 
@@ -1061,11 +1073,7 @@ CONTAINS
                   ! Calculate non-saturated VWC
                   SoilMoistCap_Vol1 = SoilStoreCap_surf(is)/SoilDepth_surf(is) !Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
                   SoilMoist_vol1 = soilstore_surf(is)/SoilDepth_surf(is) !Volumetric soil moisture [m3 m-3]
-
-                  !B_r1=SoilMoistCap_Vol1-SoilMoist_vol1  !Residual soil moisture content [m3 m-3]
-                  B_r1 = 0.1 !HCW 12/08/2014 Temporary fix
-                  ! Need to add residual soil moisture values to FunctionalTypes
-                  !B_r1=VolSoilMoistRes(is) !Residual soil moisture content [m3 m-3]
+                  ! SoilMoist_vol1 = soilstore_surf(is)/(porosity * 1000)
 
                   !Order of if statements reversed HCW 22 Feb 2017
                   !If soil moisture less than or equal to residual value, set MatPot to max and Km to 0 to suppress water movement
@@ -1104,9 +1112,10 @@ CONTAINS
                   ! Calculate non-saturated VWC
                   SoilMoistCap_Vol2 = SoilStoreCap_surf(jj)/SoilDepth_surf(jj) !Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
                   SoilMoist_vol2 = soilstore_surf(jj)/SoilDepth_surf(jj) !Volumetric soil moisture [m3 m-3]
-
+                  ! SoilMoist_vol2 = soilstore_surf(jj)/(porosity * 1000)
+                  
                   !B_r2=SoilMoistCap_Vol2-SoilMoist_vol2  !Residual soil moisture content [m3 m-3]
-                  B_r2 = 0.1 !HCW 12/08/2014 Temporary fix
+                  ! B_r2 = 0.1 !HCW 12/08/2014 Temporary fix
                   ! Need to add residual soil moisture values to FunctionalTypes
                   !B_r2=VolSoilMoistRes(jj) !Residual soil moisture content [m3 m-3]
 

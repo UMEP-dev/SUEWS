@@ -142,6 +142,7 @@ CONTAINS
             evetrPrm => siteInfo%lc_evetr, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
+            theta_r => siteInfo%theta_r, & ! PWP
             i_iter => flagState%i_iter &
             )
 
@@ -177,6 +178,9 @@ CONTAINS
                HDD_id => anthroEmisState%HDD_id, &
                state_surf => hydroState%state_surf, &
                soilstore_surf => hydroState%soil_store_surf, &
+               smd => hydroState%smd, &
+               stress_state => hydroState%stress_state, &
+               stress_days => hydroState%stress_days, &
                WUDay_id => hydroState%WUDay_id, &
                WaterUseMethod => config%WaterUseMethod, &
                Ie_start => irrPrm%Ie_start, &
@@ -335,11 +339,13 @@ CONTAINS
                         id, LAICalcYes, & !input
                         lat, [lai_evetr, lai_dectr, lai_grass], &
                         Tmin_id, Tmax_id, lenDay_id, &
+                        theta_r, smd, &
                         BaseT, BaseTe, &
                         GDDFull, SDDFull, &
                         LAIMin, LAIMax, LAIPower, LAIType, &
                         LAI_id_prev, &
                         GDD_id, SDD_id, & !inout
+                        stress_state, stress_days, &
                         LAI_id) !output
                      IF (supy_error_flag) RETURN
 
@@ -531,11 +537,13 @@ CONTAINS
       id, LAICalcYes, & !input
       lat, LAI_obs, &
       Tmin_id_prev, Tmax_id_prev, lenDay_id_prev, &
+      theta_r, smd, & ! 28/07/26 MP: added soil moisture limits to LAI growth
       BaseT_GDD, BaseT_SDD, &
       GDDFull, SDDFull, &
       LAIMin, LAIMax, LAIPower, LAIType, &
       LAI_id_prev, &
       GDD_id, SDD_id, & !inout
+      stress_state, stress_days, &
       LAI_id_next) !output
       
       implicit none
@@ -553,6 +561,12 @@ CONTAINS
       real(kind(1D0)), intent(in) :: Tmin_id_prev
       real(kind(1D0)), intent(in) :: Tmax_id_prev
       real(kind(1D0)), intent(in) :: lenDay_id_prev
+
+      real(kind(1D0)), intent(in) :: theta_r
+      real(kind(1D0)), intent(in) :: smd
+
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: stress_state
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: stress_days
 
       ! --- Vegetation phenology ---------------------------------------------------------------------
       ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
@@ -585,6 +599,13 @@ CONTAINS
 
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
+      
+      real(kind(1D0)) :: soilmoisture_stress_limit = 0.05
+      real(kind(1D0)) :: LAI_loss_rate_perc = 0.005D0   ! percentage per day⁻¹
+      real(kind(1D0)) :: wilting_point
+
+      wilting_point = theta_r - (theta_r * soilmoisture_stress_limit)
+      
       
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
@@ -1284,7 +1305,9 @@ CONTAINS
             a3_bldg => ohmState%a3_bldg, &
             it => timer%it, &
             imin => timer%imin, &
-            nsh_real => timer%nsh_real &
+            nsh_real => timer%nsh_real, &
+            stress_state => hydroState%stress_state, &
+            stress_days => hydroState%stress_days &
             )
 
             ! initialise DailyStateLine
@@ -1314,7 +1337,10 @@ CONTAINS
                   a3, &
                   a1_bldg, &
                   a2_bldg, &
-                  a3_bldg]
+                  a3_bldg, &
+                  stress_state, &
+                  stress_days &
+                  ]
             END IF
 
          END ASSOCIATE

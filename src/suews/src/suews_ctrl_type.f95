@@ -98,6 +98,8 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: n_buildings = 0.0D0 ! n_buildings
       REAL(KIND(1D0)) :: h_std = 0.0D0 ! zStd_RSL
       REAL(KIND(1D0)) :: lambda_c = 0.0D0 ! Building surface to plan area ratio [-]
+      REAL(KIND(1D0)) :: theta_r = 0.1D0 ! Residual volumetric soil moisture [m3 m-3], 0.1 from b_r1 set by HW in waterdist
+      REAL(KIND(1D0)) :: porosity = 0.0D0 ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
 
       ! surface cover fractions related
       REAL(KIND(1D0)), DIMENSION(NSURF) :: sfr_surf = 0.0D0 !surface cover fraction[-]

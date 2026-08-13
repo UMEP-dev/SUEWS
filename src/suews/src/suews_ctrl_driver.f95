@@ -1480,6 +1480,8 @@ CONTAINS
             waterPrm => siteInfo%lc_water, &
             sfr_surf => siteInfo%sfr_surf, &
             conductancePrm => siteInfo%conductance, &
+            theta_r => siteInfo%theta_r, &
+            porosity => siteInfo%porosity, &
             avkdn => forcing%kdown, &
             xsmd => forcing%xsmd, &
             Temp_C => forcing%Temp_C, &
@@ -1490,6 +1492,7 @@ CONTAINS
             LAI_id => phenState%LAI_id, &
             gfunc => phenState%g_func, &
             vsmd => hydroState%vsmd, &
+            smd => hydroState%smd, &
             id => timer%id, &
             it => timer%it, &
             dectime => timer%dectime, &
@@ -1558,9 +1561,9 @@ CONTAINS
                         dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
                      CALL SurfaceResistance( &
                         id, it, & ! input:
-                        SMDMethod, SnowFrac, sfr_surf, avkdn, Tair_local, dq, xsmd, vsmd, MaxConductance, &
+                        SMDMethod, SnowFrac, sfr_surf, avkdn, Tair_local, dq, smd, xsmd, vsmd, MaxConductance, &
                         LAIMax, LAI_id, gsModel, Kmax, &
-                        G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
+                        G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, theta_r, &
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
                         gfunc_use, unused_gs, unused_rs, & ! output:
                         modState)
@@ -1584,9 +1587,9 @@ CONTAINS
                      ! Surface resistance calculation for gfunc2
                      CALL SurfaceResistance( &
                         id, it, & ! input:
-                        SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, xsmd, vsmd, MaxConductance, &
+                        SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, smd, xsmd, vsmd, MaxConductance, &
                         LAIMax, LAI_id, gsModel, Kmax, &
-                        G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
+                        G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, theta_r, &
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
                         gfunc2, unused_gs, unused_rs, & ! output:
                         modState)
@@ -3209,7 +3212,9 @@ CONTAINS
             snowfrac_in => snowstate%snow_fraction, &
             SMDMethod => config%SMDMethod, &
             EvapMethod => config%EvapMethod, &
-            Diagnose => config%Diagnose &
+            Diagnose => config%Diagnose, &
+            theta_r => siteInfo%theta_r, &
+            porosity => siteInfo%porosity &
             )
 
             ASSOCIATE ( &
@@ -3378,7 +3383,9 @@ CONTAINS
                   tstep_real, & !tstep cast as a real for use in calculations
                   soilstore_surf, & ! inout: !Soil moisture of each surface type [mm]
                   runoffSoil_surf, & !Soil runoff from each soil sub-surface [mm]
-                  runoffSoil_per_tstep & !  output:!Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
+                  runoffSoil_per_tstep, & !  output:!Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
+                  theta_r, & ! Residual volumetric soil moisture [m3 m-3]
+                  porosity & ! Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
                   )
 
                !========== Calculate soil moisture of a whole grid ============
@@ -3627,6 +3634,7 @@ CONTAINS
             avkdn => forcing%kdown, &
             xsmd => forcing%xsmd, &
             vsmd => hydroState%vsmd, &
+            smd => hydroState%smd, &
             avdens => atmState%av_density, &
             avcp => atmState%av_cp, &
             dq => atmState%dq, &
@@ -3676,7 +3684,8 @@ CONTAINS
                S1 => conductancePrm%s1, &
                S2 => conductancePrm%s2, &
                TH => conductancePrm%th, &
-               TL => conductanceprm%tl &
+               TL => conductanceprm%tl, &
+               theta_r => siteInfo%theta_r &
                )
 
                RAsnow = 0.0
@@ -3812,9 +3821,9 @@ CONTAINS
                Tair = MERGE(T_half_bldg_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
                CALL SurfaceResistance( &
                   id, it, & ! input:
-                  SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, xsmd, vsmd, MaxConductance, &
+                  SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, smd, xsmd, vsmd, MaxConductance, &
                   LAIMax, LAI_id, gsModel, Kmax, &
-                  G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
+                  G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, theta_r, &
                   g_kdown, g_dq, g_ta, g_smd, g_lai, & ! output:
                   gfunc, gsc, RS, & ! output:
                   modState)

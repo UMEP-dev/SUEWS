@@ -2189,6 +2189,12 @@ fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value
     if let Some(v) = read_numeric(site_root, &["properties", "lambda_c"]) {
         site_scalars.lambda_c = v;
     }
+    if let Some(v) = read_numeric(site_root, &["properties", "theta_r"]) {
+        site_scalars.theta_r = v;
+    }
+    if let Some(v) = read_numeric(site_root, &["properties", "porosity"]) {
+        site_scalars.porosity = v;
+    }
     if let Some(v) = read_i32(site_root, &["gridiv"]) {
         site_scalars.gridiv = v;
     }

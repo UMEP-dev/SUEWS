@@ -623,8 +623,7 @@ CONTAINS
 
          stress_state(iv) = determine_stress_state_surf( &
             stressed=stressed, &
-            stress_state=stress_state(iv), &
-            stress_days=stress_days(iv), &
+            stress_days=stress_days(iv) &
          )
          
          call calc_delta_gdd_sdd( &
@@ -757,14 +756,14 @@ CONTAINS
       end subroutine observed_lai
 
       function determine_stress_state_surf( &
-         stressed, stress_state, stress_days &
+         stressed, stress_days &
          ) result(stress_state)
          
          implicit none
 
          logical, intent(in) :: stressed ! Flag indicating if soil under stress
-         real(kind(1D0)), dimension(nvegsurf), intent(in) :: stress_days
-         real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_state
+         real(kind(1D0)), intent(in) :: stress_days
+         real(kind(1D0)) :: stress_state
 
          if (stressed) then 
             stress_state = 1.0 ! Stressed, losing LAI

@@ -7729,6 +7729,11 @@
           "default": null,
           "description": "Output directory where result files will be saved. If not specified, defaults to the current working directory.",
           "title": "Dir"
+        },
+        "timestamp_reference": {
+          "$ref": "#/$defs/OutputTimestampReference",
+          "default": "follow",
+          "description": "Timestamp reference for saved output. 'follow' keeps the forcing timestamp reference, 'utc' and 'local_standard_time' select those fixed clocks explicitly, and 'daylight' adds the configured daylight-saving offset to local standard time inside the DLS window."
         }
       },
       "title": "Output Control",
@@ -7741,6 +7746,17 @@
         "parquet"
       ],
       "title": "OutputFormat",
+      "type": "string"
+    },
+    "OutputTimestampReference": {
+      "description": "Supported saved-output timestamp references.\n\n``follow`` keeps the forcing clock. ``utc`` and\n``local_standard_time`` select those fixed clocks explicitly.\n``daylight`` adds the configured daylight-saving offset to local\nstandard time inside the DLS window.",
+      "enum": [
+        "follow",
+        "utc",
+        "local_standard_time",
+        "daylight"
+      ],
+      "title": "OutputTimestampReference",
       "type": "string"
     },
     "PavedProperties": {

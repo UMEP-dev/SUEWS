@@ -658,7 +658,7 @@ class SUEWSConfig(BaseModel):
                 pass
 
             if timestamp_reference in {
-                OutputTimestampReference.STANDARD,
+                OutputTimestampReference.LOCAL_STANDARD_TIME,
                 OutputTimestampReference.DAYLIGHT,
             } and is_zero_offset:
                 warnings.warn(

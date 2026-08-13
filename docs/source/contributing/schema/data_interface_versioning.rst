@@ -23,14 +23,15 @@ Current status
 --------------
 
 The forcing contract is published at ``1.2.0`` and the output contract at
-``1.0.0``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
+``1.1.0``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
-requiredness to reflect its physics-dependent use. Each forcing release is
-stored as an immutable canonical registry projection under
-``src/supy/data_model/forcing/artefacts/``. The output contract's immutable
-bundle is stored under
-``src/supy/data_model/output/artefacts/1.0.0/`` after the registry projection
-and observable output layouts were validated.
+requiredness to reflect its physics-dependent use. Output ``1.1.0`` adds
+configurable saved-output timestamp references while retaining the forcing
+clock by default. Each forcing release is stored as an immutable canonical
+registry projection under ``src/supy/data_model/forcing/artefacts/``. The
+output contract's immutable bundles are stored under
+``src/supy/data_model/output/artefacts/`` after the registry projection and
+observable output layouts were validated.
 
 The first public version of each contract must be ``1.0.0``. Later releases use
 stable ``MAJOR.MINOR.PATCH`` semantic versions independently:

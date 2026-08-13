@@ -4,17 +4,17 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-import yaml
 
 from supy._save import (
+    df_var_out,
     relabel_output_timestamps,
     save_df_grid_group,
+    save_df_output,
     save_df_output_parquet,
 )
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.model import OutputTimestampReference
-from supy.data_model.schema import CURRENT_SCHEMA_VERSION
-from supy.util.converter.yaml_upgrade import upgrade_yaml
+from supy.suews_output import SUEWSOutput
 
 pytestmark = pytest.mark.api
 
@@ -22,11 +22,11 @@ pytestmark = pytest.mark.api
 def _state_for_grid(rows):
     rows = [row.copy() for row in rows]
     grids = [row.pop("grid") for row in rows]
-    df = pd.DataFrame(rows, index=pd.Index(grids, name="grid"))
-    df.columns = pd.MultiIndex.from_tuples(
-        [(name, "0") for name in df.columns], names=["var", "ind_dim"]
+    df_state = pd.DataFrame(rows, index=pd.Index(grids, name="grid"))
+    df_state.columns = pd.MultiIndex.from_tuples(
+        [(name, "0") for name in df_state.columns], names=["var", "ind_dim"]
     )
-    return df
+    return df_state
 
 
 def _output_for_grid(grid, dates):
@@ -37,17 +37,43 @@ def _output_for_grid(grid, dates):
     return pd.DataFrame(range(len(index)), index=index, columns=columns)
 
 
+def _timestamps(df_output):
+    return list(df_output.index.get_level_values("datetime"))
+
+
 def test_output_timestamp_reference_defaults_to_follow():
     config = SUEWSConfig(sites=[{}])
-    assert config.model.control.output.timestamp_reference == OutputTimestampReference.FOLLOW
+
+    assert (
+        config.model.control.output.timestamp_reference
+        == OutputTimestampReference.FOLLOW
+    )
+
+
+def test_output_timestamp_reference_values_are_stable():
+    assert [reference.value for reference in OutputTimestampReference] == [
+        "follow",
+        "utc",
+        "local_standard_time",
+        "daylight",
+    ]
 
 
 def test_yaml_output_timestamp_reference_loads():
     config = SUEWSConfig(
         sites=[{}],
-        model={"control": {"output": {"timestamp_reference": "utc"}}},
+        model={
+            "control": {
+                "forcing": {"timestamp_reference": "utc"},
+                "output": {"timestamp_reference": "local_standard_time"},
+            }
+        },
     )
-    assert config.model.control.output.timestamp_reference == OutputTimestampReference.UTC
+
+    assert (
+        config.model.control.output.timestamp_reference
+        == OutputTimestampReference.LOCAL_STANDARD_TIME
+    )
 
 
 def test_daylight_requires_dls_window():
@@ -58,84 +84,189 @@ def test_daylight_requires_dls_window():
         )
 
 
-def test_standard_zero_offset_warns():
+def test_local_standard_time_zero_offset_warns():
     with pytest.warns(UserWarning, match="zero UTC offset"):
         SUEWSConfig(
             sites=[{}],
-            model={"control": {"output": {"timestamp_reference": "standard"}}},
+            model={
+                "control": {"output": {"timestamp_reference": "local_standard_time"}}
+            },
         )
 
 
-def test_follow_returns_byte_identity_input():
-    df = _output_for_grid(1, pd.date_range("2020-01-01", periods=2, freq="h"))
-    state = _state_for_grid([
+@pytest.mark.parametrize("forcing_reference", ["local_standard_time", "utc"])
+def test_follow_returns_byte_identity_input(forcing_reference):
+    df_output = _output_for_grid(1, pd.date_range("2020-01-01", periods=2, freq="h"))
+    df_state = _state_for_grid([
         {"grid": 1, "timezone": 5.5, "startdls": 80, "enddls": 300}
     ])
 
-    relabelled = relabel_output_timestamps(df, "follow", state)
+    relabelled = relabel_output_timestamps(
+        df_output,
+        "follow",
+        forcing_reference,
+        df_state,
+    )
 
-    assert relabelled is df
+    assert relabelled is df_output
 
 
-def test_utc_relabels_fractional_offset():
+def test_local_standard_time_to_utc_supports_fractional_offset():
     dates = pd.date_range("2020-01-01 12:00", periods=2, freq="h")
-    df = _output_for_grid(1, dates)
-    state = _state_for_grid([
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
         {"grid": 1, "timezone": 5.5, "startdls": 80, "enddls": 300}
     ])
 
-    relabelled = relabel_output_timestamps(df, "utc", state)
+    relabelled = relabel_output_timestamps(
+        df_output,
+        "utc",
+        "local_standard_time",
+        df_state,
+    )
 
-    got = relabelled.index.get_level_values("datetime")
-    assert list(got) == list(dates - pd.Timedelta(hours=5.5))
+    assert _timestamps(relabelled) == list(dates - pd.Timedelta(hours=5.5))
 
 
-def test_daylight_relabels_inside_northern_window_only():
-    dates = pd.to_datetime(["2020-01-15 12:00", "2020-04-01 12:00"])
-    df = _output_for_grid(1, dates)
-    state = _state_for_grid([{"grid": 1, "timezone": 0, "startdls": 80, "enddls": 300}])
+def test_utc_to_local_standard_time_supports_fractional_offset():
+    dates = pd.date_range("2020-01-01 06:30", periods=2, freq="h")
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 5.5, "startdls": 80, "enddls": 300}
+    ])
 
-    relabelled = relabel_output_timestamps(df, "daylight", state)
+    relabelled = relabel_output_timestamps(
+        df_output,
+        "local_standard_time",
+        "utc",
+        df_state,
+    )
 
-    got = relabelled.index.get_level_values("datetime")
-    assert list(got) == [dates[0], dates[1] + pd.Timedelta(hours=1)]
+    assert _timestamps(relabelled) == list(dates + pd.Timedelta(hours=5.5))
+
+
+def test_explicit_source_reference_is_byte_identity():
+    df_output = _output_for_grid(1, pd.date_range("2020-01-01", periods=2, freq="h"))
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 5.5, "startdls": 80, "enddls": 300}
+    ])
+
+    relabelled = relabel_output_timestamps(
+        df_output,
+        "utc",
+        "utc",
+        df_state,
+    )
+
+    assert relabelled is df_output
+
+
+def test_daylight_from_utc_uses_local_standard_dls_window():
+    dates = pd.to_datetime(["2020-01-15 11:00", "2020-04-01 11:00"])
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}
+    ])
+
+    relabelled = relabel_output_timestamps(
+        df_output,
+        "daylight",
+        "utc",
+        df_state,
+    )
+
+    assert _timestamps(relabelled) == [
+        pd.Timestamp("2020-01-15 12:00"),
+        pd.Timestamp("2020-04-01 13:00"),
+    ]
 
 
 def test_daylight_relabels_southern_hemisphere_wrap():
     dates = pd.to_datetime(["2020-01-15 12:00", "2020-04-01 12:00", "2020-12-01 12:00"])
-    df = _output_for_grid(1, dates)
-    state = _state_for_grid([{"grid": 1, "timezone": 0, "startdls": 300, "enddls": 80}])
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 0, "startdls": 300, "enddls": 80}
+    ])
 
-    relabelled = relabel_output_timestamps(df, "daylight", state)
+    relabelled = relabel_output_timestamps(
+        df_output,
+        "daylight",
+        "local_standard_time",
+        df_state,
+    )
 
-    got = relabelled.index.get_level_values("datetime")
-    assert list(got) == [
+    assert _timestamps(relabelled) == [
         dates[0] + pd.Timedelta(hours=1),
         dates[1],
         dates[2] + pd.Timedelta(hours=1),
     ]
 
 
+def test_daylight_rejects_missing_window_in_low_level_path():
+    df_output = _output_for_grid(1, ["2020-04-01 12:00"])
+    df_state = _state_for_grid([{"grid": 1, "timezone": 0, "startdls": 0, "enddls": 0}])
+
+    with pytest.raises(ValueError, match="requires startdls and enddls"):
+        relabel_output_timestamps(
+            df_output,
+            "daylight",
+            "local_standard_time",
+            df_state,
+        )
+
+
 def test_relabels_each_grid_with_own_offset():
-    df = pd.concat([
+    df_output = pd.concat([
         _output_for_grid(1, ["2020-01-01 12:00"]),
         _output_for_grid(2, ["2020-01-01 12:00"]),
     ])
-    state = _state_for_grid([
+    df_state = _state_for_grid([
         {"grid": 1, "timezone": 5.5, "startdls": 80, "enddls": 300},
         {"grid": 2, "timezone": -3.75, "startdls": 80, "enddls": 300},
     ])
 
-    relabelled = relabel_output_timestamps(df, "utc", state)
+    relabelled = relabel_output_timestamps(
+        df_output,
+        "local_standard_time",
+        "utc",
+        df_state,
+    )
 
-    got = relabelled.index.get_level_values("datetime")
-    assert list(got) == [
-        pd.Timestamp("2020-01-01 06:30"),
-        pd.Timestamp("2020-01-01 15:45"),
+    assert _timestamps(relabelled) == [
+        pd.Timestamp("2020-01-01 17:30"),
+        pd.Timestamp("2020-01-01 08:15"),
     ]
 
 
-def test_text_filename_marks_explicit_timestamp_reference(tmp_path: Path):
+def test_text_save_relabels_timestamp_and_marks_filename(tmp_path: Path):
+    dates = pd.date_range("2020-07-01 12:00", periods=3, freq="h")
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}
+    ])
+
+    paths = save_df_output(
+        df_output,
+        freq_s=3600,
+        path_dir_save=tmp_path,
+        save_snow=False,
+        output_groups=["SUEWS"],
+        timestamp_reference="utc",
+        forcing_timestamp_reference="local_standard_time",
+        df_state_final=df_state,
+    )
+
+    output_path = next(path for path in paths if path.suffix == ".txt")
+    saved = pd.read_csv(output_path, sep="\t")
+    assert output_path.name == "1_2020_SUEWS_60_UTC.txt"
+    assert (saved.loc[0, "Year"], saved.loc[0, "Hour"], saved.loc[0, "Min"]) == (
+        2020,
+        11,
+        0,
+    )
+
+
+def test_text_filename_marks_explicit_standard_reference(tmp_path: Path):
     df_year = pd.DataFrame(
         {"QN": [1.0, 2.0]},
         index=pd.date_range("2020-01-01 12:00", periods=2, freq="h"),
@@ -147,47 +278,166 @@ def test_text_filename_marks_explicit_timestamp_reference(tmp_path: Path):
         group="SUEWS",
         dir_save=tmp_path,
         site="",
-        timestamp_reference="utc",
+        timestamp_reference="local_standard_time",
     )
 
-    assert path.name == "1_2020_SUEWS_60_UTC.txt"
+    assert path.name == "1_2020_SUEWS_60_STANDARD.txt"
+
+
+def test_text_daylight_transition_keeps_native_cadence(tmp_path: Path):
+    dates = pd.to_datetime(["2020-10-25 23:00", "2020-10-26 00:00", "2020-10-26 01:00"])
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 0, "startdls": 80, "enddls": 300}
+    ])
+
+    paths = save_df_output(
+        df_output,
+        freq_s=3600,
+        path_dir_save=tmp_path,
+        save_snow=False,
+        output_groups=["SUEWS"],
+        timestamp_reference="daylight",
+        forcing_timestamp_reference="local_standard_time",
+        df_state_final=df_state,
+    )
+
+    output_path = next(path for path in paths if path.suffix == ".txt")
+    saved = pd.read_csv(output_path, sep="\t")
+    assert output_path.name == "1_2020_SUEWS_60_DAYLIGHT.txt"
+    assert list(zip(saved["Hour"], saved["Min"], strict=True)) == [
+        (0, 0),
+        (0, 0),
+        (1, 0),
+    ]
+
+
+def test_text_daylight_keeps_dailystate_filename_contract(tmp_path: Path):
+    dates = pd.to_datetime(["2020-04-01 00:00", "2020-04-02 00:00"])
+    index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
+    columns = pd.MultiIndex.from_tuples(
+        [("DailyState", "Tmin")], names=["group", "var"]
+    )
+    df_output = pd.DataFrame([1.0, 2.0], index=index, columns=columns)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 0, "startdls": 80, "enddls": 300}
+    ])
+
+    paths = save_df_output(
+        df_output,
+        freq_s=3600,
+        path_dir_save=tmp_path,
+        output_groups=["DailyState"],
+        timestamp_reference="daylight",
+        forcing_timestamp_reference="local_standard_time",
+        df_state_final=df_state,
+    )
+
+    assert [path.name for path in paths] == ["1_2020_DailyState_DAYLIGHT.txt"]
+
+
+def test_text_explicit_reference_keeps_native_and_resampled_cadences(
+    tmp_path: Path,
+):
+    dates = pd.date_range("2020-01-01 00:05", periods=25, freq="5min")
+    index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
+    columns = pd.MultiIndex.from_product(
+        [["SUEWS"], df_var_out.loc["SUEWS"].index], names=["group", "var"]
+    )
+    df_output = pd.DataFrame(0.0, index=index, columns=columns)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}
+    ])
+
+    paths = save_df_output(
+        df_output,
+        freq_s=3600,
+        path_dir_save=tmp_path,
+        save_tstep=True,
+        save_snow=False,
+        output_groups=["SUEWS"],
+        timestamp_reference="utc",
+        forcing_timestamp_reference="local_standard_time",
+        df_state_final=df_state,
+    )
+
+    assert {path.name for path in paths} == {
+        "1_2019_SUEWS_5_UTC.txt",
+        "1_2020_SUEWS_5_UTC.txt",
+        "1_2020_SUEWS_60_UTC.txt",
+    }
+
+
+def test_text_utc_conversion_partitions_files_by_saved_year(tmp_path: Path):
+    dates = pd.to_datetime(["2020-01-01 00:00", "2020-01-01 01:00", "2020-01-01 02:00"])
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}
+    ])
+
+    paths = save_df_output(
+        df_output,
+        freq_s=3600,
+        path_dir_save=tmp_path,
+        save_snow=False,
+        output_groups=["SUEWS"],
+        timestamp_reference="utc",
+        forcing_timestamp_reference="local_standard_time",
+        df_state_final=df_state,
+    )
+
+    assert {path.name for path in paths} == {
+        "1_2019_SUEWS_60_UTC.txt",
+        "1_2020_SUEWS_60_UTC.txt",
+    }
 
 
 def test_parquet_uses_same_relabelled_index(tmp_path: Path):
     pytest.importorskip("pyarrow", reason="Parquet output tests require pyarrow")
-    dates = pd.date_range("2020-01-01 12:00", periods=2, freq="h")
-    df = _output_for_grid(1, dates)
-    state = _state_for_grid([{"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}])
+    dates = pd.date_range("2020-01-01 06:30", periods=2, freq="h")
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 5.5, "startdls": 80, "enddls": 300}
+    ])
 
     paths = save_df_output_parquet(
-        df,
-        state,
+        df_output,
+        df_state,
         path_dir_save=tmp_path,
         save_tstep=True,
         save_state=False,
-        timestamp_reference="utc",
+        timestamp_reference="local_standard_time",
+        forcing_timestamp_reference="utc",
     )
 
     output_path = next(
-        path for path in paths if path.name == "SUEWS_output_UTC.parquet"
+        path for path in paths if path.name == "SUEWS_output_STANDARD.parquet"
     )
     saved = pd.read_parquet(output_path)
-    expected = relabel_output_timestamps(df, "utc", state)
+    expected = relabel_output_timestamps(
+        df_output,
+        "local_standard_time",
+        "utc",
+        df_state,
+    )
     pd.testing.assert_index_equal(saved.index, expected.index)
 
 
 def test_parquet_bundle_marks_explicit_timestamp_reference(tmp_path: Path):
     pytest.importorskip("pyarrow", reason="Parquet output tests require pyarrow")
     dates = pd.date_range("2020-01-01 12:00", periods=2, freq="h")
-    df = _output_for_grid(1, dates)
-    state = _state_for_grid([{"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}])
+    df_output = _output_for_grid(1, dates)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}
+    ])
 
     paths = save_df_output_parquet(
-        df,
-        state,
+        df_output,
+        df_state,
         path_dir_save=tmp_path,
         save_tstep=True,
         timestamp_reference="daylight",
+        forcing_timestamp_reference="local_standard_time",
     )
 
     assert {path.name for path in paths} == {
@@ -199,26 +449,32 @@ def test_parquet_bundle_marks_explicit_timestamp_reference(tmp_path: Path):
     assert metadata.loc[0, "timestamp_reference"] == "daylight"
 
 
-def test_dev1_schema_migrates_to_current_with_default_timestamp_reference(tmp_path: Path):
-    source = tmp_path / "dev1.yml"
-    target = tmp_path / "current.yml"
-    source.write_text(
-        """
-schema_version: '2026.6.dev1'
-model:
-  control:
-    output:
-      format: txt
-sites:
-  - {}
-""",
-        encoding="utf-8",
+def test_output_object_passes_forcing_reference_to_save_backend(
+    tmp_path: Path, monkeypatch
+):
+    config = SUEWSConfig(
+        sites=[{}],
+        model={
+            "control": {
+                "forcing": {"timestamp_reference": "utc"},
+                "output": {"timestamp_reference": "utc"},
+            }
+        },
     )
+    df_output = _output_for_grid(1, ["2020-01-01 12:00"])
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}
+    ])
+    output = SUEWSOutput(df_output, df_state, config=config)
+    captured = {}
 
-    upgrade_yaml(source, target)
+    def fake_save_supy(**kwargs):
+        captured.update(kwargs)
+        return []
 
-    payload = yaml.safe_load(target.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == CURRENT_SCHEMA_VERSION
-    assert "timestamp_reference" not in payload["model"]["control"]["output"]
-    config = SUEWSConfig(**payload)
-    assert config.model.control.output.timestamp_reference == OutputTimestampReference.FOLLOW
+    monkeypatch.setattr("supy._supy_module._save_supy", fake_save_supy)
+
+    output.save(tmp_path)
+
+    reference = captured["forcing_timestamp_reference"]
+    assert getattr(reference, "value", reference) == "utc"

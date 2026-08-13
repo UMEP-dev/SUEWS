@@ -1295,23 +1295,19 @@ class OutputFormat(Enum):
         return self.value
 
 
-class OutputTimestampReference(Enum):
-    """
-    Output timestamp reference options.
+class OutputTimestampReference(StrEnum):
+    """Supported saved-output timestamp references.
 
-    FOLLOW: Preserve the model output timestamp convention.
-    UTC: Relabel output timestamps to UTC.
-    STANDARD: Relabel output timestamps to local standard time.
-    DAYLIGHT: Relabel output timestamps to local daylight time inside the DLS window.
+    ``follow`` keeps the forcing clock. ``utc`` and
+    ``local_standard_time`` select those fixed clocks explicitly.
+    ``daylight`` adds the configured daylight-saving offset to local
+    standard time inside the DLS window.
     """
 
     FOLLOW = "follow"
     UTC = "utc"
-    STANDARD = "standard"
+    LOCAL_STANDARD_TIME = "local_standard_time"
     DAYLIGHT = "daylight"
-
-    def __str__(self):
-        return self.value
 
 
 class OutputControl(BaseModel):
@@ -1343,7 +1339,12 @@ class OutputControl(BaseModel):
     )
     timestamp_reference: OutputTimestampReference = Field(
         default=OutputTimestampReference.FOLLOW,
-        description="Timestamp reference for saved output. Options: 'follow' preserves the current output convention, 'utc' relabels to UTC, 'standard' relabels to local standard time, and 'daylight' relabels to daylight time inside the daylight-saving window.",
+        description=(
+            "Timestamp reference for saved output. 'follow' keeps the forcing "
+            "timestamp reference, 'utc' and 'local_standard_time' select those "
+            "fixed clocks explicitly, and 'daylight' adds the configured "
+            "daylight-saving offset to local standard time inside the DLS window."
+        ),
     )
 
     @property

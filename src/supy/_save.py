@@ -241,7 +241,9 @@ def relabel_output_timestamps(
     raise ValueError("Cannot relabel output timestamps: index is not datetime-like.")
 
 
-def _output_group_frequencies(df_output: pd.DataFrame) -> dict:
+def _output_group_frequencies(
+    df_output: pd.DataFrame, fallback_frequency_s: int
+) -> dict:
     """Return each output group's nominal source-clock frequency in seconds."""
     dict_group_frequency_s = {}
     for group in df_output.columns.get_level_values("group").unique():
@@ -255,6 +257,9 @@ def _output_group_frequencies(df_output: pd.DataFrame) -> dict:
             else df_group.index
         ).drop_duplicates()
         if len(idx_group) < 2:
+            dict_group_frequency_s[group] = (
+                86400 if group == "DailyState" else fallback_frequency_s
+            )
             continue
         ser_deltas = idx_group.to_series().diff().dropna()
         ser_positive_deltas = ser_deltas[ser_deltas > pd.Timedelta(0)]
@@ -565,25 +570,31 @@ def save_df_output(
     # dataframes to save
     if save_tstep:
         # both original and resampled output dataframes
-        list_df_save = [
-            df for df in [df_save, df_rsmp] if df is not None and len(df.columns) > 0
-        ]
+        list_df_save = []
+        if len(df_save.columns) > 0:
+            # Preserve the historical five-minute singleton fallback when the
+            # native cadence cannot be inferred from more than one timestamp.
+            list_df_save.append((df_save, 300))
+        if df_rsmp is not None and len(df_rsmp.columns) > 0:
+            list_df_save.append((df_rsmp, freq_s))
     else:
         # combine resampled data with DailyState (if it exists)
         list_df_save = []
         if df_dailystate is not None:
-            list_df_save.append(df_dailystate)
+            list_df_save.append((df_dailystate, 86400))
         if df_rsmp is not None:
-            list_df_save.append(df_rsmp)
+            list_df_save.append((df_rsmp, freq_s))
 
     # save output at the resampling frequency
     output_timestamp_reference = _normalise_output_timestamp_reference(
         timestamp_reference
     )
     timestamps_are_final = output_timestamp_reference != "follow"
-    for df_save in list_df_save:
+    for df_save, fallback_frequency_s in list_df_save:
         dict_group_frequency_s = (
-            _output_group_frequencies(df_save) if timestamps_are_final else None
+            _output_group_frequencies(df_save, fallback_frequency_s)
+            if timestamps_are_final
+            else None
         )
         # Check if this is DailyState-only data
         is_dailystate_only = len(df_save.columns) > 0 and all(

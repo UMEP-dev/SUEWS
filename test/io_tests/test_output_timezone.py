@@ -336,6 +336,33 @@ def test_text_daylight_keeps_dailystate_filename_contract(tmp_path: Path):
     assert [path.name for path in paths] == ["1_2020_DailyState_DAYLIGHT.txt"]
 
 
+def test_text_daylight_saves_single_dailystate_record(tmp_path: Path):
+    dates = pd.to_datetime(["2020-04-01 00:00"])
+    index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
+    columns = pd.MultiIndex.from_tuples(
+        [("DailyState", "Tmin")], names=["group", "var"]
+    )
+    df_output = pd.DataFrame([1.0], index=index, columns=columns)
+    df_state = _state_for_grid([
+        {"grid": 1, "timezone": 0, "startdls": 80, "enddls": 300}
+    ])
+
+    paths = save_df_output(
+        df_output,
+        freq_s=3600,
+        path_dir_save=tmp_path,
+        output_groups=["DailyState"],
+        timestamp_reference="daylight",
+        forcing_timestamp_reference="local_standard_time",
+        df_state_final=df_state,
+    )
+
+    output_path = paths[0]
+    saved = pd.read_csv(output_path, sep="\t")
+    assert output_path.name == "1_2020_DailyState_DAYLIGHT.txt"
+    assert len(saved) == 1
+
+
 def test_text_explicit_reference_keeps_native_and_resampled_cadences(
     tmp_path: Path,
 ):

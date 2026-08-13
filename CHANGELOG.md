@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 13 Aug 2026
+
+- [feature][experimental] Added configurable saved-output timestamp references (#1589)
+  - `model.control.output.timestamp_reference` can follow the forcing clock or relabel saved text and parquet timestamps to UTC, local standard time, or configured daylight time without changing simulated values.
+  - Explicit references add a matching filename suffix, while the default `follow` policy preserves existing timestamps and filenames.
+
 ### 12 Aug 2026
 
 - [bugfix] Preserved elapsed model time across chunk and restart boundaries (#1692)

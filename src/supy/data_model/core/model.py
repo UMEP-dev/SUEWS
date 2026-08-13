@@ -1295,6 +1295,21 @@ class OutputFormat(Enum):
         return self.value
 
 
+class OutputTimestampReference(StrEnum):
+    """Supported saved-output timestamp references.
+
+    ``follow`` keeps the forcing clock. ``utc`` and
+    ``local_standard_time`` select those fixed clocks explicitly.
+    ``daylight`` adds the configured daylight-saving offset to local
+    standard time inside the DLS window.
+    """
+
+    FOLLOW = "follow"
+    UTC = "utc"
+    LOCAL_STANDARD_TIME = "local_standard_time"
+    DAYLIGHT = "daylight"
+
+
 class OutputControl(BaseModel):
     """Configuration block for model output files.
 
@@ -1321,6 +1336,15 @@ class OutputControl(BaseModel):
     dir: Optional[str] = Field(
         default=None,
         description="Output directory where result files will be saved. If not specified, defaults to the current working directory.",
+    )
+    timestamp_reference: OutputTimestampReference = Field(
+        default=OutputTimestampReference.FOLLOW,
+        description=(
+            "Timestamp reference for saved output. 'follow' keeps the forcing "
+            "timestamp reference, 'utc' and 'local_standard_time' select those "
+            "fixed clocks explicitly, and 'daylight' adds the configured "
+            "daylight-saving offset to local standard time inside the DLS window."
+        ),
     )
 
     @property

@@ -90,7 +90,7 @@ jobs:
           --source-sha "${{ github.sha }}"
           --wheel "$CONTROLLED_WHEEL"
           -- python -m pytest test
-          -m "physics and not slow"
+          -m "physics and (core or not slow)"
           -q --tb=short
           -n 4 --maxprocesses=4 --dist worksteal
 

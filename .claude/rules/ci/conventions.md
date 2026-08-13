@@ -228,14 +228,18 @@ Mitigate by:
 
 Test tiers control which pytest markers run during CI builds. Defined via pytest markers in `pyproject.toml`; consumed by `.github/actions/build-suews/action.yml` (`CIBW_TEST_COMMAND`).
 
-- **smoke** (`-m smoke`) -- minimal wheel validation (~6 tests, ~60s)
-- **core** (`-m "smoke or core"`) -- core physics and logic, includes smoke (~2-3 min)
-- **cfg** (`-m "smoke or cfg"`) -- config/schema validation, includes smoke (~2-3 min)
-- **standard** (`-m "not slow"`) -- all tests except slow-marked ones (~5-10 min)
+- **smoke** (`-m "smoke and not (medium or slow)"`) -- minimal wheel validation (~6 tests, ~60s)
+- **core** (`-m "(smoke or core) and not slow"`) -- core physics and logic, includes smoke (~2-3 min)
+- **cfg** (`-m "(smoke or cfg) and not slow"`) -- config/schema validation, includes smoke (~2-3 min)
+- **standard** (`-m "core or not slow"`) -- all non-slow tests plus essential core regressions (~5-10 min)
 - **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`.
 - **all** (no filter) -- full suite including slow tests (~15-30 min)
 
-Each higher tier is a superset of smoke. The `standard` tier excludes only `slow`-marked tests (>30s each).
+Importance and cost are independent: `medium` means roughly 30-60 seconds on
+the slowest normal CI platform, while `slow` means over 60 seconds or otherwise
+unsuitable for routine PR runs. Absence of either cost marker means fast. Each
+higher tier is a superset of smoke. The `standard` tier excludes non-core
+`slow` tests but retains tests marked both `core` and `slow`.
 
 ---
 
@@ -332,13 +336,13 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 
 - 3 platforms: Linux x86_64, macOS ARM64, Windows AMD64
 - 1 Python version: 3.12 (the abi3 floor and oldest supported)
-- standard test tier: all tests except `slow`-marked
+- standard test tier: all non-slow tests plus essential `core` regressions
 
 **What merge queue omits:**
 
 - macOS Intel x86_64 (legacy platform, declining user base)
 - Python 3.13 and 3.14 (covered by ready-PR bookends and nightly/release CI)
-- `slow`-marked tests (>30s each) -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so the `slow` physics regression gates the merge (gh#1576)
+- non-core `slow` tests -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576)
 
 **Rationale:** Full matrix (4 platforms x 3 Python = 12 jobs), or even
 repeating both bookends on all three queue platforms, duplicates work already

@@ -362,7 +362,6 @@ class TestLAIMethodRuntime:
             minimum_aligned_days=self.SHORT_N_DAYS,
         )
 
-    @pytest.mark.slow
     def test_laimethod_seasonal_integration(self, lai_runtime_inputs):
         """Observed LAI continues to track a 30-day seasonal forcing curve."""
         _, df_forcing_base = lai_runtime_inputs

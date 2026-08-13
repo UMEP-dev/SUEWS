@@ -277,7 +277,6 @@ class TestObservedSoilMoistureIntegration:
     3. Output physics (evaporation) is affected by soil moisture stress
     """
 
-    @pytest.mark.slow
     def test_observed_soil_moisture_affects_evaporation(self):
         """Verify that observed soil moisture affects latent heat flux (QE).
 
@@ -386,7 +385,6 @@ class TestObservedSoilMoistureIntegration:
         print(f"Mean daytime QE (wet, xsmd=0.38):        {mean_qe_wet:.1f} W/m²")
         print(f"QE difference (wet - dry):               {qe_difference:.1f} W/m²")
 
-    @pytest.mark.slow
     def test_smdmethod_config_propagates_to_kernel(self):
         """Verify that SMDMethod setting propagates correctly through the pipeline."""
 

@@ -130,19 +130,22 @@ are gated to Windows + Python 3.12 by the existing `qgis` marker. This matches
 the current Windows runtime for both QGIS 3 LTR and QGIS 4; the Qt/PyQt
 difference is outside this repository's direct test surface.
 
-### Tier axis — how fast or expensive is the test?
+### Importance and cost — independent properties
 
 - `smoke` — minimal wheel validation (~6 tests, ~60s).
 - `smoke_bridge` — legacy marker for the bridge-loading subset; still
   registered, but CI no longer selects on it directly. Post-gh#1300,
   cross-CPython coverage is driven by `-m "api and <tier>"` in the
   `test_api_cross_python` job.
-- `core` — core physics and logic tests (Fortran, driver).
+- `core` — essential physics and logic contracts (Fortran, driver), independent
+  of cost.
 - `rust` — Rust bridge backend tests (requires `suews_bridge` with the
   `physics` feature).
 - `util` — utility function tests (non-critical).
 - `cfg` — config / schema validation tests.
-- `slow` — tests taking more than 30s individually.
+- `medium` — tests taking roughly 30-60s on the slowest normal CI platform.
+- `slow` — tests taking over 60s individually, or unsuitable for routine PR
+  runs. `core` + `slow` means expensive but essential before merge.
 - `qgis` — UMEP plugin tests in `test/umep/` (Windows + Python 3.12 target).
 
 ### Selecting a subset
@@ -150,22 +153,25 @@ difference is outside this repository's direct test surface.
 ```bash
 pytest -m physics                  # numerical / binary correctness only
 pytest -m api                      # wrapper surface only
-pytest -m "physics and smoke"      # physics tests in the smoke tier
-pytest -m "api and not slow"       # wrapper surface, skip slow tests
+pytest -m "physics and smoke and not (medium or slow)"  # smoke physics
+pytest -m "api and (core or not slow)"  # standard wrapper selection
 pytest -m "physics and api"        # files that straddle both axes
 ```
 
 ### PR/CR placement rules
 
 - Put numerical guardrails in `test/physics/` or a clearly named physics file
-  under `test/core/`, mark them `physics`, and add `core` only when they are
-  fast enough for draft PRs and merge-queue checks.
+  under `test/core/`, mark them `physics`, and add `core` when they are
+  essential before merge. Add `medium` or `slow` independently for cost.
 - Put pandas / numpy / pydantic / CLI / wrapper behaviour in `api` tests. These
   run across the CPython bookends because the dependency surface varies by
   interpreter.
-- Mark long regression or reproduction tests `slow`. Slow tests run in
-  `test-all`, scheduled builds, release builds, or explicit manual validation;
-  they are excluded from smoke, core, cfg, standard, and local `make test`.
+- Mark the measured middle band `medium`; it remains in `standard` but is
+  excluded from `smoke`. Mark long regression or reproduction tests `slow`.
+  Slow tests run in `test-all`, scheduled builds, release builds, or explicit
+  manual validation unless they also carry `core`, in which case ready PR and
+  merge-queue `standard` selection retains them. Draft `core`, `cfg`, and local
+  `make test` still exclude `slow`.
 - Keep UMEP/QGIS tests under `test/umep/` with the auto-applied `api` + `qgis`
   markers. They run in `all` validation on the Windows + Python 3.12 cell or
   through `make test-qgis`; keep them out of normal PR/CR tiers unless a change

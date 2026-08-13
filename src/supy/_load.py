@@ -15,7 +15,7 @@ from packaging import version
 
 
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
-from ._misc import path_insensitive 
+from ._misc import path_insensitive
 from .data_model.forcing import FORCING_REGISTRY
 
 # choose different second representation to accommodate different pandas versions
@@ -867,6 +867,30 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     return df_combined
 
 
+def _validate_integer_timestamp_columns(
+    df_forcing: pd.DataFrame,
+    columns: list[str],
+) -> None:
+    """Reject timestamp coordinates that would be truncated by integer casting."""
+    for column in columns:
+        numeric = pd.to_numeric(df_forcing[column], errors="coerce")
+        invalid = numeric.isna() | ~np.isfinite(numeric) | (numeric % 1 != 0)
+        if not invalid.any():
+            continue
+
+        offenders = [
+            f"row {index}: {value!r}"
+            for index, value in df_forcing.loc[invalid, column].head(5).items()
+        ]
+        remaining = int(invalid.sum()) - len(offenders)
+        if remaining:
+            offenders.append(f"... (+{remaining} more)")
+        raise ValueError(
+            f"forcing timestamp column '{column}' must contain integer values; "
+            f"invalid value(s): {', '.join(offenders)}"
+        )
+
+
 def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     """Reindex a raw forcing DataFrame against canonical names (gh#1372).
 
@@ -953,7 +977,10 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     df_canonical["pres"] *= 10  # kPa -> hPa
     df_canonical["isec"] = 0
     complete_dt_columns = list(BASELINE_DATETIME_FORCING_COLUMNS) + ["isec"]
-    df_canonical[complete_dt_columns] = df_canonical[complete_dt_columns].astype(np.int64)
+    _validate_integer_timestamp_columns(df_canonical, complete_dt_columns)
+    df_canonical[complete_dt_columns] = df_canonical[complete_dt_columns].astype(
+        np.int64
+    )
     df_canonical = set_index_dt(df_canonical)
     return df_canonical
 

@@ -22,12 +22,13 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract is published at ``1.1.0`` and the output contract at
-``1.0.0``. Forcing ``1.1.0`` adds UTC as an opt-in timestamp reference while
-retaining local standard time as the default. Each forcing release is stored as
-an immutable canonical registry projection under
-``src/supy/data_model/forcing/artefacts/``. The output contract's
-immutable bundle is stored under
+The forcing contract is published at ``1.2.0`` and the output contract at
+``1.0.0``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
+retaining local standard time as the default; ``1.2.0`` corrects snow-cover
+requiredness to reflect its physics-dependent use. Each forcing release is
+stored as an immutable canonical registry projection under
+``src/supy/data_model/forcing/artefacts/``. The output contract's immutable
+bundle is stored under
 ``src/supy/data_model/output/artefacts/1.0.0/`` after the registry projection
 and observable output layouts were validated.
 

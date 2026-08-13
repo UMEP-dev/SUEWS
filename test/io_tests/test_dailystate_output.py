@@ -166,3 +166,54 @@ class TestDailyStateOutput:
         # LAI should decrease while SDD is driving senescence.
         senescence = (sdd < 0) & (lai_change < 0)
         assert senescence.any(), "No LAI decrease found during senescence"
+
+        # LAI must remain physically/configurationally bounded
+        assert (lai >= 0).all()
+
+    def test_dailystate_gdd_sdd_progression(
+        self, sample_run_cached, sample_data_loaded, sample_config_loaded
+    ):
+        """GDD increases and SDD decreases until they are reset."""
+
+        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
+        gdd_full_dectr = config_lai_dectr.gdd_full.value
+        sdd_full_dectr = config_lai_dectr.sdd_full.value
+
+        df_output, _ = sample_run_cached()
+
+        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+
+        gdd = df_dailystate["GDD_DecTr"]
+        sdd = df_dailystate["SDD_DecTr"]
+
+        # Remove any initial missing values.
+        gdd = gdd.dropna()
+        sdd = sdd.dropna()
+
+        # GDD should never decrease, except when it is reset to zero.
+        gdd_after_change = gdd.iloc[1:]
+
+        gdd_change = gdd.diff().dropna()
+        gdd_decreases = gdd_change < 0
+
+        assert (gdd_after_change[gdd_decreases] == 0).all(), (
+            "GDD should only decrease when it is reset to 0"
+        )
+
+        # SDD should never increase, except when it is reset to zero.
+        sdd_after_change = sdd.iloc[1:]
+
+        sdd_change = sdd.diff().dropna()
+        sdd_increases = sdd_change > 0
+
+        assert (sdd_after_change[sdd_increases] == 0).all(), (
+            "SDD should only increase when it is reset to 0"
+        )
+
+        # GDD should remain within its expected range.
+        assert (gdd >= 0).all()
+        assert (gdd <= gdd_full_dectr).all()
+
+        # SDD should remain within its expected range.
+        assert (sdd <= 0).all()
+        assert (sdd >= sdd_full_dectr).all()

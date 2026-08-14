@@ -586,14 +586,14 @@ CONTAINS
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
 
-      logical, intent(out) :: valid_observed
+      logical, intent(out) :: valid_observed_lai
       
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
       SDD_id_prev = SDD_id
 
       if (LAICalcYes == 0) then
-         call observed_lai(valid_observed)
+         call observed_lai(valid_observed_lai)
          if (.not. valid_observed_lai) return
       end if
       

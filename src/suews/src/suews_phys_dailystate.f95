@@ -586,7 +586,7 @@ CONTAINS
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
 
-      logical, intent(out) :: valid_observed_lai
+      logical :: valid_observed_lai
       
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id

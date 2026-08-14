@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.4.33. Physics Methods &#8212; SUEWS 2026.8.14.dev1 documentation</title>
+    <title>4.4.33. Physics Methods &#8212; SUEWS 2026.8.14.dev2 documentation</title>
   
   
   
@@ -46,11 +46,12 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=be533933"></script>
+    <script src="../../../_static/documentation_options.js?v=a927b955"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/yaml/config-reference/modelphysics';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
@@ -61,7 +62,7 @@
     <link rel="prev" title="4.4.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.14.dev1" />
+  <meta name="docsearch:version" content="2026.8.14.dev2" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d5c139aa1985194eff859c5b58e6e0a8d85d61b7" style="color: #31708f;">d5c139a</a>).
+        (2026.8.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dc5979b1a3fe6f46f8fd0a78f4ee27971feab480" style="color: #31708f;">dc5979b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +197,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.14.dev1 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.14.dev1 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.14.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -619,8 +620,8 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">roughness_length_momentum</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_length_heat</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">stability</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_sublayer_level</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">surface_conductance</span></code></p></li>
 </ul>
 <p>Conditional compatibility checks enforce the critical branches: EHC and STEBBS storage heat require SPARTACUS net radiation, STEBBS storage heat also requires STEBBS enabled, and non-default STEBBS capacitance choices require the STEBBS branch.</p>
-<div class="pst-scrollable-table-container"><table class="table" id="id1">
-<caption><span class="caption-number">Table 4.1 </span><span class="caption-text">Net radiation</span><a class="headerlink" href="#id1" title="Link to this table">#</a></caption>
+<div class="pst-scrollable-table-container"><table class="table" id="id2">
+<caption><span class="caption-number">Table 4.1 </span><span class="caption-text">Net radiation</span><a class="headerlink" href="#id2" title="Link to this table">#</a></caption>
 <colgroup>
 <col style="width: 30.0%" />
 <col style="width: 35.0%" />
@@ -652,8 +653,8 @@
 </tbody>
 </table>
 </div>
-<div class="pst-scrollable-table-container"><table class="table" id="id2">
-<caption><span class="caption-number">Table 4.2 </span><span class="caption-text">Emissions</span><a class="headerlink" href="#id2" title="Link to this table">#</a></caption>
+<div class="pst-scrollable-table-container"><table class="table" id="id3">
+<caption><span class="caption-number">Table 4.2 </span><span class="caption-text">Emissions</span><a class="headerlink" href="#id3" title="Link to this table">#</a></caption>
 <colgroup>
 <col style="width: 30.0%" />
 <col style="width: 35.0%" />
@@ -681,8 +682,8 @@
 </tbody>
 </table>
 </div>
-<div class="pst-scrollable-table-container"><table class="table" id="id3">
-<caption><span class="caption-number">Table 4.3 </span><span class="caption-text">Storage heat</span><a class="headerlink" href="#id3" title="Link to this table">#</a></caption>
+<div class="pst-scrollable-table-container"><table class="table" id="id4">
+<caption><span class="caption-number">Table 4.3 </span><span class="caption-text">Storage heat</span><a class="headerlink" href="#id4" title="Link to this table">#</a></caption>
 <colgroup>
 <col style="width: 30.0%" />
 <col style="width: 35.0%" />
@@ -706,8 +707,8 @@
 </tbody>
 </table>
 </div>
-<div class="pst-scrollable-table-container"><table class="table" id="id4">
-<caption><span class="caption-number">Table 4.4 </span><span class="caption-text">Observed/modelled source selectors</span><a class="headerlink" href="#id4" title="Link to this table">#</a></caption>
+<div class="pst-scrollable-table-container"><table class="table" id="id5">
+<caption><span class="caption-number">Table 4.4 </span><span class="caption-text">Observed/modelled source selectors</span><a class="headerlink" href="#id5" title="Link to this table">#</a></caption>
 <colgroup>
 <col style="width: 30.0%" />
 <col style="width: 35.0%" />
@@ -743,8 +744,13 @@
 </tbody>
 </table>
 </div>
-<div class="pst-scrollable-table-container"><table class="table" id="id5">
-<caption><span class="caption-number">Table 4.5 </span><span class="caption-text">Other method selectors</span><a class="headerlink" href="#id5" title="Link to this table">#</a></caption>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><code class="docutils literal notranslate"><span class="pre">frontal_area_index:</span> <span class="pre">modelled</span></code> is retained for compatibility, but its building estimate uses grid-cell area as a horizontal length scale. It is therefore resolution-dependent and can become very small on coarse grids.</p>
+<p>Building surface fraction alone does not determine building FAI. For idealised square buildings, <span class="math notranslate nohighlight">\(\lambda_f = \lambda_p H / b\)</span>; the same plan-area fraction can represent many narrow buildings or a few wide ones. Use <code class="docutils literal notranslate"><span class="pre">observed</span></code> with morphology-derived FAI for coarse-grid applications. A replacement closure needs a validated additional geometry measure; SUEWS does not assume a universal building width (<span class="bibtex-citation" id="id1">Grimmond and Oke [<a class="reference internal" href="../../../references.html#id58" title="Grimmond, C. S. B. and Oke, T. R. Aerodynamic properties of urban areas derived from analysis of surface form. J. Appl. Meteor., 38(9):1262-1292, September 1999. doi:10.1175/1520-0450(1999)038&lt;1262:apouad&gt;2.0.co;2.">1999</a>]</span>).</p>
+</div>
+<div class="pst-scrollable-table-container"><table class="table" id="id6">
+<caption><span class="caption-number">Table 4.5 </span><span class="caption-text">Other method selectors</span><a class="headerlink" href="#id6" title="Link to this table">#</a></caption>
 <colgroup>
 <col style="width: 30.0%" />
 <col style="width: 35.0%" />
@@ -784,8 +790,8 @@
 </tbody>
 </table>
 </div>
-<div class="pst-scrollable-table-container"><table class="table" id="id6">
-<caption><span class="caption-number">Table 4.6 </span><span class="caption-text">STEBBS</span><a class="headerlink" href="#id6" title="Link to this table">#</a></caption>
+<div class="pst-scrollable-table-container"><table class="table" id="id7">
+<caption><span class="caption-number">Table 4.6 </span><span class="caption-text">STEBBS</span><a class="headerlink" href="#id7" title="Link to this table">#</a></caption>
 <colgroup>
 <col style="width: 30.0%" />
 <col style="width: 35.0%" />
@@ -1349,8 +1355,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d5c139aa1985194eff859c5b58e6e0a8d85d61b7">d5c139a</a> |
+  <p>Version: 2026.8.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dc5979b1a3fe6f46f8fd0a78f4ee27971feab480">dc5979b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

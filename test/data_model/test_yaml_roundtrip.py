@@ -183,6 +183,58 @@ class TestDictInputHardening:
         with pytest.raises(ValueError, match="stray_key"):
             SUEWSConfig.from_dict(drifted)
 
+    def test_unknown_nested_key_raises(self, sample_config_dict):
+        """Validated raw mappings must reject keys nested models would drop."""
+        from copy import deepcopy
+
+        drifted = deepcopy(sample_config_dict)
+        drifted["model"]["physics"]["stroage_heat"] = "ohm"
+
+        with pytest.raises(ValueError, match=r"model\.physics\.stroage_heat"):
+            SUEWSConfig.from_dict(drifted)
+
+    def test_unknown_key_in_tuple_sites_raises(self, sample_config_dict):
+        """Accepted non-list site sequences must use the same strict path."""
+        from copy import deepcopy
+
+        drifted = deepcopy(sample_config_dict)
+        drifted["sites"][0]["bogus"] = True
+        drifted["sites"] = tuple(drifted["sites"])
+
+        with pytest.raises(ValueError, match=r"sites\[gridiv=.*\]\.bogus"):
+            SUEWSConfig.from_dict(drifted)
+
+    def test_legacy_key_error_suggests_current_name(self, sample_config_dict):
+        """Historical CamelCase spellings should point to the current field."""
+        from copy import deepcopy
+
+        drifted = deepcopy(sample_config_dict)
+        drifted["model"]["physics"]["WaterUseMethod"] = 1
+
+        with pytest.raises(ValueError, match="renamed to 'water_use'"):
+            SUEWSConfig.from_dict(drifted)
+
+    def test_before_validator_alias_remains_accepted(self, sample_config_dict):
+        """Strict extras run after compatibility validators consume aliases."""
+        from copy import deepcopy
+
+        legacy = deepcopy(sample_config_dict)
+        forcing = legacy["model"]["control"].pop("forcing")
+        legacy["model"]["control"]["forcing_file"] = forcing["file"]
+
+        config = SUEWSConfig.from_dict(legacy)
+        assert config.model.control.forcing.file is not None
+
+    def test_explicit_unchecked_path_preserves_bypass(self, sample_config_dict):
+        """The named model_construct path remains intentionally unchecked."""
+        from copy import deepcopy
+
+        unchecked = deepcopy(sample_config_dict)
+        unchecked["model"]["physics"]["totally_bogus_key"] = 42
+
+        config = SUEWSConfig.from_dict(unchecked, use_conditional_validation=False)
+        assert config is not None
+
     def test_internal_bookkeeping_keys_accepted(self, sample_config_dict, tmp_path):
         """The private _yaml_* keys must keep working through from_yaml."""
         path = _write_yaml(tmp_path, sample_config_dict)

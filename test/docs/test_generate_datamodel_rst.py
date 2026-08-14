@@ -430,7 +430,7 @@ def test_extractor_inherits_legacy_names_and_parameter_examples() -> None:
 
     # ASSERT
     assert paved_fields["soil_depth"]["legacy_name"] == "soildepth"
-    assert len(paved_fields["soil_depth"]["examples"]) == 2
+    assert len(paved_fields["soil_depth"]["examples"]) == 9
     assert evetr_fields["max_conductance"]["legacy_name"] == "maxconductance"
     assert evetr_fields["max_conductance"]["examples"]
 
@@ -501,13 +501,20 @@ def test_parameter_example_internal_citations_exist_in_docs_bibliography() -> No
     )
     assert citation_keys == {
         "A16",
+        "D23",
         "F02",
+        "H24",
         "J11",
         "J14",
         "Kotthaus2014Aug",
         "R95",
         "S00",
+        "S25",
+        "S88",
+        "V13",
+        "W13",
         "W16",
+        "X24",
         "Z23",
     }
     for citation_key in citation_keys:
@@ -525,7 +532,7 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
 
     # ASSERT
     assert len(index) == 108
-    assert len(examples) == 344
+    assert len(examples) == 554
     assert sheets == {
         "Albedo",
         "Biogen CO2",
@@ -544,12 +551,12 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
         "Water State",
         "Water Storage",
     }
-    assert len(get_parameter_examples("Conductance", "g_max")) == 2
+    assert len(get_parameter_examples("Conductance", "g_max")) == 3
     assert len(get_parameter_examples("SnowParams", "radiation_melt_factor")) == 1
-    assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 2
+    assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 9
     assert len(get_parameter_examples("PavedProperties", "snowpack_limit")) == 1
     assert len(get_parameter_examples("WaterProperties", "state_limit")) == 2
-    assert len(get_parameter_examples("EvetrProperties", "alpha_bio_co2")) == 3
+    assert len(get_parameter_examples("EvetrProperties", "alpha_bio_co2")) == 8
 
 
 def test_parameter_example_catalogue_keys_are_documented_fields() -> None:
@@ -569,8 +576,8 @@ def test_parameter_example_catalogue_keys_are_documented_fields() -> None:
     assert set(get_all_parameter_examples()) <= documented_fields
 
 
-def test_parameter_example_catalogue_excludes_unapproved_references() -> None:
-    """Unreliable sources and sources outside the bibliography never reach docs."""
+def test_parameter_example_catalogue_excludes_unreliable_references() -> None:
+    """Known missing, placeholder and incorrect references never reach docs."""
     # ACT
     reference_ids = {
         example["reference"]["id"]
@@ -582,14 +589,7 @@ def test_parameter_example_catalogue_excludes_unapproved_references() -> None:
     assert not reference_ids & {
         "90240000",
         "90240027",
-        "90240056",
-        "90240058",
-        "90240060",
-        "90240061",
-        "90240062",
         "90240064",
-        "90240066",
-        "90240068",
         "90240991",
         "90241000",
         "99240099",
@@ -748,6 +748,7 @@ def test_selector_dependent_examples_keep_their_method_context() -> None:
     assert [example["selector"]["value"] for example in conductance_examples] == [
         1,
         2,
+        1,
     ]
     assert "gs_model=1" in conductance_rendered
     assert "gs_model=2" in conductance_rendered

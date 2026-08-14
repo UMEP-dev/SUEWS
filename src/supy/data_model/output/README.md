@@ -26,8 +26,10 @@ stability:
 
 These classifications are exposed by `OUTPUT_GROUP_SCOPES`. Output contract
 `1.0.0` freezes the registry projection after the observable layouts were
-validated. A group is covered when that group is present; the contract does not
-promise that every optional group is emitted by every run.
+validated. Output contract `1.1.0` adds the supported saved-output timestamp
+references, with `follow` retaining the forcing clock by default. A group is
+covered when that group is present; the contract does not promise that every
+optional group is emitted by every run.
 
 ## Architecture
 
@@ -54,6 +56,10 @@ format-specific placement of coordinate fields is handled separately:
 - pandas output uses `NaN` for missing values;
 - text output uses the `-999.0` sentinel;
 - Parquet uses null values.
+
+The representation metadata also declares `follow` as the default timestamp
+reference and lists the supported `follow`, `utc`, `local_standard_time`, and
+`daylight` policies.
 
 `output_contract_json_schema()` returns the JSON Schema for this in-memory
 catalogue. Each published version stores `catalogue.json`,

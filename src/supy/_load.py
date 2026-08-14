@@ -15,7 +15,7 @@ from packaging import version
 
 
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
-from ._misc import path_insensitive 
+from ._misc import path_insensitive
 from .data_model.forcing import FORCING_REGISTRY
 
 # choose different second representation to accommodate different pandas versions
@@ -158,6 +158,27 @@ def _per_landcover_forcing_var(name: str) -> Optional[str]:
         if lowered[len(prefix):] in allowed:
             return var
     return None
+
+
+def _validate_wuh_values(data_forcing: pd.DataFrame) -> None:
+    """Validate observed water use before generic sentinel normalisation."""
+    for column in data_forcing.columns:
+        is_wuh = str(column).casefold() == "wuh" or (
+            _per_landcover_forcing_var(str(column)) == "wuh"
+        )
+        if not is_wuh:
+            continue
+        values = data_forcing[column]
+        invalid = (values != FORCING_OPTIONAL_FILL) & (
+            ~np.isfinite(values) | (values < 0)
+        )
+        if invalid.any():
+            positions = np.flatnonzero(invalid.to_numpy()).tolist()
+            raise ValueError(
+                f"forcing column '{column}' must contain finite non-negative "
+                f"water-use depths or exact {FORCING_OPTIONAL_FILL}; invalid "
+                f"row position(s): {positions}"
+            )
 
 
 def _coalesce_case_variant_columns(
@@ -484,12 +505,11 @@ def resample_kdn(data_raw_kdn, tstep_mod, timezone, lat, lon, alt):
 # correct precipitation by even redistribution over resampled periods
 def resample_sum(data_raw_precip, tstep_in, tstep_mod):
     # gh#1372 review: preserve the FORCING_OPTIONAL_FILL (-999) sentinel
-    # for sum columns that carry no real data. ``to_nan`` upstream has
-    # already converted the sentinel to NaN; without this guard the
+    # for ordinary sum columns that carry no real data. ``to_nan`` upstream
+    # has converted their sentinel to NaN; without this guard the
     # ``fillna(0.0)`` at the end would silently turn "missing" into
-    # "valid zero", masking truly absent inputs (e.g. an hourly forcing
-    # file that omits Wuh would surface as zero water use instead of
-    # being treated as missing under the observed-water-use path).
+    # "valid zero". Wuh is restored before this function and handled per
+    # input interval below because it uses the exact -999 contract.
     sentinel_columns = [
         c for c in data_raw_precip.columns if data_raw_precip[c].isna().all()
     ]
@@ -512,6 +532,23 @@ def resample_sum(data_raw_precip, tstep_in, tstep_mod):
     # Restore sentinel for columns that were entirely missing on input.
     for col in sentinel_columns:
         data_tstep_precip_adj[col] = FORCING_OPTIONAL_FILL
+    # Wuh uses an exact per-interval sentinel contract. Split each valid
+    # accumulated depth evenly and repeat -999 across the corresponding
+    # output interval, matching the Rust reader.
+    ratio_steps = int(tstep_in / tstep_mod)
+    for col in data_raw_precip.columns:
+        is_wuh = str(col).casefold() == "wuh" or (
+            _per_landcover_forcing_var(str(col)) == "wuh"
+        )
+        if not is_wuh:
+            continue
+        expanded = np.repeat(data_raw_precip[col].to_numpy(), ratio_steps)
+        expanded = expanded[: len(data_tstep_precip_adj)]
+        data_tstep_precip_adj[col] = np.where(
+            expanded == FORCING_OPTIONAL_FILL,
+            FORCING_OPTIONAL_FILL,
+            expanded * ratio_precip,
+        )
     return data_tstep_precip_adj
 
 
@@ -598,8 +635,17 @@ def resample_forcing_met(
 
     from .util import to_nan
 
+    _validate_wuh_values(data_met_raw)
+    wuh_columns = [
+        column
+        for column in data_met_raw.columns
+        if str(column).casefold() == "wuh"
+        or _per_landcover_forcing_var(str(column)) == "wuh"
+    ]
+    data_wuh_raw = data_met_raw.loc[:, wuh_columns].copy()
     data_met_raw = data_met_raw.copy()
     data_met_raw = to_nan(data_met_raw)
+    data_met_raw.loc[:, wuh_columns] = data_wuh_raw
     # this line is kept for occasional debugging:
     if logger_supy.level < 20:
         p_data_met_raw = "data_met_raw.pkl"
@@ -821,6 +867,30 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     return df_combined
 
 
+def _validate_integer_timestamp_columns(
+    df_forcing: pd.DataFrame,
+    columns: list[str],
+) -> None:
+    """Reject timestamp coordinates that would be truncated by integer casting."""
+    for column in columns:
+        numeric = pd.to_numeric(df_forcing[column], errors="coerce")
+        invalid = numeric.isna() | ~np.isfinite(numeric) | (numeric % 1 != 0)
+        if not invalid.any():
+            continue
+
+        offenders = [
+            f"row {index}: {value!r}"
+            for index, value in df_forcing.loc[invalid, column].head(5).items()
+        ]
+        remaining = int(invalid.sum()) - len(offenders)
+        if remaining:
+            offenders.append(f"... (+{remaining} more)")
+        raise ValueError(
+            f"forcing timestamp column '{column}' must contain integer values; "
+            f"invalid value(s): {', '.join(offenders)}"
+        )
+
+
 def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     """Reindex a raw forcing DataFrame against canonical names (gh#1372).
 
@@ -903,10 +973,14 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
         df_canonical[name] = series.to_numpy()
 
     # 6) Existing post-processing.
+    _validate_wuh_values(df_canonical)
     df_canonical["pres"] *= 10  # kPa -> hPa
     df_canonical["isec"] = 0
     complete_dt_columns = list(BASELINE_DATETIME_FORCING_COLUMNS) + ["isec"]
-    df_canonical[complete_dt_columns] = df_canonical[complete_dt_columns].astype(np.int64)
+    _validate_integer_timestamp_columns(df_canonical, complete_dt_columns)
+    df_canonical[complete_dt_columns] = df_canonical[complete_dt_columns].astype(
+        np.int64
+    )
     df_canonical = set_index_dt(df_canonical)
     return df_canonical
 

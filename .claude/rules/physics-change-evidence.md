@@ -20,9 +20,9 @@ building-energy outputs (indoor temperature +~0.5 K, cooling-load peak 28 W vs
 19 W), but two things went wrong:
 
 - The stale STEBBS regression fixture only failed in the **nightly full-physics
-  build**, not in the PR or merge-queue checks. The merge queue runs a reduced
-  matrix (`test_tier=standard`) whose pytest expression excludes `slow`, so a
-  known-output-changing PR merged without the change being caught.
+  build**, not in the PR or merge-queue checks. At the time, the merge queue's
+  reduced `standard` matrix excluded every `slow` test, so a known-output-
+  changing PR merged without the change being caught.
 - There was **no recorded scientific justification** for the new numbers. The
   physical reasoning (longwave cascade -> indoor temperature -> threshold-driven
   cooling) had to be reconstructed after the fact in #1575 to update the
@@ -171,10 +171,11 @@ When reviewing a PR whose diff matches the physics-change triggers:
 
 ## CI gate (the second PR of gh#1576)
 
-`.github/scripts/determine-matrix.sh` currently selects `test_tier=standard` for
-both `pull_request` (ready) and `merge_group`, and `standard` excludes `slow`.
-Only `schedule` (nightly) and tag/full-dispatch use `test_tier=all`, which is why
-the stale STEBBS fixture only failed overnight.
+`.github/scripts/determine-matrix.sh` selects `test_tier=standard` for both
+`pull_request` (ready) and `merge_group`. Standard now retains `core` + `slow`
+regressions while excluding non-core `slow` tests. Only `schedule` (nightly)
+and tag/full-dispatch use `test_tier=all`, which is why the physics-full label
+override remains necessary for all physics regressions.
 
 The CI wiring bumps the tier to include the `slow` physics tests when a PR
 carries `0-physics:change`, making the full physics regression a required check

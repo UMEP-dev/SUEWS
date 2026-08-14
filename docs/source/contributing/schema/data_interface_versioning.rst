@@ -22,11 +22,16 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract remains unpublished: ``CURRENT_FORCING_VERSION`` is
-``None`` and its history is empty. The output contract is published at
-``1.0.0``. Its immutable bundle is stored under
-``src/supy/data_model/output/artefacts/1.0.0/`` after the registry projection
-and observable output layouts were validated.
+The forcing contract is published at ``1.2.0`` and the output contract at
+``1.1.0``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
+retaining local standard time as the default; ``1.2.0`` corrects snow-cover
+requiredness to reflect its physics-dependent use. Output ``1.1.0`` adds
+configurable saved-output timestamp references while retaining the forcing
+clock by default. Each forcing release is stored as an immutable canonical
+registry projection under ``src/supy/data_model/forcing/artefacts/``. The
+output contract's immutable bundles are stored under
+``src/supy/data_model/output/artefacts/`` after the registry projection and
+observable output layouts were validated.
 
 The first public version of each contract must be ``1.0.0``. Later releases use
 stable ``MAJOR.MINOR.PATCH`` semantic versions independently:
@@ -40,8 +45,9 @@ Version histories
 
 Each released version is paired with a lowercase SHA-256 digest. The forcing
 and output contract implementations define which canonical bytes it identifies.
-For output, the digest identifies the exact canonical ``manifest.json`` bytes;
-that manifest records the digests of ``catalogue.json`` and
+For forcing, the digest identifies the exact canonical registry JSON bytes.
+For output, it identifies the exact canonical ``manifest.json`` bytes; that
+manifest records the digests of ``catalogue.json`` and
 ``catalogue.schema.json``.
 
 The histories are append-only. A contributor may append a newer version and
@@ -62,19 +68,32 @@ request's merge base. It checks that:
 - existing history remains unchanged;
 - the current pointer and history are updated together.
 
-The audit does not yet generate contract artefacts, detect contract-content
-drift for forcing, or decide whether a change requires a major, minor, or patch
-release. Output freshness is checked separately by
-``scripts/lint/check_output_contract_artefacts.py`` in the same workflow. It
-checks every stored bundle and regenerates the current catalogue and schema
-from ``OUTPUT_REGISTRY`` for a byte-for-byte comparison. The forcing contract
-work is tracked in #1655 and version-addressed publication in #1657.
+The audit does not decide whether a change requires a major, minor, or patch
+release. Forcing and output freshness are checked separately by
+``scripts/lint/check_forcing_contract_artefacts.py`` and
+``scripts/lint/check_output_contract_artefacts.py`` in the same workflow.
+Each regenerates the current registry projection for a byte-for-byte
+comparison with its immutable release.
 
 Contributor workflow
 --------------------
 
-Until a contract is published, leave its current version as ``None`` and its
-history empty. For a new output release:
+For a new forcing release:
+
+1. Choose the SemVer change from the forcing compatibility policy.
+2. Generate the immutable artefact and note the printed digest::
+
+      python scripts/lint/check_forcing_contract_artefacts.py --write <version>
+
+3. Append the version and digest to ``FORCING_VERSIONS``, then move
+   ``CURRENT_FORCING_VERSION`` to the new last entry.
+4. Run the forcing artefact, reference, and history audits::
+
+      python scripts/lint/check_forcing_contract_artefacts.py
+      python docs/generate_forcing_variable_rst.py --check
+      python scripts/lint/check_data_interface_version_history.py --base origin/master
+
+For a new output release:
 
 1. Choose the SemVer change from the output compatibility policy. This remains
    a maintainer decision; the audit does not infer compatibility.
@@ -89,8 +108,8 @@ history empty. For a new output release:
       python scripts/lint/check_output_contract_artefacts.py
       python scripts/lint/check_data_interface_version_history.py --base origin/master
 
-The writer refuses to replace different bytes in an existing release
-directory. Never edit or regenerate a released bundle in place. Public URLs,
+The writers refuse to replace different bytes in an existing release. Never
+edit or regenerate a released artefact in place. Public URLs,
 ``latest`` aliases, and Pages publication are separate work tracked in #1657.
 
 Never rewrite a released entry. Shared mechanical helpers may be extracted only

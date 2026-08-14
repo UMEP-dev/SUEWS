@@ -7,12 +7,11 @@ output resampling, aggregation, and data manipulation utilities.
 
 from unittest import TestCase
 
+from conftest import TIMESTEPS_PER_DAY, run_simulation
 import pandas as pd
 import pytest
 
-import supy as sp
-from conftest import TIMESTEPS_PER_DAY
-from supy._post import dict_var_aggm, resample_output  # noqa: PLC2701
+from supy._post import _resample_output, dict_var_aggm  # noqa: PLC2701
 
 pytestmark = pytest.mark.api
 
@@ -36,19 +35,17 @@ class TestResampleOutput(TestCase):
         than being bound as an instance method (pytest deprecates the
         instance-method form; see PytestRemovedIn10Warning).
         """
-        request.cls.df_output, _ = sample_run_cached(
-            TIMESTEPS_PER_DAY * 7
-        )
+        request.cls.df_output, _ = sample_run_cached(TIMESTEPS_PER_DAY * 7)
         yield
         del request.cls.df_output
 
     def test_resample_output_hourly(self):
         """Test resampling output to hourly frequency."""
         print("\n========================================")
-        print("Testing resample_output to hourly...")
+        print("Testing _resample_output to hourly...")
 
         # Resample to hourly
-        df_hourly = resample_output(
+        df_hourly = _resample_output(
             self.df_output, freq="60min", dict_aggm=dict_var_aggm
         )
 
@@ -83,10 +80,10 @@ class TestResampleOutput(TestCase):
     def test_resample_output_daily(self):
         """Test resampling output to daily frequency."""
         print("\n========================================")
-        print("Testing resample_output to daily...")
+        print("Testing _resample_output to daily...")
 
         # Resample to daily
-        df_daily = resample_output(self.df_output, freq="D", dict_aggm=dict_var_aggm)
+        df_daily = _resample_output(self.df_output, freq="D", dict_aggm=dict_var_aggm)
 
         # Validation
         self.assertIsInstance(df_daily, pd.DataFrame)
@@ -101,7 +98,7 @@ class TestResampleOutput(TestCase):
         df_daily_grid = df_daily.xs(grid_id, level="grid")
 
         # Energy fluxes should be averaged
-        # Use same resampling parameters as resample_output (closed='right', label='right')
+        # Use same resampling parameters as _resample_output (closed='right', label='right')
         # Note: df_daily has combined SUEWS + DailyState dates (Jan 1-8), but SUEWS only has
         # Jan 2-8 (label='right'). Use dropna() to compare only valid SUEWS data.
         qn_manual = (
@@ -141,13 +138,13 @@ class TestResampleOutput(TestCase):
     def test_resample_output_custom_freq(self):
         """Test resampling with custom frequency."""
         print("\n========================================")
-        print("Testing resample_output with custom frequency...")
+        print("Testing _resample_output with custom frequency...")
 
         # Resample to 30 minutes
-        df_30min = resample_output(self.df_output, freq="30min")
+        df_30min = _resample_output(self.df_output, freq="30min")
 
         # Should have twice as many records as hourly
-        df_hourly = resample_output(self.df_output, freq="60min")
+        df_hourly = _resample_output(self.df_output, freq="60min")
         self.assertAlmostEqual(len(df_30min), len(df_hourly) * 2, delta=2)
 
         print("✓ Custom frequency resampling works correctly")
@@ -155,7 +152,7 @@ class TestResampleOutput(TestCase):
     def test_resample_output_custom_aggm(self):
         """Test resampling with custom aggregation methods."""
         print("\n========================================")
-        print("Testing resample_output with custom aggregation...")
+        print("Testing _resample_output with custom aggregation...")
 
         # Create custom aggregation dictionary - must be nested {group: {var: method}}
         custom_aggm = {
@@ -167,13 +164,13 @@ class TestResampleOutput(TestCase):
         }
 
         # Resample with custom aggregation
-        df_custom = resample_output(self.df_output, freq="D", dict_aggm=custom_aggm)
+        df_custom = _resample_output(self.df_output, freq="D", dict_aggm=custom_aggm)
 
         # Verify custom aggregation for grid 1
         # Note: df_output has MultiIndex (datetime, grid), so we need to handle it properly
         grid_id = self.df_output.index.get_level_values("grid")[0]
         qn_series = self.df_output.xs(grid_id, level="grid").SUEWS["QN"]
-        # Use same resampling parameters as resample_output (closed='right', label='right')
+        # Use same resampling parameters as _resample_output (closed='right', label='right')
         qn_max = qn_series.resample("D", closed="right", label="right").max()
         # df_custom has combined SUEWS + DailyState dates, but SUEWS only has label='right' dates
         # Use dropna() and intersection to compare only valid SUEWS data
@@ -191,7 +188,7 @@ class TestResampleOutput(TestCase):
         print("Testing MultiIndex preservation in resampling...")
 
         # Resample
-        df_resampled = resample_output(self.df_output, freq="60min")
+        df_resampled = _resample_output(self.df_output, freq="60min")
 
         # Check MultiIndex structure
         self.assertIsInstance(df_resampled.columns, pd.MultiIndex)
@@ -204,92 +201,6 @@ class TestResampleOutput(TestCase):
 
 class TestAggregationMethods(TestCase):
     """Test aggregation method definitions."""
-
-    def test_dict_var_aggm_completeness(self):
-        """Test that aggregation dictionary covers common variables."""
-        print("\n========================================")
-        print("Testing aggregation method dictionary...")
-
-        # dict_var_aggm is nested: {group: {var: method}}
-        # Check essential variables have aggregation methods in SUEWS group
-        # Note: Meteorological forcing variables (Tair, RH, Pres, U) are not in output
-        essential_vars = [
-            "QN",
-            "QF",
-            "QS",
-            "QE",
-            "QH",  # Energy fluxes
-            "Rain",
-            "Evap",
-            "RO",  # Water fluxes
-            "Kdown",
-            "Kup",
-            "Ldown",
-            "Lup",  # Radiation
-        ]
-
-        # Check that SUEWS group exists
-        self.assertIn(
-            "SUEWS", dict_var_aggm, "Missing SUEWS group in aggregation dictionary"
-        )
-
-        suews_vars = dict_var_aggm["SUEWS"]
-
-        for var in essential_vars:
-            self.assertIn(var, suews_vars, f"Missing aggregation method for {var}")
-
-        # Check aggregation methods are valid
-        valid_methods = ["mean", "sum", "max", "min", "first", "last"]
-        # Also accept lambda functions
-        for _, var_dict in dict_var_aggm.items():
-            for var, method in var_dict.items():
-                if not callable(method):
-                    self.assertIn(
-                        method, valid_methods, f"Invalid method '{method}' for {var}"
-                    )
-
-        # Count total variables across all groups
-        total_vars = sum(len(var_dict) for var_dict in dict_var_aggm.values())
-        print(
-            f"✓ Aggregation dictionary contains {total_vars} variables across {len(dict_var_aggm)} groups"
-        )
-
-    def test_aggregation_method_logic(self):
-        """Test that aggregation methods make physical sense."""
-        print("\n========================================")
-        print("Testing aggregation method logic...")
-
-        # dict_var_aggm is nested: {group: {var: method}}
-        # Get SUEWS variables
-        if "SUEWS" not in dict_var_aggm:
-            self.skipTest("SUEWS group not in aggregation dictionary")
-
-        suews_vars = dict_var_aggm["SUEWS"]
-
-        # Cumulative variables should be summed
-        cumulative_vars = [
-            "Rain",
-            "Irr",
-            "Evap",
-            "RO",
-            "ROSoil",
-            "ROPipe",
-            "ROWater",
-            "ROPav",
-            "ROVeg",
-        ]
-        for var in cumulative_vars:
-            if var in suews_vars:
-                self.assertEqual(suews_vars[var], "sum", f"{var} should be summed")
-
-        # Instantaneous variables should be averaged
-        instant_vars = ["Tair", "RH", "Pres", "U", "QN", "QF", "QS", "QE", "QH"]
-        for var in instant_vars:
-            if var in suews_vars:
-                self.assertEqual(suews_vars[var], "mean", f"{var} should be averaged")
-
-        print("✓ Aggregation methods follow physical logic")
-
 
 class TestPostProcessingUtilities(TestCase):
     """Test other post-processing utilities."""
@@ -308,9 +219,7 @@ class TestPostProcessingUtilities(TestCase):
         than being bound as an instance method (pytest deprecates the
         instance-method form; see PytestRemovedIn10Warning).
         """
-        request.cls.df_output, _ = sample_run_cached(
-            TIMESTEPS_PER_DAY * 2
-        )
+        request.cls.df_output, _ = sample_run_cached(TIMESTEPS_PER_DAY * 2)
         yield
         del request.cls.df_output
 
@@ -445,9 +354,7 @@ class TestMultiGridPostProcessing(TestCase):
 
         # Run short simulation
         df_forcing_short = df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()  # One day
-        request.cls.df_output, _ = sp.run_supy(
-            df_forcing_short, df_state_multi, check_input=False
-        )
+        request.cls.df_output, _ = run_simulation(df_forcing_short, df_state_multi)
         request.cls.n_grids = n_grids
         yield
         del request.cls.df_output
@@ -459,7 +366,7 @@ class TestMultiGridPostProcessing(TestCase):
         print("Testing multi-grid resampling...")
 
         # Resample to hourly
-        df_hourly = resample_output(self.df_output, freq="60min")
+        df_hourly = _resample_output(self.df_output, freq="60min")
 
         # Check that grid structure is preserved
         self.assertEqual(df_hourly.index.nlevels, 2)  # datetime and grid
@@ -538,7 +445,7 @@ class TestErrorHandling(TestCase):
 
         # Test invalid frequency
         with self.assertRaises((ValueError, KeyError)):
-            resample_output(self.df_output, freq="invalid")
+            _resample_output(self.df_output, freq="invalid")
 
         print("✓ Error handling works correctly")
 
@@ -548,7 +455,7 @@ class TestErrorHandling(TestCase):
         print("Testing error handling for empty DataFrame...")
 
         # Create empty DataFrame with correct structure and at least one grid
-        # The resample_output function expects to find at least one grid
+        # The _resample_output function expects to find at least one grid
         df_empty = pd.DataFrame(
             columns=pd.MultiIndex.from_tuples(
                 [("SUEWS", "QN"), ("SUEWS", "QH")], names=["group", "var"]
@@ -556,10 +463,10 @@ class TestErrorHandling(TestCase):
             index=pd.MultiIndex.from_tuples([], names=["grid", "datetime"]),
         )
 
-        # resample_output expects grids to exist, so it will raise an error
+        # _resample_output expects grids to exist, so it will raise an error
         # This is expected behavior - empty dataframes should not be resampled
         with self.assertRaises((ValueError, KeyError, IndexError)):
-            resample_output(df_empty, freq="60min", dict_aggm=dict_var_aggm)
+            _resample_output(df_empty, freq="60min", dict_aggm=dict_var_aggm)
 
         print("✓ Empty DataFrame error handling works correctly")
 

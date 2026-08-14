@@ -209,7 +209,7 @@ Documentation-only PRs skip builds even in merge queue:
 
 UMEP/QGIS tests (the `qgis` tier) do **not** run in the merge queue. The
 merge queue's `standard` test tier explicitly excludes them
-(`api and not slow and not qgis`); `qgis`-tier tests run only under the
+(`api and (core or not slow) and not qgis`); `qgis`-tier tests run only under the
 `all` tier -- nightly schedule, tag push, or manual dispatch (`full`):
 - Windows Python 3.12 only (current QGIS 3 LTR / QGIS 4 runtime)
 - Validates NumPy 1.x compatibility

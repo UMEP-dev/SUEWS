@@ -7,9 +7,16 @@ SUEWS is designed to run using commonly measured meteorological variables (e.g. 
 
 When preparing this input file, please note the following:
 
--  Required inputs must be continuous – i.e. **gap fill** any missing data.
--  Temporal information (i.e., ``iy``, ``id``, ``it`` and ``imin``) should be in **local standard time** (i.e. a fixed UTC offset with no daylight-saving transitions; see :ref:`met_forcing`) and indicate the ending timestamp of corresponding periods: e.g. for hourly data, ``2021-09-12 13:00`` indicates a record for the period between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
--  The `table <SSss_YYYY_data_tt.txt>` below gives the must-use (`MU`) and optional (`O`) additional input variables. If an optional input variable (`O`) is not available or will not be used by the model, enter ‘-999’ for this column.
+-  Required inputs must be continuous -- i.e. **gap fill** any missing data.
+-  Temporal information (i.e., ``iy``, ``id``, ``it`` and ``imin``) indicates
+   the ending timestamp of corresponding periods: e.g. for hourly data,
+   ``2021-09-12 13:00`` indicates a record for the period between
+   ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
+   The default reference is **local standard time** (a fixed UTC offset with no
+   daylight-saving transitions). UTC is also accepted when
+   ``model.control.forcing.timestamp_reference: utc`` is declared in YAML;
+   outputs then remain in UTC. See :ref:`met_forcing`.
+-  The `table <SSss_YYYY_data_tt.txt>` below gives the must-use (`MU`) and optional (`O`) additional input variables. If an optional input variable (`O`) is not available or will not be used by the model, enter '-999' for this column.
 
 
 -  One single meteorological file can be used for all grids (**MultipleMetFiles=0** in `RunControl.nml`, no grid number in file name) if appropriate for the study area.
@@ -25,10 +32,10 @@ When preparing this input file, please note the following:
 -  If *multiple years* are used, all years should be included in SUEWS_SiteSelect.txt.
 -  If a *whole year* (e.g. 2011) is intended to be modelled using and hourly resolution dataset, the number of lines in the met data file should be 8760 and begin and end with::
 
-     iy     id  it  imin
-     2011   1   1   0 …
-     …
-     2012   1   0   0 …
+     iy      id  it  imin
+     2011    1   1   0 ...
+     ...
+     2012    1   0   0 ...
 
 
 
@@ -36,7 +43,7 @@ SSss_YYYY_data_tt.txt
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. versionchanged:: v2017a
-   Since v2017a forcing files no longer need to end with two rows containing ‘-9’ in the first column.
+   Since v2017a forcing files no longer need to end with two rows containing '-9' in the first column.
 
 
 Main meteorological data file.
@@ -59,7 +66,8 @@ All SUEWS forcing data must meet these requirements:
 
 - **Temporal consistency**: Regular time intervals (hourly, sub-hourly, or multi-hourly)
 - **Gap-free**: All missing values must be filled or interpolated
-- **Local time**: Timestamps represent the **end** of each measurement period
+- **Time reference**: Timestamps represent the **end** of each measurement
+  period and use local standard time by default, or UTC when declared in YAML
 - **Physical units**: Data must be in the units specified in the variable table above
 - **Quality control**: Remove or flag obviously erroneous values
 
@@ -111,8 +119,8 @@ Reanalysis datasets (MERRA-2, JRA-55, NCEP) require spatial and temporal process
    df['datetime'] = pd.to_datetime(df['time'])
    df.set_index('datetime', inplace=True)
 
-   # Unit conversions (example: K to °C, m/s to specific humidity)
-   df['Tair'] = df['temperature'] - 273.15  # K to °C
+   # Unit conversions (example: K to degC, m/s to specific humidity)
+   df['Tair'] = df['temperature'] - 273.15  # K to degC
    df['RH'] = df['relative_humidity'] * 100  # fraction to percentage
 
    # Resample to required frequency if needed
@@ -190,7 +198,7 @@ Essential checks before using forcing data:
 
        # Physical range checks
        if (df['Tair'] < -50).any() or (df['Tair'] > 60).any():
-           issues.append("Temperature outside reasonable range (-50 to 60°C)")
+           issues.append("Temperature outside reasonable range (-50 to 60 degC)")
 
        if (df['RH'] < 0).any() or (df['RH'] > 100).any():
            issues.append("Relative humidity outside 0-100% range")
@@ -255,7 +263,7 @@ Complete example for processing weather station data:
 **Common Issues and Solutions**
 
 - **Missing longwave radiation**: Use empirical relationships based on air temperature and humidity
-- **Inconsistent time zones**: Ensure all data is in local standard time for the study location (see :ref:`met_forcing`)
+- **Inconsistent time zones**: Use local standard time, or declare UTC explicitly, for every forcing timestamp (see :ref:`met_forcing`)
 - **Sub-daily precipitation**: Aggregate appropriately while preserving intensity patterns
 - **Wind speed at different heights**: Apply logarithmic wind profile corrections if needed
 - **Pressure measurements**: Distinguish between station and sea-level pressure corrections

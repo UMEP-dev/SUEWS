@@ -137,6 +137,29 @@ def test_missing_optional_column_filled_with_sentinel(tmp_path):
     assert (df["snow"] == -999.0).all()
 
 
+@pytest.mark.parametrize(
+    ("column", "value"),
+    (("iy", "2012.5"), ("id", "1.5"), ("it", "1.5"), ("imin", "0.5")),
+)
+def test_fractional_timestamp_coordinate_is_rejected(tmp_path, column, value):
+    """Timestamp coordinates must not be silently truncated to integers."""
+    from supy.util._io import read_forcing
+
+    lines = CANONICAL_FIXTURE.read_text(encoding="utf-8").splitlines()
+    header = lines[0].split()
+    column_index = header.index(column)
+    first_row = lines[1].split()
+    first_row[column_index] = value
+    path = tmp_path / f"fractional-{column}.txt"
+    path.write_text(
+        "\n".join([lines[0], " ".join(first_row), *lines[2:]]),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=rf"timestamp column '{column}'.*integer"):
+        read_forcing(str(path), tstep_mod=None)
+
+
 def test_per_landcover_columns_separated_into_extras(tmp_path):
     """T3/T4: lai_evetr/dectr/grass and wuh_paved end up in SUEWSForcing.extras,
     not in the kernel-facing DataFrame; main DataFrame shape unchanged."""
@@ -370,6 +393,101 @@ def test_check_forcing_accepts_per_landcover_extras():
     assert issues is None, (
         f"check_forcing flagged per-landcover-aware DataFrame: {issues}"
     )
+
+
+def test_check_forcing_enforces_wuh_depth_range_without_finite_cap():
+    """Bulk and surface Wuh are non-negative depths with no finite maximum."""
+    from supy._check import check_forcing
+
+    df_forcing = _read_canonical()
+    df_forcing["Wuh"] = 12.0
+    df_forcing["wuh_paved"] = 12.0
+    assert check_forcing(df_forcing, fix=False) is None
+
+    df_forcing["wuh_paved"] = -0.1
+    issues = check_forcing(df_forcing, fix=False)
+    assert any("wuh_paved" in issue for issue in issues)
+
+    df_forcing["wuh_paved"] = -999.0
+    assert check_forcing(df_forcing, fix=False) is None
+    assert np.isclose(df_forcing["wuh_paved"], -999.0).all()
+
+    df_forcing["Wuh"] = -950.0
+    df_forcing["wuh_paved"] = -950.0
+    issues = check_forcing(df_forcing, fix=False)
+    assert any("`wuh`" in issue for issue in issues)
+    assert any("wuh_paved" in issue for issue in issues)
+
+    df_forcing["Wuh"] = np.nan
+    df_forcing["wuh_paved"] = np.nan
+    issues = check_forcing(df_forcing, fix=False)
+    assert any("`wuh`" in issue for issue in issues)
+    assert any("wuh_paved" in issue for issue in issues)
+
+    df_forcing["Wuh"] = np.inf
+    df_forcing["wuh_paved"] = np.inf
+    issues = check_forcing(df_forcing, fix=False)
+    assert any("`wuh`" in issue for issue in issues)
+    assert any("wuh_paved" in issue for issue in issues)
+
+
+def test_check_forcing_enforces_surface_lai_range_and_preserves_sentinel():
+    """Surface LAI extensions share the registry range and missing policy."""
+    from supy._check import check_forcing
+
+    df_forcing = _read_canonical()
+    df_forcing["lai_evetr"] = -0.1
+    issues = check_forcing(df_forcing, fix=False)
+    assert any("lai_evetr" in issue for issue in issues)
+
+    df_forcing["lai_evetr"] = -999.0
+    assert check_forcing(df_forcing, fix=False) is None
+
+    df_forcing["lai_evetr"] = np.inf
+    issues = check_forcing(df_forcing, fix=False)
+    assert any("lai_evetr" in issue for issue in issues)
+
+
+def test_check_forcing_fixes_invalid_wuh_without_clipping_missing_sentinel():
+    """Unbounded Wuh rules support fix mode and preserve exact -999 values."""
+    from supy._check import check_forcing
+
+    df_forcing = _read_canonical()
+    df_forcing["Wuh"] = 12.0
+    df_forcing.iloc[0, df_forcing.columns.get_loc("Wuh")] = -999.0
+    df_forcing.iloc[1, df_forcing.columns.get_loc("Wuh")] = -950.0
+    df_forcing.iloc[2, df_forcing.columns.get_loc("Wuh")] = np.inf
+    df_forcing.iloc[3, df_forcing.columns.get_loc("Wuh")] = np.nan
+
+    fixed = check_forcing(df_forcing, fix=True)
+    assert fixed["Wuh"].iloc[0] == -999.0
+    assert fixed["Wuh"].iloc[1] == 0.0
+    assert fixed["Wuh"].iloc[2] == -999.0
+    assert fixed["Wuh"].iloc[3] == -999.0
+    assert np.isclose(fixed["Wuh"].iloc[4:], 12.0).all()
+
+
+@pytest.mark.parametrize("invalid", ("-950", "nan", "inf"))
+@pytest.mark.parametrize("tstep_mod", (None, 300))
+def test_file_resampling_rejects_invalid_wuh_before_missing_normalisation(
+    tmp_path, invalid, tstep_mod
+):
+    """File loading must reject invalid Wuh before generic sentinel handling."""
+    from supy.util._io import read_forcing
+
+    path = tmp_path / f"invalid-wuh-{invalid}.txt"
+    path.write_text(
+        "\n".join([
+            "iy id it imin Tair RH U pres rain kdown Wuh wuh_paved",
+            "2012 1 1 0 10 50 2 101.3 0 0 2 2",
+            f"2012 1 2 0 10 50 2 101.3 0 0 {invalid} {invalid}",
+            "2012 1 3 0 10 50 2 101.3 0 0 2 2",
+        ]),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"Wuh|wuh_paved"):
+        read_forcing(str(path), tstep_mod=tstep_mod)
 
 
 def test_check_forcing_flags_truly_unknown_columns():

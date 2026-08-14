@@ -16,20 +16,13 @@ import pytest
 
 pytestmark = pytest.mark.api
 
-_HISTORIC_API_EQUIVALENCE_NODEID = (
-    "test/core/test_public_api_wrappers.py::TestPublicAPIEquivalence::"
-    "test_functional_matches_oop"
-)
 _HISTORIC_SAMPLE_OUTPUT_NODEIDS = (
     "test/core/test_sample_output.py::TestSampleOutput::test_library_cli_parity",
     "test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation",
     "test/core/test_sample_output.py::TestSTEBBSOutput::"
     "test_stebbs_building_energy_outputs",
 )
-_HISTORIC_NATIVE_ORDER_NODEIDS = (
-    _HISTORIC_API_EQUIVALENCE_NODEID,
-    *_HISTORIC_SAMPLE_OUTPUT_NODEIDS,
-)
+_HISTORIC_NATIVE_ORDER_NODEIDS = _HISTORIC_SAMPLE_OUTPUT_NODEIDS
 
 
 class _CollectedItem:
@@ -46,10 +39,6 @@ def test_collection_preserves_native_test_relative_order():
     items = [
         _CollectedItem("test/physics/test_other.py", "other"),
         _CollectedItem("test/core/test_sample_output.py", "sample"),
-        _CollectedItem(
-            "test/core/test_public_api_wrappers.py",
-            "TestPublicAPIEquivalence::test_functional_matches_oop",
-        ),
         _CollectedItem("test/test_api_surface.py", "api_surface"),
     ]
 
@@ -59,7 +48,6 @@ def test_collection_preserves_native_test_relative_order():
         "api_surface",
         "other",
         "sample",
-        "TestPublicAPIEquivalence::test_functional_matches_oop",
     ]
 
 
@@ -73,7 +61,6 @@ def test_historic_native_nodes_retain_requested_collection_order():
             "pytest",
             "--collect-only",
             "-q",
-            _HISTORIC_API_EQUIVALENCE_NODEID,
             "test/core/test_sample_output.py",
         ],
         cwd=Path(__file__).resolve().parents[1],

@@ -284,4 +284,4 @@ Further Reading
 
 - :doc:`/api/simulation` - Full API reference
 - :doc:`/inputs/yaml/index` - YAML configuration guide
-- :doc:`/data-structures/df_output` - Understanding output structure
+- :doc:`/outputs/variables/index` - Understanding output variables

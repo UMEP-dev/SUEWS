@@ -111,6 +111,8 @@ py.install_sources(
             'data_model/__init__.py',
             'data_model/README.md',
             'data_model/doc_utils.py',
+            'data_model/parameter_examples.py',
+            'data_model/parameter_examples.json',
             'data_model/core/__init__.py',
             'data_model/core/config.py',
             'data_model/core/df_column_renames.py',
@@ -172,6 +174,7 @@ py.install_sources(
             'data_model/validation/core/feedback.py',
             'data_model/validation/core/utils.py',
             'data_model/validation/core/yaml_helpers.py',
+            'data_model/validation/required_fields.py',
             'data_model/validation/pipeline/__init__.py',
             'data_model/validation/pipeline/orchestrator.py',
             'data_model/validation/pipeline/phase_a.py',
@@ -197,6 +200,11 @@ py.install_sources(
 install_subdir(
   'data_model/output/artefacts',
   install_dir: py.get_install_dir() / 'supy/data_model/output',
+)
+
+install_subdir(
+  'data_model/forcing/artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model/forcing',
 )
 
 knowledge_pack = custom_target(

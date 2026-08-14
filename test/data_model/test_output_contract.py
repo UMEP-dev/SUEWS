@@ -154,8 +154,15 @@ def test_representation_metadata_is_uniform_and_published():
             "text": "sentinel:-999.0",
             "parquet": "null",
         },
+        "timestamp_reference": "follow",
+        "supported_timestamp_references": (
+            "follow",
+            "utc",
+            "local_standard_time",
+            "daylight",
+        ),
     }
-    assert CURRENT_OUTPUT_VERSION == "1.0.0"
+    assert CURRENT_OUTPUT_VERSION == "1.1.0"
 
 
 def test_catalogue_json_schema_is_valid_and_deterministic():

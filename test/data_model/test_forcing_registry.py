@@ -2,6 +2,7 @@
 
 # This parity test intentionally inspects the current private forcing constants.
 
+import json
 from pathlib import Path
 import re
 import subprocess
@@ -145,7 +146,12 @@ def test_registry_projects_python_forcing_metadata() -> None:
     assert FORCING_REGISTRY.canonical_file_columns == tuple(var.name for var in legacy)
     assert FORCING_REGISTRY.baseline_datetime_columns == ("iy", "id", "it", "imin")
     assert FORCING_REGISTRY.baseline_driver_columns == (
-        "U", "RH", "Tair", "pres", "rain", "kdown"
+        "U",
+        "RH",
+        "Tair",
+        "pres",
+        "rain",
+        "kdown",
     )
     assert FORCING_REGISTRY.baseline_file_columns == (
         *FORCING_REGISTRY.baseline_datetime_columns,
@@ -229,12 +235,10 @@ def test_rust_file_aliases_exclude_internal_positions() -> None:
     )
     assert re.search(
         r'\(wu_mm,\s*18,\s*\["wu_mm",\s*"wuh"\],\s*'
-        r"InterpKind::Instantaneous",
+        r"InterpKind::Sum",
         rust_source,
     )
-    assert "Rust reader currently treats it as instantaneous" in (
-        bulk_wuh.metadata_note or ""
-    )
+    assert bulk_wuh.temporal == "sum"
     assert all(
         variable.legacy_position is None
         for variable in FORCING_REGISTRY.variables
@@ -246,6 +250,8 @@ def test_requirement_rules_project_to_current_bulk_requirements() -> None:
     """Keep the first alternative aligned with current preflight validation."""
     projected: dict[tuple[str, int], frozenset[str]] = {}
     for rule in FORCING_REGISTRY.requirement_rules:
+        if len(rule.conditions) != 1:
+            continue
         for value in rule.values:
             projected[rule.selector, value] = frozenset(
                 name.casefold() for name in rule.alternatives[0]
@@ -255,7 +261,7 @@ def test_requirement_rules_project_to_current_bulk_requirements() -> None:
 
     legacy_projected: dict[tuple[str, int], list[str]] = {}
     for rule in FORCING_REGISTRY.requirement_rules:
-        if rule.legacy_selector is None:
+        if len(rule.legacy_conditions) != 1:
             continue
         for value in rule.legacy_values:
             legacy_projected[rule.legacy_selector, value] = list(rule.alternatives[0])
@@ -318,17 +324,74 @@ def test_registry_rejects_ambiguous_aliases_and_unknown_requirements() -> None:
         ForcingRegistry(variables=(first,), requirement_rules=(bad_rule,))
 
 
-def test_unresolved_scientific_metadata_stays_explicit_and_unpublished() -> None:
-    """Do not turn conflicting sources into a published scientific claim."""
+def test_publication_metadata_is_fully_resolved() -> None:
+    """Pin the approved forcing units and timestamp policy for publication."""
     dict_variables = {
         variable.name: variable for variable in FORCING_REGISTRY.variables
     }
 
-    assert dict_variables["Wuh"].unit is None
-    assert dict_variables["Wuh"].validation_range is None
+    assert dict_variables["Wuh"].unit == "mm"
+    assert dict_variables["Wuh"].validation_range == (0.0, None)
     assert dict_variables["xsmd"].unit is None
-    assert dict_variables["snow"].metadata_note is not None
+    assert dict_variables["xsmd"].unit_selector == "soil_moisture_deficit"
+    assert dict_variables["xsmd"].units_by_value == {
+        1: "m3 m-3",
+        2: "kg kg-1",
+    }
+    assert dict_variables["snow"].description == "Observed surface snow-cover fraction"
+    assert dict_variables["snow"].requiredness == "conditional"
+    assert all(
+        "metadata_note" not in variable.model_dump()
+        for variable in dict_variables.values()
+    )
+    assert FORCING_REGISTRY.timestamp_reference == "local_standard_time"
+    assert FORCING_REGISTRY.timestamp_alignment == "interval_end"
     assert all(
         dict_variables[f"wuh_{suffix}"].unit == "mm"
+        and dict_variables[f"wuh_{suffix}"].validation_range == (0.0, None)
         for suffix in WUH_LANDCOVER_SUFFIXES
     )
+
+    checker_path = (
+        Path(__file__).resolve().parents[2] / "src/supy/checker_rules_indiv.json"
+    )
+    checker_rule = json.loads(checker_path.read_text(encoding="utf-8"))["wuh"]
+    assert checker_rule["param"] == {"max": "inf", "min": 0}
+    assert checker_rule["unit"] == "mm"
+
+
+def test_snow_requirement_records_the_approved_conjunction() -> None:
+    """Require observed snow only on the consuming snow/radiation path."""
+    snow_rule = next(
+        rule
+        for rule in FORCING_REGISTRY.requirement_rules
+        if rule.alternatives == (("snow",),)
+    )
+
+    assert snow_rule.conditions == {
+        "snow_use": (1,),
+        "net_radiation": (0,),
+    }
+    assert snow_rule.legacy_conditions == {
+        "snowuse": (1,),
+        "netradiationmethod": (0,),
+    }
+
+
+def test_variable_units_are_unconditional_or_selector_complete() -> None:
+    """Reject unresolved or conflicting unit metadata before publication."""
+    xsmd = next(
+        variable for variable in FORCING_REGISTRY.variables if variable.name == "xsmd"
+    )
+    unresolved = xsmd.model_dump()
+    unresolved.update(unit_selector=None, units_by_value={})
+    with pytest.raises(ValidationError, match="conditional-unit declaration"):
+        ForcingVariable.model_validate(unresolved)
+
+    tair = next(
+        variable for variable in FORCING_REGISTRY.variables if variable.name == "Tair"
+    )
+    conflicting = tair.model_dump()
+    conflicting.update(unit_selector="example", units_by_value={1: "other"})
+    with pytest.raises(ValidationError, match="unconditional and conditional"):
+        ForcingVariable.model_validate(conflicting)

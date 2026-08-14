@@ -165,6 +165,49 @@ The converter intelligently handles various directory structures by reading the 
   
 This ensures compatibility with various SUEWS installation structures while respecting user configurations.
 
+.. _migrate_bulk_wuh:
+
+Migrating legacy bulk ``Wuh`` volumes
+--------------------------------------
+
+Bulk ``Wuh`` is now a site-mean external water-use depth in mm accumulated
+over each forcing interval. This is a breaking unit change from historical
+forcing files that supplied bulk ``Wuh`` as a volume in m3. Convert each old
+interval value before running:
+
+.. math::
+
+   Wuh_{mm} = 1000 \, \frac{Wuh_{m^3}}{A_{grid,m^2}}
+
+where :math:`A_{grid,m^2}` is the horizontal plan area of the grid cell.
+This conversion preserves the grid-total water volume, but it does **not**
+preserve the historical allocation between surfaces. The old runtime divided
+the volume by the total irrigated area and then applied each surface's
+``irrigation_fraction``. Consequently, using only the converted bulk value can
+change surface stores and evaporation even though the grid-total input is the
+same.
+
+To reproduce that historical surface allocation, supply all seven
+``wuh_<surface>`` columns (including explicit zeros) using
+
+.. math::
+
+   wuh_i = 1000 \, \frac{Wuh_{m^3}}{A_{grid,m^2}
+            \sum_j (sfr_j \, IrrFrac_j)} \, IrrFrac_i
+
+where :math:`sfr_j` and :math:`IrrFrac_j` are the historical surface fraction
+and irrigation fraction for surface :math:`j`. If the denominator is zero,
+the historical runtime supplied zero observed water use. Supplying every
+surface column is necessary because an omitted surface otherwise falls back
+to bulk ``Wuh``.
+
+The ``wu_mm`` header remains an alias for ``Wuh``, but aliases do not perform
+unit conversion. SUEWS deliberately provides no magnitude detection or
+legacy-unit runtime mode, so copying historical bulk values unchanged will
+give a different water input. Surface-specific ``wuh_<surface>`` columns are
+also non-negative depths in mm per forcing interval and override bulk ``Wuh``
+for that surface.
+
 YAML Schema Migrations
 ----------------------
 
@@ -179,6 +222,55 @@ reason so you can reconstruct intent if needed.
 The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
+
+Upgrading to Schema 2026.6.dev3
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev3`` completes the naming-convention sweep for the
+``sites[*].properties.anthropogenic_emissions.co2`` section. The migration
+renames fourteen YAML keys while preserving their values:
+
+.. list-table:: CO2 parameter renames
+   :header-rows: 1
+
+   * - Previous key
+     - Current key
+   * - ``co2pointsource``
+     - ``emission_co2_point_source``
+   * - ``ef_umolco2perj``
+     - ``emission_factor_co2_fuel``
+   * - ``enef_v_jkm``
+     - ``emission_factor_energy_vehicle``
+   * - ``fcef_v_kgkm``
+     - ``emission_factor_co2_vehicle``
+   * - ``frfossilfuel_heat``
+     - ``fraction_fossil_fuel_heating``
+   * - ``frfossilfuel_nonheat``
+     - ``fraction_fossil_fuel_non_heating``
+   * - ``maxfcmetab`` / ``minfcmetab``
+     - ``emission_co2_metabolism_max`` / ``emission_co2_metabolism_min``
+   * - ``maxqfmetab`` / ``minqfmetab``
+     - ``emission_heat_metabolism_max`` / ``emission_heat_metabolism_min``
+   * - ``trafficrate``
+     - ``traffic_rate``
+   * - ``trafficunits``
+     - ``type_traffic_rate``
+   * - ``traffprof_24hr``
+     - ``profile_traffic_24hr``
+   * - ``humactivity_24hr``
+     - ``profile_human_activity_24hr``
+
+``type_traffic_rate`` keeps the existing numeric values: ``1`` selects a
+per-area traffic rate and ``2`` selects a per-capita rate. The point-source
+input is a whole-grid CO2 emission expressed as kg C |day^-1|; the
+metabolic inputs are per capita. Legacy ``df_state`` column names do not
+change.
+
+Upgrade a ``2026.6.dev2`` YAML with:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
 
 Upgrading to Schema 2026.6.dev2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

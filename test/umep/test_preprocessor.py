@@ -8,11 +8,12 @@ This module tests the functions used by UMEP Pre-processor plugins:
 See: https://github.com/UMEP-dev/SUEWS/issues/901
 """
 
+from importlib.resources import as_file
 import tempfile
 from pathlib import Path
 from unittest import TestCase
 
-import supy as sp
+from supy._env import trv_supy_module
 
 
 class TestDatabaseManagerAPI(TestCase):
@@ -82,10 +83,14 @@ class TestDatabasePrepareAPI(TestCase):
         from supy.data_model.configuration.publisher import generate_json_schema
 
         # Get sample config path
-        sample_config = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        sample_resource = trv_supy_module / "sample_data" / "sample_config.yml"
 
-        if not sample_config.exists():
+        if not sample_resource.is_file():
             self.skipTest("Sample config not available")
+
+        # `validate_single_file` opens the path itself, so hand it a
+        # real file rather than a packaged-resource handle.
+        sample_config = self.enterContext(as_file(sample_resource))
 
         # Generate schema
         schema = generate_json_schema()

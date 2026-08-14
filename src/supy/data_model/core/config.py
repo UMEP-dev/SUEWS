@@ -33,11 +33,22 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import FAIMethod, LAIMethod, Model, OutputControl
+from .model import FAIMethod, LAIMethod, Model, OutputTimestampReference
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
+from ..validation.required_fields import (
+    BUILDING_REQUIRED,
+    BUILDING_REQUIRED_PROVIDED_FAI,
+    CONDUCTANCE_REQUIRED,
+    DECIDUOUS_REQUIRED,
+    DECIDUOUS_REQUIRED_PROVIDED_FAI,
+    EVERGREEN_REQUIRED,
+    EVERGREEN_REQUIRED_PROVIDED_FAI,
+    LAI_CALCULATED_ONLY_REQUIRED,
+    LAI_REQUIRED,
+)
 
 from datetime import datetime
 import pytz
@@ -624,6 +635,57 @@ class SUEWSConfig(BaseModel):
                 raise ValueError(
                     f"Output frequency ({output_control.freq}s) must be a multiple of timestep ({tstep}s)"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_model_output_timestamp_reference(self) -> "SUEWSConfig":
+        """Validate output timestamp reference against site timezone fields."""
+        timestamp_reference = self.model.control.output.timestamp_reference
+        if timestamp_reference == OutputTimestampReference.FOLLOW:
+            return self
+
+        errors = []
+        for site_index, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
+            if not site.properties:
+                continue
+
+            timezone_val = _unwrap_value(site.properties.timezone)
+            is_zero_offset = False
+            try:
+                is_zero_offset = float(timezone_val) == 0.0
+            except (TypeError, ValueError):
+                pass
+
+            if timestamp_reference in {
+                OutputTimestampReference.LOCAL_STANDARD_TIME,
+                OutputTimestampReference.DAYLIGHT,
+            } and is_zero_offset:
+                warnings.warn(
+                    f"{site_name}: output.timestamp_reference={timestamp_reference.value!r} "
+                    "uses a zero UTC offset, so labels will match UTC except "
+                    "for any daylight-saving adjustment.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            if timestamp_reference != OutputTimestampReference.DAYLIGHT:
+                continue
+
+            anthro = site.properties.anthropogenic_emissions
+            startdls_val = _unwrap_value(anthro.startdls)
+            enddls_val = _unwrap_value(anthro.enddls)
+            if startdls_val is None or enddls_val is None:
+                errors.append(
+                    f"{site_name}: output.timestamp_reference='daylight' requires "
+                    "both anthropogenic_emissions.startdls and "
+                    "anthropogenic_emissions.enddls."
+                )
+
+        if errors:
+            raise ValueError(
+                "Output timestamp reference validation failed: " + "; ".join(errors)
+            )
         return self
 
     @model_validator(mode="after")
@@ -1315,20 +1377,20 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         The following parameters are checked:
-        - co2pointsource: CO2 point source emission factor
-        - ef_umolco2perj: CO2 emission factor per unit of fuel energy
-        - frfossilfuel_heat: Fraction of heating energy from fossil fuels
-        - frfossilfuel_nonheat: Fraction of non-heating energy from fossil fuels
+        - emission_co2_point_source: CO2 point source emission factor
+        - emission_factor_co2_fuel: CO2 emission factor per unit of fuel energy
+        - fraction_fossil_fuel_heating: Fraction of heating energy from fossil fuels
+        - fraction_fossil_fuel_non_heating: Fraction of non-heating energy from fossil fuels
 
         Any missing parameters are added to the validation summary.
         """
         from ..validation.core.utils import check_missing_params
 
         critical_params = {
-            "co2pointsource": "CO2 point source emission factor",
-            "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-            "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-            "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
+            "emission_co2_point_source": "CO2 point source emission factor",
+            "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+            "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
+            "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
         }
 
         missing_params = check_missing_params(
@@ -3113,109 +3175,22 @@ class SUEWSConfig(BaseModel):
             raw_surface = raw_lc.get(surface_name)
             return raw_surface is None or isinstance(raw_surface, dict)
 
-        lai_required = {
-            "lai_max": (
-                "Maximum LAI is required for active vegetation",
-                "Add maximum leaf area index for full leaf-on conditions",
-            ),
-        }
-        lai_calculated_only_required = {
-            "base_temperature": (
-                "Base temperature is required for active vegetation",
-                "Add the base temperature for growing degree day accumulation",
-            ),
-            "base_temperature_senescence": (
-                "Senescence base temperature is required for active vegetation",
-                "Add the base temperature for senescence degree day accumulation",
-            ),
-            "gdd_full": (
-                "Growing degree days for full LAI are required for active vegetation",
-                "Add the growing degree day threshold for full leaf-on conditions",
-            ),
-            "sdd_full": (
-                "Senescence degree days are required for active vegetation",
-                "Add the senescence degree day threshold for leaf-off conditions",
-            ),
-        }
-        conductance_required = {
-            "g_max": (
-                "Maximum surface conductance is required for active vegetation",
-                "Add g_max for evapotranspiration calculations",
-            ),
-            "g_k": (
-                "Solar radiation response parameter is required for active vegetation",
-                "Add g_k for evapotranspiration calculations",
-            ),
-            "g_q_base": (
-                "Vapour pressure deficit base parameter is required for active vegetation",
-                "Add g_q_base for evapotranspiration calculations",
-            ),
-            "g_q_shape": (
-                "Vapour pressure deficit shape parameter is required for active vegetation",
-                "Add g_q_shape for evapotranspiration calculations",
-            ),
-            "g_t": (
-                "Temperature response parameter is required for active vegetation",
-                "Add g_t for evapotranspiration calculations",
-            ),
-            "g_sm": (
-                "Soil moisture response parameter is required for active vegetation",
-                "Add g_sm for evapotranspiration calculations",
-            ),
-            "kmax": (
-                "Maximum shortwave radiation parameter is required for active vegetation",
-                "Add kmax for evapotranspiration calculations",
-            ),
-            "s1": (
-                "Lower soil moisture threshold is required for active vegetation",
-                "Add s1 for evapotranspiration calculations",
-            ),
-            "s2": (
-                "Soil moisture dependence parameter is required for active vegetation",
-                "Add s2 for evapotranspiration calculations",
-            ),
-            "tl": (
-                "Lower temperature threshold is required for active vegetation",
-                "Add tl for evapotranspiration calculations",
-            ),
-            "th": (
-                "Upper temperature threshold is required for active vegetation",
-                "Add th for evapotranspiration calculations",
-            ),
-        }
-        building_required = {
-            "bldgh": (
-                "Building height is required when buildings are active",
-                "Add building height in meters",
-            ),
-        }
+        # Sourced from the shared registry so the documentation generator can
+        # describe the same conditions to readers. Copied rather than aliased,
+        # because the FAI entries below are added conditionally per call.
+        lai_required = dict(LAI_REQUIRED)
+        lai_calculated_only_required = dict(LAI_CALCULATED_ONLY_REQUIRED)
+        conductance_required = dict(CONDUCTANCE_REQUIRED)
+
+        building_required = dict(BUILDING_REQUIRED)
         if require_provided_fai:
-            building_required["faibldg"] = (
-                "Building frontal area index is required when buildings are active",
-                "Add frontal area index for wind and roughness calculations",
-            )
-        evergreen_required = {
-            "height_evergreen_tree": (
-                "Evergreen tree height is required when evergreen vegetation is active",
-                "Add evergreen tree height in meters",
-            ),
-        }
+            building_required.update(BUILDING_REQUIRED_PROVIDED_FAI)
+        evergreen_required = dict(EVERGREEN_REQUIRED)
         if require_provided_fai:
-            evergreen_required["fai_evergreen_tree"] = (
-                "Evergreen tree frontal area index is required when evergreen vegetation is active",
-                "Add evergreen tree frontal area index",
-            )
-        deciduous_required = {
-            "height_deciduous_tree": (
-                "Deciduous tree height is required when deciduous vegetation is active",
-                "Add deciduous tree height in meters",
-            ),
-        }
+            evergreen_required.update(EVERGREEN_REQUIRED_PROVIDED_FAI)
+        deciduous_required = dict(DECIDUOUS_REQUIRED)
         if require_provided_fai:
-            deciduous_required["fai_deciduous_tree"] = (
-                "Deciduous tree frontal area index is required when deciduous vegetation is active",
-                "Add deciduous tree frontal area index",
-            )
+            deciduous_required.update(DECIDUOUS_REQUIRED_PROVIDED_FAI)
 
         def _add_issue(
             *,
@@ -3542,10 +3517,10 @@ class SUEWSConfig(BaseModel):
             from ..validation.core.utils import check_missing_params
 
             critical_params = {
-                "co2pointsource": "CO2 point source emission factor",
-                "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-                "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-                "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
+                "emission_co2_point_source": "CO2 point source emission factor",
+                "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+                "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
+                "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
             }
 
             missing_params = check_missing_params(
@@ -4154,12 +4129,12 @@ class SUEWSConfig(BaseModel):
                 anthro_co2 = site.properties.anthropogenic_emissions.co2
                 hourly_profiles.extend([
                     (
-                        "anthropogenic_emissions.co2.traffprof_24hr",
-                        anthro_co2.traffprof_24hr,
+                        "anthropogenic_emissions.co2.profile_traffic_24hr",
+                        anthro_co2.profile_traffic_24hr,
                     ),
                     (
-                        "anthropogenic_emissions.co2.humactivity_24hr",
-                        anthro_co2.humactivity_24hr,
+                        "anthropogenic_emissions.co2.profile_human_activity_24hr",
+                        anthro_co2.profile_human_activity_24hr,
                     ),
                 ])
 

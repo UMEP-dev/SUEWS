@@ -1,2 +1,2 @@
 "Referencing Table","Requirement","Comment"
-"`SSss_YYYY_data_tt.txt`","`O`","External water use [ |m^3|]"
+"`SSss_YYYY_data_tt.txt`","`O`","Site-mean external water-use depth accumulated over the forcing interval [mm]"

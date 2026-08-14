@@ -291,6 +291,28 @@ ARCHETYPEPROPERTIES_PASCAL_RENAMES: Dict[str, str] = {
     "RoofExternalCp": "specific_heat_capacity_roof_outer",
 }
 
+# -- CO2Params (gh#1688) -----------------------------------------------------
+#
+# User-facing anthropogenic-emissions fields omitted from the original #1256
+# naming inventory. The final names follow the adopted quantity-first and
+# category-prefix rules; units remain schema metadata rather than identifiers.
+CO2PARAMS_RENAMES: Dict[str, str] = {
+    "co2pointsource": "emission_co2_point_source",
+    "ef_umolco2perj": "emission_factor_co2_fuel",
+    "enef_v_jkm": "emission_factor_energy_vehicle",
+    "fcef_v_kgkm": "emission_factor_co2_vehicle",
+    "frfossilfuel_heat": "fraction_fossil_fuel_heating",
+    "frfossilfuel_nonheat": "fraction_fossil_fuel_non_heating",
+    "maxfcmetab": "emission_co2_metabolism_max",
+    "maxqfmetab": "emission_heat_metabolism_max",
+    "minfcmetab": "emission_co2_metabolism_min",
+    "minqfmetab": "emission_heat_metabolism_min",
+    "trafficrate": "traffic_rate",
+    "trafficunits": "type_traffic_rate",
+    "traffprof_24hr": "profile_traffic_24hr",
+    "humactivity_24hr": "profile_human_activity_24hr",
+}
+
 # Schema 2026.5.dev3 `water_tank_water_volume` -> unified `hot_water_tank_volume`
 # (drop the double-`water` redundancy and fold under the `hot_water_tank_*`
 # component prefix). NOT spread into ALL_FIELD_RENAMES — keeping the
@@ -1153,6 +1175,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **ARCHETYPEPROPERTIES_RENAMES,
     **STEBBSPROPERTIES_RENAMES,
     **SNOWPARAMS_RENAMES,
+    **CO2PARAMS_RENAMES,
 }
 
 # -- Fortran-internal rename registry (gh#1326 Tier D) ------------------------

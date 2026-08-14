@@ -118,7 +118,7 @@ jobs:
           SUEWS_CI_METRICS: scheduler-abba/loadscope-a.json
         run: >-
           python -m pytest -p scripts.suews.pytest_ci_metrics test
-          -m "physics and not slow" -v --tb=short --durations=10
+          -m "physics and (core or not slow)" -v --tb=short --durations=10
           -n auto --maxprocesses=4 --dist loadscope
           -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-loadscope-a"
 
@@ -129,7 +129,7 @@ jobs:
           SUEWS_CI_METRICS: scheduler-abba/worksteal-a.json
         run: >-
           python -m pytest -p scripts.suews.pytest_ci_metrics test
-          -m "physics and not slow" -v --tb=short --durations=10
+          -m "physics and (core or not slow)" -v --tb=short --durations=10
           -n auto --maxprocesses=4 --dist worksteal
           -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-worksteal-a"
 
@@ -140,7 +140,7 @@ jobs:
           SUEWS_CI_METRICS: scheduler-abba/worksteal-b.json
         run: >-
           python -m pytest -p scripts.suews.pytest_ci_metrics test
-          -m "physics and not slow" -v --tb=short --durations=10
+          -m "physics and (core or not slow)" -v --tb=short --durations=10
           -n auto --maxprocesses=4 --dist worksteal
           -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-worksteal-b"
 
@@ -151,7 +151,7 @@ jobs:
           SUEWS_CI_METRICS: scheduler-abba/loadscope-b.json
         run: >-
           python -m pytest -p scripts.suews.pytest_ci_metrics test
-          -m "physics and not slow" -v --tb=short --durations=10
+          -m "physics and (core or not slow)" -v --tb=short --durations=10
           -n auto --maxprocesses=4 --dist loadscope
           -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-loadscope-b"
 

@@ -12,6 +12,9 @@ import pandas as pd
 
 from ._version_scm import __version__
 
+CURRENT_CHECKPOINT_SCHEMA_VERSION = 2
+LEGACY_CHECKPOINT_SCHEMA_VERSION = 1
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -52,8 +55,14 @@ def _infer_state_schema_version(grid_states: Mapping[int, str]) -> int | None:
     versions: set[int] = set()
     for state_json in grid_states.values():
         payload = _state_to_object(state_json)
-        if isinstance(payload, dict) and payload.get("schema_version") is not None:
-            versions.add(int(payload["schema_version"]))
+        if not isinstance(payload, dict):
+            continue
+        state_payload = payload.get("state", payload)
+        if (
+            isinstance(state_payload, dict)
+            and state_payload.get("schema_version") is not None
+        ):
+            versions.add(int(state_payload["schema_version"]))
 
     if len(versions) > 1:
         raise ValueError(
@@ -63,21 +72,66 @@ def _infer_state_schema_version(grid_states: Mapping[int, str]) -> int | None:
     return next(iter(versions), None)
 
 
+def _infer_checkpoint_schema_version(grid_states: Mapping[int, str]) -> int | None:
+    versions: set[int] = set()
+    for state_json in grid_states.values():
+        payload = _state_to_object(state_json)
+        if not isinstance(payload, dict):
+            continue
+        if payload.get("checkpoint_schema_version") is not None:
+            versions.add(int(payload["checkpoint_schema_version"]))
+        elif "schema_version" in payload and "members" in payload:
+            versions.add(LEGACY_CHECKPOINT_SCHEMA_VERSION)
+
+    if len(versions) > 1:
+        raise ValueError(
+            "SUEWSCheckpoint grid states contain multiple checkpoint schema "
+            f"versions: {sorted(versions)}"
+        )
+    return next(iter(versions), None)
+
+
 @dataclass(frozen=True)
 class SUEWSCheckpoint:
-    """Typed restart artifact carrying Rust SUEWS state JSON by grid ID."""
+    """Typed restart artifact carrying Rust state and timer JSON by grid ID."""
 
     grid_states: dict[int, str]
     supy_version: str = __version__
     state_schema_version: int | None = None
     created_at: str = field(default_factory=_utc_now_iso)
     last_timestamp: str | None = None
+    checkpoint_schema_version: int | None = None
 
     def __post_init__(self) -> None:
         normalised_states = _normalise_grid_states(self.grid_states)
         object.__setattr__(self, "grid_states", normalised_states)
         object.__setattr__(self, "supy_version", self.supy_version or __version__)
         object.__setattr__(self, "created_at", self.created_at or _utc_now_iso())
+
+        inferred_checkpoint_version = _infer_checkpoint_schema_version(
+            normalised_states
+        )
+        if self.checkpoint_schema_version is None:
+            object.__setattr__(
+                self,
+                "checkpoint_schema_version",
+                inferred_checkpoint_version,
+            )
+        else:
+            checkpoint_schema_version = int(self.checkpoint_schema_version)
+            if (
+                inferred_checkpoint_version is not None
+                and checkpoint_schema_version != inferred_checkpoint_version
+            ):
+                raise ValueError(
+                    "SUEWSCheckpoint checkpoint_schema_version does not match "
+                    f"grid state version {inferred_checkpoint_version}."
+                )
+            object.__setattr__(
+                self,
+                "checkpoint_schema_version",
+                checkpoint_schema_version,
+            )
 
         if self.state_schema_version is None:
             object.__setattr__(
@@ -100,6 +154,7 @@ class SUEWSCheckpoint:
         grid_states: Mapping[Any, Any],
         *,
         supy_version: str | None = None,
+        checkpoint_schema_version: int | None = None,
         state_schema_version: int | None = None,
         created_at: str | None = None,
         last_timestamp: Any | None = None,
@@ -108,6 +163,7 @@ class SUEWSCheckpoint:
         return cls(
             grid_states=dict(grid_states),
             supy_version=supy_version or __version__,
+            checkpoint_schema_version=checkpoint_schema_version,
             state_schema_version=state_schema_version,
             created_at=created_at or _utc_now_iso(),
             last_timestamp=_normalise_timestamp(last_timestamp),
@@ -121,6 +177,7 @@ class SUEWSCheckpoint:
         return cls(
             grid_states=dict(payload["grid_states"]),
             supy_version=str(payload.get("supy_version") or __version__),
+            checkpoint_schema_version=payload.get("checkpoint_schema_version"),
             state_schema_version=payload.get("state_schema_version"),
             created_at=str(payload.get("created_at") or _utc_now_iso()),
             last_timestamp=payload.get("last_timestamp"),
@@ -138,6 +195,7 @@ class SUEWSCheckpoint:
         """Return a JSON-serialisable checkpoint payload."""
         return {
             "supy_version": self.supy_version,
+            "checkpoint_schema_version": self.checkpoint_schema_version,
             "state_schema_version": self.state_schema_version,
             "created_at": self.created_at,
             "last_timestamp": self.last_timestamp,
@@ -155,3 +213,19 @@ class SUEWSCheckpoint:
             json.dump(self.to_dict(), checkpoint_file, indent=2)
             checkpoint_file.write("\n")
         return path
+
+    def validate_for_continuation(self) -> None:
+        """Raise an actionable error when restart timer metadata is unavailable."""
+        if self.checkpoint_schema_version == CURRENT_CHECKPOINT_SCHEMA_VERSION:
+            return
+        if self.checkpoint_schema_version == LEGACY_CHECKPOINT_SCHEMA_VERSION:
+            raise ValueError(
+                "Checkpoint schema version 1 has no elapsed timer metadata. "
+                "Rerun the preceding segment with checkpoint schema version 2 "
+                "before continuing."
+            )
+        raise ValueError(
+            "Unsupported checkpoint schema version "
+            f"{self.checkpoint_schema_version!r}; expected "
+            f"{CURRENT_CHECKPOINT_SCHEMA_VERSION}."
+        )

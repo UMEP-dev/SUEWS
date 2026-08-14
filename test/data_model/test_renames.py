@@ -1,18 +1,29 @@
-"""Tests for field renames (issues #1256, #1321).
+"""Rename registries and dual-read helpers (issues #1256, #1321, #1325).
 
-Verifies:
-- New field names are accessible as Pydantic attributes.
-- Old field names still work via ``@model_validator(mode='before')`` (backward compat).
-- Deprecation warnings are emitted when old names are used.
-- ``to_df_state()`` emits DataFrame columns under legacy names (Fortran bridge).
-- Providing both old and new names raises ``ValueError``.
-- Category 1 intermediate spellings (Schema 2026.5 shape) still load with a
-  deprecation warning via MODELPHYSICS_SUFFIX_RENAMES (#1321).
+One file for both halves of the rename surface:
+
+* Pydantic field renames (formerly ``test_field_renames.py``):
+  - New field names are accessible as Pydantic attributes.
+  - Old field names still work via ``@model_validator(mode='before')``.
+  - Deprecation warnings are emitted when old names are used.
+  - ``to_df_state()`` emits DataFrame columns under legacy names.
+  - Providing both old and new names raises ``ValueError``.
+  - Category 1 intermediate spellings (Schema 2026.5 shape) still load with
+    a deprecation warning via MODELPHYSICS_SUFFIX_RENAMES (#1321).
+
+* DataFrame column renames (formerly ``test_df_column_renames.py``,
+  gh#1325 Tier C): the ``ALL_DF_COLUMN_RENAMES`` registry mirroring the
+  Pydantic registry, the ``read_df_column`` dual-read helper, and static
+  alignment with the Rust ``FIELD_RENAMES`` table.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
+import re
 import warnings
 
+import pandas as pd
 import pytest
 import yaml
 
@@ -20,12 +31,27 @@ from supy.validation import analyze_config_methods
 
 pytestmark = pytest.mark.api
 
+from supy.data_model.core.df_column_renames import (
+    ALL_DF_COLUMN_RENAMES,
+    ARCHETYPEPROPERTIES_DF_RENAMES,
+    CO2PARAMS_DF_RENAMES,
+    DECTRPROPERTIES_DF_RENAMES,
+    EVETRPROPERTIES_DF_RENAMES,
+    LAIPARAMS_DF_RENAMES,
+    MODELPHYSICS_DF_RENAMES,
+    SNOWPARAMS_DF_RENAMES,
+    STEBBSPROPERTIES_DF_RENAMES,
+    SURFACEPROPERTIES_DF_RENAMES,
+    VEGETATEDSURFACEPROPERTIES_DF_RENAMES,
+    read_df_column,
+)
 from supy.data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
     ANTHRO_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    CO2PARAMS_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
     ATMOSPHERE_RENAMES,
     DECTRPROPERTIES_RENAMES,
@@ -52,6 +78,7 @@ from supy.data_model.core.field_renames import (
     rename_keys_recursive,
 )
 from supy.data_model.core.model import ModelPhysics, StebbsPhysics
+from supy.data_model.core.human_activity import CO2Params
 from supy.data_model.core.site import (
     ArchetypeProperties,
     DectrProperties,
@@ -63,6 +90,11 @@ from supy.data_model.core.site import (
 from supy.data_model.core.surface import SurfaceProperties
 from supy.data_model.validation.core.controller import ValidationController
 
+
+# ===========================================================================
+# Pydantic field renames -- formerly test_field_renames.py
+# ===========================================================================
+
 # (ModelClass, rename_dict) pairs covering every class that got renames.
 _RENAMED_CLASSES = [
     (ModelPhysics, MODELPHYSICS_RENAMES),
@@ -71,6 +103,7 @@ _RENAMED_CLASSES = [
     (EvetrProperties, EVETRPROPERTIES_RENAMES),
     (DectrProperties, DECTRPROPERTIES_RENAMES),
     (SnowParams, SNOWPARAMS_RENAMES),
+    (CO2Params, CO2PARAMS_RENAMES),
     (ArchetypeProperties, ARCHETYPEPROPERTIES_RENAMES),
     (StebbsProperties, STEBBSPROPERTIES_RENAMES),
     # VEGETATEDSURFACEPROPERTIES_RENAMES is covered by subclasses EvetrProperties
@@ -98,6 +131,7 @@ class TestRegistryIntegrity:
             + len(ARCHETYPEPROPERTIES_RENAMES)
             + len(STEBBSPROPERTIES_RENAMES)
             + len(SNOWPARAMS_RENAMES)
+            + len(CO2PARAMS_RENAMES)
         )
         assert len(ALL_FIELD_RENAMES) == expected
 
@@ -220,6 +254,32 @@ class TestNewNamesAccepted:
 
 
 class TestBackwardCompat:
+    def test_old_co2_names_populate_new_attributes(self):
+        with pytest.warns(DeprecationWarning):
+            co2 = CO2Params(
+                co2pointsource=4.0,
+                maxqfmetab=175.0,
+                trafficunits=1.0,
+            )
+
+        assert _unwrap(co2.emission_co2_point_source) == 4.0
+        assert _unwrap(co2.emission_heat_metabolism_max) == 175.0
+        assert _unwrap(co2.type_traffic_rate) == 1.0
+
+    def test_co2_metadata_matches_fortran_units(self):
+        expected_units = {
+            "emission_co2_point_source": "kg C day^-1",
+            "emission_co2_metabolism_min": "umol cap^-1 s^-1",
+            "emission_co2_metabolism_max": "umol cap^-1 s^-1",
+            "emission_heat_metabolism_min": "W cap^-1",
+            "emission_heat_metabolism_max": "W cap^-1",
+            "type_traffic_rate": "dimensionless",
+        }
+
+        for field_name, expected_unit in expected_units.items():
+            metadata = CO2Params.model_fields[field_name].json_schema_extra
+            assert metadata["unit"] == expected_unit
+
     def test_old_name_constructor_populates_new_attribute(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
@@ -1152,6 +1212,15 @@ class TestDataFrameColumnsPreserveLegacyNames:
         for old_name in MODELPHYSICS_RENAMES:
             assert old_name in flat_cols, f"Missing legacy column {old_name!r}"
 
+    def test_co2_params_columns(self):
+        df = CO2Params().to_df_state(grid_id=1)
+        flat_cols = {col[0] for col in df.columns}
+        for old_name, new_name in CO2PARAMS_RENAMES.items():
+            assert old_name in flat_cols, f"Missing legacy column {old_name!r}"
+            assert new_name not in flat_cols, (
+                f"Unexpected new-name column {new_name!r} in bridge output"
+            )
+
     def test_lai_params_columns(self):
         df = LAIParams(base_temperature=5.0).to_df_state(grid_id=1, surf_idx=2)
         flat_cols = {col[0] for col in df.columns}
@@ -1188,4 +1257,298 @@ class TestDataFrameColumnsPreserveLegacyNames:
                 continue
             assert new_name not in flat_cols, (
                 f"Unexpected new-name column {new_name!r} in bridge output"
+            )
+
+# ===========================================================================
+# DataFrame column renames (gh#1325 Tier C) -- formerly
+# test_df_column_renames.py
+# ===========================================================================
+
+_SNAKE_CASE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_RUST_FIELD_RENAMES_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "src"
+    / "suews_bridge"
+    / "src"
+    / "field_renames.rs"
+)
+
+
+def _rust_field_renames_text() -> str:
+    """Return the full text of ``field_renames.rs`` for static alignment checks."""
+    return _RUST_FIELD_RENAMES_PATH.read_text(encoding="utf-8")
+
+
+class TestDfRegistryIntegrity:
+    def test_all_renames_combines_per_class_dicts(self):
+        expected = (
+            len(MODELPHYSICS_DF_RENAMES)
+            + len(SURFACEPROPERTIES_DF_RENAMES)
+            + len(LAIPARAMS_DF_RENAMES)
+            + len(VEGETATEDSURFACEPROPERTIES_DF_RENAMES)
+            + len(EVETRPROPERTIES_DF_RENAMES)
+            + len(DECTRPROPERTIES_DF_RENAMES)
+            + len(ARCHETYPEPROPERTIES_DF_RENAMES)
+            + len(STEBBSPROPERTIES_DF_RENAMES)
+            + len(SNOWPARAMS_DF_RENAMES)
+            + len(CO2PARAMS_DF_RENAMES)
+        )
+        assert len(ALL_DF_COLUMN_RENAMES) == expected
+
+    def test_no_duplicate_new_names(self):
+        values = list(ALL_DF_COLUMN_RENAMES.values())
+        assert len(set(values)) == len(values), "Duplicate new DataFrame column names"
+
+    def test_no_duplicate_legacy_names(self):
+        keys = list(ALL_DF_COLUMN_RENAMES.keys())
+        assert len(set(keys)) == len(keys), "Duplicate legacy DataFrame column names"
+
+    def test_legacy_and_new_sets_disjoint(self):
+        """No column can simultaneously be a legacy and a new name."""
+        legacy = set(ALL_DF_COLUMN_RENAMES.keys())
+        new = set(ALL_DF_COLUMN_RENAMES.values())
+        assert legacy.isdisjoint(new), (
+            f"Legacy and new DataFrame column name sets overlap: "
+            f"{sorted(legacy & new)}"
+        )
+
+    def test_snake_case_targets(self):
+        """All new DataFrame column names are lowercase snake_case.
+
+        STEBBS ``ArchetypeProperties`` columns are lowercased during
+        ``to_df_state`` emission, so the DF registry stores them in
+        lowercase -- they satisfy snake_case checks even though the
+        Pydantic attribute is PascalCase.
+        """
+        for legacy, new in ALL_DF_COLUMN_RENAMES.items():
+            assert _SNAKE_CASE_RE.match(new), (
+                f"New DataFrame column name must be lowercase snake_case: "
+                f"{legacy!r} -> {new!r}"
+            )
+
+
+class TestArchetypePropertiesLowercasing:
+    """STEBBS DF columns are lowercased during emission; the registry
+    mirrors that casing so the helper works against real DataFrames."""
+
+    def test_wall_external_thickness_lowercased(self):
+        # gh#1334 -> gh#1390 target is the dev7 reorder
+        # (thickness_wall_outer); lowercasing the Pydantic attribute
+        # preserves the underscores.
+        assert ARCHETYPEPROPERTIES_DF_RENAMES["wallextthickness"] == (
+            "thickness_wall_outer"
+        )
+
+    def test_all_keys_and_values_lowercase(self):
+        for legacy, new in ARCHETYPEPROPERTIES_DF_RENAMES.items():
+            assert legacy == legacy.lower()
+            assert new == new.lower()
+
+
+class TestHelperNewName:
+    def test_new_name_single_index_returns_series_silently(self):
+        df = pd.DataFrame({"net_radiation": [3]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            series = read_df_column(df, "net_radiation")
+        assert list(series) == [3]
+
+    def test_new_name_multiindex_returns_sub_df_silently(self):
+        df = pd.DataFrame({("net_radiation", "0"): [3]})
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            sub = read_df_column(df, "net_radiation")
+        assert sub.iloc[0, 0] == 3
+
+
+class TestHelperLegacyFallback:
+    def test_legacy_name_emits_deprecation_warning(self):
+        df = pd.DataFrame({("netradiationmethod", "0"): [3]})
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            sub = read_df_column(df, "net_radiation")
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any(
+            "netradiationmethod" in m and "net_radiation" in m for m in messages
+        ), f"Expected deprecation warning, got: {messages}"
+        assert sub.iloc[0, 0] == 3
+
+    def test_single_index_legacy_fallback(self):
+        df = pd.DataFrame({"soildepth": [0.2]})
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            series = read_df_column(df, "soil_depth")
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any("soildepth" in m and "soil_depth" in m for m in messages)
+        assert list(series) == [0.2]
+
+
+class TestHelperMissing:
+    def test_missing_with_default_returns_default(self):
+        df = pd.DataFrame({"unrelated": [1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            result = read_df_column(df, "net_radiation", default=-999)
+        assert result == -999
+
+    def test_missing_without_default_raises(self):
+        df = pd.DataFrame({"unrelated": [1]})
+        with pytest.raises(KeyError, match="net_radiation"):
+            read_df_column(df, "net_radiation")
+
+
+class TestRustBridgeAlignment:
+    """Every legacy DataFrame column must appear in the Rust
+    ``FIELD_RENAMES`` table so the two name registries stay aligned.
+
+    STEBBS is excluded from the lowercase comparison because the Rust
+    table stores the PascalCase Pydantic spelling (``WallextThickness``)
+    while the DataFrame registry stores the lowercased DF-column form
+    (``wallextthickness``).
+    """
+
+    def test_every_non_stebbs_legacy_column_listed_in_rust(self):
+        rust_text = _rust_field_renames_text()
+        # Both ArchetypeProperties and StebbsProperties DF columns use the
+        # lowercased-PascalCase pattern; the Rust table keeps the
+        # PascalCase Pydantic spelling, so both are covered by the
+        # STEBBS-specific check below.
+        stebbs_legacy = set(ARCHETYPEPROPERTIES_DF_RENAMES.keys()) | set(
+            STEBBSPROPERTIES_DF_RENAMES.keys()
+        )
+        missing = []
+        for legacy in ALL_DF_COLUMN_RENAMES.keys():
+            if legacy in stebbs_legacy:
+                continue
+            # Rust FIELD_RENAMES entries are `(new_name, legacy_name)`; look
+            # for the legacy name surrounded by quotes so substring collisions
+            # (e.g. `baset` inside `basete`) don't give a false positive.
+            if f'"{legacy}"' not in rust_text:
+                missing.append(legacy)
+        assert not missing, (
+            f"Legacy DataFrame columns absent from Rust field_renames.rs: "
+            f"{missing}"
+        )
+
+    def test_stebbs_legacy_columns_present_as_pascal_case_in_rust(self):
+        rust_text = _rust_field_renames_text()
+        missing = []
+        for legacy_lower in ARCHETYPEPROPERTIES_DF_RENAMES.keys():
+            # The Rust table keeps PascalCase; reconstruct the expected
+            # spelling from the Pydantic side of the rename.
+            from supy.data_model.core.field_renames import (
+                ARCHETYPEPROPERTIES_RENAMES,
+            )
+
+            pascal_match = next(
+                (
+                    old
+                    for old in ARCHETYPEPROPERTIES_RENAMES
+                    if old.lower() == legacy_lower
+                ),
+                None,
+            )
+            assert pascal_match is not None, (
+                f"STEBBS legacy column {legacy_lower!r} has no PascalCase "
+                f"source in ARCHETYPEPROPERTIES_RENAMES"
+            )
+            if f'"{pascal_match}"' not in rust_text:
+                missing.append(pascal_match)
+        assert not missing, (
+            f"STEBBS legacy columns absent from Rust field_renames.rs: "
+            f"{missing}"
+        )
+
+
+class TestDev12FinalsResolveToLegacyColumns:
+    """The STEBBS / Archetype DF rename maps must key the CURRENT dev12
+    final field name to the legacy fused column, not the dev7/dev8
+    intermediate. Regression for the Codex P2 gap where the maps were
+    derived from the BASE *_RENAMES dicts (PascalCase -> dev7/dev8 snake),
+    so ``read_df_column`` could not fall back from a current name to its
+    legacy column (gh#1392 Column D).
+    """
+
+    def test_archetype_dev12_name_resolves_to_legacy_column(self):
+        # max_power_heating_system_air (dev12) <- maxheatingpower (legacy col)
+        df = pd.DataFrame({("maxheatingpower", "0"): [8000.0]})
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            sub = read_df_column(df, "max_power_heating_system_air")
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any(
+            "maxheatingpower" in m and "max_power_heating_system_air" in m
+            for m in messages
+        ), f"Expected deprecation warning, got: {messages}"
+        assert sub.iloc[0, 0] == 8000.0
+        # Registry mapping is the direct assertion of the resolution.
+        assert ARCHETYPEPROPERTIES_DF_RENAMES["maxheatingpower"] == (
+            "max_power_heating_system_air"
+        )
+
+    def test_stebbs_dev12_name_resolves_to_legacy_column(self):
+        # max_power_cooling_system_air (dev12) <- maxcoolingpower (legacy col)
+        df = pd.DataFrame({("maxcoolingpower", "0"): [6000.0]})
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            sub = read_df_column(df, "max_power_cooling_system_air")
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any(
+            "maxcoolingpower" in m and "max_power_cooling_system_air" in m
+            for m in messages
+        ), f"Expected deprecation warning, got: {messages}"
+        assert sub.iloc[0, 0] == 6000.0
+        assert STEBBSPROPERTIES_DF_RENAMES["maxcoolingpower"] == (
+            "max_power_cooling_system_air"
+        )
+
+
+class TestPydanticRegistryMirror:
+    """The DF column rename registry is sourced from the Pydantic
+    ``ALL_FIELD_RENAMES`` registry (plus STEBBS lowercasing). If Tier A
+    adds a new Pydantic rename that should also rename the DataFrame
+    column, this test forces an explicit decision rather than silent drift.
+    """
+
+    def test_non_stebbs_df_renames_match_field_renames(self):
+        from supy.data_model.core.field_renames import (
+            ARCHETYPEPROPERTIES_RENAMES,
+            STEBBSPROPERTIES_RENAMES,
+        )
+
+        stebbs_legacy = set(ARCHETYPEPROPERTIES_RENAMES.keys()) | set(
+            STEBBSPROPERTIES_RENAMES.keys()
+        )
+        # gh#1326 Tier D Fortran-internal renames live in
+        # FORTRAN_INTERNAL_RENAMES, not ALL_FIELD_RENAMES, so no exclusion
+        # block is needed here — iterating ALL_FIELD_RENAMES already skips
+        # them.
+        for legacy, new in ALL_FIELD_RENAMES.items():
+            if legacy in stebbs_legacy:
+                # STEBBS (Archetype + StebbsProperties) lowercases its
+                # DF columns and is covered by a dedicated test.
+                continue
+            assert ALL_DF_COLUMN_RENAMES.get(legacy) == new, (
+                f"Pydantic rename {legacy!r} -> {new!r} missing or divergent "
+                f"in ALL_DF_COLUMN_RENAMES"
             )

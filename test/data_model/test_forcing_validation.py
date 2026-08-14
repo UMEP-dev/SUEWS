@@ -21,6 +21,27 @@ def test_forcing_control_accepts_list_of_paths():
     assert file_value == ["a.txt", "b.txt"]
 
 
+def test_forcing_timestamp_reference_defaults_to_local_standard_time():
+    """Omitted forcing-clock declarations preserve the 1.0 behaviour."""
+    control = ForcingControl()
+    reference = control.timestamp_reference
+    while hasattr(reference, "value"):
+        reference = reference.value
+    assert reference == "local_standard_time"
+
+
+def test_forcing_timestamp_reference_accepts_utc_and_rejects_civil_time():
+    """UTC is opt-in; daylight-saving civil clocks remain unsupported."""
+    control = ForcingControl(timestamp_reference="utc")
+    reference = control.timestamp_reference
+    while hasattr(reference, "value"):
+        reference = reference.value
+    assert reference == "utc"
+
+    with pytest.raises(ValueError, match="timestamp_reference"):
+        ForcingControl(timestamp_reference="civil_time")
+
+
 def test_model_control_holds_forcing_subobject():
     """ModelControl exposes .forcing and keeps legacy forcing_file as an alias."""
     control = ModelControl(forcing={"file": "forcing.txt"})
@@ -140,6 +161,78 @@ def test_validate_forcing_columns_against_physics_rejects_all_sentinel_data():
     )
     with pytest.raises(ValueError, match=r"ldown.*valid data.*net_radiation=1"):
         validate_forcing_columns_against_physics(df, physics)
+
+
+def test_validate_forcing_columns_against_physics_rejects_nonfinite_data():
+    """An active requirement needs finite data at every forcing row."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(soil_moisture_deficit=1)
+    df = pd.DataFrame({"xsmd": [0.2, float("inf")]})
+
+    with pytest.raises(ValueError, match=r"xsmd.*valid data"):
+        validate_forcing_columns_against_physics(df, physics)
+
+
+@pytest.mark.parametrize(
+    ("snow_use", "net_radiation", "must_fail"),
+    (
+        (0, 0, False),
+        (0, 3, False),
+        (1, 3, False),
+        (1, 0, True),
+    ),
+)
+def test_snow_requirement_uses_both_physics_selectors(
+    snow_use,
+    net_radiation,
+    must_fail,
+):
+    """Require valid observed snow only for snow with observed radiation."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(snow_use=snow_use, net_radiation=net_radiation)
+    forcing = pd.DataFrame({"snow": [-999.0], "qn": [100.0], "kdown": [100.0]})
+
+    if must_fail:
+        with pytest.raises(ValueError, match=r"snow.*valid data"):
+            validate_forcing_columns_against_physics(forcing, physics)
+    else:
+        validate_forcing_columns_against_physics(forcing, physics)
+
+
+def test_snow_requirement_matches_conditions_on_the_same_grid():
+    """Do not combine selector values selected by different grid cells."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    forcing = pd.DataFrame({"snow": [-999.0], "qn": [100.0], "kdown": [100.0]})
+    split_across_grids = SimpleNamespace(
+        snow_use=[1, 0],
+        net_radiation=[3, 0],
+    )
+    validate_forcing_columns_against_physics(forcing, split_across_grids)
+
+    active_on_first_grid = SimpleNamespace(
+        snow_use=[1, 0],
+        net_radiation=[0, 3],
+    )
+    with pytest.raises(ValueError, match=r"snow.*valid data"):
+        validate_forcing_columns_against_physics(forcing, active_on_first_grid)
 
 
 def test_validate_forcing_columns_accepts_full_per_vegetation_lai_with_bulk_missing():

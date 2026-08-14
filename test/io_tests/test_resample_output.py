@@ -1,10 +1,4 @@
-"""Test resample_output functionality including DailyState handling."""
-
-import pandas as pd
-import numpy as np
-import pytest
-import supy as sp
-from supy._post import resample_output, dict_var_aggm
+"""Test _resample_output functionality including DailyState handling."""
 
 # Import debug utilities from conftest (centralised)
 from conftest import (
@@ -13,6 +7,12 @@ from conftest import (
     capture_test_artifacts,
     debug_on_ci,
 )
+import numpy as np
+import pandas as pd
+import pytest
+
+import supy as sp
+from supy._post import _resample_output, dict_var_aggm
 
 pytestmark = pytest.mark.api
 
@@ -38,20 +38,20 @@ def test_native_daily_timezone_aware_freq_across_dst_is_skipped(start):
         tz="Europe/London",
     )
 
-    assert resample_output(df_output, freq="D", _internal=True) is df_output
+    assert _resample_output(df_output, freq="D") is df_output
 
 
 class TestResampleOutput:
-    """Test suite for resample_output functionality."""
+    """Test suite for _resample_output functionality."""
 
     def test_resample_accepts_suewsoutput(self, sample_run_cached):
-        """Test that resample_output accepts SUEWSOutput instances."""
+        """Test that _resample_output accepts SUEWSOutput instances."""
         df_output, df_state_final = sample_run_cached(48)
 
         output = sp.SUEWSOutput(df_output, df_state_final)
         assert output.index.equals(df_output.index)
 
-        df_resampled = resample_output(output, freq="h")
+        df_resampled = _resample_output(output, freq="h")
         assert isinstance(df_resampled, pd.DataFrame)
         assert isinstance(df_resampled.index, pd.MultiIndex)
         assert "grid" in df_resampled.index.names
@@ -62,9 +62,9 @@ class TestResampleOutput:
         assert not output_resampled.df.empty
 
     def test_resample_native_freq_skips_and_is_identical(self, sample_run_cached):
-        """At the run's native frequency resample_output is a no-op (gh#1599).
+        """At the run's native frequency _resample_output is a no-op (gh#1599).
 
-        The save path calls resample_output with the model timestep as the
+        The save path calls _resample_output with the model timestep as the
         target; when the data already has that cadence, resampling must be
         skipped and the frame returned unchanged (byte-identical), not rebuilt.
         """
@@ -79,7 +79,7 @@ class TestResampleOutput:
         # passes) must be recognised and skipped
         to_offset = pd.tseries.frequencies.to_offset
         for freq in (native_freq, pd.Timedelta(to_offset(native_freq))):
-            result = resample_output(df_output, freq=freq, _internal=True)
+            result = _resample_output(df_output, freq=freq)
             assert result is df_output  # skipped -> same object, no work done
             pd.testing.assert_frame_equal(result, df_output)  # byte-identical
 
@@ -137,7 +137,7 @@ class TestResampleOutput:
             pytest.skip("DailyState has no data in this environment")
 
         # Resample to hourly
-        df_resampled = resample_output(df_output, freq="60min")
+        df_resampled = _resample_output(df_output, freq="60min")
 
         # Store for decorator access
         self.df_output = df_output
@@ -212,7 +212,7 @@ class TestResampleOutput:
             ]
 
         # Resample should work without error
-        df_resampled = resample_output(df_output, freq="30min")
+        df_resampled = _resample_output(df_output, freq="30min")
 
         # Check output structure is maintained
         assert isinstance(df_resampled, pd.DataFrame)
@@ -237,7 +237,7 @@ class TestResampleOutput:
 
         # Resample with different frequencies
         for freq in ["30min", "60min", "3h"]:
-            df_resampled = resample_output(df_output, freq=freq)
+            df_resampled = _resample_output(df_output, freq=freq)
 
             if "DailyState" in df_resampled.columns.get_level_values("group").unique():
                 # Check structure is preserved
@@ -295,7 +295,7 @@ class TestResampleOutput:
         }
 
         # Resample
-        df_resampled = resample_output(
+        df_resampled = _resample_output(
             df_output, freq="60min", dict_aggm=test_dict_aggm
         )
 
@@ -330,7 +330,7 @@ class TestResampleOutput:
         custom_dict_aggm = {"SUEWS": {"kdown": "mean"}}
 
         # Should handle gracefully (no error, DailyState just not resampled)
-        df_resampled = resample_output(
+        df_resampled = _resample_output(
             df_output, freq="60min", dict_aggm=custom_dict_aggm
         )
 

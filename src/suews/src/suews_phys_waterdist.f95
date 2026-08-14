@@ -1313,12 +1313,12 @@ CONTAINS
                wu_surf => hydroState%wu_surf, &
                wu_int => hydroState%wu_int, &
                wu_ext => hydroState%wu_ext, &
-               it => timer%it, &
+               it => timer%it_st, &
                nsh_real => timer%nsh_real, &
-               DayofWeek_id => timer%DayofWeek_id, &
+               DayofWeek_id => timer%DayofWeek_id_st, &
                NSH => timer%NSH, &
                DLS => timer%DLS, &
-               imin => timer%imin &
+               imin => timer%imin_st &
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
@@ -1349,9 +1349,8 @@ CONTAINS
                           bsoilPrm%irrigation_fraction_bsoil, waterPrm%irrigation_fraction_water]
 
                ! --------------------------------------------------------------------------------
-               ! If water used is observed and provided in the met forcing file, units are m3
-               ! Divide observed water use (in m3) by water use area to find water use (in mm)
-               ! 2026-05-19, MP: Updated to only take per land cover forcing (incoming in mm)
+               ! Resolved per-surface observed water-use inputs passed to the kernel
+               ! are depths [mm] accumulated over the forcing interval.
                IF (WaterUseMethod == 1) THEN !If water use is observed
                   ! Reset per-surface observed water use each timestep so a
                   ! surface whose forcing column is missing (-999 sentinel)

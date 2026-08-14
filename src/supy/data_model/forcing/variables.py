@@ -1,4 +1,4 @@
-"""Unpublished inventory of externally supplied SUEWS forcing variables."""
+"""Inventory of externally supplied SUEWS forcing variables."""
 
 from .registry import (
     ForcingRegistry,
@@ -221,19 +221,15 @@ _FORCING_VARIABLES = (
     _variable(
         "snow",
         "1",
-        "Fraction of precipitation supplied as snow",
+        "Observed surface snow-cover fraction",
         "driver",
         "inst",
-        "optional",
+        "conditional",
         "sentinel",
         accessor_aliases=("snowfall",),
         file_aliases=("snowfrac",),
         validation_range=(0, 1),
         legacy_position=16,
-        metadata_note=(
-            "Documentation and runtime validation do not yet agree on the physics "
-            "condition that makes snow required"
-        ),
     ),
     _variable(
         "ldown",
@@ -261,7 +257,7 @@ _FORCING_VARIABLES = (
     ),
     _variable(
         "Wuh",
-        None,
+        "mm",
         "Bulk external water use accumulated over the forcing interval",
         "driver",
         "sum",
@@ -269,14 +265,8 @@ _FORCING_VARIABLES = (
         "sentinel",
         accessor_aliases=("water_use", "external_water", "wu_mm"),
         file_aliases=("wu_mm",),
+        validation_range=(0, None),
         legacy_position=19,
-        metadata_note=(
-            "Python resampling treats bulk Wuh as a sum, while the Rust reader "
-            "currently treats it as instantaneous. The forcing documentation now "
-            "declares mm per interval, while the legacy checker still declares m3 "
-            "and an upper bound of 10; resolve #1440, #1441, and #1447 before "
-            "publication"
-        ),
     ),
     _variable(
         "xsmd",
@@ -289,10 +279,8 @@ _FORCING_VARIABLES = (
         accessor_aliases=("soil_moisture", "smd"),
         validation_range=(0, None),
         legacy_position=20,
-        metadata_note=(
-            "Input unit is m3 m-3 for soil_moisture_deficit=1 and kg kg-1 for "
-            "soil_moisture_deficit=2"
-        ),
+        unit_selector="soil_moisture_deficit",
+        units_by_value={1: "m3 m-3", 2: "kg kg-1"},
     ),
     _variable(
         "lai",
@@ -387,6 +375,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_paved",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -398,6 +387,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_bldgs",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -409,6 +399,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_evetr",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -420,6 +411,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_dectr",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -431,6 +423,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_grass",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -442,6 +435,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_bsoil",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
     _variable(
@@ -453,6 +447,7 @@ _FORCING_VARIABLES = (
         "conditional",
         "fallback",
         file_aliases=("wu_mm_water",),
+        validation_range=(0, None),
         fallback="Wuh",
     ),
 )
@@ -460,64 +455,47 @@ _FORCING_VARIABLES = (
 
 _FORCING_REQUIREMENT_RULES = (
     RequirementRule(
-        selector="net_radiation",
-        values=(0,),
+        conditions={"net_radiation": (0,)},
         alternatives=(("qn",),),
-        legacy_selector="netradiationmethod",
-        legacy_values=(0,),
+        legacy_conditions={"netradiationmethod": (0,)},
     ),
     RequirementRule(
-        selector="net_radiation",
-        values=(1, 11, 100, 1001),
+        conditions={"net_radiation": (1, 11, 100, 1001)},
         alternatives=(("ldown",),),
-        legacy_selector="netradiationmethod",
-        legacy_values=(1,),
+        legacy_conditions={"netradiationmethod": (1,)},
     ),
     RequirementRule(
-        selector="net_radiation",
-        values=(2, 12, 200, 1002),
+        conditions={"net_radiation": (2, 12, 200, 1002)},
         alternatives=(("kdown", "fcld"),),
-        legacy_selector="netradiationmethod",
-        legacy_values=(2,),
+        legacy_conditions={"netradiationmethod": (2,)},
     ),
     RequirementRule(
-        selector="net_radiation",
-        values=(3, 13, 300, 1003),
+        conditions={"net_radiation": (3, 13, 300, 1003)},
         alternatives=(("kdown",),),
-        legacy_selector="netradiationmethod",
-        legacy_values=(3,),
+        legacy_conditions={"netradiationmethod": (3,)},
     ),
     RequirementRule(
-        selector="storage_heat",
-        values=(0,),
+        conditions={"storage_heat": (0,)},
         alternatives=(("qs",),),
-        legacy_selector="storageheatmethod",
-        legacy_values=(0,),
+        legacy_conditions={"storageheatmethod": (0,)},
     ),
     RequirementRule(
-        selector="emissions",
-        values=(0,),
+        conditions={"emissions": (0,)},
         alternatives=(("qf",),),
-        legacy_selector="emissionsmethod",
-        legacy_values=(0,),
+        legacy_conditions={"emissionsmethod": (0,)},
     ),
     RequirementRule(
-        selector="soil_moisture_deficit",
-        values=(1, 2),
+        conditions={"soil_moisture_deficit": (1, 2)},
         alternatives=(("xsmd",),),
-        legacy_selector="smdmethod",
-        legacy_values=(1, 2),
+        legacy_conditions={"smdmethod": (1, 2)},
     ),
     RequirementRule(
-        selector="laimethod",
-        values=(0,),
+        conditions={"laimethod": (0,)},
         alternatives=(("lai",), ("lai_evetr", "lai_dectr", "lai_grass")),
-        legacy_selector="laimethod",
-        legacy_values=(0,),
+        legacy_conditions={"laimethod": (0,)},
     ),
     RequirementRule(
-        selector="water_use",
-        values=(1,),
+        conditions={"water_use": (1,)},
         alternatives=(
             ("Wuh",),
             (
@@ -530,6 +508,11 @@ _FORCING_REQUIREMENT_RULES = (
                 "wuh_water",
             ),
         ),
+    ),
+    RequirementRule(
+        conditions={"snow_use": (1,), "net_radiation": (0,)},
+        alternatives=(("snow",),),
+        legacy_conditions={"snowuse": (1,), "netradiationmethod": (0,)},
     ),
 )
 

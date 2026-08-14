@@ -1,11 +1,10 @@
 """Test gen_epw with resampling functionality (GitHub issue #150)."""
 
-import numpy as np
+from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
 import pytest
 
 import supy as sp
-from conftest import TIMESTEPS_PER_DAY
 
 pytestmark = pytest.mark.api
 
@@ -20,16 +19,14 @@ def pvlib_available():
 
 
 class TestGenEpwResample:
-    """Tests for gen_epw with frequency parameter and resample_output exposure."""
+    """Tests for gen_epw with the object-oriented resampling interface."""
 
-    def test_resample_output_in_util(self, sample_run_cached):
-        """Test that resample_output is accessible via supy.util."""
-        assert hasattr(sp.util, "resample_output")
+    def test_resample_output_uses_output_object(self, sample_run_cached):
+        """Test that resampling is available only on ``SUEWSOutput``."""
+        assert not hasattr(sp.util, "resample_output")
 
-        # Test it works with actual data
-        df_output, _ = sample_run_cached(48)
-
-        df_hourly = sp.util.resample_output(df_output, freq="h")
+        df_output, df_state = sample_run_cached(48)
+        df_hourly = sp.SUEWSOutput(df_output, df_state).resample("h").df
 
         # Should have fewer rows after resampling
         assert len(df_hourly) < len(df_output)
@@ -40,23 +37,23 @@ class TestGenEpwResample:
 
     def test_resample_output_frequency_aliases(self, sample_run_cached):
         """Test that different frequency aliases work correctly."""
-        df_output, _ = sample_run_cached(144)  # 12 hours
+        df_output, df_state = sample_run_cached(144)  # 12 hours
+        output = sp.SUEWSOutput(df_output, df_state)
 
         # Test various frequency aliases
         for freq in ["30min", "60min", "h", "1h"]:
-            df_resampled = sp.util.resample_output(df_output, freq=freq)
+            df_resampled = output.resample(freq).df
             assert len(df_resampled) > 0
 
         # Hourly should have fewer rows than 30-minute
-        df_30min = sp.util.resample_output(df_output, freq="30min")
-        df_hourly = sp.util.resample_output(df_output, freq="h")
+        df_30min = output.resample("30min").df
+        df_hourly = output.resample("h").df
         assert len(df_hourly) < len(df_30min)
 
     def test_resample_aggregation_methods(self, sample_run_cached):
         """Test that aggregation methods are applied correctly."""
-        df_output, _ = sample_run_cached(TIMESTEPS_PER_DAY)  # 1 day
-
-        df_hourly = sp.util.resample_output(df_output, freq="h")
+        df_output, df_state = sample_run_cached(TIMESTEPS_PER_DAY)  # 1 day
+        df_hourly = sp.SUEWSOutput(df_output, df_state).resample("h").df
 
         # Get first grid
         grid = df_hourly.index.get_level_values("grid")[0]

@@ -585,13 +585,16 @@ CONTAINS
 
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
+
+      logical, intent(out) :: valid_observed
       
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
       SDD_id_prev = SDD_id
 
       if (LAICalcYes == 0) then
-         call observed_lai()
+         call observed_lai(valid_observed)
+         if (.not. valid_observed_lai) return
       end if
       
       ! Loop through vegetation types (iv)
@@ -705,9 +708,13 @@ CONTAINS
 
    CONTAINS
    
-      subroutine observed_lai()
+      subroutine observed_lai(valid)
 
          implicit none
+
+         logical, intent(out) :: valid
+
+         valid = .false.
 
          if (any(ieee_is_nan(LAI_obs)) .or. any(LAI_obs < 0.0D0)) then
             ! Invalid LAI_obs slipped past pre-flight; raise an error before
@@ -740,6 +747,8 @@ CONTAINS
          do iv = 1, NVegSurf
             LAI_id_next(iv) = LAI_obs(iv)
          end do
+
+         valid = .true.
 
       end subroutine observed_lai
 

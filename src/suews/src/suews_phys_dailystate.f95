@@ -607,13 +607,16 @@ CONTAINS
       logical :: stressed
 
       wilting_point = theta_r - (theta_r * soilmoisture_stress_limit)
+
+      logical :: valid_observed_lai
       
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
       SDD_id_prev = SDD_id
 
       if (LAICalcYes == 0) then
-         call observed_lai()
+         call observed_lai(valid_observed_lai)
+         if (.not. valid_observed_lai) return
       end if
 
       stressed = (smd > wilting_point)
@@ -673,12 +676,20 @@ CONTAINS
          if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
 
          ! Now calculate LAI itself
-         if (LAICalcYes /= 0) then
-            if (lat >= 0) THEN !Northern hemispere
+         if (lat >= 0) THEN !Northern hemispere
+            call reset_degree_day_states( &
+               id=id, &
+               sdd_reset_day=140, &
+               crit_days=critDays, &
+               summer_day=170, &
+               winter_day=170, &
+               southern_hemisphere=.false., &
+               sdd_id=SDD_id(iv), &
+               gdd_id=GDD_id(iv) &
+            )
+            
+            if (LAICalcYes /= 0) then
                call calculate_lai( &
-                  sdd_reset_day=140, &
-                  summer_day=170, &
-                  winter_day=170, &
                   senescence_mode=SEN_DAYLENGTH, &
                   id=id, &
                   SDD_id=SDD_id(iv), &
@@ -692,11 +703,20 @@ CONTAINS
                   LAI_id_prev=LAI_id_prev(iv), &
                   LAI_id_next=LAI_id_next(iv) &
                )
-            else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
+            end if
+         else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
+            call reset_degree_day_states( &
+               id=id, &
+               sdd_reset_day=300, &
+               crit_days=critDays, &
+               summer_day=250, &
+               winter_day=250, &
+               southern_hemisphere=.true., &
+               sdd_id=SDD_id(iv), &
+               gdd_id=GDD_id(iv) &
+            )
+            if (LAICalcYes /= 0) then
                call calculate_lai( &
-                  sdd_reset_day=300, &
-                  summer_day=250, &
-                  winter_day=250, &
                   senescence_mode=SEN_SDD, &
                   id=id, &
                   SDD_id=SDD_id(iv), &
@@ -710,17 +730,17 @@ CONTAINS
                   LAI_id_prev=LAI_id_prev(iv), &
                   LAI_id_next=LAI_id_next(iv) &
                )
-            end if !N or S hemisphere
+            end if
+
+         end if !N or S hemisphere
             
-            ! Keep internally computed phenology within the configured canopy envelope.
-            call limit_lai( &
-               LAI_id_next=LAI_id_next(iv), &
-               stress_days=stress_days(iv), &
-               LAImax=LAImax(iv), &
-               LAImin=LAImin(iv) &
-            )
-         
-         end if
+         ! Keep internally computed phenology within the configured canopy envelope.
+         call limit_lai( &
+            LAI_id_next=LAI_id_next(iv), &
+            stress_days=stress_days(iv), &
+            LAImax=LAImax(iv), &
+            LAImin=LAImin(iv) &
+         )
 
       end do !End of loop over veg surfaces
 
@@ -728,9 +748,13 @@ CONTAINS
 
    CONTAINS
    
-      subroutine observed_lai()
+      subroutine observed_lai(valid)
 
          implicit none
+
+         logical, intent(out) :: valid
+
+         valid = .false.
 
          if (any(ieee_is_nan(LAI_obs)) .or. any(LAI_obs < 0.0D0)) then
             ! Invalid LAI_obs slipped past pre-flight; raise an error before
@@ -763,6 +787,8 @@ CONTAINS
          do iv = 1, NVegSurf
             LAI_id_next(iv) = LAI_obs(iv)
          end do
+
+         valid = .true.
 
       end subroutine observed_lai
 
@@ -916,15 +942,12 @@ CONTAINS
       end subroutine limit_gdd_sdd
 
       subroutine calculate_lai( &
-            sdd_reset_day, summer_day, winter_day, senescence_mode, &
+            senescence_mode, &
             id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, &
             lenDay_id_prev, LAI_id_prev, LAI_id_next)
 
          implicit none
 
-         integer, intent(in) :: sdd_reset_day
-         integer, intent(in) :: summer_day
-         integer, intent(in) :: winter_day
          integer, intent(in) :: senescence_mode
          integer, intent(in) :: id
 
@@ -943,12 +966,6 @@ CONTAINS
          real(kind(1D0)), intent(out) :: LAI_id_next
 
          logical :: start_senescence
-
-         call reset_degree_day_states( &
-            id=id, sdd_reset_day=sdd_reset_day, crit_days=critDays, &
-            summer_day=summer_day, winter_day=winter_day, &
-            sdd_id=SDD_id, gdd_id=GDD_id &
-         )
 
          if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
             call calculate_gdd( &
@@ -973,7 +990,7 @@ CONTAINS
 
             end if
 
-         else if (LAItype == LAI_NEW) then
+         else
 
             !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
             start_senescence = check_start_senescence( &
@@ -994,22 +1011,14 @@ CONTAINS
                LAI_id_next = LAI_id_prev
             end if
 
-         else
-
-            LAI_id_next = -999.0D0
-            call set_supy_error( &
-               106, &
-               'update_GDDLAI: LAIType must be 0 or 1' &
-            )
-
          end if
 
       end subroutine calculate_lai
 
       subroutine reset_degree_day_states( &
          id, sdd_reset_day, crit_days, summer_day, winter_day, &
-         sdd_id, gdd_id)
-      
+         southern_hemisphere, sdd_id, gdd_id)
+
          implicit none
 
          integer, intent(in) :: id
@@ -1017,6 +1026,7 @@ CONTAINS
          integer, intent(in) :: crit_days
          integer, intent(in) :: summer_day
          integer, intent(in) :: winter_day
+         logical, intent(in) :: southern_hemisphere
 
          real(kind(1D0)), intent(inout) :: sdd_id
          real(kind(1D0)), intent(inout) :: gdd_id
@@ -1024,11 +1034,23 @@ CONTAINS
          ! if SDD is not zero by the transition day, force it
          if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
 
-         ! Set SDD to zero in summer time
-         if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0
+         if (southern_hemisphere) then
 
-         ! Set GDD zero in winter time
-         if (sdd_id < -crit_days .and. id > winter_day) gdd_id = 0
+            ! Set SDD to zero in southern summer
+            if (gdd_id > crit_days .and. id > summer_day) sdd_id = 0
+
+            ! Set GDD zero in southern winter
+            if (sdd_id < -crit_days .and. id < winter_day) gdd_id = 0
+
+         else
+
+            ! Set SDD to zero in northern summer
+            if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0
+
+            ! Set GDD zero in northern winter
+            if (sdd_id < -crit_days .and. id > winter_day) gdd_id = 0
+
+         end if
 
       end subroutine reset_degree_day_states
 

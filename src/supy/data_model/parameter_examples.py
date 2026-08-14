@@ -29,9 +29,11 @@ def _validate_reference(
             f"Parameter-example reference {reference_id!r} needs citation metadata"
         )
     docs_citation_key = reference.get("docs_citation_key")
-    if docs_citation_key is not None and not isinstance(docs_citation_key, str):
+    if not isinstance(docs_citation_key, str) or not docs_citation_key:
         raise ValueError(
-            f"Parameter-example reference {reference_id!r} has an invalid docs key"
+            f"Parameter-example reference {reference_id!r} is not in the "
+            "documentation bibliography; discuss and add it there before "
+            "publishing its example values"
         )
 
     return {
@@ -119,6 +121,7 @@ def _add_source_table_examples(
     seen_examples: set[tuple[str, str, str, str, str, str]],
     source_table: dict[str, Any],
     references: dict[str, Any],
+    excluded_reference_ids: set[str],
 ) -> None:
     """Validate and index every grouped record from one source table."""
     sheet_name = source_table.get("sheet")
@@ -131,6 +134,9 @@ def _add_source_table_examples(
     selector_source_column, selector_name = _selector_details(source_table)
 
     for record in source_table.get("records", []):
+        reference_id = str(record.get("reference_id", ""))
+        if reference_id in excluded_reference_ids:
+            continue
         context = _validate_record(record, references)
         selector = None
         if selector_source_column is not None:
@@ -206,11 +212,30 @@ def _load_example_index() -> dict[tuple[str, str], list[dict[str, Any]]]:
     if not isinstance(references, dict):
         raise ValueError("Parameter-example references must be a mapping")
 
+    selection = catalogue.get("selection", {})
+    if not isinstance(selection, dict):
+        raise ValueError("Parameter-example selection must be a mapping")
+    excluded_reference_ids = selection.get("excluded_reference_ids", [])
+    if not isinstance(excluded_reference_ids, list) or not all(
+        isinstance(reference_id, str) and reference_id
+        for reference_id in excluded_reference_ids
+    ):
+        raise ValueError(
+            "Parameter-example excluded reference IDs must be non-empty strings"
+        )
+    excluded_reference_id_set = set(excluded_reference_ids)
+
     index: dict[tuple[str, str], list[dict[str, Any]]] = {}
     seen_examples: set[tuple[str, str, str, str, str, str]] = set()
 
     for source_table in catalogue.get("source_tables", []):
-        _add_source_table_examples(index, seen_examples, source_table, references)
+        _add_source_table_examples(
+            index,
+            seen_examples,
+            source_table,
+            references,
+            excluded_reference_id_set,
+        )
 
     return index
 

@@ -66,6 +66,22 @@ def test_modelphysics_selector_guide_includes_dependency_graph() -> None:
     assert "EHC and STEBBS storage heat require SPARTACUS net radiation" in guide
 
 
+def test_generated_modelphysics_explains_modelled_building_fai_limit(
+    tmp_path,
+) -> None:
+    module = _load_generator_module()
+    doc_data = module.ModelDocExtractor().extract_all_models()
+
+    module.RSTGenerator(doc_data).generate_all_rst(tmp_path, style="hybrid")
+    guide = (tmp_path / "modelphysics.rst").read_text(encoding="utf-8")
+
+    assert ".. warning::" in guide
+    assert "uses grid-cell area as a horizontal length scale" in guide
+    assert ":math:`\\lambda_f = \\lambda_p H / b`" in guide
+    assert "does not assume a universal building width" in guide
+    assert ":cite:t:`GO99UrbanForm`" in guide
+
+
 @pytest.mark.parametrize(
     "model_name",
     ["ThermalLayers", "VerticalLayers", "RoofLayer", "WallLayer", "ModelPhysics"],

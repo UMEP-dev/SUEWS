@@ -26,6 +26,7 @@ model:
 
 sites:
   - name: "Urban_Site"
-    latitude: 51.5
-    longitude: -0.1
-    # ... other site parameters
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      # ... other site parameters

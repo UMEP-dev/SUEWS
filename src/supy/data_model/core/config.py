@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Mapping
 from typing import (
     Dict,
     List,
@@ -172,6 +173,30 @@ def _normalise_legacy_kdown_direct_fraction(value):
         except TypeError:
             return repr(value)
         return value
+
+
+def _legacy_yaml_key_suggestion(key: object) -> Optional[str]:
+    """Return an unambiguous current name for a legacy YAML key."""
+    from .field_renames import RAW_YAML_FIELD_RENAMES
+
+    matches = {
+        current
+        for legacy, current in RAW_YAML_FIELD_RENAMES.items()
+        if legacy.casefold() == str(key).casefold()
+    }
+    return matches.pop() if len(matches) == 1 else None
+
+
+def _prefixed_line_errors(error: ValidationError, prefix: tuple) -> list[dict]:
+    """Return Pydantic line errors with a root configuration path prefix."""
+    line_errors = []
+    for item in error.errors(include_url=False):
+        line_error = {
+            key: value for key, value in item.items() if key not in {"msg", "url"}
+        }
+        line_error["loc"] = (*prefix, *item["loc"])
+        line_errors.append(line_error)
+    return line_errors
 
 
 def _find_legacy_spartacus_kdown_direct_fractions(values):
@@ -4361,6 +4386,45 @@ class SUEWSConfig(BaseModel):
         return self
 
     @classmethod
+    def _validate_raw_mapping(cls, config_data: dict) -> "SUEWSConfig":
+        """Validate user-controlled config subtrees with strict extra keys."""
+        prepared = cls.convert_legacy_hdd_formats(config_data)
+        prepared = cls._migrate_legacy_spartacus_kdown_direct_fraction(prepared)
+        line_errors = []
+
+        raw_model = prepared.get("model")
+        if isinstance(raw_model, Mapping):
+            try:
+                prepared["model"] = Model.model_validate(
+                    raw_model, extra="forbid"
+                )
+            except ValidationError as error:
+                line_errors.extend(_prefixed_line_errors(error, ("model",)))
+
+        raw_sites = prepared.get("sites")
+        if isinstance(raw_sites, Iterable) and not isinstance(
+            raw_sites, (str, bytes, Mapping)
+        ):
+            validated_sites = []
+            for index, raw_site in enumerate(raw_sites):
+                if isinstance(raw_site, Mapping):
+                    try:
+                        raw_site = Site.model_validate(
+                            raw_site, extra="forbid"
+                        )
+                    except ValidationError as error:
+                        line_errors.extend(
+                            _prefixed_line_errors(error, ("sites", index))
+                        )
+                validated_sites.append(raw_site)
+            prepared["sites"] = validated_sites
+
+        if line_errors:
+            raise ValidationError.from_exception_data("SUEWSConfig", line_errors)
+
+        return cls(**prepared)
+
+    @classmethod
     def _transform_validation_error(
         cls,
         error: ValidationError,
@@ -4409,9 +4473,12 @@ class SUEWSConfig(BaseModel):
         for err in modified_errors:
             loc_str = cls._format_validation_loc(err["loc"], site_gridid_map)
             error_lines.append(loc_str)
-            error_lines.append(
-                f"  {err['msg']} [type={err['type']}]"
-            )
+            message = err["msg"]
+            if err.get("type") == "extra_forbidden" and err.get("loc"):
+                suggestion = _legacy_yaml_key_suggestion(err["loc"][-1])
+                if suggestion is not None:
+                    message += f"; legacy field was renamed to '{suggestion}'"
+            error_lines.append(f"  {message} [type={err['type']}]")
             if "url" in err:
                 error_lines.append(f"    For further information visit {err['url']}")
 
@@ -4626,7 +4693,9 @@ class SUEWSConfig(BaseModel):
                 "Running comprehensive Pydantic validation with conditional checks."
             )
             try:
-                return cls(**config_data)
+                # Root ``extra="allow"`` is reserved for the bookkeeping keys
+                # above; the shared raw-mapping path enforces strictness below.
+                return cls._validate_raw_mapping(config_data)
             except ValidationError as e:
                 # Transform Pydantic validation error messages to use GRIDID instead of array indices
                 transformed_error = cls._transform_validation_error(

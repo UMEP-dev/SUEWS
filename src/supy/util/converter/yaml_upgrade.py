@@ -292,6 +292,8 @@ _STEBBS_DROPS_2026_1_TO_CURRENT: tuple[tuple[str, str], ...] = (
     ("MaximumVolumeOfDHWinUse", "removed in #1242"),
     ("ApplianceRating", "replaced by lighting/metabolism profiles"),
     ("MetabolicRate", "replaced by MetabolismProfile"),
+)
+_ARCH_DROPS_2026_1_TO_CURRENT: tuple[tuple[str, str], ...] = (
     ("OccupantsProfile", "replaced by MetabolismProfile"),
 )
 
@@ -522,6 +524,16 @@ _STEBBS_DROPS_TO_DEV11: tuple[tuple[str, str], ...] = (
         "dead input - STEBBS radiative transfer hardcodes the tank-internal-mass "
         "view factor (MVF_tank=1.0); never consumed (gh#1392)",
     ),
+    (
+        "HotWaterTankBuildingWallViewFactor",
+        "dead input - STEBBS radiative transfer hardcodes the tank-wall view "
+        "factor (BVF_tank=0.0); never consumed (gh#1392)",
+    ),
+    (
+        "HotWaterTankInternalMassViewFactor",
+        "dead input - STEBBS radiative transfer hardcodes the tank-internal-mass "
+        "view factor (MVF_tank=1.0); never consumed (gh#1392)",
+    ),
 )
 
 # Schema 2026.5.dev11 -> 2026.5.dev12: align STEBBS and Archetype field names
@@ -560,7 +572,14 @@ def _strip_internal_only_fields(cfg: dict) -> dict:
 
 def _identity(cfg: dict) -> dict:
     """Return the config after the defensive strip (schema version matches)."""
-    return _strip_internal_only_fields(cfg)
+    cfg = _strip_internal_only_fields(cfg)
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for name, reason in _ARCH_DROPS_TO_DEV11:
+            _drop_obsolete_field(arch, name, reason)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for name, reason in _STEBBS_DROPS_TO_DEV11:
+            _drop_obsolete_field(stebbs, name, reason)
+    return cfg
 
 
 def _split_profile_fields(building_archetype: dict) -> bool:
@@ -630,6 +649,15 @@ def _migrate_2025_12_to_2026_1(cfg: dict) -> dict:
             _rename_field(stebbs, old, new)
         for name, reason in _STEBBS_DROPS_2025_12_TO_2026_1:
             _drop_obsolete_field(stebbs, name, reason)
+    for land_cover in _walk_site_container(cfg, "land_cover"):
+        for surface_name in ("evetr", "dectr", "grass"):
+            surface = land_cover.get(surface_name)
+            if isinstance(surface, dict):
+                _drop_obsolete_field(
+                    surface,
+                    "alb",
+                    "replaced by alb_min/alb_max and initial-state alb_id",
+                )
     return cfg
 
 
@@ -1286,6 +1314,8 @@ def _migrate_2026_1_to_2026_4(cfg: dict) -> dict:
     for arch in _walk_site_container(cfg, "building_archetype"):
         if _split_profile_fields(arch):
             any_profile_split = True
+        for name, reason in _ARCH_DROPS_2026_1_TO_CURRENT:
+            _drop_obsolete_field(arch, name, reason)
     for stebbs in _walk_site_container(cfg, "stebbs"):
         for old, new in _STEBBS_RENAMES_2026_1_TO_CURRENT:
             _rename_field(stebbs, old, new)

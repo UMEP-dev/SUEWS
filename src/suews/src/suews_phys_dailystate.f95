@@ -605,10 +605,10 @@ CONTAINS
       real(kind(1D0)) :: wilting_point
 
       logical :: stressed
+      
+      logical :: valid_observed_lai
 
       wilting_point = theta_r - (theta_r * soilmoisture_stress_limit)
-
-      logical :: valid_observed_lai
       
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id

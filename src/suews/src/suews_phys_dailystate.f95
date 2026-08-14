@@ -630,8 +630,8 @@ CONTAINS
          )
 
          ! With these limits SDD, GDD is set to zero
-         if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
          if (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
+         if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
 
          ! Now calculate LAI itself
          if (LAICalcYes /= 0) then

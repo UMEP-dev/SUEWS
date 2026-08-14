@@ -6,6 +6,8 @@ from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
 import pytest
 
+import supy as sp
+
 from supy._supy_module import _save_supy
 from supy.data_model.core.model import OutputControl
 

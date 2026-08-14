@@ -491,7 +491,7 @@ def test_parameter_example_catalogue_rejects_missing_value_sentinels() -> None:
 
 
 def test_parameter_example_internal_citations_exist_in_docs_bibliography() -> None:
-    """Internal citation keys must resolve on the documentation references page."""
+    """Every example source must resolve on the documentation references page."""
     # ARRANGE
     references_dir = PROJECT_ROOT / "docs" / "source" / "assets" / "refs"
     bibliography = "\n".join(
@@ -512,16 +512,25 @@ def test_parameter_example_internal_citations_exist_in_docs_bibliography() -> No
     citation_keys = {example["reference"]["docs_citation_key"] for example in examples}
 
     # ASSERT
-    citation_keys.discard(None)
+    assert all(
+        isinstance(citation_key, str) and citation_key for citation_key in citation_keys
+    )
     assert citation_keys == {
         "A16",
+        "D23",
         "F02",
+        "H24",
         "J11",
         "J14",
         "Kotthaus2014Aug",
         "R95",
         "S00",
+        "S25",
+        "S88",
+        "V13",
+        "W13",
         "W16",
+        "X24",
         "Z23",
     }
     for citation_key in citation_keys:
@@ -679,8 +688,8 @@ def test_cited_parameter_examples_are_rendered_separately_from_defaults() -> Non
     assert ":Default:" not in rendered
 
 
-def test_parameter_example_uses_doi_when_docs_citation_is_unavailable() -> None:
-    """An external DOI remains the fallback for sources absent from the bibliography."""
+def test_parameter_example_rejects_source_outside_docs_bibliography() -> None:
+    """A DOI alone cannot publish an example before its source is approved."""
     # ARRANGE
     module = _load_generator_module()
     field_doc = {
@@ -700,12 +709,9 @@ def test_parameter_example_uses_doi_when_docs_citation_is_unavailable() -> None:
         ],
     }
 
-    # ACT
-    rendered = "\n".join(module.RSTGenerator({})._format_parameter_examples(field_doc))
-
-    # ASSERT
-    assert "`Example et al. (2026) <https://doi.org/10.0000/example>`__" in rendered
-    assert "Example site; grass; Irrigated lawn; summer" in rendered
+    # ACT AND ASSERT
+    with pytest.raises(ValueError, match="added to the documentation bibliography"):
+        module.RSTGenerator({})._format_parameter_examples(field_doc)
 
 
 def test_parameter_examples_limit_display_precision_without_changing_raw_data() -> None:

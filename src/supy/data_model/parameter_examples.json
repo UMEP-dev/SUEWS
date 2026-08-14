@@ -9,7 +9,7 @@
     "dataset_doi": null
   },
   "selection": {
-    "policy": "Only direct scalar mappings with a usable published source are included.",
+    "policy": "Only direct scalar mappings backed by a managed SUEWS documentation bibliography entry are included. Add contributing sources to the appropriate bibliography and assign their citation key before publishing their example values.",
     "excluded_reference_ids": [
       "90240000",
       "90240027",
@@ -74,31 +74,31 @@
       "citation": "Ward et al. (2013)",
       "title": "Multi-season eddy covariance observations of energy, water and carbon fluxes over a suburban area in Swindon, UK",
       "doi": "https://doi.org/10.5194/acp-13-4645-2013",
-      "docs_citation_key": null
+      "docs_citation_key": "W13"
     },
     "90240058": {
       "citation": "Stewart (1988)",
       "title": "Modelling surface conductance of pine forest",
       "doi": "https://doi.org/10.1016/0168-1923(88)90003-2",
-      "docs_citation_key": null
+      "docs_citation_key": "S88"
     },
     "90240060": {
       "citation": "Vargo et al. (2013)",
       "title": "The importance of land cover change across urban-rural typologies for climate modeling",
       "doi": "https://doi.org/10.1016/j.jenvman.2012.10.007",
-      "docs_citation_key": null
+      "docs_citation_key": "V13"
     },
     "90240061": {
       "citation": "Xie et al. (2024)",
       "title": "Could residential air-source heat pumps exacerbate outdoor summer overheating and winter overcooling in UK 2050s climate scenarios?",
       "doi": "https://doi.org/10.1016/j.scs.2024.105811",
-      "docs_citation_key": null
+      "docs_citation_key": "X24"
     },
     "90240062": {
       "citation": "Dou et al. (2023)",
       "title": "Surface energy balance fluxes in a suburban area of Beijing: energy partitioning variability",
       "doi": "https://doi.org/10.5194/acp-23-13143-2023",
-      "docs_citation_key": null
+      "docs_citation_key": "D23"
     },
     "90240065": {
       "citation": "Ao et al. (2016)",
@@ -110,7 +110,7 @@
       "citation": "Havu et al. (2024)",
       "title": "CO2 uptake of urban vegetation in a warming Nordic city",
       "doi": "https://doi.org/10.1016/j.ufug.2024.128261",
-      "docs_citation_key": null
+      "docs_citation_key": "H24"
     },
     "90240067": {
       "citation": "Zheng et al. (2023)",
@@ -119,10 +119,10 @@
       "docs_citation_key": "Z23"
     },
     "90240068": {
-      "citation": "Stagakis et al. (2024)",
+      "citation": "Stagakis et al. (2025)",
       "title": "Intercomparison of biogenic CO2 flux models in four urban parks in the city of Zurich",
-      "doi": "https://doi.org/10.5194/egusphere-2024-2475",
-      "docs_citation_key": null
+      "doi": "https://doi.org/10.5194/bg-22-2133-2025",
+      "docs_citation_key": "S25"
     }
   },
   "source_tables": [

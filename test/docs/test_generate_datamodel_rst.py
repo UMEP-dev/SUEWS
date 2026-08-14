@@ -430,7 +430,7 @@ def test_extractor_inherits_legacy_names_and_parameter_examples() -> None:
 
     # ASSERT
     assert paved_fields["soil_depth"]["legacy_name"] == "soildepth"
-    assert len(paved_fields["soil_depth"]["examples"]) == 9
+    assert len(paved_fields["soil_depth"]["examples"]) == 2
     assert evetr_fields["max_conductance"]["legacy_name"] == "maxconductance"
     assert evetr_fields["max_conductance"]["examples"]
 
@@ -475,7 +475,7 @@ def test_parameter_example_catalogue_rejects_missing_value_sentinels() -> None:
 
 
 def test_parameter_example_internal_citations_exist_in_docs_bibliography() -> None:
-    """Internal citation keys must resolve on the documentation references page."""
+    """Every example source must resolve on the documentation references page."""
     # ARRANGE
     references_dir = PROJECT_ROOT / "docs" / "source" / "assets" / "refs"
     bibliography = "\n".join(
@@ -496,7 +496,9 @@ def test_parameter_example_internal_citations_exist_in_docs_bibliography() -> No
     citation_keys = {example["reference"]["docs_citation_key"] for example in examples}
 
     # ASSERT
-    citation_keys.discard(None)
+    assert all(
+        isinstance(citation_key, str) and citation_key for citation_key in citation_keys
+    )
     assert citation_keys == {
         "A16",
         "F02",
@@ -523,7 +525,7 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
 
     # ASSERT
     assert len(index) == 108
-    assert len(examples) == 554
+    assert len(examples) == 344
     assert sheets == {
         "Albedo",
         "Biogen CO2",
@@ -542,12 +544,12 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
         "Water State",
         "Water Storage",
     }
-    assert len(get_parameter_examples("Conductance", "g_max")) == 3
+    assert len(get_parameter_examples("Conductance", "g_max")) == 2
     assert len(get_parameter_examples("SnowParams", "radiation_melt_factor")) == 1
-    assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 9
+    assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 2
     assert len(get_parameter_examples("PavedProperties", "snowpack_limit")) == 1
     assert len(get_parameter_examples("WaterProperties", "state_limit")) == 2
-    assert len(get_parameter_examples("EvetrProperties", "alpha_bio_co2")) == 8
+    assert len(get_parameter_examples("EvetrProperties", "alpha_bio_co2")) == 3
 
 
 def test_parameter_example_catalogue_keys_are_documented_fields() -> None:
@@ -567,8 +569,8 @@ def test_parameter_example_catalogue_keys_are_documented_fields() -> None:
     assert set(get_all_parameter_examples()) <= documented_fields
 
 
-def test_parameter_example_catalogue_excludes_unreliable_references() -> None:
-    """Known missing, placeholder and incorrect references never reach docs."""
+def test_parameter_example_catalogue_excludes_unapproved_references() -> None:
+    """Unreliable sources and sources outside the bibliography never reach docs."""
     # ACT
     reference_ids = {
         example["reference"]["id"]
@@ -580,7 +582,14 @@ def test_parameter_example_catalogue_excludes_unreliable_references() -> None:
     assert not reference_ids & {
         "90240000",
         "90240027",
+        "90240056",
+        "90240058",
+        "90240060",
+        "90240061",
+        "90240062",
         "90240064",
+        "90240066",
+        "90240068",
         "90240991",
         "90241000",
         "99240099",
@@ -663,8 +672,8 @@ def test_cited_parameter_examples_are_rendered_separately_from_defaults() -> Non
     assert ":Default:" not in rendered
 
 
-def test_parameter_example_uses_doi_when_docs_citation_is_unavailable() -> None:
-    """An external DOI remains the fallback for sources absent from the bibliography."""
+def test_parameter_example_rejects_source_outside_docs_bibliography() -> None:
+    """A DOI alone cannot publish an example before its source is approved."""
     # ARRANGE
     module = _load_generator_module()
     field_doc = {
@@ -684,12 +693,9 @@ def test_parameter_example_uses_doi_when_docs_citation_is_unavailable() -> None:
         ],
     }
 
-    # ACT
-    rendered = "\n".join(module.RSTGenerator({})._format_parameter_examples(field_doc))
-
-    # ASSERT
-    assert "`Example et al. (2026) <https://doi.org/10.0000/example>`__" in rendered
-    assert "Example site; grass; Irrigated lawn; summer" in rendered
+    # ACT AND ASSERT
+    with pytest.raises(ValueError, match="added to the documentation bibliography"):
+        module.RSTGenerator({})._format_parameter_examples(field_doc)
 
 
 def test_parameter_examples_limit_display_precision_without_changing_raw_data() -> None:
@@ -742,7 +748,6 @@ def test_selector_dependent_examples_keep_their_method_context() -> None:
     assert [example["selector"]["value"] for example in conductance_examples] == [
         1,
         2,
-        1,
     ]
     assert "gs_model=1" in conductance_rendered
     assert "gs_model=2" in conductance_rendered

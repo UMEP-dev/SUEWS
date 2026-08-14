@@ -9,11 +9,18 @@
     "dataset_doi": null
   },
   "selection": {
-    "policy": "Only direct scalar mappings with a usable published source are included.",
+    "policy": "Only direct scalar mappings whose published source is in the SUEWS documentation bibliography are included. Discuss new sources with a maintainer before adding the bibliography entry and publishing their example values.",
     "excluded_reference_ids": [
       "90240000",
       "90240027",
+      "90240056",
+      "90240058",
+      "90240060",
+      "90240061",
+      "90240062",
       "90240064",
+      "90240066",
+      "90240068",
       "90241000",
       "90240991",
       "99240099"

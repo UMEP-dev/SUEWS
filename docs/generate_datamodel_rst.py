@@ -598,10 +598,12 @@ class RSTGenerator:
 
             reference = example["reference"]
             docs_citation_key = reference.get("docs_citation_key")
-            if docs_citation_key:
-                source = f":cite:t:`{docs_citation_key}`"
-            else:
-                source = f"`{reference['citation']} <{reference['doi']}>`__"
+            if not docs_citation_key:
+                raise ValueError(
+                    "Example-value sources must be added to the documentation "
+                    "bibliography before they are cited"
+                )
+            source = f":cite:t:`{docs_citation_key}`"
             lines.extend([
                 f"      * - {value}",
                 f"        - {context}",

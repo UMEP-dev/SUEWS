@@ -897,7 +897,7 @@ CONTAINS
 
             end if
 
-         else if (LAItype == LAI_NEW) then
+         else
 
             !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
             start_senescence = check_start_senescence( &
@@ -917,14 +917,6 @@ CONTAINS
             else
                LAI_id_next = LAI_id_prev
             end if
-
-         else
-
-            LAI_id_next = -999.0D0
-            call set_supy_error( &
-               106, &
-               'update_GDDLAI: LAIType must be 0 or 1' &
-            )
 
          end if
 

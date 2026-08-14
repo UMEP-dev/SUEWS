@@ -16,8 +16,8 @@ def collect_phase_c_issues(input_yaml_file: str):
     The orchestrator's ``run_phase_c`` calls ``SUEWSConfig.from_yaml``
     which formats Pydantic ``ValidationError`` into a string-only
     ``ValueError`` (see ``SUEWSConfig._transform_validation_error``).
-    This helper sidesteps that wrapper by calling ``SUEWSConfig`` directly
-    so the raw ``ValidationError.errors()`` survive into the JSON sidecar.
+    This helper sidesteps that wrapper by calling the shared strict raw-mapping
+    validator so ``ValidationError.errors()`` survive into the JSON sidecar.
     The cost is one extra Pydantic pass per failing config, which is
     acceptable for the validation surface.
     """
@@ -27,6 +27,7 @@ def collect_phase_c_issues(input_yaml_file: str):
 
     try:
         from supy.data_model import SUEWSConfig
+        from supy.data_model.core.config import _legacy_yaml_key_suggestion
     except ImportError as exc:
         issues.append(Issue(
             phase="C",
@@ -60,9 +61,9 @@ def collect_phase_c_issues(input_yaml_file: str):
         ))
         return issues
 
-    # Replicate the minimal fields ``from_yaml`` injects so the model
-    # construction reaches Pydantic with the same shape, but without
-    # the ValidationError-to-ValueError wrapping.
+    # Replicate the minimal field ``from_yaml`` injects so validation reaches
+    # Pydantic with the same source path, but without the
+    # ValidationError-to-ValueError wrapping.
     config_data.setdefault("_yaml_path", input_yaml_file)
 
     try:
@@ -71,7 +72,7 @@ def collect_phase_c_issues(input_yaml_file: str):
         ValidationError = None
 
     try:
-        SUEWSConfig(**config_data)
+        SUEWSConfig._validate_raw_mapping(config_data)
         return issues  # No errors
     except Exception as exc:
         if ValidationError is not None and isinstance(exc, ValidationError):
@@ -82,11 +83,16 @@ def collect_phase_c_issues(input_yaml_file: str):
                 )
                 err_type = err.get("type", "value_error")
                 code_slug = str(err_type).upper().replace(".", "_")
+                message = err.get("msg", str(err))
+                if err_type == "extra_forbidden" and loc_tuple:
+                    suggestion = _legacy_yaml_key_suggestion(loc_tuple[-1])
+                    if suggestion is not None:
+                        message += f"; legacy field was renamed to '{suggestion}'"
                 issues.append(Issue(
                     phase="C",
                     severity=SEVERITY_ERROR,
                     code=f"C.PYDANTIC.{code_slug}",
-                    message=err.get("msg", str(err)),
+                    message=message,
                     yaml_path=gridid_path,
                     category="CONFIG_CONSISTENCY",
                 ))

@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 14 Aug 2026
+
+- [change][experimental] Rejected unrecognised nested keys on validated YAML and dictionary configuration loads (#1647)
+  - Errors name the full configuration path and suggest the current field for recognised legacy spellings; the explicit `use_conditional_validation=False` construction path remains unchecked.
+- [bugfix] Completed historical YAML-upgrade drops exposed by strict extra-key validation (#1647)
+  - Retired hot-water-tank view factors, the old occupants profile, and legacy bulk vegetation albedo are now removed in their owning version transitions with an explicit migration log.
+- [doc] Corrected YAML examples that placed coordinates and land-cover data on the site object where they were not applied (#1647)
+
 ### 13 Aug 2026
 
 - [feature][experimental] Added configurable saved-output timestamp references (#1589)

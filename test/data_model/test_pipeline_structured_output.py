@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from supy.data_model.validation.pipeline.orchestrator import (
     run_phase_a,
@@ -145,6 +146,37 @@ def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
     # At least one issue should be a structured Pydantic error.
     pydantic_codes = [i["code"] for i in payload["issues"] if i["code"].startswith("C.PYDANTIC.")]
     assert pydantic_codes, "Expected at least one C.PYDANTIC.* issue"
+
+
+def test_phase_c_reports_unknown_key_path_and_legacy_suggestion(
+    tmp_path, sample_yaml_path
+):
+    """Phase C JSON retains strict-extra paths and migration guidance."""
+    config_data = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+    config_data["model"]["physics"]["WaterUseMethod"] = 1
+    bad_yaml = tmp_path / "legacy-key.yml"
+    bad_yaml.write_text(
+        yaml.safe_dump(config_data, sort_keys=False), encoding="utf-8"
+    )
+    pydantic_yaml = tmp_path / "pydantic.yml"
+    pydantic_report = tmp_path / "pydantic_report.txt"
+
+    report = run_phase_c(
+        input_yaml_file=str(bad_yaml),
+        pydantic_yaml_file=str(pydantic_yaml),
+        pydantic_report_file=str(pydantic_report),
+        phases_run=["C"],
+        silent=True,
+    )
+
+    strict_issues = [
+        issue
+        for issue in report.issues
+        if issue.code == "C.PYDANTIC.EXTRA_FORBIDDEN"
+    ]
+    assert len(strict_issues) == 1
+    assert strict_issues[0].yaml_path == "model.physics.WaterUseMethod"
+    assert "renamed to 'water_use'" in strict_issues[0].message
 
 
 def test_phase_b_text_report_unchanged(tmp_path, sample_yaml_path):

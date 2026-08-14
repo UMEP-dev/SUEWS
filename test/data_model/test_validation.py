@@ -2097,7 +2097,7 @@ class TestTopDownValidation:
         """
         config_yaml = """
 sites:
-  - site_id: test_site
+  - name: test_site
     properties:
       land_cover:
         bldgs:
@@ -2129,7 +2129,7 @@ sites:
         """
         config_yaml = """
 sites:
-  - site_id: test_site
+  - name: test_site
     properties:
       land_cover:
         bldgs:
@@ -2266,7 +2266,7 @@ def test_full_validation_workflow():
     yaml_content = """
 name: Test Config
 sites:
-  - site_id: site1
+  - name: site1
     properties:
       land_cover:
         paved:

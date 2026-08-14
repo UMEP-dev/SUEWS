@@ -339,6 +339,21 @@ class RSTGenerator:
             "     - ``disabled``; ``enabled``",
             "     - Public alias for the snow-process switch.",
             "",
+            ".. warning::",
+            "",
+            "   ``frontal_area_index: modelled`` is retained for compatibility, "
+            "but its building estimate uses grid-cell area as a horizontal length "
+            "scale. It is therefore resolution-dependent and can become very small "
+            "on coarse grids.",
+            "",
+            "   Building surface fraction alone does not determine building FAI. "
+            "For idealised square buildings, :math:`\\lambda_f = \\lambda_p H / b`; "
+            "the same plan-area fraction can represent many narrow buildings or a "
+            "few wide ones. Use ``observed`` with morphology-derived FAI for "
+            "coarse-grid applications. A replacement closure needs a validated "
+            "additional geometry measure; SUEWS does not assume a universal "
+            "building width (:cite:t:`GO99UrbanForm`).",
+            "",
             ".. list-table:: Other method selectors",
             "   :header-rows: 1",
             "   :widths: 30 35 35",

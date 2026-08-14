@@ -560,8 +560,8 @@ CONTAINS
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_SDD !Base temperature for senescence degree days [degC]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: GDDFull !Growing degree days needed for full capacity [degC]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: SDDFull !Senescence degree days needed to initiate leaf off [degC]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAIMin !Min LAI [m2 m-2]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAIMax !Max LAI [m2 m-2]
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: laimin !Min LAI [m2 m-2]
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: laimax !Max LAI [m2 m-2]
       real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
       !! N.B. currently DecTr only, although input provided for all veg types
       integer, dimension(nvegsurf), intent(in) :: LAIType !LAI equation to use: original (0) or new (1)
@@ -661,6 +661,8 @@ CONTAINS
                   GDDFull=GDDFull(iv), &
                   SDDFull=SDDFull(iv), &
                   lenDay_id_prev=lenDay_id_prev, &
+                  laimax=laimax(iv), &
+                  laimin=laimin(iv), &
                   LAI_id_prev=LAI_id_prev(iv), &
                   LAI_id_next=LAI_id_next(iv) &
                )
@@ -688,6 +690,8 @@ CONTAINS
                   GDDFull=GDDFull(iv), &
                   SDDFull=SDDFull(iv), &
                   lenDay_id_prev=lenDay_id_prev, &
+                  laimax=laimax(iv), &
+                  laimin=laimin(iv), &
                   LAI_id_prev=LAI_id_prev(iv), &
                   LAI_id_next=LAI_id_next(iv) &
                )
@@ -695,13 +699,6 @@ CONTAINS
 
          end if !N or S hemisphere
             
-         ! Keep internally computed phenology within the configured canopy envelope.
-         call limit_lai( &
-            LAI_id_next=LAI_id_next(iv), &
-            LAImax=LAImax(iv), &
-            LAImin=LAImin(iv) &
-         )
-
       end do !End of loop over veg surfaces
 
       !------------------------------------------------------------------------------
@@ -851,7 +848,7 @@ CONTAINS
       subroutine calculate_lai( &
             senescence_mode, &
             id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, &
-            lenDay_id_prev, LAI_id_prev, LAI_id_next)
+            lenDay_id_prev, LAI_id_prev, laimax, laimin, LAI_id_next)
 
          implicit none
 
@@ -870,6 +867,8 @@ CONTAINS
          real(kind(1D0)), intent(in) :: SDDFull
          real(kind(1D0)), intent(in) :: lenDay_id_prev
          real(kind(1D0)), intent(in) :: LAI_id_prev
+         real(kind(1D0)), intent(in) :: laimax
+         real(kind(1D0)), intent(in) :: laimin
          real(kind(1D0)), intent(out) :: LAI_id_next
 
          logical :: start_senescence
@@ -919,6 +918,13 @@ CONTAINS
             end if
 
          end if
+
+         ! Keep internally computed phenology within the configured canopy envelope.
+         call limit_lai( &
+            LAI_id_next=LAI_id_next, &
+            LAImax=LAImax, &
+            LAImin=LAImin &
+         )
 
       end subroutine calculate_lai
 
@@ -1037,20 +1043,20 @@ CONTAINS
 
       end subroutine calculate_sdd_type1
 
-      subroutine limit_lai(LAI_id_next, LAImax, LAImin)
+      subroutine limit_lai(lai_id_next, laimax, laimin)
 
          ! Keep internally computed phenology within the configured canopy envelope.
 
          implicit none
 
-         real(kind(1D0)), intent(inout) :: LAI_id_next
-         real(kind(1D0)), intent(in) :: LAImax
-         real(kind(1D0)), intent(in) :: LAImin
+         real(kind(1D0)), intent(inout) :: lai_id_next
+         real(kind(1D0)), intent(in) :: laimax
+         real(kind(1D0)), intent(in) :: laimin
 
-         if (LAI_id_next > LAImax) then
-            LAI_id_next = LAImax
-         else if (LAI_id_next < LAImin) then
-            LAI_id_next = LAImin
+         if (lai_id_next > LAImax) then
+            lai_id_next = laimax
+         else if (lai_id_next < LAImin) then
+            lai_id_next = laimin
          end if
 
       end subroutine limit_lai

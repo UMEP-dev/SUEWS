@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 import shutil
-import sys
+import sysconfig
 
 import pytest
 
@@ -46,14 +46,15 @@ StdioServerParameters = _mcp_stdio.StdioServerParameters
 stdio_client = _mcp_stdio.stdio_client
 
 
-_ACTIVE_BIN_DIR = Path(sys.executable).parent
+_ACTIVE_BIN_DIR = Path(sysconfig.get_path("scripts"))
 _SUEWS_MCP_COMMAND = shutil.which("suews-mcp", path=str(_ACTIVE_BIN_DIR))
 
 
 pytestmark_skipif = pytest.mark.skipif(
     _SUEWS_MCP_COMMAND is None,
     reason=(
-        "`suews-mcp` is not installed beside the active Python interpreter. "
+        "`suews-mcp` is not installed in the active Python environment's "
+        "scripts directory. "
         "Run `uv pip install --python .venv/bin/python -e mcp/` from the "
         "repo root before running this test."
     ),

@@ -181,7 +181,8 @@ def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
     for required in (
         "from mcp.client.session import ClientSession",
         "from mcp.client.stdio import StdioServerParameters, stdio_client",
-        "active_bin_dir = Path(sys.executable).parent",
+        "import sysconfig",
+        'active_bin_dir = Path(sysconfig.get_path("scripts"))',
         'shutil.which("suews-mcp", path=str(active_bin_dir))',
         "python -m pytest --collect-only test/mcp/test_protocol_handshake.py",
         '-m "$MARKER_EXPR" -q',
@@ -192,6 +193,7 @@ def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
         encoding="utf-8"
     )
     assert "pytestmark = [pytest.mark.api, pytest.mark.smoke]" in protocol_test
+    assert '_ACTIVE_BIN_DIR = Path(sysconfig.get_path("scripts"))' in protocol_test
 
 
 @pytest.mark.core

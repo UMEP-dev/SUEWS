@@ -113,15 +113,17 @@ jobs:
           from pathlib import Path
           import shutil
           import sys
+          import sysconfig
 
           from mcp.client.session import ClientSession
           from mcp.client.stdio import StdioServerParameters, stdio_client
 
-          active_bin_dir = Path(sys.executable).parent
+          active_bin_dir = Path(sysconfig.get_path("scripts"))
           command = shutil.which("suews-mcp", path=str(active_bin_dir))
           if command is None:
               raise SystemExit(
-                  f"suews-mcp is not installed beside {sys.executable}"
+                  f"suews-mcp is not installed in {active_bin_dir} "
+                  f"for {sys.executable}"
               )
           print(f"Protocol dependencies available; suews-mcp={command}")
           PY

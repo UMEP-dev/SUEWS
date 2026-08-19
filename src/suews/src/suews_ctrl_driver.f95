@@ -2505,7 +2505,8 @@ CONTAINS
             ohmState%anohm_coeff_ah = ohmState%anohm_working_ah
             ohmState%anohm_coeff_day = ohmState%anohm_working_day
             ohmState%anohm_coeff_count = MIN(ohmState%anohm_working_count, ANOHM_MAX_SAMPLES)
-            ohmState%anohm_coeff_ready = (ohmState%anohm_coeff_count >= ANOHM_MIN_VALID_SAMPLES)
+            ohmState%anohm_coeff_ready = &
+               COUNT(ohmState%anohm_coeff_sd(1:ohmState%anohm_coeff_count) > 5.0D0) >= ANOHM_MIN_VALID_SAMPLES
          ELSE
             ohmState%anohm_coeff_ready = .FALSE.
             ohmState%anohm_coeff_count = 0
@@ -2554,7 +2555,18 @@ CONTAINS
       ! only retain one sample per hour, on the hour
       IF (timer%imin /= 0 .OR. timer%isec /= 0) RETURN
 
-      idx = MIN(timer%it + 1, ANOHM_MAX_SAMPLES)
+      ! SUEWS_cal_Water can run repeatedly during the surface-temperature
+      ! iteration. Overwrite the current hour in that case; otherwise append
+      ! contiguously so working_count remains the number of real samples rather
+      ! than the highest hour-of-day slot that happened to be populated.
+      idx = ohmState%anohm_working_count + 1
+      IF (ohmState%anohm_working_count > 0) THEN
+         IF (NINT(ohmState%anohm_working_tHr(ohmState%anohm_working_count)) == timer%it) THEN
+            idx = ohmState%anohm_working_count
+         END IF
+      END IF
+      IF (idx > ANOHM_MAX_SAMPLES) RETURN
+
       ohmState%anohm_working_tHr(idx) = REAL(timer%it, KIND(1D0))
       ohmState%anohm_working_sd(idx) = forcing%kdown
       ohmState%anohm_working_ta(idx) = forcing%temp_c
@@ -2563,9 +2575,7 @@ CONTAINS
       ohmState%anohm_working_ws(idx) = forcing%U
       ohmState%anohm_working_ah(idx) = qf
 
-      IF (idx > ohmState%anohm_working_count) THEN
-         ohmState%anohm_working_count = idx
-      END IF
+      ohmState%anohm_working_count = MAX(ohmState%anohm_working_count, idx)
 
    END SUBROUTINE anohm_append_sample
 !=======================================================================

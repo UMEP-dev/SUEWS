@@ -9,6 +9,7 @@ AnOHM remains an internal / not-recommended option (StorageHeatMethod._internal)
 """
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import supy as sp
@@ -21,15 +22,24 @@ pytestmark = [
 ]
 
 
-def _run_storage_method(method, days=4):
+def _run_storage_method(
+    method: int, days: int = 4, start_hour: int = 0
+) -> np.ndarray:
     """Run the sample site for a few days with the given StorageHeatMethod."""
     sim = sp.SUEWSSimulation.from_sample_data()
     sim.update_config(
         {"model": {"physics": {"net_radiation": {"value": 3},
                                "storage_heat": {"value": method}}}}
     )
-    end = sim._df_forcing.index[days * 288 - 1]
-    return sim.run(end_date=end).df["SUEWS", "QS"].to_numpy()
+    forcing = sim.forcing
+    assert forcing is not None
+    index = forcing.df.index
+    steps_per_day = int(pd.Timedelta(days=1) / (index[1] - index[0]))
+    start_pos = start_hour * steps_per_day // 24
+    end_pos = start_pos + days * steps_per_day - 1
+    return sim.run(start_date=index[start_pos], end_date=index[end_pos]).df[
+        "SUEWS", "QS"
+    ].to_numpy()
 
 
 def test_anohm_runs_and_is_finite():
@@ -51,7 +61,8 @@ def test_anohm_path_is_engaged():
     qs_anohm = _run_storage_method(3)
     qs_ohm = _run_storage_method(1)
     # compare a settled day (day 3), after the buffer has rolled over
-    day3 = slice(288 * 2, 288 * 3)
+    steps_per_day = qs_anohm.size // 4
+    day3 = slice(steps_per_day * 2, steps_per_day * 3)
     assert np.nanmax(np.abs(qs_anohm[day3] - qs_ohm[day3])) > 1.0, (
         "AnOHM did not diverge from OHM -- the AnOHM path may not be engaged"
     )
@@ -60,3 +71,9 @@ def test_anohm_path_is_engaged():
 def test_anohm_marked_internal():
     """AnOHM stays an internal / not-recommended option (not user-facing)."""
     assert StorageHeatMethod.ANOHM._internal is True
+
+
+def test_anohm_midday_start_does_not_promote_sparse_buffer():
+    """A partial first day does not treat unfilled hour slots as observations."""
+    qs = _run_storage_method(3, days=2, start_hour=12)
+    assert np.isfinite(qs).all(), "AnOHM promoted a sparse trailing-day buffer"

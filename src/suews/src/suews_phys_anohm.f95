@@ -12,11 +12,11 @@
 ! 20170810: revamped structure
 ! 20170825: improved Bowen calculation
 ! 20230720: AnOHM disabled (TS)
+! 20260626: revived with trailing-day forcing and minpack-free solvers (TS)
 !
-! NOTE: AnOHM is currently disabled (see suews_ctrl_driver.f95).
-! The minpack library (suews_util_minpack.f95) was removed as part of GH-1080
-! since it was only used by AnOHM and contained QGIS-incompatible stdout writes.
-! If AnOHM is re-enabled, minpack will need to be restored with QGIS-safe logging.
+! AnOHM now diagnoses coefficients from the most recently completed day held in
+! OHM_STATE. Closed-form least squares and a bounded damped fixed-point iteration
+! replace the former minpack solvers without writing to stdout.
 !========================================================================================
 ! Main module following naming standard: matches filename
 MODULE module_phys_anohm
@@ -771,7 +771,7 @@ CONTAINS
       IF (mTa < 60) mTa = mTa + C2K ! correct the Celsius to Kelvin
       !   modify ill-shaped days to go through
       IF (ATa < 0) THEN
-         ! Debug output removed - AnOHM disabled, minpack removed (GH-1080)
+         ! Legacy debug output remains disabled; the closed-form fit is silent.
          ! CALL r8vec_print(lenDay, selX, 'Ta Day:')
          ! PRINT *, 'ATa:', ATa, 'mTa:', mTa, 'tTa:', tTa
       END IF

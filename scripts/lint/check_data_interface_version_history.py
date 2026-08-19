@@ -9,13 +9,18 @@ their machine-readable representations are available.
 from __future__ import annotations
 
 import argparse
-import ast
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
 from typing import Literal, NamedTuple
+
+from version_audit import (
+    extract_literal_assignments,
+    read_file_at_ref,
+    resolve_merge_base,
+)
 
 type InterfaceKind = Literal["forcing", "output"]
 
@@ -47,32 +52,10 @@ class AuditFailure(RuntimeError):
     """Raised for a version-history violation that a contributor can fix."""
 
 
-def _run(args: list[str]) -> str:
-    result = subprocess.run(args, check=True, capture_output=True, text=True)
-    return result.stdout
-
-
-def _assignment(tree: ast.Module, name: str) -> object:
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and any(
-            isinstance(target, ast.Name) and target.id == name
-            for target in node.targets
-        ):
-            return ast.literal_eval(node.value)
-        if (
-            isinstance(node, ast.AnnAssign)
-            and isinstance(node.target, ast.Name)
-            and node.target.id == name
-            and node.value is not None
-        ):
-            return ast.literal_eval(node.value)
-    raise ValueError(f"could not read {name}")
-
-
 def _parse_state(source: str, current_name: str, versions_name: str) -> VersionState:
-    tree = ast.parse(source)
-    current = _assignment(tree, current_name)
-    versions = _assignment(tree, versions_name)
+    assignments = extract_literal_assignments(source, (current_name, versions_name))
+    current = assignments[current_name]
+    versions = assignments[versions_name]
     if current is not None and not isinstance(current, str):
         raise ValueError(f"{current_name} must be a string or None")
     if not isinstance(versions, dict) or any(
@@ -138,15 +121,14 @@ def _state_at_base(
     current_name: str,
     versions_name: str,
 ) -> VersionState:
-    try:
-        source = _run(["git", "show", f"{merge_base}:{path}"])
-    except subprocess.CalledProcessError:
+    source = read_file_at_ref(merge_base, path)
+    if source is None:
         return VersionState(None, ())
     return _parse_state(source, current_name, versions_name)
 
 
 def _audit(base_ref: str) -> list[InterfaceKind]:
-    merge_base = _run(["git", "merge-base", base_ref, "HEAD"]).strip()
+    merge_base = resolve_merge_base(base_ref)
     changed: list[InterfaceKind] = []
     for kind, (path, current_name, versions_name) in _INTERFACES.items():
         base = _state_at_base(merge_base, path, current_name, versions_name)

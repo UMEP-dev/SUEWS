@@ -2,6 +2,41 @@
 
 This directory contains utility scripts for development and maintenance.
 
+## Web of Science metadata candidates
+
+**Script**: `wos_metadata.py`
+
+This pipeline discovers SUEWS-related records through the licensed Web of
+Science API Expanded service and writes a machine-readable candidate manifest.
+It intentionally persists only four bibliographic fields: WoS UID, DOI, title,
+and publication year. It never writes abstracts, affiliations, addresses,
+authors, keywords, funding data, or citation metrics, and no generated manifest
+is committed to the repository.
+
+The tool removes DOI records already present in the canonical
+`refs-SUEWS.bib` and `refs-community.bib` files. It reads the controlled topic
+vocabulary directly from `.claude/rules/docs/bib-topic-tags.md`; it does not
+create or infer a parallel topic taxonomy.
+
+Run it from the repository root with an institutional Expanded API key:
+
+```bash
+export WOS_EXPANDED_API_KEY="your-key"
+python scripts/suews/wos_metadata.py --output ./wos-candidates.json
+```
+
+The JSON provenance records the query, retrieval interval and data snapshot
+version, API product and database identifiers, query ID, dependency and pipeline
+versions, source paths and hashes, field-level provenance, deduplication counts,
+retry errors, and the minimal-data licensing profile. Requests use bounded
+exponential backoff and a two-request-per-second default interval.
+
+Web of Science access and reuse remain governed by the institution's Clarivate
+licence and product terms. The deliberately excluded fields must not be added to
+this export without a separate licence review and an explicitly approved scope.
+See the official [Web of Science API Expanded documentation](https://developer.clarivate.com/apis/wos)
+and [Clarivate product terms](https://clarivate.com/legal-center/terms-of-business/product-service-terms/).
+
 ## Pytest CI metrics
 
 **Plugin**: `pytest_ci_metrics.py`

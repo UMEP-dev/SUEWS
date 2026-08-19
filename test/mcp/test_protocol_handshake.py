@@ -15,6 +15,7 @@ the install is a separate concern owned by ``test_version.py`` and the
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 from pathlib import Path
 import shutil
 import sysconfig
@@ -25,6 +26,7 @@ pytestmark = [pytest.mark.api, pytest.mark.smoke]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+_HANDSHAKE_REQUEST_TIMEOUT = timedelta(seconds=30)
 
 
 _mcp_session = pytest.importorskip(
@@ -113,7 +115,11 @@ async def _run_handshake() -> dict:
     )
 
     async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
+        async with ClientSession(
+            read,
+            write,
+            read_timeout_seconds=_HANDSHAKE_REQUEST_TIMEOUT,
+        ) as session:
             init_result = await session.initialize()
 
             tools_result = await session.list_tools()

@@ -1,12 +1,13 @@
 """Subprocess wrapper around the unified ``suews`` CLI.
 
 Every MCP tool that needs to invoke a SUEWS subcommand goes through
-``run_suews_cli`` here. The wrapper enforces three things:
+``run_suews_cli`` here. The wrapper enforces four things:
 
 1. The subcommand must be in ``ALLOWED_SUBCOMMANDS``. No arbitrary shell.
 2. The subprocess is bounded by a timeout (env-configurable).
 3. ``stdout`` is parsed as the standard SUEWS JSON envelope; both success
    and error envelopes are returned to the caller.
+4. The child cannot read the MCP server's JSON-RPC stdin transport.
 """
 
 from __future__ import annotations
@@ -136,6 +137,7 @@ def run_suews_cli(
             cmd,
             cwd=str(project_root) if project_root else None,
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             text=True,
             timeout=timeout,
             check=False,

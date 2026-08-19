@@ -34,6 +34,37 @@ def test_appends_format_json_when_missing(monkeypatch: pytest.MonkeyPatch) -> No
     assert captured["cmd"] == ["suews", "validate", "config.yml", "--format", "json"]
 
 
+def test_detaches_child_stdin_from_mcp_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nested CLIs must not inherit the MCP server's JSON-RPC stdin pipe.
+
+    On Windows an inherited pipe keeps the nested ``suews`` process alive,
+    leaving ``subprocess.run`` blocked in ``communicate`` indefinitely.
+    """
+    from suews_mcp.backend import cli as cli_mod
+
+    captured: dict[str, object] = {}
+
+    def fake_run(cmd, **kwargs):
+        captured.update(kwargs)
+        out = json.dumps({
+            "status": "success",
+            "data": {},
+            "errors": [],
+            "warnings": [],
+            "meta": {},
+        })
+        return subprocess.CompletedProcess(
+            args=cmd, returncode=0, stdout=out, stderr=""
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    cli_mod.run_suews_cli("validate", ["config.yml"], suews_executable="suews")
+
+    assert captured["stdin"] is subprocess.DEVNULL
+
+
 def test_passes_through_when_format_already_set(monkeypatch: pytest.MonkeyPatch) -> None:
     from suews_mcp.backend import cli as cli_mod
 

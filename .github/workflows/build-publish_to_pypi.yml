@@ -470,8 +470,11 @@ jobs:
 
   test_api_cross_python:
     name: API cross-CPython tests
-    needs: [determine_matrix, build_wheels]
-    if: always() && needs.build_wheels.result == 'success'
+    needs: [determine_matrix, build_wheels, build_mcp]
+    if: >-
+      always() &&
+      needs.build_wheels.result == 'success' &&
+      needs.build_mcp.result == 'success'
     uses: ./.github/workflows/test-api-cross-python-reusable.yml
     with:
       # Fall back to the full buildplat when api_buildplat is empty: the

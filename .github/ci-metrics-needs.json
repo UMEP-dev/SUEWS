@@ -1,5 +1,6 @@
 {
   "API cross-CPython tests / *": [
+    "Build MCP package",
     "Determine build matrix",
     "Build standard wheels / *"
   ],

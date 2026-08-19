@@ -72,6 +72,12 @@ jobs:
           name: cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
           path: wheelhouse/
 
+      - name: Download MCP distribution
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: suews-mcp-dist
+          path: mcp-dist/
+
       - name: Compose pytest marker expression for api tier
         id: marker
         shell: bash
@@ -99,7 +105,32 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install pytest==9.1.1 pytest-xdist==3.8.0
-          python -m pip install wheelhouse/*.whl
+          python -m pip install wheelhouse/*.whl mcp-dist/*.whl
+          # These imports and the interpreter-local executable are the two
+          # conditions that otherwise skip the protocol test at collection or
+          # setup time. Make either packaging regression fail this lane first.
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          import sys
+          import sysconfig
+
+          from mcp.client.session import ClientSession
+          from mcp.client.stdio import StdioServerParameters, stdio_client
+
+          active_bin_dir = Path(sysconfig.get_path("scripts"))
+          command = shutil.which("suews-mcp", path=str(active_bin_dir))
+          if command is None:
+              raise SystemExit(
+                  f"suews-mcp is not installed in {active_bin_dir} "
+                  f"for {sys.executable}"
+              )
+          print(f"Protocol dependencies available; suews-mcp={command}")
+          PY
+          # A focused collection pass makes marker drift or deletion of the
+          # protocol file fail with pytest's no-tests-collected exit code.
+          python -m pytest --collect-only test/mcp/test_protocol_handshake.py \
+            -m "$MARKER_EXPR" -q
           # Run in one process. xdist duplicates every session fixture per
           # worker; the API lane contains simulation outputs large enough to
           # exhaust hosted-runner memory even with two workers.

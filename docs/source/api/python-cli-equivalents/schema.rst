@@ -1,23 +1,23 @@
-Schema Management
------------------
+Configuration Schema Management
+-------------------------------
 
-Managing configuration schemas programmatically.
+Managing SUEWS configuration schemas programmatically.
 
 CLI Commands
 ~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    suews-schema export -o schema.json
-    suews-schema validate config.yml
-    suews-schema migrate old_config.yml --target-version 2.0
+    suews schema export -o schema.json
+    suews validate config.yml
+    suews schema migrate old_config.yml --target-version 2.0
 
 Python Equivalent (Schema Export)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    from supy.data_model.schema.publisher import generate_json_schema, save_schema
+    from supy.data_model.configuration.publisher import generate_json_schema, save_schema
     import json
     from pathlib import Path
 
@@ -40,7 +40,7 @@ Python Equivalent (Schema Validation)
 
     import yaml
     import jsonschema
-    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.configuration.publisher import generate_json_schema
     from supy.data_model.core.config import SUEWSConfig
 
     # Load configuration
@@ -70,8 +70,8 @@ Python Equivalent (Schema Migration)
 .. code-block:: python
 
     import yaml
-    from supy.data_model.schema.migration import SchemaMigrator
-    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.data_model.configuration.migration import SchemaMigrator
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
 
     # Load old configuration
     with open("old_config.yml", "r") as f:
@@ -104,7 +104,7 @@ Batch Operations
 
     import yaml
     from pathlib import Path
-    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.configuration.publisher import generate_json_schema
     from supy.cmd.validate_config import validate_single_file
 
     # Process multiple configuration files

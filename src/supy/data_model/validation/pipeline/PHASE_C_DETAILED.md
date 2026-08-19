@@ -272,7 +272,7 @@ def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
 ```python
 def _needs_storage_validation(self) -> bool:
     """Return True if DyOHM storage-heat method is explicitly enabled.
-    Only triggers validation if storageheatmethod == 6 AND the value was explicitly set
+    Only triggers validation if storageheatmethod is 6, 7, or 8 AND the value was explicitly set
     (not just the default value)."""
     # Implementation checks both method value and explicit configuration
     # Returns False by default to avoid triggering on default physics values
@@ -281,7 +281,7 @@ def _validate_storage(self, site: Site, site_index: int) -> List[str]:
     """Validate DyOHM storage heat method parameters."""
 ```
 
-- **Logic**: When `storageheatmethod == 6`, requires `properties.lambda_c` to be set and non-null
+- **Logic**: When `storageheatmethod` is 6, 7, or 8, requires `properties.lambda_c` to be set and non-null
 
 ### 3. STEBBS Method Validation
 
@@ -312,7 +312,7 @@ def _needs_spartacus_validation(self) -> bool:
 
 def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
     """
-    If SPARTACUS is enabled, enforce that bldgh does not exceed the domain top (height[nlayer+1]).
+    If SPARTACUS is enabled, enforce that bldgh and (if stebbsmethod==1) building_height do not exceed the domain top (height[nlayer]).
     Returns a list of issue messages.
     """
 ```
@@ -322,6 +322,51 @@ def _validate_spartacus_building_height(self, site: Site, site_index: int) -> Li
   - The main building height (`bldgh`) from `land_cover.bldgs.bldgh` **must not exceed** the domain top height (`vertical_layers.height[nlayer+1]`).
   - If `bldgh` exceeds the simulation domain top, an ACTION NEEDED report message is generated, and validation fails.
 
+
+### 5. SPARTACUS Surface Fraction Validation
+
+```python
+def _validate_spartacus_sfr(self, site: Site, site_index: int) -> List[str]:
+    """
+    If SPARTACUS is enabled, check that:
+    - bldgs.sfr == building_frac[0]
+    - (evetr.sfr + dectr.sfr) == veg_frac[0]
+    Returns a list of issue messages.
+    """
+```
+
+**Logic**
+
+When SPARTACUS is enabled (same condition as in `_needs_spartacus_validation`):
+
+For each site, Phase C:
+
+1. Reads land-cover surface fractions
+2. Reads SPARTACUS vertical-layer fractions from `vertical_layers`
+3. Performs consistency checks (only if arrays exist and have at least one element) 
+
+### 6. SPARTACUS vegetation structure validation
+
+```python
+def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
+    """
+    Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
+    max_tree = max(dectreeh, evetreeh)
+    The first layer where max_tree <= height[layer] (layer index 1..nlayer) is the tree layer.
+    All veg_scale and veg_frac entries above this layer (i.e., layer_index+1 to nlayer) must be zero.
+    """
+```
+
+**Logic**
+
+When SPARTACUS is enabled (i.e., `netradiationmethod` is set to 1001, 1002, or 1003), Phase C performs a vegetation structure consistency check for each site:
+
+1. Determines the maximum tree height (`max_tree`) as the greater of `dectreeh` and `evetreeh` from the land cover properties.
+2. Identifies the first vertical layer index (`tree_layer_index`) where `max_tree` is less than or equal to the corresponding domain top height (`vertical_layers.height[layer]`).
+3. For all layers from `tree_layer_index` onward (i.e., from `tree_layer_index` to `nlayer - 1`), both `veg_scale` and `veg_frac` arrays must be zero.
+4. If any value in `veg_scale` or `veg_frac` above the tree layer is nonzero, an ACTION NEEDED report message is generated and validation fails.
+
+This ensures that vegetation is not present above the physical height of the tallest trees.
 
 ### Orchestration Pattern
 

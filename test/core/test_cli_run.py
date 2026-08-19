@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 # Import the CLI command for in-process testing
 from supy.cmd.SUEWS import SUEWS
 
@@ -111,7 +113,8 @@ model:
 sites:
   - name: TestSite
     gridiv: 1
-"""
+""",
+            encoding="utf-8",
         )
 
         result = self.run_suews_run(cli_runner, str(minimal_yaml), check=False)
@@ -150,6 +153,24 @@ sites:
         assert "DEPRECATION WARNING" in combined
         assert "Namelist format is deprecated" in combined
 
+    def test_namelist_frame_adapter_preserves_unvalidated_forcing(
+        self, sample_data_loaded
+    ):
+        """The legacy CLI must not impose the OOP forcing-validation contract."""
+        from supy.cmd.SUEWS import _run_namelist_frames
+
+        df_state, df_forcing = sample_data_loaded
+        df_forcing_legacy = df_forcing.iloc[:2].copy()
+        df_forcing_legacy.loc[:, "rain"] = -999.0
+
+        df_output, df_state_final = _run_namelist_frames(
+            df_forcing_legacy,
+            df_state.copy(),
+        )
+
+        assert len(df_output) == len(df_forcing_legacy)
+        assert not df_state_final.empty
+
     # ========== DEFAULT FILE SEARCH TESTS ==========
 
     def test_default_yaml_search(self, cli_runner, sample_yaml):
@@ -157,7 +178,9 @@ sites:
         # Use CliRunner's isolated_filesystem for clean working directory
         with cli_runner.isolated_filesystem():
             # Copy sample YAML to config.yml in isolated dir
-            Path("config.yml").write_text(sample_yaml.read_text())
+            Path("config.yml").write_text(
+                sample_yaml.read_text(encoding="utf-8"), encoding="utf-8"
+            )
 
             result = self.run_suews_run(cli_runner, check=False)
             if result.returncode == 0:
@@ -183,7 +206,7 @@ sites:
     def test_invalid_yaml_syntax(self, cli_runner, tmp_path):
         """Test error handling for malformed YAML."""
         bad_yaml = tmp_path / "bad.yml"
-        bad_yaml.write_text("model:\n  control\n    invalid yaml")
+        bad_yaml.write_text("model:\n  control\n    invalid yaml", encoding="utf-8")
 
         result = self.run_suews_run(cli_runner, str(bad_yaml), check=False)
         assert result.returncode != 0

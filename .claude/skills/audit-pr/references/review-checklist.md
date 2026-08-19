@@ -42,6 +42,18 @@ Detailed checklist for comprehensive PR review.
 - Test files have relaxed requirements
 - Generated files excluded (`_suews_driver.py`, `_version.py`)
 
+### Design and Placement (not just correctness)
+
+- [ ] A new guard/special-case/optimisation lives in the function that owns the
+      operation, not bolted onto one call site
+- [ ] Grep the callers: if the diff patches one of several call sites, flag the
+      unpatched ones (including the recommended OOP path)
+- [ ] New code does not re-derive a value already carried by data/config/state
+      (e.g. native freq via `.diff().median()` instead of `index.freq` / `tstep` /
+      `pd.infer_freq`)
+- [ ] "Output is identical" is not used to conclude "design is fine"
+- [ ] Ref: `.claude/rules/code-design.md` -> "Fix Placement and Encapsulation"
+
 ---
 
 ## Scientific Review Checklist
@@ -123,6 +135,30 @@ Detailed checklist for comprehensive PR review.
 - [ ] Cross-references working
 - [ ] Images in correct location
 
+### Schema version bump (trigger-specific)
+
+If the PR changes `src/supy/data_model/configuration/version.py` so that
+`CURRENT_SCHEMA_VERSION` takes a new value, check each item below in
+addition to the general "User Documentation" bullets above:
+
+- [ ] `docs/source/contributing/schema/schema_versioning.rst` — version
+      history list and any illustrative schema tags updated to match
+      `SCHEMA_VERSIONS`
+- [ ] `docs/source/inputs/transition_guide.rst` — new entry under "YAML
+      schema migrations" describing what users see change and the
+      `suews-convert` / `suews-schema migrate` command to run
+- [ ] `docs/source/version-history/v<release>.rst` (if the bump rides a
+      formal release) — migration chain noted in "Breaking Changes"
+- [ ] Handler added in `src/supy/util/converter/yaml_upgrade.py::_HANDLERS`
+      from the previous schema to the new one
+- [ ] Release tag mapped in `_PACKAGE_TO_SCHEMA` (if bump rides a release)
+- [ ] Vendored fixture present under `test/fixtures/release_configs/`
+
+This list mirrors `.claude/rules/python/schema-versioning.md` step 6
+and is enforced by `.github/workflows/schema-version-audit.yml`. Flag
+any schema bump PR that is silent on the docs — the CI gate will
+block it anyway, and surfacing it in review saves a round trip.
+
 ---
 
 ## Build Checklist
@@ -137,6 +173,21 @@ Detailed checklist for comprehensive PR review.
 - [ ] All CI checks passing
 - [ ] No regression in test coverage
 - [ ] Documentation builds successfully
+
+### CI gate remedies (when any check is not green)
+
+- [ ] Required contexts queried from the branch ruleset, not assumed
+- [ ] Each red check diagnosed from its job log, not from its name alone
+- [ ] Each red check classified: author-fixable / maintainer-gated /
+      re-trigger mechanics / infrastructure
+- [ ] Each red check carries a concrete remedy in the draft, and a severity
+      (red required or convention-blocking -> `[blocking]`)
+- [ ] Any bypass label proposed (not applied), with the reason the diff
+      genuinely qualifies as non-structural or cosmetic
+- [ ] For `schema-version-audit` / `knowledge-pack-audit`, the re-trigger advice
+      is "push a commit or close/reopen", never `gh run rerun`
+- [ ] No bypass proposed for a `0-physics:change` evidence gate (no bypass exists)
+- [ ] Ref: `ci-gates.md`
 
 ---
 
@@ -182,21 +233,8 @@ PR can be merged when ALL of:
 
 ---
 
-## Module → Reviewer Mapping
+## Module Reviewer Mapping
 
-| Module Label | Files | Reviewers |
-|--------------|-------|-----------|
-| `module:stebbs` | `suews_phys_stebbs*` | @yiqing1021, @denisehertwig |
-| `module:rslprof` | `suews_phys_rslprof*` | @vitorlavor, @suegrimmond |
-| `module:spartacus` | `suews_phys_spartacus*` | @suegrimmond, @yiqing1021 |
-| `module:biogenco2` | `suews_phys_biogen*` | @havum, @ljarvi |
-| `module:snow` | `suews_phys_snow*` | @havum, @ljarvi |
-| `module:ehc` | `suews_phys_ehc*` | @sunt05 |
-| `module:anohm` | `suews_phys_anohm*` | @sunt05 |
-| `module:ohm` | `suews_phys_ohm*` | Seeking reviewer |
-| `module:estm` | `suews_phys_estm*` | Seeking reviewer |
-| `module:lumps` | `suews_phys_lumps*` | Seeking reviewer |
-| `module:narp` | `suews_phys_narp*` | Seeking reviewer |
-| `module:evap` | `suews_phys_evap*` | Seeking reviewer |
-| `module:waterdist` | `suews_phys_waterdist*` | Seeking reviewer |
-| Overall | General PRs | @sunt05, @MatthewPaskin, @dayantur |
+Use `dev-ref/SCIENTIFIC_REVIEWERS.md` as the operational source for suggested
+scientific reviewers in the audit summary. Use `dev-ref/REVIEW_PROCESS.md` for
+manual code-governance maintainer suggestions.

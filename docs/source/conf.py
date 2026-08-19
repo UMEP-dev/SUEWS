@@ -61,11 +61,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 try:
     from get_ver_git import get_version_from_git, get_commit_info
 
-    git_version_string = get_version_from_git()
+    docs_version_ref = os.environ.get("SUEWS_DOCS_VERSION_REF")
+    git_version_string = get_version_from_git(docs_version_ref)
     is_dev_version = ".dev" in git_version_string
-    git_commit_short, git_commit_full = get_commit_info()
+    git_commit_short, git_commit_full = get_commit_info(docs_version_ref)
 
     # Debug output for ReadTheDocs
+    print(f"DEBUG: docs_version_ref = {docs_version_ref or 'HEAD'}")
     print(f"DEBUG: git_version_string = {git_version_string}")
     print(f"DEBUG: is_dev_version = {is_dev_version}")
 
@@ -284,8 +286,10 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
-    "input_domain",  # Custom domain for input configuration options (see GH#1031)
-    "output_domain",  # Custom domain for output variables (see GH#1031)
+    "input_domain",  # Custom domain for input configuration options
+    "output_domain",  # Custom domain for output variables
+    "publications_topic_annotate",  # Tags bibliography <li>s with keyword classes for the client-side topic filter
+
     "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
@@ -509,7 +513,7 @@ if is_dev_version:
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
         ({git_version_string}, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}" style="color: #31708f;">{git_commit_short}</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
-        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+        <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
     """
 else:
@@ -527,6 +531,16 @@ html_static_path = ["_static"]
 #         '_static/theme_overrides.css',  # override wide tables in RTD theme
 #         ],
 #      }
+
+# Chip-based topic filter for related_publications / community_publications.
+# Paired with the `publications_topic_annotate` extension, which stamps each
+# bibliography <li> with pub-entry + pub-kw-<slug> classes the JS reads.
+html_css_files = [
+    "publications-filter.css",
+]
+html_js_files = [
+    ("publications-filter.js", {"defer": "defer"}),
+]
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -664,8 +678,6 @@ import urllib.parse
 
 
 def source_read_handler(app, docname, source):
-    if app.builder.format != "html":
-        return
     src = source[0]
     # base location for `docname`
     if ('"metadata":' in src) and ('"nbformat":' in src):
@@ -673,14 +685,17 @@ def source_read_handler(app, docname, source):
         # and do nothing
         return
 
-    # Handle :orphan: directive in sphinx-gallery generated files only.
-    # rst_prolog prepends content which breaks :orphan:, causing it to render as text.
-    # We only strip :orphan: from auto_examples/ files (sphinx-gallery output)
-    # because these are included in a toctree and don't need it.
-    if docname.startswith("auto_examples/") and src.lstrip().startswith(":orphan:"):
-        # Remove :orphan: and any following blank lines
+    # ``rst_prolog`` prepends content before parsing, which prevents top-of-file
+    # ``:orphan:`` fields from becoming document metadata. Preserve that metadata
+    # explicitly and remove the source field so it is not rendered to users.
+    if src.lstrip().startswith(":orphan:"):
+        app.env.metadata[docname]["orphan"] = ""
         src = src.lstrip()
         src = src[len(":orphan:") :].lstrip("\n")
+
+    if app.builder.format != "html":
+        source[0] = src
+        return
 
     # Add deprecation warning to table-based input documentation
     deprecation_warning = ""

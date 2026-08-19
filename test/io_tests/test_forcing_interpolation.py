@@ -5,6 +5,8 @@ import pandas as pd
 import pytest
 from supy._load import resample_forcing_met
 
+pytestmark = [pytest.mark.physics, pytest.mark.api]
+
 
 class TestForcingInterpolation:
     """Test suite for forcing data interpolation issues."""
@@ -163,6 +165,38 @@ class TestForcingInterpolation:
         assert time_diff.total_seconds() == tstep_mod, (
             f"Resampled time step should be {tstep_mod}s, got {time_diff.total_seconds()}s"
         )
+
+    def test_wuh_sum_preserves_mixed_exact_sentinel_intervals(self):
+        """Each missing Wuh interval stays -999 when cumulative data are split."""
+        time_index = pd.date_range("2023-01-01 01:00:00", periods=3, freq="3600s")
+        df_forcing = pd.DataFrame(
+            {
+                "Tair": np.full(3, 20.0),
+                "RH": np.full(3, 70.0),
+                "U": np.full(3, 5.0),
+                "pres": np.full(3, 1013.0),
+                "kdown": np.zeros(3),
+                "rain": np.zeros(3),
+                "Wuh": np.array([-999.0, 12.0, -999.0]),
+                "wuh_paved": np.array([-999.0, 12.0, -999.0]),
+                "iy": time_index.year,
+                "id": time_index.dayofyear,
+                "it": time_index.hour,
+                "imin": time_index.minute,
+                "isec": time_index.second,
+            },
+            index=time_index,
+        )
+
+        resampled = resample_forcing_met(df_forcing, 3600, 300)
+
+        expected = np.concatenate([
+            np.full(12, -999.0),
+            np.full(12, 1.0),
+            np.full(12, -999.0),
+        ])
+        np.testing.assert_array_equal(resampled["Wuh"].to_numpy(), expected)
+        np.testing.assert_array_equal(resampled["wuh_paved"].to_numpy(), expected)
 
     def test_average_variable_interpolation_shift(self):
         """Test that average variables are correctly shifted during interpolation.

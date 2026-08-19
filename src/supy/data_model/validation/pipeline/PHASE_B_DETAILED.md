@@ -39,6 +39,8 @@ Phase B implements a multi-layered scientific validation system that:
 - `extract_simulation_parameters()`: Extract and validate simulation parameters with comprehensive error collection
 - `validate_physics_parameters()`: Required physics parameter validation
 - `validate_model_option_dependencies()`: Physics option consistency checking
+- `validate_model_option_setpointmethod()`: SetpointMethod option related checks
+- `validate_model_option_rcmethod()`: RCMethod option related checks
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
 - `validate_geographic_parameters()`: Coordinate and location validation
 - `validate_irrigation_doy()`: Irrigation timing validation with hemisphere and leap year awareness
@@ -132,6 +134,44 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     return results
 ```
 
+### SetpointMethod Validation
+
+Validates the `setpointmethod` parameter and related setpoint temperature options:
+
+- **For `setpointmethod` 0 or 1**: Requires `heating_setpoint_temperature` and `cooling_setpoint_temperature` to be set in `building_archetype` for each site.
+- **For `setpointmethod` 2**: Requires all entries in `heating_setpoint_temperature_profile` and `cooling_setpoint_temperature_profile` (for both `working_day` and `holiday`) to be set (not null); heating values must be less than 30.0 °C, cooling values must be greater than 15.0 °C.
+- **Error Handling**: Missing or out-of-range values generate ERROR status in the validation report, specifying the site, parameter, and suggested correction.
+
+### RCMethod Validation
+
+Validates the `rcmethod` parameter and related roof/wall options:
+
+- **Consistency Validation**: Ensures that roof and wall parameters are compatible with the selected `rcmethod`.
+- **Error Handling**: If required parameters for `rcmethod` are missing or invalid, Phase B generates ERROR or WARNING status in the validation report.
+
+### STEBBSMethod Validation
+
+Validates the `stebbsmethod` parameter and related STEBBS and building archetype options:
+
+- **hot_water_flow_profile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `hot_water_flow_profile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float). Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
+
+- **occupants and metabolism_profile Validation**: If `occupants` is set to `0.0` for a site, all values in the corresponding `metabolism_profile` (for both `working_day` and `holiday`) must be `0`, `0.0`, or `None`. If any nonzero value is found, an ERROR is generated, listing the problematic entries and suggesting that all values be set to 0.
+
+- **Error Handling**: All validation errors specify the site, parameter, and suggested correction in the validation report.
+
+### Forcing Height vs Building Heights Validation
+
+Validates that the forcing height `z` is physically consistent with the mean building height and maximum building height for each site:
+
+- **Consistency Check**: Validates that the forcing height `z` is at least twice the mean and maximum building heights for each site.
+    - **ERROR** if `z` is less than 2 × mean building height (`land_cover.bldgs.bldgh`).
+    - **WARNING** if `z` is less than 2 × the maximum configured building height, where the maximum is the largest of:
+        - `land_cover.bldgs.bldgh`
+        - `building_archetype.building_height` (if `stebbsmethod == 1`)
+        - The last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled).
+    - This check ensures the forcing height is physically appropriate relative to the urban morphology.
+- **Error Handling**: If `z` is not above the mean building height, an ERROR is reported; if not above the max building height, a WARNING is reported. Both include site, parameter, and suggested correction.
+
 ### Land Cover Consistency
 
 Comprehensive validation and adjustment of surface types and parameters:
@@ -194,6 +234,31 @@ Used for initialising parameters that vary with seasons:
 - Surface temperatures (tsfc, tin, temperature arrays)
 - STEBBS outdoor surface temperatures
 - Initial state temperatures for all surface types
+
+#### Monthly Diffmax Temperature
+
+```python
+def get_monthly_air_temperature_diffmax(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> float:
+    """
+    Calculate the maximum difference between mean monthly air temperatures
+    using CRU TS4.06 climatological data. This is defined as the difference 
+    between the warmest and coldest mean monthly temperature within the annual 
+    cycle at the specified location.
+    """
+    monthly_temps = []
+    for month in range(1, 13):
+        monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+        monthly_temps.append(monthly_temp)
+    diffmax = float(max(monthly_temps) - min(monthly_temps))
+    return diffmax
+```
+
+This function computes the annual temperature amplitude at a given site by finding the difference between the highest and lowest mean monthly air temperatures from the CRU TS4.06 dataset. 
+
+- **Inputs**: Latitude, longitude, and optional spatial resolution.
+- **Output**: Maximum difference in mean monthly air temperature (°C) for the site.
 
 #### Annual Temperature (Stable Parameters)
 
@@ -260,13 +325,34 @@ Phase B makes scientific adjustments that improve model realism without changing
 - **Fraction Normalisation**: Adjusts surface fractions to sum to 1.0 by rounding the surface with maximum fraction value
 - **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax) when surface fraction > 0. When surface fraction is 0, existing lai_id values are preserved and validation is skipped with a warning
 
+### Seasonal Vegetation Albedo Adjustments
+
+- **Season-Aware `alb_id`**: Updates `initial_states.*.alb_id` for grass, dectr, evetr.
+- **Summer Regime**: `alb_id(grass) = alb_min(grass)`; `alb_id(dectr/evetr) = alb_max(dectr/evetr)`
+- **Winter Regime**: `alb_id(grass) = alb_max(grass)`; `alb_id(dectr/evetr) = alb_min(dectr/evetr)`
+- **Transition Seasons**: `alb_id` set to midpoint `(alb_min + alb_max)/2` for grass, dectr, evetr
+
 ### STEBBS Method Integration
 
-- **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
+- **Conditional Logic**: 
+    - When `stebbsmethod == 0`, nullifies STEBBS parameters.
+    - When `stebbsmethod == 1`, checks `WWR`:
+        - If `stebbsmethod == 1` and `WWR == 0.0`, all window-related parameters are set to `None`.
+        - If `stebbsmethod == 1` and `WWR == 1.0`, all external wall-related parameters are set to `None`.
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
-- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` using CRU climatological data
+- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` and `InitialIndoorTemperature` using CRU climatological data
 - **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
+
+### Setpoint Method Integration
+
+- **Conditional Logic**: Applies automatic cleanup of setpoint temperature parameters in `building_archetype` based on `setpointmethod`:
+    - If `setpointmethod == 0` or `1`: All entries in `heating_setpoint_temperature_profile` and `cooling_setpoint_temperature_profile` (for both `working_day` and `holiday`) are set to `null` for all sites.
+    - If `setpointmethod == 2`: The scalar `heating_setpoint_temperature` and `cooling_setpoint_temperature` parameters are set to `null` for all sites.
+
+### RC Method Integration
+
+- **Conditional Logic**: When `rcmethod == 0`, automatically updates `RoofOuterCapFrac` and `WallOuterCapFrac` to 0.5 for all sites.
 
 ### Parameter Validation Improvements
 

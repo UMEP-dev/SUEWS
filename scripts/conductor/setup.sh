@@ -4,8 +4,10 @@
 
 set -e
 
+source "$(dirname "$0")/_common.sh"
+
 echo "[setup] Fetching from origin..."
-git fetch origin --prune
+fetch_origin "[setup]"
 
 # Get current branch name (empty if detached HEAD)
 branch=$(git branch --show-current)
@@ -32,5 +34,11 @@ uv venv --clear
 
 echo "[setup] Activating virtual environment..."
 source .venv/bin/activate
+
+echo "[setup] Building supy in editable mode (make dev)..."
+make dev
+
+echo "[setup] Installing documentation dependencies (make docs-setup)..."
+make docs-setup
 
 echo "[setup] Done."

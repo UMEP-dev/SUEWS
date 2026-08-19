@@ -52,7 +52,7 @@ from ._load import df_var_info
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Functions | snake_case | `run_supy`, `check_forcing` |
+| Functions | snake_case | `check_forcing`, `get_spinup_state` |
 | Variables | snake_case | `df_forcing`, `dict_state` |
 | Classes | PascalCase | `SUEWSConfig`, `BaseModel` |
 | Constants | UPPER_CASE | `DEFAULT_TIMESTEP`, `NSURF` |
@@ -292,12 +292,12 @@ class TestSuPy(TestCase):
     def setUp(self):
         """Set up test fixtures."""
         warnings.simplefilter("ignore", category=ImportWarning)
-        self.df_input = sp.load_SampleData()
+        self.simulation = sp.SUEWSSimulation.from_sample_data()
     
     def test_normal_operation(self):
         """Test feature under normal conditions."""
-        result = sp.run_supy(self.df_input)
-        self.assertIsNotNone(result)
+        output = self.simulation.run()
+        self.assertIsNotNone(output)
     
     def tearDown(self):
         """Clean up after tests."""
@@ -308,9 +308,9 @@ class TestSuPy(TestCase):
 ```python
 def test_sample_output_validation():
     """Validate sample output against expected results."""
-    df_input = sp.load_SampleData()
-    result = sp.run_supy(df_input)
-    assert result is not None
+    simulation = sp.SUEWSSimulation.from_sample_data()
+    output = simulation.run()
+    assert output is not None
 ```
 
 ### 5.4 Assertion Patterns
@@ -323,7 +323,7 @@ def test_sample_output_validation():
 
 ### 5.5 Test Data Management
 
-- **Sample data**: Use `sp.load_SampleData()` for consistent test data
+- **Sample data**: Use `sp.SUEWSSimulation.from_sample_data()` for consistent test data
 - **Fixtures**: Store test data in `test/fixtures/` directory
 - **Temporary files**: Use `tempfile.TemporaryDirectory()` for file operations
 - **Benchmark data**: Store expected results in `.pkl` files for regression testing
@@ -334,7 +334,8 @@ When testing scientific functionality:
 ```python
 def test_energy_balance_closure(self):
     """Test energy balance: Rn = QH + QE + QS + QF."""
-    result = sp.run_supy(df_input)
+    output = sp.SUEWSSimulation.from_sample_data().run()
+    result = output.df.SUEWS
     
     # Extract fluxes
     rn = result.SUEWS['Rn']
@@ -389,11 +390,17 @@ python -m pytest test -v                   # Run in suite
 
 ### 5.10 Test Execution Order
 
-Critical tests run first via `conftest.py`:
-- Sample output validation
-- Benchmark tests
-- Core functionality
-This ensures fundamental features are tested before complex scenarios.
+Only the API-surface probe is prioritised via `conftest.py` so import failures fail fast.
+All other tests retain their declared collection order.
+Native simulation calls must own fresh state, while continuation tests pass prior state explicitly; tests must not rely on suite ordering for isolation.
+The removed workaround had moved every `test/core/test_sample_output.py` item plus the public API-equivalence nodes `TestPublicAPIEquivalence` and `test_functional_matches_oop`; executable collection evidence for that bounded set lives in `test/test_api_surface.py`.
+
+### 5.11 Native Mutable-State Inventory
+
+- `src/suews_bridge/src/lib.rs` exposes the active Rust entry points, and `src/suews_bridge/c_api/driver.f95::suews_cal_multitsteps_c` materialises `SUEWS_TIMER`, `SUEWS_CONFIG`, `SUEWS_SITE`, and `SUEWS_STATE` as call-local values.
+- `src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` retains the fatal-error flag, code, and message with `SAVE`; `suews_cal_multitsteps_c` calls `reset_supy_error()` at every driver entry.
+- `src/suews/src/suews_phys_anohm.f95` still contains `SAVE` declarations, but AnOHM is disabled and remains outside the active bridge path.
+  Removing or explicitly owning that state is a reactivation gate for AnOHM, not a claim that the current tree contains no `SAVE` state.
 
 ## Version Control Practices
 
@@ -439,10 +446,10 @@ Configuration objects should be handled at high levels:
 # Good: High-level extracts configuration
 def high_level_method(self):
     freq_s = self._config.output.freq.value if self._config else 3600
-    save_supy(df_output, df_state, freq_s=freq_s)
+    save_df_output(df_output, freq_s=freq_s)
 
 # Bad: Low-level accepts configuration
-def save_supy(df_output, df_state, config):  # Don't do this: including config in the function signature is bad practice
+def save_df_output(df_output, config):  # Don't do this: including config in the function signature is bad practice
 ```
 
 ### 7.2 Pydantic Models

@@ -1,26 +1,25 @@
 # Fortran Test Patterns for SUEWS
 
-This document provides patterns and examples for testing Fortran code through the f90wrap interface, leveraging the existing exposed modules and functions.
+This document provides patterns and examples for testing Fortran code.
 
-## F90wrap Interface Overview
+> **Note**: The f90wrap interface has been removed. The Rust bridge is now the
+> sole execution backend. The module list below is retained for historical
+> reference only.
 
-### Available Modules via f90wrap
+## Historical F90wrap Interface (removed)
 
 ```python
+# These imports no longer work -- f90wrap has been removed.
+# Fortran physics is now accessed exclusively via the Rust bridge.
 from supy_driver import (
-    # Physics modules
     Atmmoiststab_Module,     # Atmospheric stability and moisture
-    Evap_Module,             # Evaporation calculations  
+    Evap_Module,             # Evaporation calculations
     Resist_Module,           # Resistance calculations
     Snow_Module,             # Snow processes
     Waterdist_Module,        # Water distribution
     Ohm_Module,              # Objective Hysteresis Model
     Estm_Module,             # ESTM calculations
-    
-    # Data structures
     Suews_Def_Dts,           # All derived type definitions
-    
-    # Utility modules
     Meteo,                   # Meteorological calculations
     Allocatearray,           # Array allocation utilities
     Sues_Phys_Tstepcontrol,  # Timestep control

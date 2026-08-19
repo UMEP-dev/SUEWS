@@ -1,8 +1,17 @@
 from typing import TypeVar, Optional, Generic, Union, Any
-from pydantic import ConfigDict, BaseModel, Field, model_validator, field_serializer
+from pydantic import (
+    ConfigDict,
+    BaseModel,
+    Field,
+    field_validator,
+    model_validator,
+    model_serializer,
+)
 import numpy as np
 import pandas as pd
 from enum import Enum
+
+_REF_VALUE_UNSET = object()
 
 
 class SurfaceType(str, Enum):
@@ -60,15 +69,75 @@ class RefValue(BaseModel, Generic[T]):
     model_config = ConfigDict(
         # Configure serialization to handle the value field properly
         ser_json_inf_nan="constants",
+        # Reject unknown keys as ValidationError so Pydantic's union fall-through
+        # can try the other branch instead of bubbling up a TypeError (gh#1303).
+        extra="forbid",
     )
 
-    def __init__(self, value: T, ref: Optional[Reference] = None):
-        # Convert numpy numeric types to Python native types
-        if isinstance(value, (np.float64, np.float32)):
-            value = float(value)
-        elif isinstance(value, (np.int64, np.int32)):
-            value = int(value)
-        super().__init__(value=value, ref=ref)
+    def __new__(cls, value=_REF_VALUE_UNSET, ref=None, **data):
+        """Auto-parametrise the bare generic so ``RefValue(x)`` is ``RefValue[type(x)]``.
+
+        The data model declares fields as ``FlexibleRefValue(T)`` =
+        ``Union[RefValue[T], T]``. Pydantic's union serializer only routes a
+        value cleanly to the ``RefValue[T]`` branch when the instance carries
+        the matching generic parameter; a bare, unparametrised ``RefValue``
+        (from ``RefValue(x)``) matches neither branch's schema and triggers a
+        ``PydanticSerializationUnexpectedValue`` warning per field on dump --
+        hundreds for a config rebuilt from ``df_state`` (gh#1569). Validation
+        from YAML already yields ``RefValue[T]``; this makes the dozens of
+        direct ``RefValue(value)`` reconstruction sites consistent with it.
+
+        Only the bare base class with a concrete, non-``None`` scalar is
+        redirected; already-parametrised subclasses, the keyword-only / unset
+        call shape used during validation and ``model_construct``, and ``None``
+        values (no inferable type) are left untouched.
+        """
+        if cls is RefValue:
+            concrete = value if value is not _REF_VALUE_UNSET else data.get(
+                "value", _REF_VALUE_UNSET
+            )
+            # Resolve numpy scalars to their Python native, so we parametrise on
+            # the Python type (RefValue[float], not RefValue[numpy.float64]) and
+            # never ask Pydantic to build a schema for a numpy type it cannot.
+            if isinstance(concrete, np.generic):
+                concrete = concrete.item()
+            # Only parametrise on the plain types FlexibleRefValue actually uses
+            # and that Pydantic can build a RefValue[T] schema for. Anything else
+            # (None, pandas Timestamps, containers, ...) stays the bare generic.
+            if type(concrete) in (bool, int, float, str) or isinstance(
+                concrete, Enum
+            ):
+                cls = RefValue[type(concrete)]
+        return super().__new__(cls)
+
+    def __init__(self, value=_REF_VALUE_UNSET, ref=None, **data):
+        # Two call shapes are supported:
+        # 1. Direct construction: `RefValue(3.0)` or `RefValue(value=3.0, ref=...)`.
+        # 2. Pydantic-driven validation: `RefValue(**dict_from_yaml)`, which may
+        #    carry profile-shaped keys when a union falls through. In that case
+        #    let the base class's validators run so extras become a
+        #    ValidationError that the union can catch, rather than a TypeError
+        #    that aborts validation.
+        if value is _REF_VALUE_UNSET:
+            super().__init__(**data)
+            return
+        data["value"] = value
+        data["ref"] = ref
+        super().__init__(**data)
+
+    @field_validator("value", mode="before")
+    @classmethod
+    def _convert_numpy_scalar(cls, v):
+        """Convert numpy scalar types to Python natives before validation."""
+        if isinstance(v, (np.float64, np.float32)):
+            return float(v)
+        if isinstance(v, (np.int64, np.int32)):
+            return int(v)
+        if isinstance(v, np.bool_):
+            return bool(v)
+        if isinstance(v, np.str_):
+            return str(v)
+        return v
 
     def model_dump(self, **kwargs):
         """Override model_dump to handle JSON mode properly."""
@@ -81,6 +150,17 @@ class RefValue(BaseModel, Generic[T]):
                 return self.value
         # For other modes, use default behavior
         return super().model_dump(**kwargs)
+
+    @model_serializer(mode="wrap")
+    def _serialize_with_value_key(self, handler, info):
+        """Keep ``value: null`` in nested dumps for schema-valid YAML."""
+        if info.mode == "json" and self.value is None:
+            data = {"value": None}
+            if self.ref is not None or not info.exclude_none:
+                data["ref"] = self.ref
+            return data
+
+        return handler(self)
 
     @classmethod
     def wrap(cls, value: Union[T, "RefValue[T]"]) -> "RefValue[T]":

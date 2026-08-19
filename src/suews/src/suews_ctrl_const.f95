@@ -90,8 +90,8 @@ MODULE module_ctrl_const_allocate
                          ncolumnsDataOutDailyState = 52, &
                          ncolumnsDataOutRSL = 30*4 + 5 + 13 + 2, &
                          ncolumnsDataOutDebug = 1 + 5 + 103 + 14 + 5 + 4 + 3 + 1, &
-                         ncolumnsDataOutSPARTACUS = 5 + 7 + 4*15 + 3 + 6*15 + 2*15 + 4, &
-                         ncolumnsDataOutSTEBBS = 5 + 80, &
+                         ncolumnsDataOutSPARTACUS = 5 + 8 + 8*15 + 3 + 6*15 + 2*15 + 4 + 1 + 2*15 + 2 + 8*15, &
+                         ncolumnsDataOutSTEBBS = 5 + 82, &
                          ncolumnsDataOutNHood = 5 + 1
 
    ! ---- Define input file headers ---------------------------------------------------------------
@@ -609,8 +609,8 @@ MODULE module_ctrl_const_allocate
    REAL(KIND(1D0)), DIMENSION(:, :, :), ALLOCATABLE :: wall_specular_frac_grids
 
    ! SPARTACUS input variables
-   INTEGER :: n_vegetation_region_urban, &
-              n_stream_sw_urban, n_stream_lw_urban
+   INTEGER :: n_vegetation_region_urban, n_vegetation_region_forest, &
+              n_stream_sw_urban, n_stream_sw_forest, n_stream_lw_urban, n_stream_lw_forest
    REAL(KIND(1D0)) :: sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
                       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                       veg_fsd_const, veg_contact_fraction_const, &
@@ -1156,7 +1156,7 @@ MODULE module_ctrl_const_datain
               WriteOutOption, & !Choose variables to include in main output file
               NetRadiationMethod, & !Options for net all-wave radiation calculation
               OHMIncQF, & !OHM calculation uses Q* only (0) or Q*+QF (1)
-              StorageHeatMethod, & !Observed(0); OHM(1); AnOHM(3); ESTM(4); EHC(5); DyOHM(6); STEBBS(7)
+              StorageHeatMethod, & !Observed(0); OHM(1); AnOHM(3); ESTM(4); EHC(5); DyOHM(6); STEBBS(7); DyOHM-building flux only(8)
               SnowUse, & !Snow part used (1) or not used (0)
               !  SOLWEIGuse, &           !SOLWEIG part used (calculates Tmrt and other fluxes on a grid, FL)
               SMDMethod, & !Use modelled (0) or observed(1,2) soil moisture
@@ -1248,7 +1248,9 @@ MODULE module_ctrl_const_datain
                       kdiff, & !Diffuse shortwave radiation
                       kdir, & !Direct shortwave radiation
                       kup, & !Upward shortwave radiation
-                      LAI_obs, & !LAI for study area provided in met forcing file
+                      LAI_dectr, & !LAI for study area provided in met forcing file
+                      LAI_evetr, & !LAI for study area provided in met forcing file
+                      LAI_grass, & !LAI for study area provided in met forcing file
                       lat, & !Latitude
                       ldown, & !Downward longwave radiation
                       ldown_obs, & !Downwelling longwave radiation

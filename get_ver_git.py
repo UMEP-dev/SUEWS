@@ -16,13 +16,6 @@ For production releases:
   - At tag: generates 2025.1.0
   - After commits: generates 2025.1.0.dev5 (5 commits after)
 
-For UMEP/QGIS compatible builds (rc1 suffix):
-  - When BUILD_UMEP_VARIANT=true environment variable is set
-  - Tag: 2025.1.0 generates 2025.1.0rc1
-  - These are NumPy 1.x compatible builds for QGIS 3.40 LTR
-  - rc1 is a pre-release tag, ensuring pip install gets the stable version by default
-  - See .github/workflows/build-publish_to_pypi.yml for build configuration
-
 CRITICAL FOR NIGHTLY BUILDS:
 The GitHub Actions workflow MUST create the tag BEFORE building wheels.
 This ensures the version number matches the intended date. Previously,
@@ -33,24 +26,34 @@ USAGE:
 Called by meson.build during the build process to set the package version.
 """
 
-import subprocess
+from pathlib import Path
 import re
-import os
+import subprocess
+import sys
+
+VERSION_FILES = (
+    Path("src/supy/_version_scm.py"),
+    Path("mcp/src/suews_mcp/_version_scm.py"),
+)
 
 
-def get_version_from_git():
+def get_version_from_git(ref=None):
     try:
         # Get the most recent tag and the number of commits since that tag
         # Only match version tags (starting with digits)
+        describe_command = [
+            "git",
+            "describe",
+            "--tags",
+            "--long",
+            "--match=[0-9]*",
+        ]
+        if ref:
+            describe_command.append(ref)
+
         describe_output = (
             subprocess.check_output(
-                [
-                    "git",
-                    "describe",
-                    "--tags",
-                    "--long",
-                    "--match=[0-9]*",
-                ],
+                describe_command,
                 stderr=subprocess.DEVNULL,
             )
             .strip()
@@ -66,7 +69,6 @@ def get_version_from_git():
         if match:
             base_version = match.group(1)
             distance = int(match.group(2))
-            commit_hash = match.group(3)
 
             # Clean up version to be valid Python packaging version
             if base_version.startswith("v"):
@@ -94,67 +96,66 @@ def get_version_from_git():
                 f"Output '{describe_output}' does not match the expected pattern."
             )
 
-        # Check for UMEP build variant (NumPy 1.x compatible build)
-        # This is set by CI workflow for QGIS/UMEP compatible releases
-        if os.environ.get("BUILD_UMEP_VARIANT") == "true":
-            if ".dev" in version:
-                # For dev/nightly builds: increment dev number to avoid version collision
-                # Standard: 2025.10.15.dev0 (NumPy 2.x)
-                # UMEP:     2025.10.15.dev1 (NumPy 1.x)
-                # This allows both to coexist on TestPyPI for testing
-                base, dev_num = version.rsplit(".dev", 1)
-                version = f"{base}.dev{int(dev_num) + 1}"
-            else:
-                # For production releases: use rc1 suffix
-                # rc1 (pre-release) ensures pip install gets stable version by default
-                version = version + "rc1"
-
         return version
 
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as err:
         # Git not available (e.g., inside cibuildwheel container)
         # Try to read version from previously generated file
-        version_file = "src/supy/_version_scm.py"
-        if os.path.exists(version_file):
-            with open(version_file) as f:
-                for line in f:
-                    if line.startswith("__version__"):
-                        # Extract version from: __version__ = version = '2025.10.15'
-                        version = line.split("=")[2].strip().strip("'\"")
-                        return version
+        for version_file in VERSION_FILES:
+            if not version_file.exists():
+                continue
+            for line in version_file.read_text(encoding="utf-8").splitlines():
+                if line.startswith("__version__"):
+                    # Extract version from: __version__ = version = '2025.10.15'
+                    version = line.split("=")[2].strip().strip("'\"")
+                    return version
         raise RuntimeError(
             "Git command failed and no version file found. "
             "Make sure you're running this script in a Git repository, "
             "or that src/supy/_version_scm.py exists."
-        )
-    except Exception as e:
+        ) from err
+    except Exception as err:
         raise RuntimeError(
-            f"An error occurred while retrieving the version from Git: {e}"
-        )
+            f"An error occurred while retrieving the version from Git: {err}"
+        ) from err
 
 
-def write_version_file(version_str):
-    version_file = "src/supy/_version_scm.py"
+def write_version_file(version_str, ref=None):
     version_tuple = parse_version_tuple(version_str)
+
+    # Bake the build-time commit hash into the generated file so the JSON
+    # envelope's ``meta.git_commit`` field still has provenance after a
+    # wheel install (no ``.git`` directory at runtime). Falls back to
+    # ``"unknown"`` when git is unavailable; ``json_envelope._git_commit``
+    # treats that as the same as the missing-field case (gh#1401).
+    commit_short, _commit_full = get_commit_info(ref)
 
     content = f"""# file generated by `get_ver_git.py`
 # don't change, don't track in version control
 __version__ = version = '{version_str}'
 __version_tuple__ = version_tuple = {version_tuple}
+__commit_hash__ = commit_hash = '{commit_short}'
 """
 
-    with open(version_file, "w") as file:
-        file.write(content)
+    for version_file in VERSION_FILES:
+        if not version_file.parent.exists():
+            continue
+        version_file.write_text(content, encoding="utf-8")
 
     # print(f"Generated {version_file} with version {version_str}")
 
 
-def get_commit_info():
+def get_commit_info(ref=None):
     """Get both short and full commit hashes."""
+    target = ref or "HEAD"
+    # Peel annotated tags to their commit so provenance links point to code,
+    # not to the tag object.
+    peeled_target = f"{target}^{{}}"
     try:
         commit_short = (
             subprocess.check_output(
-                ["git", "rev-parse", "--short=7", "HEAD"], stderr=subprocess.DEVNULL
+                ["git", "rev-parse", "--short=7", peeled_target],
+                stderr=subprocess.DEVNULL,
             )
             .decode("utf-8")
             .strip()
@@ -162,14 +163,14 @@ def get_commit_info():
 
         commit_full = (
             subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+                ["git", "rev-parse", peeled_target], stderr=subprocess.DEVNULL
             )
             .decode("utf-8")
             .strip()
         )
 
         return commit_short, commit_full
-    except:
+    except Exception:
         return "unknown", "unknown"
 
 
@@ -219,6 +220,7 @@ def parse_version_tuple(version_str):
 
 
 if __name__ == "__main__":
-    version_str = get_version_from_git()
-    write_version_file(version_str)
-    print(get_version_from_git())
+    version_ref = sys.argv[1] if len(sys.argv) > 1 else None
+    version_str = get_version_from_git(version_ref)
+    write_version_file(version_str, ref=version_ref)
+    print(version_str)

@@ -33,4 +33,5 @@ Diagnose=0
 ncmode=0
 nrow=1
 ncol=1
+setpointmethod = 0
 /

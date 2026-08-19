@@ -1,0 +1,260 @@
+/**
+ * SUEWS Subpage Styles
+ *
+ * Shared layout for secondary pages: /team/, /funding/, /dependencies/,
+ * /management/. Keeps the landing page's visual system (palette, fonts,
+ * theme) but strips the heavy hero treatment — subpages carry only a
+ * single subtle contour ring as a signature echo.
+ *
+ * Requires tokens.css and base.css to be loaded first.
+ */
+
+/* ========== Signature echo ========== */
+.signature-ring {
+  position: fixed;
+  width: 640px;
+  height: 640px;
+  top: -220px;
+  right: -220px;
+  border: 1px solid var(--sun-gold);
+  border-radius: 50%;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.signature-ring::before {
+  content: '';
+  position: absolute;
+  inset: 60px;
+  border: 1px solid var(--water-blue);
+  border-radius: 50%;
+  opacity: 0.6;
+}
+
+/* ========== Header ========== */
+.subpage-header {
+  position: relative;
+  z-index: 10;
+  padding: 80px 0 40px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  margin-bottom: 40px;
+  transition: color var(--transition-standard);
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.back-link .arrow {
+  font-family: 'JetBrains Mono', monospace;
+  transition: transform var(--transition-standard);
+}
+
+.back-link:hover .arrow,
+.back-link:focus-visible .arrow {
+  transform: translateX(-3px);
+}
+
+.subpage-label {
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent-label);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.subpage-label::before {
+  content: '';
+  width: 40px;
+  height: 1px;
+  background: var(--accent-label);
+}
+
+.subpage-title {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: clamp(2.25rem, 4.5vw, 3.25rem);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 24px;
+  max-width: 720px;
+}
+
+.subpage-title em {
+  font-style: italic;
+  color: var(--accent-highlight);
+}
+
+.subpage-lede {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1.2rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 640px;
+  margin-bottom: 24px;
+}
+
+.subpage-intro {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  max-width: 640px;
+}
+
+.subpage-intro a,
+.subpage-notes a {
+  color: var(--accent-highlight);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--transition-standard);
+}
+
+.subpage-intro a:hover,
+.subpage-intro a:focus-visible,
+.subpage-notes a:hover,
+.subpage-notes a:focus-visible {
+  border-bottom-color: var(--accent-highlight);
+  text-decoration: none;
+}
+
+/* ========== Grouped section ========== */
+.subpage-group {
+  position: relative;
+  z-index: 10;
+  padding: 56px 0;
+}
+
+.subpage-group + .subpage-group {
+  border-top: 1px solid var(--border-light);
+}
+
+.subpage-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.subpage-group-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--accent-label);
+  flex-shrink: 0;
+}
+
+.subpage-group-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-medium), transparent);
+}
+
+/* ========== List / Entry card ========== */
+.subpage-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 36px 40px;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.entry-name {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.entry-name a {
+  color: var(--accent-highlight);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 2px;
+  transition: border-color var(--transition-standard),
+              color var(--transition-standard);
+}
+
+.entry-name a:hover,
+.entry-name a:focus-visible {
+  border-bottom-color: currentColor;
+  text-decoration: none;
+}
+
+.entry-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.entry-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent-highlight);
+  margin-top: 2px;
+}
+
+.entry-detail {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin-top: 6px;
+}
+
+.entry-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+/* ========== Notes section ========== */
+.subpage-notes {
+  position: relative;
+  z-index: 10;
+  padding: 56px 0 40px;
+  border-top: 1px solid var(--border-light);
+}
+
+.subpage-notes p {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.75;
+  max-width: 720px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .subpage-header { padding-top: 48px; }
+  .subpage-group { padding: 40px 0; }
+  .subpage-list { gap: 32px; }
+}

@@ -3,7 +3,7 @@ project(
     'fortran',
     'c',
     version: run_command('get_ver_git.py',check: true).stdout().strip(),
-    meson_version: '>=0.64.0',
+    meson_version: '>=1.3.0',  # limited-API extension support (meson-python abi3)
 )
 
 if host_machine.system() == 'windows'
@@ -38,7 +38,5 @@ endif
 # find the python installation
 py = import('python').find_installation(pure: false)
 dep_py = py.dependency()
-
-subdir('src/supy_driver')
 
 subdir('src/supy')

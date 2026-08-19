@@ -16,7 +16,10 @@ module module_type_spartacus
        REAL(KIND(1D0)) :: ground_albedo_dir_mult_fact = 0.0D0 ! Ground albedo direct multiplication factor [-]
        INTEGER :: n_stream_lw_urban ! LW streams per hemisphere [-]
        INTEGER :: n_stream_sw_urban ! Shortwave diffuse streams per hemisphere [-]
+       INTEGER :: n_stream_lw_forest = 0 ! Longwave streams per hemisphere for forest columns [-]
+       INTEGER :: n_stream_sw_forest = 1 ! Shortwave diffuse streams per hemisphere for forest columns [-]
        INTEGER :: n_vegetation_region_urban ! Number of regions used to describe vegetation [-]
+       INTEGER :: n_vegetation_region_forest = 1 ! Number of regions used to describe forest vegetation [-]
        REAL(KIND(1D0)) :: sw_dn_direct_frac = 0.0D0 ! Fraction of direct shortwave radiation [-]
        REAL(KIND(1D0)) :: use_sw_direct_albedo = 0.0D0 ! Flag for using direct shortwave albedo [-]
        REAL(KIND(1D0)) :: veg_contact_fraction_const = 0.0D0 ! Vegetation contact fraction constant [-]
@@ -33,6 +36,7 @@ module module_type_spartacus
        REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: building_scale ! Diameter of buildings [m]
        REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: veg_frac ! Vegetation fraction [-]
        REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: veg_scale ! Scale of tree crowns [m]
+       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: veg_ext ! Vegetation extinction coefficient override [m-1]
        REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: alb_roof ! Albedo of roof [-]
        REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: emis_roof ! Emissivity of roof [-]
        REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: alb_wall ! Albedo of wall [-]
@@ -56,6 +60,7 @@ CONTAINS
        ALLOCATE (self%building_scale(nlayer))
        ALLOCATE (self%veg_frac(nlayer))
        ALLOCATE (self%veg_scale(nlayer))
+       ALLOCATE (self%veg_ext(nlayer))
        ALLOCATE (self%alb_roof(nlayer))
        ALLOCATE (self%emis_roof(nlayer))
        ALLOCATE (self%alb_wall(nlayer))
@@ -73,6 +78,7 @@ CONTAINS
        IF (ALLOCATED(self%building_scale)) DEALLOCATE (self%building_scale)
        IF (ALLOCATED(self%veg_frac)) DEALLOCATE (self%veg_frac)
        IF (ALLOCATED(self%veg_scale)) DEALLOCATE (self%veg_scale)
+       IF (ALLOCATED(self%veg_ext)) DEALLOCATE (self%veg_ext)
        IF (ALLOCATED(self%alb_roof)) DEALLOCATE (self%alb_roof)
        IF (ALLOCATED(self%emis_roof)) DEALLOCATE (self%emis_roof)
        IF (ALLOCATED(self%alb_wall)) DEALLOCATE (self%alb_wall)

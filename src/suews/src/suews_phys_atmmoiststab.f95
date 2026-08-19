@@ -31,15 +31,15 @@ CONTAINS
             tstep => timer%tstep, &
             Tair_av => atmState%Tair_av, &
             lv_J_kg => atmState%lv_J_kg, &
-            lvS_J_kg => atmState%lvS_J_kg, &
+            lvS_J_kg => atmState%lv_s_j_kg, &
             es_hPa => atmState%es_hPa, &
             Ea_hPa => atmState%Ea_hPa, &
             VPd_hpa => atmState%VPd_hpa, &
             VPD_Pa => atmState%VPD_Pa, &
             dq => atmState%dq, &
             dens_dry => atmState%dens_dry, &
-            avcp => atmState%avcp, &
-            avdens => atmState%avdens &
+            avcp => atmState%av_cp, &
+            avdens => atmState%av_density &
             )
             CALL cal_AtmMoist( &
                Temp_C, pres, RH, dectime, &

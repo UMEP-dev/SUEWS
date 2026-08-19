@@ -11,6 +11,7 @@ on:
 jobs:
   claude-dispatch:
     runs-on: ubuntu-latest
+    environment: claude-code-dispatch
     permissions:
       contents: write
       pull-requests: write
@@ -18,9 +19,10 @@ jobs:
       id-token: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         fetch-depth: 1
+        persist-credentials: false
 
     # - name: Preliminary Setup
     #   run: |
@@ -30,7 +32,7 @@ jobs:
 
     - name: Run Claude Code
       id: claude
-      uses: anthropics/claude-code-action@eap
+      uses: anthropics/claude-code-action@9278e593553fcd1b65eede335d8c7e7e80da92db # eap branch head on 2026-03-24
       with:
         mode: 'remote-agent'
         # Optional: Specify an API key, otherwise we'll use your Claude account automatically

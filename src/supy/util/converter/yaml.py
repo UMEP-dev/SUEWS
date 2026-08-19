@@ -10,7 +10,7 @@ import f90nml
 
 from ..._load import load_InitialCond_grid_df
 from ...data_model.core import SUEWSConfig
-from ...data_model.core.model import OutputConfig
+from ...data_model.core.model import OutputControl
 from .table import convert_table
 
 
@@ -102,7 +102,7 @@ def _configure_forcing_and_output(
             rel_path = os.path.relpath(forcing_file, output_dir)
         except ValueError:
             rel_path = str(forcing_file)
-        config.model.control.forcing_file = rel_path
+        config.model.control.forcing.file = rel_path
         click.echo(
             f"  - Set forcing file to: {forcing_file} (from FileCode='{filecode}')"
         )
@@ -115,7 +115,7 @@ def _configure_forcing_and_output(
     # Set proper output configuration
     resolutionfilesout = runcontrol.get("resolutionfilesout", 3600)
 
-    # Create OutputConfig based on RunControl settings
+    # Create OutputControl based on RunControl settings
     output_path_setting = runcontrol.get("fileoutputpath", "./Output/")
 
     def _resolve_output_dir(value: str) -> Path:
@@ -129,16 +129,16 @@ def _configure_forcing_and_output(
     except ValueError:
         output_path_relative = str(resolved_output_dir)
 
-    output_config = OutputConfig(
+    output_control = OutputControl(
         format="txt",  # Default to txt format for compatibility
         freq=resolutionfilesout if resolutionfilesout > 0 else 3600,
         groups=["SUEWS", "DailyState"],  # Default groups
-        path=output_path_relative,
+        dir=output_path_relative,
     )
 
-    config.model.control.output_file = output_config
+    config.model.control.output = output_control
     click.echo(
-        f"  - Set output configuration: format={output_config.format}, freq={output_config.freq}s"
+        f"  - Set output configuration: format={output_control.format}, freq={output_control.freq}s"
     )
 
 
@@ -246,6 +246,13 @@ def convert_to_yaml(
                     config, path_runcontrol, str(table_dir), output_path.parent
                 )
 
+                # Legacy table sets can carry initial-state values (e.g. an
+                # initial albedo) that the old Fortran ran without enforcing the
+                # modern seasonal-range check. Relax that check so the converted
+                # YAML stays faithful and still loads; the value is preserved.
+                if from_ver:
+                    config.strict_initial_state_bounds = False
+
             except Exception as e:
                 raise click.ClickException(
                     f"Failed to create configuration: {e}"
@@ -255,7 +262,7 @@ def convert_to_yaml(
 
         # Save to YAML
         click.echo(f"Saving to: {output_path}")
-        config.to_yaml(output_path)
+        config.to_yaml(output_path, include_internal=True)
 
     finally:
         if temp_dir_obj:

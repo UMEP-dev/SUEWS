@@ -2874,13 +2874,21 @@ function initSizeTest() {
 }
 </script>
 
-<footer style="margin-top: 2rem; padding: 2rem; border-top: 1px solid var(--border-subtle); text-align: center; color: var(--text-muted); font-size: 0.875rem;">
-  <p style="margin-bottom: 0.5rem;">
-    <a href="../" style="color: var(--water-blue); text-decoration: none;">Home</a> ·
-    <a href="showcase.html" style="color: var(--water-blue); text-decoration: none;">Brand Showcase</a>
-  </p>
-  <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.mozilla.org/en-US/MPL/2.0/" style="color: var(--water-blue);">MPL-2.0</a>.</p>
+<footer style="margin-top: 2rem; padding: 40px 24px 32px; border-top: 1px solid var(--border-subtle); text-align: center;">
+  <nav aria-label="Secondary navigation" style="margin-bottom: 20px;">
+    <ul style="list-style: none; padding: 0; margin: 0; display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 8px 4px;">
+      <li style="display: flex; align-items: center;"><a href="/team/" style="font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 0.78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-secondary); text-decoration: none; padding: 4px 2px;">Team</a></li>
+      <li style="display: flex; align-items: center;"><span style="width: 1px; height: 12px; margin: 0 16px; background: var(--border);"></span><a href="/funding/" style="font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 0.78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-secondary); text-decoration: none; padding: 4px 2px;">Funding</a></li>
+      <li style="display: flex; align-items: center;"><span style="width: 1px; height: 12px; margin: 0 16px; background: var(--border);"></span><a href="/dependencies/" style="font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 0.78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-secondary); text-decoration: none; padding: 4px 2px;">Dependencies</a></li>
+      <li style="display: flex; align-items: center;"><span style="width: 1px; height: 12px; margin: 0 16px; background: var(--border);"></span><a href="/brand/" style="font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 0.78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-secondary); text-decoration: none; padding: 4px 2px;">Brand</a></li>
+    </ul>
+  </nav>
+  <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.02em;">&copy; 2025&ndash;<span id="footer-current-year"></span> SUEWS Team</p>
 </footer>
+
+<script>
+  document.getElementById('footer-current-year').textContent = new Date().getFullYear();
+</script>
 
 </body>
 </html>

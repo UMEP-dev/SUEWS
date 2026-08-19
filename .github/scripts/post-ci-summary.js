@@ -4,11 +4,11 @@
 // Expects detect-changes and determine_matrix outputs passed via environment variables.
 //
 // Environment variables (all set by the workflow step):
-//   FORTRAN_CHANGED, PYTHON_CHANGED, UTIL_CHANGED, BUILD_CHANGED,
+//   FORTRAN_CHANGED, RUST_CHANGED, PYTHON_CHANGED, UTIL_CHANGED, BUILD_CHANGED,
 //   CI_CHANGED, TESTS_CHANGED, DOCS_CHANGED, SITE_CHANGED
-//   FORTRAN_FILES, PYTHON_FILES, UTIL_FILES, BUILD_FILES,
+//   FORTRAN_FILES, RUST_FILES, PYTHON_FILES, UTIL_FILES, BUILD_FILES,
 //   CI_FILES, TESTS_FILES, DOCS_FILES, SITE_FILES, PYPROJECT_FILES
-//   NEEDS_BUILD, NEEDS_UMEP_BUILD, TEST_TIER
+//   NEEDS_BUILD, TEST_TIER
 //   BUILDPLAT_JSON, PYTHON_JSON
 //   COMMIT_SHA
 
@@ -20,6 +20,7 @@ module.exports = async ({ github, context }) => {
   // Collect category flags and file lists
   const categories = [
     { name: 'fortran',   label: 'Fortran source',  changed: env.FORTRAN_CHANGED,  files: JSON.parse(env.FORTRAN_FILES   || '[]') },
+    { name: 'rust',      label: 'Rust bridge',     changed: env.RUST_CHANGED,     files: JSON.parse(env.RUST_FILES      || '[]') },
     { name: 'python',    label: 'Python source',   changed: env.PYTHON_CHANGED,   files: JSON.parse(env.PYTHON_FILES    || '[]') },
     { name: 'util',      label: 'Utility modules', changed: env.UTIL_CHANGED,     files: JSON.parse(env.UTIL_FILES      || '[]') },
     { name: 'build',     label: 'Build system',    changed: env.BUILD_CHANGED,    files: JSON.parse(env.BUILD_FILES     || '[]') },
@@ -54,7 +55,6 @@ module.exports = async ({ github, context }) => {
 
   // Build the "Build Configuration" section
   const needsBuild = env.NEEDS_BUILD === 'true';
-  const needsUmep = env.NEEDS_UMEP_BUILD === 'true';
   const testTier = env.TEST_TIER;
 
   const buildplat = JSON.parse(env.BUILDPLAT_JSON || '[]');
@@ -73,7 +73,7 @@ module.exports = async ({ github, context }) => {
     'smoke': 'smoke (critical tests only)',
     'cfg': 'cfg (configuration + smoke)',
     'core': 'core (physics + smoke)',
-    'standard': 'standard (all except slow)',
+    'standard': 'standard (non-slow + core physics regressions)',
     'all': 'all (full suite)'
   };
 
@@ -86,12 +86,12 @@ module.exports = async ({ github, context }) => {
     configSection += `| **Platforms** | ${platforms.join(', ')} |\n`;
     configSection += `| **Python** | ${pyDisplay} |\n`;
     configSection += `| **Test tier** | ${tierDesc[testTier] || testTier} |\n`;
-    configSection += `| **UMEP build** | ${needsUmep ? 'Yes (compiled extension may differ)' : 'Skipped (no ABI changes)'} |\n`;
     configSection += `| **PR status** | ${isDraft ? 'Draft (reduced matrix)' : 'Ready (standard matrix)'} |\n`;
   }
 
   // Build rationale
   const fortranChanged = env.FORTRAN_CHANGED === 'true';
+  const rustChanged = env.RUST_CHANGED === 'true';
   const buildChanged = env.BUILD_CHANGED === 'true';
   const pythonChanged = env.PYTHON_CHANGED === 'true';
   const utilChanged = env.UTIL_CHANGED === 'true';
@@ -100,13 +100,12 @@ module.exports = async ({ github, context }) => {
 
   let rationale = [];
   if (fortranChanged) rationale.push('Fortran source changed -> multiplatform build required');
+  if (rustChanged) rationale.push('Rust bridge changed -> multiplatform build required');
   if (buildChanged) rationale.push('Build system changed -> multiplatform build required');
   if (pythonChanged) rationale.push('Python source changed -> single-platform build');
   if (utilChanged) rationale.push('Utility modules changed -> single-platform build');
   if (ciChanged) rationale.push('CI/workflow files changed -> validation build');
   if (testsChanged) rationale.push('Test files changed -> validation build');
-  if (needsUmep) rationale.push('Compiled extension ABI may differ -> UMEP (NumPy 1.x) build included');
-  if (!needsUmep && needsBuild) rationale.push('No compiled extension changes -> UMEP build skipped (nightly provides coverage)');
   if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
 
   const rationaleSection = rationale.map(r => `- ${r}`).join('\n');

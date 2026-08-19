@@ -13,7 +13,8 @@ OUTPUT_RST_OUTDIR = $(SOURCEDIR)/outputs/variables
 OUTPUT_RST_STAMP  = $(OUTPUT_RST_OUTDIR)/.generated.stamp
 
 # Data model sources that affect generated RST
-DM_SRC        = $(shell find ../src/supy/data_model -type f -name '*.py' 2>/dev/null)
+DM_PY_SRC     = $(shell find ../src/supy/data_model -type f -name '*.py' 2>/dev/null)
+DM_DOC_SRC    = $(DM_PY_SRC) ../src/supy/data_model/parameter_examples.json
 
 .PHONY: help html clean livehtml
 
@@ -29,6 +30,13 @@ html: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 clean:
 	@$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
+# Override with `make livehtml LIVEHTML_OPEN_BROWSER=""` to suppress the
+# auto-opened browser tab (used by the Conductor run script).
+LIVEHTML_OPEN_BROWSER ?= --open-browser
+# Override with `make livehtml LIVEHTML_PORT=8001` to avoid port conflicts
+# (e.g. when multiple Conductor workspaces run in parallel).
+LIVEHTML_PORT ?= 8000
+
 # Live-reloading server with incremental builds
 livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	@echo "Starting live-reload server with incremental builds..."
@@ -39,18 +47,19 @@ livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 		--ignore "source/SuPy.log" \
 		--ignore "source/auto_examples/*" \
 		--watch ../src/supy/data_model \
-		--open-browser \
+		--port $(LIVEHTML_PORT) \
+		$(LIVEHTML_OPEN_BROWSER) \
 		"$(SOURCEDIR)" "$(BUILDDIR)/html" \
 		$(SPHINXOPTS)
 
 # Generate RST from input data models only when sources change
-$(RST_STAMP): generate_datamodel_rst.py $(DM_SRC)
+$(RST_STAMP): generate_datamodel_rst.py $(DM_DOC_SRC)
 	@echo "Generating RST files for input data models..."
 	@python3 generate_datamodel_rst.py --output-dir $(RST_OUTDIR)
 	@touch $(RST_STAMP)
 
 # Generate RST from output variable registry only when sources change
-$(OUTPUT_RST_STAMP): generate_output_variable_rst.py $(DM_SRC)
+$(OUTPUT_RST_STAMP): generate_output_variable_rst.py $(DM_PY_SRC)
 	@echo "Generating RST files for output variables..."
 	@python3 generate_output_variable_rst.py --output-dir $(OUTPUT_RST_OUTDIR)
 	@touch $(OUTPUT_RST_STAMP)

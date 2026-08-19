@@ -4,10 +4,15 @@ SUEWSOutput - OOP wrapper for SUEWS simulation results.
 Provides a structured interface for accessing and exporting SUEWS model output data.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
+
+from ._filename import safe_filename_component
+from .suews_checkpoint import SUEWSCheckpoint
 
 
 class SUEWSOutput:
@@ -25,6 +30,8 @@ class SUEWSOutput:
         Final model state DataFrame
     config : SUEWSConfig, optional
         Configuration used for this run
+    checkpoint : SUEWSCheckpoint, optional
+        Typed restart checkpoint from the Rust backend
     metadata : dict, optional
         Additional metadata (timing, version, etc.)
 
@@ -54,7 +61,7 @@ class SUEWSOutput:
 
     Restart runs:
 
-    >>> sim2 = SUEWSSimulation.from_state(output.state_final)
+    >>> sim2 = SUEWSSimulation.from_checkpoint(config, output.checkpoint)
     """
 
     def __init__(
@@ -63,6 +70,7 @@ class SUEWSOutput:
         df_state_final: pd.DataFrame,
         config: Optional[Any] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        checkpoint: Optional[SUEWSCheckpoint] = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -75,6 +83,8 @@ class SUEWSOutput:
             Final model state DataFrame
         config : SUEWSConfig, optional
             Configuration used for this run (for save context)
+        checkpoint : SUEWSCheckpoint, optional
+            Typed restart checkpoint from the Rust backend
         metadata : dict, optional
             Additional metadata (timing, version, etc.)
         """
@@ -83,6 +93,7 @@ class SUEWSOutput:
             df_state_final.copy() if df_state_final is not None else None
         )
         self._config = config
+        self._checkpoint = checkpoint
         self._metadata = metadata or {}
 
     # =========================================================================
@@ -112,9 +123,9 @@ class SUEWSOutput:
     @property
     def state_final(self) -> pd.DataFrame:
         """
-        Final model state for restart runs.
+        Legacy final model state DataFrame.
 
-        Use with SUEWSSimulation.from_state() or from_output() to continue simulations.
+        Prefer ``checkpoint`` for restart/continuation workflows.
 
         Returns
         -------
@@ -122,6 +133,16 @@ class SUEWSOutput:
             Final state DataFrame ready for restart
         """
         return self._df_state_final.copy()
+
+    @property
+    def checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Typed checkpoint for restart/continuation runs."""
+        return self._checkpoint
+
+    @property
+    def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Alias for ``checkpoint``."""
+        return self._checkpoint
 
     @property
     def times(self) -> pd.DatetimeIndex:
@@ -360,7 +381,8 @@ class SUEWSOutput:
         for group in self.groups:
             try:
                 vars_in_group = (
-                    self._df_output[group]
+                    self
+                    ._df_output[group]
                     .columns.get_level_values("var")
                     .unique()
                     .tolist()
@@ -393,14 +415,15 @@ class SUEWSOutput:
         SUEWSOutput
             New output at resampled frequency
         """
-        from ._post import resample_output
+        from ._post import _resample_output
 
-        resampled = resample_output(self, freq, _internal=True)
+        resampled = _resample_output(self, freq)
         return SUEWSOutput(
-            resampled,
-            self._df_state_final,
-            self._config,
-            {**self._metadata, "resampled_to": freq},
+            df_output=resampled,
+            df_state_final=self._df_state_final,
+            config=self._config,
+            metadata={**self._metadata, "resampled_to": freq},
+            checkpoint=self._checkpoint,
         )
 
     # =========================================================================
@@ -410,7 +433,7 @@ class SUEWSOutput:
     def save(
         self,
         path: Union[str, Path] = ".",
-        format: str = "parquet",
+        format: Optional[str] = None,
         freq_s: Optional[int] = None,
         groups: Optional[List[str]] = None,
     ) -> List[Path]:
@@ -421,8 +444,12 @@ class SUEWSOutput:
         ----------
         path : str or Path
             Output directory
-        format : str
-            'txt' or 'parquet'
+        format : str, optional
+            'txt' or 'parquet'. When ``None`` (the default), the format
+            stored in the run configuration
+            (``model.control.output.format``) is used, falling back to
+            'txt' if no configuration is available. An explicit value
+            always overrides the configuration.
         freq_s : int, optional
             Output frequency in seconds (default: from config or 3600)
         groups : list, optional
@@ -442,23 +469,29 @@ class SUEWSOutput:
         freq = freq_s or 3600
         site = ""
         output_config = None
+        forcing_timestamp_reference = "local_standard_time"
 
         if self._config:
             try:
                 if hasattr(self._config, "model"):
                     control = self._config.model.control
-                    if hasattr(control, "output_file"):
-                        output_file = control.output_file
-                        if not isinstance(output_file, str):
-                            if hasattr(output_file, "freq") and output_file.freq:
-                                freq = freq_s or output_file.freq
-                            output_config = output_file
+                    if hasattr(control, "output"):
+                        output_control = control.output
+                        if hasattr(output_control, "freq") and output_control.freq:
+                            freq = freq_s or output_control.freq
+                        output_config = output_control
+                    if hasattr(control, "forcing"):
+                        forcing_timestamp_reference = (
+                            control.forcing.timestamp_reference
+                        )
                 if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                     site = self._config.sites[0].name
             except AttributeError:
                 pass
 
-        return _save_supy(
+        site_filename = safe_filename_component(site)
+
+        list_path_save = _save_supy(
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             freq_s=int(freq),
@@ -466,7 +499,20 @@ class SUEWSOutput:
             path_dir_save=str(path),
             output_config=output_config,
             output_format=format,
+            save_state=False,
+            forcing_timestamp_reference=forcing_timestamp_reference,
         )
+
+        if self._checkpoint is not None:
+            checkpoint_name = (
+                f"{site_filename}_SUEWS_checkpoint.json"
+                if site_filename
+                else "SUEWS_checkpoint.json"
+            )
+            checkpoint_path = self._checkpoint.to_file(path / checkpoint_name)
+            list_path_save.append(checkpoint_path)
+
+        return list_path_save
 
     # =========================================================================
     # Rich display

@@ -3,8 +3,6 @@ Sphinx extension for SUEWS output variables.
 
 This creates a separate namespace for output variables,
 preventing collisions with YAML configuration options in the documentation.
-
-See GitHub issue #1031 for context.
 """
 
 from sphinx import addnodes

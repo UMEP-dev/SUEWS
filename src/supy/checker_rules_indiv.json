@@ -515,7 +515,34 @@
                 0,
                 1,
                 2,
-                3
+                3,
+                4,
+                5,
+                6,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46
             ]
         },
         "unit": "1"
@@ -906,7 +933,25 @@
         },
         "unit": "1"
     },
-    "lai": {
+    "lai_dectr": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m2 m-2"
+    },
+    "lai_evetr": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m2 m-2"
+    },
+    "lai_grass": {
         "cat": "grid",
         "logic": "range",
         "param": {
@@ -1050,6 +1095,15 @@
         },
         "unit": "m3"
     },
+    "n_stream_lw_forest": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m3"
+    },
     "n_stream_sw_urban": {
         "cat": "grid",
         "logic": "range",
@@ -1059,7 +1113,25 @@
         },
         "unit": "m3"
     },
+    "n_stream_sw_forest": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m3"
+    },
     "n_vegetation_region_urban": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m3"
+    },
+    "n_vegetation_region_forest": {
         "cat": "grid",
         "logic": "range",
         "param": {
@@ -2073,6 +2145,15 @@
         },
         "unit": "m3"
     },
+    "veg_ext": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": "inf",
+            "min": -999
+        },
+        "unit": "m-1"
+    },
     "veg_ssa_lw": {
         "cat": "grid",
         "logic": "range",
@@ -2172,10 +2253,10 @@
         "cat": "grid",
         "logic": "range",
         "param": {
-            "max": 10,
+            "max": "inf",
             "min": 0
         },
-        "unit": "m3"
+        "unit": "mm"
     },
     "wuprofa_24hr": {
         "cat": "grid",

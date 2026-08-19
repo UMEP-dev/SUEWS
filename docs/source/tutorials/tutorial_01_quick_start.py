@@ -119,7 +119,18 @@ print("Original surface fractions:")
 print(sim.state_init.loc[:, "sfr_surf"])
 
 # Modify surface fractions using update_config
-sim.update_config({"initial_states": {"sfr_surf": [0.1, 0.1, 0.2, 0.3, 0.25, 0.05, 0]}})
+# (fractions must sum to 1.0; the update is validated like YAML input)
+sim.update_config({
+    "sites": {0: {"properties": {"land_cover": {
+        "paved": {"sfr": 0.1},
+        "bldgs": {"sfr": 0.1},
+        "evetr": {"sfr": 0.2},
+        "dectr": {"sfr": 0.3},
+        "grass": {"sfr": 0.25},
+        "bsoil": {"sfr": 0.05},
+        "water": {"sfr": 0.0},
+    }}}}
+})
 
 print("\nModified surface fractions:")
 print(sim.state_init.loc[:, "sfr_surf"])

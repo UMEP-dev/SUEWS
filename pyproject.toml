@@ -1,11 +1,19 @@
 [build-system]
 requires = [
     "wheel",
-    "f90wrap==0.2.16",
-    "numpy>=2.0",
-    "meson-python>=0.12.0",
+    "meson-python>=0.17",
+    "meson>=1.3.0",  # required for tool.meson-python.limited-api support
 ]
 build-backend = 'mesonpy'
+
+[tool.meson-python]
+# Emit cp312-abi3 wheel tag when built under CPython 3.12.
+# The Rust bridge uses PyO3 with abi3-py312 (stable ABI), so one wheel
+# covers cp312..cp3xx. See src/suews_bridge/Cargo.toml.
+limited-api = true
+
+[tool.meson-python.args]
+setup = ["-Dpython.allow_limited_api=true"]
 
 [project]
 name = "supy"
@@ -14,22 +22,27 @@ authors = [
     { name = "Dr Ting Sun", email = "ting.sun@ucl.ac.uk" },
 ]
 dynamic = ["version"]
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 license = { text = "GPL-V3.0" }
 readme = "README.md"
 
 # Core runtime dependencies only
 dependencies = [
     # Data processing
-    "pandas",
-    "numpy>=2.0",
-    "scipy<1.15; python_version >= '3.11' and python_version < '3.13' and platform_system == 'Linux'",  # manylinux2014 wheels
-    "scipy; python_version < '3.11' or python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
+    # pandas 3.0 wheels are ABI-built against numpy>=2.3. On the manylinux2014
+    # matrix below, scipy<1.15 transitively pins numpy<2.3, which is ABI-
+    # incompatible with pandas 3.0 and segfaults DatetimeIndex.shift. Keep pandas
+    # <3 there; let newer interpreters/platforms (numpy>=2.3) use pandas 3.
+    "pandas<3; python_version < '3.13' and platform_system == 'Linux'",  # numpy<2.3 (manylinux2014 scipy) is ABI-incompatible with pandas 3.0
+    "pandas; python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
+    "numpy>=1.22",  # Covers current QGIS 3 LTR / QGIS 4 NumPy stacks; no ABI constraint (Rust bridge is NumPy-free)
+    "scipy<1.15; python_version < '3.13' and platform_system == 'Linux'",  # 3.12 Linux: manylinux2014 wheels
+    "scipy; python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
     # xarray removed - only needed for gridded ERA5 (install separately)
     # dask removed - CLI uses stdlib multiprocessing.pool.ThreadPool
 
     # Model requirements
-    "pydantic",
+    "pydantic>=2.12",
     "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",
     
@@ -38,7 +51,7 @@ dependencies = [
     "seaborn",
     "chardet",
     "click",
-    "pyarrow>=20,<21; python_version < '3.14' and platform_system == 'Linux'",  # Linux needs manylinux2014 wheels on CPython 3.9-3.13
+    "pyarrow>=20,<21; python_version < '3.14' and platform_system == 'Linux'",  # Linux needs manylinux2014 wheels on CPython 3.12-3.13
     "pyarrow>=20; python_version < '3.14' and platform_system != 'Linux'",  # Non-Linux platforms may use newer pyarrow binaries
     "pyarrow>=22; python_version >= '3.14'",  # 22.x provides cp314 wheels on manylinux_2_28/macOS/Windows
 
@@ -66,9 +79,6 @@ dependencies = [
 
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -86,26 +96,38 @@ tmy = [
     "metpy",  # Required for UMEP EPW conversion (util/_UMEP2epw.py)
 ]
 
-# Single dev group combining test + development tools
+# NB: the regression-benchmark suite (benchmark/) declares no public dependency
+# here on purpose. Its metrics are vendored in benchmark/bench_stats.py and the
+# only run-time deps (numpy/pandas) are installed inside the benchmark workflow,
+# so this published package stays pip-installable for everyone.
+
+# Core development tooling (kept separate from docs to reduce supply-chain surface)
 dev = [
     # Testing
     "pytest",
     "pytest-cov",
-    
+    "pytest-xdist",
+
     # Code formatting
     "ruff",
     "fprettify",
     
     # Development
     "ipykernel",
-    
+]
+
+# Documentation tooling (isolated from the default dev environment).
+# Runtime support is Python 3.12+, which already satisfies the documentation
+# toolchain floor (current Sphinx extensions, notably sphinx-design 0.7+, need 3.11+).
+docs = [
     # Documentation - Essential only (based on conf.py usage)
     "sphinx>=7,<9",
     "sphinx-autobuild",
     "sphinx-book-theme",        # Active theme in conf.py
     "pybtex",                   # Bibliography processing
     "sphinxcontrib-bibtex>=2.6,<3", # Bibliography support (heavily customised)
-    "sphinx-design>=0.7.0",     # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)
+    # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)
+    "sphinx-design>=0.7.0",
     "sphinx-last-updated-by-git", # Git info in docs
     "sphinx-click",             # CLI documentation
     "sphinx-gallery>=0.16.0",   # Gallery examples from Python scripts (GH-1029)
@@ -114,28 +136,46 @@ dev = [
 ]
 
 [project.scripts]
-suews-run = "supy.cmd.SUEWS:SUEWS"
-suews-convert = "supy.cmd.table_converter:convert_table_cmd"
-suews-validate = "supy.cmd.validate_config:main"
-suews-schema = "supy.cmd.schema_cli:main"
+# Unified CLI dispatcher. `suews <subcmd>` is the canonical entry point;
+# the hyphenated scripts below are deprecated aliases that print a notice
+# and forward to the matching subcommand.
+suews = "supy.cmd.suews_cli:main"
+suews-run = "supy.cmd.suews_cli:run_alias"
+suews-convert = "supy.cmd.suews_cli:convert_alias"
+suews-validate = "supy.cmd.suews_cli:validate_alias"
+suews-schema = "supy.cmd.suews_cli:schema_alias"
+suews-inspect = "supy.cmd.suews_cli:inspect_alias"
 
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
-# Test markers for tiered CI testing
+# Test markers.
+# Three orthogonal properties (gh#1300, gh#1680):
+#   nature:     physics | api       -- what the test actually exercises
+#   importance: smoke | core | cfg  -- where the contract must run
+#   cost:       medium | slow       -- absence means fast
+# Every test file must carry at least one of {physics, api}; importance and
+# cost markers compose independently with the nature axis.
 markers = [
+    # Nature axis (gh#1300) -- orthogonal to importance and cost.
+    "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
+    "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
+    # Importance markers
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
+    "smoke_bridge: Bridge-loading subset run across cp312..cp3xx after a single abi3 build",
     "core: Core physics & logic tests (Fortran, driver)",
+    "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
-    "slow: Tests taking >30s individually",
-    "qgis: UMEP plugin tests in test/umep/ (Windows + Python 3.12 only)",
+    "medium: Tests taking roughly 30-60s individually on the slowest normal CI platform",
+    "slow: Tests taking over 60s individually, or unsuitable for routine PR runs",
+    "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py312"
 
 [tool.ruff.format]
 quote-style = "double"

@@ -1,19 +1,6 @@
 # supy utilities
 
 
-from ._tmy import gen_epw, read_epw
-
-
-from ._era5 import gen_forcing_era5
-
-from ._gap_filler import fill_gap_all
-
-
-from ._plot import plot_comp, plot_day_clm, plot_rsl
-
-
-from ._ohm import derive_ohm_coef, sim_ohm, replace_ohm_coeffs
-
 from ._atm import (
     cal_cp,
     cal_dens_air,
@@ -22,9 +9,25 @@ from ._atm import (
     cal_Lob,
     cal_ra_obs,
 )
-
+from ._attribution import (
+    # Result container
+    AttributionResult,
+    # Generic dispatchers
+    attribute,
+    attribute_q2,
+    # Variable-specific functions
+    attribute_t2,
+    attribute_u10,
+    diagnose,
+    diagnose_flux_performance,
+    diagnose_q2,
+    diagnose_t2,
+    diagnose_u10,
+)
+from ._debug import save_zip_debug
+from ._era5 import gen_forcing_era5
+from ._gap_filler import fill_gap_all
 from ._gs import (
-    cal_rs_obs,
     cal_g_dq,
     cal_g_dq_noah,
     cal_g_kd,
@@ -34,36 +37,26 @@ from ._gs import (
     cal_g_swc_noah,
     cal_g_ta,
     cal_g_ta_noah,
-    cal_gs_suews,
     cal_gs_obs,
+    cal_gs_suews,
+    cal_rs_obs,
     calib_g,
-    fit_g_kd,
-    fit_g_smd,
-    fit_g_ta,
-    fit_g_dq,
+    deriv_g_dq_noah,
     deriv_g_kd_noah,
     deriv_g_smd_noah,
     deriv_g_ta_noah,
-    deriv_g_dq_noah,
+    fit_g_dq,
+    fit_g_kd,
+    fit_g_smd,
+    fit_g_ta,
 )
-
-from ._io import read_suews, read_forcing
-
-from ._missing import to_nan, from_nan, SUEWS_MISSING
-
-from ._roughness import cal_z0zd, cal_neutral
-
-from ._debug import diag_rsl, diag_rsl_prm, save_zip_debug
-
+from ._io import read_forcing, read_suews
+from ._missing import SUEWS_MISSING, SUEWS_MISSING_THRESHOLD, from_nan, to_nan
+from ._ohm import derive_ohm_coef, replace_ohm_coeffs, sim_ohm
+from ._plot import plot_comp, plot_day_clm, plot_rsl
+from ._roughness import cal_neutral, cal_z0zd
 from ._spinup import get_spinup_state
-
-
-def resample_output(*args, **kwargs):
-    """Deprecated wrapper for resample_output via supy.util."""
-    from .._supy_module import _warn_functional_deprecation
-    from .._post import resample_output as _resample_output
-
-    _warn_functional_deprecation("resample_output")
-    return _resample_output(*args, **kwargs)
+from ._tmy import gen_epw, read_epw
+from ._waterdist import cal_smd_veg
 
 # from ._config import SUEWSConfig, init_config_from_yaml

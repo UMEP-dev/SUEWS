@@ -1,211 +1,138 @@
-# SUEWS Output Variable Definitions
+# SUEWS output-variable definitions
 
 ## Overview
 
-This module defines all SUEWS output variables using Python Pydantic models. The `OUTPUT_REGISTRY` serves as the **single source of truth** for output variable metadata, providing type-safe definitions with validation, aggregation rules for temporal resampling, and automatic documentation generation.
+`OUTPUT_REGISTRY` is the source of truth for Python-side output labels and
+metadata. It supplies variable names, units, descriptions, temporal aggregation
+rules, groups, and selection levels. The compiled model still produces the
+numerical arrays; separate checks compare its per-group column counts with the
+registry. A count match does not by itself prove the scientific meaning of each
+compiled column.
 
-## Variable Groups
+Query the live registry size with `len(OUTPUT_REGISTRY.variables)` rather than
+copying the count into code or documentation.
 
-Output variables are organised by group:
+## Groups and contract scope
 
-| Group | Description |
-|-------|-------------|
-| datetime | Year, DOY, Hour, Min, Dectime |
-| SUEWS | Core energy, water, met, carbon, surface temperatures |
-| snow | Snow properties by surface type |
-| ESTM | Element surface temperatures |
-| EHC | Element heat capacity (surface, roof layers, wall layers) |
-| RSL | Roughness sublayer profiles |
-| DailyState | Daily accumulated states |
-| BL | Boundary layer profiles |
-| BEERS | Detailed radiation |
-| debug | Diagnostic outputs with soil store and atmospheric vars |
-| SPARTACUS | SPARTACUS radiation model (scalars and layer profiles) |
-| STEBBS | Building energy model |
-| NHood | Neighbourhood iteration count |
+The output contract classifies groups according to their current intended
+stability:
 
-To get the current count: `len(OUTPUT_REGISTRY)`
+| Scope | Groups |
+|-------|--------|
+| coordinate | `datetime` |
+| stable | `SUEWS`, `snow`, `ESTM`, `RSL`, `BL`, `DailyState` |
+| provisional | `EHC`, `BEERS`, `SPARTACUS`, `STEBBS`, `NHood` |
+| internal | `debug` |
+
+These classifications are exposed by `OUTPUT_GROUP_SCOPES`. Output contract
+`1.0.0` freezes the registry projection after the observable layouts were
+validated. Output contract `1.1.0` adds the supported saved-output timestamp
+references, with `follow` retaining the forcing clock by default. A group is
+covered when that group is present; the contract does not promise that every
+optional group is emitted by every run.
 
 ## Architecture
 
+```text
+Per-group OutputVariable definitions
+    |
+    v
+OUTPUT_REGISTRY
+    |-- pandas labels and aggregation rules
+    |-- generated RST reference
+    `-- get_output_contract_catalogue()
 ```
-Python Pydantic Models (source of truth)
-    ↓
-OUTPUT_REGISTRY (type-safe registry)
-    ↓
-Runtime metadata (DataFrame compatible)
-    ↓
-Post-processing & output
-```
 
-Key design principles:
-- **Python as source of truth**: All output metadata defined in Python, Fortran produces raw arrays
-- **No code generation**: Definitions are used directly at runtime
-- **Auto-generated documentation**: Sphinx docs built from Pydantic models via `docs/generate_output_variable_rst.py`
+`get_output_contract_catalogue()` returns a cached, in-memory deterministic
+projection of the registry. The catalogue is constructed only when requested.
+Each variable is identified by `(group, name)`, and its zero-based ordinal is
+derived from registry order. The catalogue does not create a second registry.
 
-## Key Components
+Common value metadata is recorded once for the catalogue. It describes the
+missing-value encoding when a group is present in each representation; the
+format-specific placement of coordinate fields is handled separately:
 
-### 1. Core Models (`variables.py`)
+- values are numeric scalars;
+- pandas output uses `NaN` for missing values;
+- text output uses the `-999.0` sentinel;
+- Parquet uses null values.
 
-- **`OutputVariable`**: Complete variable metadata
-- **`OutputVariableRegistry`**: Central registry with querying methods
-- **`AggregationMethod`**: Enum for resampling methods (T/A/S/L)
-- **`OutputGroup`**: Enum for logical grouping
-- **`OutputLevel`**: Enum for output selection (0/1/2)
+The representation metadata also declares `follow` as the default timestamp
+reference and lists the supported `follow`, `utc`, `local_standard_time`, and
+`daylight` policies.
 
-### 2. Variable Definitions
+`output_contract_json_schema()` returns the JSON Schema for this in-memory
+catalogue. Each published version stores `catalogue.json`,
+`catalogue.schema.json`, and `manifest.json` under `artefacts/<version>/`.
+`OUTPUT_VERSIONS` records the SHA-256 digest of the exact canonical manifest
+bytes, which in turn contain the catalogue and schema digests.
 
-Variables organized by group in separate modules:
+## Core models
 
-- `datetime_vars.py`: Timestamp variables (Year, DOY, Hour, Min, Dectime)
-- `suews_vars.py`: Core SUEWS variables (QH, QE, T2, Rain, etc.)
-- `snow_vars.py`, `estm_vars.py`, `rsl_vars.py`, `dailystate_vars.py`, etc.
+- `OutputVariable`: metadata for one registry entry.
+- `OutputVariableRegistry`: ordered collection and query methods.
+- `AggregationMethod`: resampling behaviour (`T`, `A`, `S`, or `L`).
+- `OutputGroup`: logical output group.
+- `OutputLevel`: variable-selection level used by SUEWS text output.
 
-### 3. Integration
+Definitions are organised in one module per group, such as `suews_vars.py`,
+`snow_vars.py`, and `dailystate_vars.py`. Add new variables to the appropriate
+group module; do not edit the contract catalogue directly.
 
-The registry integrates with existing SUEWS code via `_post.py`:
+## Usage
 
 ```python
-# Python OUTPUT_REGISTRY is the single source of truth
-df_var = get_output_info_df()  # Returns same structure as before
-```
+from supy.data_model.output import (
+    OUTPUT_REGISTRY,
+    OutputGroup,
+    get_output_contract_catalogue,
+)
 
-## Usage Examples
-
-### Basic Registry Access
-
-```python
-from supy.data_model.output import OUTPUT_REGISTRY, OutputGroup, OutputLevel
-
-# Get all SUEWS variables
-suews_vars = OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS)
-
-# Get default output level variables
-default_vars = OUTPUT_REGISTRY.by_level(OutputLevel.DEFAULT)
-
-# Get specific variable
+suews_variables = OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS)
 qh = OUTPUT_REGISTRY.by_name("QH")
-print(f"{qh.name}: {qh.description} [{qh.unit}]")
-# Output: QH: Sensible heat flux [W m-2]
+aggregation_rules = OUTPUT_REGISTRY.get_aggregation_rules()
+
+first_contract_entry = get_output_contract_catalogue().variables[0]
+print(first_contract_entry.group, first_contract_entry.name)
 ```
 
-### Aggregation Rules
+`by_name()` returns the first matching name across all groups. Use a group
+filter when the same variable name occurs in more than one group.
 
-```python
-# Generate aggregation rules for pandas resample()
-agg_rules = OUTPUT_REGISTRY.get_aggregation_rules()
+The compatibility DataFrame is available through `OUTPUT_REGISTRY.to_dataframe()`.
+It has a `(group, var)` index and `aggm`, `outlevel`, and `func` columns.
 
-# Use in resampling
-df_resampled = df.resample('1h').agg(agg_rules['SUEWS'])
-```
+## Documentation and tests
 
-### DataFrame Conversion
-
-```python
-# Convert to backward-compatible DataFrame
-df_var = OUTPUT_REGISTRY.to_dataframe()
-
-# Same structure as before: MultiIndex (group, var) with columns (aggm, outlevel, func)
-print(df_var.loc[('SUEWS', 'QH')])
-```
-
-## Variable Metadata
-
-Each variable has complete metadata:
-
-| Attribute | Description | Example |
-|-----------|-------------|---------|
-| `name` | Variable name | `"QH"` |
-| `unit` | Physical units | `"W m-2"` |
-| `description` | Long description | `"Sensible heat flux"` |
-| `aggregation` | Resampling method | `AVERAGE` |
-| `group` | Logical group | `SUEWS` |
-| `level` | Output priority | `DEFAULT` (0) |
-| `format` | Fortran format | `"f104"` |
-
-## Output Groups
-
-| Group | Purpose | Variables |
-|-------|---------|-----------|
-| `datetime` | Timestamps | Year, DOY, Hour, Min, Dectime |
-| `SUEWS` | Core outputs | QH, QE, QN, T2, Rain, etc. |
-| `snow` | Snow-specific | SWE_*, Sd_*, DensSnow_*, etc. |
-| `ESTM` | Surface temperatures | QS, TWALL*, TROOF*, etc. |
-| `RSL` | Roughness sublayer | T_1..T_30, U_1..U_30, etc. |
-| `DailyState` | Daily states | LAI_*, GDD_*, SDD_*, etc. |
-| `BL` | Boundary layer | z, theta, q, etc. |
-| `BEERS` | Radiation | Kdown2d, Ldown2d, Tmrt, etc. |
-| `debug` | Diagnostics | RA, RS, Ts_*, QN_*, etc. |
-
-## Output Levels
-
-Variables are prioritised for selective output:
-
-- **Level 0 (DEFAULT)**: Core variables always included
-  - Example: QH, QE, T2, RH2, Rain, Evap
-- **Level 1 (EXTENDED)**: Extended variable set
-  - Example: RA, RS, QHlumps, SMD by surface type
-- **Level 2 (SNOW_DETAILED)**: Snow-specific detailed output
-  - Example: QNSnow, AlbSnow, SWE, MeltWater
-
-## Aggregation Methods
-
-| Method | Code | Pandas Function | Use Case |
-|--------|------|-----------------|----------|
-| `TIME` | `T` | Last value | Timestamps |
-| `AVERAGE` | `A` | `mean` | Fluxes (QH, QE) |
-| `SUM` | `S` | `sum` | Accumulations (Rain, Evap) |
-| `LAST` | `L` | Last value | State variables (SMD, State) |
-
-## Testing
-
-Run the test suite:
+Generate the RST reference from the repository root with:
 
 ```bash
-make test  # or: pytest test/data_model/test_output_models.py
+python docs/generate_output_variable_rst.py
 ```
 
-## Design Benefits
+Check the stored release against the registry with:
 
-- **Type Safety**: Pydantic validation ensures correctness at definition time
-- **IDE Support**: Full autocomplete and type hints for variable metadata
-- **Self-Documenting**: Rich metadata enables automatic documentation generation
-- **Extensibility**: Adding new variables requires only Python changes
-- **Testing**: Variable definitions have unit test coverage
-- **Ecosystem Integration**: Works naturally with pandas, numpy, and scientific Python stack
-
-## Backward Compatibility
-
-The registry provides backward-compatible interfaces:
-
-- `get_output_info_df()` returns the same DataFrame structure used historically
-- `resample_output()` uses aggregation rules from the registry
-- Existing code continues to work without modification
-
-## File Structure
-
+```bash
+python scripts/lint/check_output_contract_artefacts.py
 ```
+
+The generator preserves registry order so that the reference agrees with
+contract ordinals. Focused registry and contract tests live under
+`test/data_model/`.
+
+## Files
+
+```text
 src/supy/data_model/output/
-├── __init__.py              # Registry assembly & exports
-├── README.md                # This file
-├── variables.py             # Core Pydantic models & enums
-├── datetime_vars.py         # Datetime variables
-├── suews_vars.py            # Core SUEWS variables
-├── snow_vars.py             # Snow variables
-├── estm_vars.py             # ESTM variables
-├── rsl_vars.py              # RSL profile variables
-├── dailystate_vars.py       # Daily state variables
-├── bl_vars.py               # Boundary layer variables
-├── beers_vars.py            # BEERS radiation variables
-├── debug_vars.py            # Debug variables
-├── ehc_vars.py              # EHC variables
-├── spartacus_vars.py        # SPARTACUS variables
-├── stebbs_vars.py           # STEBBS variables
-└── nhood_vars.py            # NHood variables
+|-- __init__.py          # Public exports
+|-- variables.py         # Registry models and enums
+|-- contract.py          # Output-owned contract projection
+|-- registry.py          # Registry assembly
+|-- version.py           # Output contract version history
+|-- artefacts/           # Immutable versioned catalogues and manifests
+|-- *_vars.py            # Per-group variable definitions
+`-- README.md
 ```
 
-## References
-
-- **Integration point**: `src/supy/_post.py`
-- **Documentation generator**: `docs/generate_output_variable_rst.py`
-- **Test module**: `test/data_model/test_output_models.py`
+Related integration points are `src/supy/_post.py`, `src/supy/_save.py`, and
+`docs/generate_output_variable_rst.py`.

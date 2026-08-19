@@ -1,0 +1,137 @@
+# SUEWS model-version registry -- single source of truth for the release
+# lineage. See docs/superpowers/specs/2026-06-07-suews-retro-version-registry-design.md
+#
+# physics_era:     fortran-binary | f90wrap | modern-fortran | rust-bridge
+# install_method:  pip | compile | unavailable
+# reproducibility: benchmarked | pip-installable | legacy-external-ref | documented-only
+# reference_source: benchmark/results/<tag> | external:<repo>@<path> | null
+# released:        YYYY-MM-DD (preferred) or YYYY (legacy, day not reliably known)
+
+drift_baseline_tag: "2025.7.6"
+
+versions:
+  # ---- modern regime: pip-installable, benchmarked ----
+  - tag: "2026.6.5"
+    released: "2026-06-05"
+    schema_version: "2026.5"
+    physics_era: "rust-bridge"
+    install_method: "pip"
+    reproducibility: "benchmarked"
+    reference_source: "benchmark/results/2026.6.5"
+    version_history_anchor: "version-history/v2026.6.5"
+  - tag: "2026.4.3"
+    released: "2026-04-03"
+    schema_version: "2026.4"
+    physics_era: "rust-bridge"
+    install_method: "pip"
+    reproducibility: "benchmarked"
+    reference_source: "benchmark/results/2026.4.3"
+    version_history_anchor: "version-history/v2026.4.3"
+  - tag: "2026.1.28"
+    released: "2026-01-28"
+    schema_version: "2026.1"
+    physics_era: "modern-fortran"
+    install_method: "pip"
+    reproducibility: "benchmarked"
+    reference_source: "benchmark/results/2026.1.28"
+    version_history_anchor: "version-history/v2026.1.28"
+  - tag: "2025.11.20"
+    released: "2025-11-20"
+    schema_version: "2025.12"
+    physics_era: "modern-fortran"
+    install_method: "pip"
+    reproducibility: "benchmarked"
+    reference_source: "benchmark/results/2025.11.20"
+    version_history_anchor: "version-history/v2025.11.20"
+  - tag: "2025.10.15"
+    released: "2025-10-15"
+    schema_version: "2025.12"
+    physics_era: "modern-fortran"
+    install_method: "pip"
+    reproducibility: "benchmarked"
+    reference_source: "benchmark/results/2025.10.15"
+    version_history_anchor: "version-history/v2025.10.15"
+  - tag: "2025.7.6"
+    released: "2025-07-06"
+    schema_version: null
+    physics_era: "modern-fortran"
+    install_method: "pip"
+    reproducibility: "benchmarked"
+    reference_source: "benchmark/results/2025.7.6"
+    version_history_anchor: null
+
+  # ---- legacy regime: Fortran-binary, external reference outputs ----
+  - tag: "2021a"
+    released: "2021"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "legacy-external-ref"
+    reference_source: "external:Urban-Meteorology-Reading/SUEWS-Benchmark@cases/London_KCL/v2021a"
+    version_history_anchor: null
+  - tag: "2020a"
+    released: "2020-05-14"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "legacy-external-ref"
+    reference_source: "external:Urban-Meteorology-Reading/SUEWS-Benchmark@cases/London_KCL/v2020a"
+    version_history_anchor: "version-history/v2020a"
+  - tag: "2019a"
+    released: "2019"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "legacy-external-ref"
+    reference_source: "external:Urban-Meteorology-Reading/SUEWS-Benchmark@cases/London_KCL/v2019a"
+    version_history_anchor: "version-history/v2019a"
+  - tag: "2018c"
+    released: "2018"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "legacy-external-ref"
+    reference_source: "external:Urban-Meteorology-Reading/SUEWS-Benchmark@cases/London_KCL/v2018c"
+    version_history_anchor: "version-history/v2018c"
+  - tag: "2018b"
+    released: "2018"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "legacy-external-ref"
+    reference_source: "external:Urban-Meteorology-Reading/SUEWS-Benchmark@cases/London_KCL/v2018b"
+    version_history_anchor: "version-history/v2018b"
+  - tag: "2018a"
+    released: "2018"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "legacy-external-ref"
+    reference_source: "external:Urban-Meteorology-Reading/SUEWS-Benchmark@cases/London_KCL/v2018a"
+    version_history_anchor: "version-history/v2018a"
+  - tag: "2016a"
+    released: "2016"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "legacy-external-ref"
+    reference_source: "external:Urban-Meteorology-Reading/SUEWS-Benchmark@cases/London_KCL/v2016a"
+    version_history_anchor: "version-history/v2016a"
+
+  # ---- legacy regime: documented only, no reference outputs ----
+  - tag: "2017b"
+    released: "2017"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "documented-only"
+    reference_source: null
+    version_history_anchor: "version-history/v2017b"
+  - tag: "2017a"
+    released: "2017"
+    schema_version: null
+    physics_era: "fortran-binary"
+    install_method: "compile"
+    reproducibility: "documented-only"
+    reference_source: null
+    version_history_anchor: "version-history/v2017a"

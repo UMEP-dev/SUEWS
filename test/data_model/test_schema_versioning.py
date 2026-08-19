@@ -8,6 +8,8 @@ import warnings
 from unittest.mock import patch, MagicMock
 import sys
 
+pytestmark = pytest.mark.api
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -34,11 +36,22 @@ def load_supy_resource(resource_path: str) -> str:
     resource = supy_resources
     for part in parts:
         resource = resource / part
-    return resource.read_text()
+    return resource.read_text(encoding="utf-8")
+
+
+def write_temp_sparse_schema_file(schema_version: str) -> Path:
+    """Write the sparse fixture with an explicit schema stamp."""
+    sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+    sparse_text = sparse_config.read_text(encoding="utf-8")
+
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
+        f.write(f"schema_version: '{schema_version}'\n{sparse_text}")
+        return Path(f.name)
 
 
 from supy.data_model.core import SUEWSConfig
-from supy.data_model.schema import (
+from supy.cmd.schema_cli import validate_file_against_schema
+from supy.data_model.configuration import (
     CURRENT_SCHEMA_VERSION,
     is_schema_compatible,
     get_schema_compatibility_message,
@@ -66,7 +79,6 @@ class TestSchemaVersioning:
         config = SUEWSConfig(**config_data)
         assert config.schema_version == "1.0"
 
-    @pytest.mark.skip(reason="Schema versioning needs fix - see GH-991")
     def test_config_without_schema_version_gets_default(self):
         """Test that SUEWSConfig gets default schema version when not specified."""
         config_data = {
@@ -87,7 +99,6 @@ class TestSchemaVersioning:
         # Future: test minor version compatibility
         # assert is_schema_compatible("1.0", "1.1") is True  # 1.1 backward compatible with 1.0
 
-    @pytest.mark.skip(reason="Schema versioning needs fix - see GH-991")
     def test_compatibility_messages(self):
         """Test schema compatibility message generation."""
         # No message for current version
@@ -96,13 +107,18 @@ class TestSchemaVersioning:
         # No message for None (assumes current)
         assert get_schema_compatibility_message(None) is None
 
-        # Message for newer version (0.9 > 0.1)
+        # Compatible legacy CalVer (registered migration handler 2025.12 -> 2026.4)
+        msg = get_schema_compatibility_message("2025.12")
+        assert msg is not None
+        assert "compatible" in msg
+
+        # Older incompatible version (no migration handler; float-compare fallback)
         msg = get_schema_compatibility_message("0.9")
         assert msg is not None
-        assert "newer schema" in msg
+        assert "older schema" in msg
 
-        # Message for much newer version
-        msg = get_schema_compatibility_message("2.0")
+        # Hypothetical future schema version
+        msg = get_schema_compatibility_message("9999.0")
         assert msg is not None
         assert "newer schema" in msg
 
@@ -115,6 +131,45 @@ class TestSchemaVersioning:
         with pytest.raises(ValueError) as exc:
             validate_schema_version("2.0", strict=True)
         assert "incompatible" in str(exc.value).lower()
+
+    def test_schema_cli_validate_rejects_sparse_yaml(self):
+        """schema_cli validation should mirror from_yaml() on sparse configs."""
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+
+        is_valid, errors = validate_file_against_schema(sparse_config)
+
+        assert is_valid is False
+        message = "\n".join(errors)
+        assert "faibldg" in message
+        assert "conductance.g_max" in message
+
+    def test_schema_cli_validate_rejects_sparse_yaml_with_compatible_older_stamp(self):
+        """Default validation should still mirror from_yaml() for compatible older stamps."""
+        sparse_config = write_temp_sparse_schema_file("2026.5.dev5")
+
+        try:
+            is_valid, errors = validate_file_against_schema(sparse_config)
+        finally:
+            sparse_config.unlink()
+
+        assert is_valid is False
+        message = "\n".join(errors)
+        assert "faibldg" in message
+        assert "conductance.g_max" in message
+
+    def test_schema_cli_explicit_older_schema_stays_schema_only(self):
+        """Explicit old-target validation keeps the historical schema-only contract."""
+        sparse_config = write_temp_sparse_schema_file("2026.5.dev5")
+
+        try:
+            is_valid, errors = validate_file_against_schema(
+                sparse_config, schema_version="2026.5.dev5"
+            )
+        finally:
+            sparse_config.unlink()
+
+        assert is_valid is True
+        assert errors == []
 
     def test_validate_schema_version_warnings(self):
         """Test schema validation warnings in non-strict mode."""
@@ -129,7 +184,7 @@ class TestSchemaVersioning:
     def test_from_yaml_with_schema_version(self):
         """Test loading YAML with schema version."""
         # Create a temporary YAML file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             yaml_content = {
                 "name": "test_config",
                 "schema_version": "1.0",
@@ -203,6 +258,79 @@ class TestSchemaMigration:
         path = migrator._find_migration_path("0.1", "0.1")
         assert path is None or path == []
 
+    def test_calver_path_uses_registered_handler(self):
+        """CalVer hops resolve to the directly-registered handler, not a
+        synthesised numeric-fallback path (gh#1304).
+        """
+        migrator = SchemaMigrator()
+
+        assert migrator._find_migration_path("2025.12", "2026.4") == ["2026.4"]
+        assert migrator._find_migration_path("2026.1", "2026.4") == ["2026.4"]
+
+    def test_intermediate_calver_target_rejected_when_unregistered(self):
+        """A CalVer target without a registered handler chain must not
+        silently fall through to `_generic_migration` (gh#1304 follow-up).
+
+        Before this guard, `2025.12 -> 2026.1` walked a synthesised
+        `[2026.0]` path with no registered handler, the generic fallback
+        no-op'd, and the caller got a config stamped with `2026.1` but
+        still carrying 2025.12 field names.
+        """
+        migrator = SchemaMigrator()
+
+        # Path discovery rejects the synthetic hop.
+        assert migrator._find_migration_path("2025.12", "2026.1") is None
+        assert migrator._find_migration_path("2026.4", "2027.0") is None
+
+        # `migrate()` raises rather than returning a half-migrated dict.
+        payload = {
+            "schema_version": "2025.12",
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {"Wallx1": {"value": 0.25}},
+                    }
+                }
+            ],
+        }
+        with pytest.raises(ValueError, match="No migration path available"):
+            migrator.migrate(payload, from_version="2025.12", to_version="2026.1")
+
+    def test_calver_migration_applies_structural_renames(self):
+        """Migrating 2025.12 -> 2026.4 applies the registered renames rather
+        than falling through to the generic label-only migration (gh#1304).
+        """
+        migrator = SchemaMigrator()
+        payload = {
+            "schema_version": "2025.12",
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "Wallx1": {"value": 0.25},
+                            "Roofx1": {"value": 0.25},
+                        },
+                        "stebbs": {
+                            "DHWVesselEmissivity": {"value": 0.9},
+                        },
+                    }
+                }
+            ],
+        }
+
+        migrated = migrator.migrate(
+            payload, from_version="2025.12", to_version="2026.4"
+        )
+
+        arch = migrated["sites"][0]["properties"]["building_archetype"]
+        stebbs = migrated["sites"][0]["properties"]["stebbs"]
+        assert "Wallx1" not in arch
+        assert "Roofx1" not in arch
+        assert arch["WallOuterCapFrac"] == {"value": 0.25}
+        assert arch["RoofOuterCapFrac"] == {"value": 0.25}
+        assert "DHWVesselEmissivity" not in stebbs
+        assert migrated["schema_version"] == "2026.4"
+
 
 class TestSchemaVersionUtility:
     """Test schema version update utility."""
@@ -223,7 +351,7 @@ class TestSchemaVersionUtility:
     def test_update_yaml_schema_version(self):
         """Test updating schema version in YAML file."""
         # Create a temporary YAML file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             yaml_content = {
                 "name": "test_config",
                 "description": "Test configuration",
@@ -239,7 +367,7 @@ class TestSchemaVersionUtility:
             assert result is True
 
             # Read back and verify
-            with open(yaml_path, "r") as f:
+            with open(yaml_path, "r", encoding="utf-8") as f:
                 updated = yaml.safe_load(f)
 
             assert updated["schema_version"] == "1.0"
@@ -253,7 +381,7 @@ class TestSchemaVersionUtility:
     def test_migrate_from_dual_version(self):
         """Test migration from old dual-version system."""
         # Create a file with old dual-version system
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             yaml_content = {
                 "name": "test_config_v1.0",
                 "version": "2025.8.1.dev0",
@@ -271,7 +399,7 @@ class TestSchemaVersionUtility:
             assert result is True
 
             # Read back and verify
-            with open(yaml_path, "r") as f:
+            with open(yaml_path, "r", encoding="utf-8") as f:
                 updated = yaml.safe_load(f)
 
             # New field added
@@ -305,15 +433,16 @@ class TestSampleConfig:
 
         # Schema version is optional - if omitted, latest version is assumed
         if "schema_version" in config:
-            assert config["schema_version"] == "1.0", (
-                f"If schema_version is present, it should be '1.0', got {config['schema_version']}"
+            assert config["schema_version"] == CURRENT_SCHEMA_VERSION, (
+                "If schema_version is present, it should match "
+                f"CURRENT_SCHEMA_VERSION ({CURRENT_SCHEMA_VERSION}), got {config['schema_version']}"
             )
             print(
-                f"✓ sample_config.yml has explicit schema_version: {config['schema_version']}"
+                f"[OK] sample_config.yml has explicit schema_version: {config['schema_version']}"
             )
         else:
             # Omitting schema_version is valid - system assumes latest version
-            print("✓ sample_config.yml omits schema_version (uses latest by default)")
+            print("[OK] sample_config.yml omits schema_version (uses latest by default)")
 
         # Should not have old version fields
         assert "version" not in config, (
@@ -322,6 +451,86 @@ class TestSampleConfig:
         assert "config_version" not in config, (
             "sample_config.yml should not have 'config_version' field"
         )
+
+
+# ---------------------------------------------------------------------------
+# Sample-config schema sync guards (formerly test_schema_version_sync.py).
+#
+# `src/supy/data_model/configuration/version.py::CURRENT_SCHEMA_VERSION` is the
+# canonical version label; `src/supy/sample_data/sample_config.yml` ships
+# with `schema_version: '<version>'`. The two must agree, otherwise:
+#
+# * a fresh install reads a sample_config whose signature the validator
+#   treats as drifted,
+# * the YAML-upgrade path dispatches through a migration handler that
+#   doesn't exist (the sample is already at current),
+# * the `verify-build` skill's sync check flags a mismatch on every run.
+#
+# The mismatch that motivated this guard (gh#1304) went undetected for
+# several releases because the `verify-build` check is only run on
+# demand. Having it as a pytest-collected regression makes every PR fail
+# fast when the two diverge.
+# ---------------------------------------------------------------------------
+
+SAMPLE_CONFIG = Path(str(files("supy").joinpath("sample_data/sample_config.yml")))
+
+
+@pytest.mark.cfg
+def test_sample_config_schema_version_matches_current():
+    """`sample_config.yml::schema_version` must equal CURRENT_SCHEMA_VERSION."""
+    # ARRANGE
+    assert SAMPLE_CONFIG.exists(), SAMPLE_CONFIG
+
+    # ACT
+    payload = yaml.safe_load(SAMPLE_CONFIG.read_text(encoding="utf-8"))
+
+    # ASSERT
+    assert payload.get("schema_version") == CURRENT_SCHEMA_VERSION, (
+        f"sample_config.yml::schema_version = {payload.get('schema_version')!r} "
+        f"but CURRENT_SCHEMA_VERSION = {CURRENT_SCHEMA_VERSION!r}. "
+        "Bump one side to match the other — see "
+        ".claude/rules/python/schema-versioning.md for when structural "
+        "changes require a CURRENT_SCHEMA_VERSION bump."
+    )
+
+
+def _iter_ref_blocks(value, path=""):
+    if isinstance(value, dict):
+        ref = value.get("ref")
+        if isinstance(ref, dict):
+            yield f"{path}.ref" if path else "ref", ref
+        for key, child in value.items():
+            child_path = f"{path}.{key}" if path else str(key)
+            yield from _iter_ref_blocks(child, child_path)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from _iter_ref_blocks(child, f"{path}[{index}]")
+
+
+@pytest.mark.cfg
+def test_sample_config_includes_complete_reference_metadata_example():
+    """`sample_config.yml` should demonstrate refs at several config levels."""
+    assert SAMPLE_CONFIG.exists(), SAMPLE_CONFIG
+
+    payload = yaml.safe_load(SAMPLE_CONFIG.read_text(encoding="utf-8"))
+    complete_ref_paths = {
+        path
+        for path, ref in _iter_ref_blocks(payload)
+        if {"desc", "ID", "DOI"}.issubset(ref)
+    }
+
+    expected_ref_paths = {
+        "model.control.ref",
+        "model.physics.ref",
+        "sites[0].properties.ref",
+        "sites[0].properties.conductance.ref",
+        "sites[0].properties.land_cover.ref",
+    }
+
+    assert expected_ref_paths.issubset(complete_ref_paths), (
+        "sample_config.yml should include complete reference metadata examples "
+        f"with desc, ID, and DOI at: {sorted(expected_ref_paths)}"
+    )
 
 
 if __name__ == "__main__":

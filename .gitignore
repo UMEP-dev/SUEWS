@@ -6,6 +6,9 @@
 # Test workspace for SPARTACUS layer issues
 spartacus_test_workspace/
 
+# Generated SUEWS config (output of data_model to_yaml)
+config-suews.yml
+
 ### Fortran ###
 # Prerequisites
 *.d
@@ -405,6 +408,13 @@ supy_debug*.zip
 df_forcing.pkl
 df_state_init.pkl
 supy_info.json
+
+# SUEWSSimulation.save() restart checkpoints - written to the working
+# directory as `{site_name}_SUEWS_checkpoint.json` (or
+# `SUEWS_checkpoint.json` when no site name is set). Local artefacts;
+# users keep them under their own paths.
+*_SUEWS_checkpoint.json
+SUEWS_checkpoint.json
 src/supy_driver/build_dir
 src/supy_driver/log.build
 log.build
@@ -579,6 +589,7 @@ quick-test.py
 # Only ignore local settings and truly temporary files
 .claude/settings.local.json
 .claude/workspace/temp-*
+.claude/scheduled_tasks.lock
 
 # auto-generated files for building docs
 docs/schema.json
@@ -649,8 +660,23 @@ docs/source/api/_autosummary/
 test/fixtures/gh846/*.zip
 
 
-# Conductor worktree workspaces
-.conductor/
+# Conductor project settings and local worktree state
+.conductor/*
+!.conductor/
+!.conductor/settings.toml
+.conductor/settings.local.toml
 
 # Conductor agent collaboration directory
 .context/
+
+# Auto-generated configuration-schema publisher artefacts
+# (produced by `python -m supy.data_model.configuration.exporter` /
+# `suews-schema publish`; the canonical committed copy lives at
+# docs/source/inputs/tables/schema.json)
+site/schemas/
+
+# Generated plugin bundle: `make plugin` (scripts/build_plugin.py) copies the
+# single-source skill from .claude/skills/suews into the distributable plugin.
+# It is a build artifact (regenerated locally / in CI before publishing), so the
+# duplicated skill copy is not committed; only the plugin manifests + assets are.
+plugins/suews/skills/

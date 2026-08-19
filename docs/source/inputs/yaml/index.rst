@@ -73,7 +73,8 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
    model:
      control:
        tstep: 3600                    # Time step [s]
-       forcing_file: "forcing.txt"    # Meteorological data
+       forcing:
+         file: "forcing.txt"          # Meteorological data
        start_time: "2020-01-01"       # Start date
        end_time: "2020-12-31"         # End date
 
@@ -114,6 +115,11 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
 Parameter Documentation
 -----------------------
 
+Before configuring height-dependent roof and wall properties, read
+:ref:`layer_conventions`. It defines the SPARTACUS vertical-layer geometry and,
+separately, the input structure for five material layers. It also identifies
+which storage-heat and radiation methods use each property.
+
 **Complete Parameter Reference:**
 
 The full documentation for all YAML parameters is available in the :doc:`config-reference/index`. This reference includes:
@@ -122,6 +128,25 @@ The full documentation for all YAML parameters is available in the :doc:`config-
 - Units and valid ranges
 - Default values
 - Cross-references between related parameters
+
+Internal-only parameters 
+------------------------
+
+Some parameters exist in the YAML schema but are **internal-only** and are therefore intentionally omitted from ``sample_config.yml``. 
+The following parameters were removed from the sample configuration for clarity:
+
+- ``diagnose``
+- ``dqndt``
+- ``dqnsdt``
+- ``dt_since_start``
+- ``lenday_id``
+- ``qn_av``
+- ``qn_s_av``
+- ``tair_av``
+- ``tmax_id``
+- ``tmin_id``
+- ``tstep_prev``
+- ``snowfallcum``
 
 
 Forcing Data
@@ -133,13 +158,15 @@ Meteorological forcing data drives the SUEWS simulation. You specify the forcing
 
    model:
      control:
-       forcing_file: "forcing/met_data_2020.txt"
+       forcing:
+         file: "forcing/met_data_2020.txt"
        # Or use multiple files:
-       forcing_file:
-         - "forcing/met_data_2020_Q1.txt"
-         - "forcing/met_data_2020_Q2.txt"
-         - "forcing/met_data_2020_Q3.txt"
-         - "forcing/met_data_2020_Q4.txt"
+       forcing:
+         file:
+           - "forcing/met_data_2020_Q1.txt"
+           - "forcing/met_data_2020_Q2.txt"
+           - "forcing/met_data_2020_Q3.txt"
+           - "forcing/met_data_2020_Q4.txt"
 
 **Forcing File Format**
 
@@ -160,7 +187,7 @@ The forcing file must be a text file with specific columns in the correct order.
 
 - Data must be continuous (no gaps)
 - Time stamps indicate the **end** of each period
-- Use local time (not UTC)
+- Use local standard time (fixed UTC offset, not civil time with daylight-saving shifts; see :doc:`/inputs/forcing-data` for details)
 - Use -999 for missing optional variables
 
 For detailed format specifications, column order, and optional variables, see :doc:`/inputs/forcing-data`.
@@ -226,7 +253,8 @@ Urban Site Configuration
    model:
      control:
        tstep: 3600
-       forcing_file: "london_met_2020.txt"
+       forcing:
+         file: "london_met_2020.txt"
        start_time: "2020-01-01"
        end_time: "2020-12-31"
      physics:
@@ -259,7 +287,7 @@ Urban Site Configuration
 Tips for Success
 ----------------
 
-1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it
+1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it; configs that omit physics-required blocks (``conductance``, per-surface ``lai``, tree ``fai_*``/``height_*``, ``bldgs.bldgh``/``faibldg``) raise a :class:`ValueError` at load time.
 2. **Validate early**: Run validation before long simulations
 3. **Check the report**: Understand what the validator changed
 4. **Use meaningful names**: Help yourself remember what each simulation is for

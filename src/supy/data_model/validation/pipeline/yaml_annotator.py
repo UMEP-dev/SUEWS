@@ -45,6 +45,53 @@ class ValidationIssue:
                     "_comment": "heat capacity (J/m3/K)",
                 },
             },
+            "conductance": {
+                "g_max": {
+                    "value": 3.5,
+                    "_comment": "maximum surface conductance (mm/s)",
+                },
+                "g_k": {"value": 200.0, "_comment": "solar radiation coefficient"},
+                "g_q_base": {"value": 0.13, "_comment": "VPD coefficient base"},
+                "g_q_shape": {"value": 0.7, "_comment": "VPD coefficient shape"},
+                "g_t": {"value": 30.0, "_comment": "temperature coefficient (°C)"},
+                "g_sm": {"value": 0.05, "_comment": "soil moisture coefficient"},
+                "kmax": {
+                    "value": 1200.0,
+                    "_comment": "maximum solar radiation (W/m2)",
+                },
+                "s1": {"value": 5.56, "_comment": "soil moisture threshold 1"},
+                "s2": {"value": 0.0, "_comment": "soil moisture threshold 2"},
+                "tl": {
+                    "value": -10.0,
+                    "_comment": "lower temperature threshold (°C)",
+                },
+                "th": {
+                    "value": 55.0,
+                    "_comment": "upper temperature threshold (°C)",
+                },
+            },
+            "lai": {
+                "lai_max": {
+                    "value": 4.5,
+                    "_comment": "maximum leaf area index (m2/m2)",
+                },
+                "base_temperature": {
+                    "value": 5.0,
+                    "_comment": "base temperature for leaf growth (°C)",
+                },
+                "base_temperature_senescence": {
+                    "value": 5.0,
+                    "_comment": "base temperature for senescence (°C)",
+                },
+                "gdd_full": {
+                    "value": 250.0,
+                    "_comment": "growing degree days for full leaf-on (degC d)",
+                },
+                "sdd_full": {
+                    "value": 150.0,
+                    "_comment": "senescence degree days for leaf-off (degC d)",
+                },
+            },
             "g_max": {"value": 3.5, "_comment": "maximum surface conductance (mm/s)"},
             "g_k": {"value": 200.0, "_comment": "solar radiation coefficient"},
             "g_q_base": {"value": 0.13, "_comment": "VPD coefficient base"},
@@ -54,16 +101,51 @@ class ValidationIssue:
             "kmax": {"value": 1200.0, "_comment": "maximum solar radiation (W/m2)"},
             "s1": {"value": 5.56, "_comment": "soil moisture threshold 1"},
             "s2": {"value": 0.0, "_comment": "soil moisture threshold 2"},
-            "co2pointsource": {"value": 0.0, "_comment": "point source CO2 emissions"},
-            "ef_umolco2perj": {
+            "tl": {"value": -10.0, "_comment": "lower temperature threshold (°C)"},
+            "th": {"value": 55.0, "_comment": "upper temperature threshold (°C)"},
+            "lai_max": {"value": 4.5, "_comment": "maximum leaf area index (m2/m2)"},
+            "base_temperature": {
+                "value": 5.0,
+                "_comment": "base temperature for leaf growth (°C)",
+            },
+            "base_temperature_senescence": {
+                "value": 5.0,
+                "_comment": "base temperature for senescence (°C)",
+            },
+            "gdd_full": {
+                "value": 250.0,
+                "_comment": "growing degree days for full leaf-on (degC d)",
+            },
+            "sdd_full": {
+                "value": 150.0,
+                "_comment": "senescence degree days for leaf-off (degC d)",
+            },
+            "fai_evergreen_tree": {
+                "value": 0.5,
+                "_comment": "evergreen tree frontal area index",
+            },
+            "height_evergreen_tree": {
+                "value": 12.0,
+                "_comment": "evergreen tree height in meters",
+            },
+            "fai_deciduous_tree": {
+                "value": 0.5,
+                "_comment": "deciduous tree frontal area index",
+            },
+            "height_deciduous_tree": {
+                "value": 12.0,
+                "_comment": "deciduous tree height in meters",
+            },
+            "emission_co2_point_source": {"value": 0.0, "_comment": "point source CO2 emissions"},
+            "emission_factor_co2_fuel": {
                 "value": 1.159,
                 "_comment": "CO2 emission factor (μmol/J)",
             },
-            "frfossilfuel_heat": {
+            "fraction_fossil_fuel_heating": {
                 "value": 0.7,
                 "_comment": "fossil fuel fraction for heating",
             },
-            "frfossilfuel_nonheat": {
+            "fraction_fossil_fuel_non_heating": {
                 "value": 0.7,
                 "_comment": "fossil fuel fraction for non-heating",
             },
@@ -120,7 +202,7 @@ class JsonYamlAnnotator:
     ) -> Path:
         """Generate annotated YAML file with validation feedback."""
         # Read original YAML
-        with open(input_path, "r") as f:
+        with open(input_path, "r", encoding="utf-8") as f:
             yaml_content = f.read()
 
         # Parse to data structure

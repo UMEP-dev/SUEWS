@@ -25,33 +25,33 @@ module module_type_anthro
        REAL(KIND(1D0)) :: ah_slope_heating_holiday = 0.0D0 ! heating slope for the anthropogenic heat flux calculation (holiday) [W m-2 K-1]
        REAL(KIND(1D0)), DIMENSION(0:23) :: ahprof_24hr_working = 0.0D0 ! Hourly profile values used in energy use calculation (working day) [-]
        REAL(KIND(1D0)), DIMENSION(0:23) :: ahprof_24hr_holiday = 0.0D0 ! Hourly profile values used in energy use calculation (holiday) [-]
-       REAL(KIND(1D0)) :: popdensdaytime_working = 0.0D0 ! Daytime population density [people ha-1] (working day)
-       REAL(KIND(1D0)) :: popdensdaytime_holiday = 0.0D0 ! Daytime population density [people ha-1] (holiday)
-       REAL(KIND(1D0)) :: popdensnighttime = 0.0D0
+       REAL(KIND(1D0)) :: pop_density_daytime_working = 0.0D0 ! Daytime population density [people ha-1] (working day)
+       REAL(KIND(1D0)) :: pop_density_daytime_holiday = 0.0D0 ! Daytime population density [people ha-1] (holiday)
+       REAL(KIND(1D0)) :: pop_density_nighttime = 0.0D0
        REAL(KIND(1D0)), DIMENSION(0:23) :: popprof_24hr_working = 0.0D0 !Hourly profile values used in dynamic population estimation[-] (working day)
        REAL(KIND(1D0)), DIMENSION(0:23) :: popprof_24hr_holiday = 0.0D0 !Hourly profile values used in dynamic population estimation[-] (holiday)
     END TYPE anthroHEAT_PRM
 
     TYPE, PUBLIC :: anthroEMIS_PRM
-       INTEGER :: startdls = 0 ! start of daylight saving  [DOY]
-       INTEGER :: enddls = 0 ! end of daylight saving [DOY]
-       TYPE(anthroHEAT_PRM) :: anthroheat
-       REAL(KIND(1D0)) :: EF_umolCO2perJ = 0.0D0
-       REAL(KIND(1D0)) :: EnEF_v_Jkm = 0.0D0
-       REAL(KIND(1D0)) :: FrFossilFuel_Heat = 0.0D0
-       REAL(KIND(1D0)) :: FrFossilFuel_NonHeat = 0.0D0
-       REAL(KIND(1D0)), DIMENSION(2) :: FcEF_v_kgkm = 0.0D0
-       REAL(KIND(1D0)), DIMENSION(0:23) :: HumActivity_24hr_working = 0.0D0
-       REAL(KIND(1D0)), DIMENSION(0:23) :: HumActivity_24hr_holiday = 0.0D0
-       REAL(KIND(1D0)) :: MaxFCMetab = 0.0D0
-       REAL(KIND(1D0)) :: MaxQFMetab = 0.0D0
-       REAL(KIND(1D0)) :: MinFCMetab = 0.0D0
-       REAL(KIND(1D0)) :: MinQFMetab = 0.0D0
-       REAL(KIND(1D0)) :: TrafficRate_working = 0.0D0
-       REAL(KIND(1D0)) :: TrafficRate_holiday = 0.0D0
-       REAL(KIND(1D0)) :: TrafficUnits = 0.0D0
-       REAL(KIND(1D0)), DIMENSION(0:23) :: TraffProf_24hr_working = 0.0D0
-       REAL(KIND(1D0)), DIMENSION(0:23) :: TraffProf_24hr_holiday = 0.0D0
+       INTEGER :: start_dls = 0 ! start of daylight saving  [DOY]
+       INTEGER :: end_dls = 0 ! end of daylight saving [DOY]
+       TYPE(anthroHEAT_PRM) :: anthro_heat
+       REAL(KIND(1D0)) :: ef_umol_co2_per_j = 0.0D0
+       REAL(KIND(1D0)) :: en_ef_v_jkm = 0.0D0
+       REAL(KIND(1D0)) :: fr_fossil_fuel_heat = 0.0D0
+       REAL(KIND(1D0)) :: fr_fossil_fuel_non_heat = 0.0D0
+       REAL(KIND(1D0)), DIMENSION(2) :: fc_ef_v_kgkm = 0.0D0
+       REAL(KIND(1D0)), DIMENSION(0:23) :: hum_activity_24hr_working = 0.0D0
+       REAL(KIND(1D0)), DIMENSION(0:23) :: hum_activity_24hr_holiday = 0.0D0
+       REAL(KIND(1D0)) :: max_fc_metab = 0.0D0
+       REAL(KIND(1D0)) :: max_qf_metab = 0.0D0
+       REAL(KIND(1D0)) :: min_fc_metab = 0.0D0
+       REAL(KIND(1D0)) :: min_qf_metab = 0.0D0
+       REAL(KIND(1D0)) :: traffic_rate_working = 0.0D0
+       REAL(KIND(1D0)) :: traffic_rate_holiday = 0.0D0
+       REAL(KIND(1D0)) :: traffic_units = 0.0D0
+       REAL(KIND(1D0)), DIMENSION(0:23) :: traff_prof_24hr_working = 0.0D0
+       REAL(KIND(1D0)), DIMENSION(0:23) :: traff_prof_24hr_holiday = 0.0D0
     END TYPE anthroEMIS_PRM
 
     TYPE, PUBLIC :: anthroEmis_STATE

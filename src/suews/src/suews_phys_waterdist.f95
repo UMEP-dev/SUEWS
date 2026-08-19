@@ -841,21 +841,21 @@ CONTAINS
             grassPrm => siteInfo%lc_grass, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
-            SoilMoistCap => hydroState%SoilMoistCap, &
-            SoilState => hydroState%SoilState, &
+            SoilMoistCap => hydroState%soil_moist_cap, &
+            SoilState => hydroState%soil_state, &
             vsmd => hydroState%vsmd, &
             smd => hydroState%smd)
 
-            soilstore_surf = hydroState%soilstore_surf
+            soilstore_surf = hydroState%soil_store_surf
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-            SoilStoreCap(1) = pavedPrm%soil%soilstorecap
-            SoilStoreCap(2) = bldgPrm%soil%soilstorecap
-            SoilStoreCap(3) = evetrPrm%soil%soilstorecap
-            SoilStoreCap(4) = dectrPrm%soil%soilstorecap
-            SoilStoreCap(5) = grassPrm%soil%soilstorecap
-            SoilStoreCap(6) = bsoilPrm%soil%soilstorecap
-            SoilStoreCap(7) = waterPrm%soil%soilstorecap
+            SoilStoreCap(1) = pavedPrm%soil%soil_store_capacity
+            SoilStoreCap(2) = bldgPrm%soil%soil_store_capacity
+            SoilStoreCap(3) = evetrPrm%soil%soil_store_capacity
+            SoilStoreCap(4) = dectrPrm%soil%soil_store_capacity
+            SoilStoreCap(5) = grassPrm%soil%soil_store_capacity
+            SoilStoreCap(6) = bsoilPrm%soil%soil_store_capacity
+            SoilStoreCap(7) = waterPrm%soil%soil_store_capacity
 
             SoilMoistCap = 0 !Maximum capacity of soil store [mm] for whole surface
             SoilState = 0 !Area-averaged soil moisture [mm] for whole surface
@@ -990,7 +990,7 @@ CONTAINS
       )
       !Transfers water in soil stores of land surfaces LJ (2010)
       !Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011)
-      !If one of the surface's soildepth is zero, no water movement is considered
+      !If one of the surface's soil_depth is zero, no water movement is considered
       ! LJ  15/06/2017 Modification:   - Moved location of runoffSoil_per_tstep within previous if-loop to avoid dividing with zero with 100% water surface
       ! HCW 22/02/2017 Modifications:  - Minor bug fixed in VWC1/B_r1 comparison - if statements reversed
       ! HCW 13/08/2014 Modifications:  - Order of surfaces reversed (for both is and jj loops)
@@ -1204,140 +1204,6 @@ CONTAINS
 
    END SUBROUTINE SUEWS_cal_HorizontalSoilWater
 
-   SUBROUTINE SUEWS_cal_HorizontalSoilWater_DTS( &
-      timer, config, forcing, siteInfo, & ! input
-      hydroState) ! inout: !Soil moisture of each surface type [mm]
-
-      !Transfers water in soil stores of land surfaces LJ (2010)
-      !Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011)
-      !If one of the surface's soildepth is zero, no water movement is considered
-      ! LJ  15/06/2017 Modification:   - Moved location of runoffSoil_per_tstep within previous if-loop to avoid dividing with zero with 100% water surface
-      ! HCW 22/02/2017 Modifications:  - Minor bug fixed in VWC1/B_r1 comparison - if statements reversed
-      ! HCW 13/08/2014 Modifications:  - Order of surfaces reversed (for both is and jj loops)
-      !                                - Number of units (e.g. properties) added to distance calculation
-      ! HCW 12/08/2014 Modifications:  - Distance changed from m to mm in dI_dt calculation
-      !                                - dI_dt [mm s-1] multiplied by no. seconds in timestep -> dI [mm]
-      !                                - if MatPot is set to max. value (100000 mm), Km set to 0 mm s-1
-      !                                - Provide parameters for residual volumetric soil moisture [m3 m-3]
-      !                                   (currently hard coded as 0.1 m3 m-3 for testing)
-      !------------------------------------------------------
-
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
-                               LC_PAVED_PRM, LC_BLDG_PRM, &
-                               LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
-                               LC_BSOIL_PRM, LC_WATER_PRM, SUEWS_SITE, HYDRO_STATE
-
-      IMPLICIT NONE
-
-      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
-      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
-      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
-
-      TYPE(HYDRO_STATE), INTENT(INOUT) :: hydroState
-
-      REAL(KIND(1D0)), DIMENSION(nsurf) :: SoilStoreCap_surf !Capacity of soil store for each surface [mm]
-      REAL(KIND(1D0)), DIMENSION(nsurf) :: SoilDepth_surf !Depth of sub-surface soil store for each surface [mm]
-      REAL(KIND(1D0)), DIMENSION(nsurf) :: SatHydraulicConduct_surf !Saturated hydraulic conductivity for each soil subsurface [mm s-1]
-
-      INTEGER :: jj, is
-      REAL(KIND(1D0)) :: &
-         DimenWaterCon1, DimenWaterCon2, &
-         SoilMoistCap_Vol1, &
-         SoilMoist_vol1, &
-         SoilMoistCap_Vol2, &
-         SoilMoist_vol2, &
-         B_r1, MatPot1, Km1, &
-         B_r2, MatPot2, Km2, &
-         Distance, KmWeight, dI, &
-         dI_dt !Water flow between two stores
-
-      REAL(KIND(1D0)), PARAMETER :: &
-         alphavG = 0.0005, & !Set alphavG to match value in van Genuchten (1980) [mm-1]
-         NUnits = 1 !Can change to represent plot/base unit size
-
-      ! SoilMoist_vol1,2     = Volumetric soil moisture [m3 m-3]
-      ! SoilMoistCap_vol1,2  = Volumetric soil moisture capacity [m3 m-3] (from FunctionalTypes)
-      ! MatPot1,2            = Water potential (i.e. pressure head) of store [mm]
-      ! DimenWaterCon1,2     = Dimensionless water content, or relative saturation [-]
-      ! Distance             = Distance between two stores [m]
-      ! B_r1,2               = Residual volumetric soil moisture [m3 m-3]
-      ! Km1,2                = Hydraulic conductivity of store [mm s-1]
-      ! KmWeight             = Weighted hydraulic conductivity [mm s-1]
-      ! alphavG              = Parameter (could depend on soil texture) [mm-1]
-      ! dI                   = Water flow between stores [mm] dI = dI_dt * no. secs in each timestep
-      !                         if dI > 0, first surface gains water, second surface loses water
-      ! NUnits               = Number of repeating units (e.g. properties, blocks) for distance calculation [-]
-
-      ASSOCIATE ( &
-         pavedPrm => siteInfo%lc_paved, &
-         bldgPrm => siteInfo%lc_bldg, &
-         evetrPrm => siteInfo%lc_evetr, &
-         dectrPrm => siteInfo%lc_dectr, &
-         grassPrm => siteInfo%lc_grass, &
-         bsoilPrm => siteInfo%lc_bsoil, &
-         waterPrm => siteInfo%lc_water, &
-         ehcPrm => siteInfo%ehc, &
-         sfr_surf => siteInfo%sfr_surf, &
-         sfr_roof => siteInfo%sfr_roof, &
-         sfr_wall => siteInfo%sfr_wall, &
-         SurfaceArea => siteInfo%SurfaceArea, &
-         snowPrm => siteInfo%snow, &
-         PipeCapacity => siteInfo%PipeCapacity, &
-         RunoffToWater => siteInfo%RunoffToWater, &
-         FlowChange => siteInfo%FlowChange, &
-         PervFraction => siteInfo%PervFraction, &
-         vegfraction => siteInfo%vegfraction, &
-         NonWaterFraction => siteInfo%NonWaterFraction, &
-         tstep_real => timer%tstep_real, &
-         soilstore_surf => hydroState%soilstore_surf, &
-         runoffSoil_surf => hydroState%runoffSoil, &
-         runoffSoil_per_tstep => hydroState%runoffSoil_per_tstep, &
-         Diagnose => config%Diagnose &
-         )
-         runoffSoil_surf = 0
-         runoffSoil_per_tstep = 0
-
-         SoilStoreCap_surf(1) = pavedPrm%soil%soilstorecap
-         SoilStoreCap_surf(2) = bldgPrm%soil%soilstorecap
-         SoilStoreCap_surf(3) = evetrPrm%soil%soilstorecap
-         SoilStoreCap_surf(4) = dectrPrm%soil%soilstorecap
-         SoilStoreCap_surf(5) = grassPrm%soil%soilstorecap
-         SoilStoreCap_surf(6) = bsoilPrm%soil%soilstorecap
-         SoilStoreCap_surf(7) = waterPrm%soil%soilstorecap
-
-         SoilDepth_surf(1) = pavedPrm%soil%soildepth
-         SoilDepth_surf(2) = bldgPrm%soil%soildepth
-         SoilDepth_surf(3) = evetrPrm%soil%soildepth
-         SoilDepth_surf(4) = dectrPrm%soil%soildepth
-         SoilDepth_surf(5) = grassPrm%soil%soildepth
-         SoilDepth_surf(6) = bsoilPrm%soil%soildepth
-         SoilDepth_surf(7) = waterPrm%soil%soildepth
-
-         SatHydraulicConduct_surf(1) = pavedPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(2) = bldgPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(3) = evetrPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(4) = dectrPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(5) = grassPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(6) = bsoilPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(7) = waterPrm%soil%sathydraulicconduct
-
-         CALL SUEWS_cal_HorizontalSoilWater( &
-            sfr_surf, & ! input: ! surface fractions
-            SoilStoreCap_surf, & !Capacity of soil store for each surface [mm]
-            SoilDepth_surf, & !Depth of sub-surface soil store for each surface [mm]
-            SatHydraulicConduct_surf, & !Saturated hydraulic conductivity for each soil subsurface [mm s-1]
-            SurfaceArea, & !Surface area of the study area [m2]
-            NonWaterFraction, & ! sum of surface cover fractions for all except water surfaces
-            tstep_real, & !tstep cast as a real for use in calculations
-            soilstore_surf, & ! inout: !Soil moisture of each surface type [mm]
-            runoffSoil_surf, & !Soil runoff from each soil sub-surface [mm]
-            runoffSoil_per_tstep & !  output:!Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
-            )
-
-      END ASSOCIATE
-
-   END SUBROUTINE SUEWS_cal_HorizontalSoilWater_DTS
    !===================================================================================
    SUBROUTINE SUEWS_cal_WaterUse( &
       timer, config, forcing, siteInfo, & ! input
@@ -1366,6 +1232,7 @@ CONTAINS
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, SUEWS_STATE
+      USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index
 
       IMPLICIT NONE
 
@@ -1427,16 +1294,22 @@ CONTAINS
                HDD_id => anthroEmisState%HDD_id, &
                WUDay_id => hydroState%WUDay_id, &
                WaterUseMethod => config%WaterUseMethod, &
-               wu_m3 => forcing%Wu_m3, &
+               wu_mm_paved => forcing%Wu_mm_paved, &
+               wu_mm_bldgs => forcing%Wu_mm_bldgs, &
+               wu_mm_evetr => forcing%Wu_mm_evetr, &
+               wu_mm_dectr => forcing%Wu_mm_dectr, &
+               wu_mm_grass => forcing%Wu_mm_grass, &
+               wu_mm_bsoil => forcing%Wu_mm_bsoil, &
+               wu_mm_water => forcing%Wu_mm_water, &
                wu_surf => hydroState%wu_surf, &
                wu_int => hydroState%wu_int, &
                wu_ext => hydroState%wu_ext, &
-               it => timer%it, &
+               it => timer%it_st, &
                nsh_real => timer%nsh_real, &
-               DayofWeek_id => timer%DayofWeek_id, &
+               DayofWeek_id => timer%DayofWeek_id_st, &
                NSH => timer%NSH, &
                DLS => timer%DLS, &
-               imin => timer%imin &
+               imin => timer%imin_st &
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
@@ -1462,52 +1335,50 @@ CONTAINS
 
                ! Irrigated Fraction of each surface
                ! TS: 20200409, add irrigation fractions for all surfaces
-               IrrFrac = [pavedPrm%IrrFracPaved, bldgPrm%IrrFracBldgs, &
-                          evetrPrm%IrrFracEveTr, dectrPrm%IrrFracDecTr, grassPrm%IrrFracGrass, &
-                          bsoilPrm%IrrFracBSoil, waterPrm%IrrFracWater]
+               IrrFrac = [pavedPrm%irrigation_fraction_paved, bldgPrm%irrigation_fraction_bldgs, &
+                          evetrPrm%irrigation_fraction_evetr, dectrPrm%irrigation_fraction_dectr, grassPrm%irrigation_fraction_grass, &
+                          bsoilPrm%irrigation_fraction_bsoil, waterPrm%irrigation_fraction_water]
 
                ! --------------------------------------------------------------------------------
-               ! If water used is observed and provided in the met forcing file, units are m3
-               ! Divide observed water use (in m3) by water use area to find water use (in mm)
+               ! Resolved per-surface observed water-use inputs passed to the kernel
+               ! are depths [mm] accumulated over the forcing interval.
                IF (WaterUseMethod == 1) THEN !If water use is observed
-                  ! Calculate water use area [m2] for each surface type
-
-                  WUArea = IrrFrac*sfr_surf*SurfaceArea
-                  WUAreaTotal_m2 = SUM(WUArea)
-
-                  !Set water use [mm] for each surface type to zero initially
-                  wu_EveTr = 0
-                  wu_DecTr = 0
-                  wu_Grass = 0
-
-                  wu_surf = 0
-                  IF (wu_m3 == NAN .OR. wu_m3 == 0) THEN !If no water use
-                     ! wu_m3=0
-                     wu = 0
-                  ELSE !If water use
-                     IF (WUAreaTotal_m2 > 0) THEN
-                        wu = (wu_m3/WUAreaTotal_m2*1000) !Water use in mm for the whole irrigated area - used here for water use calculation of each surface type
-
-                        wu_surf = wu*IrrFrac
-
-                        wu = (wu_m3/SurfaceArea*1000) !Water use for the whole study area in mm - used in output for easier comparison with other water budgets
-                     END IF
+                  ! Reset per-surface observed water use each timestep so a
+                  ! surface whose forcing column is missing (-999 sentinel)
+                  ! contributes zero rather than inheriting the previous
+                  ! timestep's value (wu_surf is persistent hydro state).
+                  wu_surf = 0.0D0
+                  IF (Wu_mm_paved /= -999) THEN
+                     wu_surf(1) = Wu_mm_paved
                   END IF
+                  IF (Wu_mm_bldgs /= -999) THEN
+                     wu_surf(2) = Wu_mm_bldgs
+                  END IF
+                  IF (Wu_mm_evetr /= -999) THEN
+                     wu_surf(3) = Wu_mm_evetr
+                  END IF
+                  IF (Wu_mm_dectr /= -999) THEN
+                     wu_surf(4) = Wu_mm_dectr
+                  END IF
+                  IF (Wu_mm_grass /= -999) THEN
+                     wu_surf(5) = Wu_mm_grass
+                  END IF
+                  IF (Wu_mm_bsoil /= -999) THEN
+                     wu_surf(6) = Wu_mm_bsoil
+                  END IF
+                  IF (Wu_mm_water /= -999) THEN
+                     wu_surf(7) = Wu_mm_water
+                  END IF
+                  wu = DOT_PRODUCT(wu_surf, sfr_surf)
 
-                  ! --------------------------------------------------------------------------------
-                  ! If water use is modelled, calculate at timestep of model resolution [mm]
+               ! --------------------------------------------------------------------------------
+               ! If water use is modelled, calculate at timestep of model resolution [mm]
                ELSEIF (WaterUseMethod == 0) THEN !If water use is modelled
 
-                  ! Account for Daylight saving
-                  ih = it - DLS
-                  IF (ih < 0) ih = 23
-
-                  ! Weekday or weekend profile
-                  iu = 1 !Set to 1=weekday
-                  !  IF(DayofWeek(id,1)==1.OR.DayofWeek(id,1)==7) THEN
-                  IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) THEN
-                     iu = 2 !Set to 2=weekend
-                  END IF
+                  ! Profile-hour (daylight saving) and weekday/weekend index
+                  ! (GH#1559: centralised in module_util_time)
+                  ih = cal_profile_hour(it, DLS)
+                  iu = cal_weekday_index(DayofWeek_id(1))
 
                   WUDay_A_id = 0
                   WUDay_A_id(ConifSurf) = WUDay_id(2)

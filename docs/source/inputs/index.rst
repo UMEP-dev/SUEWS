@@ -15,6 +15,7 @@ SUEWS supports two formats for providing input parameters:
    :caption: YAML-based Input Format
 
    yaml/index
+   yaml/layer-conventions
    forcing-data
    surface-data-preparation
    yaml/config-reference/index

@@ -4,8 +4,10 @@ Test suews_phys_anthro - anthropogenic heat flux calculations.
 Regression test for Issue #240: NaN QF due to zero population density.
 """
 
+from conftest import load_sample_frames, run_simulation
 import pytest
-import supy as sp
+
+pytestmark = pytest.mark.physics
 
 
 @pytest.mark.parametrize(
@@ -20,7 +22,7 @@ def test_zero_population_qf(scenario):
 
     Regression test for issue #240.
     """
-    df_state_init, df_forcing = sp.load_SampleData()
+    df_state_init, df_forcing = load_sample_frames()
 
     # Set population density to zero
     df_state_init.loc[:, ("popdensdaytime", "(0,)")] = 0.0
@@ -28,10 +30,9 @@ def test_zero_population_qf(scenario):
     df_state_init.loc[:, ("popdensnighttime", "0")] = 0.0
 
     # Run the model for 24 hours
-    df_output, _ = sp.run_supy(
+    df_output, _ = run_simulation(
         df_forcing.iloc[:24],
         df_state_init,
-        save_state=False,
     )
 
     # Check QF is valid (not NaN, non-negative)

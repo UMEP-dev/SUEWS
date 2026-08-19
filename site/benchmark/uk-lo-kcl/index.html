@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUEWS Benchmark — King's College London (Ward 2016)</title>
+    <meta name="description" content="Regression benchmark of the SUEWS urban land-surface model against eddy-covariance observations at King's College London, across model releases.">
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon-disk/suews-icon-dark-disk.svg">
+    <!-- no-flash theme init -->
+    <script>
+        (function () {
+            var s = localStorage.getItem('theme');
+            var t = s || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/subpage.css">
+    <link rel="stylesheet" href="/css/benchmark.css?v=14">
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
+
+    <div class="signature-ring" aria-hidden="true"></div>
+
+    <div class="container">
+        <header class="subpage-header">
+            <a class="back-link" href="/benchmark/"><span class="arrow">&larr;</span> Benchmark suite</a>
+            <div class="subpage-label">Regression benchmark <span class="bm-crumb"><span class="sep">/</span> UK-LO-KCL</span></div>
+            <h1 class="subpage-title">Energy balance at <em>King&rsquo;s College London</em></h1>
+            <p class="subpage-lede">Modelled energy-balance fluxes at the Kc1 tower, scored against eddy-covariance observations across SUEWS releases.</p>
+            <p class="subpage-intro">Reference observations: <a href="https://doi.org/10.1016/j.uclim.2016.05.001">Ward&nbsp;et&nbsp;al.&nbsp;(2016)</a>. Each release is run on the same forcing and observations over the same period, with a config valid in its own schema; only the SUEWS version changes. Every release&rsquo;s statistics reproduce a byte-identical fingerprint on re-run.</p>
+
+            <!-- Overview panel: verdict + at-a-glance error across all releases -->
+            <div class="bm-verdict" data-state="pass" role="status">
+                <span class="bm-status"><span class="disc" aria-hidden="true"></span><span class="glyph" aria-hidden="true">&#10003;</span> No energy-balance regression across releases</span>
+                <p class="bm-verdict-summary">Energy-balance error is <b style="font-style:normal;color:var(--text-primary)">unchanged</b> across all six benchmarked releases (2025.7 &rarr; 2026.6); the largest shift in any flux is <b style="font-style:normal;color:var(--text-primary)">0.03&nbsp;W&nbsp;m<sup>&minus;2</sup></b> (Q<sub>E</sub>). Sensible heat Q<sub>H</sub>, the residual, carries the largest absolute error throughout.</p>
+                <div class="bm-chips">
+                    <span class="bm-chip">site <b>UK&#8209;LO&#8209;KCL</b></span>
+                    <span class="bm-chip">period <b>2011&ndash;2013</b></span>
+                    <span class="bm-chip">releases <b>6</b></span>
+                    <span class="bm-chip">latest <b>v2026.6.5</b></span>
+                </div>
+            </div>
+        </header>
+
+        <section class="subpage-group bm-act-break">
+            <div class="bm-act-eyebrow">Every version, side by side</div>
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Error across releases</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <p class="bm-summary-lead">Full-period mean absolute error (W m&#8315;&#178;) by release &mdash; the at-a-glance regression view. Each row is a flux; cell shade tracks error size. A regression would appear as a row <b>darkening</b> left-to-right; instead every row is a flat band &mdash; no drift across releases.</p>
+            <div class="bm-matrix bm-matrix-releases" role="table" aria-label="Mean absolute error by flux and release, watts per square metre; cell shade increases with error">
+                <div class="corner"></div>
+                <div class="col-h" role="columnheader">2025.7.6</div>
+                <div class="col-h" role="columnheader">2025.10.15</div>
+                <div class="col-h" role="columnheader">2025.11.20</div>
+                <div class="col-h" role="columnheader">2026.1.28</div>
+                <div class="col-h" role="columnheader">2026.4.3</div>
+                <div class="col-h" role="columnheader">2026.6.5</div>
+
+                <div class="row-h">K<sub>up</sub></div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 3%,transparent)">2.45</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 3%,transparent)">2.45</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 3%,transparent)">2.45</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 3%,transparent)">2.45</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 3%,transparent)">2.46</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 3%,transparent)">2.46</div>
+
+                <div class="row-h">L<sub>up</sub></div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 6%,transparent)">4.48</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 6%,transparent)">4.48</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 6%,transparent)">4.48</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 6%,transparent)">4.48</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 6%,transparent)">4.48</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 6%,transparent)">4.48</div>
+
+                <div class="row-h">Q<sub>N</sub></div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 11%,transparent)">8.54</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 11%,transparent)">8.54</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 11%,transparent)">8.54</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 11%,transparent)">8.54</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 11%,transparent)">8.54</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 11%,transparent)">8.54</div>
+
+                <div class="row-h">Q<sub>H</sub></div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 53%,transparent)">39.53</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 53%,transparent)">39.53</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 53%,transparent)">39.53</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 53%,transparent)">39.53</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 53%,transparent)">39.52</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 53%,transparent)">39.52</div>
+
+                <div class="row-h">Q<sub>E</sub></div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 19%,transparent)">14.62</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 19%,transparent)">14.62</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 19%,transparent)">14.62</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 19%,transparent)">14.62</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 19%,transparent)">14.59</div>
+                <div class="bm-cell num" style="background:color-mix(in srgb,var(--bad) 19%,transparent)">14.59</div>
+            </div>
+            <p class="bm-matrix-note">Mean absolute error (W m&#8315;&#178;), full period (2011&ndash;2013). <b style="font-weight:500;color:var(--text-secondary)">Cell shade increases with error</b>; uniform shading across a row means the flux&rsquo;s error is unchanged across releases. Q<sub>H</sub> (the residual) carries the largest error throughout.</p>
+        </section>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Compare two releases</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <p class="bm-summary-lead">Pick any two releases to see how each error metric moved between them. <b style="font-weight:500;color:var(--veg-green)">Green</b> means the error shrank, <b style="font-weight:500;color:var(--energy-orange)">amber</b> means it grew; muted means the change is within the regression tolerance (0.05&nbsp;W&nbsp;m&#8315;&#178; / 0.05&nbsp;K).</p>
+            <div class="bm-cmp2" aria-label="Release-to-release comparison of error metrics">
+                <div class="bm-cmp2-col">
+                    <select id="cmp-a" class="bm-cmp-select" aria-label="Compare release on the left (baseline)"></select>
+                    <div class="bm-cmp2-card">
+                        <span class="bm-cmp2-ver" id="cmp2-ver-a"></span>
+                        <span class="bm-cmp2-tag" id="cmp2-tag-a"></span>
+                    </div>
+                    <div class="bm-cmp2-body" id="cmp2-body-a"></div>
+                </div>
+                <div class="bm-cmp2-col">
+                    <select id="cmp-b" class="bm-cmp-select" aria-label="Compare release on the right"></select>
+                    <div class="bm-cmp2-card">
+                        <span class="bm-cmp2-ver" id="cmp2-ver-b"></span>
+                        <span class="bm-cmp2-tag" id="cmp2-tag-b"></span>
+                    </div>
+                    <div class="bm-cmp2-body" id="cmp2-body-b"></div>
+                </div>
+            </div>
+            <p class="bm-table-note">Values are mean absolute error against the Ward&nbsp;et&nbsp;al. (2016) observations; &Delta; is To&nbsp;&minus;&nbsp;From, so a negative &Delta; (green) is an improvement and a positive &Delta; (amber) a regression. Energy-balance fluxes in W&nbsp;m&#8315;&#178;, RSL air temperature in K. Most release pairs are identical &mdash; the only non-trivial shift is the near-surface RSL profile at 2026.1.28&nbsp;&rarr;&nbsp;2026.4.3.</p>
+        </section>
+
+        <section class="subpage-group bm-act-break">
+            <div class="bm-act-eyebrow">One release in full</div>
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Inspect a single release</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <p class="bm-summary-lead">Everything above holds the releases up against <em>each other</em>. From here down the lens narrows to <b style="font-weight:500;color:var(--text-primary)">one</b> release &mdash; its full energy balance, the seasonal breakdown, and the near-surface air-temperature profile. Pick the release to dissect:</p>
+            <div class="bm-releases" role="group" aria-label="Model release">
+                <span class="bm-releases-label">Release</span>
+                <button class="bm-release" type="button" data-ver="2025.7.6">2025.7.6</button>
+                <button class="bm-release" type="button" data-ver="2025.10.15">2025.10.15</button>
+                <button class="bm-release" type="button" data-ver="2025.11.20">2025.11.20</button>
+                <button class="bm-release" type="button" data-ver="2026.1.28">2026.1.28</button>
+                <button class="bm-release" type="button" data-ver="2026.4.3">2026.4.3</button>
+                <button class="bm-release" type="button" data-ver="2026.6.5" aria-current="true">2026.6.5 <span class="latest">latest</span></button>
+            </div>
+        </section>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Energy balance &mdash; <span class="sel-ver">v2026.6.5</span></span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <div class="bm-eb" role="table" aria-label="Energy-balance error by flux for the selected release">
+                <div class="bm-eb-head" role="row">
+                    <span role="columnheader">Flux</span>
+                    <span role="columnheader">MAE (W m&#8315;&#178;)</span>
+                    <span class="num" role="columnheader">MBE</span>
+                    <span class="num" role="columnheader">n</span>
+                </div>
+                <div class="bm-eb-row" role="row">
+                    <span class="bm-eb-flux">K<sub>up</sub> <span class="unit">reflected SW</span></span>
+                    <span class="bm-eb-track"><span class="bm-eb-bar" data-bar="Kup" style="width:5.5%;background:color-mix(in srgb,var(--bad) 43%,transparent)"></span><span class="bm-eb-mae" data-cell="Kup:MAE">2.46</span></span>
+                    <span class="bm-eb-mbe num" data-cell="Kup:MBE">&minus;0.90</span>
+                    <span class="bm-eb-n num" data-cell="Kup:n">24738</span>
+                </div>
+                <div class="bm-eb-row" role="row">
+                    <span class="bm-eb-flux">L<sub>up</sub> <span class="unit">outgoing LW</span></span>
+                    <span class="bm-eb-track"><span class="bm-eb-bar" data-bar="Lup" style="width:10%;background:color-mix(in srgb,var(--bad) 45%,transparent)"></span><span class="bm-eb-mae" data-cell="Lup:MAE">4.48</span></span>
+                    <span class="bm-eb-mbe num" data-cell="Lup:MBE">&minus;1.69</span>
+                    <span class="bm-eb-n num" data-cell="Lup:n">24700</span>
+                </div>
+                <div class="bm-eb-row" role="row">
+                    <span class="bm-eb-flux">Q<sub>N</sub> <span class="unit">net all-wave</span></span>
+                    <span class="bm-eb-track"><span class="bm-eb-bar" data-bar="QN" style="width:19%;background:color-mix(in srgb,var(--bad) 50%,transparent)"></span><span class="bm-eb-mae" data-cell="QN:MAE">8.54</span></span>
+                    <span class="bm-eb-mbe num" data-cell="QN:MBE">&plus;2.56</span>
+                    <span class="bm-eb-n num" data-cell="QN:n">24160</span>
+                </div>
+                <div class="bm-eb-row" role="row">
+                    <span class="bm-eb-flux">Q<sub>H</sub> <span class="unit">sensible heat</span></span>
+                    <span class="bm-eb-track"><span class="bm-eb-bar" data-bar="QH" style="width:87.8%;background:color-mix(in srgb,var(--bad) 88%,transparent)"></span><span class="bm-eb-mae" data-cell="QH:MAE">39.52</span></span>
+                    <span class="bm-eb-mbe num" data-cell="QH:MBE">&plus;12.17</span>
+                    <span class="bm-eb-n num" data-cell="QH:n">22137</span>
+                </div>
+                <div class="bm-eb-row" role="row">
+                    <span class="bm-eb-flux">Q<sub>E</sub> <span class="unit">latent heat</span></span>
+                    <span class="bm-eb-track"><span class="bm-eb-bar" data-bar="QE" style="width:32.4%;background:color-mix(in srgb,var(--bad) 58%,transparent)"></span><span class="bm-eb-mae" data-cell="QE:MAE">14.59</span></span>
+                    <span class="bm-eb-mbe num" data-cell="QE:MBE">&plus;5.65</span>
+                    <span class="bm-eb-n num" data-cell="QE:n">19535</span>
+                </div>
+            </div>
+            <p class="bm-table-note">Bar length and value are the mean absolute error (MAE) against the Ward&nbsp;et&nbsp;al. (2016) observations, full period (2011&ndash;2013), with the bar&rsquo;s shade deepening as the error grows. MBE is the mean bias (model &minus; observation); n is the count of valid hourly pairs. All fluxes in W&nbsp;m&#8315;&#178;.</p>
+        </section>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Error by season &mdash; <span class="sel-ver">v2026.6.5</span></span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <div class="bm-matrix" role="table" aria-label="Mean absolute error by flux and season, watts per square metre; cell shade increases with error">
+                <div class="corner"></div>
+                <div class="col-h" role="columnheader">DJF</div>
+                <div class="col-h" role="columnheader">MAM</div>
+                <div class="col-h" role="columnheader">JJA</div>
+                <div class="col-h" role="columnheader">SON</div>
+
+                <div class="row-h">K<sub>up</sub></div>
+                <div class="bm-cell num" data-seas="Kup:0">2.04</div><div class="bm-cell num" data-seas="Kup:1">2.83</div><div class="bm-cell num" data-seas="Kup:2">2.77</div><div class="bm-cell num" data-seas="Kup:3">2.23</div>
+
+                <div class="row-h">L<sub>up</sub></div>
+                <div class="bm-cell num" data-seas="Lup:0">4.19</div><div class="bm-cell num" data-seas="Lup:1">5.39</div><div class="bm-cell num" data-seas="Lup:2">4.89</div><div class="bm-cell num" data-seas="Lup:3">3.59</div>
+
+                <div class="row-h">Q<sub>N</sub></div>
+                <div class="bm-cell num" data-seas="QN:0">6.07</div><div class="bm-cell num" data-seas="QN:1">11.33</div><div class="bm-cell num" data-seas="QN:2">10.77</div><div class="bm-cell num" data-seas="QN:3">6.20</div>
+
+                <div class="row-h">Q<sub>H</sub></div>
+                <div class="bm-cell num" data-seas="QH:0">34.04</div><div class="bm-cell num" data-seas="QH:1">40.50</div><div class="bm-cell num" data-seas="QH:2">42.77</div><div class="bm-cell num" data-seas="QH:3">40.80</div>
+
+                <div class="row-h">Q<sub>E</sub></div>
+                <div class="bm-cell num" data-seas="QE:0">10.20</div><div class="bm-cell num" data-seas="QE:1">14.48</div><div class="bm-cell num" data-seas="QE:2">19.07</div><div class="bm-cell num" data-seas="QE:3">14.08</div>
+            </div>
+            <p class="bm-matrix-note">Mean absolute error (W m&#8315;&#178;) by flux and season. <b style="font-weight:500;color:var(--text-secondary)">Cell shade increases with error</b> (deeper = larger MAE). DJF / MAM / JJA / SON are winter / spring / summer / autumn; Q<sub>H</sub> dominates the error budget, peaking in summer.</p>
+        </section>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Air temperature &mdash; RSL profile &mdash; <span class="sel-ver">v2026.6.5</span></span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <div class="bm-eb" role="table" aria-label="RSL air-temperature error by measurement height">
+                <div class="bm-eb-head" role="row">
+                    <span role="columnheader">Height</span>
+                    <span role="columnheader">MAE (K)</span>
+                    <span class="num" role="columnheader">MBE</span>
+                    <span class="num" role="columnheader">n</span>
+                </div>
+                <div class="bm-eb-row" role="row">
+                    <span class="bm-eb-flux">16.0 m</span>
+                    <span class="bm-eb-track"><span class="bm-eb-bar" data-rbar="16.0" style="width:47%;background:color-mix(in srgb,var(--bad) 66%,transparent)"></span><span class="bm-eb-mae" data-rcell="16.0:MAE">0.33</span></span>
+                    <span class="bm-eb-mbe num" data-rcell="16.0:MBE">&minus;0.25</span>
+                    <span class="bm-eb-n num" data-rcell="16.0:n">2986</span>
+                </div>
+                <div class="bm-eb-row" role="row">
+                    <span class="bm-eb-flux">12.5 m</span>
+                    <span class="bm-eb-track"><span class="bm-eb-bar" data-rbar="12.5" style="width:46%;background:color-mix(in srgb,var(--bad) 65%,transparent)"></span><span class="bm-eb-mae" data-rcell="12.5:MAE">0.32</span></span>
+                    <span class="bm-eb-mbe num" data-rcell="12.5:MBE">&minus;0.16</span>
+                    <span class="bm-eb-n num" data-rcell="12.5:n">2986</span>
+                </div>
+                <div class="bm-eb-row" role="row">
+                    <span class="bm-eb-flux">6.5 m</span>
+                    <span class="bm-eb-track"><span class="bm-eb-bar" data-rbar="6.5" style="width:77%;background:color-mix(in srgb,var(--bad) 82%,transparent)"></span><span class="bm-eb-mae" data-rcell="6.5:MAE">0.54</span></span>
+                    <span class="bm-eb-mbe num" data-rcell="6.5:MBE">&minus;0.41</span>
+                    <span class="bm-eb-n num" data-rcell="6.5:n">2986</span>
+                </div>
+            </div>
+            <p class="bm-table-note">Modelled air temperature interpolated from the RSL vertical profile to the tower heights, scored against observations over two 2013 windows (Jan&ndash;Mar, Apr&ndash;Jun); bar length and shade both grow with the error. MAE/MBE in K; n is valid hourly pairs. Across releases the profile error is steady (~0.3&ndash;0.4 K) through 2026.1 and rises slightly at 2026.4 (6.5 m: 0.42 &rarr; 0.54 K). That shift is isolated to the diagnosed near-surface profile and traces to a 2026.4 change in the model backend, not the surface physics &mdash; the energy-balance fluxes are unchanged.</p>
+        </section>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Site information</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <dl class="bm-prov">
+                <div><dt>Site</dt><dd>King&rsquo;s College London <span class="mono">UK-LO-KCL</span></dd></div>
+                <div><dt>Reference</dt><dd><a href="https://doi.org/10.1016/j.uclim.2016.05.001">Ward&nbsp;et&nbsp;al. (2016)</a></dd></div>
+                <div><dt>Evaluation period</dt><dd><span class="mono">2011-01-01 &ndash; 2013-12-31</span></dd></div>
+                <div><dt>Observations</dt><dd>Eddy-covariance fluxes, Kc1 <span class="mono">restricted</span></dd></div>
+            </dl>
+        </section>
+
+        <section class="subpage-notes">
+            <p>The evaluation observations and forcing are access-restricted; only the derived statistics on this page are published. Reproduction data is archived in the <a href="https://sandbox.zenodo.org/records/508290">Zenodo reproducibility record</a>, with the full reproduction recipe in <a href="https://github.com/UMEP-dev/SUEWS/blob/master/benchmark/REPRODUCE.md">REPRODUCE.md</a>. See the <a href="https://docs.suews.io/stable/">SUEWS documentation</a> for the model description and benchmarking methodology.</p>
+        </section>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <nav class="footer-nav" aria-label="Secondary navigation">
+                <ul>
+                    <li><a href="/team/">Team</a></li>
+                    <li><a href="/funding/">Funding</a></li>
+                    <li><a href="/dependencies/">Dependencies</a></li>
+                    <li><a href="/brand/">Brand</a></li>
+                </ul>
+            </nav>
+            <p class="footer-legal">&copy; 2025&ndash;<span id="current-year"></span> SUEWS Team</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        function setTheme(theme) {
+            root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+            localStorage.setItem('theme', theme);
+        }
+        setTheme(getPreferredTheme());
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) setTheme(e.matches ? 'light' : 'dark');
+        });
+    </script>
+
+    <!-- Release selector: switch the displayed release's stats (real data) -->
+    <script>
+        const BENCH = {"2025.7.6":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2025.10.15":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2025.11.20":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2026.1.28":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2026.4.3":{"full":{"Kup":[2.46,-0.9,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.56,24160],"QH":[39.52,12.17,22137],"QE":[14.59,5.65,19535]},"seas":{"Kup":[2.04,2.83,2.77,2.23],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[34.04,40.5,42.77,40.8],"QE":[10.2,14.48,19.07,14.08]}},"2026.6.5":{"full":{"Kup":[2.46,-0.9,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.56,24160],"QH":[39.52,12.17,22137],"QE":[14.59,5.65,19535]},"seas":{"Kup":[2.04,2.83,2.77,2.23],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[34.04,40.5,42.77,40.8],"QE":[10.2,14.48,19.07,14.08]}}};
+        const RSL = {"2025.7.6":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2025.10.15":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2025.11.20":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2026.1.28":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2026.4.3":{"6.5":[0.54,-0.41,2986,0.7,0.35],"12.5":[0.32,-0.16,2986,0.3,0.35],"16.0":[0.33,-0.25,2986,0.32,0.34]},"2026.6.5":{"6.5":[0.54,-0.41,2986,0.7,0.35],"12.5":[0.32,-0.16,2986,0.3,0.35],"16.0":[0.33,-0.25,2986,0.32,0.34]}};
+        const FL = ["Kup", "Lup", "QN", "QH", "QE"];
+        const HT = ["6.5", "12.5", "16.0"];
+        const EB_SCALE = 45, RSL_SCALE = 0.7;
+        function sgn(x) { return (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(2); }
+        function setMagBar(sel, val, scale) { const b = document.querySelector(sel); if (!b) return; b.style.width = Math.min(100, Math.max(2, val / scale * 100)).toFixed(1) + "%"; b.style.background = "color-mix(in srgb, var(--bad) " + Math.min(95, Math.round(40 + 55 * Math.min(1, val / scale))) + "%, transparent)"; }
+        function setTxt(sel, t) { const e = document.querySelector(sel); if (e) e.textContent = t; }
+        function setMbe(sel, x) { const e = document.querySelector(sel); if (e) e.innerHTML = sgn(x).replace("−", "&minus;"); }
+        function render(ver) {
+            const d = BENCH[ver];
+            if (!d) return;
+            document.querySelectorAll(".sel-ver").forEach(e => { e.textContent = "v" + ver; });
+            FL.forEach(f => {
+                const mae = d.full[f][0];
+                setMagBar('[data-bar="' + f + '"]', mae, EB_SCALE);
+                setTxt('[data-cell="' + f + ':MAE"]', mae.toFixed(2));
+                setMbe('[data-cell="' + f + ':MBE"]', d.full[f][1]);
+                setTxt('[data-cell="' + f + ':n"]', d.full[f][2]);
+                d.seas[f].forEach((v, i) => {
+                    const c = document.querySelector('[data-seas="' + f + ':' + i + '"]');
+                    if (c) {
+                        c.textContent = v.toFixed(2);
+                        c.style.background = "color-mix(in srgb, var(--bad) " + Math.min(60, Math.round(v / EB_SCALE * 60)) + "%, transparent)";
+                    }
+                });
+            });
+            const r = RSL[ver];
+            if (r) HT.forEach(h => {
+                setMagBar('[data-rbar="' + h + '"]', r[h][0], RSL_SCALE);
+                setTxt('[data-rcell="' + h + ':MAE"]', r[h][0].toFixed(2));
+                setMbe('[data-rcell="' + h + ':MBE"]', r[h][1]);
+                setTxt('[data-rcell="' + h + ':n"]', r[h][2]);
+            });
+            document.querySelectorAll(".bm-release[data-ver]").forEach(b => {
+                if (b.dataset.ver === ver) b.setAttribute("aria-current", "true");
+                else b.removeAttribute("aria-current");
+            });
+        }
+        document.querySelectorAll(".bm-release[data-ver]").forEach(b => {
+            b.addEventListener("click", () => render(b.dataset.ver));
+        });
+        render("2026.6.5");
+
+        // ----- Two-release compare (side-by-side spec cards) -----
+        const CMP_LATEST = "2026.6.5";
+        const CMP_TOL = 0.05;
+        const CMP_METRICS = [
+            { sec: "Energy balance &mdash; MAE (W m&#8315;&#178;)" },
+            { grp: "eb", k: "Kup", label: "K<sub>up</sub>", unit: "reflected SW" },
+            { grp: "eb", k: "Lup", label: "L<sub>up</sub>", unit: "outgoing LW" },
+            { grp: "eb", k: "QN", label: "Q<sub>N</sub>", unit: "net all-wave" },
+            { grp: "eb", k: "QH", label: "Q<sub>H</sub>", unit: "sensible heat" },
+            { grp: "eb", k: "QE", label: "Q<sub>E</sub>", unit: "latent heat" },
+            { sec: "Air temperature &mdash; RSL MAE (K)" },
+            { grp: "rsl", k: "16.0", label: "16.0 m" },
+            { grp: "rsl", k: "12.5", label: "12.5 m" },
+            { grp: "rsl", k: "6.5", label: "6.5 m" }
+        ];
+        function fmtDelta(d, tol) {
+            const zero = Math.abs(d) < 0.005;
+            const cls = (zero || Math.abs(d) <= tol) ? "same" : (d < 0 ? "better" : "worse");
+            const s = zero ? "0.00" : (d > 0 ? "+" : "−") + Math.abs(d).toFixed(2);
+            return { cls: cls, s: s };
+        }
+        function statOf(ver, m) { return m.grp === "eb" ? BENCH[ver].full[m.k][0] : RSL[ver][m.k][0]; }
+        function buildBody(ver, baseVer, withDelta) {
+            let html = "", shifts = 0;
+            CMP_METRICS.forEach(m => {
+                if (m.sec) { html += '<div class="bm-cmp2-sub">' + m.sec + '</div>'; return; }
+                const val = statOf(ver, m);
+                let deltaHtml = "";
+                if (withDelta) {
+                    const d = +(val - statOf(baseVer, m)).toFixed(2);
+                    const r = fmtDelta(d, CMP_TOL);
+                    if (r.cls !== "same") shifts++;
+                    deltaHtml = '<span class="bm-cmp2-delta ' + r.cls + '">' + r.s + '</span>';
+                }
+                const unit = m.unit ? ' <span class="unit">' + m.unit + '</span>' : '';
+                html += '<div class="bm-cmp2-row"><span class="bm-cmp2-label">' + m.label + unit + '</span>'
+                    + '<span class="bm-cmp2-val">' + val.toFixed(2) + deltaHtml + '</span></div>';
+            });
+            return { html: html, shifts: shifts };
+        }
+        function setCard(side, ver, isRight) {
+            const ve = document.getElementById("cmp2-ver-" + side);
+            const te = document.getElementById("cmp2-tag-" + side);
+            if (ve) ve.textContent = ver;
+            if (te) {
+                const isLatest = ver === CMP_LATEST;
+                te.textContent = isLatest ? "latest" : (isRight ? "comparison" : "baseline");
+                te.className = "bm-cmp2-tag" + (isLatest ? " latest" : "");
+            }
+        }
+        function cmpRender(a, b) {
+            setCard("a", a, false);
+            setCard("b", b, true);
+            document.getElementById("cmp2-body-a").innerHTML = buildBody(a, b, false).html;
+            document.getElementById("cmp2-body-b").innerHTML = buildBody(b, a, true).html;
+        }
+        (function initCompare() {
+            const vers = Object.keys(BENCH);
+            const selA = document.getElementById("cmp-a"), selB = document.getElementById("cmp-b");
+            if (!selA || !selB) return;
+            vers.forEach(v => { selA.add(new Option(v, v)); selB.add(new Option(v, v)); });
+            selA.value = vers[0];
+            selB.value = vers[vers.length - 1];
+            selA.addEventListener("change", () => cmpRender(selA.value, selB.value));
+            selB.addEventListener("change", () => cmpRender(selA.value, selB.value));
+            cmpRender(selA.value, selB.value);
+        })();
+    </script>
+</body>
+</html>

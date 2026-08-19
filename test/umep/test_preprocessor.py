@@ -8,11 +8,12 @@ This module tests the functions used by UMEP Pre-processor plugins:
 See: https://github.com/UMEP-dev/SUEWS/issues/901
 """
 
+from importlib.resources import as_file
 import tempfile
 from pathlib import Path
 from unittest import TestCase
 
-import supy as sp
+from supy._env import trv_supy_module
 
 
 class TestDatabaseManagerAPI(TestCase):
@@ -24,14 +25,14 @@ class TestDatabaseManagerAPI(TestCase):
 
     def test_generate_json_schema_import(self):
         """Test that generate_json_schema is importable from expected location."""
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         self.assertIsNotNone(generate_json_schema)
         self.assertTrue(callable(generate_json_schema))
 
     def test_generate_json_schema_returns_valid_schema(self):
         """Test that generate_json_schema returns a valid JSON schema."""
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         schema = generate_json_schema()
 
@@ -50,7 +51,7 @@ class TestDatabaseManagerAPI(TestCase):
 
     def test_generate_json_schema_has_definitions(self):
         """Test that schema contains $defs used by Database Manager for validation."""
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         schema = generate_json_schema()
 
@@ -79,13 +80,17 @@ class TestDatabasePrepareAPI(TestCase):
     def test_validate_single_file_valid_config(self):
         """Test validation of a valid configuration file."""
         from supy.cmd.validate_config import validate_single_file
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         # Get sample config path
-        sample_config = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        sample_resource = trv_supy_module / "sample_data" / "sample_config.yml"
 
-        if not sample_config.exists():
+        if not sample_resource.is_file():
             self.skipTest("Sample config not available")
+
+        # `validate_single_file` opens the path itself, so hand it a
+        # real file rather than a packaged-resource handle.
+        sample_config = self.enterContext(as_file(sample_resource))
 
         # Generate schema
         schema = generate_json_schema()
@@ -100,11 +105,11 @@ class TestDatabasePrepareAPI(TestCase):
     def test_validate_single_file_invalid_config(self):
         """Test validation handles invalid config gracefully."""
         from supy.cmd.validate_config import validate_single_file
-        from supy.data_model.schema.publisher import generate_json_schema
+        from supy.data_model.configuration.publisher import generate_json_schema
 
         schema = generate_json_schema()
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             # Malformed YAML to test parse error handling (unclosed brackets)
             f.write("invalid: yaml: content: [[[")
             temp_path = Path(f.name)
@@ -114,6 +119,44 @@ class TestDatabasePrepareAPI(TestCase):
             # Should not crash, should return invalid
             self.assertIsInstance(is_valid, bool)
             self.assertIsInstance(errors, list)
+        finally:
+            temp_path.unlink()
+
+    def test_validate_single_file_sparse_config_is_invalid(self):
+        """Sparse YAML must fail file-backed model validation."""
+        from supy.cmd.validate_config import validate_single_file
+        from supy.data_model.configuration.publisher import generate_json_schema
+
+        schema = generate_json_schema()
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+
+        is_valid, errors = validate_single_file(sparse_config, schema)
+
+        self.assertFalse(is_valid)
+        messages = "\n".join(getattr(err, "message", str(err)) for err in errors)
+        self.assertIn("faibldg", messages)
+        self.assertIn("conductance.g_max", messages)
+
+    def test_validate_single_file_explicit_older_schema_stays_schema_only(self):
+        """Explicit older targets should not run current-schema semantic checks."""
+        from supy.cmd.validate_config import validate_single_file
+        from supy.data_model.configuration.publisher import generate_json_schema
+
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+        schema = generate_json_schema(version="2026.5.dev5")
+
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
+            f.write(f"schema_version: '2026.5.dev5'\n{sparse_config.read_text(encoding='utf-8')}")
+            temp_path = Path(f.name)
+
+        try:
+            is_valid, errors = validate_single_file(
+                temp_path,
+                schema,
+                schema_version="2026.5.dev5",
+            )
+            self.assertTrue(is_valid)
+            self.assertEqual(errors, [])
         finally:
             temp_path.unlink()
 

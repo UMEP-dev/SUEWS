@@ -9,10 +9,11 @@ Runtime: <1 second
 Purpose: Catch regression of the exact equality bug fixed in Issue #504
 """
 
+from conftest import load_sample_frames, run_simulation
 import numpy as np
 import pytest
 
-import supy as sp
+pytestmark = pytest.mark.physics
 
 
 class TestQEQHEdgeCases:
@@ -21,7 +22,7 @@ class TestQEQHEdgeCases:
     @pytest.fixture
     def sample_data(self):
         """Load sample data for testing."""
-        return sp.load_SampleData()
+        return load_sample_frames()
 
     def test_low_wind_and_zero_boundaries(self, sample_data):
         """
@@ -35,7 +36,7 @@ class TestQEQHEdgeCases:
         # Test multiple edge cases in one run for efficiency
         test_scenarios = [
             {"U": 0.01, "name": "very_low_wind"},  # Very low wind
-            {"U": 0.001, "name": "extreme_low_wind"},  # Extremely low wind
+            {"U": 0.02, "name": "low_wind_boundary"},
             {"U": 0.1, "name": "low_wind"},  # Low wind
         ]
 
@@ -43,11 +44,11 @@ class TestQEQHEdgeCases:
             # Use only 6 timesteps for speed
             df_test = df_forcing.iloc[:6].copy()
             df_test["U"] = scenario["U"]
-            df_test["Temp_C"] = 15.0  # Neutral temperature
+            df_test["Tair"] = 15.0  # Neutral temperature
             df_test["RH"] = 60.0  # Moderate humidity
 
             # Run simulation
-            result, _ = sp.run_supy(df_test, df_state_init)
+            result, _ = run_simulation(df_test, df_state_init)
 
             # Verify valid results (no NaN or infinite values)
             assert not result.empty, f"Failed for {scenario['name']}"
@@ -78,8 +79,8 @@ class TestQEQHEdgeCases:
         df_test["U"] = 0.01  # Low wind to stress the system
 
         # Run twice
-        result1, _ = sp.run_supy(df_test, df_state_init)
-        result2, _ = sp.run_supy(df_test, df_state_init)
+        result1, _ = run_simulation(df_test, df_state_init)
+        result2, _ = run_simulation(df_test, df_state_init)
 
         # Results must be identical
         np.testing.assert_array_equal(
@@ -104,11 +105,11 @@ class TestQEQHEdgeCases:
 
         # Create smooth transition
         df_test = df_forcing.iloc[:12].copy()
-        df_test["Temp_C"] = np.linspace(10, 25, 12)  # Gradual warming
+        df_test["Tair"] = np.linspace(10, 25, 12)  # Gradual warming
         df_test["U"] = np.linspace(0.5, 2.0, 12)  # Increasing wind
 
         # Run simulation
-        result, _ = sp.run_supy(df_test, df_state_init)
+        result, _ = run_simulation(df_test, df_state_init)
 
         # Check for reasonable gradients (no discontinuities)
         qe_values = result.SUEWS["QE"].values

@@ -1,0 +1,7 @@
+# Deliberately-broken SUEWS YAML for Layer-2 real-CLI smoke testing.
+# Invalid YAML syntax — unclosed flow sequence — so the validator's
+# structural layer rejects it with code INVALID_YAML (2004). Used by
+# `test_real_cli_smoke.py` to assert that a known-bad config produces
+# an actionable error envelope rather than a raw traceback or a
+# misleading success.
+key: [unclosed bracket

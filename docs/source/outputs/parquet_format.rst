@@ -18,13 +18,23 @@ large-scale SUEWS simulations.
 Output Files
 ------------
 
-When using parquet format, SUEWS produces two output files:
+When using parquet format through the object-oriented API, SUEWS produces the
+analysis output parquet file and a checkpoint JSON restart artefact:
 
-- **SSss_SUEWS_output.parquet** - All simulation output in a single file, including
+- **SSss_SUEWS_output[_REFERENCE].parquet** - All simulation output in a single file, including
   all output groups and years. See :doc:`variables/index` for variable details.
 
-- **SSss_SUEWS_state_final.parquet** - Final model state for restart runs.
+- **{site}_SUEWS_checkpoint.json** - Typed runtime state for restart runs.
   See :ref:`State Persistence <state-persistence>` for details.
+
+Legacy and developer workflows may still produce
+``SSss_SUEWS_state_final.parquet`` for DataFrame state inspection, but it is not
+the preferred restart artefact for new object-oriented workflows.
+
+An explicit output timestamp reference adds ``_UTC``, ``_STANDARD``, or
+``_DAYLIGHT`` to the output, state, and metadata parquet filenames. The
+metadata parquet records the requested ``timestamp_reference`` value. The
+default ``follow`` policy retains the unsuffixed filenames.
 
 
 Reading Parquet Files
@@ -59,7 +69,7 @@ To enable parquet output in your YAML configuration:
 
    model:
      control:
-       output_file:
+       output:
          format: parquet
          freq: 3600
 

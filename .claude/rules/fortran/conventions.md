@@ -44,6 +44,22 @@ Conventions for SUEWS Fortran source files.
 
 ---
 
+## Code Size (heuristics, not gates)
+
+- **One module per file.** The `suews_<category>_<name>.f95` naming implies a
+  single primary module per file; do not accumulate unrelated modules in one file.
+- **Keep procedures focused.** Aim to keep a new subroutine/function to a single
+  calculation, roughly a few hundred lines at most; extract helpers rather than
+  growing one procedure. The legacy giants (e.g. the driver output packing) are
+  migration debt, not a template.
+- **Prefer derived types over long argument lists.** Bundle related state into a
+  `dts_*` type and pass that, instead of adding more positional arguments; flag
+  procedures with very many arguments for a derived-type refactor.
+- A change that only stays small by editing an oversized procedure is a signal to
+  split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
+
+---
+
 ## Examples
 
 ```fortran
@@ -97,6 +113,14 @@ When investigating "stack smashing detected" or similar buffer overruns:
 4. **`FCFLAGS` is NOT forwarded through `make dev`**
    - Meson-python ignores the `FCFLAGS` env var; flags are hard-coded in `meson.build`
    - To add `-fcheck=bounds`, modify `meson.build` directly (the `fast_build` flag set)
+
+---
+
+## Numerical Guarding
+
+- Comparisons like `< 0.0D0` do not catch `NaN`.
+- When validating floating-point inputs that must be finite or non-missing, check `IEEE_IS_NAN(...)` explicitly (import from intrinsic `ieee_arithmetic` as needed).
+- Add the `NaN` branch to the same fatal-error path as the ordinary invalid values unless the algorithm has a clearly documented recovery path.
 
 ---
 

@@ -232,8 +232,9 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
    model:
      control:
        tstep: 300  # 5-minute time steps
-       forcing_file:
-         value: "Input/Met_Data.txt"
+       forcing:
+         file:
+           value: "Input/Met_Data.txt"
        start_date: "2015-01-01"
        end_date: "2015-12-31"
      physics:
@@ -332,13 +333,37 @@ Once you have a YAML configuration file, use the `SUEWSSimulation` class:
    sim = SUEWSSimulation("path/to/your/config_suews.yml")
 
    # Run simulation (forcing data loaded from config)
-   sim.run()
+   output = sim.run()
 
    # Access results
    print(sim.results)
 
    # Save outputs
    sim.save("output_directory/")
+
+   # Save the typed restart artefact explicitly
+   checkpoint_path = output.checkpoint.to_file(
+       "output_directory/{site}_SUEWS_checkpoint.json"
+   )
+
+To continue a simulation, pair the same YAML configuration with the checkpoint
+from the previous run and the next forcing period:
+
+.. code-block:: python
+
+   from supy import SUEWSSimulation
+
+   sim_next = SUEWSSimulation.from_checkpoint(
+       "path/to/your/config_suews.yml",
+       "output_directory/{site}_SUEWS_checkpoint.json",
+   )
+   sim_next.update_forcing("forcing_next_period.txt")
+   output_next = sim_next.run()
+
+The checkpoint is intentionally only the typed runtime state. To continue a
+run, load the same YAML configuration, attach the next forcing period, and run
+from ``SUEWSSimulation.from_checkpoint(...)``. Checkpoints are keyed by grid ID,
+so checkpoint/configuration grid mismatches are rejected by the runtime.
 
 For detailed examples, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
 
@@ -385,8 +410,8 @@ Multi-Site and Comparative Studies
    def run_site(config_file):
        """Run SUEWS for a single site configuration"""
        sim = SUEWSSimulation(config_file)
-       sim.run()
-       return config_file, (sim.results, sim.state_final)
+       output = sim.run()
+       return config_file, output
 
    # Configuration files for different sites
    site_configs = [
@@ -399,19 +424,15 @@ Multi-Site and Comparative Studies
    with Pool() as pool:
        results = pool.map(run_site, site_configs)
 
-   # Note: Each result tuple contains (df_output, df_state_final)
-   # We need to access variables using the simulation object or helper
+   # Note: Each result tuple contains a SUEWSOutput object. Its checkpoint
+   # can be saved or passed to SUEWSSimulation.from_checkpoint(...) later.
 
-   # Create simulations from stored states to access get_variable()
    monthly_temps = {}
-   for name, (output, state) in results:
-       # Recreate sim with results for get_variable() access
-       sim_temp = SUEWSSimulation()
-       sim_temp._df_output = output
-       sim_temp._run_completed = True
-
-       t2 = sim_temp.get_variable('T2', group='SUEWS')
+   checkpoints = {}
+   for name, output in results:
+       t2 = output.get_variable('T2', group='SUEWS')
        monthly_temps[name] = t2.iloc[:, 0].groupby(t2.index.month).mean()
+       checkpoints[name] = output.checkpoint
 
    temp_comparison = pd.DataFrame(monthly_temps)
    temp_comparison.plot(kind='bar', title='Monthly Temperature Comparison')
@@ -595,10 +616,10 @@ Migration Process
 
 .. code-block:: bash
 
-   # Convert legacy table inputs to modern YAML (pending issue #581)
+   # Convert legacy table inputs to modern YAML (under development)
    suews-convert to-yaml -i legacy_input_dir/ -o modern_config.yml
    
-   # Note: This feature is under development (see issue #581)
+   # Note: This feature is under development
    # For now, use the SUEWSSimulation class with existing table inputs or YAML files
 
 **Testing Your Migration:**

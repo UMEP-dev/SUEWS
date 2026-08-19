@@ -931,22 +931,57 @@ class InitialStates(BaseModel):
     )
     roofs: Optional[List[SurfaceInitialState]] = Field(
         default=[
-            SurfaceInitialState(),
-            SurfaceInitialState(),
-            SurfaceInitialState(),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
         ],
         description="Initial states for roof layers",
         json_schema_extra={"display_name": "Roofs"},
     )
     walls: Optional[List[SurfaceInitialState]] = Field(
         default=[
-            SurfaceInitialState(),
-            SurfaceInitialState(),
-            SurfaceInitialState(),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
         ],
         description="Initial states for wall layers",
         json_schema_extra={"display_name": "Walls"},
     )
+
+    @model_validator(mode="after")
+    def _clear_building_surface_snow(self):
+        """Roofs and walls do not track snow state independently.
+
+        Snow on buildings is tracked via the aggregate Bldgs surface type.
+        Proper per-surface snow handling is deferred to a future snow module update.
+        """
+        for surfaces in (self.roofs, self.walls):
+            if surfaces:
+                for surf in surfaces:
+                    surf.snowfrac = None
+                    surf.snowpack = None
+                    surf.icefrac = None
+                    surf.snowwater = None
+                    surf.snowdens = None
+        return self
 
     dqndt: float = Field(
         default=0,

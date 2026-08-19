@@ -21,7 +21,7 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 - **`installation.rst`**: Installation instructions
 - **`workflow.rst`**: User workflow guidance  
 - **`notation.rst`**: Mathematical notation and symbols
-- **`acknowledgement.rst`**: Credits and acknowledgments
+- **`acknowledgement.rst`**: Stub page linking to canonical team / funding / dependencies pages on suews.io
 - **`troubleshooting.rst`**: Common issues and solutions
 
 #### Input/Output Reference
@@ -139,7 +139,17 @@ The build system automatically:
 - Generates JSON Schema for configuration UI
 
 ### Dependencies
-Python dependencies specified in `pyproject.toml` (install with `pip install -e ".[dev]"`).
+Python dependencies specified in `pyproject.toml`.
+Runtime installs support Python 3.9 and newer. Documentation tooling requires
+Python 3.11 or newer because current Sphinx extension versions, including
+`sphinx-design>=0.7.0`, do not support Python 3.9/3.10.
+Recommended local setup:
+
+```bash
+make dev
+make docs-setup
+```
+
 System-level tools must be installed separately:
 - **pandoc** for format conversion (`brew install pandoc` / `apt install pandoc`)
 - **Node.js** for web UI components

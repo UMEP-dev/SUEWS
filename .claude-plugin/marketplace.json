@@ -1,25 +1,24 @@
 {
   "name": "suews",
+  "owner": {
+    "name": "UMEP-dev",
+    "email": "ting.sun@ucl.ac.uk",
+    "url": "https://github.com/UMEP-dev"
+  },
   "metadata": {
-    "description": "Development skills for SUEWS urban climate model",
-    "version": "1.0.0",
+    "description": "SUEWS plugin for AI agent ecosystems - runtime workflow rules and the suews-mcp server for running, validating, and analysing simulations. Contributor/maintainer skills live in the repository under .claude/skills/ and are not published as a separate plugin.",
+    "version": "1.3.0",
     "repository": "https://github.com/UMEP-dev/SUEWS"
   },
   "plugins": [
     {
-      "name": "suews-dev",
-      "description": "Complete development toolkit for SUEWS contributors - environment setup, code linting, build verification, PR review, and release management",
+      "name": "suews",
+      "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Bundles workflow rules, the `suews-mcp` Model Context Protocol server (validation, inspection, summarise/compare/diagnose, init/convert, versioned knowledge pack), fresh-site simulation guidance with assumption ledgers/readiness levels, forcing-data checks, output interpretation, and common-error diagnostics.",
       "source": "./",
       "skills": [
-        "./.claude/skills/setup-dev",
-        "./.claude/skills/lint-code",
-        "./.claude/skills/verify-build",
-        "./.claude/skills/audit-pr",
-        "./.claude/skills/examine-issue",
-        "./.claude/skills/log-changes",
-        "./.claude/skills/prep-release",
-        "./.claude/skills/sync-docs"
-      ]
+        "./.claude/skills/suews"
+      ],
+      "mcpServers": "./.mcp.json"
     }
   ]
 }

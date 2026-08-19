@@ -5,6 +5,7 @@ import pandas as pd
 import warnings
 from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 from .profile import HourlyProfile, WeeklyProfile, DayProfile
+from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
 from ..validation.core.utils import (
     warn_missing_params,
     check_missing_params,
@@ -196,6 +197,9 @@ class AnthropogenicHeat(
 
     model_config = ConfigDict(title="Anthropogenic Heat")
 
+    # Sample/range metadata values below are derived from:
+    # - test/fixtures/benchmark1/benchmark1.yml (Ward et al. 2016 benchmark setup)
+    # - docs/source/inputs/tables/SUEWS_SiteInfo/sample-table/SUEWS_AnthropogenicEmission.txt
     qf0_beu: DayProfile = Field(
         description="Base anthropogenic heat flux for buildings, equipment and urban metabolism",
         default_factory=DayProfile,
@@ -204,27 +208,47 @@ class AnthropogenicHeat(
     qf_a: DayProfile = Field(
         description="Coefficient a for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient A"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "QF Coefficient A",
+            "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
+        },
     )
     qf_b: DayProfile = Field(
         description="Coefficient b for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient B"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "QF Coefficient B",
+            "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
+        },
     )
     qf_c: DayProfile = Field(
         description="Coefficient c for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient C"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "QF Coefficient C",
+            "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
+        },
     )
     baset_cooling: DayProfile = Field(
         description="Base temperature for cooling degree days",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "degC", "display_name": "Base Temperature Cooling"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Base Temperature Cooling",
+            "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+        },
     )
     baset_heating: DayProfile = Field(
         description="Base temperature for heating degree days",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "degC", "display_name": "Base Temperature Heating"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Base Temperature Heating",
+            "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+        },
     )
     ah_min: DayProfile = Field(
         description="Minimum anthropogenic heat flux",
@@ -232,6 +256,7 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m^-2",
             "display_name": "Minimum Anthropogenic Heat",
+            "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     ah_slope_cooling: DayProfile = Field(
@@ -240,6 +265,7 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Anthropogenic Heat Slope (Cooling)",
+            "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     ah_slope_heating: DayProfile = Field(
@@ -248,6 +274,7 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Anthropogenic Heat Slope (Heating)",
+            "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     ahprof_24hr: HourlyProfile = Field(
@@ -383,106 +410,133 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
 
     model_config = ConfigDict(title="CO2 Emissions")
 
-    co2pointsource: Optional[FlexibleRefValue(float)] = Field(
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_co2_fields(cls, values):
+        if isinstance(values, dict):
+            return apply_field_renames(values, CO2PARAMS_RENAMES, cls.__name__)
+        return values
+
+    # Sample/range metadata values below are derived from:
+    # - test/fixtures/benchmark1/benchmark1.yml (Ward et al. 2016 benchmark setup)
+    # - docs/source/inputs/tables/SUEWS_SiteInfo/sample-table/SUEWS_AnthropogenicEmission.txt
+    emission_co2_point_source: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="CO2 point source emission factor",
-        json_schema_extra={"unit": "kg m^-2 s^-1", "display_name": "CO2 Point Source"},
+        description="Whole-grid CO2 point-source emission expressed as carbon mass",
+        json_schema_extra={"unit": "kg C day^-1", "display_name": "CO2 Point Source"},
     )
-    ef_umolco2perj: Optional[FlexibleRefValue(float)] = Field(
+    emission_factor_co2_fuel: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="CO2 emission factor per unit of fuel energy",
         json_schema_extra={
             "unit": "umol J^-1",
             "display_name": "Emission Factor (umol CO2/J)",
+            "default_description": "Sample benchmark value: 1.159 umol J^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
-    enef_v_jkm: Optional[FlexibleRefValue(float)] = Field(
+    emission_factor_energy_vehicle: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Vehicle energy consumption factor",
+        description="Vehicle energy consumption per unit distance",
         json_schema_extra={
             "unit": "J km^-1",
             "display_name": "Energy Emission Factor Vehicles",
+            "range_description": "Sample range from benchmark/sample tables: 3.97e6-4.11e6 J km^-1; calibrate by site.",
         },
     )
-    fcef_v_kgkm: Optional[DayProfile] = Field(
-        description="Fuel consumption efficiency for vehicles",
+    emission_factor_co2_vehicle: Optional[DayProfile] = Field(
+        description="Vehicle CO2 emission factor per unit distance",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "kg km^-1",
+            "unit": "kg CO2 km^-1",
             "display_name": "Fuel Carbon Emission Factor Vehicles",
+            "default_description": "Sample benchmark value: 0.285 kg CO2 km^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     # Field is Optional[DayProfile] but has default_factory=DayProfile,
     # so it will never actually be None unless explicitly set during
     # validation preprocessing.
 
-    frfossilfuel_heat: Optional[FlexibleRefValue(float)] = Field(
+    fraction_fossil_fuel_heating: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Fraction of heating energy from fossil fuels",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Heating",
+            "range_description": "Sample range from benchmark/sample tables: 0.05-0.7 (depends on local energy mix).",
         },
         ge=0.0,
         le=1.0,
     )
-    frfossilfuel_nonheat: Optional[FlexibleRefValue(float)] = Field(
+    fraction_fossil_fuel_non_heating: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Fraction of non-heating energy from fossil fuels",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Non-Heating",
+            "range_description": "Sample range from benchmark/sample tables: 0.0-0.7 (depends on local energy mix).",
         },
         ge=0.0,
         le=1.0,
     )
-    maxfcmetab: Optional[FlexibleRefValue(float)] = Field(
+    emission_co2_metabolism_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Maximum metabolic CO2 flux rate",
+        description="Maximum daytime metabolic CO2 emission per capita",
         json_schema_extra={
-            "unit": "umol m^-2 s^-1",
+            "unit": "umol cap^-1 s^-1",
             "display_name": "Maximum Metabolic CO2 Flux",
+            "default_description": "Sample value from benchmark/sample tables: 280.0 umol cap^-1 s^-1; calibrate by site.",
         },
     )
-    maxqfmetab: Optional[FlexibleRefValue(float)] = Field(
+    emission_heat_metabolism_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Maximum metabolic heat flux rate",
+        description="Maximum daytime metabolic heat emission per capita",
         json_schema_extra={
-            "unit": "W m^-2",
+            "unit": "W cap^-1",
             "display_name": "Maximum Metabolic Heat Flux",
+            "default_description": "Sample value from benchmark/sample tables: 175.0 W cap^-1; calibrate by site.",
         },
     )
-    minfcmetab: Optional[FlexibleRefValue(float)] = Field(
+    emission_co2_metabolism_min: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Minimum metabolic CO2 flux rate",
+        description="Minimum night-time metabolic CO2 emission per capita",
         json_schema_extra={
-            "unit": "umol m^-2 s^-1",
+            "unit": "umol cap^-1 s^-1",
             "display_name": "Minimum Metabolic CO2 Flux",
+            "default_description": "Sample value from benchmark/sample tables: 120.0 umol cap^-1 s^-1; calibrate by site.",
         },
     )
-    minqfmetab: Optional[FlexibleRefValue(float)] = Field(
+    emission_heat_metabolism_min: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Minimum metabolic heat flux rate",
+        description="Minimum night-time metabolic heat emission per capita",
         json_schema_extra={
-            "unit": "W m^-2",
+            "unit": "W cap^-1",
             "display_name": "Minimum Metabolic Heat Flux",
+            "default_description": "Sample value from benchmark/sample tables: 75.0 W cap^-1; calibrate by site.",
         },
     )
-    trafficrate: Optional[DayProfile] = Field(
-        description="Traffic rate",
+    traffic_rate: Optional[DayProfile] = Field(
+        description="Mean traffic activity; basis selected by type_traffic_rate",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "vehicle km ha^-1", "display_name": "Traffic Rate"},
+        json_schema_extra={
+            "unit": (
+                "vehicle km m^-2 day^-1 (type 1) or vehicle km cap^-1 day^-1 (type 2)"
+            ),
+            "display_name": "Traffic Rate",
+        },
     )
     # Field is Optional[DayProfile] but has default_factory=DayProfile,
     # so it will never actually be None unless explicitly set during
     # validation preprocessing.
 
-    trafficunits: Optional[FlexibleRefValue(float)] = Field(
+    type_traffic_rate: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Units for traffic density normalisation",
-        json_schema_extra={"unit": "vehicle km ha^-1", "display_name": "Traffic Units"},
+        description="Traffic-rate basis: 1 for per area, 2 for per capita",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Traffic Rate Type",
+        },
     )
-    traffprof_24hr: Optional[HourlyProfile] = Field(
+    profile_traffic_24hr: Optional[HourlyProfile] = Field(
         description="24-hour profile of traffic rate",
         default_factory=HourlyProfile,
         json_schema_extra={
@@ -494,7 +548,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
     # so it will never actually be None unless explicitly set during
     # validation preprocessing.
 
-    humactivity_24hr: Optional[HourlyProfile] = Field(
+    profile_human_activity_24hr: Optional[HourlyProfile] = Field(
         description="24-hour profile of human activity",
         default_factory=HourlyProfile,
         json_schema_extra={
@@ -521,55 +575,55 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         """
 
         scalar_params = {
-            "co2pointsource": self.co2pointsource.value
-            if isinstance(self.co2pointsource, RefValue)
-            else self.co2pointsource
-            if self.co2pointsource is not None
+            "co2pointsource": self.emission_co2_point_source.value
+            if isinstance(self.emission_co2_point_source, RefValue)
+            else self.emission_co2_point_source
+            if self.emission_co2_point_source is not None
             else 0.0,
-            "ef_umolco2perj": self.ef_umolco2perj.value
-            if isinstance(self.ef_umolco2perj, RefValue)
-            else self.ef_umolco2perj
-            if self.ef_umolco2perj is not None
+            "ef_umolco2perj": self.emission_factor_co2_fuel.value
+            if isinstance(self.emission_factor_co2_fuel, RefValue)
+            else self.emission_factor_co2_fuel
+            if self.emission_factor_co2_fuel is not None
             else 0.0,
-            "enef_v_jkm": self.enef_v_jkm.value
-            if isinstance(self.enef_v_jkm, RefValue)
-            else self.enef_v_jkm
-            if self.enef_v_jkm is not None
+            "enef_v_jkm": self.emission_factor_energy_vehicle.value
+            if isinstance(self.emission_factor_energy_vehicle, RefValue)
+            else self.emission_factor_energy_vehicle
+            if self.emission_factor_energy_vehicle is not None
             else 0.0,
-            "frfossilfuel_heat": self.frfossilfuel_heat.value
-            if isinstance(self.frfossilfuel_heat, RefValue)
-            else self.frfossilfuel_heat
-            if self.frfossilfuel_heat is not None
+            "frfossilfuel_heat": self.fraction_fossil_fuel_heating.value
+            if isinstance(self.fraction_fossil_fuel_heating, RefValue)
+            else self.fraction_fossil_fuel_heating
+            if self.fraction_fossil_fuel_heating is not None
             else 0.0,
-            "frfossilfuel_nonheat": self.frfossilfuel_nonheat.value
-            if isinstance(self.frfossilfuel_nonheat, RefValue)
-            else self.frfossilfuel_nonheat
-            if self.frfossilfuel_nonheat is not None
+            "frfossilfuel_nonheat": self.fraction_fossil_fuel_non_heating.value
+            if isinstance(self.fraction_fossil_fuel_non_heating, RefValue)
+            else self.fraction_fossil_fuel_non_heating
+            if self.fraction_fossil_fuel_non_heating is not None
             else 0.0,
-            "maxfcmetab": self.maxfcmetab.value
-            if isinstance(self.maxfcmetab, RefValue)
-            else self.maxfcmetab
-            if self.maxfcmetab is not None
+            "maxfcmetab": self.emission_co2_metabolism_max.value
+            if isinstance(self.emission_co2_metabolism_max, RefValue)
+            else self.emission_co2_metabolism_max
+            if self.emission_co2_metabolism_max is not None
             else 0.0,
-            "maxqfmetab": self.maxqfmetab.value
-            if isinstance(self.maxqfmetab, RefValue)
-            else self.maxqfmetab
-            if self.maxqfmetab is not None
+            "maxqfmetab": self.emission_heat_metabolism_max.value
+            if isinstance(self.emission_heat_metabolism_max, RefValue)
+            else self.emission_heat_metabolism_max
+            if self.emission_heat_metabolism_max is not None
             else 0.0,
-            "minfcmetab": self.minfcmetab.value
-            if isinstance(self.minfcmetab, RefValue)
-            else self.minfcmetab
-            if self.minfcmetab is not None
+            "minfcmetab": self.emission_co2_metabolism_min.value
+            if isinstance(self.emission_co2_metabolism_min, RefValue)
+            else self.emission_co2_metabolism_min
+            if self.emission_co2_metabolism_min is not None
             else 0.0,
-            "minqfmetab": self.minqfmetab.value
-            if isinstance(self.minqfmetab, RefValue)
-            else self.minqfmetab
-            if self.minqfmetab is not None
+            "minqfmetab": self.emission_heat_metabolism_min.value
+            if isinstance(self.emission_heat_metabolism_min, RefValue)
+            else self.emission_heat_metabolism_min
+            if self.emission_heat_metabolism_min is not None
             else 0.0,
-            "trafficunits": self.trafficunits.value
-            if isinstance(self.trafficunits, RefValue)
-            else self.trafficunits
-            if self.trafficunits is not None
+            "trafficunits": self.type_traffic_rate.value
+            if isinstance(self.type_traffic_rate, RefValue)
+            else self.type_traffic_rate
+            if self.type_traffic_rate is not None
             else 0.0,
         }
         cols = {("gridiv", "0"): grid_id}
@@ -578,16 +632,16 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
         day_profiles = {
-            "fcef_v_kgkm": self.fcef_v_kgkm,
-            "trafficrate": self.trafficrate,
+            "fcef_v_kgkm": self.emission_factor_co2_vehicle,
+            "trafficrate": self.traffic_rate,
         }
         for param_name, profile in day_profiles.items():
             df_day_profile = profile.to_df_state(grid_id, param_name)
             df_state = df_state.combine_first(df_day_profile)
 
         hourly_profiles = {
-            "traffprof_24hr": self.traffprof_24hr,
-            "humactivity_24hr": self.humactivity_24hr,
+            "traffprof_24hr": self.profile_traffic_24hr,
+            "humactivity_24hr": self.profile_human_activity_24hr,
         }
         for param_name, profile in hourly_profiles.items():
             df_hourly_profile = profile.to_df_state(grid_id, param_name)
@@ -610,16 +664,18 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
 
         # Extract scalar attributes
         scalar_params = {
-            "co2pointsource": df.loc[grid_id, ("co2pointsource", "0")],
-            "ef_umolco2perj": df.loc[grid_id, ("ef_umolco2perj", "0")],
-            "enef_v_jkm": df.loc[grid_id, ("enef_v_jkm", "0")],
-            "frfossilfuel_heat": df.loc[grid_id, ("frfossilfuel_heat", "0")],
-            "frfossilfuel_nonheat": df.loc[grid_id, ("frfossilfuel_nonheat", "0")],
-            "maxfcmetab": df.loc[grid_id, ("maxfcmetab", "0")],
-            "maxqfmetab": df.loc[grid_id, ("maxqfmetab", "0")],
-            "minfcmetab": df.loc[grid_id, ("minfcmetab", "0")],
-            "minqfmetab": df.loc[grid_id, ("minqfmetab", "0")],
-            "trafficunits": df.loc[grid_id, ("trafficunits", "0")],
+            "emission_co2_point_source": df.loc[grid_id, ("co2pointsource", "0")],
+            "emission_factor_co2_fuel": df.loc[grid_id, ("ef_umolco2perj", "0")],
+            "emission_factor_energy_vehicle": df.loc[grid_id, ("enef_v_jkm", "0")],
+            "fraction_fossil_fuel_heating": df.loc[grid_id, ("frfossilfuel_heat", "0")],
+            "fraction_fossil_fuel_non_heating": df.loc[
+                grid_id, ("frfossilfuel_nonheat", "0")
+            ],
+            "emission_co2_metabolism_max": df.loc[grid_id, ("maxfcmetab", "0")],
+            "emission_heat_metabolism_max": df.loc[grid_id, ("maxqfmetab", "0")],
+            "emission_co2_metabolism_min": df.loc[grid_id, ("minfcmetab", "0")],
+            "emission_heat_metabolism_min": df.loc[grid_id, ("minqfmetab", "0")],
+            "type_traffic_rate": df.loc[grid_id, ("trafficunits", "0")],
         }
 
         # Convert scalar attributes to RefValue
@@ -627,16 +683,18 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
 
         # Extract DayProfile attributes
         day_profiles = {
-            "fcef_v_kgkm": DayProfile.from_df_state(df, grid_id, "fcef_v_kgkm"),
-            "trafficrate": DayProfile.from_df_state(df, grid_id, "trafficrate"),
+            "emission_factor_co2_vehicle": DayProfile.from_df_state(
+                df, grid_id, "fcef_v_kgkm"
+            ),
+            "traffic_rate": DayProfile.from_df_state(df, grid_id, "trafficrate"),
         }
 
         # Extract HourlyProfile attributes
         hourly_profiles = {
-            "traffprof_24hr": HourlyProfile.from_df_state(
+            "profile_traffic_24hr": HourlyProfile.from_df_state(
                 df, grid_id, "traffprof_24hr"
             ),
-            "humactivity_24hr": HourlyProfile.from_df_state(
+            "profile_human_activity_24hr": HourlyProfile.from_df_state(
                 df, grid_id, "humactivity_24hr"
             ),
         }

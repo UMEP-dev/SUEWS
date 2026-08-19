@@ -35,14 +35,18 @@ This directory contains internal documentation for SUEWS core developers.
 - **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
   - How we review code
   - What to look for in reviews
+  - Manual maintainer routing for governance and process changes
+
+- **[Scientific Reviewers](SCIENTIFIC_REVIEWERS.md)** - Manual scientific reviewer routing
+  - Module-specific reviewer suggestions
+  - When and how to request scientific review
 
 ### Testing
 - **[Testing Guidelines](testing/TESTING_GUIDELINES.md)** - Overall testing strategy
   - Test design principles
   - FIRST principles and AAA pattern
   
-- **[Fortran Test Patterns](testing/FORTRAN_TEST_PATTERNS.md)** - Fortran-specific testing
-  - Available modules via f90wrap
+- **[Fortran Test Patterns](testing/FORTRAN_TEST_PATTERNS.md)** - Fortran-specific testing (historical; f90wrap removed)
   - Common test patterns
   
 - **[Error Handling](testing/ERROR_HANDLING_PATTERNS.md)** - Error handling best practices
@@ -61,7 +65,7 @@ This directory contains internal documentation for SUEWS core developers.
 
 ## External Links
 - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
-- [User Documentation](https://suews.readthedocs.io)
+- [User Documentation](https://docs.suews.io)
 - [GitHub Issues](https://github.com/UMEP-dev/SUEWS/issues)
 - [GitHub Discussions](https://github.com/UMEP-dev/SUEWS/discussions)
 

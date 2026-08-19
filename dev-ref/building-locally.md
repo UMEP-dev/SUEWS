@@ -5,7 +5,10 @@ If you want to build SUEWS from source for local use, this guide covers prerequi
 ## Prerequisites
 
 - Python 3.9+
-- `gfortran` compiler (≥ 9.3.0) — see [README prerequisites](../README.md#prerequisites) for platform-specific instructions
+- `gfortran` compiler (≥ 9.3.0)
+  - macOS: `brew install gcc`
+  - Ubuntu/Debian: `sudo apt-get install gfortran`
+  - Windows (MSYS2 UCRT64): `pacman -S mingw-w64-ucrt-x86_64-gcc-fortran`
 - [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`
 
 ## Quick Start
@@ -45,12 +48,14 @@ pip install -e .
 - `pytest test -m slow -v` - Run slow tests manually
 
 ### Documentation
+- `make docs-setup` - Install docs tooling and strip legacy namespace `.pth` hooks
 - `make docs` - Build HTML documentation
 - `cd docs && make livehtml` - Live-reload development server
 
 ### Maintenance
 - `make clean` - Smart clean (preserves active `.venv`)
 - `make format` - Format Python (ruff) and Fortran (fprettify)
+- `make audit-deps` - Audit dependency advisories and startup hooks
 - `make help` - Show all available commands
 
 ### Common Workflows
@@ -64,6 +69,9 @@ git pull && make dev
 
 # Build and test changes
 make dev && make test
+
+# Build docs (first time needs docs-setup)
+make dev && make docs-setup && make docs
 ```
 
 ## Additional Notes

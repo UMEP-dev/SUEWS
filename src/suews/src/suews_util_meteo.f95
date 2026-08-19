@@ -165,7 +165,7 @@ CONTAINS
       IF (ABS(temp_C) < 0.001000) THEN
          IF (from == 1) THEN ! not from determining Tw
             iv = INT(press_Hpa)
-            CALL errorHint(29, 'Function sat_vap_press: temp_C, dectime,press_Hpa = ', temp_C, dectime, iv)
+            CALL errorHint(29, 'Function sat_vap_press: temp_C, dectime,press_Hpa = ', temp_C, dectime, iv, modState)
 
          END IF
          temp_C = 0.001000
@@ -213,7 +213,7 @@ CONTAINS
       IF (ABS(temp_C) < 0.001000) THEN
          IF (from == 1) THEN ! not from determining Tw
             iv = INT(press_Hpa)
-            CALL errorHint(29, 'Function sat_vap_press: temp_C, dectime,press_Hpa = ', temp_C, dectime, iv)
+            CALL errorHint(29, 'Function sat_vap_press: temp_C, dectime,press_Hpa = ', temp_C, dectime, iv, modState)
 
          END IF
          temp_C = 0.001000
@@ -323,7 +323,7 @@ CONTAINS
             CALL ErrorHint(45, 'function Lat_vap - 2', Press_hPA, notUsed, ii, modState)
          END IF
 
-         psyc = psyc_const(cp, Press_hPa, lv_J_kg) !in units hPa/K
+         psyc = psyc_const(cp, Press_hPa, lv_J_kg, modState) !in units hPa/K
 
          IF (Press_hPa < 900) THEN
             CALL ErrorHint(45, 'function Lat _vap -31', Press_hPA, notUsed, ii, modState)
@@ -413,17 +413,19 @@ CONTAINS
    !sg june 99 f90
    !calculate psyc - psychrometic constant Fritschen and Gay (1979)
 
-   FUNCTION psyc_const(cp, Press_hPa, lv_J_kg) RESULT(psyc_hPa) !In units hPa/K
+   FUNCTION psyc_const(cp, Press_hPa, lv_J_kg, modState) RESULT(psyc_hPa) !In units hPa/K
       USE module_ctrl_const_gas
+      USE module_ctrl_type, ONLY: SUEWS_STATE
 
       IMPLICIT NONE
       REAL(KIND(1D0)) :: cp, lv_J_kg, press_hPa, psyc_hpa
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       ! cp for moist air (shuttleworth p 4.13)
       IF (cp*press_hPa < 900 .OR. lv_J_kg < 10000) THEN
          CALL errorHint(19, &
                         'in psychrometric constant calculation:  cp [J kg-1 K-1], p [hPa], Lv [J kg-1]', &
-                        cp, Press_hPa, INT(lv_J_kg))
+                        cp, Press_hPa, INT(lv_J_kg), modState)
       END IF
 
       psyc_hPa = (cp*press_hPa)/(epsil*lv_J_kg)

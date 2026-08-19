@@ -1,7 +1,9 @@
 """UMEP/QGIS compatibility tests (GH-901).
 
 This package tests SUEWS compatibility with UMEP plugins in QGIS environment.
-Target environment: Windows + Python 3.12 (QGIS 3.40 LTR bundled Python).
+Target environment: Windows + Python 3.12. Current Windows QGIS 3 LTR and
+QGIS 4 runtimes share this CPython line; these tests guard plugin-facing API
+contracts rather than Rust backend physics.
 
 Test modules:
 - test_preprocessor.py: Database Manager, Database Prepare, ERA5 Download

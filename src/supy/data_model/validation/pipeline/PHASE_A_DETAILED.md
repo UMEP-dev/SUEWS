@@ -62,7 +62,8 @@ PHYSICS_OPTIONS = {
     'stabilitymethod', 'smdmethod', 'waterusemethod',
     'rslmethod', 'faimethod', 'rsllevel',
     'gsmodel', 'snowuse', 'stebbsmethod', 'rcmethod',
-    'samealbedo_wall', 'samealbedo_roof' 
+    'same_albedo_wall', 'same_albedo_roof', 'same_emissivity_wall',
+    'same_emissivity_roof', 'setpointmethod'
 }
 
 # Outdated parameter mappings
@@ -249,7 +250,7 @@ ACTION NEEDED (Critical):
 NO ACTION NEEDED (Optional):
 ├── sites[0].properties.irrigation.wuprofm_24hr.holiday
 ├── sites[0].initial_states.soilstore_id
-└── model.control.output_file.groups
+└── model.control.output.groups
 ```
 
 ## Forcing Data Validation

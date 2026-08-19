@@ -6,26 +6,29 @@ Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
 import copy
+from enum import Enum
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
 
 import pandas as pd
+from pydantic import BaseModel
 
 from ._check import check_forcing
 from ._env import logger_supy
-from ._run import run_supy_ser
+from ._filename import safe_filename_component
+from ._run_rust import _check_rust_available, run_suews_rust_chunked
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
-from .dts import _check_dts_available, run_dts_multi
 
 # Import new OOP classes
+from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
 from .suews_output import SUEWSOutput
-from .util._io import read_forcing
+from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
@@ -34,6 +37,15 @@ DEFAULT_FORCING_FILE_PATTERNS = [
     "*.csv",
     "*.met",
 ]  # Valid forcing file extensions
+
+
+def _validate_n_jobs(n_jobs: int) -> Optional[int]:
+    """Return a Rust worker cap for a public ``n_jobs`` value."""
+    if isinstance(n_jobs, bool) or not isinstance(n_jobs, int):
+        raise ValueError("n_jobs must be an integer: -1, 1, or a positive value")
+    if n_jobs == 0 or n_jobs < -1:
+        raise ValueError("n_jobs must be -1, 1, or a positive integer")
+    return None if n_jobs == -1 else n_jobs
 
 
 class SUEWSSimulation:
@@ -72,7 +84,8 @@ class SUEWSSimulation:
         config : str, Path, dict, or SUEWSConfig, optional
             Initial configuration source:
             - Path to YAML configuration file
-            - Dictionary with configuration parameters
+            - Dictionary with a full configuration (YAML-shaped, validated
+              through ``SUEWSConfig`` exactly like a YAML file)
             - SUEWSConfig object
             - None to create empty simulation
         """
@@ -82,8 +95,7 @@ class SUEWSSimulation:
         self._df_forcing = None
         self._df_output = None
         self._df_state_final = None
-        self._initial_states_final = None  # Pydantic state for DTS backend
-        self._dict_final_states = None  # Per-grid final states for DTS backend
+        self._checkpoint = None
         self._run_completed = False
 
         if config is not None:
@@ -102,10 +114,14 @@ class SUEWSSimulation:
         Parameters
         ----------
         config : str, Path, dict, or SUEWSConfig
-            Configuration source:
-            - Path to YAML file
-            - Dictionary with parameters (can be partial)
-            - SUEWSConfig object
+            Configuration source. Pass a path to a YAML file, a
+            ``SUEWSConfig`` object, or a dictionary with parameters. A
+            dictionary is treated as a full configuration when no config is
+            loaded yet, or as a partial update merged onto the existing config.
+            Either way the result is re-validated through ``SUEWSConfig``, so
+            enum/RefValue coercion and range checks apply exactly as for YAML
+            input. Unknown keys raise ``ValueError``; list values replace the
+            existing list.
         auto_load_forcing : bool, optional
             If True (default), automatically load forcing data specified in the
             config file. If False, forcing must be loaded explicitly using
@@ -150,12 +166,39 @@ class SUEWSSimulation:
                 self._try_load_forcing_from_config()
 
         elif isinstance(config, dict):
-            # Update existing config with dictionary
             if self._config is None:
-                self._config = SUEWSConfig()
+                # No existing config: treat the dict as a full configuration
+                # and build it through the validated SUEWSConfig path
+                # Partial dicts are only meaningful as updates to an existing
+                # configuration.
+                candidate = SUEWSConfig.from_dict(config)
+                if not candidate.sites:
+                    raise ValueError(
+                        "Configuration dict defines no sites. Provide a full "
+                        "configuration dict (including 'sites'), or load a "
+                        "YAML file / SUEWSConfig first and then apply "
+                        "partial updates via update_config()."
+                    )
+                self._config = candidate
 
-            # Deep update the configuration
-            self._update_config_from_dict(config)
+                # Parity with the YAML branch: auto-load forcing declared
+                # in the config. Relative paths resolve against the CWD
+                # here (no file anchor); failures warn rather than raise.
+                if auto_load_forcing:
+                    self._try_load_forcing_from_config()
+            else:
+                # Merge the partial update onto the existing config, then
+                # re-validate the whole configuration so enum coercion,
+                # RefValue wrapping, and range checks all apply.
+                # The merged dict is the user's effective input (original
+                # explicitly-set fields plus this update), so from_dict's
+                # default raw snapshot of it is the correct record for
+                # raw-gated completeness checks.
+                merged = self._merge_config_updates(self._config, config)
+                self._config = SUEWSConfig.from_dict(
+                    merged,
+                    yaml_path=str(self._config_path) if self._config_path else None,
+                )
 
             # Regenerate state DataFrame
             self._df_state_init = self._config.to_df_state()
@@ -167,50 +210,186 @@ class SUEWSSimulation:
 
         return self
 
-    def _update_config_from_dict(self, updates: dict):
-        """Apply dictionary updates to configuration."""
+    @staticmethod
+    def _merge_config_updates(config: SUEWSConfig, updates: dict) -> dict:
+        """Merge a partial update dict onto a validated config's dump.
 
-        def recursive_update(obj, upd):
+        Returns a plain dict ready for re-validation through
+        ``SUEWSConfig.from_dict``; the configuration is never mutated in
+        place, so enum coercion, RefValue wrapping, and range checks always
+        apply to the merged result.
+
+        Merge semantics:
+        - dicts merge recursively into model-backed nodes; unknown field
+          names raise ``ValueError`` instead of being silently dropped
+        - ``{"value": ...}`` dicts merge into RefValue leaves; any other
+          dict shape on a RefValue leaf replaces it wholesale (alternate
+          readable input forms are re-validated, not merged)
+        - lists replace wholesale
+        - ``sites`` additionally accepts the established mini-language:
+          ``{index: patch}``, ``{site_name: patch}``, or a single-site
+          shorthand patch
+        """
+        # Dump only what the user explicitly set (exclude_unset): merging
+        # onto a full dump would materialise pydantic defaults as if the
+        # user had declared them, so conditional validators gated on
+        # model_fields_set or on the raw-input snapshot (e.g. RSL/faibldg,
+        # site completeness) would fire false errors on sparse configs.
+        # Internal bookkeeping keys are re-stamped by from_dict; carrying
+        # them through the merge would nest snapshots inside snapshots.
+        base = {
+            k: v
+            for k, v in config.model_dump(exclude_unset=True, mode="json").items()
+            if not k.startswith("_")
+        }
+
+        def normalise_legacy_input(model_cls, upd):
+            """Run the model's mode='before' validators on an update dict.
+
+            The full from_dict/from_yaml path normalises legacy input
+            forms (field renames such as ``stabilitymethod`` ->
+            ``stability``, the ``output_file``/``forcing_file`` lifts)
+            through each model's before-validators. Partial updates must
+            accept the same forms, so the patch is run through the same
+            machinery before the unknown-key check.
+            """
+            decorators = getattr(model_cls, "__pydantic_decorators__", None)
+            if decorators is None:
+                return upd
+            for name, decorator in decorators.model_validators.items():
+                if decorator.info.mode != "before":
+                    continue
+                validator = getattr(model_cls, name, None)
+                if validator is None:
+                    continue
+                result = validator(upd)
+                if isinstance(result, dict):
+                    upd = result
+            return upd
+
+        def merge_node(node_obj, base_dict, upd, path):
+            if isinstance(node_obj, BaseModel) and not isinstance(node_obj, RefValue):
+                upd = normalise_legacy_input(type(node_obj), dict(upd))
             for key, value in upd.items():
-                if hasattr(obj, key):
-                    attr = getattr(obj, key)
-                    if isinstance(value, dict) and hasattr(attr, "__dict__"):
-                        # Recursive to read nested dictionaries
-                        recursive_update(attr, value)
-                    # Check whether site index or site name is provided
-                    elif isinstance(attr, list):
-                        site_key = list(value.keys())[0]
-                        site_value = value[site_key]
-                        if isinstance(site_key, int):
-                            # Select site on index
-                            attr = attr[site_key]
-                            recursive_update(attr, site_value)
-                        elif isinstance(site_key, str):
-                            # Select site on name
-                            attr_site = next(
-                                (item for item in attr if item.name == site_key),
-                                None,
-                            )
-                            if attr_site:
-                                recursive_update(attr_site, site_value)
-                            elif len(attr) == 1:
-                                # Without name or index and only one site
-                                attr_site = attr[0]
-                                # Distinguish site name pattern from shorthand
-                                # If site_key is an attribute on the site object, it's shorthand
-                                if hasattr(attr_site, site_key):
-                                    # Shorthand pattern: {'name': 'test'} or {'properties': {...}}
-                                    recursive_update(attr_site, value)
-                                else:
-                                    # Site name pattern: {'NonExistent': {'gridiv': 99}}
-                                    recursive_update(attr_site, site_value)
-                            else:
-                                # Otherwise skip these parameters
-                                continue
+                key_path = f"{path}.{key}" if path else str(key)
+                if not path and key == "sites":
+                    merge_sites(base_dict, value)
+                    continue
+                if (
+                    isinstance(node_obj, BaseModel)
+                    and not isinstance(node_obj, RefValue)
+                    and key not in type(node_obj).model_fields
+                ):
+                    raise ValueError(f"Unknown configuration key: '{key_path}'")
+                attr = getattr(node_obj, key, None) if node_obj is not None else None
+                if isinstance(attr, RefValue):
+                    if isinstance(value, dict) and not (
+                        set(value) <= set(RefValue.model_fields)
+                    ):
+                        # Alternate readable input form; replace wholesale
+                        base_dict[key] = copy.deepcopy(value)
+                        continue
+                    # Scalars become {"value": ...} so the field keeps its
+                    # RefValue shape (and any ref metadata) across updates
+                    patch = (
+                        copy.deepcopy(value)
+                        if isinstance(value, dict)
+                        else {"value": copy.deepcopy(value)}
+                    )
+                    base_val = base_dict.get(key)
+                    if isinstance(base_val, dict):
+                        base_val.update(patch)
                     else:
-                        setattr(obj, key, value)
+                        if "value" not in patch:
+                            # Metadata-only patch with no dumped base entry
+                            # (field at its default): seed the current value
+                            # so re-validation does not see a value-less dict
+                            seed = attr.model_dump(exclude_none=True, mode="json")
+                            seed.update(patch)
+                            patch = seed
+                        base_dict[key] = patch
+                elif isinstance(value, dict) and isinstance(attr, BaseModel):
+                    base_val = base_dict.get(key)
+                    if not isinstance(base_val, dict):
+                        base_dict[key] = base_val = {}
+                    merge_node(attr, base_val, value, key_path)
+                elif (
+                    isinstance(value, dict)
+                    and set(value) <= set(RefValue.model_fields)
+                    and "value" not in value
+                    and attr is not None
+                    and not isinstance(attr, (dict, list))
+                ):
+                    # Metadata-only RefValue-shaped patch on a bare-valued
+                    # field: seed the current value before re-validation
+                    current = attr.value if isinstance(attr, Enum) else attr
+                    base_dict[key] = {
+                        "value": copy.deepcopy(current),
+                        **copy.deepcopy(value),
+                    }
+                else:
+                    # Scalars, enums, lists, and dict input for non-model
+                    # nodes replace wholesale; validation coerces the result
+                    base_dict[key] = copy.deepcopy(value)
 
-        recursive_update(self._config, updates)
+        def apply_site_patch(index, patch):
+            if not isinstance(patch, dict):
+                raise ValueError(
+                    f"Site update for sites[{index}] must be a dict, "
+                    f"got {type(patch).__name__}"
+                )
+            if not 0 <= index < len(config.sites):
+                raise ValueError(
+                    f"Site index {index} out of range "
+                    f"({len(config.sites)} site(s) configured)"
+                )
+            merge_node(
+                config.sites[index],
+                base["sites"][index],
+                patch,
+                f"sites[{index}]",
+            )
+
+        def merge_sites(base_dict, sites_value):
+            if isinstance(sites_value, list):
+                # Plain list replaces the sites list wholesale
+                base_dict["sites"] = copy.deepcopy(sites_value)
+                return
+            if not isinstance(sites_value, dict) or not sites_value:
+                raise ValueError("'sites' update must be a non-empty dict or a list")
+            site_names = [getattr(site, "name", None) for site in config.sites]
+            for key, value in sites_value.items():
+                if isinstance(key, int):
+                    apply_site_patch(key, value)
+                elif key in site_names:
+                    apply_site_patch(site_names.index(key), value)
+                elif len(config.sites) == 1:
+                    if hasattr(config.sites[0], key):
+                        # Single-site shorthand: the whole dict is one patch
+                        apply_site_patch(0, sites_value)
+                        return
+                    # Unmatched site name with a single site: patch that site
+                    apply_site_patch(0, value)
+                elif hasattr(config.sites[0], key):
+                    # Single-site shorthand used with multiple sites is
+                    # ambiguous: skip rather than guess which site to patch
+                    logger_supy.warning(
+                        "Skipping ambiguous sites update key '%s': "
+                        "single-site shorthand with multiple sites configured",
+                        key,
+                    )
+                else:
+                    # Not a site field, so it can only be a (misspelled or
+                    # stale) site name: raise rather than silently no-op
+                    raise ValueError(
+                        f"Unknown site '{key}' in sites update. "
+                        f"Configured sites: {', '.join(map(repr, site_names))}"
+                    )
+
+        # Deep-copied so the legacy-input coercions (which restructure
+        # nested dicts in place) never mutate the caller's update dict.
+        merge_node(config, base, copy.deepcopy(updates), "")
+        return base
 
     def update_forcing(
         self, forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing]
@@ -235,9 +414,16 @@ class SUEWSSimulation:
 
         Notes
         -----
-        When loading from file paths, forcing data is resampled to match the
-        model timestep from ``model.control.tstep`` in the configuration.
-        If no configuration is loaded, defaults to 300 seconds (5 minutes).
+        Regardless of input type, forcing data is resampled to match the
+        model timestep from ``model.control.tstep`` in the configuration
+        (defaulting to 300 seconds when no configuration is loaded). In-memory
+        inputs (DataFrame or :class:`~supy.SUEWSForcing`) are validated as
+        already being in the model-ready canonical form -- canonical column
+        names, a :class:`pandas.DatetimeIndex`, and pressure in hPa -- and
+        rejected with a clear error otherwise. Unlike file loading, no column
+        renaming or unit conversion is applied to in-memory inputs; build them
+        with :func:`supy.util.read_forcing` or
+        :meth:`supy.SUEWSForcing.from_file` to guarantee that contract.
 
         Examples
         --------
@@ -252,7 +438,9 @@ class SUEWSSimulation:
         if self._config is not None:
             try:
                 tstep_val = self._config.model.control.tstep
-                tstep_mod = tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+                tstep_mod = (
+                    tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+                )
             except AttributeError:
                 logger_supy.debug(
                     "Could not extract tstep from config; using default %ds",
@@ -262,9 +450,13 @@ class SUEWSSimulation:
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
         if isinstance(forcing_data, SUEWSForcing):
-            self._df_forcing = forcing_data.df.copy()
+            self._df_forcing = prepare_dataframe_forcing(
+                forcing_data.to_dataframe(include_extras=True), tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, pd.DataFrame):
-            self._df_forcing = forcing_data.copy()
+            self._df_forcing = prepare_dataframe_forcing(
+                forcing_data, tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, list):
             # Handle list of files
             self._df_forcing = SUEWSSimulation._load_forcing_from_list(
@@ -291,9 +483,7 @@ class SUEWSSimulation:
             if hasattr(self._config, "model") and hasattr(
                 self._config.model, "control"
             ):
-                forcing_file_obj = getattr(
-                    self._config.model.control, "forcing_file", None
-                )
+                forcing_file_obj = self._config.model.control.forcing.file
 
                 if forcing_file_obj is not None:
                     # Handle RefValue wrapper
@@ -365,6 +555,17 @@ class SUEWSSimulation:
         # Using resolve() handles '..' and normalizes the path
         return str((self._config_path.parent / Path(path_str)).resolve())
 
+    def _resolve_output_path(self, path: Union[str, Path]) -> Path:
+        """Resolve an output path relative to the loaded config file."""
+        path_str = str(path)
+        path_output = Path(path_str).expanduser()
+
+        if path_output.is_absolute() or PurePosixPath(path_str).is_absolute():
+            return path_output
+        if self._config_path is not None:
+            return (self._config_path.parent / path_output).resolve()
+        return path_output
+
     @staticmethod
     def _load_forcing_from_list(
         forcing_list: list[Union[str, Path]], tstep_mod: int = 300
@@ -428,12 +629,12 @@ class SUEWSSimulation:
         self,
         start_date=None,
         end_date=None,
-        backend: str = "traditional",
         chunk_day: int = 3660,
+        n_jobs: int = -1,
         **run_kwargs,
     ) -> SUEWSOutput:
         """
-        Run SUEWS simulation.
+        Run SUEWS simulation using the Rust bridge backend.
 
         Parameters
         ----------
@@ -441,33 +642,14 @@ class SUEWSSimulation:
             Start date for simulation (inclusive).
         end_date : str, optional
             End date for simulation (inclusive).
-        backend : str, optional
-            Execution backend to use. Options:
-
-            - ``'traditional'`` (default): Uses DataFrame-based run_supy_ser.
-              Established interface with comprehensive state tracking.
-            - ``'dts'``: Uses DTS (Derived Type Structure) interface.
-              Direct Pydantic-to-Fortran execution path, bypassing intermediate
-              DataFrame conversion. May be faster for short simulations.
-
         chunk_day : int, optional
             Chunk size in days for splitting long simulations, by default 3660
             (~10 years). Smaller values reduce peak memory at a small overhead
-            cost. Applied to both ``traditional`` and ``dts`` backends.
-        run_kwargs : dict
-            Additional keyword arguments. Currently supported:
-
-            - **n_jobs** : int
-              Number of worker processes for DTS multi-grid execution
-              (used only when ``backend='dts'``).
-
-            Other keyword arguments are reserved for future use and ignored.
-
-            In a future version, the following options may be supported:
-            - save_state: bool - Save state at each timestep (planned)
-
-            For now, simulations use default settings:
-            - save_state=False (states not saved at each step)
+            cost.
+        n_jobs : int, optional
+            Parallel worker control for multi-grid runs. ``-1`` (default) uses
+            Rayon default parallelism, ``1`` forces serial execution, and
+            values greater than ``1`` cap Rayon to that many threads.
 
         Returns
         -------
@@ -480,18 +662,6 @@ class SUEWSSimulation:
         ------
         RuntimeError
             If configuration or forcing data is missing.
-        ValueError
-            If an invalid backend is specified.
-
-        Notes
-        -----
-        The simulation runs with fixed internal settings. For advanced control
-        over simulation parameters, consider using the lower-level functional
-        API (though it is deprecated).
-
-        The DTS backend requires a valid SUEWSConfig object loaded via
-        ``update_config()``. It provides a more direct execution path
-        but may have different state tracking characteristics.
 
         Examples
         --------
@@ -500,42 +670,43 @@ class SUEWSSimulation:
         >>> output.QH  # Access sensible heat flux
         >>> output.diurnal_average("QH")  # Get diurnal pattern
         >>> output.to_dataframe()  # Get raw DataFrame
-
-        Using the DTS backend:
-
-        >>> output = sim.run(backend="dts")
         """
-        # Validate backend
-        valid_backends = ("traditional", "dts")
-        if backend not in valid_backends:
+        # Handle deprecated backend kwarg
+        backend = run_kwargs.pop("backend", None)
+        if backend is not None and backend != "rust":
             raise ValueError(
-                f"Invalid backend '{backend}'. Must be one of: {valid_backends}"
+                f"The '{backend}' backend has been removed. "
+                f"Only the 'rust' backend is available. "
+                f"Remove the backend parameter or use backend='rust'."
             )
+        validate_forcing = run_kwargs.pop("_validate_forcing", True)
 
-        n_jobs = run_kwargs.pop("n_jobs", 1)
-        if n_jobs > 1 and backend != "dts":
-            warnings.warn(
-                "n_jobs > 1 is only supported with backend='dts'; "
-                f"ignoring n_jobs={n_jobs} for backend='{backend}'.",
-                stacklevel=2,
-            )
+        max_workers = _validate_n_jobs(n_jobs)
+        serial_mode = n_jobs == 1
 
-        # Check DTS availability early (before other validation)
-        if backend == "dts":
-            _check_dts_available()
+        _check_rust_available()
 
         # Validate inputs
         if self._df_state_init is None:
             raise RuntimeError("No configuration loaded. Use update_config() first.")
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
-
-        # DTS backend requires config object
-        if backend == "dts" and self._config is None:
-            raise RuntimeError(
-                "DTS backend requires a SUEWSConfig object. "
-                "Use update_config() with a YAML config file."
-            )
+        if self._config is None:
+            # Backward-compatible path: allow runs initialised from df_state
+            # (legacy functional workflows and continuation tests).
+            try:
+                self._config = SUEWSConfig.from_df_state(self._df_state_init)
+            except Exception:
+                # Some legacy state CSVs carry an extra unnamed index level
+                # (e.g. MultiIndex [('grid', None)]). Strip to grid only.
+                df_state_for_cfg = self._df_state_init.copy()
+                if isinstance(df_state_for_cfg.index, pd.MultiIndex):
+                    if "grid" in df_state_for_cfg.index.names:
+                        grid_vals = df_state_for_cfg.index.get_level_values("grid")
+                    else:
+                        grid_vals = df_state_for_cfg.index.get_level_values(0)
+                    df_state_for_cfg.index = pd.Index(grid_vals, name="grid")
+                self._config = SUEWSConfig.from_df_state(df_state_for_cfg)
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -557,42 +728,99 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
-        # Validate forcing data (shared by both backends)
-        list_issues = check_forcing(df_forcing_slice)
-        if isinstance(list_issues, list) and len(list_issues) > 0:
-            issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
-            suffix = (
-                f" (and {len(list_issues) - 3} more)" if len(list_issues) > 3 else ""
-            )
-            raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
+        if validate_forcing:
+            # Validate forcing data, including physics-specific forcing requirements
+            # (e.g. laimethod=0 requires populated effective observed-LAI sources).
+            physics_dict = None
+            if self._config is not None and hasattr(self._config, "model"):
+                physics = getattr(self._config.model, "physics", None)
+                if physics is not None and hasattr(physics, "model_dump"):
+                    physics_dict = physics.model_dump(mode="python")
+                # Cross-check physics path against forcing columns.
+                # Helper is silent on success; raises ValueError on mismatch.
+                if physics is not None:
+                    from .data_model.core.forcing_validation import (
+                        validate_forcing_columns_against_physics,
+                    )
 
-        # Run simulation with selected backend
-        if backend == "dts":
-            # DTS backend: direct Pydantic-to-Fortran execution
-            df_output, dict_final_states = run_dts_multi(
-                df_forcing=df_forcing_slice,
-                config=self._config,
-                n_jobs=n_jobs,
-            )
-            self._df_output = df_output
-            # DTS extracts state to Pydantic InitialStates (not DataFrame)
-            self._df_state_final = None
-            # Store per-grid final states; expose first site's initial_states
-            # for single-grid backward compatibility
-            self._dict_final_states = dict_final_states
-            first_grid = self._config.sites[0].gridiv
-            self._initial_states_final = dict_final_states[first_grid].get(
-                "initial_states"
-            )
+                    validate_forcing_columns_against_physics(df_forcing_slice, physics)
+            list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
+            if isinstance(list_issues, list) and len(list_issues) > 0:
+                issues_summary = (
+                    list_issues[:3] if len(list_issues) > 3 else list_issues
+                )
+                suffix = (
+                    f" (and {len(list_issues) - 3} more)"
+                    if len(list_issues) > 3
+                    else ""
+                )
+                raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
         else:
-            # Traditional backend: DataFrame-based execution
-            result = run_supy_ser(
-                df_forcing_slice,
-                self._df_state_init,
-                chunk_day=chunk_day,
+            # The retired runner always enforced observed-LAI completeness,
+            # even when its general ``check_input`` switch was false.
+            lai_method = getattr(self._config.model.physics, "leaf_area_index", None)
+            if lai_method is None:
+                lai_method = getattr(self._config.model.physics, "laimethod", None)
+            if hasattr(lai_method, "value"):
+                lai_method = lai_method.value
+            if lai_method is not None and int(lai_method) == 0:
+                from ._check import _check_observed_lai_nonneg
+
+                lai_issues = []
+                if _check_observed_lai_nonneg(df_forcing_slice, lai_issues):
+                    raise RuntimeError(lai_issues[0])
+
+        # Preserve observed-soil-moisture preprocessing from the retired
+        # DataFrame runner on the single canonical execution path.
+        soil_moisture_deficit = getattr(
+            self._config.model.physics,
+            "soil_moisture_deficit",
+            None,
+        )
+        if soil_moisture_deficit is None:
+            soil_moisture_deficit = getattr(
+                self._config.model.physics,
+                "smdmethod",
+                None,
             )
-            self._df_output = result[0]
-            self._df_state_final = result[1]
+        if hasattr(soil_moisture_deficit, "value"):
+            soil_moisture_deficit = soil_moisture_deficit.value
+        if soil_moisture_deficit is not None and int(soil_moisture_deficit) > 0:
+            from .util._forcing import convert_observed_soil_moisture
+
+            df_forcing_slice = convert_observed_soil_moisture(
+                df_forcing_slice.copy(),
+                self._df_state_init,
+            )
+
+        # Run simulation via Rust bridge
+        initial_state_json_by_grid = (
+            self._checkpoint.grid_states if self._checkpoint is not None else None
+        )
+        df_output, dict_state_json = run_suews_rust_chunked(
+            config=self._config,
+            df_forcing=df_forcing_slice,
+            chunk_day=chunk_day,
+            serial_mode=serial_mode,
+            max_workers=max_workers,
+            initial_state_json_by_grid=initial_state_json_by_grid,
+        )
+        self._df_output = df_output
+        self._checkpoint = (
+            SUEWSCheckpoint.from_grid_states(
+                dict_state_json,
+                last_timestamp=df_forcing_slice.index.max(),
+            )
+            if dict_state_json
+            else None
+        )
+
+        # Keep a legacy DFState-shaped final state for compatibility only.
+        from ._version import __version__
+
+        df_state_final = self._df_state_init.copy()
+        df_state_final[("version", "0")] = __version__
+        self._df_state_final = df_state_final
 
         self._run_completed = True
 
@@ -601,13 +829,14 @@ class SUEWSSimulation:
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             config=self._config,
+            checkpoint=self._checkpoint,
         )
 
     def save(
         self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
     ) -> list[str]:
         """
-        Save simulation results according to OutputConfig settings.
+        Save simulation results according to OutputControl settings.
 
         Parameters
         ----------
@@ -624,7 +853,7 @@ class SUEWSSimulation:
 
             **Not currently supported** (due to internal constraints):
 
-            - freq_s: Controlled by config.model.control.output_file.freq
+            - freq_s: Controlled by config.model.control.output.freq
             - site: Derived from config.sites[0].name
             - save_tstep: Not configurable via OOP interface
             - output_level: Not configurable via OOP interface
@@ -658,52 +887,57 @@ class SUEWSSimulation:
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
 
-        # DTS backend does not yet support save() - state is in Fortran DTS objects
         if self._df_state_final is None:
             raise NotImplementedError(
-                "DTS backend does not yet support save(). "
+                "save() is not yet supported for the Rust backend. "
                 "Access results directly via sim.output.df_output"
             )
 
         # Set default path with priority: parameter > config > current directory
         if output_path is None:
-            # Check if path is specified in config
-            config_path = None
+            # Check if dir is specified in config
+            config_dir = None
             try:
-                output_file = self._config.model.control.output_file
-                if not isinstance(output_file, str) and output_file.path:
-                    config_path = output_file.path
+                output_control = self._config.model.control.output
+                if output_control.dir:
+                    config_dir = output_control.dir
             except AttributeError:
                 pass
 
-            output_path = Path(config_path) if config_path else Path(".")
+            output_path = (
+                self._resolve_output_path(config_dir) if config_dir else Path(".")
+            )
         else:
             output_path = Path(output_path)
 
         # Extract parameters from config
         output_format = None
         output_config = None
+        forcing_timestamp_reference = "local_standard_time"
         freq_s = DEFAULT_OUTPUT_FREQ_SECONDS
         site = ""
 
         if self._config:
-            # Get output frequency from OutputConfig if available
+            # Get output frequency from OutputControl if available
             if (
                 hasattr(self._config, "model")
                 and hasattr(self._config.model, "control")
-                and hasattr(self._config.model.control, "output_file")
-                and not isinstance(self._config.model.control.output_file, str)
+                and hasattr(self._config.model.control, "output")
             ):
-                output_config = self._config.model.control.output_file
+                output_config = self._config.model.control.output
                 if hasattr(output_config, "freq") and output_config.freq is not None:
                     freq_s = output_config.freq
                 # Removed for now - can't update from YAML (TODO)
                 # if hasattr(output_config, 'format') and output_config.format is not None:
                 #     output_format = output_config.format
+                control = self._config.model.control
+                if hasattr(control, "forcing"):
+                    forcing_timestamp_reference = control.forcing.timestamp_reference
 
             # Get site name from first site
             if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                 site = self._config.sites[0].name
+        site_filename = safe_filename_component(site)
         if "format" in save_kwargs:  # TODO: When yaml format working, make elif
             output_format = save_kwargs["format"]
 
@@ -714,10 +948,22 @@ class SUEWSSimulation:
             freq_s=int(freq_s),
             site=site,
             path_dir_save=str(output_path),
-            # **save_kwargs # Problematic, save_supy expects explicit arguments
+            # **save_kwargs # The shared save backend expects explicit arguments
             output_config=output_config,
             output_format=output_format,
+            save_state=False,
+            forcing_timestamp_reference=forcing_timestamp_reference,
         )
+
+        if self._checkpoint is not None:
+            checkpoint_name = (
+                f"{site_filename}_SUEWS_checkpoint.json"
+                if site_filename
+                else "SUEWS_checkpoint.json"
+            )
+            checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
+            list_path_save.append(checkpoint_path)
+
         return list_path_save
 
     def reset(self) -> "SUEWSSimulation":
@@ -735,6 +981,7 @@ class SUEWSSimulation:
         """
         self._df_output = None
         self._df_state_final = None
+        self._checkpoint = None
         self._run_completed = False
         return self
 
@@ -762,47 +1009,68 @@ class SUEWSSimulation:
 
         """
         from ._env import trv_supy_module
-        from ._supy_module import _load_sample_data
 
-        # Load core simulation data (state and forcing)
-        df_state_init, df_forcing = _load_sample_data()
-        sample_config_path = Path(trv_supy_module / "sample_data" / "sample_config.yml")
+        sample_config_path = trv_supy_module / "sample_data" / "sample_config.yml"
+        return cls(sample_config_path)
+
+    @staticmethod
+    def _coerce_checkpoint(
+        checkpoint: Union[str, Path, SUEWSCheckpoint],
+    ) -> SUEWSCheckpoint:
+        if isinstance(checkpoint, SUEWSCheckpoint):
+            return checkpoint
+        if isinstance(checkpoint, (str, Path)):
+            return SUEWSCheckpoint.from_file(checkpoint)
+        raise TypeError(
+            "checkpoint must be a SUEWSCheckpoint, str, or Path, "
+            f"got {type(checkpoint).__name__}"
+        )
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        config: Union[str, Path, dict, SUEWSConfig],
+        checkpoint: Union[str, Path, SUEWSCheckpoint],
+    ) -> "SUEWSSimulation":
+        """Create a continuation simulation from YAML config and checkpoint."""
+        if config is None:
+            raise ValueError(
+                "Checkpoint continuation requires a YAML/SUEWSConfig "
+                "configuration as well as the checkpoint."
+            )
 
         sim = cls()
+        if not isinstance(config, (str, Path, dict)):
+            config = copy.deepcopy(config)
+        sim.update_config(config, auto_load_forcing=False)
+        return sim.continue_from(checkpoint)
 
-        # Try to load config for metadata (non-critical)
-        # The actual state is set from df_state_init below, so config is optional
-        try:
-            sim.update_config(sample_config_path)
-        except (FileNotFoundError, IOError) as exc:
-            # File access issues - warn but continue
-            warnings.warn(
-                f"Could not load sample configuration file: {exc}\n"
-                "Simulation will use data from df_state_init instead.",
-                UserWarning,
-                stacklevel=2,
-            )
-        except Exception as exc:
-            # Other unexpected errors - warn but continue
-            warnings.warn(
-                f"Unexpected error loading sample configuration: {exc}\n"
-                "Simulation will use data from df_state_init instead.",
-                UserWarning,
-                stacklevel=2,
+    def continue_from(
+        self, checkpoint: Union[str, Path, SUEWSCheckpoint]
+    ) -> "SUEWSSimulation":
+        """Use a typed checkpoint as the initial runtime state."""
+        if self._config is None:
+            raise RuntimeError(
+                "Checkpoint continuation requires a loaded configuration. "
+                "Use SUEWSSimulation.from_checkpoint(config, checkpoint) or "
+                "call update_config() before continue_from()."
             )
 
-        # Set core simulation data (overrides any config-derived state)
-        sim._df_state_init = df_state_init
-        sim._df_forcing = df_forcing
-        return sim
+        checkpoint_value = self._coerce_checkpoint(checkpoint)
+        checkpoint_value.validate_for_continuation()
+        self._checkpoint = checkpoint_value
+        self._df_output = None
+        self._df_state_final = None
+        self._run_completed = False
+        return self
 
     @classmethod
     def from_state(cls, state: Union[str, Path, pd.DataFrame]):
-        """Create SUEWSSimulation from saved state for continuation runs.
+        """Create SUEWSSimulation from legacy DFState.
 
-        Load a previously saved model state to continue simulation from where
-        it left off. Useful for multi-period runs or scenario testing with
-        different forcing data.
+        This compatibility adapter reads older DFState CSV/parquet/DataFrame
+        artifacts. New continuation workflows should use
+        ``from_checkpoint(config, checkpoint)``.
 
         Parameters
         ----------
@@ -826,7 +1094,7 @@ class SUEWSSimulation:
 
         Examples
         --------
-        Continue from saved file:
+        Legacy import from saved file:
 
         >>> # Period 1
         >>> sim1 = SUEWSSimulation("config.yaml")
@@ -834,12 +1102,12 @@ class SUEWSSimulation:
         >>> sim1.run()
         >>> paths = sim1.save("output/")
 
-        >>> # Period 2 - continue from saved state
+        >>> # Period 2 - legacy DFState continuation
         >>> sim2 = SUEWSSimulation.from_state("output/df_state.csv")
         >>> sim2.update_forcing("forcing_2024.txt")
         >>> sim2.run()
 
-        Continue from DataFrame directly:
+        Legacy import from DataFrame directly:
 
         >>> # In-memory continuation without saving to file
         >>> sim1 = SUEWSSimulation.from_sample_data()
@@ -859,10 +1127,19 @@ class SUEWSSimulation:
 
         See Also
         --------
-        save : Save simulation results and state
+        from_checkpoint : Create continuation from YAML config and checkpoint
+        save : Save simulation results and checkpoint
         reset : Clear results and reset to initial state
-        state_final : Access final state from completed simulation
+        checkpoint : Access typed checkpoint from completed simulation
         """
+        warnings.warn(
+            "SUEWSSimulation.from_state() is a legacy DFState compatibility "
+            "adapter. Use SUEWSSimulation.from_checkpoint(config, checkpoint) "
+            "for restart/continuation runs.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         from ._version import __version__ as current_version
 
         # Load state from file or use DataFrame directly
@@ -877,7 +1154,10 @@ class SUEWSSimulation:
             # Load based on file extension
             if state_path.suffix == ".csv":
                 df_state_saved = pd.read_csv(
-                    state_path, header=[0, 1], index_col=[0, 1], parse_dates=[0]
+                    state_path,
+                    header=[0, 1],
+                    index_col=0,
+                    parse_dates=True,
                 )
             elif state_path.suffix == ".parquet":
                 df_state_saved = pd.read_parquet(state_path)
@@ -939,7 +1219,7 @@ class SUEWSSimulation:
         Returns
         -------
         SUEWSSimulation
-            Simulation instance initialised with final state from output,
+            Simulation instance initialised with checkpoint from output,
             ready for new forcing data and run.
 
         Examples
@@ -951,24 +1231,34 @@ class SUEWSSimulation:
         >>> sim1.update_forcing("forcing_2023.txt")
         >>> output1 = sim1.run()
 
-        >>> # Continue from output state
+        >>> # Continue from output checkpoint
         >>> sim2 = SUEWSSimulation.from_output(output1)
         >>> sim2.update_forcing("forcing_2024.txt")
         >>> output2 = sim2.run()
 
         See Also
         --------
-        from_state : Create from saved state file or DataFrame
-        SUEWSOutput.state_final : Final state property for restart
+        from_checkpoint : Create from YAML config and checkpoint
+        SUEWSOutput.checkpoint : Typed checkpoint property for restart
         """
-        df_state_init = output.state_final
-        sim = cls()
-        sim._df_state_init = df_state_init
-        # Deep copy config to avoid shared state issues
-        if output.config is not None:
-            sim._config = copy.deepcopy(output.config)
+        if output.checkpoint is not None:
+            if output.config is None:
+                raise RuntimeError(
+                    "SUEWSOutput has a checkpoint but no configuration. "
+                    "Use SUEWSSimulation.from_checkpoint(config, checkpoint)."
+                )
+            return cls.from_checkpoint(
+                copy.deepcopy(output.config),
+                output.checkpoint,
+            )
 
-        return sim
+        warnings.warn(
+            "SUEWSSimulation.from_output() is falling back to legacy DFState. "
+            "Prefer SUEWSSimulation.from_checkpoint(config, output.checkpoint).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return cls.from_state(output.state_final)
 
     def __repr__(self) -> str:
         """Concise representation showing simulation status.
@@ -1205,7 +1495,10 @@ class SUEWSSimulation:
         """
         if self._df_forcing is None:
             return None
-        return SUEWSForcing(self._df_forcing)
+        df_main, extras = SUEWSForcing._split_per_landcover_columns(self._df_forcing)
+        forcing = SUEWSForcing(df_main)
+        forcing._extras = extras
+        return forcing
 
     @property
     def results(self) -> Optional[pd.DataFrame]:
@@ -1224,7 +1517,7 @@ class SUEWSSimulation:
         See Also
         --------
         output : Access results as SUEWSOutput object with analysis methods
-        :ref:`df_output_var` : Complete output data structure and variable descriptions
+        :ref:`output_variable_reference` : Complete output variable reference
         get_variable : Extract specific variables from output groups
         save : Save results to files
         """
@@ -1256,7 +1549,7 @@ class SUEWSSimulation:
         See Also
         --------
         run : Run simulation and return SUEWSOutput (preferred)
-        :ref:`df_output_var` : Complete output data structure
+        :ref:`output_variable_reference` : Complete output variable reference
 
         Examples
         --------
@@ -1278,6 +1571,7 @@ class SUEWSSimulation:
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             config=self._config,
+            checkpoint=self._checkpoint,
         )
 
     @property
@@ -1293,8 +1587,8 @@ class SUEWSSimulation:
         See Also
         --------
         :ref:`df_state_var` : Complete state data structure and variable descriptions
-        state_final : Final state after simulation
-        from_state : Create simulation from existing state
+        checkpoint : Typed checkpoint after simulation
+        from_checkpoint : Create simulation from checkpoint
 
         Examples
         --------
@@ -1306,15 +1600,14 @@ class SUEWSSimulation:
 
     @property
     def state_final(self) -> Optional[pd.DataFrame]:
-        """Final state DataFrame after simulation.
+        """Legacy final state DataFrame after simulation.
 
-        Available only after running simulation. Contains evolved
-        state variables that can be used to continue simulation.
+        Prefer ``checkpoint`` for restart/continuation workflows.
 
         Returns
         -------
         pandas.DataFrame or None
-            Final state after simulation run.
+            Legacy final state after simulation run.
             None if simulation hasn't been run yet.
 
         See Also
@@ -1322,7 +1615,8 @@ class SUEWSSimulation:
         :ref:`df_state_var` : Complete state data structure and variable descriptions
         state_init : Initial state before simulation
         reset : Clear results and reset to initial state
-        from_state : Create new simulation from this final state
+        checkpoint : Typed restart artifact
+        from_checkpoint : Create new simulation from checkpoint
 
         Examples
         --------
@@ -1334,31 +1628,11 @@ class SUEWSSimulation:
         return self._df_state_final
 
     @property
-    def initial_states_final(self):
-        """Final state as Pydantic InitialStates after DTS simulation.
+    def checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Typed checkpoint produced by the most recent run."""
+        return self._checkpoint
 
-        Available only after running simulation with ``backend='dts'``.
-        Contains the evolved state variables as a Pydantic model that can
-        be used for continuation runs or YAML persistence.
-
-        Returns
-        -------
-        InitialStates or None
-            Pydantic InitialStates model after DTS simulation.
-            None if simulation hasn't been run or used traditional backend.
-
-        See Also
-        --------
-        state_final : DataFrame state for traditional backend
-        run : Run simulation with backend parameter
-
-        Examples
-        --------
-        >>> sim = SUEWSSimulation.from_sample_data()
-        >>> sim.run(backend="dts")
-        >>> sim.initial_states_final is not None
-        True
-        >>> # Save state to YAML
-        >>> sim.initial_states_final.to_yaml("final_state.yaml")
-        """
-        return self._initial_states_final
+    @property
+    def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Alias for ``checkpoint``."""
+        return self._checkpoint

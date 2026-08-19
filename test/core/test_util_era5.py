@@ -7,6 +7,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from supy.util._era5 import gen_forcing_era5, download_era5_timeseries
 
+pytestmark = pytest.mark.api
+
 
 def has_cds_credentials():
     """Check if CDS API credentials are configured."""
@@ -16,10 +18,6 @@ def has_cds_credentials():
 
 class TestERA5Import:
     """Test ERA5 module imports correctly."""
-
-    def test_import_gen_forcing_era5(self):
-        """Test that gen_forcing_era5 can be imported."""
-        assert callable(gen_forcing_era5)
 
     def test_function_signature(self):
         """Test that gen_forcing_era5 has expected simplified signature."""
@@ -232,6 +230,7 @@ class TestERA5FileCleanup:
         )
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     not has_cds_credentials(), reason="Requires CDS API credentials (~/.cdsapirc)"
 )

@@ -46,7 +46,7 @@ Post-merge formatting workflow that:
 ### 3. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
 - Builds wheels for multiple platforms (Linux, macOS, Windows)
-- Supports Python 3.9-3.14
+- Supports Python 3.12-3.14
 - Runs tests on each platform
 - Publishes to TestPyPI on nightly/dev tag builds
 - Publishes to PyPI on tagged releases
@@ -57,12 +57,27 @@ Automated build and publish workflow that:
 When triggering via Actions tab → "Run workflow", you can configure:
 - **matrix_config**: Choose build matrix
   - `full` - All platforms, all Python versions (default)
-  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.9 + 3.14
-  - `minimal` - Linux only, Python 3.9 + 3.14
+  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.12 + 3.14
+  - `minimal` - Linux only, Python 3.12 + 3.14
   - `custom` - Use individual platform/Python toggles
 - **deploy_target**: `none` (validation) or `testpypi` (PyPI restricted to tags)
-- **include_umep**: Build UMEP variant (NumPy 1.x compatible)
 - **test_tier**: `smoke`, `core`, `cfg`, `standard`, or `all`
+
+Every cp312-abi3 wheel also covers the current Windows QGIS 3 LTR and QGIS 4
+Python line. Both use Python 3.12 on Windows; the runtime pin is
+`numpy>=1.22` and the Rust bridge has no NumPy C-ABI dependency.
+
+**Test tier routing:**
+- Wheel-build jobs run `physics` tests once per selected platform/architecture.
+- API cross-CPython jobs install the built wheel and run `api` tests across the
+  selected Python versions.
+- `smoke` excludes both `medium` and `slow`; `core` and `cfg` exclude `slow`.
+  `standard` includes non-slow tests plus essential `core` regressions even
+  when they are slow. All normal tiers exclude `qgis`; `all` is reserved for
+  scheduled builds, tagged releases, and explicit manual validation.
+- UMEP/QGIS tests are `api + qgis`: they are not physics backend tests, and
+  run only when `all` reaches the Windows + Python 3.12 compatibility cell or
+  when selected explicitly.
 
 ### 4. GitHub Pages Deploy (`pages-deploy.yml`)
 Deploys static site content to GitHub Pages at suews.io:
@@ -106,7 +121,6 @@ These have been replaced by the unified `auto-format.yml` workflow that runs onl
 ## Configuration
 
 ### Required Secrets
-- `ANTHROPIC_API_KEY`: Your Anthropic API key for Claude
 - `CLAUDE_AUTHORIZED_USERS`: **REQUIRED** - List of authorised GitHub usernames
   - Format option 1 (comma-separated): `sunt05,user2,user3`
   - Format option 2 (newline-separated):
@@ -115,8 +129,11 @@ These have been replaced by the unified `auto-format.yml` workflow that runs onl
     user2
     user3
     ```
-- `PYPI_API_TOKEN`: PyPI token for publishing releases
-- `TEST_PYPI_API_TOKEN`: TestPyPI token for test publishing
+- `CLAUDE_CODE_OAUTH_TOKEN`: OAuth token used by Claude Code workflows
+- `RTD_PUSH_TOKEN`: PAT used only for syncing the protected `rtd` branch
+- `SUEWS_AGENT_PUSH_TOKEN`: fine-grained PAT used only by
+  `sync-agent-plugin.yml` to publish the generated `UMEP-dev/suews-agent`
+  repository. Scope it to `UMEP-dev/suews-agent` with Contents read/write.
 
 
 ## Security Configuration
@@ -152,6 +169,9 @@ Without this configuration, all Claude requests will be denied.
    - Only add trusted users to CLAUDE_AUTHORIZED_USERS
    - Review Claude's code changes carefully
    - Regularly audit the authorised users list
+   - Pin every external GitHub Action to a full commit SHA, never a tag or branch
+   - Set `persist-credentials: false` on `actions/checkout` unless the job must push
+   - Prefer Trusted Publishers (OIDC) over static registry tokens for package publishing
 
 3. **Performance:**
    - Claude workflows consume GitHub Actions minutes

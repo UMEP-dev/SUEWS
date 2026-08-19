@@ -165,6 +165,314 @@ The converter intelligently handles various directory structures by reading the 
   
 This ensures compatibility with various SUEWS installation structures while respecting user configurations.
 
+.. _migrate_bulk_wuh:
+
+Migrating legacy bulk ``Wuh`` volumes
+--------------------------------------
+
+Bulk ``Wuh`` is now a site-mean external water-use depth in mm accumulated
+over each forcing interval. This is a breaking unit change from historical
+forcing files that supplied bulk ``Wuh`` as a volume in m3. Convert each old
+interval value before running:
+
+.. math::
+
+   Wuh_{mm} = 1000 \, \frac{Wuh_{m^3}}{A_{grid,m^2}}
+
+where :math:`A_{grid,m^2}` is the horizontal plan area of the grid cell.
+This conversion preserves the grid-total water volume, but it does **not**
+preserve the historical allocation between surfaces. The old runtime divided
+the volume by the total irrigated area and then applied each surface's
+``irrigation_fraction``. Consequently, using only the converted bulk value can
+change surface stores and evaporation even though the grid-total input is the
+same.
+
+To reproduce that historical surface allocation, supply all seven
+``wuh_<surface>`` columns (including explicit zeros) using
+
+.. math::
+
+   wuh_i = 1000 \, \frac{Wuh_{m^3}}{A_{grid,m^2}
+            \sum_j (sfr_j \, IrrFrac_j)} \, IrrFrac_i
+
+where :math:`sfr_j` and :math:`IrrFrac_j` are the historical surface fraction
+and irrigation fraction for surface :math:`j`. If the denominator is zero,
+the historical runtime supplied zero observed water use. Supplying every
+surface column is necessary because an omitted surface otherwise falls back
+to bulk ``Wuh``.
+
+The ``wu_mm`` header remains an alias for ``Wuh``, but aliases do not perform
+unit conversion. SUEWS deliberately provides no magnitude detection or
+legacy-unit runtime mode, so copying historical bulk values unchanged will
+give a different water input. Surface-specific ``wuh_<surface>`` columns are
+also non-negative depths in mm per forcing interval and override bulk ``Wuh``
+for that surface.
+
+YAML Schema Migrations
+----------------------
+
+Once your configuration is in YAML, subsequent SUEWS releases may bump
+the YAML *schema* — the structure of the file itself. Each bump is
+backed by a registered migration handler, so ``suews-convert`` (for
+combined legacy+schema upgrades) and ``suews schema migrate`` (for
+schema-only upgrades) will move old YAMLs onto the current shape
+without losing data. Every drop is logged with a human-readable
+reason so you can reconstruct intent if needed.
+
+The sections below summarise what users see change between schemas.
+The authoritative lineage (including release-tag to schema mapping)
+lives in :ref:`schema_version_history`.
+
+Upgrading to Schema 2026.6.dev3
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev3`` completes the naming-convention sweep for the
+``sites[*].properties.anthropogenic_emissions.co2`` section. The migration
+renames fourteen YAML keys while preserving their values:
+
+.. list-table:: CO2 parameter renames
+   :header-rows: 1
+
+   * - Previous key
+     - Current key
+   * - ``co2pointsource``
+     - ``emission_co2_point_source``
+   * - ``ef_umolco2perj``
+     - ``emission_factor_co2_fuel``
+   * - ``enef_v_jkm``
+     - ``emission_factor_energy_vehicle``
+   * - ``fcef_v_kgkm``
+     - ``emission_factor_co2_vehicle``
+   * - ``frfossilfuel_heat``
+     - ``fraction_fossil_fuel_heating``
+   * - ``frfossilfuel_nonheat``
+     - ``fraction_fossil_fuel_non_heating``
+   * - ``maxfcmetab`` / ``minfcmetab``
+     - ``emission_co2_metabolism_max`` / ``emission_co2_metabolism_min``
+   * - ``maxqfmetab`` / ``minqfmetab``
+     - ``emission_heat_metabolism_max`` / ``emission_heat_metabolism_min``
+   * - ``trafficrate``
+     - ``traffic_rate``
+   * - ``trafficunits``
+     - ``type_traffic_rate``
+   * - ``traffprof_24hr``
+     - ``profile_traffic_24hr``
+   * - ``humactivity_24hr``
+     - ``profile_human_activity_24hr``
+
+``type_traffic_rate`` keeps the existing numeric values: ``1`` selects a
+per-area traffic rate and ``2`` selects a per-capita rate. The point-source
+input is a whole-grid CO2 emission expressed as kg C |day^-1|; the
+metabolic inputs are per capita. Legacy ``df_state`` column names do not
+change.
+
+Upgrade a ``2026.6.dev2`` YAML with:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
+Upgrading to Schema 2026.6.dev2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev2`` adds the opt-in
+``model.physics.storage_heat: dyohm_building`` selector
+(``StorageHeatMethod=8``). This method uses DyOHM to determine the
+building storage heat flux only. Other land-cover surfaces continue to use
+ordinary OHM, and DyOHM surface temperatures are not passed back to the
+radiation calculation.
+
+Existing ``2026.6.dev1`` YAMLs do not need content edits because the new
+selector is optional. The registered ``(2026.6.dev1 -> 2026.6.dev2)``
+handler is therefore a no-op content migration that stamps the new
+``schema_version``:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
+Upgrading to Schema 2026.6.dev1
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev1`` is a development schema for the
+SPARTACUS direct/diffuse benchmark work. It extends the ``2026.5``
+surface with default-backed controls:
+
+- ``model.physics.kdown_split_method`` selects forcing-provided,
+  constant-fraction, or EPW-derived direct/diffuse shortwave
+  partitioning. The constant split value is nested with the constant
+  selector, for example:
+
+  .. code-block:: yaml
+
+     model:
+       physics:
+         kdown_split_method:
+           constant:
+             sw_dn_direct_frac: 0.45
+
+  This value moved from the per-site
+  ``sites[*].properties.spartacus.sw_dn_direct_frac`` location to the
+  model-global ``model.physics`` selector. Legacy input is still accepted
+  when the new field is absent: matching per-site values are copied into the
+  model-owned value, while distinct per-site values raise a ``multiple
+  distinct values`` error and must be reconciled to one shared value before
+  upgrading.
+- ``sites[*].properties.spartacus`` gains forest-column stream and
+  vegetation-region settings:
+  ``n_stream_lw_forest``, ``n_stream_sw_forest`` and
+  ``n_vegetation_region_forest``.
+- ``sites[*].properties.vertical_layers.veg_ext`` optionally overrides
+  the vegetation extinction coefficient per vertical layer; ``-999``
+  keeps the LAI-derived behaviour.
+
+Existing ``2026.5`` YAMLs do not need content edits because all new
+fields have defaults. The registered ``(2026.5 -> 2026.6.dev1)``
+handler is therefore a no-op content migration that stamps the new
+``schema_version``:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
+Upgrading to Schema 2026.5
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5`` is the YAML schema shipped with release ``2026.6.5``.
+It is the single released label collapsing the ``2026.5.dev1`` ..
+``2026.5.dev14`` development cycle: one ``(2026.4 -> 2026.5)`` handler
+applies the union of every dev-cycle delta. Upgrading from ``2026.4``
+(shipped with 2026.4.3) brings the following user-visible changes:
+
+- **Fused field names to snake_case** (#1256, Category 1): for example
+  ``netradiationmethod`` -> ``net_radiation_method``, ``soildepth`` ->
+  ``soil_depth``, ``baset`` -> ``base_temperature``, ``crwmax`` ->
+  ``water_holding_capacity_max``, and 55 more across the model-physics,
+  surface, LAI, vegetation and snow blocks.
+- **ModelPhysics selector renames** (#1321): the ``_method`` /
+  ``_model`` suffixes are dropped and domain abbreviations expanded,
+  giving ``net_radiation``, ``storage_heat``, ``emissions``,
+  ``stability``, ``water_use``, ``roughness_sublayer``,
+  ``frontal_area_index`` and ``surface_conductance``.
+- **STEBBS YAML fully snake_case** (#1334, #1337, #1327): the
+  PascalCase exception is retired (124 renames across
+  ``building_archetype``, ``stebbs`` and ``snow``), and the hot-water
+  subsystem is unified under ``hot_water_*`` (the opaque ``dhw_*``
+  prefix is dropped). For example ``WallThickness`` ->
+  ``wall_thickness``, ``DHWWaterVolume`` -> ``hot_water_volume``.
+- **Naming-convention reorder** (#1392, #1394, #1452): field names are
+  reordered quantity-first
+  (``wall_external_thickness`` -> ``thickness_wall_outer``), the
+  ``archetype_*`` namespace prefix is applied to whole-archetype fields
+  (``building_name`` -> ``archetype_name``), and ``building_type`` is
+  dropped.
+- **``model.control`` restructure** (#1372, #1420):
+  ``model.control.forcing_file`` -> ``model.control.forcing.file`` and
+  ``model.control.output_file`` -> ``model.control.output`` (inner
+  ``path`` -> ``dir``; the legacy ``output_file: "name.txt"`` string
+  form is removed). Per-land-cover ``lai_<surface>`` /
+  ``wuh_<surface>`` forcing columns are now accepted.
+- **STEBBS physics nested** (#1456): the flat ``model.physics`` STEBBS
+  switches fold under ``model.physics.stebbs`` (``stebbs.enabled`` +
+  ``stebbs.parameters``; ``capacitance``, ``setpoint``,
+  ``same_albedo_*`` and ``same_emissivity_*`` move at their leaf
+  names).
+- **``frontal_area_index`` selector** (#1495): reduced to ``observed``
+  / ``modelled``; the ``provided``, ``use_provided`` and
+  ``simple_scheme`` aliases are retired.
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5
+
+For a combined legacy-table-plus-schema upgrade, use ``suews-convert``,
+which runs the table conversion first and then walks the schema chain
+to the same shape.
+
+The handler logs every field rename and drop via
+``[yaml-upgrade]   renamed 'old' -> 'new'`` (and a human-readable
+reason on each drop), so you can audit and reconstruct intent. Legacy
+spellings continue to load through the Pydantic backward-compat shims
+under a ``DeprecationWarning``; YAMLs that round-trip through the
+migrator come out in the new spellings and no longer warn. Bridge
+DataFrame / Fortran column names are unchanged, so there is **no
+model-output change** versus ``2026.4.3``.
+
+Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Upgrading from ``2026.1`` (shipped with 2026.1.28) or earlier applies
+the following deltas:
+
+- ``DeepSoilTemperature`` → ``AnnualMeanAirTemperature``
+  (rename; user-supplied value preserved, #1240).
+- ``MinimumVolumeOfDHWinUse`` and ``MaximumVolumeOfDHWinUse`` dropped;
+  DHW volume is no longer bounded in the config (#1242). Any values
+  present in your YAML are discarded with a logged reason.
+- STEBBS setpoint fields split: the scalar
+  ``HeatingSetpointTemperature`` and ``CoolingSetpointTemperature``
+  continue to work, but are now gated on
+  ``model.physics.setpointmethod``. When the profile branch is
+  selected, use the new ``HeatingSetpointTemperatureProfile`` and
+  ``CoolingSetpointTemperatureProfile`` siblings (#1261).
+- New daylight-control and lighting/metabolism fields are available
+  as optional additions — they default to sensible values if absent.
+
+Run:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.4
+
+The migrator accepts any registered intermediate (for example
+``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
+further to the current 2026.5 schema, use
+``--target-version 2026.5`` (or omit the flag to reach the latest).
+
+Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Landed with the STEBBS clean-up (#879). If you are moving from the
+``2025.12`` shape (2025.10.15 or 2025.11.20):
+
+- Building archetype wall/roof fields: ``Wallx1`` →
+  ``WallOuterCapFrac`` and ``Roofx1`` → ``RoofOuterCapFrac``.
+- Initial temperature fields renamed: ``IndoorAirStartTemperature`` →
+  ``InitialIndoorTemperature``; ``OutdoorAirStartTemperature`` →
+  ``InitialOutdoorTemperature``.
+- ``DHWVesselEmissivity`` removed — the vessel emissivity is now
+  derived internally rather than carried in the config.
+- Runtime-state view-factor and temperature slots removed from user
+  YAML (they were never user-tunable; #879 finally cleaned them up).
+- STEBBS hourly profiles added for setpoints, appliance, occupants and
+  hot water (#1038). Existing configs that omit them continue to
+  work; the profiles default to previous scalar behaviour.
+
+If you are targeting 2026.1.28 exactly:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.1
+
+Otherwise the 2026.4 -> 2026.5 chain above is applied in one pass.
+
+Preserving Your Values Through Renames
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The rename handlers preserve the user's value. When both the old and
+the new key happen to be present in the same YAML (for example if
+you've partially hand-edited), the newer value wins and the stale
+key is logged and dropped so you can spot the intent conflict.
+
+For a dry-run that shows every rename and drop without writing the
+upgraded file, pass ``--dry-run``:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --dry-run
+
 Troubleshooting
 ~~~~~~~~~~~~~~~
 
@@ -189,7 +497,102 @@ Troubleshooting
    - Check that profile IDs in tables match those in ``SUEWS_Profiles.txt``
 
 4. **"Conversion chain failed"**
-   
+
    - Use ``-d debug_dir`` to save intermediate files
    - Check the debug directory to identify which conversion step failed
    - Report issues with the specific version transition that failed
+
+Nested Physics Sub-Options
+--------------------------
+
+Three ``model.physics`` fields accept a family-tagged nested form
+alongside the existing flat ``{value: N}`` shape:
+
+- ``net_radiation`` — families ``forcing``, ``narp``, ``spartacus``.
+- ``storage_heat`` — families ``observed``, ``ohm``, ``anohm``,
+  ``estm``, ``ehc``, ``dyohm``, ``stebbs``, ``dyohm_building``.
+- ``emissions`` — families ``observed``, ``simple``,
+  ``biogenic_rectangular``, ``biogenic_bellucco_local``,
+  ``biogenic_bellucco_general``, ``biogenic_conductance``.
+
+Family-tagged form:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation:
+         spartacus:
+           value: 1001
+
+Equivalent flat form — the canonical internal representation, and
+what ``SUEWSConfig.to_yaml`` emits:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation:
+         value: 1001
+
+The family tag is a validation gate. Submitting a code that does
+not belong to the declared family raises a ``ValidationError``
+pointing at the correct family. For example, ``{narp: {value:
+1001}}`` is rejected because ``1001`` is a ``spartacus`` code.
+
+Accept-only widening — no schema version bump. Every previously
+valid YAML continues to validate and round-trips byte-identically.
+Writing in the nested form is optional and serves as in-file
+documentation of intent; YAMLs that round-trip through
+``suews schema migrate`` or ``SUEWSConfig.to_yaml`` are always
+emitted in the flat form.
+
+The Rust CLI (``suews run``) accepts the same two shapes via the
+bridge-side normaliser in ``src/suews_bridge/src/field_renames.rs``.
+
+``net_radiation`` also accepts an orthogonal decomposition of the
+same numeric codes:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation:
+         scheme: narp
+         ldown: air
+
+This is equivalent to ``net_radiation: {value: 3}``. Supported
+schemes are ``forcing`` (no ``ldown`` or ``variant``), ``narp``
+(``ldown`` of ``observed``, ``cloud``, or ``air``; optional
+``variant`` of ``standard``, ``surface``, or ``zenith``), and
+``spartacus`` (``ldown`` of ``observed``, ``cloud``, or ``air``).
+As with the family-tagged form, the orthogonal form is accept-only:
+round-tripping emits the flat numeric form. Human-readable method
+aliases beyond this explicit decomposition remain out of scope.
+
+``emissions`` also accepts an orthogonal decomposition of the heat/QF
+and CO2 axes:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       emissions:
+         heat: j11
+         co2:
+           anthropogenic: detailed
+           biogenic: conductance
+
+This is equivalent to ``emissions: {value: 45}``. Supported ``heat``
+values are ``observed``, ``l11``, ``j11``, and ``l11_updated``.
+When omitted, ``co2`` defaults to no CO2 calculation, so ``heat:
+j11`` is equivalent to ``emissions: {value: 2}``. Supported
+``co2.anthropogenic`` values are ``qf_linked`` and ``detailed``;
+supported ``co2.biogenic`` values are ``rectangular``,
+``bellucco_local``, ``bellucco_general``, and ``conductance``.
+The legacy Fortran code represents anthropogenic and biogenic CO2
+together in the ``11-16`` / ``21-26`` / ``31-36`` / ``41-46``
+families, so the orthogonal form rejects unsupported "CO2-only"
+combinations rather than assigning misleading semantics. Non-biogenic
+flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
+but their CO2 fluxes are discarded by the driver.

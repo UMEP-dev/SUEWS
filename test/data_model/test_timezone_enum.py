@@ -8,13 +8,14 @@ import yaml
 import supy as sp
 from supy.data_model.core.timezone_enum import TimezoneOffset
 
+pytestmark = pytest.mark.api
+
 
 def test_timezone_enum_support():
     """Test that timezone accepts valid timezone offsets and converts them to enum"""
 
     # Create a test config with float timezone value
     config_dict = {
-        "forcing": {"file": "test/benchmark1/forcing/Kc1_2011_data_5.txt"},
         "sites": [
             {
                 "name": "Test Site",
@@ -32,7 +33,7 @@ def test_timezone_enum_support():
     }
 
     # Write config to temporary file
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(config_dict, f)
         temp_config_path = f.name
 
@@ -84,7 +85,6 @@ def test_timezone_enum_support():
 def test_timezone_boundary_values(tz_value):
     """Test timezone boundary values"""
     config_dict = {
-        "forcing": {"file": "test/benchmark1/forcing/Kc1_2011_data_5.txt"},
         "sites": [
             {
                 "name": f"Test Site TZ {tz_value}",
@@ -101,7 +101,7 @@ def test_timezone_boundary_values(tz_value):
         ],
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(config_dict, f)
         temp_config_path = f.name
 
@@ -144,7 +144,6 @@ def test_timezone_boundary_values(tz_value):
 def test_timezone_validation_errors(tz_value):
     """Test that invalid timezone values still raise errors"""
     config_dict = {
-        "forcing": {"file": "test/benchmark1/forcing/Kc1_2011_data_5.txt"},
         "sites": [
             {
                 "name": "Test Site",
@@ -161,7 +160,7 @@ def test_timezone_validation_errors(tz_value):
         ],
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(config_dict, f)
         temp_config_path = f.name
 

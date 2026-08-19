@@ -2,7 +2,7 @@
 name: Docs issue report
 about: Create a report to help us improve the documentation
 title: ''
-labels: docs
+labels: '1-maintenance,2-doc:user'
 assignees: ''
 
 ---

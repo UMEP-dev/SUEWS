@@ -30,22 +30,9 @@ supy - SUEWS that speaks Python
 # List of public symbols (for `from supy import *`)
 __all__ = [
     # Core functions
-    "init_supy",
-    "load_SampleData",
-    "load_sample_data",
     "load_forcing_grid",
-    "load_config_from_df",
-    "run_supy",
-    "save_supy",
     "check_forcing",
     "check_state",
-    "init_config",
-    "run_supy_sample",
-    "resample_output",  # Deprecated - use SUEWSOutput.resample() instead
-    # Debug utilities
-    "pack_dts_state_selective",
-    "inspect_dts_structure",
-    "dict_structure",
     # Modules
     "util",
     "data_model",
@@ -55,19 +42,33 @@ __all__ = [
     "ValidationResult",
     # Modern interface
     "SUEWSSimulation",
+    "SUEWSCheckpoint",
     "SUEWSForcing",
     "SUEWSOutput",
     # Exceptions
     "SUEWSKernelError",
+    # Logging (opt-in file logging)
+    "enable_file_logging",
+    "disable_file_logging",
     # Version
     "show_version",
     "__version__",
+    # Model-version registry (read-only lineage API)
+    "list_model_versions",
+    "model_version_info",
+    "schema_for",
     # CLI
     "SUEWS",
 ]
 
 # Cache for lazy-loaded modules and attributes
 _lazy_cache = {}
+
+# The one procedural compatibility name still required by the UMEP processor.
+# Keep this small explicit set in sync with ``_FUNCTIONAL_DEPRECATIONS``.
+_DEPRECATED_FUNCTIONAL_NAMES = frozenset({
+    "load_forcing_grid",
+})
 
 
 def __getattr__(name):
@@ -78,38 +79,24 @@ def __getattr__(name):
     if name in _lazy_cache:
         return _lazy_cache[name]
 
-    # Core functions from _supy_module
-    if name in {
-        "init_supy",
-        "load_SampleData",
-        "load_sample_data",
-        "load_forcing_grid",
-        "load_config_from_df",
-        "run_supy",
-        "save_supy",
-        "check_forcing",
-        "check_state",
-        "init_config",
-        "run_supy_sample",
-    }:
+    # Procedural API: emit a one-shot FutureWarning on first attribute access
+    # so users importing the symbol see the migration nudge immediately rather
+    # than only when the function is called (gh#1370 phase 2). Subsequent
+    # accesses hit `_lazy_cache` and stay silent. The in-body
+    # `_warn_functional_deprecation` calls inside each function definition
+    # remain as a safety net for code that bypasses `__getattr__`.
+    if name in _DEPRECATED_FUNCTIONAL_NAMES:
         from . import _supy_module
 
+        _supy_module._warn_functional_deprecation(name)
         _lazy_cache[name] = getattr(_supy_module, name)
         return _lazy_cache[name]
 
-    # resample_output - deprecated, use SUEWSOutput.resample() instead
-    if name == "resample_output":
-        from ._supy_module import _warn_functional_deprecation, resample_output
+    # Non-deprecated `_supy_module` exports (utilities — keep silent)
+    if name in {"check_forcing", "check_state"}:
+        from . import _supy_module
 
-        _warn_functional_deprecation("resample_output")
-        _lazy_cache[name] = resample_output
-        return _lazy_cache[name]
-
-    # Debug utilities from _post
-    if name in {"pack_dts_state_selective", "inspect_dts_structure", "dict_structure"}:
-        from . import _post
-
-        _lazy_cache[name] = getattr(_post, name)
+        _lazy_cache[name] = getattr(_supy_module, name)
         return _lazy_cache[name]
 
     # Submodules
@@ -135,9 +122,9 @@ def __getattr__(name):
     }:
         try:
             from .data_model.validation import (
-                validate_suews_config_conditional,
                 ValidationController,
                 ValidationResult,
+                validate_suews_config_conditional,
             )
 
             _lazy_cache["validate_suews_config_conditional"] = (
@@ -160,6 +147,15 @@ def __getattr__(name):
         except ImportError:
             return None
 
+    if name == "SUEWSCheckpoint":
+        try:
+            from .suews_checkpoint import SUEWSCheckpoint
+
+            _lazy_cache[name] = SUEWSCheckpoint
+            return _lazy_cache[name]
+        except ImportError:
+            return None
+
     if name == "SUEWSForcing":
         try:
             from .suews_forcing import SUEWSForcing
@@ -178,11 +174,32 @@ def __getattr__(name):
         except ImportError:
             return None
 
+    # Opt-in file logging controls (lightweight: only touches `_env`)
+    if name in {"enable_file_logging", "disable_file_logging"}:
+        from ._env import disable_file_logging, enable_file_logging
+
+        _lazy_cache["enable_file_logging"] = enable_file_logging
+        _lazy_cache["disable_file_logging"] = disable_file_logging
+        return _lazy_cache[name]
+
     # Version info
     if name == "show_version":
         from ._version import show_version
 
         _lazy_cache[name] = show_version
+        return _lazy_cache[name]
+
+    # Model-version registry (read-only lineage API)
+    if name in {"list_model_versions", "model_version_info", "schema_for"}:
+        from ._model_registry import (
+            list_model_versions,
+            model_version_info,
+            schema_for,
+        )
+
+        _lazy_cache["list_model_versions"] = list_model_versions
+        _lazy_cache["model_version_info"] = model_version_info
+        _lazy_cache["schema_for"] = schema_for
         return _lazy_cache[name]
 
     # CLI command
@@ -192,9 +209,16 @@ def __getattr__(name):
         _lazy_cache[name] = SUEWS
         return _lazy_cache[name]
 
-    # Exception for Fortran kernel errors
+    # Exception for Fortran kernel errors (kept for backward compatibility)
     if name == "SUEWSKernelError":
-        from ._run import SUEWSKernelError
+
+        class SUEWSKernelError(RuntimeError):
+            """Error raised when the SUEWS Fortran kernel encounters a fatal condition."""
+
+            def __init__(self, code=None, message=None):
+                self.code = code
+                self.message = message or "SUEWS kernel error"
+                super().__init__(f"SUEWS kernel error (code={code}): {self.message}")
 
         _lazy_cache[name] = SUEWSKernelError
         return _lazy_cache[name]

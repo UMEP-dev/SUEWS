@@ -766,7 +766,7 @@ fn run_physics_command(config_path: &str) -> Result<(), String> {
     let raw_forcing = read_forcing_block(&run_cfg.forcing_path)?;
     let forcing = interpolate_forcing(&raw_forcing, run_cfg.timer.tstep)?;
 
-    let (output_block, _state, len_sim) =
+    let (output_block, _state, _timer, len_sim) =
         run_from_config_str_and_forcing(&config_yaml, forcing.block, forcing.len_sim)
             .map_err(|e| e.to_string())?;
 

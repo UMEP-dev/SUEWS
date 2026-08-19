@@ -162,7 +162,7 @@ def main() -> int:
 
     schema_version = None
     try:
-        from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+        from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
         schema_version = CURRENT_SCHEMA_VERSION
     except Exception:
         pass

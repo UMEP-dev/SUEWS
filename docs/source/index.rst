@@ -149,6 +149,7 @@ How to support SUEWS?
    :hidden:
 
    contributing/contributing
+   contributing/schema/index
    acknowledgement
    GitHub repository <https://github.com/UMEP-dev/SUEWS>
 

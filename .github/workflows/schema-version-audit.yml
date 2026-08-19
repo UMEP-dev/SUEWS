@@ -1,20 +1,15 @@
 name: Schema version audit
 
-# Enforce that any PR touching the Pydantic data model or the shipped
-# sample_config also bumps `CURRENT_SCHEMA_VERSION` in
-# `src/supy/data_model/schema/version.py`. Maintainers can label a PR
+# Enforce that PRs changing the YAML-owned Pydantic models or the shipped
+# sample_config also bump `CURRENT_SCHEMA_VERSION` in
+# `src/supy/data_model/configuration/version.py`. Maintainers can label a PR
 # with `0-ci:schema-audit-ok` to bypass the check when the diff is genuinely
-# cosmetic. Motivated by gh#1304.
+# cosmetic. Forcing and output contracts have an independent audit.
 
 on:
+  # Run unconditionally so a required check succeeds for unrelated PRs and so
+  # path-filter edge cases (especially renames) still reach the audit script.
   pull_request:
-    paths:
-      - 'src/supy/data_model/**'
-      - 'src/supy/sample_data/sample_config.yml'
-      - 'docs/source/contributing/schema/schema_versioning.rst'
-      - 'docs/source/inputs/transition_guide.rst'
-      - 'scripts/lint/check_schema_version_bump.py'
-      - '.github/workflows/schema-version-audit.yml'
 
 permissions:
   contents: read
@@ -45,6 +40,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Set up Python
+        if: steps.bypass.outputs.bypass != 'true'
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
 
       - name: Fetch base ref
         if: steps.bypass.outputs.bypass != 'true'

@@ -6,13 +6,6 @@ import tempfile
 from time import time
 from unittest import TestCase
 
-import numpy as np
-import pandas as pd
-import pytest
-
-import supy as sp
-from supy import SUEWSSimulation
-
 # Import debug utilities from conftest (centralised)
 from conftest import (
     SHORT_RUN_STEPS,
@@ -21,8 +14,14 @@ from conftest import (
     debug_dataframe_output,
     debug_on_ci,
     debug_water_balance,
+    run_simulation,
 )
+import numpy as np
+import pandas as pd
+import pytest
 
+import supy as sp
+from supy import SUEWSSimulation
 
 # Get the test data directory from the environment variable
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
@@ -44,8 +43,8 @@ class TestSuPy(TestCase):
 
         ``sample_data_loaded`` is the bundled ``(df_state_init, df_forcing)``
         tuple loaded once for the session; ``sample_run_cached`` is the
-        matching functional-API run factory (see conftest.py). Methods below
-        MUST ``.copy()`` any frame they mutate or pass into ``run_supy``.
+        matching OOP run factory (see conftest.py). Methods below
+        MUST ``.copy()`` any frame they mutate.
 
         ``@classmethod``: a class-scoped fixture runs once per class, not
         once per test instance, so it must set attributes on ``cls`` rather
@@ -106,10 +105,6 @@ class TestSuPy(TestCase):
         self.assertTrue(test_non_empty and not sim.state_final.isnull().values.any())
 
     # test if multi-grid simulation can run in parallel
-    # NOTE: This test uses functional API (sp.run_supy) instead of SUEWSSimulation
-    # because multi-grid parallelization is a low-level feature not exposed in the OOP interface.
-    # SUEWSSimulation is designed for single-grid workflows.
-
     def test_is_supy_sim_save_multi_grid_par(self):
         print("\n========================================")
         print("Testing if multi-grid simulation can run in parallel...")
@@ -126,7 +121,11 @@ class TestSuPy(TestCase):
         # sufficient and avoids retaining 60 days of four-grid output.
         df_forcing_part = df_forcing_tstep.iloc[:SHORT_RUN_STEPS]
         t_start = time()
-        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init_multi)
+        simulation = SUEWSSimulation.from_state(df_state_init_multi)
+        simulation.update_forcing(df_forcing_part)
+        output = simulation.run()
+        df_output = output.df
+        df_state = output.state_final
         t_end = time()
 
         test_success_sim = np.all([
@@ -135,13 +134,7 @@ class TestSuPy(TestCase):
         ])
 
         with tempfile.TemporaryDirectory() as dir_temp:
-            list_outfile = sp.save_supy(
-                df_output,
-                df_state,
-                path_dir_save=dir_temp,
-                site="pytest",
-                logging_level=10,
-            )
+            list_outfile = output.save(dir_temp)
 
         test_success_save = np.all([isinstance(fn, Path) for fn in list_outfile])
         self.assertTrue(test_success_sim and test_success_save)
@@ -164,12 +157,9 @@ class TestSuPy(TestCase):
         df_state_init, df_forcing_tstep = self._sample_data
         df_forcing_part = df_forcing_tstep.iloc[:24]
 
-        # Own run: debug_mode=True is the kwarg under test, and run_supy may
-        # mutate df_state_init, so pass a copy of the shared state.
-        df_output, df_state = sp.run_supy(
+        df_output, df_state = run_simulation(
             df_forcing_part,
             df_state_init.copy(),
-            debug_mode=True,
         )
 
         self.assertFalse(df_output.empty)
@@ -270,7 +260,9 @@ class TestSuPy(TestCase):
         4. Version info persists through the cycle
         """
         print("\n========================================")
-        print("Testing complete checkpoint save/load/run cycle with version tracking...")
+        print(
+            "Testing complete checkpoint save/load/run cycle with version tracking..."
+        )
 
         # Run 1: Initial simulation
         sim1 = SUEWSSimulation.from_sample_data()

@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Mapping
 from typing import (
     Dict,
     List,
@@ -33,11 +34,22 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import FAIMethod, LAIMethod, Model, OutputControl
+from .model import FAIMethod, LAIMethod, Model, OutputTimestampReference
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
+from ..validation.required_fields import (
+    BUILDING_REQUIRED,
+    BUILDING_REQUIRED_PROVIDED_FAI,
+    CONDUCTANCE_REQUIRED,
+    DECIDUOUS_REQUIRED,
+    DECIDUOUS_REQUIRED_PROVIDED_FAI,
+    EVERGREEN_REQUIRED,
+    EVERGREEN_REQUIRED_PROVIDED_FAI,
+    LAI_CALCULATED_ONLY_REQUIRED,
+    LAI_REQUIRED,
+)
 
 from datetime import datetime
 import pytz
@@ -161,6 +173,30 @@ def _normalise_legacy_kdown_direct_fraction(value):
         except TypeError:
             return repr(value)
         return value
+
+
+def _legacy_yaml_key_suggestion(key: object) -> Optional[str]:
+    """Return an unambiguous current name for a legacy YAML key."""
+    from .field_renames import RAW_YAML_FIELD_RENAMES
+
+    matches = {
+        current
+        for legacy, current in RAW_YAML_FIELD_RENAMES.items()
+        if legacy.casefold() == str(key).casefold()
+    }
+    return matches.pop() if len(matches) == 1 else None
+
+
+def _prefixed_line_errors(error: ValidationError, prefix: tuple) -> list[dict]:
+    """Return Pydantic line errors with a root configuration path prefix."""
+    line_errors = []
+    for item in error.errors(include_url=False):
+        line_error = {
+            key: value for key, value in item.items() if key not in {"msg", "url"}
+        }
+        line_error["loc"] = (*prefix, *item["loc"])
+        line_errors.append(line_error)
+    return line_errors
 
 
 def _find_legacy_spartacus_kdown_direct_fractions(values):
@@ -570,7 +606,7 @@ class SUEWSConfig(BaseModel):
         SUEWSConfig
             The validated SUEWSConfig instance (self).
         """
-        from ..schema import validate_schema_version, CURRENT_SCHEMA_VERSION
+        from ..configuration import validate_schema_version, CURRENT_SCHEMA_VERSION
 
         # If no schema version specified, set to current
         if self.schema_version is None:
@@ -624,6 +660,57 @@ class SUEWSConfig(BaseModel):
                 raise ValueError(
                     f"Output frequency ({output_control.freq}s) must be a multiple of timestep ({tstep}s)"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_model_output_timestamp_reference(self) -> "SUEWSConfig":
+        """Validate output timestamp reference against site timezone fields."""
+        timestamp_reference = self.model.control.output.timestamp_reference
+        if timestamp_reference == OutputTimestampReference.FOLLOW:
+            return self
+
+        errors = []
+        for site_index, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
+            if not site.properties:
+                continue
+
+            timezone_val = _unwrap_value(site.properties.timezone)
+            is_zero_offset = False
+            try:
+                is_zero_offset = float(timezone_val) == 0.0
+            except (TypeError, ValueError):
+                pass
+
+            if timestamp_reference in {
+                OutputTimestampReference.LOCAL_STANDARD_TIME,
+                OutputTimestampReference.DAYLIGHT,
+            } and is_zero_offset:
+                warnings.warn(
+                    f"{site_name}: output.timestamp_reference={timestamp_reference.value!r} "
+                    "uses a zero UTC offset, so labels will match UTC except "
+                    "for any daylight-saving adjustment.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            if timestamp_reference != OutputTimestampReference.DAYLIGHT:
+                continue
+
+            anthro = site.properties.anthropogenic_emissions
+            startdls_val = _unwrap_value(anthro.startdls)
+            enddls_val = _unwrap_value(anthro.enddls)
+            if startdls_val is None or enddls_val is None:
+                errors.append(
+                    f"{site_name}: output.timestamp_reference='daylight' requires "
+                    "both anthropogenic_emissions.startdls and "
+                    "anthropogenic_emissions.enddls."
+                )
+
+        if errors:
+            raise ValueError(
+                "Output timestamp reference validation failed: " + "; ".join(errors)
+            )
         return self
 
     @model_validator(mode="after")
@@ -1315,20 +1402,20 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         The following parameters are checked:
-        - co2pointsource: CO2 point source emission factor
-        - ef_umolco2perj: CO2 emission factor per unit of fuel energy
-        - frfossilfuel_heat: Fraction of heating energy from fossil fuels
-        - frfossilfuel_nonheat: Fraction of non-heating energy from fossil fuels
+        - emission_co2_point_source: CO2 point source emission factor
+        - emission_factor_co2_fuel: CO2 emission factor per unit of fuel energy
+        - fraction_fossil_fuel_heating: Fraction of heating energy from fossil fuels
+        - fraction_fossil_fuel_non_heating: Fraction of non-heating energy from fossil fuels
 
         Any missing parameters are added to the validation summary.
         """
         from ..validation.core.utils import check_missing_params
 
         critical_params = {
-            "co2pointsource": "CO2 point source emission factor",
-            "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-            "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-            "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
+            "emission_co2_point_source": "CO2 point source emission factor",
+            "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+            "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
+            "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
         }
 
         missing_params = check_missing_params(
@@ -3113,109 +3200,22 @@ class SUEWSConfig(BaseModel):
             raw_surface = raw_lc.get(surface_name)
             return raw_surface is None or isinstance(raw_surface, dict)
 
-        lai_required = {
-            "lai_max": (
-                "Maximum LAI is required for active vegetation",
-                "Add maximum leaf area index for full leaf-on conditions",
-            ),
-        }
-        lai_calculated_only_required = {
-            "base_temperature": (
-                "Base temperature is required for active vegetation",
-                "Add the base temperature for growing degree day accumulation",
-            ),
-            "base_temperature_senescence": (
-                "Senescence base temperature is required for active vegetation",
-                "Add the base temperature for senescence degree day accumulation",
-            ),
-            "gdd_full": (
-                "Growing degree days for full LAI are required for active vegetation",
-                "Add the growing degree day threshold for full leaf-on conditions",
-            ),
-            "sdd_full": (
-                "Senescence degree days are required for active vegetation",
-                "Add the senescence degree day threshold for leaf-off conditions",
-            ),
-        }
-        conductance_required = {
-            "g_max": (
-                "Maximum surface conductance is required for active vegetation",
-                "Add g_max for evapotranspiration calculations",
-            ),
-            "g_k": (
-                "Solar radiation response parameter is required for active vegetation",
-                "Add g_k for evapotranspiration calculations",
-            ),
-            "g_q_base": (
-                "Vapour pressure deficit base parameter is required for active vegetation",
-                "Add g_q_base for evapotranspiration calculations",
-            ),
-            "g_q_shape": (
-                "Vapour pressure deficit shape parameter is required for active vegetation",
-                "Add g_q_shape for evapotranspiration calculations",
-            ),
-            "g_t": (
-                "Temperature response parameter is required for active vegetation",
-                "Add g_t for evapotranspiration calculations",
-            ),
-            "g_sm": (
-                "Soil moisture response parameter is required for active vegetation",
-                "Add g_sm for evapotranspiration calculations",
-            ),
-            "kmax": (
-                "Maximum shortwave radiation parameter is required for active vegetation",
-                "Add kmax for evapotranspiration calculations",
-            ),
-            "s1": (
-                "Lower soil moisture threshold is required for active vegetation",
-                "Add s1 for evapotranspiration calculations",
-            ),
-            "s2": (
-                "Soil moisture dependence parameter is required for active vegetation",
-                "Add s2 for evapotranspiration calculations",
-            ),
-            "tl": (
-                "Lower temperature threshold is required for active vegetation",
-                "Add tl for evapotranspiration calculations",
-            ),
-            "th": (
-                "Upper temperature threshold is required for active vegetation",
-                "Add th for evapotranspiration calculations",
-            ),
-        }
-        building_required = {
-            "bldgh": (
-                "Building height is required when buildings are active",
-                "Add building height in meters",
-            ),
-        }
+        # Sourced from the shared registry so the documentation generator can
+        # describe the same conditions to readers. Copied rather than aliased,
+        # because the FAI entries below are added conditionally per call.
+        lai_required = dict(LAI_REQUIRED)
+        lai_calculated_only_required = dict(LAI_CALCULATED_ONLY_REQUIRED)
+        conductance_required = dict(CONDUCTANCE_REQUIRED)
+
+        building_required = dict(BUILDING_REQUIRED)
         if require_provided_fai:
-            building_required["faibldg"] = (
-                "Building frontal area index is required when buildings are active",
-                "Add frontal area index for wind and roughness calculations",
-            )
-        evergreen_required = {
-            "height_evergreen_tree": (
-                "Evergreen tree height is required when evergreen vegetation is active",
-                "Add evergreen tree height in meters",
-            ),
-        }
+            building_required.update(BUILDING_REQUIRED_PROVIDED_FAI)
+        evergreen_required = dict(EVERGREEN_REQUIRED)
         if require_provided_fai:
-            evergreen_required["fai_evergreen_tree"] = (
-                "Evergreen tree frontal area index is required when evergreen vegetation is active",
-                "Add evergreen tree frontal area index",
-            )
-        deciduous_required = {
-            "height_deciduous_tree": (
-                "Deciduous tree height is required when deciduous vegetation is active",
-                "Add deciduous tree height in meters",
-            ),
-        }
+            evergreen_required.update(EVERGREEN_REQUIRED_PROVIDED_FAI)
+        deciduous_required = dict(DECIDUOUS_REQUIRED)
         if require_provided_fai:
-            deciduous_required["fai_deciduous_tree"] = (
-                "Deciduous tree frontal area index is required when deciduous vegetation is active",
-                "Add deciduous tree frontal area index",
-            )
+            deciduous_required.update(DECIDUOUS_REQUIRED_PROVIDED_FAI)
 
         def _add_issue(
             *,
@@ -3542,10 +3542,10 @@ class SUEWSConfig(BaseModel):
             from ..validation.core.utils import check_missing_params
 
             critical_params = {
-                "co2pointsource": "CO2 point source emission factor",
-                "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-                "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-                "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
+                "emission_co2_point_source": "CO2 point source emission factor",
+                "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+                "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
+                "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
             }
 
             missing_params = check_missing_params(
@@ -4154,12 +4154,12 @@ class SUEWSConfig(BaseModel):
                 anthro_co2 = site.properties.anthropogenic_emissions.co2
                 hourly_profiles.extend([
                     (
-                        "anthropogenic_emissions.co2.traffprof_24hr",
-                        anthro_co2.traffprof_24hr,
+                        "anthropogenic_emissions.co2.profile_traffic_24hr",
+                        anthro_co2.profile_traffic_24hr,
                     ),
                     (
-                        "anthropogenic_emissions.co2.humactivity_24hr",
-                        anthro_co2.humactivity_24hr,
+                        "anthropogenic_emissions.co2.profile_human_activity_24hr",
+                        anthro_co2.profile_human_activity_24hr,
                     ),
                 ])
 
@@ -4386,6 +4386,45 @@ class SUEWSConfig(BaseModel):
         return self
 
     @classmethod
+    def _validate_raw_mapping(cls, config_data: dict) -> "SUEWSConfig":
+        """Validate user-controlled config subtrees with strict extra keys."""
+        prepared = cls.convert_legacy_hdd_formats(config_data)
+        prepared = cls._migrate_legacy_spartacus_kdown_direct_fraction(prepared)
+        line_errors = []
+
+        raw_model = prepared.get("model")
+        if isinstance(raw_model, Mapping):
+            try:
+                prepared["model"] = Model.model_validate(
+                    raw_model, extra="forbid"
+                )
+            except ValidationError as error:
+                line_errors.extend(_prefixed_line_errors(error, ("model",)))
+
+        raw_sites = prepared.get("sites")
+        if isinstance(raw_sites, Iterable) and not isinstance(
+            raw_sites, (str, bytes, Mapping)
+        ):
+            validated_sites = []
+            for index, raw_site in enumerate(raw_sites):
+                if isinstance(raw_site, Mapping):
+                    try:
+                        raw_site = Site.model_validate(
+                            raw_site, extra="forbid"
+                        )
+                    except ValidationError as error:
+                        line_errors.extend(
+                            _prefixed_line_errors(error, ("sites", index))
+                        )
+                validated_sites.append(raw_site)
+            prepared["sites"] = validated_sites
+
+        if line_errors:
+            raise ValidationError.from_exception_data("SUEWSConfig", line_errors)
+
+        return cls(**prepared)
+
+    @classmethod
     def _transform_validation_error(
         cls,
         error: ValidationError,
@@ -4434,9 +4473,12 @@ class SUEWSConfig(BaseModel):
         for err in modified_errors:
             loc_str = cls._format_validation_loc(err["loc"], site_gridid_map)
             error_lines.append(loc_str)
-            error_lines.append(
-                f"  {err['msg']} [type={err['type']}]"
-            )
+            message = err["msg"]
+            if err.get("type") == "extra_forbidden" and err.get("loc"):
+                suggestion = _legacy_yaml_key_suggestion(err["loc"][-1])
+                if suggestion is not None:
+                    message += f"; legacy field was renamed to '{suggestion}'"
+            error_lines.append(f"  {message} [type={err['type']}]")
             if "url" in err:
                 error_lines.append(f"    For further information visit {err['url']}")
 
@@ -4500,8 +4542,8 @@ class SUEWSConfig(BaseModel):
         self-contradictory hint that pointed users at a command that could
         not work.
         """
-        from ..schema import CURRENT_SCHEMA_VERSION
-        from ..schema.migration import SchemaMigrator
+        from ..configuration import CURRENT_SCHEMA_VERSION
+        from ..configuration.migration import SchemaMigrator
 
         if had_signature:
             try:
@@ -4624,7 +4666,7 @@ class SUEWSConfig(BaseModel):
         config_data["_yaml_raw"] = yaml_raw_snapshot
 
         # Log schema version information if present
-        from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
+        from ..configuration import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
 
         # Remember whether the source YAML carried a schema_version field so the
         # drift-hint builder does not report the default-stamped CURRENT_SCHEMA_VERSION
@@ -4651,7 +4693,9 @@ class SUEWSConfig(BaseModel):
                 "Running comprehensive Pydantic validation with conditional checks."
             )
             try:
-                return cls(**config_data)
+                # Root ``extra="allow"`` is reserved for the bookkeeping keys
+                # above; the shared raw-mapping path enforces strictness below.
+                return cls._validate_raw_mapping(config_data)
             except ValidationError as e:
                 # Transform Pydantic validation error messages to use GRIDID instead of array indices
                 transformed_error = cls._transform_validation_error(

@@ -2,8 +2,14 @@
 
 
 
+==============
 Typical Values
-##############
+==============
+
+.. note::
+
+   For guidance on deriving site-specific values from real-world data sources,
+   see :doc:`/inputs/surface-data-preparation`.
 
 Other values to add - please let us know
 
@@ -31,5 +37,3 @@ Storage Heat Flux Related
       :file: typical-OHM-coefficients.csv
       :header-rows: 1
       :stub-columns: 1
-
-

@@ -381,7 +381,8 @@ class SUEWSOutput:
         for group in self.groups:
             try:
                 vars_in_group = (
-                    self._df_output[group]
+                    self
+                    ._df_output[group]
                     .columns.get_level_values("var")
                     .unique()
                     .tolist()
@@ -414,9 +415,9 @@ class SUEWSOutput:
         SUEWSOutput
             New output at resampled frequency
         """
-        from ._post import resample_output
+        from ._post import _resample_output
 
-        resampled = resample_output(self, freq, _internal=True)
+        resampled = _resample_output(self, freq)
         return SUEWSOutput(
             df_output=resampled,
             df_state_final=self._df_state_final,
@@ -468,6 +469,7 @@ class SUEWSOutput:
         freq = freq_s or 3600
         site = ""
         output_config = None
+        forcing_timestamp_reference = "local_standard_time"
 
         if self._config:
             try:
@@ -478,6 +480,10 @@ class SUEWSOutput:
                         if hasattr(output_control, "freq") and output_control.freq:
                             freq = freq_s or output_control.freq
                         output_config = output_control
+                    if hasattr(control, "forcing"):
+                        forcing_timestamp_reference = (
+                            control.forcing.timestamp_reference
+                        )
                 if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                     site = self._config.sites[0].name
             except AttributeError:
@@ -494,6 +500,7 @@ class SUEWSOutput:
             output_config=output_config,
             output_format=format,
             save_state=False,
+            forcing_timestamp_reference=forcing_timestamp_reference,
         )
 
         if self._checkpoint is not None:

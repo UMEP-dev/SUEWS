@@ -111,6 +111,8 @@ py.install_sources(
             'data_model/__init__.py',
             'data_model/README.md',
             'data_model/doc_utils.py',
+            'data_model/parameter_examples.py',
+            'data_model/parameter_examples.json',
             'data_model/core/__init__.py',
             'data_model/core/config.py',
             'data_model/core/df_column_renames.py',
@@ -128,6 +130,13 @@ py.install_sources(
             'data_model/core/surface.py',
             'data_model/core/timezone_enum.py',
             'data_model/core/type.py',
+            'data_model/configuration/__init__.py',
+            'data_model/configuration/version.py',
+            'data_model/configuration/migration.py',
+            'data_model/configuration/updater.py',
+            'data_model/configuration/publisher.py',
+            'data_model/configuration/exporter.py',
+            'data_model/configuration/registry.py',
             'data_model/schema/__init__.py',
             'data_model/schema/version.py',
             'data_model/schema/migration.py',
@@ -135,7 +144,14 @@ py.install_sources(
             'data_model/schema/publisher.py',
             'data_model/schema/exporter.py',
             'data_model/schema/registry.py',
+            'data_model/forcing/__init__.py',
+            'data_model/forcing/registry.py',
+            'data_model/forcing/variables.py',
+            'data_model/forcing/version.py',
             'data_model/output/__init__.py',
+            'data_model/output/contract.py',
+            'data_model/output/registry.py',
+            'data_model/output/version.py',
             'data_model/output/variables.py',
             'data_model/output/datetime_vars.py',
             'data_model/output/suews_vars.py',
@@ -158,6 +174,7 @@ py.install_sources(
             'data_model/validation/core/feedback.py',
             'data_model/validation/core/utils.py',
             'data_model/validation/core/yaml_helpers.py',
+            'data_model/validation/required_fields.py',
             'data_model/validation/pipeline/__init__.py',
             'data_model/validation/pipeline/orchestrator.py',
             'data_model/validation/pipeline/phase_a.py',
@@ -178,6 +195,16 @@ py.install_sources(
     ],
     subdir: 'supy',
     preserve_path: true,
+)
+
+install_subdir(
+  'data_model/output/artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model/output',
+)
+
+install_subdir(
+  'data_model/forcing/artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model/forcing',
 )
 
 knowledge_pack = custom_target(

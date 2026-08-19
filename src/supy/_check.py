@@ -8,15 +8,17 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from ._env import logger_supy, trv_supy_module, trv_supy_module
+from ._env import logger_supy, trv_supy_module
 from ._load import (
     CANONICAL_FORCING_COLUMNS,
     _is_per_landcover_column,
     dict_var_type_forcing,
     set_var_use,
 )
+from .data_model.core.forcing_validation import matching_requirement_conditions
+from .data_model.forcing import FORCING_REGISTRY
 
-LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+LAI_VEG_COLUMNS = FORCING_REGISTRY.per_landcover_columns["lai"]
 
 
 # the check list file with ranges and logics
@@ -41,6 +43,42 @@ def load_rules(path_rules) -> Dict:
 # store rules as a dict
 dict_rules_indiv = load_rules(path_rules_indiv)
 
+_FORCING_RUNTIME_RULES = {
+    name.casefold(): {
+        "cat": "grid",
+        "logic": "range",
+        "optional": name not in FORCING_REGISTRY.baseline_driver_columns,
+        "param": {
+            "min": "-inf" if lower is None else lower,
+            "max": "inf" if upper is None else upper,
+        },
+        "unit": unit or "unresolved",
+    }
+    for name, (lower, upper, unit) in FORCING_REGISTRY.runtime_validation_ranges.items()
+}
+_FORCING_RUNTIME_RULES.update({
+    variable.name.casefold(): {
+        "cat": "grid",
+        "logic": "range",
+        "optional": True,
+        "param": {
+            "min": (
+                "-inf"
+                if variable.validation_range[0] is None
+                else variable.validation_range[0] * variable.runtime_scale
+            ),
+            "max": (
+                "inf"
+                if variable.validation_range[1] is None
+                else variable.validation_range[1] * variable.runtime_scale
+            ),
+        },
+        "unit": variable.runtime_unit or variable.unit or "unresolved",
+    }
+    for variable in FORCING_REGISTRY.variables
+    if variable.fallback is not None and variable.validation_range is not None
+})
+
 
 # checking the range of each parameter
 def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
@@ -59,11 +97,20 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
 
     # if the parameter is optional and not set, it is accepted
     from .util import to_nan
+    from .util._missing import SUEWS_MISSING
 
-    ser_to_check_nan = to_nan(ser_to_check)
-    if flag_optional:
+    # Observed water use is consumed by the kernel with an exact -999
+    # sentinel check. Do not let other large negative values pass as missing.
+    is_wuh = var == "wuh" or var.startswith("wuh_")
+    if is_wuh:
+        ser_to_check_nan = ser_to_check.loc[ser_to_check != SUEWS_MISSING]
+    else:
+        ser_to_check_nan = to_nan(ser_to_check)
+    if flag_optional and not is_wuh:
         ser_to_check_nan = ser_to_check_nan.dropna()
-    ser_flag = ~ser_to_check_nan.between(min_v, max_v)
+    ser_flag = ~ser_to_check_nan.between(min_v, max_v) | ~np.isfinite(
+        ser_to_check_nan
+    )
     n_flag = ser_flag.sum()
     if ser_flag.sum() > 0:
         is_accepted_flag = False
@@ -156,20 +203,7 @@ list_col_forcing = list(dict_var_type_forcing.keys())
 # Format: (physics_option_name, option_value): [list of required columns]
 # Reference: https://docs.suews.io/stable/inputs/tables/RunControl/RunControl.html
 # and https://docs.suews.io/stable/inputs/forcing-data.html
-FORCING_REQUIREMENTS = {
-    ("netradiationmethod", 0): ["qn"],  # Uses observed Q*
-    ("netradiationmethod", 1): ["ldown"],  # Q* modelled with L↓ observations
-    ("netradiationmethod", 2): [
-        "kdown",
-        "fcld",
-    ],  # Q* modelled with L↓ from cloud fraction
-    ("netradiationmethod", 3): ["kdown"],  # Q* modelled with L↓ from Tair and RH
-    ("storageheatmethod", 0): ["qs"],  # Uses observed storage heat flux
-    ("emissionsmethod", 0): ["qf"],  # Uses observed anthropogenic heat flux
-    ("smdmethod", 1): ["xsmd"],  # Uses observed volumetric soil moisture
-    ("smdmethod", 2): ["xsmd"],  # Uses observed gravimetric soil moisture
-    ("laimethod", 0): ["lai"],  # Uses observed LAI from forcing
-}
+FORCING_REQUIREMENTS = FORCING_REGISTRY.legacy_requirements
 
 
 def _matches_option_value(actual_value, option_value) -> bool:
@@ -184,6 +218,14 @@ def _matches_option_value(actual_value, option_value) -> bool:
     if isinstance(actual_value, (list, tuple, set, frozenset)):
         return option_value in actual_value
     return actual_value == option_value
+
+
+def _invalid_required_data_mask(series: pd.Series) -> pd.Series:
+    """Return rows that cannot satisfy an active forcing requirement."""
+    from .util._missing import SUEWS_MISSING_THRESHOLD
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    return numeric.isna() | ~np.isfinite(numeric) | (numeric <= SUEWS_MISSING_THRESHOLD)
 
 
 def _observed_lai_source_columns(
@@ -208,7 +250,7 @@ def _check_observed_lai_nonneg(
 ) -> bool:
     """Reject missing or negative effective LAI rows for ``laimethod=0``.
 
-    Under the observed-LAI path every timestep must carry a non-missing,
+    Under the observed-LAI path every timestep must carry a finite,
     non-negative observation (``lai >= 0``). A genuine zero observation
     is valid and passes through the runtime unchanged. Any missing value,
     strictly negative value, or sentinel placeholder — including ``NaN``
@@ -236,8 +278,9 @@ def _check_observed_lai_nonneg(
     ser_lai = pd.to_numeric(df_forcing[lai_col], errors="coerce")
 
     mask_missing = ser_lai.isna()
+    mask_nonfinite = ~np.isfinite(ser_lai) & ~mask_missing
     mask_negative = ser_lai < 0.0
-    mask_invalid = mask_missing | mask_negative
+    mask_invalid = mask_missing | mask_nonfinite | mask_negative
     n_invalid = int(mask_invalid.sum())
     if n_invalid == 0:
         return False
@@ -250,6 +293,8 @@ def _check_observed_lai_nonneg(
     parts = []
     if n_missing > 0:
         parts.append(f"{n_missing} row(s) with missing/NaN values")
+    if mask_nonfinite.any():
+        parts.append(f"{int(mask_nonfinite.sum())} row(s) with infinite values")
     if n_sentinel > 0:
         parts.append(f"{n_sentinel} row(s) at/below the missing sentinel (-999)")
     if n_physically_invalid > 0:
@@ -367,19 +412,37 @@ def check_forcing(
         # extras inline on the returned DataFrame for downstream physics
         # work; without this guard the lookup in dict_rules_indiv would
         # KeyError on every extra.
-        if var.lower() not in dict_rules_indiv:
+        var_key = var.lower()
+        if var_key not in dict_rules_indiv and var_key not in _FORCING_RUNTIME_RULES:
             continue
         ser_var = df_forcing.loc[:, var].copy()
-        res_check = check_range(ser_var, dict_rules_indiv)
+        rules = (
+            _FORCING_RUNTIME_RULES
+            if var_key in _FORCING_RUNTIME_RULES
+            else dict_rules_indiv
+        )
+        res_check = check_range(ser_var, rules)
         if not res_check[1]:
             str_issue = res_check[2]
             list_issues.append(str_issue)
             flag_valid = False
             if fix:
                 var_check = var.lower()
-                min_v = dict_rules_indiv[var_check]["param"]["min"]
-                max_v = dict_rules_indiv[var_check]["param"]["max"]
+                min_v = rules[var_check]["param"]["min"]
+                max_v = rules[var_check]["param"]["max"]
+                min_v = -np.inf if isinstance(min_v, str) else min_v
+                max_v = np.inf if isinstance(max_v, str) else max_v
+                missing_mask = None
+                nonfinite_mask = None
+                if var_check == "wuh" or var_check.startswith("wuh_"):
+                    from .util._missing import SUEWS_MISSING
+
+                    missing_mask = ser_var == SUEWS_MISSING
+                    nonfinite_mask = ~np.isfinite(ser_var)
                 ser_var = ser_var.clip(lower=min_v, upper=max_v)
+                if missing_mask is not None:
+                    ser_var.loc[missing_mask] = SUEWS_MISSING
+                    ser_var.loc[nonfinite_mask] = SUEWS_MISSING
                 df_forcing_fix.loc[:, var] = ser_var.values
 
     # 4. check physics-specific requirements if physics dict is provided
@@ -410,9 +473,7 @@ def check_forcing(
                 # treat the requirement as active if any grid selects the
                 # option value that triggers it.
                 if _matches_option_value(actual_value, option_value):
-                    is_observed_lai = (
-                        option_name == "laimethod" and option_value == 0
-                    )
+                    is_observed_lai = option_name == "laimethod" and option_value == 0
                     # Under laimethod=0 the completeness/non-negative check
                     # is strictly stronger than the generic "all-missing"
                     # rejection — it runs first and shadows the per-column
@@ -454,15 +515,10 @@ def check_forcing(
                             # duplicate issues.
                             if is_observed_lai and col == "lai":
                                 continue
-                            # Treat any value at or below the missing
-                            # threshold (-900) as missing, matching the Fortran
-                            # runtime's defensive sentinel handling.
-                            col_data = df_forcing[col]
-                            from .util._missing import SUEWS_MISSING_THRESHOLD
+                            invalid_mask = _invalid_required_data_mask(df_forcing[col])
+                            n_invalid = int(invalid_mask.sum())
 
-                            is_all_missing = (col_data <= SUEWS_MISSING_THRESHOLD).all()
-
-                            if is_all_missing:
+                            if n_invalid:
                                 # Add helpful note for emissionsmethod about setting to zero
                                 if (
                                     option_name == "emissionsmethod"
@@ -474,14 +530,47 @@ def check_forcing(
 
                                 str_issue = (
                                     f"Physics option '{option_name}={option_value}' requires "
-                                    f"valid data in column '{col}', but it contains only missing "
-                                    f"values (-999). Please provide valid forcing data or change "
+                                    f"valid data in every row of column '{col}', but "
+                                    f"{n_invalid} row(s) contain missing, non-numeric, or "
+                                    f"sentinel values. Please provide valid forcing data or change "
                                     f"the physics option.{extra_help} "
                                     f"See documentation: "
                                     f"https://docs.suews.io/stable/inputs/tables/RunControl/scheme_options.html"
                                 )
                                 list_issues.append(str_issue)
                                 flag_valid = False
+
+        # Compound requirements cannot be represented by the historical
+        # FORCING_REQUIREMENTS mapping. Evaluate them directly from the same
+        # registry while preserving that public compatibility projection.
+        for rule in FORCING_REGISTRY.requirement_rules:
+            if len(rule.legacy_conditions) < 2:
+                continue
+            matched = matching_requirement_conditions(physics, rule.legacy_conditions)
+            if matched is None:
+                continue
+            condition = " and ".join(
+                f"{name}={value}" for name, value in matched.items()
+            )
+            for col in rule.alternatives[0]:
+                if col not in df_forcing.columns:
+                    str_issue = (
+                        f"Physics options '{condition}' require column '{col}', "
+                        "but it is missing."
+                    )
+                    list_issues.append(str_issue)
+                    flag_valid = False
+                    continue
+                invalid_mask = _invalid_required_data_mask(df_forcing[col])
+                n_invalid = int(invalid_mask.sum())
+                if n_invalid:
+                    str_issue = (
+                        f"Physics options '{condition}' require valid data in every "
+                        f"row of column '{col}', but {n_invalid} row(s) contain "
+                        "missing, non-numeric, or sentinel values."
+                    )
+                    list_issues.append(str_issue)
+                    flag_valid = False
 
     if not flag_valid:
         str_issue = "\n".join(["Issues found in `df_forcing`:"] + list_issues)
@@ -585,7 +674,8 @@ def flatten_col(df_state: pd.DataFrame):
     # flattened columns
     col_flat = col_mi.map(
         lambda s: (
-            "_".join(s)
+            "_"
+            .join(s)
             .replace("_0", "")
             .replace("(", "")
             .replace(", ", "_")
@@ -678,12 +768,12 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
 
     # if so, upgrade it
     if flag_deprecated:
-        from ._supy_module import _init_supy
+        from ._supy_module import _load_namelist_state
 
         # load base df_state
         path_SampleData = trv_supy_module.joinpath("sample_data")
         path_runcontrol = path_SampleData / "RunControl.nml"
-        df_state_base = _init_supy(path_runcontrol, force_reload=False)
+        df_state_base = _load_namelist_state(path_runcontrol, force_reload=False)
 
         # rename columns
         list_col_rename = [

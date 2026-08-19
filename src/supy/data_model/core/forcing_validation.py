@@ -12,46 +12,16 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
+from ..forcing import FORCING_REGISTRY
 
-# (physics_field, value) -> required forcing column names.
-# Keep this aligned with supy._check.FORCING_REQUIREMENTS, but use the
-# current Pydantic field names emitted by ModelPhysics.model_dump().
-_PHYSICS_REQUIRED_FORCING: dict[tuple[str, int], frozenset[str]] = {
-    ("net_radiation", 0): frozenset({"qn"}),
-    ("net_radiation", 1): frozenset({"ldown"}),
-    ("net_radiation", 2): frozenset({"kdown", "fcld"}),
-    ("net_radiation", 3): frozenset({"kdown"}),
-    ("net_radiation", 11): frozenset({"ldown"}),
-    ("net_radiation", 12): frozenset({"kdown", "fcld"}),
-    ("net_radiation", 13): frozenset({"kdown"}),
-    ("net_radiation", 100): frozenset({"ldown"}),
-    ("net_radiation", 200): frozenset({"kdown", "fcld"}),
-    ("net_radiation", 300): frozenset({"kdown"}),
-    ("net_radiation", 1001): frozenset({"ldown"}),
-    ("net_radiation", 1002): frozenset({"kdown", "fcld"}),
-    ("net_radiation", 1003): frozenset({"kdown"}),
-    ("storage_heat", 0): frozenset({"qs"}),
-    ("emissions", 0): frozenset({"qf"}),
-    ("soil_moisture_deficit", 1): frozenset({"xsmd"}),
-    ("soil_moisture_deficit", 2): frozenset({"xsmd"}),
-    ("laimethod", 0): frozenset({"lai"}),
-    # gh#1372 review: WaterUseMethod.OBSERVED (1) consumes the bulk
-    # `wuh` forcing column in the Fortran water-use path. Without this
-    # entry a forcing file could omit `wuh`, pass the physics/forcing
-    # check, and then run with the -999 sentinel (or a downscaled
-    # negative value) instead of failing early.
-    ("water_use", 1): frozenset({"wuh"}),
-}
+_PHYSICS_REQUIRED_FORCING = FORCING_REGISTRY.current_requirements
 
-LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+LAI_VEG_COLUMNS = FORCING_REGISTRY.per_landcover_columns["lai"]
 # Per-land-cover external water-use forcing columns, named with the same
 # `wuh_<suffix>` convention users write in their forcing files (see
 # supy._load.WUH_LANDCOVER_SUFFIXES). Each falls back to the bulk `wuh`
 # column when its per-surface column is absent, mirroring LAI_VEG_COLUMNS.
-WUH_SURF_COLUMNS = (
-    "wuh_paved", "wuh_bldgs", "wuh_evetr", "wuh_dectr",
-    "wuh_grass", "wuh_bsoil", "wuh_water",
-)
+WUH_SURF_COLUMNS = FORCING_REGISTRY.per_landcover_columns["wuh"]
 
 
 def _resolve(value: Any) -> Any:
@@ -77,6 +47,48 @@ def _matches_option_value(actual_value: Any, option_value: int) -> bool:
     return actual_value == option_value
 
 
+def _option_values(value: Any) -> tuple[Any, ...]:
+    """Return scalar or per-grid selector values as an aligned tuple."""
+    resolved = _resolve(value)
+    if isinstance(resolved, (list, tuple, set, frozenset)):
+        return tuple(resolved)
+    if hasattr(resolved, "tolist"):
+        converted = resolved.tolist()
+        if isinstance(converted, list):
+            return tuple(converted)
+    return (resolved,)
+
+
+def matching_requirement_conditions(
+    physics: Any,
+    conditions: dict[str, tuple[int, ...]],
+) -> dict[str, int] | None:
+    """Return one same-grid condition match, broadcasting scalar selectors."""
+    values_by_name: dict[str, tuple[Any, ...]] = {}
+    for name in conditions:
+        value = (
+            physics.get(name)
+            if isinstance(physics, dict)
+            else getattr(physics, name, None)
+        )
+        if value is None:
+            return None
+        values_by_name[name] = _option_values(value)
+
+    row_count = max(len(values) for values in values_by_name.values())
+    if any(len(values) not in {1, row_count} for values in values_by_name.values()):
+        return None
+
+    for index in range(row_count):
+        row = {
+            name: values[0] if len(values) == 1 else values[index]
+            for name, values in values_by_name.items()
+        }
+        if all(row[name] in allowed for name, allowed in conditions.items()):
+            return row
+    return None
+
+
 def _forcing_columns(forcing: Any) -> set[str]:
     if hasattr(forcing, "columns"):
         return {str(col).lower() for col in forcing.columns}
@@ -91,12 +103,15 @@ def _columns_by_lower(forcing: Any) -> dict[str, Any]:
 
 def _series_has_valid_data(series: Any) -> bool:
     """Return True only when every row is non-missing/non-sentinel."""
+    import numpy as np
     import pandas as pd
 
     from ...util._missing import SUEWS_MISSING_THRESHOLD
 
     numeric = pd.to_numeric(series, errors="coerce")
-    valid_mask = (numeric.notna()) & (numeric > SUEWS_MISSING_THRESHOLD)
+    valid_mask = (
+        numeric.notna() & np.isfinite(numeric) & (numeric > SUEWS_MISSING_THRESHOLD)
+    )
     return bool(valid_mask.to_numpy().all())
 
 
@@ -132,8 +147,9 @@ def _lai_validity_issue(forcing: Any) -> str | None:
             return "all_missing"
     return None
 
+
 def _wuh_validity_issue(forcing: Any) -> str | None:
-    """Return the validation issue reason for water_use=0, or None."""
+    """Return the validation issue reason for water_use=1, or None."""
     columns_by_lower = _columns_by_lower(forcing)
     bulk_wuh_col = columns_by_lower.get("wuh")
     source_cols: list[Any] = []
@@ -156,8 +172,10 @@ def validate_forcing_columns_against_physics(
     forcing_columns: Any,
     physics: Any,
 ) -> None:
-    """Raise ``ValueError`` if a chosen physics path needs forcing data
-    that the loaded forcing does not provide.
+    """Raise ``ValueError`` for forcing data missing from a physics path.
+
+    The check runs after both the physics configuration and forcing columns
+    have been resolved.
 
     Parameters
     ----------
@@ -176,34 +194,33 @@ def validate_forcing_columns_against_physics(
         Lists every missing (column, physics field, value) triple found.
     """
     available = _forcing_columns(forcing_columns)
-    missing: list[tuple[str, int, str, str]] = []
-    for (field_name, value), required_cols in _PHYSICS_REQUIRED_FORCING.items():
-        attr = getattr(physics, field_name, None)
-        if attr is None:
+    missing: list[tuple[str, str, str]] = []
+    for rule in FORCING_REGISTRY.requirement_rules:
+        matched = matching_requirement_conditions(physics, rule.conditions)
+        if matched is None:
             continue
-        actual_value = _resolve(attr)
-        if not _matches_option_value(actual_value, value):
-            continue
+        condition = " and ".join(f"{name}={value}" for name, value in matched.items())
+        required_cols = tuple(name.casefold() for name in rule.alternatives[0])
         for col in required_cols:
             if col.lower() == "lai":
                 reason = _lai_validity_issue(forcing_columns)
                 if reason is not None:
-                    missing.append((field_name, value, col, reason))
+                    missing.append((condition, col, reason))
             elif col.lower() == "wuh":
                 reason = _wuh_validity_issue(forcing_columns)
                 if reason is not None:
-                    missing.append((field_name, value, col, reason))
+                    missing.append((condition, col, reason))
             elif col.lower() not in available:
-                missing.append((field_name, value, col, "missing"))
+                missing.append((condition, col, "missing"))
             elif not _column_has_valid_data(forcing_columns, col.lower()):
-                missing.append((field_name, value, col, "all_missing"))
+                missing.append((condition, col, "all_missing"))
     if missing:
         details = "; ".join(
             (
-                f"forcing column '{col}' is required when {field}={value}"
+                f"forcing column '{col}' is required when {condition}"
                 if reason == "missing"
-                else f"forcing column '{col}' must contain valid data when {field}={value}"
+                else f"forcing column '{col}' must contain valid data when {condition}"
             )
-            for field, value, col, reason in missing
+            for condition, col, reason in missing
         )
         raise ValueError(f"physics/forcing mismatch: {details}")

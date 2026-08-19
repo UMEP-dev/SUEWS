@@ -28,9 +28,9 @@ import yaml
 # Import from supy modules
 try:
     from ..data_model.core.config import SUEWSConfig
-    from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
-    from ..data_model.schema.publisher import generate_json_schema, save_schema
-    from ..data_model.schema.version import (
+    from ..data_model.configuration.migration import SchemaMigrator, check_migration_needed
+    from ..data_model.configuration.publisher import generate_json_schema, save_schema
+    from ..data_model.configuration.version import (
         CURRENT_SCHEMA_VERSION,
         SCHEMA_VERSIONS,
         get_schema_compatibility_message,
@@ -42,9 +42,9 @@ except ImportError:
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
-    from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
-    from supy.data_model.schema.publisher import generate_json_schema, save_schema
-    from supy.data_model.schema.version import (
+    from supy.data_model.configuration.migration import SchemaMigrator, check_migration_needed
+    from supy.data_model.configuration.publisher import generate_json_schema, save_schema
+    from supy.data_model.configuration.version import (
         CURRENT_SCHEMA_VERSION,
         SCHEMA_VERSIONS,
         get_schema_compatibility_message,

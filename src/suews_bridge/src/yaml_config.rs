@@ -14,6 +14,13 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum ForcingTimestampReference {
+    #[default]
+    LocalStandardTime,
+    Utc,
+}
+
 #[derive(Debug, Clone)]
 pub struct RunConfig {
     pub timer: SuewsTimer,
@@ -2221,6 +2228,23 @@ fn read_forcing_rel(root: &Value) -> Option<String> {
         .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
 }
 
+fn read_forcing_timestamp_reference(root: &Value) -> Result<ForcingTimestampReference, String> {
+    let Some(reference) = read_string(
+        root,
+        &["model", "control", "forcing", "timestamp_reference"],
+    ) else {
+        return Ok(ForcingTimestampReference::LocalStandardTime);
+    };
+
+    match reference.as_str() {
+        "local_standard_time" => Ok(ForcingTimestampReference::LocalStandardTime),
+        "utc" => Ok(ForcingTimestampReference::Utc),
+        _ => Err(format!(
+            "unsupported forcing timestamp_reference `{reference}`; expected `local_standard_time` or `utc`"
+        )),
+    }
+}
+
 pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String> {
     // Accept Python-side snake_case spellings by folding every renamed key
     // back to the legacy fused spelling the parser below still indexes by.
@@ -2256,6 +2280,12 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     resize_state_variable_arrays(&mut state, nlayer as usize, ndepth as usize);
 
     apply_state_overrides(&mut state, site_root);
+
+    let forcing_timestamp_reference = read_forcing_timestamp_reference(root)?;
+    config.forcing_timestamp_reference = match forcing_timestamp_reference {
+        ForcingTimestampReference::LocalStandardTime => 0,
+        ForcingTimestampReference::Utc => 1,
+    };
 
     // Prefer the new `output.dir` shape introduced in schema 2026.5.dev8
     // (gh#1372 follow-up); fall back to the legacy `output_file.path` so
@@ -2415,6 +2445,47 @@ mod tests {
                 < 1.0e-12
         );
         assert!((run_cfg.state.stebbs_state.mains_water_temperature - 10.0).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn forcing_timestamp_reference_defaults_to_local_standard_time() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+
+        assert_eq!(run_cfg.config.forcing_timestamp_reference, 0);
+    }
+
+    #[test]
+    fn forcing_timestamp_reference_accepts_utc_and_rejects_civil_time() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        *get_path_mut(&mut root, &["model", "control", "forcing"])
+            .expect("fixture should define forcing") = serde_yaml::from_str(
+            "file:\n  value: test_2017_data_15_mp.txt\ntimestamp_reference:\n  value: utc\n",
+        )
+        .unwrap();
+        let run_cfg = load_run_config_from_value(&mut root).expect("UTC should parse");
+        assert_eq!(run_cfg.config.forcing_timestamp_reference, 1);
+
+        *get_path_mut(
+            &mut root,
+            &[
+                "model",
+                "control",
+                "forcing",
+                "timestamp_reference",
+                "value",
+            ],
+        )
+        .expect("fixture should define timestamp_reference") =
+            Value::String("civil_time".to_string());
+        let error = load_run_config_from_value(&mut root)
+            .expect_err("daylight-saving civil time should be rejected");
+        assert!(
+            error.contains("timestamp_reference"),
+            "unexpected error: {error}"
+        );
     }
 
     #[test]

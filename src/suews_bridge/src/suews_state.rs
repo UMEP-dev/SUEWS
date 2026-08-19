@@ -127,12 +127,60 @@ fn is_known_member(name: &str) -> bool {
     SUEWS_STATE_MEMBER_ORDER.contains(&name)
 }
 
-fn parse_values_array(value: &Value) -> Result<Vec<f64>, BridgeError> {
+fn json_value_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number outside the supported f64 range",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+fn parse_values_array(value: &Value, path: &str) -> Result<Vec<f64>, BridgeError> {
     let items = value.as_array().ok_or(BridgeError::BadState)?;
     items
         .iter()
-        .map(|item| item.as_f64().ok_or(BridgeError::BadState))
+        .enumerate()
+        .map(|(index, item)| {
+            if item.is_null() {
+                return Ok(f64::NAN);
+            }
+            item.as_f64()
+                .ok_or_else(|| BridgeError::InvalidCheckpointValue {
+                    path: format!("{path}[{index}]"),
+                    found: json_value_kind(item).to_string(),
+                })
+        })
         .collect()
+}
+
+fn non_finite_value_kind(value: f64) -> &'static str {
+    if value.is_nan() {
+        "NaN"
+    } else if value.is_sign_positive() {
+        "+Inf"
+    } else {
+        "-Inf"
+    }
+}
+
+fn validate_checkpoint_values(values: &[f64], path: &str) -> Result<(), BridgeError> {
+    for (index, value) in values.iter().enumerate() {
+        // serde_json already writes NaN as null. Treat that representation as
+        // the checkpoint's backward-compatible inactive-state sentinel.
+        if value.is_nan() {
+            continue;
+        }
+        if value.is_infinite() {
+            return Err(BridgeError::NonFiniteCheckpointValue {
+                path: format!("{path}[{index}]"),
+                value_kind: non_finite_value_kind(*value).to_string(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn payload_dims_to_value(dims: &PayloadDims) -> Value {
@@ -176,7 +224,10 @@ fn scalar_values_payload_to_value(payload: &ValuesPayload) -> Value {
     Value::Object(obj)
 }
 
-fn scalar_values_payload_from_value(value: &Value) -> Result<ValuesPayload, BridgeError> {
+fn scalar_values_payload_from_value(
+    value: &Value,
+    path: &str,
+) -> Result<ValuesPayload, BridgeError> {
     let obj = value.as_object().ok_or(BridgeError::BadState)?;
     if obj.len() != 2 || !obj.contains_key("schema_version") || !obj.contains_key("values") {
         return Err(BridgeError::BadState);
@@ -188,7 +239,10 @@ fn scalar_values_payload_from_value(value: &Value) -> Result<ValuesPayload, Brid
         .ok_or(BridgeError::BadState)
         .and_then(|v| u32::try_from(v).map_err(|_| BridgeError::BadState))?;
 
-    let values = parse_values_array(obj.get("values").ok_or(BridgeError::BadState)?)?;
+    let values = parse_values_array(
+        obj.get("values").ok_or(BridgeError::BadState)?,
+        &format!("{path}.values"),
+    )?;
 
     Ok(ValuesPayload {
         schema_version,
@@ -212,6 +266,7 @@ fn values_payload_with_dims_to_value(payload: &ValuesPayloadWithDims) -> Value {
 
 fn values_payload_with_dims_from_value(
     value: &Value,
+    path: &str,
 ) -> Result<ValuesPayloadWithDims, BridgeError> {
     let obj = value.as_object().ok_or(BridgeError::BadState)?;
     if obj.len() != 3
@@ -228,7 +283,10 @@ fn values_payload_with_dims_from_value(
         .ok_or(BridgeError::BadState)
         .and_then(|v| u32::try_from(v).map_err(|_| BridgeError::BadState))?;
 
-    let values = parse_values_array(obj.get("values").ok_or(BridgeError::BadState)?)?;
+    let values = parse_values_array(
+        obj.get("values").ok_or(BridgeError::BadState)?,
+        &format!("{path}.values"),
+    )?;
     let dims = payload_dims_from_value(obj.get("dims").ok_or(BridgeError::BadState)?)?;
 
     Ok(ValuesPayloadWithDims {
@@ -263,7 +321,10 @@ fn error_entry_payload_to_value(payload: &ErrorEntryValuesPayload) -> Value {
     Value::Object(obj)
 }
 
-fn error_entry_payload_from_value(value: &Value) -> Result<ErrorEntryValuesPayload, BridgeError> {
+fn error_entry_payload_from_value(
+    value: &Value,
+    path: &str,
+) -> Result<ErrorEntryValuesPayload, BridgeError> {
     let obj = value.as_object().ok_or(BridgeError::BadState)?;
     if obj.len() != 5
         || !obj.contains_key("schema_version")
@@ -281,7 +342,10 @@ fn error_entry_payload_from_value(value: &Value) -> Result<ErrorEntryValuesPaylo
         .ok_or(BridgeError::BadState)
         .and_then(|v| u32::try_from(v).map_err(|_| BridgeError::BadState))?;
 
-    let timer_values = parse_values_array(obj.get("timer_values").ok_or(BridgeError::BadState)?)?;
+    let timer_values = parse_values_array(
+        obj.get("timer_values").ok_or(BridgeError::BadState)?,
+        &format!("{path}.timer_values"),
+    )?;
     let message = obj
         .get("message")
         .and_then(Value::as_str)
@@ -385,8 +449,11 @@ fn error_state_payload_from_value(value: &Value) -> Result<ErrorStateValuesPaylo
         .and_then(Value::as_array)
         .ok_or(BridgeError::BadState)?;
     let mut log = Vec::with_capacity(log_values.len());
-    for entry in log_values {
-        log.push(error_entry_payload_from_value(entry)?);
+    for (index, entry) in log_values.iter().enumerate() {
+        log.push(error_entry_payload_from_value(
+            entry,
+            &format!("members.{MEMBER_ERROR_STATE}.log[{index}]"),
+        )?);
     }
 
     let dims = payload_dims_from_value(obj.get("dims").ok_or(BridgeError::BadState)?)?;
@@ -657,30 +724,54 @@ pub fn suews_state_from_values_payload(
 
     let error_state_payload =
         error_state_payload_from_value(member_value(&payload.members, MEMBER_ERROR_STATE)?)?;
-    let flag_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_FLAG_STATE)?)?;
-    let anthroemis_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_ANTHROEMIS_STATE)?)?;
-    let ohm_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_OHM_STATE)?)?;
-    let solar_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_SOLAR_STATE)?)?;
-    let atm_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_ATM_STATE)?)?;
-    let phenology_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_PHENOLOGY_STATE)?)?;
-    let snow_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_SNOW_STATE)?)?;
-    let hydro_payload =
-        values_payload_with_dims_from_value(member_value(&payload.members, MEMBER_HYDRO_STATE)?)?;
-    let heat_payload =
-        values_payload_with_dims_from_value(member_value(&payload.members, MEMBER_HEAT_STATE)?)?;
-    let roughness_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_ROUGHNESS_STATE)?)?;
-    let stebbs_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_STEBBS_STATE)?)?;
-    let nhood_payload =
-        scalar_values_payload_from_value(member_value(&payload.members, MEMBER_NHOOD_STATE)?)?;
+    let flag_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_FLAG_STATE)?,
+        "members.flag_state",
+    )?;
+    let anthroemis_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_ANTHROEMIS_STATE)?,
+        "members.anthroemis_state",
+    )?;
+    let ohm_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_OHM_STATE)?,
+        "members.ohm_state",
+    )?;
+    let solar_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_SOLAR_STATE)?,
+        "members.solar_state",
+    )?;
+    let atm_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_ATM_STATE)?,
+        "members.atm_state",
+    )?;
+    let phenology_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_PHENOLOGY_STATE)?,
+        "members.phenology_state",
+    )?;
+    let snow_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_SNOW_STATE)?,
+        "members.snow_state",
+    )?;
+    let hydro_payload = values_payload_with_dims_from_value(
+        member_value(&payload.members, MEMBER_HYDRO_STATE)?,
+        "members.hydro_state",
+    )?;
+    let heat_payload = values_payload_with_dims_from_value(
+        member_value(&payload.members, MEMBER_HEAT_STATE)?,
+        "members.heat_state",
+    )?;
+    let roughness_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_ROUGHNESS_STATE)?,
+        "members.roughness_state",
+    )?;
+    let stebbs_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_STEBBS_STATE)?,
+        "members.stebbs_state",
+    )?;
+    let nhood_payload = scalar_values_payload_from_value(
+        member_value(&payload.members, MEMBER_NHOOD_STATE)?,
+        "members.nhood_state",
+    )?;
 
     Ok(SuewsState {
         error_state: error_state_from_values_payload(&error_state_payload)?,
@@ -701,6 +792,78 @@ pub fn suews_state_from_values_payload(
 
 pub fn suews_state_to_nested_payload(state: &SuewsState) -> Value {
     payload_to_nested_value(&suews_state_to_values_payload(state))
+}
+
+fn validate_suews_state_for_checkpoint(state: &SuewsState) -> Result<(), BridgeError> {
+    let error_payload = error_state_to_values_payload(&state.error_state);
+    for (index, entry) in error_payload.log.iter().enumerate() {
+        validate_checkpoint_values(
+            &entry.timer_values,
+            &format!("members.error_state.log[{index}].timer_values"),
+        )?;
+    }
+
+    let scalar_payloads = [
+        (
+            "members.flag_state.values",
+            flag_state_to_values_payload(&state.flag_state),
+        ),
+        (
+            "members.anthroemis_state.values",
+            anthroemis_state_to_values_payload(&state.anthroemis_state),
+        ),
+        (
+            "members.ohm_state.values",
+            ohm_state_to_values_payload(&state.ohm_state),
+        ),
+        (
+            "members.solar_state.values",
+            solar_state_to_values_payload(&state.solar_state),
+        ),
+        (
+            "members.atm_state.values",
+            atm_state_to_values_payload(&state.atm_state),
+        ),
+        (
+            "members.phenology_state.values",
+            phenology_state_to_values_payload(&state.phenology_state),
+        ),
+        (
+            "members.snow_state.values",
+            snow_state_to_values_payload(&state.snow_state),
+        ),
+        (
+            "members.roughness_state.values",
+            roughness_state_to_values_payload(&state.roughness_state),
+        ),
+        (
+            "members.stebbs_state.values",
+            stebbs_state_to_values_payload(&state.stebbs_state),
+        ),
+        (
+            "members.nhood_state.values",
+            nhood_state_to_values_payload(&state.nhood_state),
+        ),
+    ];
+    for (path, payload) in scalar_payloads {
+        validate_checkpoint_values(&payload.values, path)?;
+    }
+
+    validate_checkpoint_values(
+        &hydro_state_to_values_payload(&state.hydro_state).values,
+        "members.hydro_state.values",
+    )?;
+    validate_checkpoint_values(
+        &heat_state_to_values_payload(&state.heat_state).values,
+        "members.heat_state.values",
+    )?;
+    Ok(())
+}
+
+/// Prepare checkpoint state while preserving NaN as JSON null and rejecting infinities.
+pub(crate) fn suews_state_to_checkpoint_value(state: &SuewsState) -> Result<Value, BridgeError> {
+    validate_suews_state_for_checkpoint(state)?;
+    Ok(suews_state_to_nested_payload(state))
 }
 
 pub fn suews_state_from_nested_payload(payload: &Value) -> Result<SuewsState, BridgeError> {
@@ -756,6 +919,65 @@ mod tests {
         let err = suews_state_from_nested_payload(&payload)
             .expect_err("unknown member payload should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn checkpoint_value_preserves_nan_and_reports_infinities() {
+        let mut state =
+            suews_state_default_from_fortran().expect("default state should be available");
+        state.ohm_state.qn_av = f64::NAN;
+
+        let checkpoint_value = suews_state_to_checkpoint_value(&state)
+            .expect("NaN should use the checkpoint null marker");
+        assert!(checkpoint_value["members"][MEMBER_OHM_STATE]["values"][0].is_null());
+
+        let restored = suews_state_from_nested_payload(&checkpoint_value)
+            .expect("checkpoint null marker should restore as NaN");
+        assert!(restored.ohm_state.qn_av.is_nan());
+
+        for (value, value_kind) in [(f64::INFINITY, "+Inf"), (f64::NEG_INFINITY, "-Inf")] {
+            let mut state =
+                suews_state_default_from_fortran().expect("default state should be available");
+            state.ohm_state.qn_av = value;
+
+            let err = suews_state_to_checkpoint_value(&state)
+                .expect_err("non-finite checkpoint state should fail before JSON conversion");
+            assert_eq!(
+                err,
+                BridgeError::NonFiniteCheckpointValue {
+                    path: "members.ohm_state.values[0]".to_string(),
+                    value_kind: value_kind.to_string(),
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn nested_payload_restores_legacy_null_as_nan() {
+        let state = suews_state_default_from_fortran().expect("default state should be available");
+        let mut payload = suews_state_to_nested_payload(&state);
+        payload["members"][MEMBER_ATM_STATE]["values"][0] = Value::Null;
+
+        let restored = suews_state_from_nested_payload(&payload)
+            .expect("legacy null checkpoint value should restore as NaN");
+        assert!(restored.atm_state.fcld.is_nan());
+    }
+
+    #[test]
+    fn nested_payload_reports_invalid_value_path() {
+        let state = suews_state_default_from_fortran().expect("default state should be available");
+        let mut payload = suews_state_to_nested_payload(&state);
+        payload["members"][MEMBER_ATM_STATE]["values"][0] = Value::String("NaN".to_string());
+
+        let err = suews_state_from_nested_payload(&payload)
+            .expect_err("unsupported checkpoint markers should report their path");
+        assert_eq!(
+            err,
+            BridgeError::InvalidCheckpointValue {
+                path: "members.atm_state.values[0]".to_string(),
+                found: "string".to_string(),
+            }
+        );
     }
 
     #[test]

@@ -104,7 +104,7 @@ worker cap and alternating order.
 
 The manual `CI metrics overhead check` workflow runs only from the default
 branch. It verifies and installs one Linux wheel once, records the source SHA
-and wheel SHA-256, and runs the standard non-slow physics selection in
+and wheel SHA-256, and runs the standard physics selection in
 the fixed order metrics-off/on/on/off. Every run uses four workers,
 `--maxprocesses=4`, work stealing, a unique base temporary directory and no
 pytest cache. It uploads four raw JSON files, captured logs and a comparison
@@ -121,7 +121,7 @@ host load is uncontrolled.
 The manual workflow compares `loadscope` and `worksteal` without changing the
 fixed GitHub-hosted worker budget. It downloads one successful
 `cp312-manylinux-x86_64` wheel, checks out the exact SHA that produced it, and
-runs the same `physics and not slow` nodes four times in A/B/B/A order:
+runs the same `physics and (core or not slow)` nodes four times in A/B/B/A order:
 
 1. `loadscope`
 2. `worksteal`
@@ -273,39 +273,3 @@ The checker is designed to be:
 - **Informative** (shows what's correct with `--show-info`)
 
 To modify checking behaviour, edit `scripts/suews/check_naming_conventions.py`.
-
-## Deprecation Warning Demo
-
-**Script**: `demo_deprecation_warning.py`
-
-Demonstrates the deprecation warnings emitted by legacy functional helpers (`load_sample_data`, `run_supy`, `save_supy`). This script verifies that warnings correctly point to the caller's location rather than internal implementation.
-
-### Purpose
-
-- Manual verification tool for deprecation warning behaviour
-- Works without importing the compiled `_supy_driver` extension
-- Useful for developers verifying `stacklevel` parameter correctness
-- Complements automated tests in `test/core/test_functional_deprecations.py`
-
-### Usage
-
-```bash
-# Run the demo (expect a deprecation warning)
-python3 scripts/suews/demo_deprecation_warning.py
-```
-
-### Expected Output
-
-```
-Calling legacy helper (expect warning referencing caller frame)...
-DeprecationWarning: load_sample_data is deprecated and will be removed in a future version.
-Please use SUEWSSimulation.from_config() instead.
-```
-
-The warning location should point to the `user_code()` function in the demo script, confirming that `stacklevel=3` correctly skips internal frames.
-
-### Technical Details
-
-- Extracts `_warn_functional_deprecation` directly from `src/supy/_supy_module.py` using AST parsing
-- Avoids importing compiled extensions that may be unavailable on some machines
-- Enables `DeprecationWarning` visibility (normally hidden by default)

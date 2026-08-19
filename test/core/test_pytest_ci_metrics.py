@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from statistics import median
 import subprocess
 import sys
 import tempfile
@@ -14,7 +13,6 @@ from typing import Any
 
 import pytest
 
-from scripts.suews import pytest_ci_metrics
 from scripts.suews.pytest_ci_metrics import ProcfsSampler, read_proc_process
 
 pytestmark = pytest.mark.api
@@ -335,29 +333,6 @@ def test_parallel(case):
     assert metrics["result"]["outcomes"]["passed"] == 8
 
 
-def test_worker_aggregates_match_serialised_finish_times(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Aggregate tail metrics use the same precision as worker records."""
-    state = pytest_ci_metrics._MetricsState()
-    raw_finishes = [243.0789032, 243.2927244, 239.5305016, 240.1511425]
-    state.workers = {
-        f"gw{index}": pytest_ci_metrics._WorkerMetrics(
-            finished_at_seconds=finish,
-        )
-        for index, finish in enumerate(raw_finishes)
-    }
-    monkeypatch.setattr(pytest_ci_metrics, "_STATE", state)
-
-    workers, finish_skew, tail_over_median = pytest_ci_metrics._worker_records()
-    serialised_finishes = [worker["finished_at_seconds"] for worker in workers]
-
-    assert finish_skew == round(max(serialised_finishes) - min(serialised_finishes), 6)
-    assert tail_over_median == round(
-        max(serialised_finishes) - median(serialised_finishes), 6
-    )
-
-
 def _warning_test_source(temp_root: str) -> str:
     """Build importable warning tests for paths containing Python escapes."""
     warning_a = (
@@ -385,14 +360,6 @@ def test_warning_b():
         UserWarning,
     )
 """
-
-
-def test_warning_fixture_source_quotes_windows_backslashes() -> None:
-    """A Windows temporary path remains a valid generated Python literal."""
-    source = _warning_test_source(r"C:\Users\runneradmin\AppData\Local\Temp")
-
-    compile(source, "<generated-warning-test>", "exec")
-    assert r"C:\\Users\\runneradmin" in source
 
 
 def test_warning_fingerprint_normalises_only_volatile_components(

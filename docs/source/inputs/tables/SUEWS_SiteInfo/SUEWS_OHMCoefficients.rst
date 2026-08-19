@@ -164,8 +164,8 @@ Where:
 
 .. code-block:: python
 
-   # Load initial model state
-   df_state_init = sp.init_supy('config.yml')  # or your config file
+   simulation = sp.SUEWSSimulation('config.yml')
+   df_state_init = simulation.state_init
 
    # Update coefficients for specific land cover type
    # Available types: "Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water"
@@ -175,8 +175,9 @@ Where:
        land_cover_type="Grass"  # for green roof example
    )
 
-   # Run simulation with updated coefficients
-   df_output, df_state_final = sp.run_supy(df_forcing, df_state_updated)
+   simulation = sp.SUEWSSimulation.from_state(df_state_updated)
+   simulation.update_forcing(df_forcing)
+   output = simulation.run()
 
 **Option B: Manual file editing (for multiple custom surface types):**
 

@@ -38,6 +38,11 @@ REQUIRED_SOURCE_ROOTS = (
     "src/suews_bridge/src",
     "src/supy",
 )
+_CONFIGURATION_SCHEMA_PREFIXES = (
+    "src/supy/data_model/configuration/",
+    "src/supy/data_model/schema/",
+)
+_CONFIGURATION_SCHEMA_VERSION_FILE = "src/supy/data_model/configuration/version.py"
 
 _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _FORTRAN_SYMBOL_RE = re.compile(
@@ -244,12 +249,16 @@ def _content_type(path: str) -> str | None:
         if suffix == ".py" and path.startswith("src/supy/cmd/"):
             content_type = "python_cli"
         elif suffix == ".py":
-            if path.startswith("src/supy/data_model/schema/"):
+            if path.startswith(_CONFIGURATION_SCHEMA_PREFIXES):
                 content_type = "schema"
             else:
                 content_type = "python_api"
         elif suffix in {".json", ".yml", ".yaml", ".md", ".csv"}:
-            content_type = "schema" if path.startswith("src/supy/data_model/schema/") else "package_metadata"
+            content_type = (
+                "schema"
+                if path.startswith(_CONFIGURATION_SCHEMA_PREFIXES)
+                else "package_metadata"
+            )
     return content_type
 
 
@@ -513,7 +522,7 @@ def _read_package_version(repo_root: Path) -> str:
 
 
 def _read_schema_version(repo_root: Path) -> str:
-    path_version = repo_root / "src/supy/data_model/schema/version.py"
+    path_version = repo_root / _CONFIGURATION_SCHEMA_VERSION_FILE
     if not path_version.exists():
         return "unknown"
     match = re.search(

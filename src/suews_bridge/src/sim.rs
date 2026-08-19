@@ -2,6 +2,7 @@ use crate::anthro_emis_prm::anthro_emis_prm_from_ordered_values;
 use crate::anthroemis::anthroemis_state_from_ordered_values;
 use crate::atm::atm_state_from_ordered_values;
 use crate::building_archetype_prm::building_archetype_prm_from_ordered_values;
+use crate::checkpoint::suews_checkpoint_from_json;
 use crate::conductance::conductance_prm_from_ordered_values;
 use crate::config::SuewsConfig;
 use crate::core::{ohm_state_from_ordered_values, SURFACE_NAMES};
@@ -31,7 +32,7 @@ use crate::spartacus_prm::SpartacusPrm;
 use crate::stebbs_prm::stebbs_prm_from_ordered_values;
 use crate::stebbs_state::stebbs_state_from_ordered_values;
 use crate::suews_site::SuewsSite;
-use crate::suews_state::{suews_state_from_nested_payload, SuewsState};
+use crate::suews_state::SuewsState;
 use crate::surf_store::surf_store_prm_from_ordered_values;
 use crate::timer::{SuewsTimer, SUEWS_TIMER_FLAT_LEN};
 use crate::yaml_config::{load_run_config_from_str, RunConfig};
@@ -655,7 +656,7 @@ pub fn run_from_config_str_and_forcing(
     config_yaml: &str,
     forcing_block: Vec<f64>,
     len_sim: usize,
-) -> Result<(Vec<f64>, SuewsState, usize), BridgeError> {
+) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -753,18 +754,17 @@ pub fn run_from_config_str_and_forcing(
         ndepth: run_cfg.ndepth,
     })?;
 
-    Ok((sim_out.output_block, sim_out.state, len_sim))
+    Ok((sim_out.output_block, sim_out.state, sim_out.timer, len_sim))
 }
 
 /// Like [`run_from_config_str_and_forcing`] but replaces the config-derived
-/// initial state with a state decoded from *state_json* (the nested-payload
-/// JSON produced by a previous run).
+/// initial state and elapsed timer with a checkpoint decoded from *state_json*.
 pub fn run_from_config_str_and_forcing_with_state(
     config_yaml: &str,
     forcing_block: Vec<f64>,
     len_sim: usize,
     state_json: &str,
-) -> Result<(Vec<f64>, SuewsState, usize), BridgeError> {
+) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -784,10 +784,15 @@ pub fn run_from_config_str_and_forcing_with_state(
         )));
     }
 
-    // Decode state from previous chunk's JSON output.
-    let state_value: serde_json::Value = serde_json::from_str(state_json)
-        .map_err(|e| simulation_error(format!("invalid state JSON: {e}")))?;
-    run_cfg.state = suews_state_from_nested_payload(&state_value)?;
+    // Decode state and elapsed timer from the previous chunk's checkpoint.
+    let checkpoint = suews_checkpoint_from_json(state_json)?;
+    if checkpoint.timer.tstep != run_cfg.timer.tstep {
+        return Err(simulation_error(format!(
+            "checkpoint timestep {} s does not match configuration timestep {} s",
+            checkpoint.timer.tstep, run_cfg.timer.tstep
+        )));
+    }
+    run_cfg.state = checkpoint.state;
 
     // Set timer fields from the first forcing row.
     let first_row = &forcing_block[..MET_FORCING_COLS];
@@ -800,9 +805,9 @@ pub fn run_from_config_str_and_forcing_with_state(
     run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
-    // Keep first-step timing consistent with non-state run path.
-    run_cfg.timer.dt_since_start = run_cfg.timer.tstep;
-    run_cfg.timer.dt_since_start_prev = 0;
+    run_cfg.timer.dt_since_start = checkpoint.timer.dt_since_start;
+    run_cfg.timer.dt_since_start_prev = checkpoint.timer.dt_since_start_prev;
+    run_cfg.timer.new_day = checkpoint.timer.new_day;
     run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
         + run_cfg.timer.it as f64 / 24.0
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)
@@ -857,7 +862,7 @@ pub fn run_from_config_str_and_forcing_with_state(
         ndepth: run_cfg.ndepth,
     })?;
 
-    Ok((sim_out.output_block, sim_out.state, len_sim))
+    Ok((sim_out.output_block, sim_out.state, sim_out.timer, len_sim))
 }
 
 pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, BridgeError> {

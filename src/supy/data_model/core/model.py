@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 import inspect
 from typing import List, Optional, Union
 
@@ -1295,6 +1295,21 @@ class OutputFormat(Enum):
         return self.value
 
 
+class OutputTimestampReference(StrEnum):
+    """Supported saved-output timestamp references.
+
+    ``follow`` keeps the forcing clock. ``utc`` and
+    ``local_standard_time`` select those fixed clocks explicitly.
+    ``daylight`` adds the configured daylight-saving offset to local
+    standard time inside the DLS window.
+    """
+
+    FOLLOW = "follow"
+    UTC = "utc"
+    LOCAL_STANDARD_TIME = "local_standard_time"
+    DAYLIGHT = "daylight"
+
+
 class OutputControl(BaseModel):
     """Configuration block for model output files.
 
@@ -1321,6 +1336,15 @@ class OutputControl(BaseModel):
     dir: Optional[str] = Field(
         default=None,
         description="Output directory where result files will be saved. If not specified, defaults to the current working directory.",
+    )
+    timestamp_reference: OutputTimestampReference = Field(
+        default=OutputTimestampReference.FOLLOW,
+        description=(
+            "Timestamp reference for saved output. 'follow' keeps the forcing "
+            "timestamp reference, 'utc' and 'local_standard_time' select those "
+            "fixed clocks explicitly, and 'daylight' adds the configured "
+            "daylight-saving offset to local standard time inside the DLS window."
+        ),
     )
 
     @property
@@ -1354,6 +1378,13 @@ class OutputControl(BaseModel):
         return v
 
 
+class ForcingTimestampReference(StrEnum):
+    """Supported forcing timestamp references."""
+
+    LOCAL_STANDARD_TIME = "local_standard_time"
+    UTC = "utc"
+
+
 class ForcingControl(BaseModel):
     """Configuration block for meteorological forcing input.
 
@@ -1373,6 +1404,19 @@ class ForcingControl(BaseModel):
             "'forcing_2021.txt']). When multiple files are provided, they "
             "are concatenated in chronological order. For details, see "
             ":ref:`met_input`."
+        ),
+    )
+
+    timestamp_reference: FlexibleRefValue(ForcingTimestampReference) = Field(
+        default=ForcingTimestampReference.LOCAL_STANDARD_TIME,
+        description=(
+            "Clock used by the forcing timestamps. "
+            "'local_standard_time' preserves the historical fixed-offset, "
+            "interval-end convention. With 'utc', forcing timestamps, output "
+            "timestamps and daily state boundaries remain in UTC, while solar "
+            "calculations and local diurnal profiles use the site's derived "
+            "fixed-offset standard time. Daylight-saving civil time is not "
+            "supported."
         ),
     )
 

@@ -639,12 +639,6 @@ sites:
           value: 0.43
         emis:
           value: 0.95
-        chanohm:
-          value: 4.0
-        cpanohm:
-          value: 20000000.0
-        kkanohm:
-          value: 1.2
         ohm_threshsw:
           value: 10.0
         ohm_threshwd:
@@ -749,12 +743,6 @@ sites:
           value: 0.38
         emis:
           value: 0.91
-        chanohm:
-          value: 4.0
-        cpanohm:
-          value: 20000000.0
-        kkanohm:
-          value: 1.2
         ohm_threshsw:
           value: 10.0
         ohm_threshwd:
@@ -863,12 +851,6 @@ sites:
           value: 0.02
         emis:
           value: 0.98
-        chanohm:
-          value: 4.0
-        cpanohm:
-          value: 100000.0
-        kkanohm:
-          value: 1.2
         ohm_threshsw:
           value: 10.0
         ohm_threshwd:
@@ -1033,12 +1015,6 @@ sites:
           value: 0.0
         emis:
           value: 0.98
-        chanohm:
-          value: 4.0
-        cpanohm:
-          value: 100000.0
-        kkanohm:
-          value: 1.2
         ohm_threshsw:
           value: 10.0
         ohm_threshwd:
@@ -1195,12 +1171,6 @@ sites:
           value: 0.03
         emis:
           value: 0.93
-        chanohm:
-          value: 4.0
-        cpanohm:
-          value: 100000.0
-        kkanohm:
-          value: 1.2
         ohm_threshsw:
           value: 10.0
         ohm_threshwd:
@@ -1353,12 +1323,6 @@ sites:
           value: 0.0
         emis:
           value: 0.94
-        chanohm:
-          value: 4.0
-        cpanohm:
-          value: 20000000.0
-        kkanohm:
-          value: 1.2
         ohm_threshsw:
           value: 10.0
         ohm_threshwd:
@@ -1463,12 +1427,6 @@ sites:
           value: 0.14
         emis:
           value: 0.95
-        chanohm:
-          value: 4.0
-        cpanohm:
-          value: 100000.0
-        kkanohm:
-          value: 1.2
         ohm_threshsw:
           value: 10.0
         ohm_threshwd:

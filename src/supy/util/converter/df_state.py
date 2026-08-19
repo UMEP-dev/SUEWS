@@ -4,9 +4,9 @@ This module handles conversion of df_state between different SuPy versions,
 particularly for migrating from pre-2025 format to current format.
 """
 
+from functools import lru_cache
 import logging
 from pathlib import Path
-from functools import lru_cache
 
 import pandas as pd
 
@@ -23,12 +23,10 @@ def _get_current_df_state_template() -> pd.DataFrame:
     -------
         DataFrame with current df_state structure
     """
-    # We're inside supy, so we can import directly
-    from ..._supy_module import _load_sample_data
+    from ...suews_sim import SUEWSSimulation
 
     logger.debug("Loading current df_state template from sample data")
-    df_template, _ = _load_sample_data()
-    return df_template
+    return SUEWSSimulation.from_sample_data().state_init
 
 
 def load_df_state_file(file_path: Path) -> pd.DataFrame:

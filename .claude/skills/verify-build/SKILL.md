@@ -25,7 +25,7 @@ Details: `references/checks-detail.md`
 - `meson.build` — Build system
 - `pyproject.toml` — Python packaging
 - `.github/workflows/` — CI
-- `src/supy/data_model/schema/version.py` — CURRENT_SCHEMA_VERSION
+- `src/supy/data_model/configuration/version.py` — CURRENT_SCHEMA_VERSION
 - `src/supy/sample_data/sample_config.yml` — schema_version field
 
 ## Output Format

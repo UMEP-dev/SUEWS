@@ -2155,7 +2155,7 @@
     "CO2Params": {
       "description": "CO2 emission parameters and profiles.",
       "properties": {
-        "co2pointsource": {
+        "emission_co2_point_source": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2168,12 +2168,12 @@
             }
           ],
           "default": null,
-          "description": "CO2 point source emission factor",
+          "description": "Whole-grid CO2 point-source emission expressed as carbon mass",
           "display_name": "CO2 Point Source",
-          "title": "Co2Pointsource",
-          "unit": "kg m^-2 s^-1"
+          "title": "Emission Co2 Point Source",
+          "unit": "kg C day^-1"
         },
-        "ef_umolco2perj": {
+        "emission_factor_co2_fuel": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2189,10 +2189,10 @@
           "default_description": "Sample benchmark value: 1.159 umol J^-1 (Ward et al. 2016, central London); calibrate by site.",
           "description": "CO2 emission factor per unit of fuel energy",
           "display_name": "Emission Factor (umol CO2/J)",
-          "title": "Ef Umolco2Perj",
+          "title": "Emission Factor Co2 Fuel",
           "unit": "umol J^-1"
         },
-        "enef_v_jkm": {
+        "emission_factor_energy_vehicle": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2205,13 +2205,13 @@
             }
           ],
           "default": null,
-          "description": "Vehicle energy consumption factor",
+          "description": "Vehicle energy consumption per unit distance",
           "display_name": "Energy Emission Factor Vehicles",
           "range_description": "Sample range from benchmark/sample tables: 3.97e6-4.11e6 J km^-1; calibrate by site.",
-          "title": "Enef V Jkm",
+          "title": "Emission Factor Energy Vehicle",
           "unit": "J km^-1"
         },
-        "fcef_v_kgkm": {
+        "emission_factor_co2_vehicle": {
           "anyOf": [
             {
               "$ref": "#/$defs/DayProfile"
@@ -2220,12 +2220,12 @@
               "type": "null"
             }
           ],
-          "default_description": "Sample benchmark value: 0.285 kg km^-1 (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Fuel consumption efficiency for vehicles",
+          "default_description": "Sample benchmark value: 0.285 kg CO2 km^-1 (Ward et al. 2016, central London); calibrate by site.",
+          "description": "Vehicle CO2 emission factor per unit distance",
           "display_name": "Fuel Carbon Emission Factor Vehicles",
-          "unit": "kg km^-1"
+          "unit": "kg CO2 km^-1"
         },
-        "frfossilfuel_heat": {
+        "fraction_fossil_fuel_heating": {
           "anyOf": [
             {
               "anyOf": [
@@ -2247,10 +2247,10 @@
           "description": "Fraction of heating energy from fossil fuels",
           "display_name": "Fossil Fuel Fraction Heating",
           "range_description": "Sample range from benchmark/sample tables: 0.05-0.7 (depends on local energy mix).",
-          "title": "Frfossilfuel Heat",
+          "title": "Fraction Fossil Fuel Heating",
           "unit": "dimensionless"
         },
-        "frfossilfuel_nonheat": {
+        "fraction_fossil_fuel_non_heating": {
           "anyOf": [
             {
               "anyOf": [
@@ -2272,10 +2272,10 @@
           "description": "Fraction of non-heating energy from fossil fuels",
           "display_name": "Fossil Fuel Fraction Non-Heating",
           "range_description": "Sample range from benchmark/sample tables: 0.0-0.7 (depends on local energy mix).",
-          "title": "Frfossilfuel Nonheat",
+          "title": "Fraction Fossil Fuel Non Heating",
           "unit": "dimensionless"
         },
-        "maxfcmetab": {
+        "emission_co2_metabolism_max": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2288,13 +2288,13 @@
             }
           ],
           "default": null,
-          "default_description": "Sample value from benchmark/sample tables: 280.0 umol m^-2 s^-1; calibrate by site.",
-          "description": "Maximum metabolic CO2 flux rate",
+          "default_description": "Sample value from benchmark/sample tables: 280.0 umol cap^-1 s^-1; calibrate by site.",
+          "description": "Maximum daytime metabolic CO2 emission per capita",
           "display_name": "Maximum Metabolic CO2 Flux",
-          "title": "Maxfcmetab",
-          "unit": "umol m^-2 s^-1"
+          "title": "Emission Co2 Metabolism Max",
+          "unit": "umol cap^-1 s^-1"
         },
-        "maxqfmetab": {
+        "emission_heat_metabolism_max": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2307,13 +2307,13 @@
             }
           ],
           "default": null,
-          "default_description": "Sample value from benchmark/sample tables: 175.0 W m^-2; calibrate by site.",
-          "description": "Maximum metabolic heat flux rate",
+          "default_description": "Sample value from benchmark/sample tables: 175.0 W cap^-1; calibrate by site.",
+          "description": "Maximum daytime metabolic heat emission per capita",
           "display_name": "Maximum Metabolic Heat Flux",
-          "title": "Maxqfmetab",
-          "unit": "W m^-2"
+          "title": "Emission Heat Metabolism Max",
+          "unit": "W cap^-1"
         },
-        "minfcmetab": {
+        "emission_co2_metabolism_min": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2326,13 +2326,13 @@
             }
           ],
           "default": null,
-          "default_description": "Sample value from benchmark/sample tables: 120.0 umol m^-2 s^-1; calibrate by site.",
-          "description": "Minimum metabolic CO2 flux rate",
+          "default_description": "Sample value from benchmark/sample tables: 120.0 umol cap^-1 s^-1; calibrate by site.",
+          "description": "Minimum night-time metabolic CO2 emission per capita",
           "display_name": "Minimum Metabolic CO2 Flux",
-          "title": "Minfcmetab",
-          "unit": "umol m^-2 s^-1"
+          "title": "Emission Co2 Metabolism Min",
+          "unit": "umol cap^-1 s^-1"
         },
-        "minqfmetab": {
+        "emission_heat_metabolism_min": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2345,13 +2345,13 @@
             }
           ],
           "default": null,
-          "default_description": "Sample value from benchmark/sample tables: 75.0 W m^-2; calibrate by site.",
-          "description": "Minimum metabolic heat flux rate",
+          "default_description": "Sample value from benchmark/sample tables: 75.0 W cap^-1; calibrate by site.",
+          "description": "Minimum night-time metabolic heat emission per capita",
           "display_name": "Minimum Metabolic Heat Flux",
-          "title": "Minqfmetab",
-          "unit": "W m^-2"
+          "title": "Emission Heat Metabolism Min",
+          "unit": "W cap^-1"
         },
-        "trafficrate": {
+        "traffic_rate": {
           "anyOf": [
             {
               "$ref": "#/$defs/DayProfile"
@@ -2360,11 +2360,11 @@
               "type": "null"
             }
           ],
-          "description": "Traffic rate",
+          "description": "Mean traffic activity; basis selected by type_traffic_rate",
           "display_name": "Traffic Rate",
-          "unit": "vehicle km ha^-1"
+          "unit": "vehicle km m^-2 day^-1 (type 1) or vehicle km cap^-1 day^-1 (type 2)"
         },
-        "trafficunits": {
+        "type_traffic_rate": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2377,12 +2377,12 @@
             }
           ],
           "default": null,
-          "description": "Units for traffic density normalisation",
-          "display_name": "Traffic Units",
-          "title": "Trafficunits",
-          "unit": "vehicle km ha^-1"
+          "description": "Traffic-rate basis: 1 for per area, 2 for per capita",
+          "display_name": "Traffic Rate Type",
+          "title": "Type Traffic Rate",
+          "unit": "dimensionless"
         },
-        "traffprof_24hr": {
+        "profile_traffic_24hr": {
           "anyOf": [
             {
               "$ref": "#/$defs/HourlyProfile"
@@ -2395,7 +2395,7 @@
           "display_name": "Traffic Profile (24hr)",
           "unit": "dimensionless"
         },
-        "humactivity_24hr": {
+        "profile_human_activity_24hr": {
           "anyOf": [
             {
               "$ref": "#/$defs/HourlyProfile"
@@ -3910,10 +3910,32 @@
           "default": "forcing.txt",
           "description": "Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt']). When multiple files are provided, they are concatenated in chronological order. For details, see :ref:`met_input`.",
           "title": "File"
+        },
+        "timestamp_reference": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_ForcingTimestampReference_"
+            },
+            {
+              "$ref": "#/$defs/ForcingTimestampReference"
+            }
+          ],
+          "default": "local_standard_time",
+          "description": "Clock used by the forcing timestamps. 'local_standard_time' preserves the historical fixed-offset, interval-end convention. With 'utc', forcing timestamps, output timestamps and daily state boundaries remain in UTC, while solar calculations and local diurnal profiles use the site's derived fixed-offset standard time. Daylight-saving civil time is not supported.",
+          "title": "Timestamp Reference"
         }
       },
       "title": "Forcing Control",
       "type": "object"
+    },
+    "ForcingTimestampReference": {
+      "description": "Supported forcing timestamp references.",
+      "enum": [
+        "local_standard_time",
+        "utc"
+      ],
+      "title": "ForcingTimestampReference",
+      "type": "string"
     },
     "GSModel": {
       "description": "Stomatal conductance parameterisation method for vegetation surfaces.\n\n1: JARVI - Original parameterisation (J\u00e4rvi et al. 2011) based on environmental controls\n2: WARD - Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses",
@@ -7707,6 +7729,11 @@
           "default": null,
           "description": "Output directory where result files will be saved. If not specified, defaults to the current working directory.",
           "title": "Dir"
+        },
+        "timestamp_reference": {
+          "$ref": "#/$defs/OutputTimestampReference",
+          "default": "follow",
+          "description": "Timestamp reference for saved output. 'follow' keeps the forcing timestamp reference, 'utc' and 'local_standard_time' select those fixed clocks explicitly, and 'daylight' adds the configured daylight-saving offset to local standard time inside the DLS window."
         }
       },
       "title": "Output Control",
@@ -7719,6 +7746,17 @@
         "parquet"
       ],
       "title": "OutputFormat",
+      "type": "string"
+    },
+    "OutputTimestampReference": {
+      "description": "Supported saved-output timestamp references.\n\n``follow`` keeps the forcing clock. ``utc`` and\n``local_standard_time`` select those fixed clocks explicitly.\n``daylight`` adds the configured daylight-saving offset to local\nstandard time inside the DLS window.",
+      "enum": [
+        "follow",
+        "utc",
+        "local_standard_time",
+        "daylight"
+      ],
+      "title": "OutputTimestampReference",
       "type": "string"
     },
     "PavedProperties": {
@@ -8077,6 +8115,37 @@
         "value"
       ],
       "title": "RefValue[FAIMethod]",
+      "type": "object"
+    },
+    "RefValue_ForcingTimestampReference_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForcingTimestampReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[ForcingTimestampReference]",
       "type": "object"
     },
     "RefValue_GSModel_": {
@@ -12148,7 +12217,7 @@
             0.0,
             0.0
           ],
-          "description": "Fraction of vegetation in each SPARTACUS vertical layer; length must be nlayer",
+          "description": "Fraction of vegetation obstruction in each vertical layer, length must be nlayer. The lowest layer value may represent trunk or near-ground obstruction and is not required to equal total tree land-cover fraction.",
           "display_name": "Vegetation Fraction",
           "title": "Veg Frac",
           "unit": "dimensionless"
@@ -13120,7 +13189,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev2. Development schema adding storage_heat=dyohm_building (StorageHeatMethod=8): DyOHM determines building storage heat flux only, ordinary OHM remains active for other land-cover surfaces, and the DyOHM surface-temperature feedback to radiation stays disabled for this method. Existing 2026.6.dev1 YAMLs remain compatible through a no-op migration because the new selector is opt-in.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev3. Development schema completing the CO2Params naming-convention sweep (#1688): fourteen fused or unit-bearing anthropogenic-emissions keys renamed to quantity-first or category-prefixed identifiers. Existing 2026.6.dev2 YAMLs remain compatible through an explicit rename migration; legacy df_state column names are unchanged.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13173,20 +13242,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev2",
+  "title": "SUEWS Configuration Schema v2026.6.dev3",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev2.json",
-  "version": "2026.6.dev2",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev3.json",
+  "version": "2026.6.dev3",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev2"
+    "schema_version": "2026.6.dev3"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev2",
+      "schema_version": "2026.6.dev3",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

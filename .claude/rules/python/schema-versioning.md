@@ -1,7 +1,7 @@
 # YAML Schema Versioning
 
 Rules for bumping `CURRENT_SCHEMA_VERSION` in
-`src/supy/data_model/schema/version.py` and for keeping the
+`src/supy/data_model/configuration/version.py` and for keeping the
 `yaml_upgrade` migration path aligned with reality.
 
 Motivated by the gap closed in gh#1304: `CURRENT_SCHEMA_VERSION` stayed
@@ -126,7 +126,7 @@ use `packaging.version.Version` for the comparison.
 
 ## How to bump
 
-1. Edit `src/supy/data_model/schema/version.py`:
+1. Edit `src/supy/data_model/configuration/version.py`:
    - Set `CURRENT_SCHEMA_VERSION` per the dev-label convention above
      — `"<target>.dev1"` for the first structural PR of a new cycle,
      `.devN+1` for subsequent PRs, plain CalVer (e.g. `"2026.5"`)
@@ -215,7 +215,7 @@ If any of these are missing, stop the release and add them first. The
 When reviewing a PR that touches `src/supy/data_model/`:
 
 - If the diff includes a field rename, removal, type change, required
-  addition, or structural reshape, `src/supy/data_model/schema/version.py`
+  addition, or structural reshape, `src/supy/data_model/configuration/version.py`
   must also be touched in the same PR. Flag otherwise.
 - The PR should add or update a handler in
   `src/supy/util/converter/yaml_upgrade.py` that covers the new delta.
@@ -230,11 +230,19 @@ When reviewing a PR that touches `src/supy/data_model/`:
 ## CI gate and bypass label
 
 The `.github/workflows/schema-version-audit.yml` workflow runs
-`scripts/lint/check_schema_version_bump.py` on every PR that touches
-`src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml`.
-If those paths changed but
-`src/supy/data_model/schema/version.py` did not, the job fails with
+`scripts/lint/check_schema_version_bump.py` on every PR. The script fast-skips
+when no YAML-owned model under `src/supy/data_model/core/**` (excluding forcing
+validation and DataFrame rename helpers) or
+`src/supy/sample_data/sample_config.yml` changed. If those paths changed but
+`src/supy/data_model/configuration/version.py` did not, the job fails with
 remediation guidance pointing at this rule.
+
+Forcing and output contract sources are intentionally outside this boundary.
+They have independent semantic-version owners. Their append-only release
+histories use the `.github/workflows/data-interface-version-audit.yml` gate
+documented in
+`docs/source/contributing/schema/data_interface_versioning.rst`; contract
+content checks remain with the forcing and output definitions.
 
 The same script also enforces the docs sync from step 6: when
 `CURRENT_SCHEMA_VERSION` does move, at least one of

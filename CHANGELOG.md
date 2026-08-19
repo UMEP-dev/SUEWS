@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 86       | 31 | 81 | 40 | 319   |
+| 2026 | 80       | 86       | 32 | 81 | 40 | 320   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,51 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 14 Aug 2026
+
+- [change][experimental] Rejected unrecognised nested keys on validated YAML and dictionary configuration loads (#1647)
+  - Errors name the full configuration path and suggest the current field for recognised legacy spellings; the explicit `use_conditional_validation=False` construction path remains unchecked.
+- [bugfix] Completed historical YAML-upgrade drops exposed by strict extra-key validation (#1647)
+  - Retired hot-water-tank view factors, the old occupants profile, and legacy bulk vegetation albedo are now removed in their owning version transitions with an explicit migration log.
+- [doc] Corrected YAML examples that placed coordinates and land-cover data on the site object where they were not applied (#1647)
+
+### 13 Aug 2026
+
+- [feature][experimental] Added configurable saved-output timestamp references (#1589)
+  - `model.control.output.timestamp_reference` can follow the forcing clock or relabel saved text and parquet timestamps to UTC, local standard time, or configured daylight time without changing simulated values.
+  - Explicit references add a matching filename suffix, while the default `follow` policy preserves existing timestamps and filenames.
+
+### 12 Aug 2026
+
+- [bugfix] Preserved elapsed model time across chunk and restart boundaries (#1692)
+  - Checkpoint schema version 2 stores `dt_since_start`, `dt_since_start_prev`, the new-day flag, and the model timestep alongside each grid state, making one-day chunks numerically equivalent to an uninterrupted run within a relative and absolute tolerance of `1e-12` across the 24-hour averaging boundary.
+  - State-only version-1 checkpoints are rejected with an actionable compatibility error because their missing elapsed timer cannot be reconstructed reliably.
+
+- [feature][experimental] Added forcing timestamp-reference control (#1590)
+  - `model.control.forcing.timestamp_reference: utc` keeps forcing timestamps, outputs, daily state boundaries and run bounds in UTC while solar calculations and local diurnal profiles use the site's fixed-offset local standard time.
+  - Omitting the option, or selecting `local_standard_time`, preserves the historical local-standard-time interval-end behaviour.
+
+- [bugfix] Restored chunk checkpoints containing non-finite state sentinels (#1691)
+  - Checkpoint generation now preserves `NaN` using the existing JSON `null` representation and rejects infinities with their exact state member and array index.
+  - State-aware continuation restores `null` as `NaN`, so existing checkpoints no longer fail with only `invalid state payload`; other invalid JSON values report their exact path and type.
+
+- [maintenance] Guarded tests against locating bundled package data through imported modules' `__file__` (#1697)
+  - Reached SuPy's packaged sample data through `importlib.resources`, materialising the whole directory where the YAML config depends on its sibling forcing file.
+  - Added an AST-based CI lint, regression coverage, and test guidance to prevent the fragile path pattern from returning.
+
+- [change][experimental] Completed the naming-convention sweep for CO2 emission parameters (#1688)
+  - Renamed fourteen fused or unit-bearing YAML keys under `anthropogenic_emissions.co2` while preserving old YAML compatibility through the schema migrator and rename registry.
+  - Corrected point-source, metabolic-emission and traffic-rate units against the Fortran physics contract; legacy `df_state` columns remain unchanged.
+
+- [bugfix] Stopped the YAML config reference describing parameters without a default as optional (#1677)
+  - Every parameter carrying no default previously rendered as `Default: None (optional)`, which asserted the opposite of the truth for parameters such as `store_cap` and `base_temperature_senescence`; these are declared `Optional[...] = None` only so a partial configuration still loads and the validation layer can then report what is missing.
+  - Such parameters now render under a `Configuration Note` label stating that no default exists and that a value may be required depending on which physics options and surface types are active. A `Default` label therefore always introduces a real default value, and `Status` stays reserved for the short state token `Required`.
+  - Added regression coverage over the rendered pages, which is the only available gate because the generated config reference is not tracked in git.
+
+- [change][stable] Retired the procedural Python API in favour of `SUEWSSimulation`, `SUEWSConfig`, and `SUEWSOutput` (#1370)
+  - Removed `init_supy`, sample/config loaders, `run_supy` helpers, `save_supy`, and the top-level output-resampling function.
+  - Retained `load_forcing_grid` only as a warning-emitting forwarding shim for the UMEP YAML single-grid workflow; `check_forcing` and `check_state` remain supported utilities.
 
 ### 22 Jul 2026
 

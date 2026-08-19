@@ -1,10 +1,11 @@
 # command line tools
-import click
 import logging
 import multiprocessing
 import os
-import sys
 from pathlib import Path
+import sys
+
+import click
 
 # Get logger for CLI warnings (configured in _env.py when heavy imports load)
 logger_cli = logging.getLogger("SuPy.CLI")
@@ -24,16 +25,15 @@ def _load_heavy_imports():
         return
 
     # These imports trigger slow package discovery via importlib.resources.files()
-    global _init_supy, _run_supy, _save_supy, _load_forcing_grid, pd
+    global _load_namelist_state, _save_supy, _load_namelist_forcing_grid, pd
     global load_SUEWS_nml_simple, SUEWSSimulation, YAML_SUPPORT
+    from .._load import load_SUEWS_nml_simple
     from .._supy_module import (
-        _init_supy,
-        _run_supy,
+        _load_namelist_forcing_grid,
+        _load_namelist_state,
         _save_supy,
-        _load_forcing_grid,
         pd,
     )
-    from .._load import load_SUEWS_nml_simple
 
     # Import YAML-based simulation class
     try:
@@ -45,6 +45,18 @@ def _load_heavy_imports():
         YAML_SUPPORT = False
 
     _HEAVY_IMPORTS_LOADED = True
+
+
+def _run_namelist_frames(df_forcing, df_state_init):
+    """Run one legacy namelist frame pair through the OOP runtime."""
+    from ..suews_sim import SUEWSSimulation
+
+    simulation = SUEWSSimulation.from_state(df_state_init)
+    # The supported namelist CLI historically accepted its loader's model-ready
+    # frame without applying the public OOP DataFrame validation contract.
+    simulation._df_forcing = df_forcing
+    output = simulation.run(_validate_forcing=False)
+    return output.df, output.state_final
 
 
 def _get_version():
@@ -175,7 +187,7 @@ def _run_with_namelist(path_runcontrol):
         path_runcontrol = Path(path_runcontrol).resolve()
         # init supy
         click.echo("Initialising ...")
-        df_state_init = _init_supy(path_runcontrol)
+        df_state_init = _load_namelist_state(path_runcontrol)
 
         # load forcing
         list_grid = df_state_init.index
@@ -187,10 +199,13 @@ def _run_with_namelist(path_runcontrol):
             click.echo("\nGrid-specific forcing conditions will be used.")
             # multiple met forcing conditions according to grids:
             list_df_forcing = [
-                _load_forcing_grid(path_runcontrol, grid) for grid in list_grid
+                _load_namelist_forcing_grid(path_runcontrol, grid) for grid in list_grid
             ]
             list_input = [
-                (_load_forcing_grid(path_runcontrol, grid), df_state_init.loc[[grid]])
+                (
+                    _load_namelist_forcing_grid(path_runcontrol, grid),
+                    df_state_init.loc[[grid]],
+                )
                 for grid in list_grid
             ]
             click.echo("\nSimulation periods:")
@@ -211,7 +226,7 @@ def _run_with_namelist(path_runcontrol):
 
             processes = min(len(list_grid), os.cpu_count() or 1)
             with ctx.Pool(processes=processes) as pool:
-                list_res = pool.starmap(_run_supy, list_input)
+                list_res = pool.starmap(_run_namelist_frames, list_input)
             try:
                 list_df_output, list_df_state_final = zip(*list_res)
                 df_output = pd.concat(list_df_output, names=["grid", "datetime"])
@@ -225,14 +240,14 @@ def _run_with_namelist(path_runcontrol):
         else:
             # uniform met forcing condition across grids:
             grid = list_grid[0]
-            df_forcing = _load_forcing_grid(path_runcontrol, grid)
+            df_forcing = _load_namelist_forcing_grid(path_runcontrol, grid)
             click.echo("\nSame forcing conditions will be used for all grids.")
             click.echo("\nSimulation period:")
             idx_dt = df_forcing.index
             start, end = idx_dt.min(), idx_dt.max()
             click.echo(f"{start} - {end}")
             # run supy
-            df_output, df_state_final = _run_supy(df_forcing, df_state_init)
+            df_output, df_state_final = _run_namelist_frames(df_forcing, df_state_init)
 
         # save result
         list_out_files = _save_supy(

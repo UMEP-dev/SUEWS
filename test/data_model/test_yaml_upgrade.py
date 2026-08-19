@@ -20,7 +20,8 @@ import yaml
 
 from supy.cmd.table_converter import convert_table_cmd
 from supy.data_model.core.config import SUEWSConfig
-from supy.data_model.schema import CURRENT_SCHEMA_VERSION
+from supy.data_model.core.field_renames import CO2PARAMS_RENAMES
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.util.converter.yaml_upgrade import (
     YamlUpgradeError,
     upgrade_yaml,
@@ -89,6 +90,49 @@ class TestYamlUpgradeModule:
         # ASSERT
         reloaded = SUEWSConfig.from_yaml(str(out))
         assert reloaded.name is not None
+
+    def test_dev2_co2params_renames_preserve_all_values(self, tmp_path: Path, capsys):
+        """The dev2 -> dev3 handler must migrate every gh#1688 field."""
+        legacy_co2 = {
+            "co2pointsource": {"value": 4.0},
+            "ef_umolco2perj": {"value": 1.159},
+            "enef_v_jkm": {"value": 4.1e6},
+            "fcef_v_kgkm": {"working_day": 0.285, "holiday": 0.275},
+            "frfossilfuel_heat": {"value": 0.7},
+            "frfossilfuel_nonheat": {"value": 0.3},
+            "maxfcmetab": {"value": 280.0},
+            "maxqfmetab": {"value": 175.0},
+            "minfcmetab": {"value": 120.0},
+            "minqfmetab": {"value": 75.0},
+            "trafficrate": {"working_day": 0.02, "holiday": 0.01},
+            "trafficunits": {"value": 1.0},
+            "traffprof_24hr": {"working_day": {"1": 0.5}},
+            "humactivity_24hr": {"holiday": {"24": 1.0}},
+            "ref": {"desc": "unchanged"},
+        }
+        payload = {
+            "schema_version": "2026.6.dev2",
+            "sites": [{"properties": {"anthropogenic_emissions": {"co2": legacy_co2}}}],
+        }
+        source = tmp_path / "dev2.yml"
+        output = tmp_path / "dev3.yml"
+        source.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+        upgrade_yaml(input_path=source, output_path=output)
+
+        migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
+        migrated_co2 = migrated["sites"][0]["properties"]["anthropogenic_emissions"][
+            "co2"
+        ]
+        for old_name, new_name in CO2PARAMS_RENAMES.items():
+            assert old_name not in migrated_co2
+            assert migrated_co2[new_name] == legacy_co2[old_name]
+        assert migrated_co2["ref"] == legacy_co2["ref"]
+        assert migrated["schema_version"] == CURRENT_SCHEMA_VERSION
+
+        log = capsys.readouterr().err
+        for old_name, new_name in CO2PARAMS_RENAMES.items():
+            assert f"renamed {old_name!r} -> {new_name!r}" in log
 
     def test_explicit_override_respected(
         self, signed_yaml: Path, tmp_path: Path, capsys

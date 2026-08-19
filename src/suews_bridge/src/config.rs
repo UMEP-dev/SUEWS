@@ -6,8 +6,8 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const SUEWS_CONFIG_FLAT_LEN: usize = 23;
-pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 3;
+pub const SUEWS_CONFIG_FLAT_LEN: usize = 24;
+pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 4;
 
 pub type SuewsConfigSchema = crate::codec::SimpleSchema;
 
@@ -38,6 +38,7 @@ pub struct SuewsConfig {
     pub setpoint_method: i32,
     pub flag_test: bool,
     pub kdown_split_method: i32,
+    pub forcing_timestamp_reference: i32,
 }
 
 impl Default for SuewsConfig {
@@ -66,10 +67,10 @@ impl Default for SuewsConfig {
             setpoint_method: 0,
             flag_test: false,
             kdown_split_method: 3,
+            forcing_timestamp_reference: 0,
         }
     }
 }
-
 
 fn decode_int(value: f64) -> Result<i32, BridgeError> {
     if !value.is_finite() {
@@ -116,6 +117,7 @@ impl SuewsConfig {
             setpoint_method: decode_int(flat[20])?,
             flag_test: flat[21] >= 0.5,
             kdown_split_method: decode_int(flat[22])?,
+            forcing_timestamp_reference: decode_int(flat[23])?,
         })
     }
 
@@ -144,6 +146,7 @@ impl SuewsConfig {
             self.setpoint_method as f64,
             if self.flag_test { 1.0 } else { 0.0 },
             self.kdown_split_method as f64,
+            self.forcing_timestamp_reference as f64,
         ]
     }
 }
@@ -223,6 +226,7 @@ pub fn suews_config_field_names() -> Vec<String> {
         "setpoint_method".to_string(),
         "flag_test".to_string(),
         "kdown_split_method".to_string(),
+        "forcing_timestamp_reference".to_string(),
     ]
 }
 

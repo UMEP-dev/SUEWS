@@ -1,19 +1,4 @@
-"""Import-time visibility tests for the procedural-API deprecation (gh#1370).
-
-The procedural top-level API (``run_supy``, ``init_supy``, ...) is being
-phased out in favour of ``SUEWSSimulation``. Phase 1 added an in-body
-``_warn_functional_deprecation`` call to each function so that *calling*
-the function emits a ``FutureWarning``. This test guards Phase 2 of the
-plan: the lazy ``__getattr__`` in ``supy/__init__.py`` must also emit the
-warning on the first attribute access, so users who hold a reference but
-defer the call still see the migration nudge.
-
-The tests use one subprocess on purpose. ``test/conftest.py`` monkey-patches
-the public functions to private implementations during ``pytest_configure``,
-which both populates ``supy.__dict__`` (bypassing ``__getattr__`` entirely)
-and would consume the import-time warning before any in-process test could
-observe it. A clean subprocess gives us the user-visible behaviour.
-"""
+"""Public-surface tests for the procedural API retirement."""
 
 from __future__ import annotations
 
@@ -27,56 +12,58 @@ import pytest
 pytestmark = pytest.mark.api
 
 
-def _probe_payload() -> dict:
-    """Read the registry and probe every deprecated name in one interpreter.
+REMOVED_FUNCTIONAL_NAMES = {
+    "init_supy",
+    "init_config",
+    "load_SampleData",
+    "load_config_from_df",
+    "load_sample_data",
+    "resample_output",
+    "run_supy",
+    "run_supy_sample",
+    "save_supy",
+}
 
-    The probe:
 
-    1. imports ``supy`` and reads the lightweight lazy-router set,
-    2. resolves each routed attribute twice through ``getattr``,
-    3. imports the functional registry and dumps both sets plus warning traces.
-
-    Subprocess isolation guarantees a clean module cache and a clean
-    warning filter, neither of which can be enforced from inside the
-    pytest run because of ``conftest.py`` monkey-patching. One subprocess is
-    sufficient: resolving one lazy attribute does not populate the others.
-    """
+def _probe_public_surface() -> dict:
+    """Inspect the lazy public surface in a clean interpreter."""
     probe = textwrap.dedent(
-        """
-        import json, sys, warnings
+        f"""
+        import json
+        import sys
+        import warnings
         import supy
 
-        names = sorted(supy._DEPRECATED_FUNCTIONAL_NAMES)
-
-        def _serialise(records):
-            return [
-                {"category": w.category.__name__, "message": str(w.message)}
-                for w in records
-            ]
-
-        traces = {}
-        for name in names:
+        removed = {sorted(REMOVED_FUNCTIONAL_NAMES)!r}
+        traces = {{}}
+        for name in removed:
             try:
-                with warnings.catch_warnings(record=True) as caught_first:
-                    warnings.simplefilter("always")
-                    getattr(supy, name)
-                with warnings.catch_warnings(record=True) as caught_second:
-                    warnings.simplefilter("always")
-                    getattr(supy, name)
-                traces[name] = {
-                    "first": _serialise(caught_first),
-                    "second": _serialise(caught_second),
-                }
-            except Exception as exc:
-                traces[name] = {"error": repr(exc)}
+                getattr(supy, name)
+            except AttributeError as exc:
+                traces[name] = {{"error": str(exc)}}
+            else:
+                traces[name] = {{"resolved": True}}
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            loader = getattr(supy, "load_forcing_grid")
 
         from supy._supy_module import _FUNCTIONAL_DEPRECATIONS
         json.dump(
-            {
-                "router": names,
-                "registry": sorted(_FUNCTIONAL_DEPRECATIONS.keys()),
-                "traces": traces,
-            },
+            {{
+                "all": sorted(supy.__all__),
+                "deprecated": sorted(_FUNCTIONAL_DEPRECATIONS),
+                "removed": traces,
+                "loader_callable": callable(loader),
+                "loader_warnings": [
+                    {{"category": item.category.__name__, "message": str(item.message)}}
+                    for item in caught
+                ],
+                "utilities": {{
+                    "check_forcing": callable(supy.check_forcing),
+                    "check_state": callable(supy.check_state),
+                }},
+            }},
             sys.stdout,
         )
         """
@@ -90,55 +77,38 @@ def _probe_payload() -> dict:
     return json.loads(result.stdout)
 
 
-# Resolve once at collection so failures still show one case per deprecated
-# name without launching a fresh interpreter for every assertion.
-_PROBE_PAYLOAD = _probe_payload()
-_DEPRECATED_NAMES = sorted(
-    set(_PROBE_PAYLOAD["router"]) | set(_PROBE_PAYLOAD["registry"])
-)
+_SURFACE = _probe_public_surface()
 
 
 @pytest.mark.core
-def test_router_set_matches_registry():
-    """`_DEPRECATED_FUNCTIONAL_NAMES` in `__init__.py` must equal the registry.
-
-    The router hard-codes the deprecated-name set so the lazy path stays
-    fast (no `_supy_module` import on every attribute miss). This test
-    guards against the two drifting silently when a future PR adds a new
-    deprecated symbol but forgets to wire the router.
-    """
-    assert _PROBE_PAYLOAD["router"] == _PROBE_PAYLOAD["registry"], (
-        "supy.__init__._DEPRECATED_FUNCTIONAL_NAMES has drifted from "
-        "_supy_module._FUNCTIONAL_DEPRECATIONS — "
-        f"router={_PROBE_PAYLOAD['router']} "
-        f"registry={_PROBE_PAYLOAD['registry']}"
-    )
+def test_only_umep_loader_remains_deprecated():
+    """Keep only the compatibility name required by the UMEP processor."""
+    assert _SURFACE["deprecated"] == ["load_forcing_grid"]
+    assert _SURFACE["loader_callable"] is True
+    assert _SURFACE["loader_warnings"] == [
+        {
+            "category": "FutureWarning",
+            "message": (
+                "`supy.load_forcing_grid` is deprecated and will be removed in a "
+                "future release. Please migrate to "
+                "`SUEWSSimulation(path).forcing`."
+            ),
+        }
+    ]
 
 
 @pytest.mark.core
-@pytest.mark.parametrize("name", _DEPRECATED_NAMES)
-def test_access_warns_once(name):
-    """First access warns for the symbol; the cached second access is silent."""
-    assert name in _PROBE_PAYLOAD["traces"], (
-        f"supy.{name} is registered but missing from the lazy router probe"
-    )
-    trace = _PROBE_PAYLOAD["traces"][name]
-    assert "error" not in trace, f"supy.{name} could not be resolved: {trace}"
-    future_warnings_first = [
-        record
-        for record in trace["first"]
-        if record["category"] == "FutureWarning"
-        and "deprecated" in record["message"].lower()
-        and name in record["message"]
-    ]
-    assert len(future_warnings_first) == 1, (
-        f"Expected exactly one FutureWarning for first access of supy.{name}; "
-        f"got {trace['first']}"
-    )
-    future_warnings_second = [
-        record for record in trace["second"] if record["category"] == "FutureWarning"
-    ]
-    assert future_warnings_second == [], (
-        f"Second access of supy.{name} re-emitted FutureWarning(s); "
-        f"cache should suppress: {trace['second']}"
-    )
+@pytest.mark.parametrize("name", sorted(REMOVED_FUNCTIONAL_NAMES))
+def test_removed_names_are_absent(name):
+    """Removed procedural names must not resolve or remain in ``__all__``."""
+    assert "resolved" not in _SURFACE["removed"][name]
+    assert name not in _SURFACE["all"]
+
+
+@pytest.mark.core
+def test_validation_utilities_remain_supported():
+    """The procedural retirement must not remove validation utilities."""
+    assert _SURFACE["utilities"] == {
+        "check_forcing": True,
+        "check_state": True,
+    }

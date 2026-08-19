@@ -32,6 +32,7 @@ from ...data_model.core.field_renames import (
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    CO2PARAMS_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
     STEBBSPROPERTIES_DEV12_RENAMES,
@@ -40,8 +41,8 @@ from ...data_model.core.field_renames import (
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
 )
-from ...data_model.schema import CURRENT_SCHEMA_VERSION
-from ...data_model.schema.migration import SchemaMigrator
+from ...data_model.configuration import CURRENT_SCHEMA_VERSION
+from ...data_model.configuration.migration import SchemaMigrator
 
 # ---------------------------------------------------------------------------
 # Package-version -> schema-version resolver
@@ -52,7 +53,7 @@ from ...data_model.schema.migration import SchemaMigrator
 # ---------------------------------------------------------------------------
 
 # Retrospectively-assigned schema versions per formal release tag. The
-# `SCHEMA_VERSIONS` lineage in `src/supy/data_model/schema/version.py`
+# `SCHEMA_VERSIONS` lineage in `src/supy/data_model/configuration/version.py`
 # anchors each value here — see that file's docstring for the history of
 # why the schema version was frozen at "2025.12" through several structural
 # changes (gh#1304) and how the retrospective audit settled on these
@@ -176,6 +177,16 @@ def _rename_field(arch: dict, old_name: str, new_name: str) -> bool:
     return True
 
 
+def _apply_co2params_renames(cfg: dict) -> None:
+    """Apply the gh#1688 CO2Params naming-convention completion."""
+    for emissions in _walk_site_container(cfg, "anthropogenic_emissions"):
+        co2 = emissions.get("co2")
+        if not isinstance(co2, dict):
+            continue
+        for old_name, new_name in CO2PARAMS_RENAMES.items():
+            _rename_field(co2, old_name, new_name)
+
+
 def _drop_obsolete_field(arch: dict, name: str, reason: str) -> bool:
     """Drop `name` from `arch` and log the removal with `reason`.
 
@@ -281,6 +292,8 @@ _STEBBS_DROPS_2026_1_TO_CURRENT: tuple[tuple[str, str], ...] = (
     ("MaximumVolumeOfDHWinUse", "removed in #1242"),
     ("ApplianceRating", "replaced by lighting/metabolism profiles"),
     ("MetabolicRate", "replaced by MetabolismProfile"),
+)
+_ARCH_DROPS_2026_1_TO_CURRENT: tuple[tuple[str, str], ...] = (
     ("OccupantsProfile", "replaced by MetabolismProfile"),
 )
 
@@ -511,6 +524,16 @@ _STEBBS_DROPS_TO_DEV11: tuple[tuple[str, str], ...] = (
         "dead input - STEBBS radiative transfer hardcodes the tank-internal-mass "
         "view factor (MVF_tank=1.0); never consumed (gh#1392)",
     ),
+    (
+        "HotWaterTankBuildingWallViewFactor",
+        "dead input - STEBBS radiative transfer hardcodes the tank-wall view "
+        "factor (BVF_tank=0.0); never consumed (gh#1392)",
+    ),
+    (
+        "HotWaterTankInternalMassViewFactor",
+        "dead input - STEBBS radiative transfer hardcodes the tank-internal-mass "
+        "view factor (MVF_tank=1.0); never consumed (gh#1392)",
+    ),
 )
 
 # Schema 2026.5.dev11 -> 2026.5.dev12: align STEBBS and Archetype field names
@@ -549,7 +572,14 @@ def _strip_internal_only_fields(cfg: dict) -> dict:
 
 def _identity(cfg: dict) -> dict:
     """Return the config after the defensive strip (schema version matches)."""
-    return _strip_internal_only_fields(cfg)
+    cfg = _strip_internal_only_fields(cfg)
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for name, reason in _ARCH_DROPS_TO_DEV11:
+            _drop_obsolete_field(arch, name, reason)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for name, reason in _STEBBS_DROPS_TO_DEV11:
+            _drop_obsolete_field(stebbs, name, reason)
+    return cfg
 
 
 def _split_profile_fields(building_archetype: dict) -> bool:
@@ -619,6 +649,15 @@ def _migrate_2025_12_to_2026_1(cfg: dict) -> dict:
             _rename_field(stebbs, old, new)
         for name, reason in _STEBBS_DROPS_2025_12_TO_2026_1:
             _drop_obsolete_field(stebbs, name, reason)
+    for land_cover in _walk_site_container(cfg, "land_cover"):
+        for surface_name in ("evetr", "dectr", "grass"):
+            surface = land_cover.get(surface_name)
+            if isinstance(surface, dict):
+                _drop_obsolete_field(
+                    surface,
+                    "alb",
+                    "replaced by alb_min/alb_max and initial-state alb_id",
+                )
     return cfg
 
 
@@ -1202,6 +1241,8 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     * 2026.5.dev8 -> 2026.5.dev9 (gh#1372): cumulative model.control
       restructure - forcing_file -> forcing.file, then output_file ->
       output (with inner path -> dir, legacy string form dropped).
+    * 2026.6.dev2 -> 2026.6.dev3 (gh#1688): the omitted CO2Params fields
+      renamed to convention-compliant identifiers while preserving values.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The
@@ -1225,6 +1266,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
     _apply_fai_alias_canonicalisation(cfg)
+    _apply_co2params_renames(cfg)
     return cfg
 
 
@@ -1247,6 +1289,18 @@ def _migrate_2026_6_dev1_to_2026_6_dev2(cfg: dict) -> dict:
     return cfg
 
 
+def _migrate_2026_6_dev2_to_2026_6_dev3(cfg: dict) -> dict:
+    """Rename the fourteen CO2Params fields omitted from the #1256 sweep."""
+    _apply_co2params_renames(cfg)
+    return cfg
+
+
+def _migrate_2026_6_dev1_to_current(cfg: dict) -> dict:
+    """Chain the dev2 identity delta and the dev3 CO2Params renames."""
+    cfg = _migrate_2026_6_dev1_to_2026_6_dev2(cfg)
+    return _migrate_2026_6_dev2_to_2026_6_dev3(cfg)
+
+
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
     """Chain 2026.4 -> 2026.5 released schema -> current dev schema."""
     cfg = _migrate_2026_4_to_2026_5(cfg)
@@ -1260,6 +1314,8 @@ def _migrate_2026_1_to_2026_4(cfg: dict) -> dict:
     for arch in _walk_site_container(cfg, "building_archetype"):
         if _split_profile_fields(arch):
             any_profile_split = True
+        for name, reason in _ARCH_DROPS_2026_1_TO_CURRENT:
+            _drop_obsolete_field(arch, name, reason)
     for stebbs in _walk_site_container(cfg, "stebbs"):
         for old, new in _STEBBS_RENAMES_2026_1_TO_CURRENT:
             _rename_field(stebbs, old, new)
@@ -1311,8 +1367,9 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
-    ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_2026_6_dev2,
-    ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_2026_6_dev1,
+    ("2026.6.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev2_to_2026_6_dev3,
+    ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_current,
+    ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
     ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,

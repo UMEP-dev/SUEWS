@@ -679,6 +679,7 @@ class SUEWSSimulation:
                 f"Only the 'rust' backend is available. "
                 f"Remove the backend parameter or use backend='rust'."
             )
+        validate_forcing = run_kwargs.pop("_validate_forcing", True)
 
         max_workers = _validate_n_jobs(n_jobs)
         serial_mode = n_jobs == 1
@@ -727,28 +728,70 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
-        # Validate forcing data, including physics-specific forcing requirements
-        # (e.g. laimethod=0 requires populated effective observed-LAI sources).
-        physics_dict = None
-        if self._config is not None and hasattr(self._config, "model"):
-            physics = getattr(self._config.model, "physics", None)
-            if physics is not None and hasattr(physics, "model_dump"):
-                physics_dict = physics.model_dump(mode="python")
-            # Cross-check physics path against forcing columns.
-            # Helper is silent on success; raises ValueError on mismatch.
-            if physics is not None:
-                from .data_model.core.forcing_validation import (
-                    validate_forcing_columns_against_physics,
-                )
+        if validate_forcing:
+            # Validate forcing data, including physics-specific forcing requirements
+            # (e.g. laimethod=0 requires populated effective observed-LAI sources).
+            physics_dict = None
+            if self._config is not None and hasattr(self._config, "model"):
+                physics = getattr(self._config.model, "physics", None)
+                if physics is not None and hasattr(physics, "model_dump"):
+                    physics_dict = physics.model_dump(mode="python")
+                # Cross-check physics path against forcing columns.
+                # Helper is silent on success; raises ValueError on mismatch.
+                if physics is not None:
+                    from .data_model.core.forcing_validation import (
+                        validate_forcing_columns_against_physics,
+                    )
 
-                validate_forcing_columns_against_physics(df_forcing_slice, physics)
-        list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
-        if isinstance(list_issues, list) and len(list_issues) > 0:
-            issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
-            suffix = (
-                f" (and {len(list_issues) - 3} more)" if len(list_issues) > 3 else ""
+                    validate_forcing_columns_against_physics(df_forcing_slice, physics)
+            list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
+            if isinstance(list_issues, list) and len(list_issues) > 0:
+                issues_summary = (
+                    list_issues[:3] if len(list_issues) > 3 else list_issues
+                )
+                suffix = (
+                    f" (and {len(list_issues) - 3} more)"
+                    if len(list_issues) > 3
+                    else ""
+                )
+                raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
+        else:
+            # The retired runner always enforced observed-LAI completeness,
+            # even when its general ``check_input`` switch was false.
+            lai_method = getattr(self._config.model.physics, "leaf_area_index", None)
+            if lai_method is None:
+                lai_method = getattr(self._config.model.physics, "laimethod", None)
+            if hasattr(lai_method, "value"):
+                lai_method = lai_method.value
+            if lai_method is not None and int(lai_method) == 0:
+                from ._check import _check_observed_lai_nonneg
+
+                lai_issues = []
+                if _check_observed_lai_nonneg(df_forcing_slice, lai_issues):
+                    raise RuntimeError(lai_issues[0])
+
+        # Preserve observed-soil-moisture preprocessing from the retired
+        # DataFrame runner on the single canonical execution path.
+        soil_moisture_deficit = getattr(
+            self._config.model.physics,
+            "soil_moisture_deficit",
+            None,
+        )
+        if soil_moisture_deficit is None:
+            soil_moisture_deficit = getattr(
+                self._config.model.physics,
+                "smdmethod",
+                None,
             )
-            raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
+        if hasattr(soil_moisture_deficit, "value"):
+            soil_moisture_deficit = soil_moisture_deficit.value
+        if soil_moisture_deficit is not None and int(soil_moisture_deficit) > 0:
+            from .util._forcing import convert_observed_soil_moisture
+
+            df_forcing_slice = convert_observed_soil_moisture(
+                df_forcing_slice.copy(),
+                self._df_state_init,
+            )
 
         # Run simulation via Rust bridge
         initial_state_json_by_grid = (
@@ -870,6 +913,7 @@ class SUEWSSimulation:
         # Extract parameters from config
         output_format = None
         output_config = None
+        forcing_timestamp_reference = "local_standard_time"
         freq_s = DEFAULT_OUTPUT_FREQ_SECONDS
         site = ""
 
@@ -886,6 +930,9 @@ class SUEWSSimulation:
                 # Removed for now - can't update from YAML (TODO)
                 # if hasattr(output_config, 'format') and output_config.format is not None:
                 #     output_format = output_config.format
+                control = self._config.model.control
+                if hasattr(control, "forcing"):
+                    forcing_timestamp_reference = control.forcing.timestamp_reference
 
             # Get site name from first site
             if hasattr(self._config, "sites") and len(self._config.sites) > 0:
@@ -901,10 +948,11 @@ class SUEWSSimulation:
             freq_s=int(freq_s),
             site=site,
             path_dir_save=str(output_path),
-            # **save_kwargs # Problematic, save_supy expects explicit arguments
+            # **save_kwargs # The shared save backend expects explicit arguments
             output_config=output_config,
             output_format=output_format,
             save_state=False,
+            forcing_timestamp_reference=forcing_timestamp_reference,
         )
 
         if self._checkpoint is not None:
@@ -961,39 +1009,9 @@ class SUEWSSimulation:
 
         """
         from ._env import trv_supy_module
-        from ._supy_module import _load_sample_data
 
-        # Load core simulation data (state and forcing)
-        df_state_init, df_forcing = _load_sample_data()
-        sample_config_path = Path(trv_supy_module / "sample_data" / "sample_config.yml")
-
-        sim = cls()
-
-        # Try to load config for metadata (non-critical)
-        # The actual state is set from df_state_init below, so config is optional
-        try:
-            sim.update_config(sample_config_path)
-        except (FileNotFoundError, IOError) as exc:
-            # File access issues - warn but continue
-            warnings.warn(
-                f"Could not load sample configuration file: {exc}\n"
-                "Simulation will use data from df_state_init instead.",
-                UserWarning,
-                stacklevel=2,
-            )
-        except Exception as exc:
-            # Other unexpected errors - warn but continue
-            warnings.warn(
-                f"Unexpected error loading sample configuration: {exc}\n"
-                "Simulation will use data from df_state_init instead.",
-                UserWarning,
-                stacklevel=2,
-            )
-
-        # Set core simulation data (overrides any config-derived state)
-        sim._df_state_init = df_state_init
-        sim._df_forcing = df_forcing
-        return sim
+        sample_config_path = trv_supy_module / "sample_data" / "sample_config.yml"
+        return cls(sample_config_path)
 
     @staticmethod
     def _coerce_checkpoint(
@@ -1038,7 +1056,9 @@ class SUEWSSimulation:
                 "call update_config() before continue_from()."
             )
 
-        self._checkpoint = self._coerce_checkpoint(checkpoint)
+        checkpoint_value = self._coerce_checkpoint(checkpoint)
+        checkpoint_value.validate_for_continuation()
+        self._checkpoint = checkpoint_value
         self._df_output = None
         self._df_state_final = None
         self._run_completed = False
@@ -1497,7 +1517,7 @@ class SUEWSSimulation:
         See Also
         --------
         output : Access results as SUEWSOutput object with analysis methods
-        :ref:`df_output_var` : Complete output data structure and variable descriptions
+        :ref:`output_variable_reference` : Complete output variable reference
         get_variable : Extract specific variables from output groups
         save : Save results to files
         """
@@ -1529,7 +1549,7 @@ class SUEWSSimulation:
         See Also
         --------
         run : Run simulation and return SUEWSOutput (preferred)
-        :ref:`df_output_var` : Complete output data structure
+        :ref:`output_variable_reference` : Complete output variable reference
 
         Examples
         --------

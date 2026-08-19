@@ -65,7 +65,7 @@ MODULE SUEWS_Driver
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, SUEWS_cal_weekday, &
-                          SUEWS_cal_DLS, SUEWS_cal_timer
+                          SUEWS_cal_DLS, SUEWS_cal_timer_reference
    ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
    USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
                                        reset_supy_error, set_supy_error, add_supy_warning
@@ -76,12 +76,47 @@ MODULE SUEWS_Driver
    ! Make error state variables public for Python/f90wrap access
    PUBLIC :: supy_error_flag, supy_error_code, supy_error_message
    PUBLIC :: reset_supy_error, set_supy_error
+   PRIVATE :: SUEWS_cal_Main_impl
 
 CONTAINS
 
 ! ===================MAIN CALCULATION WRAPPER FOR ENERGY AND WATER FLUX===========
 
    SUBROUTINE SUEWS_cal_Main( &
+      timer, forcing, config, siteInfo, &
+      modState, &
+      outputLine, &
+      debugState)
+
+      IMPLICIT NONE
+
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_FORCING), INTENT(INOUT) :: forcing
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+      TYPE(output_line), INTENT(OUT) :: outputLine
+      TYPE(SUEWS_DEBUG), INTENT(OUT), OPTIONAL :: debugState
+
+      TYPE(SUEWS_TIMER) :: timer_internal
+
+      ! Coupled callers provide only the established public timer fields.
+      ! Derive the internal clock view without changing the public timer ABI.
+      timer_internal = timer
+      CALL SUEWS_cal_timer_reference( &
+         timer_internal, siteInfo, siteInfo%anthroemis, &
+         config%ForcingTimestampReference)
+
+      IF (PRESENT(debugState)) THEN
+         CALL SUEWS_cal_Main_impl( &
+            timer_internal, forcing, config, siteInfo, modState, outputLine, debugState)
+      ELSE
+         CALL SUEWS_cal_Main_impl( &
+            timer_internal, forcing, config, siteInfo, modState, outputLine)
+      END IF
+   END SUBROUTINE SUEWS_cal_Main
+
+   SUBROUTINE SUEWS_cal_Main_impl( &
       timer, forcing, config, siteInfo, &
       modState, &
       outputLine, &
@@ -93,7 +128,7 @@ CONTAINS
 
       ! ####################################################################################
       !  declaration for DTS variables
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
       TYPE(SUEWS_FORCING), INTENT(INOUT) :: forcing
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
 
@@ -123,7 +158,6 @@ CONTAINS
 
       TYPE(SUEWS_STATE) :: modState_tstepstart
       TYPE(SUEWS_STATE) :: modState_best_ehc_iter
-
       ! these local variables are used in iteration
       INTEGER, PARAMETER :: max_iter_default = 60 ! default maximum number of iterations
       INTEGER :: max_iter
@@ -653,7 +687,7 @@ CONTAINS
          END ASSOCIATE
       END ASSOCIATE
 
-   END SUBROUTINE SUEWS_cal_Main
+   END SUBROUTINE SUEWS_cal_Main_impl
 ! ================================================================================
 
    ! Batch DTS execution subroutine - loops internally over timesteps for efficiency
@@ -670,8 +704,7 @@ CONTAINS
       dataOutBlockAll, ncols_all)
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
-                                  SUEWS_STATE, output_line, anthroEMIS_PRM
-      USE module_util_time, ONLY: SUEWS_cal_timer
+                                  SUEWS_STATE, output_line
 
       IMPLICIT NONE
 
@@ -688,12 +721,7 @@ CONTAINS
       ! Local variables
       TYPE(SUEWS_FORCING) :: forcing
       TYPE(output_line) :: output_line_local
-      TYPE(anthroEMIS_PRM) :: ahemisPrm
       INTEGER :: ir, col_offset
-
-      ! Initialise anthropogenic heat parameters for DLS calculation
-      ahemisPrm%start_dls = siteInfo%anthroemis%start_dls
-      ahemisPrm%end_dls = siteInfo%anthroemis%end_dls
 
       ! Loop over timesteps
       DO ir = 1, len_sim, 1
@@ -704,8 +732,9 @@ CONTAINS
          timer%imin = INT(MetForcingBlock(ir, 4))
          timer%isec = 0
 
-         ! Calculate all derived timer values (GH#1559: centralised)
-         CALL SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
+         CALL SUEWS_cal_timer_reference( &
+            timer, siteInfo, siteInfo%anthroemis, &
+            config%ForcingTimestampReference)
 
          ! === Update forcing from forcing block ===
          ! Note: columns 6, 7 are reserved but not used (qh_obs, qe_obs are outputs not inputs)
@@ -736,7 +765,7 @@ CONTAINS
          forcing%kdir = MetForcingBlock(ir, 32)
 
          ! === Call main calculation ===
-         CALL SUEWS_cal_Main( &
+         CALL SUEWS_cal_Main_impl( &
             timer, forcing, config, siteInfo, &
             modState, &
             output_line_local)
@@ -1301,7 +1330,7 @@ CONTAINS
          )
 
          ASSOCIATE ( &
-            dayofWeek_id => timer%dayofWeek_id, &
+            dayofWeek_id => timer%dayofWeek_id_st, &
             DLS => timer%DLS, &
             ahemisPrm => siteInfo%anthroemis &
          &)
@@ -1322,8 +1351,8 @@ CONTAINS
                CO2PointSource => siteInfo%CO2PointSource, &
                SurfaceArea => siteInfo%SurfaceArea, &
                HDD_id => anthroEmisState%HDD_id, &
-               imin => timer%imin, &
-               it => timer%it, &
+               imin => timer%imin_st, &
+               it => timer%it_st, &
                Fc_anthro => anthroEmisState%Fc_anthro, &
                Fc_build => anthroEmisState%Fc_build, &
                Fc_metab => anthroEmisState%Fc_metab, &
@@ -2882,11 +2911,11 @@ CONTAINS
          Press_hPa => forcing%Pres, &
          Temp_C => forcing%Temp_C, &
          precip => forcing%rain, &
-         imin => timer%imin, &
-         it => timer%it, &
+         imin => timer%imin_st, &
+         it => timer%it_st, &
          dectime => timer%dectime, &
          tstep => timer%tstep, &
-         dayofWeek_id => timer%dayofWeek_id, &
+         dayofWeek_id => timer%dayofWeek_id_st, &
          nsh_real => timer%nsh_real, &
          atmState => modState%atmState, &
          heatState => modState%heatState, &
@@ -6160,9 +6189,10 @@ CONTAINS
          timer%it = INT(MetForcingBlock(ir, 3))
          timer%imin = INT(MetForcingBlock(ir, 4))
          timer%isec = 0 ! NOT used by SUEWS but by WRF-SUEWS via the cal_main interface
-         ! Calculate all derived timer values (GH#1559: centralised)
-         CALL SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
 
+         CALL SUEWS_cal_timer_reference( &
+            timer, siteInfo, siteInfo%anthroemis, &
+            config%ForcingTimestampReference)
          ! CALL NARP_update_SunPosition(timer, siteInfo, mod_State)
          ! print *, 'azimuth, zenith_deg', timer%azimuth, timer%zenith_deg
 
@@ -6185,13 +6215,13 @@ CONTAINS
          forcing%LAI_grass = MetForcingBlock(ir, 23)
 
          IF (config%flag_test .AND. PRESENT(state_debug)) THEN
-            CALL SUEWS_cal_Main( &
+            CALL SUEWS_cal_Main_impl( &
                timer, forcing, config, siteInfo, &
                mod_State, &
                output_line_suews, &
                state_debug) !output
          ELSE
-            CALL SUEWS_cal_Main( &
+            CALL SUEWS_cal_Main_impl( &
                timer, forcing, config, siteInfo, &
                mod_State, &
                output_line_suews) !output

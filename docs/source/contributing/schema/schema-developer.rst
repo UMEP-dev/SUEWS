@@ -1,18 +1,18 @@
-Schema Development Documentation
-=================================
+Configuration Schema Development
+================================
 
 .. note::
    This page is for developers working on the SUEWS data model. Users
    should refer to :ref:`schema_versioning` for the user-facing
    policy and to :ref:`transition_guide` for YAML upgrade paths.
 
-Schema Versioning Basics
-------------------------
+Configuration Schema Versioning Basics
+--------------------------------------
 
 - Schema labels are **CalVer** (``YYYY.M``), aligned with the SUEWS
   release in which each shape first shipped. The current label lives
   in ``CURRENT_SCHEMA_VERSION`` in
-  ``src/supy/data_model/schema/version.py``.
+  ``src/supy/data_model/configuration/version.py``.
 - SUEWS model versions (for example ``2026.4.3``) track code; schema
   versions track the YAML structure. One schema usually spans several
   SUEWS releases.
@@ -22,11 +22,12 @@ Schema Versioning Basics
   ``(old, current)`` has a registered handler (or the labels match).
   There is no separate compatibility table.
 
-When a Schema Bump Is Required
-------------------------------
+When a Configuration Schema Bump Is Required
+--------------------------------------------
 
-Bump when a PR touches ``src/supy/data_model/`` in a way that prevents
-a previously valid YAML from round-tripping:
+Bump when a PR changes a YAML-owned model under
+``src/supy/data_model/core/`` in a way that prevents a previously valid
+YAML from round-tripping:
 
 - Rename a public field (for example ``DeepSoilTemperature`` →
   ``AnnualMeanAirTemperature``).
@@ -54,7 +55,7 @@ When a bump is required, touch every item below in the same PR. The
 definitive checklist is in
 ``.claude/rules/python/schema-versioning.md``.
 
-1. Edit ``src/supy/data_model/schema/version.py``: set
+1. Edit ``src/supy/data_model/configuration/version.py``: set
    ``CURRENT_SCHEMA_VERSION`` to the next CalVer label (shortest
    form, for example ``"2026.5"``), and add a ``SCHEMA_VERSIONS``
    entry describing precisely what changed, with issue / PR links.
@@ -87,12 +88,11 @@ Two automated gates defend the invariant that a schema bump lands
 with everything it needs:
 
 **CI workflow: schema-version-audit**
-   ``.github/workflows/schema-version-audit.yml`` runs on every PR
-   that touches ``src/supy/data_model/**``,
-   ``src/supy/sample_data/sample_config.yml``, or the schema
-   documentation. It invokes
+   ``.github/workflows/schema-version-audit.yml`` runs on every PR and
+   fast-skips when no YAML-owned model under ``src/supy/data_model/core/``
+   or shipped sample configuration changed. It invokes
    ``scripts/lint/check_schema_version_bump.py``, which fails if
-   either (a) the data model changed but
+   either (a) the YAML configuration shape changed but
    ``CURRENT_SCHEMA_VERSION`` did not, or (b)
    ``CURRENT_SCHEMA_VERSION`` moved but neither
    ``docs/source/contributing/schema/schema_versioning.rst`` nor
@@ -111,8 +111,13 @@ The ``prep-release`` and ``audit-pr`` skills encode the same
 checklist so a release or a review-in-progress cannot silently drift
 past a missing bump.
 
-Schema Management Commands
---------------------------
+Forcing and output version histories follow the independent semantic-version
+policy in :ref:`data_interface_versioning`. The
+``data-interface-version-audit`` workflow checks that those histories remain
+valid and append-only; contract-specific checks own content drift.
+
+Configuration Schema Management Commands
+----------------------------------------
 
 For developers, the ``suews schema`` command exposes schema
 management operations:
@@ -150,16 +155,20 @@ Python API
    schema = SUEWSConfig.model_json_schema()
 
    # Migrate between versions via the registered handler chain
-   from supy.data_model.schema.migration import SchemaMigrator
+   from supy.data_model.configuration.migration import SchemaMigrator
    migrator = SchemaMigrator()
    upgraded = migrator.migrate(old_config, to_version="2026.4")
 
 Implementation Map
 ------------------
 
-- ``src/supy/data_model/schema/`` — schema version registry and
+- ``src/supy/data_model/configuration/`` — configuration schema version registry and
   compatibility helpers.
-- ``src/supy/data_model/schema/migration.py`` — ``SchemaMigrator``
+- ``src/supy/data_model/forcing/version.py`` — forcing contract version
+  ownership and release history.
+- ``src/supy/data_model/output/version.py`` — output contract version
+  ownership and release history.
+- ``src/supy/data_model/configuration/migration.py`` — ``SchemaMigrator``
   that consults the handler registry.
 - ``src/supy/util/converter/yaml_upgrade.py`` — migration handlers
   and the ``release-tag → schema`` mapping.

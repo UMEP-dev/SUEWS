@@ -79,13 +79,13 @@ jobs:
           TIER: ${{ inputs.test_tier }}
         run: |
           case "$TIER" in
-            smoke)    EXPR='api and smoke and not slow and not qgis' ;;
+            smoke)    EXPR='api and smoke and not (medium or slow) and not qgis' ;;
             core)     EXPR='api and (smoke or core) and not slow and not qgis' ;;
             cfg)      EXPR='api and (smoke or cfg) and not slow and not qgis' ;;
-            standard) EXPR='api and not slow and not qgis' ;;
+            standard) EXPR='api and (core or not slow) and not qgis' ;;
             # physics-full (gh#1576): expand only the physics axis to include
             # slow; the api axis stays identical to standard.
-            physics-full) EXPR='api and not slow and not qgis' ;;
+            physics-full) EXPR='api and (core or not slow) and not qgis' ;;
             all)      EXPR='api' ;;
             *)        echo "::error::Unknown test_tier: $TIER"; exit 1 ;;
           esac

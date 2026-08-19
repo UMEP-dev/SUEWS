@@ -4,15 +4,16 @@ This module provides functionality to save and load simulation states,
 separating internal runtime values from user-configurable parameters.
 """
 
-import pickle
-import yaml
-from pathlib import Path
-from typing import Dict, Any, Optional, Union
-import pandas as pd
-import warnings
 from datetime import datetime
+from pathlib import Path
+import pickle
+from typing import Any, Dict, Optional, Union
+import warnings
 
-from ..data_model import SUEWSConfig, InitialStates
+import pandas as pd
+import yaml
+
+from ..data_model import InitialStates, SUEWSConfig
 
 
 def save_final_state(
@@ -352,7 +353,7 @@ def save_state_after_run(
     """Save state after a SuPy simulation run.
 
     Args:
-        sim_result: Result from supy.run_supy
+        sim_result: DataFrame from ``SUEWSOutput.df``
         output_dir: Directory to save state files
         run_id: Optional run identifier
 

@@ -116,9 +116,9 @@ impl Default for OhmState {
             anohm_coeff_pres: [-999.0; ANOHM_MAX_SAMPLES],
             anohm_coeff_ws: [-999.0; ANOHM_MAX_SAMPLES],
             anohm_coeff_ah: [-999.0; ANOHM_MAX_SAMPLES],
-            anohm_a1_surf: [0.0; NSURF],
-            anohm_a2_surf: [0.0; NSURF],
-            anohm_a3_surf: [0.0; NSURF],
+            anohm_a1_surf: [-999.0; NSURF],
+            anohm_a2_surf: [-999.0; NSURF],
+            anohm_a3_surf: [-999.0; NSURF],
         }
     }
 }
@@ -800,6 +800,12 @@ mod tests {
         let mut state =
             ohm_state_default_from_fortran().expect("default state should be available");
         assert!(state.iter_safe);
+        state.anohm_a1_surf = [0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17];
+        state.anohm_a2_surf = [0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27];
+        state.anohm_a3_surf = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+        let expected_a1 = state.anohm_a1_surf;
+        let expected_a2 = state.anohm_a2_surf;
+        let expected_a3 = state.anohm_a3_surf;
 
         let qs = ohm_state_step(&mut state, 300, 0, 200.0, 0.3, 0.1, 5.0)
             .expect("state step should succeed");
@@ -807,6 +813,9 @@ mod tests {
         assert!(qs.is_finite());
         assert!(state.qn_av.is_finite());
         assert!(state.dqndt.is_finite());
+        assert_eq!(state.anohm_a1_surf, expected_a1);
+        assert_eq!(state.anohm_a2_surf, expected_a2);
+        assert_eq!(state.anohm_a3_surf, expected_a3);
 
         let flat = state.to_flat();
         let state2 = OhmState::from_flat(&flat).expect("flat roundtrip should succeed");
@@ -851,11 +860,18 @@ mod tests {
 
     #[test]
     fn values_payload_roundtrip_and_version_guard() {
-        let state = ohm_state_default_from_fortran().expect("default state should be available");
+        let mut state =
+            ohm_state_default_from_fortran().expect("default state should be available");
+        state.anohm_a1_surf = [0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37];
+        state.anohm_a2_surf = [0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47];
+        state.anohm_a3_surf = [11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0];
         let payload = ohm_state_to_values_payload(&state);
         let recovered =
             ohm_state_from_values_payload(&payload).expect("payload decode should work");
         assert_eq!(state, recovered);
+        assert_eq!(recovered.anohm_a1_surf, state.anohm_a1_surf);
+        assert_eq!(recovered.anohm_a2_surf, state.anohm_a2_surf);
+        assert_eq!(recovered.anohm_a3_surf, state.anohm_a3_surf);
 
         let bad_payload = OhmStateValuesPayload {
             schema_version: OHM_STATE_SCHEMA_VERSION + 1,
@@ -882,6 +898,9 @@ mod tests {
         assert_eq!(recovered.anohm_working_count, 0);
         assert!(!recovered.anohm_coeff_ready);
         assert_eq!(recovered.anohm_working_sd, [-999.0; ANOHM_MAX_SAMPLES]);
+        assert_eq!(recovered.anohm_a1_surf, [-999.0; NSURF]);
+        assert_eq!(recovered.anohm_a2_surf, [-999.0; NSURF]);
+        assert_eq!(recovered.anohm_a3_surf, [-999.0; NSURF]);
     }
 
     #[test]

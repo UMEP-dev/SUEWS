@@ -2426,7 +2426,7 @@ CONTAINS
                   END IF
 
                   ! AnOHM (StorageHeatMethod=3): coefficients diagnosed from the
-                  ! most recently completed day held in the rolling buffer, so no
+                  ! most recently completed day held in the calendar-day buffer, so no
                   ! future forcing data is required. During spin-up (buffer not
                   ! ready) the OHM branch above produces QS instead.
                ELSEIF (StorageHeatMethod == 3) THEN
@@ -2451,7 +2451,8 @@ CONTAINS
                      ohmState%anohm_coeff_tHr(1:ohmState%anohm_coeff_count), &
                      moist_surf, &
                      alb, emis, cpAnOHM, kkAnOHM, chAnOHM, &
-                     sfr_surf, nsurf, ohmState%anohm_coeff_day, Gridiv, &
+                     sfr_surf, nsurf, &
+                     ohmState%anohm_a1_surf, ohmState%anohm_a2_surf, ohmState%anohm_a3_surf, &
                      ohmState%qn_av, ohmState%dqndt, &
                      a1, a2, a3, qs, deltaQi, &
                      modState)
@@ -2524,6 +2525,12 @@ CONTAINS
       END IF
 
       IF (timer%id /= ohmState%anohm_working_day) THEN
+         ! Coefficients belong to the previous coeff buffer. Invalidate them
+         ! before promoting a different completed calendar day.
+         ohmState%anohm_a1_surf = -999.0D0
+         ohmState%anohm_a2_surf = -999.0D0
+         ohmState%anohm_a3_surf = -999.0D0
+
          IF (ohmState%anohm_working_count > 0) THEN
             ohmState%anohm_coeff_tHr = ohmState%anohm_working_tHr
             ohmState%anohm_coeff_sd = ohmState%anohm_working_sd
@@ -2673,7 +2680,7 @@ CONTAINS
             state_id = hydroState%state_surf
             StoreDrainPrm = phenState%storage_drain_params
             IF (config%StorageHeatMethod == 3) THEN
-               ! AnOHM: accumulate the trailing-day forcing buffer each timestep
+               ! AnOHM: accumulate the current calendar-day forcing buffer
                CALL anohm_rollover_if_needed(timer, modState%ohmState)
                CALL anohm_append_sample(timer, forcing, modState%heatState%qf, modState%ohmState)
             END IF

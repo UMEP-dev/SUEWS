@@ -12,7 +12,7 @@
 ! 20170810: revamped structure
 ! 20170825: improved Bowen calculation
 ! 20230720: AnOHM disabled (TS)
-! 20260626: revived with trailing-day forcing and minpack-free solvers (TS)
+! 20260626: revived with calendar-day forcing buffers and minpack-free solvers (TS)
 !
 ! AnOHM now diagnoses coefficients from the most recently completed day held in
 ! OHM_STATE. Closed-form least squares and a bounded damped fixed-point iteration
@@ -20,6 +20,7 @@
 !========================================================================================
 ! Main module following naming standard: matches filename
 MODULE module_phys_anohm
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
    USE module_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
    USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
    USE module_ctrl_error, ONLY: ErrorHint
@@ -42,7 +43,8 @@ CONTAINS
       Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, &
       moist_surf, &
       alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
-      sfr_surf, nsurf, forcing_day, Gridiv, &
+      sfr_surf, nsurf, &
+      anohm_a1_surf, anohm_a2_surf, anohm_a3_surf, &
       qn_av_next, dqndt_next, &
       a1, a2, a3, qs, deltaQi, & ! output
       modState) ! optional: for thread-safe error logging
@@ -68,8 +70,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: kkAnOHM !< thermal conductivity [W m-1 K-1]
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: chAnOHM !< bulk transfer coef [J m-3 K-1]
 
-      INTEGER, INTENT(in) :: forcing_day !< day of year the forcing series represents [-]
-      INTEGER, INTENT(in) :: Gridiv !< grid id [-]
       INTEGER, INTENT(in) :: nsurf !< number of surfaces [-]
       ! INTEGER,INTENT(in):: nsh               !< number of timesteps in one hour [-]
 
@@ -86,57 +86,53 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: a3 !< AnOHM coefficients of grid [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: qs !< storage heat flux [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: deltaQi(nsurf) !< storage heat flux of snow surfaces
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: anohm_a1_surf !< surface coefficients [-]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: anohm_a2_surf !< surface coefficients [h]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: anohm_a3_surf !< surface coefficients [W m-2]
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
-      INTEGER :: is, xid !< @var qn1 net all-wave radiation
-      INTEGER, SAVE :: id_save = -999 ! store index of the valid day with enough data ! TODO: Remove SAVE states from the model
+      INTEGER :: is !< surface index
       REAL(KIND(1D0)), PARAMETER :: NotUsed = -55.5 !< @var qn1 net all-wave radiation
       INTEGER, PARAMETER :: notUsedI = -55 !< @var qn1 net all-wave radiation
-      LOGICAL :: idQ ! whether id contains enough data
+      LOGICAL :: coefficients_valid
 
       ! REAL(KIND(1d0))                  :: dqndt       !< rate of change of net radiation [W m-2 h-1] at t-2
       ! REAL(KIND(1d0))                  :: surfrac     !< surface fraction accounting for SnowFrac if appropriate
-      REAL(KIND(1D0)), DIMENSION(nsurf) :: xa1, xa2, xa3 !< temporary AnOHM coefs.
-
       ! initialize output variables
-      xa1 = 0.1
-      xa2 = 0.2
-      xa3 = 10
       qs = -999
       deltaQi = 0 ! NB: as snow part is not implemented within AnOHM yet, this is just a placeholder
 
-      ! to test if the current met block contains enough data for AnOHM
-      ! TODO: more robust selection should be implemented
-      ! daylight hours >= 6
-      idQ = COUNT(Sd_series > 5.0D0) >= 6
+      ! The driver only calls AnOHM when the completed calendar-day buffer has
+      ! enough daylight samples. Surface coefficients are diagnosed once for
+      ! that buffer and kept in OHM_STATE, which is the sole cache and is part
+      ! of the checkpoint codec. The non-zero check also repairs v2 draft
+      ! checkpoints written before these fields became live state.
+      coefficients_valid = &
+         ALL(IEEE_IS_FINITE(anohm_a1_surf)) .AND. &
+         ALL(IEEE_IS_FINITE(anohm_a2_surf)) .AND. &
+         ALL(IEEE_IS_FINITE(anohm_a3_surf)) .AND. &
+         ALL(anohm_a1_surf /= -999.0D0) .AND. &
+         ALL(anohm_a2_surf /= -999.0D0) .AND. &
+         ALL(anohm_a3_surf /= -999.0D0) .AND. &
+         (ANY(ABS(anohm_a1_surf) > TINY(1.0D0)) .OR. &
+          ANY(ABS(anohm_a2_surf) > TINY(1.0D0)) .OR. &
+          ANY(ABS(anohm_a3_surf) > TINY(1.0D0)))
 
-      ! PRINT*, idQ
-      IF (idQ) THEN
-         ! given enough data, diagnose coefficients of `forcing_day`
-         xid = forcing_day
-         id_save = forcing_day ! store index of the valid day with enough data
-      ELSEIF (id_save /= -999) THEN
-         ! otherwise reuse the last valid day's coefficients
-         xid = id_save
-      ELSE
-         xid = forcing_day
+      IF (.NOT. coefficients_valid) THEN
+         DO is = 1, nsurf
+            CALL AnOHM_coef( &
+               is, &
+               Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, &
+               moist_surf, &
+               alb, emis, cpAnOHM, kkAnOHM, chAnOHM, &
+               anohm_a1_surf(is), anohm_a2_surf(is), anohm_a3_surf(is))
+         END DO
       END IF
 
-      DO is = 1, nsurf
-         !   call AnOHM to calculate the coefs.
-         CALL AnOHM_coef( &
-            is, xid, Gridiv, &
-            Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, &
-            moist_surf, &
-            alb, emis, cpAnOHM, kkAnOHM, chAnOHM, &
-            xa1(is), xa2(is), xa3(is)) ! output
-         ! print*, 'AnOHM_coef are: ',xa1,xa2,xa3
-      END DO
-
       !   calculate the areally-weighted OHM coefficients
-      a1 = DOT_PRODUCT(xa1, sfr_surf)
-      a2 = DOT_PRODUCT(xa2, sfr_surf)
-      a3 = DOT_PRODUCT(xa3, sfr_surf)
+      a1 = DOT_PRODUCT(anohm_a1_surf, sfr_surf)
+      a2 = DOT_PRODUCT(anohm_a2_surf, sfr_surf)
+      a3 = DOT_PRODUCT(anohm_a3_surf, sfr_surf)
 
       !   Calculate radiation part ------------------------------------------------------------
       qs = -999 !qs  = Net storage heat flux  [W m-2]
@@ -165,7 +161,7 @@ CONTAINS
    !! @returns
    !! -# OHM coefficients of a given surface type: a1, a2 and a3
    SUBROUTINE AnOHM_coef( &
-      sfc_typ, xid, xgrid, & !input
+      sfc_typ, & !input
       Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, & !input
       moist, &
       alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
@@ -175,8 +171,6 @@ CONTAINS
 
       ! input
       INTEGER, INTENT(in) :: sfc_typ !< surface type [-]
-      INTEGER, INTENT(in) :: xid !< day of year [-]
-      INTEGER, INTENT(in) :: xgrid !< grid id [-]
 
       REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: Sd_series !< incoming solar radiation [W m-2]
       REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: Ta_series !< air temperature [degC]
@@ -222,74 +216,48 @@ CONTAINS
       REAL(KIND(1D0)) :: xmu ! effective absorption fraction
       REAL(KIND(1D0)) :: xmoist ! surface wetness
 
-      ! locally saved variables:
-      ! if coefficients have been calculated, just reload them
-      ! otherwise, do the calculation
-      INTEGER, SAVE :: id_save = -999, grid_save = -999
-      REAL(KIND(1D0)), SAVE :: coeff_grid_day(7, 3) = -999.
+      ! Compute forcing characteristics from the completed calendar-day series.
+      ! The caller owns the per-day cache in OHM_STATE.
+      WF_series = 0.0D0
+      CALL AnOHM_FcCal( &
+         Sd_series, Ta_series, WS_series, WF_series, AH_series, tHr_series, &
+         ASd, mSd, tSd, ATa, mTa, tTa, tau, mWS, mWF, mAH)
 
-      ! PRINT*, 'xid,id_save',xid,id_save
-      ! PRINT*, 'xgrid,grid_save',xgrid,grid_save
-      ! PRINT*, 'sfc_typ',sfc_typ
-      ! PRINT*, 'coeff_grid_day',coeff_grid_day(sfc_typ,:)
-      IF (xid == id_save .AND. xgrid == grid_save) THEN
-         ! if coefficients have been calculated, just reload them
-         !  print*, 'here no repetition'
-         xa1 = coeff_grid_day(sfc_typ, 1)
-         xa2 = coeff_grid_day(sfc_typ, 2)
-         xa3 = coeff_grid_day(sfc_typ, 3)
-      ELSE
+      ! load sfc. properties:
+      xalb = alb(sfc_typ)
+      xemis = emis(sfc_typ)
+      xcp = cpAnOHM(sfc_typ)
+      xk = kkAnOHM(sfc_typ)
+      xch = chAnOHM(sfc_typ)
+      xmoist = moist(sfc_typ)
 
-         ! compute forcing characteristics from the provided daily series:
-         WF_series = 0.0D0
-         CALL AnOHM_FcCal( &
-            Sd_series, Ta_series, WS_series, WF_series, AH_series, tHr_series, &
-            ASd, mSd, tSd, ATa, mTa, tTa, tau, mWS, mWF, mAH)
+      ! calculate Bowen ratio:
+      CALL AnOHM_Bo_cal( &
+         sfc_typ, &
+         Sd_series, Ta_series, RH_series, pres_series, tHr_series, & ! input: forcing
+         ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & ! input: forcing
+         xalb, xemis, xcp, xk, xch, xmoist, & ! input: sfc properties
+         tSd, & ! input: peaking time of Sd in hour
+         xBo) ! output: Bowen ratio
 
-         ! load sfc. properties:
-         xalb = alb(sfc_typ)
-         xemis = emis(sfc_typ)
-         xcp = cpAnOHM(sfc_typ)
-         xk = kkAnOHM(sfc_typ)
-         xch = chAnOHM(sfc_typ)
-         xmoist = moist(sfc_typ)
-
-         !  PRINT*, 'xBo before:',xBo
-         ! calculate Bowen ratio:
-         CALL AnOHM_Bo_cal( &
-            sfc_typ, &
-            Sd_series, Ta_series, RH_series, pres_series, tHr_series, & ! input: forcing
+      ! calculate AnOHM coefficients
+      SELECT CASE (sfc_typ)
+      CASE (1:6) ! land surfaces
+         CALL AnOHM_coef_land_cal( &
             ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & ! input: forcing
-            xalb, xemis, xcp, xk, xch, xmoist, & ! input: sfc properties
-            tSd, & ! input: peaking time of Sd in hour
-            xBo) ! output: Bowen ratio
-         !  PRINT*, 'xBo after:',xBo
+            xalb, xemis, xcp, xk, xch, xBo, & ! input: sfc properties
+            xa1, xa2, xa3, ATs, mTs, gamma) ! output: surface temperature related scales by AnOHM
 
-         !  calculate AnOHM coefficients
-         SELECT CASE (sfc_typ)
-         CASE (1:6) ! land surfaces
-            CALL AnOHM_coef_land_cal( &
-               ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & ! input: forcing
-               xalb, xemis, xcp, xk, xch, xBo, & ! input: sfc properties
-               xa1, xa2, xa3, ATs, mTs, gamma) ! output: surface temperature related scales by AnOHM
+      CASE (7) ! water surface
+         ! NB:give fixed values for the moment
+         xeta = 0.3
+         xmu = 0.2
+         CALL AnOHM_coef_water_cal( &
+            ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & ! input: forcing
+            xalb, xemis, xcp, xk, xch, xBo, xeta, xmu, & ! input: sfc properties
+            xa1, xa2, xa3, ATs, mTs, gamma) ! output
 
-         CASE (7) ! water surface
-            ! NB:give fixed values for the moment
-            xeta = 0.3
-            xmu = 0.2
-            CALL AnOHM_coef_water_cal( &
-               ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & ! input: forcing
-               xalb, xemis, xcp, xk, xch, xBo, xeta, xmu, & ! input: sfc properties
-               xa1, xa2, xa3, ATs, mTs, gamma) ! output
-
-            ! save variables for marking status as done
-            id_save = xid
-            grid_save = xgrid
-
-         END SELECT
-         ! save variables for reusing values of the same day
-         coeff_grid_day(sfc_typ, :) = (/xa1, xa2, xa3/)
-      END IF
+      END SELECT
 
    END SUBROUTINE AnOHM_coef
    !========================================================================================

@@ -10,6 +10,9 @@ AnOHM remains an internal / not-recommended option (StorageHeatMethod._internal)
 
 from importlib import import_module
 import json
+from pathlib import Path
+import subprocess
+import sys
 
 import numpy as np
 import pandas as pd
@@ -25,6 +28,11 @@ OHM_METHOD = 1
 PARITY_RTOL = 1.0e-12
 PARITY_ATOL = 1.0e-12
 UNINTERRUPTED_CHUNK_DAYS = 3660
+SURFACE_COEFFICIENT_PREFIXES = (
+    "anohm_a1_surf.",
+    "anohm_a2_surf.",
+    "anohm_a3_surf.",
+)
 
 
 def _make_simulation(method: int = ANOHM_METHOD) -> sp.SUEWSSimulation:
@@ -67,6 +75,21 @@ def _run_storage_method(
     return sim, output
 
 
+def _run_shifted_anohm_qs(
+    kdown_scale: float, temperature_offset: float, wind_scale: float
+) -> np.ndarray:
+    """Run two calendar days with a controlled coefficient stimulus."""
+    sim = _make_simulation()
+    forcing = _forcing_slice(sim, days=2).copy()
+    valid_kdown = forcing["kdown"] > -900.0
+    forcing.loc[valid_kdown, "kdown"] *= kdown_scale
+    forcing["Tair"] += temperature_offset
+    forcing["U"] *= wind_scale
+    sim.update_forcing(forcing)
+    output = sim.run(chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1)
+    return output.df["SUEWS", "QS"].to_numpy(copy=True)
+
+
 def _ohm_checkpoint_state(sim: sp.SUEWSSimulation):
     """Decode the actual Rust checkpoint OHM_STATE through its public codec."""
     checkpoint = sim.checkpoint
@@ -92,6 +115,18 @@ def _assert_ohm_state_close(actual: dict, expected: dict) -> None:
         atol=PARITY_ATOL,
         equal_nan=True,
     )
+
+
+def _assert_live_surface_coefficients(state: dict) -> None:
+    """Assert that all three codec-visible coefficient arrays hold live data."""
+    for prefix in SURFACE_COEFFICIENT_PREFIXES:
+        values = np.asarray([
+            value for name, value in state.items() if name.startswith(prefix)
+        ])
+        assert values.size == 7
+        assert np.isfinite(values).all()
+        assert not np.any(np.isclose(values, -999.0, rtol=0.0, atol=1.0e-12))
+        assert np.any(np.abs(values) > np.finfo(float).tiny)
 
 
 @pytest.mark.smoke
@@ -155,6 +190,7 @@ def test_anohm_midday_start_preserves_partial_state_and_engages():
     assert coeff_count >= 6
     assert sum(value > 5.0 for value in coeff_sd) >= 6
     assert state["anohm_working_day"] > state["anohm_coeff_day"]
+    _assert_live_surface_coefficients(state)
 
 
 @pytest.mark.core
@@ -202,6 +238,7 @@ def test_anohm_external_restart_matches_uninterrupted_state_path_and_output():
     _, state_full = _ohm_checkpoint_state(sim_full)
     _, state_second = _ohm_checkpoint_state(sim_second)
     assert state_second["anohm_coeff_ready"] >= 0.5
+    _assert_live_surface_coefficients(state_second)
     _assert_ohm_state_close(state_second, state_full)
 
 
@@ -222,4 +259,42 @@ def test_anohm_chunked_run_matches_uninterrupted_state_path_and_output():
     _, state_full = _ohm_checkpoint_state(sim_full)
     _, state_chunked = _ohm_checkpoint_state(sim_chunked)
     assert state_chunked["anohm_coeff_ready"] >= 0.5
+    _assert_live_surface_coefficients(state_chunked)
     _assert_ohm_state_close(state_chunked, state_full)
+
+
+@pytest.mark.core
+@pytest.mark.medium
+def test_anohm_sequential_simulation_matches_fresh_process(tmp_path: Path):
+    """An independent same-day/grid run cannot inherit another run's coefficients."""
+    fresh_path = tmp_path / "fresh_qs.npy"
+    test_file = Path(__file__).resolve()
+    executable_dir = "Scripts" if sys.platform == "win32" else "bin"
+    executable_name = "python.exe" if sys.platform == "win32" else "python"
+    venv_python = Path(sys.prefix) / executable_dir / executable_name
+    script = (
+        "import numpy as np, runpy, sys; "
+        "namespace = runpy.run_path(sys.argv[1]); "
+        "qs = namespace['_run_shifted_anohm_qs'](1.0, 0.0, 1.0); "
+        "np.save(sys.argv[2], qs)"
+    )
+    fresh_run = subprocess.run(
+        [str(venv_python), "-c", script, str(test_file), str(fresh_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert fresh_run.returncode == 0, fresh_run.stderr
+    fresh_qs = np.load(fresh_path)
+
+    primer_qs = _run_shifted_anohm_qs(0.55, 7.0, 1.6)
+    repeated_qs = _run_shifted_anohm_qs(1.0, 0.0, 1.0)
+
+    assert np.nanmax(np.abs(primer_qs - fresh_qs)) > 1.0
+    np.testing.assert_allclose(
+        repeated_qs,
+        fresh_qs,
+        rtol=PARITY_RTOL,
+        atol=PARITY_ATOL,
+    )

@@ -11,12 +11,10 @@ import pytest
 
 pytestmark = pytest.mark.api
 
-SCRIPT_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "scripts"
-    / "lint"
-    / "check_data_interface_version_history.py"
-)
+LINT_ROOT = Path(__file__).resolve().parents[2] / "scripts" / "lint"
+if str(LINT_ROOT) not in sys.path:
+    sys.path.insert(0, str(LINT_ROOT))
+SCRIPT_PATH = LINT_ROOT / "check_data_interface_version_history.py"
 SCRIPT_SPEC = importlib.util.spec_from_file_location(
     "check_data_interface_version_history",
     SCRIPT_PATH,

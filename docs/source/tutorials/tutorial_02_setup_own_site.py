@@ -18,6 +18,11 @@ You will learn to:
 **API approach**: This tutorial uses the :class:`~supy.SUEWSSimulation` OOP interface
 with :meth:`~supy.SUEWSSimulation.update_config` for parameter modification. This approach provides
 a clean separation between configuration and execution.
+
+.. seealso::
+
+   For guidance on sourcing and deriving site parameters from real-world data,
+   see :doc:`/inputs/surface-data-preparation`.
 """
 
 from pathlib import Path

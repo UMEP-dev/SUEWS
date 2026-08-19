@@ -15,16 +15,18 @@ the install is a separate concern owned by ``test_version.py`` and the
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 from pathlib import Path
 import shutil
-import sys
+import sysconfig
 
 import pytest
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.smoke]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+_HANDSHAKE_REQUEST_TIMEOUT = timedelta(seconds=30)
 
 
 _mcp_session = pytest.importorskip(
@@ -46,14 +48,15 @@ StdioServerParameters = _mcp_stdio.StdioServerParameters
 stdio_client = _mcp_stdio.stdio_client
 
 
-_ACTIVE_BIN_DIR = Path(sys.executable).resolve().parent
+_ACTIVE_BIN_DIR = Path(sysconfig.get_path("scripts"))
 _SUEWS_MCP_COMMAND = shutil.which("suews-mcp", path=str(_ACTIVE_BIN_DIR))
 
 
 pytestmark_skipif = pytest.mark.skipif(
     _SUEWS_MCP_COMMAND is None,
     reason=(
-        "`suews-mcp` is not installed beside the active Python interpreter. "
+        "`suews-mcp` is not installed in the active Python environment's "
+        "scripts directory. "
         "Run `uv pip install --python .venv/bin/python -e mcp/` from the "
         "repo root before running this test."
     ),
@@ -112,7 +115,11 @@ async def _run_handshake() -> dict:
     )
 
     async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
+        async with ClientSession(
+            read,
+            write,
+            read_timeout_seconds=_HANDSHAKE_REQUEST_TIMEOUT,
+        ) as session:
             init_result = await session.initialize()
 
             tools_result = await session.list_tools()
@@ -140,10 +147,16 @@ async def _run_handshake() -> dict:
             }
 
 
+@pytest.fixture(scope="module")
+def handshake_result() -> dict:
+    """Run protocol discovery once for the six immutable contract assertions."""
+    return asyncio.run(_run_handshake())
+
+
 @pytestmark_skipif
-def test_initialize_advertises_suews_mcp() -> None:
+def test_initialize_advertises_suews_mcp(handshake_result: dict) -> None:
     """Server identifies itself as `suews-mcp` after the JSON-RPC handshake."""
-    result = asyncio.run(_run_handshake())
+    result = handshake_result
     assert result["server_name"] == "suews-mcp", (
         f"Expected serverInfo.name == 'suews-mcp', got {result['server_name']!r}. "
         "Check FastMCP server name in mcp/src/suews_mcp/server.py."
@@ -151,9 +164,9 @@ def test_initialize_advertises_suews_mcp() -> None:
 
 
 @pytestmark_skipif
-def test_tools_list_advertises_all_fourteen() -> None:
+def test_tools_list_advertises_all_fourteen(handshake_result: dict) -> None:
     """All 14 tools registered in `server.py` are advertised through MCP."""
-    result = asyncio.run(_run_handshake())
+    result = handshake_result
     advertised = result["tool_names"]
 
     missing = EXPECTED_TOOLS - advertised
@@ -170,7 +183,7 @@ def test_tools_list_advertises_all_fourteen() -> None:
 
 
 @pytestmark_skipif
-def test_resources_advertise_all_six() -> None:
+def test_resources_advertise_all_six(handshake_result: dict) -> None:
     """All 6 resources registered in `server.py` surface through MCP.
 
     FastMCP routes URI patterns with `{var}` placeholders to
@@ -178,7 +191,7 @@ def test_resources_advertise_all_six() -> None:
     `resources/list`. The total advertised across both endpoints must
     equal the registered set.
     """
-    result = asyncio.run(_run_handshake())
+    result = handshake_result
     expected_all = EXPECTED_RESOURCE_TEMPLATES | EXPECTED_STATIC_RESOURCES
     advertised_all = result["resource_templates"] | result["static_resources"]
 
@@ -197,7 +210,7 @@ def test_resources_advertise_all_six() -> None:
 
 
 @pytestmark_skipif
-def test_initialize_advertises_instructions() -> None:
+def test_initialize_advertises_instructions(handshake_result: dict) -> None:
     """The `initialize` result carries the server instructions so a client
     that reads only `serverInfo.instructions` still sees the contract.
 
@@ -205,7 +218,7 @@ def test_initialize_advertises_instructions() -> None:
     energy-balance contract; if FastMCP stops forwarding `instructions=` the
     field comes back empty and Codex / Claude Desktop sessions lose it.
     """
-    result = asyncio.run(_run_handshake())
+    result = handshake_result
     instructions = result["instructions"]
     assert instructions, (
         "initialize result advertised no instructions. Check that "
@@ -219,14 +232,14 @@ def test_initialize_advertises_instructions() -> None:
 
 
 @pytestmark_skipif
-def test_prompts_advertise_all_three() -> None:
+def test_prompts_advertise_all_three(handshake_result: dict) -> None:
     """All 3 prompts registered in `server.py` are advertised through MCP.
 
     The prompts carry the fresh-site / parameter-importance / evaluation
     procedures to non-Claude-Code clients; a dropped registration silently
     removes them from `prompts/list`.
     """
-    result = asyncio.run(_run_handshake())
+    result = handshake_result
     advertised = result["prompt_names"]
 
     missing = EXPECTED_PROMPTS - advertised
@@ -434,7 +447,7 @@ def test_concurrent_query_knowledge_and_search_schema() -> None:
 
 
 @pytestmark_skipif
-def test_read_knowledge_manifest_returns_provenance() -> None:
+def test_read_knowledge_manifest_returns_provenance(handshake_result: dict) -> None:
     """Calling `read_knowledge_manifest` over MCP returns pack provenance.
 
     The Layer-3 evidence contract requires `pack_version`, `schema_version`,
@@ -444,7 +457,7 @@ def test_read_knowledge_manifest_returns_provenance() -> None:
     """
     import json
 
-    result = asyncio.run(_run_handshake())
+    result = handshake_result
     envelope = result["manifest_envelope"]
 
     # The MCP SDK wraps the tool's return value in `content[].text` for

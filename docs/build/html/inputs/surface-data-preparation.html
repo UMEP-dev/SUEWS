@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-10-08T18:27:24+00:00" />
-    <title>4.6. SUEWS Format Converter &#8212; SUEWS 2026.8.19.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-08-19T11:24:12+00:00" />
+    <title>4.4. Preparing Surface Characteristics Data &#8212; SUEWS 2026.8.19.dev1 documentation</title>
   
   
   
@@ -50,18 +50,18 @@
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/converter';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/surface-data-preparation';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="4.7. Transitioning to YAML-based Configuration" href="transition_guide.html" />
-    <link rel="prev" title="4.5.59. Weekly Profile" href="yaml/config-reference/weeklyprofile.html" />
+    <link rel="next" title="4.5. YAML Configuration Reference" href="yaml/config-reference/index.html" />
+    <link rel="prev" title="4.3. Meteorological Forcing Data" href="forcing-data.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.8.19.dev1" />
-    <meta name="docbuild:last-update" content="2025-10-08"/>
+    <meta name="docbuild:last-update" content="2026-08-19"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -231,7 +231,7 @@
 <li class="toctree-l2"><a class="reference internal" href="yaml/index.html">4.1. YAML Configuration Format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="yaml/layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="forcing-data.html">4.3. Meteorological Forcing Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="surface-data-preparation.html">4.4. Preparing Surface Characteristics Data</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">4.4. Preparing Surface Characteristics Data</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="yaml/config-reference/index.html">4.5. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/anthropogenicemissions.html">4.5.1. Anthropogenic Emissions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/anthropogenicheat.html">4.5.2. Anthropogenic Heat</a></li>
@@ -294,7 +294,7 @@
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/weeklyprofile.html">4.5.59. Weekly Profile</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">4.6. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="converter.html">4.6. SUEWS Format Converter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="transition_guide.html">4.7. Transitioning to YAML-based Configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="yaml/validation.html">4.8. Validation Tool Reference</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="tables/index.html">4.9. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -521,7 +521,7 @@
       
       
       
-      <li><a href="https://github.com/UMEP-dev/SUEWS/edit/master/docs/source/inputs/converter.rst" target="_blank"
+      <li><a href="https://github.com/UMEP-dev/SUEWS/edit/master/docs/source/inputs/surface-data-preparation.rst" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -538,7 +538,7 @@
       
       
       
-      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2Finputs/converter.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2Finputs/surface-data-preparation.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -568,7 +568,7 @@
       
       
       
-      <li><a href="../_sources/inputs/converter.rst" target="_blank"
+      <li><a href="../_sources/inputs/surface-data-preparation.rst" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -651,7 +651,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>SUEWS Format Converter</h1>
+    <h1>Preparing Surface Characteristics Data</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -661,15 +661,57 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-usage">4.6.1. Command-Line Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">4.6.2. Parameters</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#required-parameters">4.6.2.1. Required Parameters:</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-parameters">4.6.2.2. Optional Parameters:</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#recommended-workflow">4.4.1. Recommended Workflow</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-fractions">4.4.2. Land Cover Fractions</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-meaning">4.4.2.1. Land-cover meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-yaml-paths">4.4.2.2. Land-cover YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-sources">4.4.2.3. Land-cover sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-derivation">4.4.2.4. Land-cover derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-parameter-reference">4.4.2.5. Land-cover parameter reference</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.6.3. Examples</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-detection">4.6.4. Version Detection</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#path-handling">4.6.5. Path Handling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo">4.4.3. Albedo</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-meaning">4.4.3.1. Albedo meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-yaml-paths">4.4.3.2. Albedo YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-sources">4.4.3.3. Albedo sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-derivation">4.4.3.4. Albedo derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-parameter-reference">4.4.3.5. Albedo parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#urban-morphology">4.4.4. Urban Morphology</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-meaning">4.4.4.1. Morphology meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-yaml-paths">4.4.4.2. Morphology YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-sources">4.4.4.3. Morphology sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-derivation">4.4.4.4. Morphology derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-parameter-reference">4.4.4.5. Morphology parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#leaf-area-index-lai-and-phenology">4.4.5. Leaf Area Index (LAI) and Phenology</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-meaning">4.4.5.1. LAI and phenology meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-yaml-paths">4.4.5.2. LAI and phenology YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-sources">4.4.5.3. LAI and phenology sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-derivation">4.4.5.4. LAI and phenology derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-parameter-reference">4.4.5.5. LAI and phenology parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-heat-ohm-coefficients">4.4.6. Storage-heat (OHM) Coefficients</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-meaning">4.4.6.1. OHM-coefficient meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-yaml-paths">4.4.6.2. OHM-coefficient YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-sources">4.4.6.3. OHM-coefficient sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-derivation">4.4.6.4. OHM-coefficient derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-parameter-reference">4.4.6.5. OHM-coefficient parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-parameters">4.4.7. Surface-conductance Parameters</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-meaning">4.4.7.1. Surface-conductance meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-yaml-paths">4.4.7.2. Surface-conductance YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-sources">4.4.7.3. Surface-conductance sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-derivation">4.4.7.4. Surface-conductance derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-parameter-reference">4.4.7.5. Surface-conductance parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-input-database">4.4.8. SUEWS Input Database</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references-and-tools">4.4.9. References and Tools</a></li>
 </ul>
             </nav>
         </div>
@@ -685,113 +727,301 @@
 <p class="admonition-title">Tip</p>
 <ol class="arabic simple">
 <li><p>Need help? Please let us know in the <a class="reference external" href="https://community.suews.io/invites/bKjzoboyVV">SUEWS Community</a>.</p></li>
-<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Finputs%2Fconverter.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Finputs%2Fconverter.html%29%0A&amp;title=[Docs]inputs/converter">Report Issue for This Page</a> for page-specific feedback).</p></li>
+<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Finputs%2Fsurface-data-preparation.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Finputs%2Fsurface-data-preparation.html%29%0A&amp;title=[Docs]inputs/surface-data-preparation">Report Issue for This Page</a> for page-specific feedback).</p></li>
 <li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
 </ol>
 </div>
-<section id="suews-format-converter">
-<span id="input-converter"></span><h1><span class="section-number">4.6. </span>SUEWS Format Converter<a class="headerlink" href="#suews-format-converter" title="Link to this heading">#</a></h1>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code> tool provides seamless conversion between different SUEWS input formats and versions. It supports:</p>
-<ul class="simple">
-<li><p><strong>Version migration</strong>: Update older SUEWS input files to newer table formats</p></li>
-<li><p><strong>Format conversion</strong>: Transform legacy table-based inputs to modern YAML format</p></li>
-</ul>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>From v2025a onwards, SUEWS uses YAML format as the primary configuration method. The converter automatically determines the output format based on the target version.</p>
-</div>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p><strong>Python API Available</strong>: For programmatic access (e.g., integrating with QGIS plugins or other tools), see the <a class="reference internal" href="../api/converter.html"><span class="doc">Configuration Converter API</span></a> documentation for direct Python function usage.</p>
-</div>
-<section id="command-line-usage">
-<h2><span class="section-number">4.6.1. </span>Command-Line Usage<a class="headerlink" href="#command-line-usage" title="Link to this heading">#</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-f<span class="w"> </span>FROM_VERSION<span class="w"> </span>-t<span class="w"> </span>TO_VERSION<span class="w"> </span>-i<span class="w"> </span>INPUT_PATH<span class="w"> </span>-o<span class="w"> </span>OUTPUT_PATH
-</pre></div>
-</div>
-<p>The converter automatically determines the conversion type:</p>
-<ul class="simple">
-<li><p><strong>Versions before 2025</strong> (e.g., 2024a): Table-to-table conversion</p></li>
-<li><p><strong>Version 2025a or later</strong>: Converts to YAML format</p></li>
-<li><p><strong>Same version</strong> (e.g., 2016a to 2016a): Reformats files only (removes inline comments, fixes whitespace, standardises delimiters, organises into correct directory structure)</p></li>
-</ul>
-</section>
-<section id="parameters">
-<h2><span class="section-number">4.6.2. </span>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
-<section id="required-parameters">
-<h3><span class="section-number">4.6.2.1. </span>Required Parameters:<a class="headerlink" href="#required-parameters" title="Link to this heading">#</a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">-i,</span> <span class="pre">--input</span></code>: Input directory containing SUEWS files (must have RunControl.nml)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-o,</span> <span class="pre">--output</span></code>: Output path (directory for table conversion, file path for YAML)</p></li>
-</ul>
-</section>
-<section id="optional-parameters">
-<h3><span class="section-number">4.6.2.2. </span>Optional Parameters:<a class="headerlink" href="#optional-parameters" title="Link to this heading">#</a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">-f,</span> <span class="pre">--from</span></code>: Source version (e.g., ‘2020a’, ‘2024a’). If not specified, the converter will auto-detect the version</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-t,</span> <span class="pre">--to</span></code>: Target version. Options include:</p>
-<ul>
-<li><p>Specific version (e.g., ‘2024a’ for tables, ‘2025a’ for YAML)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">latest</span></code> (default): Converts to the current YAML format</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-d,</span> <span class="pre">--debug-dir</span></code>: Directory to save intermediate conversion files for debugging</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--no-profile-validation</span></code>: Disable automatic profile validation and creation of missing profiles</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--force-table</span></code>: Force table output format even for 2025a (skip YAML conversion)</p></li>
-</ul>
-</section>
-</section>
-<section id="examples">
-<h2><span class="section-number">4.6.3. </span>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
-<p><strong>Auto-detect version and convert to latest YAML:</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-i<span class="w"> </span>your_suews_folder<span class="w"> </span>-o<span class="w"> </span>config.yml
-<span class="c1"># Auto-detects source version and converts to latest YAML format</span>
-</pre></div>
-</div>
-<p><strong>Table-to-table conversion (pre-2025):</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-f<span class="w"> </span>2018a<span class="w"> </span>-t<span class="w"> </span>2024a<span class="w"> </span>-i<span class="w"> </span>your_2018a_folder<span class="w"> </span>-o<span class="w"> </span>your_2024a_folder
-</pre></div>
-</div>
-<p><strong>Table-to-YAML conversion (2025+):</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-f<span class="w"> </span>2024a<span class="w"> </span>-t<span class="w"> </span>2025a<span class="w"> </span>-i<span class="w"> </span>your_2024a_folder<span class="w"> </span>-o<span class="w"> </span>config.yml
-</pre></div>
-</div>
-<p><strong>Debug intermediate steps:</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-f<span class="w"> </span>2016a<span class="w"> </span>-t<span class="w"> </span>latest<span class="w"> </span>-i<span class="w"> </span>old_data<span class="w"> </span>-o<span class="w"> </span>config.yml<span class="w"> </span>-d<span class="w"> </span>debug_output
-<span class="c1"># Saves intermediate conversion files in debug_output directory</span>
-</pre></div>
-</div>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>The converter uses the <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> file in your input folder to determine the location of input tables. This ensures that custom paths specified in <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code> are correctly handled.</p>
-</div>
-</section>
-<section id="version-detection">
-<h2><span class="section-number">4.6.4. </span>Version Detection<a class="headerlink" href="#version-detection" title="Link to this heading">#</a></h2>
-<p>The converter can automatically detect the version of your input files by examining:</p>
-<ul class="simple">
-<li><p>File existence patterns (e.g., <code class="docutils literal notranslate"><span class="pre">SUEWS_AnthropogenicEmission.txt</span></code> vs <code class="docutils literal notranslate"><span class="pre">SUEWS_AnthropogenicHeat.txt</span></code>)</p></li>
-<li><p>Column presence/absence in specific tables</p></li>
-<li><p>Parameters in <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> (for 2024a+)</p></li>
-<li><p>Optional files like <code class="docutils literal notranslate"><span class="pre">SUEWS_SPARTACUS.nml</span></code></p></li>
-</ul>
-<p>If auto-detection fails, you can specify the source version explicitly with <code class="docutils literal notranslate"><span class="pre">-f</span></code>.</p>
-</section>
-<section id="path-handling">
-<h2><span class="section-number">4.6.5. </span>Path Handling<a class="headerlink" href="#path-handling" title="Link to this heading">#</a></h2>
-<p>The converter respects path configurations in <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>:</p>
-<ul class="simple">
-<li><p><strong>Absolute paths</strong>: Used directly as specified</p></li>
-<li><p><strong>Relative paths</strong>: Resolved relative to the input directory</p></li>
-<li><p><strong>Automatic fallback</strong>: If files aren’t found at the configured path, the converter checks:</p>
+<section id="preparing-surface-characteristics-data">
+<span id="surface-data-preparation"></span><h1><span class="section-number">4.4. </span>Preparing Surface Characteristics Data<a class="headerlink" href="#preparing-surface-characteristics-data" title="Link to this heading">#</a></h1>
+<p>This guide explains how to move from a real study area to site-specific SUEWS
+(Surface Urban Energy and Water Balance Scheme) surface parameters. It
+complements the <a class="reference internal" href="yaml/index.html"><span class="doc">YAML Configuration Format</span></a> guide, which explains configuration
+structure and validation.</p>
+<p>Use this page when you know <em>which</em> parameters are needed, but need practical
+advice on where to obtain data and how to derive values.</p>
+<section id="recommended-workflow">
+<h2><span class="section-number">4.4.1. </span>Recommended Workflow<a class="headerlink" href="#recommended-workflow" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p>The root input directory</p></li>
-<li><p>The path specified in <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code></p></li>
-<li><p>The <code class="docutils literal notranslate"><span class="pre">Input/</span></code> subdirectory</p></li>
+<li><p>Delineate the site footprint used for the SUEWS grid.</p></li>
+<li><p>Compile compatible land-cover, building, and vegetation datasets.</p></li>
+<li><p>Derive surface fractions and morphology from the same footprint.</p></li>
+<li><p>Derive seasonal biophysical parameters (albedo, LAI, phenology).</p></li>
+<li><p>Fill the YAML configuration and run <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span> <span class="pre">--format</span> <span class="pre">json</span> <span class="pre">config.yml</span></code>.</p></li>
+<li><p>Compare against local observations and refine sensitive parameters.</p></li>
 </ol>
+<p>For broader setup context, see <a class="reference internal" href="../workflow.html"><span class="doc">Getting Started</span></a>.</p>
+</section>
+<section id="land-cover-fractions">
+<h2><span class="section-number">4.4.2. </span>Land Cover Fractions<a class="headerlink" href="#land-cover-fractions" title="Link to this heading">#</a></h2>
+<section id="land-cover-meaning">
+<h3><span class="section-number">4.4.2.1. </span>Land-cover meaning<a class="headerlink" href="#land-cover-meaning" title="Link to this heading">#</a></h3>
+<p>Fraction of grid area occupied by each of the seven SUEWS surface types.</p>
+</section>
+<section id="land-cover-yaml-paths">
+<h3><span class="section-number">4.4.2.2. </span>Land-cover YAML paths<a class="headerlink" href="#land-cover-yaml-paths" title="Link to this heading">#</a></h3>
+<p>Set one fraction for each surface type:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.paved.sfr</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.bldgs.sfr</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.evetr.sfr</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.dectr.sfr</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.grass.sfr</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.bsoil.sfr</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.water.sfr</span></code></p></li>
+</ul>
+<p>Fractions must sum to 1.0. Re-run the validator after normalising them.</p>
+</section>
+<section id="land-cover-sources">
+<h3><span class="section-number">4.4.2.3. </span>Land-cover sources<a class="headerlink" href="#land-cover-sources" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://esa-worldcover.org/en/data-access">ESA WorldCover</a> (global land-cover maps at 10 m resolution)</p></li>
+<li><p><a class="reference external" href="https://land.copernicus.eu/en/products/global-dynamic-land-cover">Copernicus Global Dynamic Land Cover</a> (global land-cover maps and fraction
+layers)</p></li>
+</ul>
+</section>
+<section id="land-cover-derivation">
+<h3><span class="section-number">4.4.2.4. </span>Land-cover derivation<a class="headerlink" href="#land-cover-derivation" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p>Reproject all datasets to a metric CRS.</p></li>
+<li><p>Clip to the SUEWS site footprint.</p></li>
+<li><p>Map source classes to the seven SUEWS surface types.</p></li>
+<li><p>Compute area fractions by class and normalise to 1.0.</p></li>
+<li><p>Check consistency with local imagery.</p></li>
+</ol>
+</section>
+<section id="land-cover-parameter-reference">
+<h3><span class="section-number">4.4.2.5. </span>Land-cover parameter reference<a class="headerlink" href="#land-cover-parameter-reference" title="Link to this heading">#</a></h3>
+<p>See <a class="reference internal" href="yaml/config-reference/index.html"><span class="doc">YAML Configuration Reference</span></a> for full parameter definitions.</p>
+</section>
+</section>
+<section id="albedo">
+<h2><span class="section-number">4.4.3. </span>Albedo<a class="headerlink" href="#albedo" title="Link to this heading">#</a></h2>
+<section id="albedo-meaning">
+<h3><span class="section-number">4.4.3.1. </span>Albedo meaning<a class="headerlink" href="#albedo-meaning" title="Link to this heading">#</a></h3>
+<p>Shortwave reflectance controlling net radiation partitioning at the surface.</p>
+</section>
+<section id="albedo-yaml-paths">
+<h3><span class="section-number">4.4.3.2. </span>Albedo YAML paths<a class="headerlink" href="#albedo-yaml-paths" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Non-vegetated surfaces (single albedo):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.paved.alb</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.bldgs.alb</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.bsoil.alb</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.water.alb</span></code></p></li>
+</ul>
+</li>
+<li><p>Vegetated surfaces (seasonal range):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.evetr.alb_min</span></code> and <code class="docutils literal notranslate"><span class="pre">alb_max</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.dectr.alb_min</span></code> and <code class="docutils literal notranslate"><span class="pre">alb_max</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.grass.alb_min</span></code> and <code class="docutils literal notranslate"><span class="pre">alb_max</span></code></p></li>
+</ul>
 </li>
 </ul>
-<p>This flexible approach ensures the converter works with various directory structures while respecting user-configured paths.</p>
+</section>
+<section id="albedo-sources">
+<h3><span class="section-number">4.4.3.3. </span>Albedo sources<a class="headerlink" href="#albedo-sources" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Site-specific radiometer measurements</p></li>
+<li><p>The <a class="reference external" href="https://github.com/UMEP-dev/SUEWS-database">SUEWS input database</a> for curated values by surface and urban typology</p></li>
+</ul>
+</section>
+<section id="albedo-derivation">
+<h3><span class="section-number">4.4.3.4. </span>Albedo derivation<a class="headerlink" href="#albedo-derivation" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p>Aggregate local radiometer measurements over representative periods, where
+available.</p></li>
+<li><p>Otherwise select the closest matching surface or urban typology from the
+SUEWS input database and record that assumption.</p></li>
+<li><p>Use a single representative <code class="docutils literal notranslate"><span class="pre">alb</span></code> for non-vegetated surfaces.</p></li>
+<li><p>Use seasonal low/high values for <code class="docutils literal notranslate"><span class="pre">alb_min</span></code> and <code class="docutils literal notranslate"><span class="pre">alb_max</span></code> on vegetation.</p></li>
+</ol>
+</section>
+<section id="albedo-parameter-reference">
+<h3><span class="section-number">4.4.3.5. </span>Albedo parameter reference<a class="headerlink" href="#albedo-parameter-reference" title="Link to this heading">#</a></h3>
+<p>See <a class="reference internal" href="yaml/config-reference/index.html"><span class="doc">YAML Configuration Reference</span></a>.</p>
+</section>
+</section>
+<section id="urban-morphology">
+<h2><span class="section-number">4.4.4. </span>Urban Morphology<a class="headerlink" href="#urban-morphology" title="Link to this heading">#</a></h2>
+<section id="morphology-meaning">
+<h3><span class="section-number">4.4.4.1. </span>Morphology meaning<a class="headerlink" href="#morphology-meaning" title="Link to this heading">#</a></h3>
+<p>Building and vegetation structure controlling roughness, turbulence, and radiation.</p>
+</section>
+<section id="morphology-yaml-paths">
+<h3><span class="section-number">4.4.4.2. </span>Morphology YAML paths<a class="headerlink" href="#morphology-yaml-paths" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.bldgs.bldgh</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.bldgs.faibldg</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.evetr.height_evergreen_tree</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.dectr.height_deciduous_tree</span></code></p></li>
+</ul>
+</section>
+<section id="morphology-sources">
+<h3><span class="section-number">4.4.4.3. </span>Morphology sources<a class="headerlink" href="#morphology-sources" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://zenodo.org/records/10396451">GLAMOUR</a> for global building height and plan-area fraction at 100 m
+resolution</p></li>
+<li><p><a class="reference external" href="https://glad.umd.edu/dataset/gedi/">GEDI canopy height</a> for a global 30 m vegetation-height product</p></li>
+<li><p>Site-specific building and vegetation surveys where available</p></li>
+</ul>
+</section>
+<section id="morphology-derivation">
+<h3><span class="section-number">4.4.4.4. </span>Morphology derivation<a class="headerlink" href="#morphology-derivation" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p>Derive mean building height and plan-area fraction for the site footprint.</p></li>
+<li><p>Estimate frontal area index from compatible building geometry and the wind
+directions represented by the model. Do not infer it from plan-area
+fraction alone.</p></li>
+<li><p>Derive representative tree heights from canopy products or field surveys.</p></li>
+<li><p>Check GEDI-derived heights against local information in dense urban areas,
+where buildings can contaminate the canopy-height signal.</p></li>
+</ol>
+</section>
+<section id="morphology-parameter-reference">
+<h3><span class="section-number">4.4.4.5. </span>Morphology parameter reference<a class="headerlink" href="#morphology-parameter-reference" title="Link to this heading">#</a></h3>
+<p>See <a class="reference internal" href="yaml/config-reference/index.html"><span class="doc">YAML Configuration Reference</span></a>.</p>
+</section>
+</section>
+<section id="leaf-area-index-lai-and-phenology">
+<h2><span class="section-number">4.4.5. </span>Leaf Area Index (LAI) and Phenology<a class="headerlink" href="#leaf-area-index-lai-and-phenology" title="Link to this heading">#</a></h2>
+<section id="lai-and-phenology-meaning">
+<h3><span class="section-number">4.4.5.1. </span>LAI and phenology meaning<a class="headerlink" href="#lai-and-phenology-meaning" title="Link to this heading">#</a></h3>
+<p>Seasonal vegetation state controlling transpiration, interception, and radiation.</p>
+</section>
+<section id="lai-and-phenology-yaml-paths">
+<h3><span class="section-number">4.4.5.2. </span>LAI and phenology YAML paths<a class="headerlink" href="#lai-and-phenology-yaml-paths" title="Link to this heading">#</a></h3>
+<p>For each vegetated surface (<code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code>):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.&lt;surface&gt;.lai.lai_min</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.&lt;surface&gt;.lai.lai_max</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.&lt;surface&gt;.lai.gdd_full</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.&lt;surface&gt;.lai.sdd_full</span></code></p></li>
+</ul>
+</section>
+<section id="lai-and-phenology-sources">
+<h3><span class="section-number">4.4.5.3. </span>LAI and phenology sources<a class="headerlink" href="#lai-and-phenology-sources" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Site-specific LAI and phenology measurements</p></li>
+<li><p>The <a class="reference external" href="https://github.com/UMEP-dev/SUEWS-database">SUEWS input database</a> for curated values by vegetation typology</p></li>
+</ul>
+</section>
+<section id="lai-and-phenology-derivation">
+<h3><span class="section-number">4.4.5.4. </span>LAI and phenology derivation<a class="headerlink" href="#lai-and-phenology-derivation" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p>Compile multi-year seasonal LAI trajectories for the footprint.</p></li>
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">lai_min</span></code> from dormant-season values and <code class="docutils literal notranslate"><span class="pre">lai_max</span></code> from peak values.</p></li>
+<li><p>Estimate phenology thresholds (<code class="docutils literal notranslate"><span class="pre">gdd_full</span></code>, <code class="docutils literal notranslate"><span class="pre">sdd_full</span></code>) from local climate
+and observed green-up/senescence timing.</p></li>
+<li><p>Check that values are physically consistent for local vegetation types.</p></li>
+</ol>
+</section>
+<section id="lai-and-phenology-parameter-reference">
+<h3><span class="section-number">4.4.5.5. </span>LAI and phenology parameter reference<a class="headerlink" href="#lai-and-phenology-parameter-reference" title="Link to this heading">#</a></h3>
+<p>See <a class="reference internal" href="yaml/config-reference/index.html"><span class="doc">YAML Configuration Reference</span></a>.</p>
+</section>
+</section>
+<section id="storage-heat-ohm-coefficients">
+<h2><span class="section-number">4.4.6. </span>Storage-heat (OHM) Coefficients<a class="headerlink" href="#storage-heat-ohm-coefficients" title="Link to this heading">#</a></h2>
+<section id="ohm-coefficient-meaning">
+<h3><span class="section-number">4.4.6.1. </span>OHM-coefficient meaning<a class="headerlink" href="#ohm-coefficient-meaning" title="Link to this heading">#</a></h3>
+<p>Coefficients <code class="docutils literal notranslate"><span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">a2</span></code>, and <code class="docutils literal notranslate"><span class="pre">a3</span></code> for storage heat flux parameterisation.</p>
+</section>
+<section id="ohm-coefficient-yaml-paths">
+<h3><span class="section-number">4.4.6.2. </span>OHM-coefficient YAML paths<a class="headerlink" href="#ohm-coefficient-yaml-paths" title="Link to this heading">#</a></h3>
+<p>For each surface, coefficients are set by season and wetness state, for example:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.&lt;surface&gt;.ohm_coef.summer_wet.a1</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.&lt;surface&gt;.ohm_coef.summer_wet.a2</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.&lt;surface&gt;.ohm_coef.summer_wet.a3</span></code></p></li>
+</ul>
+<p>The same pattern applies for <code class="docutils literal notranslate"><span class="pre">summer_dry</span></code>, <code class="docutils literal notranslate"><span class="pre">winter_wet</span></code>, and <code class="docutils literal notranslate"><span class="pre">winter_dry</span></code>.</p>
+</section>
+<section id="ohm-coefficient-sources">
+<h3><span class="section-number">4.4.6.3. </span>OHM-coefficient sources<a class="headerlink" href="#ohm-coefficient-sources" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Site-specific flux and radiation measurements (if available)</p></li>
+<li><p>Published coefficient sets in the SUEWS documentation/literature</p></li>
+</ul>
+</section>
+<section id="ohm-coefficient-derivation">
+<h3><span class="section-number">4.4.6.4. </span>OHM-coefficient derivation<a class="headerlink" href="#ohm-coefficient-derivation" title="Link to this heading">#</a></h3>
+<p>If you have suitable observations, derive coefficients using
+<a class="reference internal" href="../api/_autosummary/supy.util.derive_ohm_coef.html#supy.util.derive_ohm_coef" title="supy.util.derive_ohm_coef"><code class="xref py py-func docutils literal notranslate"><span class="pre">derive_ohm_coef()</span></code></a> as shown in
+<a class="reference internal" href="tables/SUEWS_SiteInfo/SUEWS_OHMCoefficients.html"><span class="doc">SUEWS_OHMCoefficients.txt</span></a>.</p>
+<p>If you do not have local flux data, start from literature/default sets and
+prioritise sensitivity testing before introducing custom coefficients.</p>
+</section>
+<section id="ohm-coefficient-parameter-reference">
+<h3><span class="section-number">4.4.6.5. </span>OHM-coefficient parameter reference<a class="headerlink" href="#ohm-coefficient-parameter-reference" title="Link to this heading">#</a></h3>
+<p>See <a class="reference internal" href="yaml/config-reference/index.html"><span class="doc">YAML Configuration Reference</span></a> and
+<a class="reference internal" href="tables/SUEWS_SiteInfo/SUEWS_OHMCoefficients.html"><span class="doc">SUEWS_OHMCoefficients.txt</span></a>.</p>
+</section>
+</section>
+<section id="surface-conductance-parameters">
+<h2><span class="section-number">4.4.7. </span>Surface-conductance Parameters<a class="headerlink" href="#surface-conductance-parameters" title="Link to this heading">#</a></h2>
+<section id="surface-conductance-meaning">
+<h3><span class="section-number">4.4.7.1. </span>Surface-conductance meaning<a class="headerlink" href="#surface-conductance-meaning" title="Link to this heading">#</a></h3>
+<p>Parameters controlling potential and realised stomatal/surface conductance.</p>
+</section>
+<section id="surface-conductance-yaml-paths">
+<h3><span class="section-number">4.4.7.2. </span>Surface-conductance YAML paths<a class="headerlink" href="#surface-conductance-yaml-paths" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Site-level conductance parameter:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.conductance.g_max</span></code></p></li>
+</ul>
+</li>
+<li><p>Vegetation surface conductance limits:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.evetr.max_conductance</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.dectr.max_conductance</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites.&lt;site&gt;.properties.land_cover.grass.max_conductance</span></code></p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="surface-conductance-sources">
+<h3><span class="section-number">4.4.7.3. </span>Surface-conductance sources<a class="headerlink" href="#surface-conductance-sources" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Eddy covariance inversions</p></li>
+<li><p>Leaf- or canopy-level gas exchange observations</p></li>
+<li><p>The <a class="reference external" href="https://github.com/UMEP-dev/SUEWS-database">SUEWS input database</a> for curated values by vegetation typology</p></li>
+</ul>
+</section>
+<section id="surface-conductance-derivation">
+<h3><span class="section-number">4.4.7.4. </span>Surface-conductance derivation<a class="headerlink" href="#surface-conductance-derivation" title="Link to this heading">#</a></h3>
+<p>Direct local estimation is data-intensive. In most applications, begin with
+published values for similar sites, then calibrate within physically realistic
+ranges against local fluxes where available.</p>
+</section>
+<section id="surface-conductance-parameter-reference">
+<h3><span class="section-number">4.4.7.5. </span>Surface-conductance parameter reference<a class="headerlink" href="#surface-conductance-parameter-reference" title="Link to this heading">#</a></h3>
+<p>See <a class="reference internal" href="yaml/config-reference/index.html"><span class="doc">YAML Configuration Reference</span></a>.</p>
+</section>
+</section>
+<section id="suews-input-database">
+<h2><span class="section-number">4.4.8. </span>SUEWS Input Database<a class="headerlink" href="#suews-input-database" title="Link to this heading">#</a></h2>
+<p>A dedicated repository provides the evolving input database used by the SUEWS
+Database Manager and SUEWS Database Prepare plugins:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/UMEP-dev/SUEWS-database">SUEWS input database</a></p></li>
+</ul>
+<p>Use it as a starting point where relevant, but still verify representativeness
+for your site and period.</p>
+</section>
+<section id="references-and-tools">
+<h2><span class="section-number">4.4.9. </span>References and Tools<a class="headerlink" href="#references-and-tools" title="Link to this heading">#</a></h2>
+<p>Use these project-supported resources when preparing surface data:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://esa-worldcover.org/en/data-access">ESA WorldCover</a> and <a class="reference external" href="https://land.copernicus.eu/en/products/global-dynamic-land-cover">Copernicus Global Dynamic Land Cover</a> for land cover</p></li>
+<li><p><a class="reference external" href="https://zenodo.org/records/10396451">GLAMOUR</a> for building morphology</p></li>
+<li><p><a class="reference external" href="https://glad.umd.edu/dataset/gedi/">GEDI canopy height</a> for vegetation height</p></li>
+<li><p>The <a class="reference external" href="https://github.com/UMEP-dev/SUEWS-database">SUEWS input database</a> for parameter values and typologies</p></li>
+</ul>
+<p>Other datasets and manual GIS routes may be useful, but confirm their suitability
+with the SUEWS team before relying on them.</p>
 </section>
 </section>
 
@@ -807,20 +1037,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="yaml/config-reference/weeklyprofile.html"
+       href="forcing-data.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">4.5.59. </span>Weekly Profile</p>
+        <p class="prev-next-title"><span class="section-number">4.3. </span>Meteorological Forcing Data</p>
       </div>
     </a>
     <a class="right-next"
-       href="transition_guide.html"
+       href="yaml/config-reference/index.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">4.7. </span>Transitioning to YAML-based Configuration</p>
+        <p class="prev-next-title"><span class="section-number">4.5. </span>YAML Configuration Reference</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -842,15 +1072,57 @@
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-usage">4.6.1. Command-Line Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">4.6.2. Parameters</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#required-parameters">4.6.2.1. Required Parameters:</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-parameters">4.6.2.2. Optional Parameters:</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#recommended-workflow">4.4.1. Recommended Workflow</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-fractions">4.4.2. Land Cover Fractions</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-meaning">4.4.2.1. Land-cover meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-yaml-paths">4.4.2.2. Land-cover YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-sources">4.4.2.3. Land-cover sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-derivation">4.4.2.4. Land-cover derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#land-cover-parameter-reference">4.4.2.5. Land-cover parameter reference</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.6.3. Examples</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-detection">4.6.4. Version Detection</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#path-handling">4.6.5. Path Handling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo">4.4.3. Albedo</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-meaning">4.4.3.1. Albedo meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-yaml-paths">4.4.3.2. Albedo YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-sources">4.4.3.3. Albedo sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-derivation">4.4.3.4. Albedo derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#albedo-parameter-reference">4.4.3.5. Albedo parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#urban-morphology">4.4.4. Urban Morphology</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-meaning">4.4.4.1. Morphology meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-yaml-paths">4.4.4.2. Morphology YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-sources">4.4.4.3. Morphology sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-derivation">4.4.4.4. Morphology derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#morphology-parameter-reference">4.4.4.5. Morphology parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#leaf-area-index-lai-and-phenology">4.4.5. Leaf Area Index (LAI) and Phenology</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-meaning">4.4.5.1. LAI and phenology meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-yaml-paths">4.4.5.2. LAI and phenology YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-sources">4.4.5.3. LAI and phenology sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-derivation">4.4.5.4. LAI and phenology derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lai-and-phenology-parameter-reference">4.4.5.5. LAI and phenology parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-heat-ohm-coefficients">4.4.6. Storage-heat (OHM) Coefficients</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-meaning">4.4.6.1. OHM-coefficient meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-yaml-paths">4.4.6.2. OHM-coefficient YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-sources">4.4.6.3. OHM-coefficient sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-derivation">4.4.6.4. OHM-coefficient derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ohm-coefficient-parameter-reference">4.4.6.5. OHM-coefficient parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-parameters">4.4.7. Surface-conductance Parameters</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-meaning">4.4.7.1. Surface-conductance meaning</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-yaml-paths">4.4.7.2. Surface-conductance YAML paths</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-sources">4.4.7.3. Surface-conductance sources</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-derivation">4.4.7.4. Surface-conductance derivation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance-parameter-reference">4.4.7.5. Surface-conductance parameter reference</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-input-database">4.4.8. SUEWS Input Database</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references-and-tools">4.4.9. References and Tools</a></li>
 </ul>
   </nav></div>
 
@@ -884,7 +1156,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-10-08.
+  Last updated on 2026-08-19.
   <br/>
 </p>
   </div>

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-14T12:38:29+00:00" />
-    <title>3.5. Analysing Simulation Results &#8212; SUEWS 2026.8.14.dev3 documentation</title>
+    <meta property="article:modified_time" content="2026-08-19T11:24:12+00:00" />
+    <title>3.5. Analysing Simulation Results &#8212; SUEWS 2026.8.19.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=12db3b48"></script>
+    <script src="../_static/documentation_options.js?v=024e2084"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="3.4. Impact Studies Using SuPy" href="tutorial_04_impact_studies.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.14.dev3" />
-    <meta name="docbuild:last-update" content="2026-08-14"/>
+  <meta name="docsearch:version" content="2026.8.19.dev1" />
+    <meta name="docbuild:last-update" content="2026-08-19"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.14.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a28a69fff1e12c42a5f9f2d1306d94080f407cc4" style="color: #31708f;">a28a69f</a>).
+        (2026.8.19.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a2058b1803415229424bed33a2a6beebf552f8e3" style="color: #31708f;">a2058b1</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.14.dev3 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.14.dev3 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.19.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.19.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -231,87 +231,88 @@
 <li class="toctree-l2"><a class="reference internal" href="../inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../inputs/yaml/layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../inputs/forcing-data.html">4.3. Meteorological Forcing Data</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../inputs/yaml/config-reference/index.html">4.4. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/anthropogenicemissions.html">4.4.1. Anthropogenic Emissions</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/anthropogenicheat.html">4.4.2. Anthropogenic Heat</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/archetypeproperties.html">4.4.3. Archetype Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/bldgsproperties.html">4.4.4. Buildings</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/bsoilproperties.html">4.4.5. Bare Soil</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/buildinglayer.html">4.4.6. Building Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/co2params.html">4.4.7. CO2 Emissions</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/conductance.html">4.4.8. Conductance</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/coolingsetpointprofile.html">4.4.9. Cooling Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/dayprofile.html">4.4.10. Daily Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/dectrproperties.html">4.4.11. Deciduous Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/evetrproperties.html">4.4.12. Evergreen Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/forcingcontrol.html">4.4.13. Forcing Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/grassproperties.html">4.4.14. Grass</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/heatingsetpointprofile.html">4.4.15. Heating Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/hourlyprofile.html">4.4.16. Hourly Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatebldgs.html">4.4.17. Buildings Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatebsoil.html">4.4.18. Bare Soil Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatedectr.html">4.4.19. Deciduous Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstateevetr.html">4.4.20. Evergreen Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstategrass.html">4.4.21. Grass Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatepaved.html">4.4.22. Paved Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstateveg.html">4.4.23. Vegetation Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatewater.html">4.4.24. Water Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstates.html">4.4.25. Initial States</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/irrigationparams.html">4.4.26. Irrigation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/laiparams.html">4.4.27. LAI</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/laipowercoefficients.html">4.4.28. LAI Power Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/lumpsparams.html">4.4.29. LUMPS Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/landcover.html">4.4.30. Land Cover</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/model.html">4.4.31. Model Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/modelcontrol.html">4.4.32. Model Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/modelphysics.html">4.4.33. Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.4.34. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/ohmcoefficients.html">4.4.35. OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.4.36. Seasonal/Wetness OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/outputcontrol.html">4.4.37. Output Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/pavedproperties.html">4.4.38. Paved Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/rooflayer.html">4.4.39. Roof Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/spartacusparams.html">4.4.40. SPARTACUS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/suewsconfig.html">4.4.41. SUEWS Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/site.html">4.4.42. Site Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/siteproperties.html">4.4.43. Site Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/snowparams.html">4.4.44. Snow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/soilobservationconfig.html">4.4.45. Soil Observation Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/stebbsphysics.html">4.4.46. STEBBS Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/stebbsproperties.html">4.4.47. STEBBS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/storagedrainparams.html">4.4.48. Drainage Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/surfaceinitialstate.html">4.4.49. Generic Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/surfaceproperties.html">4.4.50. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/tenminuteprofile.html">4.4.51. Ten Minute Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/thermallayers.html">4.4.52. Material Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.4.53. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/vegetationparams.html">4.4.54. Vegetation Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/verticallayers.html">4.4.55. SPARTACUS Vertical Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/walllayer.html">4.4.56. Wall Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/waterdistribution.html">4.4.57. Water Distribution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/waterproperties.html">4.4.58. Water Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/weeklyprofile.html">4.4.59. Weekly Profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/surface-data-preparation.html">4.4. Preparing Surface Characteristics Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../inputs/yaml/config-reference/index.html">4.5. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/anthropogenicemissions.html">4.5.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/anthropogenicheat.html">4.5.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/archetypeproperties.html">4.5.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/bldgsproperties.html">4.5.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/bsoilproperties.html">4.5.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/buildinglayer.html">4.5.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/co2params.html">4.5.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/conductance.html">4.5.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/coolingsetpointprofile.html">4.5.9. Cooling Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/dayprofile.html">4.5.10. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/dectrproperties.html">4.5.11. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/evetrproperties.html">4.5.12. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/forcingcontrol.html">4.5.13. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/grassproperties.html">4.5.14. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/heatingsetpointprofile.html">4.5.15. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/hourlyprofile.html">4.5.16. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatebldgs.html">4.5.17. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatebsoil.html">4.5.18. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatedectr.html">4.5.19. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstateevetr.html">4.5.20. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstategrass.html">4.5.21. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatepaved.html">4.5.22. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstateveg.html">4.5.23. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatewater.html">4.5.24. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstates.html">4.5.25. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/irrigationparams.html">4.5.26. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/laiparams.html">4.5.27. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/laipowercoefficients.html">4.5.28. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/lumpsparams.html">4.5.29. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/landcover.html">4.5.30. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/model.html">4.5.31. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/modelcontrol.html">4.5.32. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/modelphysics.html">4.5.33. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.5.34. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/ohmcoefficients.html">4.5.35. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.5.36. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/outputcontrol.html">4.5.37. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/pavedproperties.html">4.5.38. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/rooflayer.html">4.5.39. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/spartacusparams.html">4.5.40. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/suewsconfig.html">4.5.41. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/site.html">4.5.42. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/siteproperties.html">4.5.43. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/snowparams.html">4.5.44. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/soilobservationconfig.html">4.5.45. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/stebbsphysics.html">4.5.46. STEBBS Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/stebbsproperties.html">4.5.47. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/storagedrainparams.html">4.5.48. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/surfaceinitialstate.html">4.5.49. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/surfaceproperties.html">4.5.50. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/tenminuteprofile.html">4.5.51. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/thermallayers.html">4.5.52. Material Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.5.53. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/vegetationparams.html">4.5.54. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/verticallayers.html">4.5.55. SPARTACUS Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/walllayer.html">4.5.56. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/waterdistribution.html">4.5.57. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/waterproperties.html">4.5.58. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/weeklyprofile.html">4.5.59. Weekly Profile</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../inputs/converter.html">4.5. SUEWS Format Converter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../inputs/transition_guide.html">4.6. Transitioning to YAML-based Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../inputs/yaml/validation.html">4.7. Validation Tool Reference</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../inputs/tables/index.html">4.8. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/tables/met_input.html">4.8.3.1. Meteorological Input File</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../inputs/tables/RunControl/RunControl.html">4.8.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html">4.8.3.2.1. Scheme options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/Time_related_options.html">4.8.3.2.2. Time related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/File_related_options.html">4.8.3.2.3. File related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.8.3.2.4. Options related to disaggregation of input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/converter.html">4.6. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/transition_guide.html">4.7. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/yaml/validation.html">4.8. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../inputs/tables/index.html">4.9. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/tables/met_input.html">4.9.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../inputs/tables/RunControl/RunControl.html">4.9.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html">4.9.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/Time_related_options.html">4.9.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/File_related_options.html">4.9.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.9.3.2.4. Options related to disaggregation of input data</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3"><a class="reference internal" href="../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.8.3.3. SUEWS_SiteSelect.txt</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.8.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.8.3.4.1. Soil moisture states</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.8.3.4.2. Vegetation parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.8.3.4.3. Recent meteorology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Above_ground_state.html">4.8.3.4.4. Above ground state</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.8.3.4.5. Snow related parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.9.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.9.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.9.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.9.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.9.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Above_ground_state.html">4.9.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.9.3.4.5. Snow related parameters</a></li>
 </ul>
 </details></li>
 </ul>
@@ -723,9 +724,9 @@ interpretation and model validation. This tutorial covers:</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
 <span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation complete!&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Output period: </span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time steps: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">times</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Simulation complete!"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Output period: </span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Time steps: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">times</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Simulation complete!
@@ -747,59 +748,59 @@ Time steps: 105408
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">df</span>
 
 <span class="c1"># Method 1: get_variable() on output object - recommended</span>
-<span class="n">qh</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s2">&quot;QH&quot;</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s2">&quot;SUEWS&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;QH shape: </span><span class="si">{</span><span class="n">qh</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">qh</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s2">"QH"</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s2">"SUEWS"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"QH shape: </span><span class="si">{</span><span class="n">qh</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Method 2: Direct MultiIndex access on raw DataFrame</span>
-<span class="n">qn</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s2">&quot;SUEWS&quot;</span><span class="p">,</span> <span class="s2">&quot;QN&quot;</span><span class="p">)]</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;QN shape: </span><span class="si">{</span><span class="n">qn</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">qn</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s2">"SUEWS"</span><span class="p">,</span> <span class="s2">"QN"</span><span class="p">)]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"QN shape: </span><span class="si">{</span><span class="n">qn</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># List available groups and variables</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Available groups: </span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">groups</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SUEWS variables (first 10): </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;SUEWS&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()[:</span><span class="mi">10</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Available groups: </span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">groups</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"SUEWS variables (first 10): </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">'SUEWS'</span><span class="p">]</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()[:</span><span class="mi">10</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>QH shape: (105408, 1)
 QN shape: (105408,)
 
-Available groups: [&#39;BEERS&#39;, &#39;DailyState&#39;, &#39;debug&#39;, &#39;EHC&#39;, &#39;NHood&#39;, &#39;RSL&#39;, &#39;snow&#39;, &#39;SPARTACUS&#39;, &#39;STEBBS&#39;, &#39;SUEWS&#39;]
-SUEWS variables (first 10): [&#39;Kdown&#39;, &#39;Kup&#39;, &#39;Ldown&#39;, &#39;Lup&#39;, &#39;Tsurf&#39;, &#39;QN&#39;, &#39;QF&#39;, &#39;QS&#39;, &#39;QH&#39;, &#39;QE&#39;]
+Available groups: ['BEERS', 'DailyState', 'debug', 'EHC', 'NHood', 'RSL', 'snow', 'SPARTACUS', 'STEBBS', 'SUEWS']
+SUEWS variables (first 10): ['Kdown', 'Kup', 'Ldown', 'Lup', 'Tsurf', 'QN', 'QF', 'QS', 'QH', 'QE']
 </pre></div>
 </div>
 </section>
 <section id="helper-function-for-variable-access">
 <h2><span class="section-number">3.5.3. </span>Helper Function for Variable Access<a class="headerlink" href="#helper-function-for-variable-access" title="Link to this heading">#</a></h2>
 <p>Create a helper to simplify extracting multiple variables.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">get_var</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s2">&quot;SUEWS&quot;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract a single variable as a Series with DatetimeIndex.</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">get_var</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s2">"SUEWS"</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Extract a single variable as a Series with DatetimeIndex.</span>
 
 <span class="sd">    Assumes single-grid output (as produced by the sample data).</span>
 <span class="sd">    Raises an error if multiple grids are present, since dropping</span>
 <span class="sd">    the grid level would produce a non-unique index.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">ser</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
     <span class="c1"># Drop grid level only when safe (single grid)</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ser</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">)</span> <span class="ow">and</span> <span class="n">ser</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="n">n_grids</span> <span class="o">=</span> <span class="n">ser</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span>
+        <span class="n">n_grids</span> <span class="o">=</span> <span class="n">ser</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"grid"</span><span class="p">)</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">n_grids</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Expected single-grid output, but found </span><span class="si">{</span><span class="n">n_grids</span><span class="si">}</span><span class="s2"> grids. &quot;</span>
-                <span class="s2">&quot;Use MultiIndex indexing directly for multi-grid runs.&quot;</span>
+                <span class="sa">f</span><span class="s2">"Expected single-grid output, but found </span><span class="si">{</span><span class="n">n_grids</span><span class="si">}</span><span class="s2"> grids. "</span>
+                <span class="s2">"Use MultiIndex indexing directly for multi-grid runs."</span>
             <span class="p">)</span>
-        <span class="n">ser</span> <span class="o">=</span> <span class="n">ser</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span>
+        <span class="n">ser</span> <span class="o">=</span> <span class="n">ser</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">"grid"</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">ser</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">get_vars</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s2">&quot;SUEWS&quot;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract multiple variables as a DataFrame with DatetimeIndex.&quot;&quot;&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_vars</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s2">"SUEWS"</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Extract multiple variables as a DataFrame with DatetimeIndex."""</span>
     <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">name</span><span class="p">:</span> <span class="n">get_var</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">})</span>
 
 
 <span class="c1"># Extract energy balance components</span>
-<span class="n">energy_vars</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;QN&quot;</span><span class="p">,</span> <span class="s2">&quot;QF&quot;</span><span class="p">,</span> <span class="s2">&quot;QS&quot;</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">,</span> <span class="s2">&quot;QH&quot;</span><span class="p">]</span>
+<span class="n">energy_vars</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"QN"</span><span class="p">,</span> <span class="s2">"QF"</span><span class="p">,</span> <span class="s2">"QS"</span><span class="p">,</span> <span class="s2">"QE"</span><span class="p">,</span> <span class="s2">"QH"</span><span class="p">]</span>
 <span class="n">energy_df</span> <span class="o">=</span> <span class="n">get_vars</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">energy_vars</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Energy balance components:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Energy balance components:"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">energy_df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
 </pre></div>
 </div>
@@ -817,18 +818,18 @@ datetime
 <section id="basic-statistics">
 <h2><span class="section-number">3.5.4. </span>Basic Statistics<a class="headerlink" href="#basic-statistics" title="Link to this heading">#</a></h2>
 <p>Calculate summary statistics for the energy balance.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Annual Energy Balance Statistics (W/m2):&quot;</span><span class="p">)</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Annual Energy Balance Statistics (W/m2):"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">energy_df</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
 
 <span class="c1"># Seasonal means using meteorological seasons (month-based grouping)</span>
-<span class="n">season_map</span> <span class="o">=</span> <span class="p">{</span><span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;Winter (DJF)&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;Winter (DJF)&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;Winter (DJF)&quot;</span><span class="p">,</span>
-              <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;Spring (MAM)&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;Spring (MAM)&quot;</span><span class="p">,</span> <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;Spring (MAM)&quot;</span><span class="p">,</span>
-              <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;Summer (JJA)&quot;</span><span class="p">,</span> <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;Summer (JJA)&quot;</span><span class="p">,</span> <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;Summer (JJA)&quot;</span><span class="p">,</span>
-              <span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;Autumn (SON)&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;Autumn (SON)&quot;</span><span class="p">,</span> <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;Autumn (SON)&quot;</span><span class="p">}</span>
-<span class="n">season_order</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Winter (DJF)&quot;</span><span class="p">,</span> <span class="s2">&quot;Spring (MAM)&quot;</span><span class="p">,</span> <span class="s2">&quot;Summer (JJA)&quot;</span><span class="p">,</span> <span class="s2">&quot;Autumn (SON)&quot;</span><span class="p">]</span>
+<span class="n">season_map</span> <span class="o">=</span> <span class="p">{</span><span class="mi">12</span><span class="p">:</span> <span class="s2">"Winter (DJF)"</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s2">"Winter (DJF)"</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s2">"Winter (DJF)"</span><span class="p">,</span>
+              <span class="mi">3</span><span class="p">:</span> <span class="s2">"Spring (MAM)"</span><span class="p">,</span> <span class="mi">4</span><span class="p">:</span> <span class="s2">"Spring (MAM)"</span><span class="p">,</span> <span class="mi">5</span><span class="p">:</span> <span class="s2">"Spring (MAM)"</span><span class="p">,</span>
+              <span class="mi">6</span><span class="p">:</span> <span class="s2">"Summer (JJA)"</span><span class="p">,</span> <span class="mi">7</span><span class="p">:</span> <span class="s2">"Summer (JJA)"</span><span class="p">,</span> <span class="mi">8</span><span class="p">:</span> <span class="s2">"Summer (JJA)"</span><span class="p">,</span>
+              <span class="mi">9</span><span class="p">:</span> <span class="s2">"Autumn (SON)"</span><span class="p">,</span> <span class="mi">10</span><span class="p">:</span> <span class="s2">"Autumn (SON)"</span><span class="p">,</span> <span class="mi">11</span><span class="p">:</span> <span class="s2">"Autumn (SON)"</span><span class="p">}</span>
+<span class="n">season_order</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Winter (DJF)"</span><span class="p">,</span> <span class="s2">"Spring (MAM)"</span><span class="p">,</span> <span class="s2">"Summer (JJA)"</span><span class="p">,</span> <span class="s2">"Autumn (SON)"</span><span class="p">]</span>
 <span class="n">seasonal</span> <span class="o">=</span> <span class="n">energy_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">energy_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">season_map</span><span class="p">))</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <span class="n">seasonal</span> <span class="o">=</span> <span class="n">seasonal</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">season_order</span><span class="p">]</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Seasonal Means (W/m2):&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Seasonal Means (W/m2):"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">seasonal</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
 </pre></div>
 </div>
@@ -856,16 +857,16 @@ Autumn (SON)   22.2  83.3  -9.0  26.4   88.1
 <section id="energy-balance-closure">
 <h2><span class="section-number">3.5.5. </span>Energy Balance Closure<a class="headerlink" href="#energy-balance-closure" title="Link to this heading">#</a></h2>
 <p>Verify that the energy balance closes: QN + QF = QS + QE + QH</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">energy_in</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;QN&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;QF&quot;</span><span class="p">)</span>
-<span class="n">energy_out</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;QS&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;QH&quot;</span><span class="p">)</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">energy_in</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"QN"</span><span class="p">)</span> <span class="o">+</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"QF"</span><span class="p">)</span>
+<span class="n">energy_out</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"QS"</span><span class="p">)</span> <span class="o">+</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"QE"</span><span class="p">)</span> <span class="o">+</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"QH"</span><span class="p">)</span>
 <span class="n">residual</span> <span class="o">=</span> <span class="n">energy_in</span> <span class="o">-</span> <span class="n">energy_out</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Energy Balance Closure Check:&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Mean residual: </span><span class="si">{</span><span class="n">residual</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> W/m2&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Std residual:  </span><span class="si">{</span><span class="n">residual</span><span class="o">.</span><span class="n">std</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> W/m2&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Max |residual|: </span><span class="si">{</span><span class="n">residual</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> W/m2&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Note: SUEWS enforces closure by design. Non-zero residuals&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;indicate numerical precision limits only.&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Energy Balance Closure Check:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Mean residual: </span><span class="si">{</span><span class="n">residual</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> W/m2"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Std residual:  </span><span class="si">{</span><span class="n">residual</span><span class="o">.</span><span class="n">std</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> W/m2"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Max |residual|: </span><span class="si">{</span><span class="n">residual</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> W/m2"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Note: SUEWS enforces closure by design. Non-zero residuals"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"indicate numerical precision limits only."</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Energy Balance Closure Check:
@@ -881,26 +882,26 @@ indicate numerical precision limits only.
 <section id="water-balance-analysis">
 <h2><span class="section-number">3.5.6. </span>Water Balance Analysis<a class="headerlink" href="#water-balance-analysis" title="Link to this heading">#</a></h2>
 <p>Calculate annual water balance: P + I = E + R + D + dS</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">rain</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;Rain&quot;</span><span class="p">)</span>
-<span class="n">evap</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;Evap&quot;</span><span class="p">)</span>
-<span class="n">runoff</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;RO&quot;</span><span class="p">)</span>
-<span class="n">drainage</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;Drainage&quot;</span><span class="p">)</span>
-<span class="n">irr</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;Irr&quot;</span><span class="p">)</span>
-<span class="n">storage_change</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;TotCh&quot;</span><span class="p">)</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">rain</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"Rain"</span><span class="p">)</span>
+<span class="n">evap</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"Evap"</span><span class="p">)</span>
+<span class="n">runoff</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"RO"</span><span class="p">)</span>
+<span class="n">drainage</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"Drainage"</span><span class="p">)</span>
+<span class="n">irr</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"Irr"</span><span class="p">)</span>
+<span class="n">storage_change</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"TotCh"</span><span class="p">)</span>
 
 <span class="c1"># Annual totals (mm/year)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Annual Water Balance (mm):&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Inputs:&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Precipitation: </span><span class="si">{</span><span class="n">rain</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Irrigation:    </span><span class="si">{</span><span class="n">irr</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Outputs:&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Evaporation:   </span><span class="si">{</span><span class="n">evap</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Runoff:        </span><span class="si">{</span><span class="n">runoff</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Drainage:      </span><span class="si">{</span><span class="n">drainage</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Storage change:  </span><span class="si">{</span><span class="n">storage_change</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Annual Water Balance (mm):"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"  Inputs:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"    Precipitation: </span><span class="si">{</span><span class="n">rain</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"    Irrigation:    </span><span class="si">{</span><span class="n">irr</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"  Outputs:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"    Evaporation:   </span><span class="si">{</span><span class="n">evap</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"    Runoff:        </span><span class="si">{</span><span class="n">runoff</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"    Drainage:      </span><span class="si">{</span><span class="n">drainage</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Storage change:  </span><span class="si">{</span><span class="n">storage_change</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="n">water_residual</span> <span class="o">=</span> <span class="p">(</span><span class="n">rain</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">+</span> <span class="n">irr</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="o">-</span> <span class="n">evap</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">-</span> <span class="n">runoff</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">-</span> <span class="n">drainage</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">-</span> <span class="n">storage_change</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Residual:        </span><span class="si">{</span><span class="n">water_residual</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Residual:        </span><span class="si">{</span><span class="n">water_residual</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Annual Water Balance (mm):
@@ -923,43 +924,43 @@ indicate numerical precision limits only.
 
 <span class="c1"># 1. Daily energy fluxes</span>
 <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
-<span class="n">daily_energy</span> <span class="o">=</span> <span class="n">energy_df</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">daily_energy</span> <span class="o">=</span> <span class="n">energy_df</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"D"</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <span class="n">daily_energy</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Energy Flux (W/m2)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Daily Mean Energy Fluxes&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper right&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Energy Flux (W/m2)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Daily Mean Energy Fluxes"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">"upper right"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"k"</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">"--"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
 
 <span class="c1"># 2. Monthly energy partitioning</span>
 <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
-<span class="n">monthly_means</span> <span class="o">=</span> <span class="n">energy_df</span><span class="p">[[</span><span class="s2">&quot;QS&quot;</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">,</span> <span class="s2">&quot;QH&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">energy_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-<span class="n">monthly_means</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s2">&quot;bar&quot;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Month&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Energy Flux (W/m2)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Monthly Energy Partitioning&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper right&quot;</span><span class="p">)</span>
+<span class="n">monthly_means</span> <span class="o">=</span> <span class="n">energy_df</span><span class="p">[[</span><span class="s2">"QS"</span><span class="p">,</span> <span class="s2">"QE"</span><span class="p">,</span> <span class="s2">"QH"</span><span class="p">]]</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">energy_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">monthly_means</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s2">"bar"</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Month"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Energy Flux (W/m2)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Monthly Energy Partitioning"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">"upper right"</span><span class="p">)</span>
 
 <span class="c1"># 3. Summer diurnal cycle</span>
 <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
 <span class="n">summer_mask</span> <span class="o">=</span> <span class="n">energy_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
 <span class="n">summer_energy</span> <span class="o">=</span> <span class="n">energy_df</span><span class="p">[</span><span class="n">summer_mask</span><span class="p">]</span>
 <span class="n">hourly_summer</span> <span class="o">=</span> <span class="n">summer_energy</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">summer_energy</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-<span class="n">hourly_summer</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Hour of Day&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Energy Flux (W/m2)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Summer Diurnal Cycle&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper right&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="n">hourly_summer</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">"o"</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Hour of Day"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Energy Flux (W/m2)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Summer Diurnal Cycle"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">"upper right"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"k"</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">"--"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
 
 <span class="c1"># 4. Bowen ratio (QH/QE) over time</span>
 <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
-<span class="n">bowen</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;QH&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-<span class="n">bowen_daily</span> <span class="o">=</span> <span class="n">bowen</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">bowen</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"QH"</span><span class="p">)</span> <span class="o">/</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"QE"</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+<span class="n">bowen_daily</span> <span class="o">=</span> <span class="n">bowen</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"D"</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <span class="n">bowen_daily</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Bowen Ratio (QH/QE)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Daily Bowen Ratio&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Bowen Ratio (QH/QE)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Daily Bowen Ratio"</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Bowen=1&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"r"</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">"--"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"Bowen=1"</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
@@ -969,55 +970,55 @@ indicate numerical precision limits only.
 <section id="temperature-analysis">
 <h2><span class="section-number">3.5.8. </span>Temperature Analysis<a class="headerlink" href="#temperature-analysis" title="Link to this heading">#</a></h2>
 <p>Analyse air and surface temperature patterns.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">t2</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;T2&quot;</span><span class="p">)</span>
-<span class="n">tsurf</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;Tsurf&quot;</span><span class="p">)</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">t2</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"T2"</span><span class="p">)</span>
+<span class="n">tsurf</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"Tsurf"</span><span class="p">)</span>
 
 <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
 
 <span class="c1"># 1. Temperature time series</span>
 <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
-<span class="n">t2</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;T2 (2m air)&quot;</span><span class="p">)</span>
-<span class="n">tsurf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Tsurf (surface)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Temperature (degC)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Daily Mean Temperatures&quot;</span><span class="p">)</span>
+<span class="n">t2</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"D"</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"T2 (2m air)"</span><span class="p">)</span>
+<span class="n">tsurf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"D"</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"Tsurf (surface)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Temperature (degC)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Daily Mean Temperatures"</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 
 <span class="c1"># 2. Temperature distribution</span>
 <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">t2</span><span class="o">.</span><span class="n">dropna</span><span class="p">(),</span> <span class="n">bins</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;T2&quot;</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">tsurf</span><span class="o">.</span><span class="n">dropna</span><span class="p">(),</span> <span class="n">bins</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Tsurf&quot;</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Temperature (degC)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Density&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Temperature Distribution&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">t2</span><span class="o">.</span><span class="n">dropna</span><span class="p">(),</span> <span class="n">bins</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"T2"</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">tsurf</span><span class="o">.</span><span class="n">dropna</span><span class="p">(),</span> <span class="n">bins</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"Tsurf"</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Temperature (degC)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Density"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Temperature Distribution"</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 
 <span class="c1"># 3. Diurnal temperature cycle by season</span>
 <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
 <span class="k">for</span> <span class="n">season_name</span><span class="p">,</span> <span class="n">months</span> <span class="ow">in</span> <span class="p">[</span>
-    <span class="p">(</span><span class="s2">&quot;Winter&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span>
-    <span class="p">(</span><span class="s2">&quot;Spring&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]),</span>
-    <span class="p">(</span><span class="s2">&quot;Summer&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">]),</span>
-    <span class="p">(</span><span class="s2">&quot;Autumn&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span>
+    <span class="p">(</span><span class="s2">"Winter"</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span>
+    <span class="p">(</span><span class="s2">"Spring"</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]),</span>
+    <span class="p">(</span><span class="s2">"Summer"</span><span class="p">,</span> <span class="p">[</span><span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">]),</span>
+    <span class="p">(</span><span class="s2">"Autumn"</span><span class="p">,</span> <span class="p">[</span><span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span>
 <span class="p">]:</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="n">t2</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">months</span><span class="p">)</span>
     <span class="n">hourly</span> <span class="o">=</span> <span class="n">t2</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">t2</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">hourly</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">hourly</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">season_name</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Hour of Day&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;T2 (degC)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Seasonal Diurnal Temperature Cycles&quot;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">hourly</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">hourly</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">"o"</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">season_name</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Hour of Day"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"T2 (degC)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Seasonal Diurnal Temperature Cycles"</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 
 <span class="c1"># 4. Surface-air temperature difference</span>
 <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
 <span class="n">delta_t</span> <span class="o">=</span> <span class="n">tsurf</span> <span class="o">-</span> <span class="n">t2</span>
 <span class="n">delta_t_hourly</span> <span class="o">=</span> <span class="n">delta_t</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">delta_t</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="s2">&quot;ko-&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Hour of Day&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Tsurf - T2 (degC)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Surface-Air Temperature Difference&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Surface warmer&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Air warmer&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="s2">"ko-"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Hour of Day"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Tsurf - T2 (degC)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Surface-Air Temperature Difference"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"r"</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">"--"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"red"</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"Surface warmer"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">delta_t_hourly</span><span class="o">.</span><span class="n">values</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"blue"</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"Air warmer"</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
@@ -1028,7 +1029,7 @@ indicate numerical precision limits only.
 <h2><span class="section-number">3.5.9. </span>Validation Statistics<a class="headerlink" href="#validation-statistics" title="Link to this heading">#</a></h2>
 <p>Calculate standard validation metrics for model-observation comparison.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">validation_statistics</span><span class="p">(</span><span class="n">observed</span><span class="p">,</span> <span class="n">modelled</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate validation statistics.</span>
+<span class="w">    </span><span class="sd">"""Calculate validation statistics.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1041,18 +1042,18 @@ indicate numerical precision limits only.
 <span class="sd">    -------</span>
 <span class="sd">    dict</span>
 <span class="sd">        Validation statistics including bias, RMSE, R2, and IoA</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Align data</span>
-    <span class="n">obs</span><span class="p">,</span> <span class="n">mod</span> <span class="o">=</span> <span class="n">observed</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">modelled</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="s2">&quot;inner&quot;</span><span class="p">)</span>
+    <span class="n">obs</span><span class="p">,</span> <span class="n">mod</span> <span class="o">=</span> <span class="n">observed</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">modelled</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="s2">"inner"</span><span class="p">)</span>
     <span class="n">obs</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
     <span class="n">mod</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">obs</span><span class="o">.</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
 
     <span class="c1"># Re-align after dropna</span>
-    <span class="n">obs</span><span class="p">,</span> <span class="n">mod</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="s2">&quot;inner&quot;</span><span class="p">)</span>
+    <span class="n">obs</span><span class="p">,</span> <span class="n">mod</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="s2">"inner"</span><span class="p">)</span>
 
     <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">obs</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Insufficient data&quot;</span><span class="p">}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"n"</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span> <span class="s2">"error"</span><span class="p">:</span> <span class="s2">"Insufficient data"</span><span class="p">}</span>
 
     <span class="n">mean_obs</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
     <span class="n">mean_mod</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
@@ -1075,31 +1076,31 @@ indicate numerical precision limits only.
     <span class="n">ioa</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">numer</span> <span class="o">/</span> <span class="n">denom_terms</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="k">if</span> <span class="n">denom_terms</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
 
     <span class="k">return</span> <span class="p">{</span>
-        <span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span>
-        <span class="s2">&quot;mean_obs&quot;</span><span class="p">:</span> <span class="n">mean_obs</span><span class="p">,</span>
-        <span class="s2">&quot;mean_mod&quot;</span><span class="p">:</span> <span class="n">mean_mod</span><span class="p">,</span>
-        <span class="s2">&quot;bias&quot;</span><span class="p">:</span> <span class="n">bias</span><span class="p">,</span>
-        <span class="s2">&quot;rmse&quot;</span><span class="p">:</span> <span class="n">rmse</span><span class="p">,</span>
-        <span class="s2">&quot;mae&quot;</span><span class="p">:</span> <span class="n">mae</span><span class="p">,</span>
-        <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="n">r</span><span class="p">,</span>
-        <span class="s2">&quot;r2&quot;</span><span class="p">:</span> <span class="n">r</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
-        <span class="s2">&quot;p_value&quot;</span><span class="p">:</span> <span class="n">p</span><span class="p">,</span>
-        <span class="s2">&quot;ioa&quot;</span><span class="p">:</span> <span class="n">ioa</span><span class="p">,</span>
+        <span class="s2">"n"</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span>
+        <span class="s2">"mean_obs"</span><span class="p">:</span> <span class="n">mean_obs</span><span class="p">,</span>
+        <span class="s2">"mean_mod"</span><span class="p">:</span> <span class="n">mean_mod</span><span class="p">,</span>
+        <span class="s2">"bias"</span><span class="p">:</span> <span class="n">bias</span><span class="p">,</span>
+        <span class="s2">"rmse"</span><span class="p">:</span> <span class="n">rmse</span><span class="p">,</span>
+        <span class="s2">"mae"</span><span class="p">:</span> <span class="n">mae</span><span class="p">,</span>
+        <span class="s2">"r"</span><span class="p">:</span> <span class="n">r</span><span class="p">,</span>
+        <span class="s2">"r2"</span><span class="p">:</span> <span class="n">r</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+        <span class="s2">"p_value"</span><span class="p">:</span> <span class="n">p</span><span class="p">,</span>
+        <span class="s2">"ioa"</span><span class="p">:</span> <span class="n">ioa</span><span class="p">,</span>
     <span class="p">}</span>
 
 
-<span class="c1"># Example: Compare modelled T2 with forcing Tair (as proxy for &quot;observations&quot;)</span>
+<span class="c1"># Example: Compare modelled T2 with forcing Tair (as proxy for "observations")</span>
 <span class="c1"># In practice, you would load actual observation data</span>
-<span class="n">tair_forcing</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;Tair&quot;</span><span class="p">]</span>
-<span class="n">t2_model</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;T2&quot;</span><span class="p">)</span>
+<span class="n">tair_forcing</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">df</span><span class="p">[</span><span class="s2">"Tair"</span><span class="p">]</span>
+<span class="n">t2_model</span> <span class="o">=</span> <span class="n">get_var</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"T2"</span><span class="p">)</span>
 
 <span class="n">stats_t2</span> <span class="o">=</span> <span class="n">validation_statistics</span><span class="p">(</span><span class="n">tair_forcing</span><span class="p">,</span> <span class="n">t2_model</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;T2 vs Forcing Tair (demonstration):&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"T2 vs Forcing Tair (demonstration):"</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">stats_t2</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">val</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">val</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>T2 vs Forcing Tair (demonstration):
@@ -1119,42 +1120,42 @@ indicate numerical precision limits only.
 <section id="validation-scatter-plot">
 <h2><span class="section-number">3.5.10. </span>Validation Scatter Plot<a class="headerlink" href="#validation-scatter-plot" title="Link to this heading">#</a></h2>
 <p>Create a scatter plot comparing model output with observations.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">validation_scatter</span><span class="p">(</span><span class="n">observed</span><span class="p">,</span> <span class="n">modelled</span><span class="p">,</span> <span class="n">variable_name</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create validation scatter plot with statistics.&quot;&quot;&quot;</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">validation_scatter</span><span class="p">(</span><span class="n">observed</span><span class="p">,</span> <span class="n">modelled</span><span class="p">,</span> <span class="n">variable_name</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Create validation scatter plot with statistics."""</span>
     <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
 
-    <span class="n">obs</span><span class="p">,</span> <span class="n">mod</span> <span class="o">=</span> <span class="n">observed</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">modelled</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="s2">&quot;inner&quot;</span><span class="p">)</span>
+    <span class="n">obs</span><span class="p">,</span> <span class="n">mod</span> <span class="o">=</span> <span class="n">observed</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">modelled</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="s2">"inner"</span><span class="p">)</span>
     <span class="n">obs</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
     <span class="n">mod</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">obs</span><span class="o">.</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
-    <span class="n">obs</span><span class="p">,</span> <span class="n">mod</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="s2">&quot;inner&quot;</span><span class="p">)</span>
+    <span class="n">obs</span><span class="p">,</span> <span class="n">mod</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="s2">"inner"</span><span class="p">)</span>
 
     <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">obs</span><span class="p">,</span> <span class="n">mod</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 
     <span class="c1"># 1:1 line</span>
     <span class="n">lims</span> <span class="o">=</span> <span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="n">obs</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">mod</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">max</span><span class="p">(</span><span class="n">obs</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">mod</span><span class="o">.</span><span class="n">max</span><span class="p">())]</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">lims</span><span class="p">,</span> <span class="n">lims</span><span class="p">,</span> <span class="s2">&quot;k--&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;1:1 line&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">lims</span><span class="p">,</span> <span class="n">lims</span><span class="p">,</span> <span class="s2">"k--"</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"1:1 line"</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="c1"># Regression line</span>
     <span class="n">slope</span><span class="p">,</span> <span class="n">intercept</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">obs</span><span class="p">,</span> <span class="n">mod</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">lims</span><span class="p">,</span> <span class="p">[</span><span class="n">slope</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="n">intercept</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">lims</span><span class="p">],</span> <span class="s2">&quot;r-&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Fit: y = </span><span class="si">{</span><span class="n">slope</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">x + </span><span class="si">{</span><span class="n">intercept</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">lims</span><span class="p">,</span> <span class="p">[</span><span class="n">slope</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="n">intercept</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">lims</span><span class="p">],</span> <span class="s2">"r-"</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">"Fit: y = </span><span class="si">{</span><span class="n">slope</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">x + </span><span class="si">{</span><span class="n">intercept</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="c1"># Statistics annotation</span>
     <span class="n">stats_dict</span> <span class="o">=</span> <span class="n">validation_statistics</span><span class="p">(</span><span class="n">observed</span><span class="p">,</span> <span class="n">modelled</span><span class="p">)</span>
-    <span class="n">stats_text</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;n = </span><span class="si">{</span><span class="n">stats_dict</span><span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="sa">f</span><span class="s2">&quot;$R^2$ = </span><span class="si">{</span><span class="n">stats_dict</span><span class="p">[</span><span class="s1">&#39;r2&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="sa">f</span><span class="s2">&quot;RMSE = </span><span class="si">{</span><span class="n">stats_dict</span><span class="p">[</span><span class="s1">&#39;rmse&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="sa">f</span><span class="s2">&quot;Bias = </span><span class="si">{</span><span class="n">stats_dict</span><span class="p">[</span><span class="s1">&#39;bias&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">stats_text</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">transAxes</span><span class="p">,</span> <span class="n">verticalalignment</span><span class="o">=</span><span class="s2">&quot;top&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">boxstyle</span><span class="o">=</span><span class="s2">&quot;round&quot;</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="s2">&quot;wheat&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">))</span>
+    <span class="n">stats_text</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"n = </span><span class="si">{</span><span class="n">stats_dict</span><span class="p">[</span><span class="s1">'n'</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span> <span class="sa">f</span><span class="s2">"$R^2$ = </span><span class="si">{</span><span class="n">stats_dict</span><span class="p">[</span><span class="s1">'r2'</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span> <span class="sa">f</span><span class="s2">"RMSE = </span><span class="si">{</span><span class="n">stats_dict</span><span class="p">[</span><span class="s1">'rmse'</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span> <span class="sa">f</span><span class="s2">"Bias = </span><span class="si">{</span><span class="n">stats_dict</span><span class="p">[</span><span class="s1">'bias'</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">stats_text</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">transAxes</span><span class="p">,</span> <span class="n">verticalalignment</span><span class="o">=</span><span class="s2">"top"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">boxstyle</span><span class="o">=</span><span class="s2">"round"</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="s2">"wheat"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">))</span>
 
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Observed </span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Modelled </span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s2"> Validation&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&quot;lower right&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">,</span> <span class="n">adjustable</span><span class="o">=</span><span class="s2">&quot;box&quot;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Observed </span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Modelled </span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s2"> Validation"</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">"lower right"</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">"equal"</span><span class="p">,</span> <span class="n">adjustable</span><span class="o">=</span><span class="s2">"box"</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">ax</span>
 
 
 <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
-<span class="n">validation_scatter</span><span class="p">(</span><span class="n">tair_forcing</span><span class="p">,</span> <span class="n">t2_model</span><span class="p">,</span> <span class="s2">&quot;Air Temperature&quot;</span><span class="p">,</span> <span class="s2">&quot;degC&quot;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+<span class="n">validation_scatter</span><span class="p">(</span><span class="n">tair_forcing</span><span class="p">,</span> <span class="n">t2_model</span><span class="p">,</span> <span class="s2">"Air Temperature"</span><span class="p">,</span> <span class="s2">"degC"</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -1163,24 +1164,24 @@ indicate numerical precision limits only.
 <h2><span class="section-number">3.5.11. </span>Exporting Results<a class="headerlink" href="#exporting-results" title="Link to this heading">#</a></h2>
 <p>Save results in various formats for further analysis.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Export to CSV</span>
-<span class="n">export_vars</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;QN&quot;</span><span class="p">,</span> <span class="s2">&quot;QH&quot;</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">,</span> <span class="s2">&quot;QS&quot;</span><span class="p">,</span> <span class="s2">&quot;T2&quot;</span><span class="p">,</span> <span class="s2">&quot;RH2&quot;</span><span class="p">]</span>
+<span class="n">export_vars</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"QN"</span><span class="p">,</span> <span class="s2">"QH"</span><span class="p">,</span> <span class="s2">"QE"</span><span class="p">,</span> <span class="s2">"QS"</span><span class="p">,</span> <span class="s2">"T2"</span><span class="p">,</span> <span class="s2">"RH2"</span><span class="p">]</span>
 <span class="n">export_df</span> <span class="o">=</span> <span class="n">get_vars</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">export_vars</span><span class="p">)</span>
-<span class="c1"># export_df.to_csv(&#39;suews_output.csv&#39;)  # Uncomment to save</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Export DataFrame shape: </span><span class="si">{</span><span class="n">export_df</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ready to save with: export_df.to_csv(&#39;suews_output.csv&#39;)&quot;</span><span class="p">)</span>
+<span class="c1"># export_df.to_csv('suews_output.csv')  # Uncomment to save</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Export DataFrame shape: </span><span class="si">{</span><span class="n">export_df</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Ready to save with: export_df.to_csv('suews_output.csv')"</span><span class="p">)</span>
 
 <span class="c1"># Export final state for restart runs</span>
 <span class="n">final_state</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">state_final</span>
-<span class="c1"># final_state.to_csv(&#39;final_state.csv&#39;)  # Uncomment to save</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Final state shape: </span><span class="si">{</span><span class="n">final_state</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Ready to save with: final_state.to_csv(&#39;final_state.csv&#39;)&quot;</span><span class="p">)</span>
+<span class="c1"># final_state.to_csv('final_state.csv')  # Uncomment to save</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Final state shape: </span><span class="si">{</span><span class="n">final_state</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Ready to save with: final_state.to_csv('final_state.csv')"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Export DataFrame shape: (105408, 6)
-Ready to save with: export_df.to_csv(&#39;suews_output.csv&#39;)
+Ready to save with: export_df.to_csv('suews_output.csv')
 
 Final state shape: (2, 2860)
-Ready to save with: final_state.to_csv(&#39;final_state.csv&#39;)
+Ready to save with: final_state.to_csv('final_state.csv')
 </pre></div>
 </div>
 </section>
@@ -1304,7 +1305,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-14.
+  Last updated on 2026-08-19.
   <br/>
 </p>
   </div>
@@ -1312,8 +1313,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.14.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a28a69fff1e12c42a5f9f2d1306d94080f407cc4">a28a69f</a> |
+  <p>Version: 2026.8.19.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a2058b1803415229424bed33a2a6beebf552f8e3">a2058b1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

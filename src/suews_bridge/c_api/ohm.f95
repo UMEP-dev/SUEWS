@@ -21,7 +21,7 @@ use module_c_api_common, only: &
    SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer, suews_capi_error_text
 use module_ctrl_const_allocate, only: nsurf
-use module_type_surface, only: OHM_STATE
+use module_type_surface, only: OHM_STATE, ANOHM_MAX_SAMPLES
 
 implicit none
 
@@ -46,8 +46,16 @@ integer(c_int), parameter, public :: SUEWS_CAPI_NSURF = nsurf
 ! + 7 (dyn_a2, same order)
 ! + 7 (dyn_a3, same order)
 ! + 1 (iter_safe as 0/1)
-integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_LEN = 53_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_SCHEMA_VERSION = 1_c_int
+! + 2 (AnOHM working day/count)
+! + 7*48 (AnOHM working forcing arrays)
+! + 3 (AnOHM coefficient day/count/ready)
+! + 7*48 (AnOHM coefficient forcing arrays)
+! + 3*7 (AnOHM surface coefficients)
+integer(c_int), parameter :: SUEWS_CAPI_OHM_STATE_V1_LEN = 53_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_LEN = &
+   SUEWS_CAPI_OHM_STATE_V1_LEN + 5_c_int + &
+   14_c_int * int(ANOHM_MAX_SAMPLES, c_int) + 3_c_int * int(nsurf, c_int)
+integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_SCHEMA_VERSION = 2_c_int
 
 public :: suews_ohm_qs_calc
 public :: suews_ohm_dqndt_step
@@ -57,6 +65,7 @@ public :: suews_ohm_state_schema_version
 public :: suews_ohm_state_default
 public :: suews_ohm_state_step
 public :: suews_ohm_error_message
+public :: ohm_state_pack
 public :: ohm_state_unpack
 
 contains
@@ -293,7 +302,65 @@ subroutine ohm_state_pack(state, flat, n_flat, err)
    flat(idx) = state%a3_bsoil; idx = idx + 1
    flat(idx) = state%a3_water; idx = idx + 1
 
-   flat(idx) = merge(1.0_c_double, 0.0_c_double, state%iter_safe)
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, state%iter_safe); idx = idx + 1
+
+   flat(idx) = real(state%anohm_working_day, c_double); idx = idx + 1
+   flat(idx) = real(state%anohm_working_count, c_double); idx = idx + 1
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_working_tHr(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_working_sd(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_working_ta(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_working_rh(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_working_pres(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_working_ws(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_working_ah(i); idx = idx + 1
+   end do
+
+   flat(idx) = real(state%anohm_coeff_day, c_double); idx = idx + 1
+   flat(idx) = real(state%anohm_coeff_count, c_double); idx = idx + 1
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, state%anohm_coeff_ready); idx = idx + 1
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_coeff_tHr(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_coeff_sd(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_coeff_ta(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_coeff_rh(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_coeff_pres(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_coeff_ws(i); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      flat(idx) = state%anohm_coeff_ah(i); idx = idx + 1
+   end do
+   do i = 1, nsurf
+      flat(idx) = state%anohm_a1_surf(i); idx = idx + 1
+   end do
+   do i = 1, nsurf
+      flat(idx) = state%anohm_a2_surf(i); idx = idx + 1
+   end do
+   do i = 1, nsurf
+      flat(idx) = state%anohm_a3_surf(i); idx = idx + 1
+   end do
 
    err = SUEWS_CAPI_OK
 
@@ -365,7 +432,65 @@ subroutine ohm_state_unpack(flat, n_flat, state, err)
    state%a3_bsoil = flat(idx); idx = idx + 1
    state%a3_water = flat(idx); idx = idx + 1
 
-   state%iter_safe = flat(idx)>=0.5_c_double
+   state%iter_safe = flat(idx)>=0.5_c_double; idx = idx + 1
+
+   state%anohm_working_day = int(nint(flat(idx))); idx = idx + 1
+   state%anohm_working_count = int(nint(flat(idx))); idx = idx + 1
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_working_tHr(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_working_sd(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_working_ta(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_working_rh(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_working_pres(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_working_ws(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_working_ah(i) = flat(idx); idx = idx + 1
+   end do
+
+   state%anohm_coeff_day = int(nint(flat(idx))); idx = idx + 1
+   state%anohm_coeff_count = int(nint(flat(idx))); idx = idx + 1
+   state%anohm_coeff_ready = flat(idx)>=0.5_c_double; idx = idx + 1
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_coeff_tHr(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_coeff_sd(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_coeff_ta(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_coeff_rh(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_coeff_pres(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_coeff_ws(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, ANOHM_MAX_SAMPLES
+      state%anohm_coeff_ah(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, nsurf
+      state%anohm_a1_surf(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, nsurf
+      state%anohm_a2_surf(i) = flat(idx); idx = idx + 1
+   end do
+   do i = 1, nsurf
+      state%anohm_a3_surf(i) = flat(idx); idx = idx + 1
+   end do
 
    err = SUEWS_CAPI_OK
 

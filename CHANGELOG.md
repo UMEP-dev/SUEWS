@@ -158,10 +158,11 @@ EXAMPLES:
 - [maintenance] Refreshed the STEBBS building-energy regression fixture for the SPARTACUS longwave changes in #1570
   - Regenerated `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` so `QHload_cooling_FA` matches the updated longwave environment around the building. #1570 switched the SPARTACUS canyon clear-air longwave source from the forcing air temperature to the RSL-interpolated in-canopy temperature, which runs ~1 K warmer by day; incoming longwave on the wall rises, indoor air temperature increases ~0.5 K, and the threshold-driven cooling load switches on earlier (peak 28 W vs 19 W). Shortwave inputs, heating, lighting and water-mains outputs are unchanged.
 - [feature][experimental] Revived the AnOHM analytical storage-heat scheme (`StorageHeatMethod=3`), disabled since 2023, kept as an internal / not-recommended option (supersedes the stalled #1018)
-  - Replaced the future-data forcing dependency with a rolling trailing-day buffer on `OHM_STATE`, so coefficients are diagnosed from the most recently completed day
+  - Replaced the future-data forcing dependency with a calendar-day double buffer on `OHM_STATE`, so coefficients are diagnosed from the most recently completed day
   - Removed the minpack dependency: the diurnal sinusoid fit is now closed-form least squares and the Bowen-ratio fixed point a bounded damped iteration, both QGIS-safe (no stdout writes)
   - Fixed an inverted `MIN`/`MAX` clamp on surface temperature in the Bowen-ratio residual that forced it to <= -40 degC
-  - Added `test/physics/test_anohm_revival.py` (runs end-to-end, finite QS, AnOHM path engaged, stays internal)
+  - Persisted both AnOHM buffers, their readiness state and diagnosed surface coefficients through the versioned C/Rust `OHM_STATE` codec; version-1 payloads remain readable with default inactive AnOHM fields
+  - Added `test/physics/test_anohm_revival.py` (runs end-to-end, engages AnOHM after buffer fill, and verifies checkpoint/chunk parity for state, path and output)
 
 ### 24 Jun 2026
 

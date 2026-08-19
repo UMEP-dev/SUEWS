@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
+import json
 from pathlib import Path
 import re
 
@@ -141,6 +142,56 @@ def test_api_lane_installs_xdist_contract_without_parallelising_main_suite() -> 
     )
     assert main_invocation is not None
     assert re.search(r"(?:^|\s)-n(?:\s|$)", main_invocation.group()) is None
+
+
+@pytest.mark.smoke
+def test_api_lane_consumes_mcp_artifact_after_build() -> None:
+    """The API matrix installs the MCP wheel only after both builds succeed."""
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    api_job = caller["jobs"]["test_api_cross_python"]
+    assert {"determine_matrix", "build_wheels", "build_mcp"} <= set(api_job["needs"])
+    assert "needs.build_mcp.result == 'success'" in api_job["if"]
+
+    api_workflow = (
+        root / ".github/workflows/test-api-cross-python-reusable.yml"
+    ).read_text(encoding="utf-8")
+    assert "name: suews-mcp-dist" in api_workflow
+    assert "path: mcp-dist/" in api_workflow
+    assert "python -m pip install wheelhouse/*.whl mcp-dist/*.whl" in api_workflow
+
+    declared_needs = json.loads(
+        (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
+    )
+    assert "Build MCP package" in declared_needs["API cross-CPython tests / *"]
+
+
+@pytest.mark.smoke
+def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
+    """Missing SDK, executable or protocol nodes cannot silently pass CI."""
+    root = Path(__file__).resolve().parents[2]
+    api_workflow = (
+        root / ".github/workflows/test-api-cross-python-reusable.yml"
+    ).read_text(encoding="utf-8")
+
+    for required in (
+        "from mcp.client.session import ClientSession",
+        "from mcp.client.stdio import StdioServerParameters, stdio_client",
+        "active_bin_dir = Path(sys.executable).parent",
+        'shutil.which("suews-mcp", path=str(active_bin_dir))',
+        "python -m pytest --collect-only test/mcp/test_protocol_handshake.py",
+        '-m "$MARKER_EXPR" -q',
+    ):
+        assert required in api_workflow
+
+    protocol_test = (root / "test/mcp/test_protocol_handshake.py").read_text(
+        encoding="utf-8"
+    )
+    assert "pytestmark = [pytest.mark.api, pytest.mark.smoke]" in protocol_test
 
 
 @pytest.mark.core

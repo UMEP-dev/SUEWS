@@ -14,7 +14,9 @@ authors = [
 ]
 dependencies = [
     "supy",
-    "mcp>=1.2",
+    # MCP 2 removed the ``mcp.server.fastmcp`` API used by this server. Keep
+    # installs on the supported SDK major until the server is migrated.
+    "mcp>=1.2,<2",
     # Directly consumed by `server._async_offload` to push blocking CLI calls
     # off the FastMCP event loop (gh#1412). It is already a transitive dep of
     # `mcp`, but the server uses it as a first-class import so we declare it

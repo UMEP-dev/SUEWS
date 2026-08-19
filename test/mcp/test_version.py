@@ -45,6 +45,15 @@ def test_mcp_pyproject_uses_generated_dynamic_version() -> None:
     assert 'version = { attr = "suews_mcp.__version__" }' in text
 
 
+@pytest.mark.smoke
+def test_mcp_pyproject_caps_supported_sdk_major() -> None:
+    """Wheel installs cannot resolve MCP 2, which removed FastMCP's API path."""
+    pyproject = REPO_ROOT / "mcp" / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+
+    assert '"mcp>=1.2,<2"' in text
+
+
 def test_version_script_writes_supy_and_mcp_version_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

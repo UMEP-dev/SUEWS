@@ -32,7 +32,7 @@ import sys
 
 def _write_outputs(build: bool, package: bool) -> None:
     output = os.environ["GITHUB_OUTPUT"]
-    with open(output, "a") as f:
+    with open(output, "a", encoding="utf-8") as f:
         f.write(f"build_relevant={'true' if build else 'false'}\n")
         f.write(f"package_relevant={'true' if package else 'false'}\n")
 

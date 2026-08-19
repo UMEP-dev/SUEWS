@@ -15,6 +15,7 @@ Covers two follow-up regressions after gh#1304:
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -60,8 +61,6 @@ def _git(repo: Path, *args: str) -> str:
 
 
 def _path_env() -> str:
-    import os
-
     return os.environ.get("PATH", "/usr/bin:/bin")
 
 
@@ -80,8 +79,8 @@ def branched_repo(tmp_path: Path) -> Path:
     """Build a miniature repo with `master` and a feature branch.
 
     Layout mirrors the real paths the script watches so the watched
-    prefix logic matches: `src/supy/data_model/schema/version.py` and a
-    sibling file under `src/supy/data_model/`.
+    prefix logic matches: `src/supy/data_model/configuration/version.py` and a
+    YAML-owned model under `src/supy/data_model/core/`.
 
     Timeline:
       1. master commit sets CURRENT_SCHEMA_VERSION="1.0".
@@ -92,10 +91,13 @@ def branched_repo(tmp_path: Path) -> Path:
     """
     repo = tmp_path / "repo"
     repo.mkdir()
-    _git(repo, "init", "-q", "-b", "master")
+    # Git 2.28 added `git init -b`; set the unborn branch explicitly so this
+    # fixture also works with older Git versions used by supported platforms.
+    _git(repo, "init", "-q")
+    _git(repo, "symbolic-ref", "HEAD", "refs/heads/master")
 
-    version_rel = "src/supy/data_model/schema/version.py"
-    sibling_rel = "src/supy/data_model/sample.py"
+    version_rel = "src/supy/data_model/configuration/version.py"
+    sibling_rel = "src/supy/data_model/core/model.py"
 
     _write(repo, version_rel, _make_version_file("1.0"))
     _write(repo, sibling_rel, "# initial\n")
@@ -116,7 +118,9 @@ def branched_repo(tmp_path: Path) -> Path:
 
 
 def test_merge_base_ignores_unrelated_master_bump(
-    branched_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    branched_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A bump that lands on `master` after divergence must NOT be
     attributed to this branch. Reading from the merge-base keeps the
@@ -146,12 +150,13 @@ def test_main_entry_chdirs_to_repo_root(branched_repo: Path) -> None:
     target_dir = branched_repo / "scripts" / "lint"
     target_dir.mkdir(parents=True)
     script_copy = target_dir / SCRIPT_PATH.name
-    script_copy.write_text(SCRIPT_PATH.read_text(), encoding="utf-8")
+    script_copy.write_text(SCRIPT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
     nested = branched_repo / "src"
     assert nested.is_dir()
 
     result = subprocess.run(
         [sys.executable, str(script_copy), "--base", "master"],
+        check=False,
         cwd=nested,
         capture_output=True,
         text=True,
@@ -175,17 +180,40 @@ def test_extract_current_schema_version_parses_literal() -> None:
         'CURRENT_SCHEMA_VERSION = "2026.4"\n'
         "more_code = 1\n"
     )
-    assert (
-        check_schema_version_bump._extract_current_schema_version(source)
-        == "2026.4"
-    )
+    assert check_schema_version_bump._extract_current_schema_version(source) == "2026.4"
 
 
 def test_extract_current_schema_version_returns_none_when_missing() -> None:
     """An unrecognisable file must return None rather than guess."""
     assert (
-        check_schema_version_bump._extract_current_schema_version(
-            "some other file\n"
-        )
+        check_schema_version_bump._extract_current_schema_version("some other file\n")
         is None
     )
+
+
+@pytest.mark.parametrize(
+    ("path", "watched"),
+    [
+        ("src/supy/data_model/core/config.py", True),
+        ("src/supy/data_model/core/model.py", True),
+        ("src/supy/sample_data/sample_config.yml", True),
+        ("src/supy/data_model/core/__init__.py", False),
+        ("src/supy/data_model/core/forcing_validation.py", False),
+        ("src/supy/data_model/core/df_column_renames.py", False),
+        ("src/supy/data_model/output/variables.py", False),
+        ("src/supy/data_model/forcing/variables.py", False),
+        ("src/supy/data_model/interfaces/version.py", False),
+        ("src/supy/data_model/validation/core/controller.py", False),
+    ],
+)
+def test_only_yaml_owned_paths_are_watched(path: str, watched: bool) -> None:
+    assert check_schema_version_bump._is_watched(path) is watched
+
+
+def test_name_status_keeps_both_sides_of_a_rename() -> None:
+    output = "R100\0src/supy/data_model/core/model.py\0src/supy/internal.py\0"
+
+    assert check_schema_version_bump._paths_from_name_status(output) == {
+        "src/supy/data_model/core/model.py",
+        "src/supy/internal.py",
+    }

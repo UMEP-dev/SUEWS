@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
+from ._filename import safe_filename_component
 from .suews_checkpoint import SUEWSCheckpoint
 
 
@@ -380,7 +381,8 @@ class SUEWSOutput:
         for group in self.groups:
             try:
                 vars_in_group = (
-                    self._df_output[group]
+                    self
+                    ._df_output[group]
                     .columns.get_level_values("var")
                     .unique()
                     .tolist()
@@ -413,9 +415,9 @@ class SUEWSOutput:
         SUEWSOutput
             New output at resampled frequency
         """
-        from ._post import resample_output
+        from ._post import _resample_output
 
-        resampled = resample_output(self, freq, _internal=True)
+        resampled = _resample_output(self, freq)
         return SUEWSOutput(
             df_output=resampled,
             df_state_final=self._df_state_final,
@@ -431,7 +433,7 @@ class SUEWSOutput:
     def save(
         self,
         path: Union[str, Path] = ".",
-        format: str = "parquet",
+        format: Optional[str] = None,
         freq_s: Optional[int] = None,
         groups: Optional[List[str]] = None,
     ) -> List[Path]:
@@ -442,8 +444,12 @@ class SUEWSOutput:
         ----------
         path : str or Path
             Output directory
-        format : str
-            'txt' or 'parquet'
+        format : str, optional
+            'txt' or 'parquet'. When ``None`` (the default), the format
+            stored in the run configuration
+            (``model.control.output.format``) is used, falling back to
+            'txt' if no configuration is available. An explicit value
+            always overrides the configuration.
         freq_s : int, optional
             Output frequency in seconds (default: from config or 3600)
         groups : list, optional
@@ -463,6 +469,7 @@ class SUEWSOutput:
         freq = freq_s or 3600
         site = ""
         output_config = None
+        forcing_timestamp_reference = "local_standard_time"
 
         if self._config:
             try:
@@ -473,10 +480,16 @@ class SUEWSOutput:
                         if hasattr(output_control, "freq") and output_control.freq:
                             freq = freq_s or output_control.freq
                         output_config = output_control
+                    if hasattr(control, "forcing"):
+                        forcing_timestamp_reference = (
+                            control.forcing.timestamp_reference
+                        )
                 if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                     site = self._config.sites[0].name
             except AttributeError:
                 pass
+
+        site_filename = safe_filename_component(site)
 
         list_path_save = _save_supy(
             df_output=self._df_output,
@@ -487,11 +500,14 @@ class SUEWSOutput:
             output_config=output_config,
             output_format=format,
             save_state=False,
+            forcing_timestamp_reference=forcing_timestamp_reference,
         )
 
         if self._checkpoint is not None:
             checkpoint_name = (
-                f"{site}_SUEWS_checkpoint.json" if site else "SUEWS_checkpoint.json"
+                f"{site_filename}_SUEWS_checkpoint.json"
+                if site_filename
+                else "SUEWS_checkpoint.json"
             )
             checkpoint_path = self._checkpoint.to_file(path / checkpoint_name)
             list_path_save.append(checkpoint_path)

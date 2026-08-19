@@ -125,7 +125,9 @@ pub fn write_output_arrow(
     })?;
 
     // Transpose row-major buffer into column vectors.
-    let mut columns: Vec<Vec<f64>> = vec![Vec::with_capacity(len_sim); OUTPUT_ALL_COLS];
+    let mut columns: Vec<Vec<f64>> = (0..OUTPUT_ALL_COLS)
+        .map(|_| Vec::with_capacity(len_sim))
+        .collect();
     for row_idx in 0..len_sim {
         let base = row_idx * OUTPUT_ALL_COLS;
         for col_idx in 0..OUTPUT_ALL_COLS {

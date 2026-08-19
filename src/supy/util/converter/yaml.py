@@ -246,6 +246,13 @@ def convert_to_yaml(
                     config, path_runcontrol, str(table_dir), output_path.parent
                 )
 
+                # Legacy table sets can carry initial-state values (e.g. an
+                # initial albedo) that the old Fortran ran without enforcing the
+                # modern seasonal-range check. Relax that check so the converted
+                # YAML stays faithful and still loads; the value is preserved.
+                if from_ver:
+                    config.strict_initial_state_bounds = False
+
             except Exception as e:
                 raise click.ClickException(
                     f"Failed to create configuration: {e}"

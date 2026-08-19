@@ -1,0 +1,3049 @@
+name: UK-LO-KCL Evaluation, case0
+description: Configuration based on Ward et al. (2016) model configuration for King's
+  College London, UK (UK-LO-KCL)
+model:
+  control:
+    tstep: 300
+    forcing_file:
+      value: ../forcing/Kc1_data_ldown.txt
+      ref:
+        desc: Ward 2016 forcing file, updated by Denise Hertwig to include gap filled
+          Ldown
+        ID: null
+        DOI: https://doi.org/10.5281/zenodo.17910025
+    kdownzen: null
+    output_file:
+      format: txt
+      freq: 300
+      groups:
+      - SUEWS
+      - RSL
+      - DailyState
+      - debug
+    diagnose: 0
+    start_time: '2011-01-01'
+    end_time: '2013-12-31'
+    ref: null
+  physics:
+    netradiationmethod:
+      value: 1
+      ref: null
+    emissionsmethod:
+      value: 2
+      ref: null
+    storageheatmethod:
+      value: 1
+      ref: null
+    ohmincqf:
+      value: 0
+      ref: null
+    roughlenmommethod:
+      value: 1
+      ref: null
+    roughlenheatmethod:
+      value: 2
+      ref: null
+    stabilitymethod:
+      value: 3
+      ref: null
+    smdmethod:
+      value: 0
+      ref: null
+    waterusemethod:
+      value: 0
+      ref: null
+    rslmethod:
+      value: 2
+      ref: null
+    faimethod:
+      value: 0
+      ref: null
+    rsllevel:
+      value: 0
+      ref: null
+    gsmodel:
+      value: 2
+      ref: null
+    snowuse:
+      value: 0
+      ref: null
+    stebbsmethod:
+      value: 0
+      ref: null
+    ref: null
+sites:
+- name: KCLWard
+  gridiv: 1
+  properties:
+    lat:
+      value: 51.51
+      ref: null
+    lng:
+      value: -0.12
+      ref: null
+    alt:
+      value: 10.7
+      ref: null
+    timezone:
+      value: 0
+      ref: null
+    surfacearea:
+      value: 785000.0
+      ref: null
+    z:
+      value: 40.0
+      ref: null
+    z0m_in:
+      value: 1.9
+      ref: null
+    zdm_in:
+      value: 14.2
+      ref: null
+    pipecapacity:
+      value: 100.0
+      ref: null
+    runofftowater:
+      value: 0.0
+      ref: null
+    narp_trans_site:
+      value: 1.0
+      ref: null
+    lumps:
+      raincover:
+        value: 1.0
+        ref: null
+      rainmaxres:
+        value: 10.0
+        ref: null
+      drainrt:
+        value: 0.25
+        ref: null
+      veg_type:
+        value: 1
+        ref: null
+      ref: null
+    spartacus:
+      air_ext_lw:
+        value: 0.0
+        ref: null
+      air_ext_sw:
+        value: 0.0
+        ref: null
+      air_ssa_lw:
+        value: 0.0
+        ref: null
+      air_ssa_sw:
+        value: 0.95
+        ref: null
+      ground_albedo_dir_mult_fact:
+        value: 1.0
+        ref: null
+      n_stream_lw_urban:
+        value: 4
+        ref: null
+      n_stream_sw_urban:
+        value: 4
+        ref: null
+      n_vegetation_region_urban:
+        value: 1
+        ref: null
+      sw_dn_direct_frac:
+        value: 0.45
+        ref: null
+      use_sw_direct_albedo:
+        value: 0.0
+        ref: null
+      veg_contact_fraction_const:
+        value: 0.0
+        ref: null
+      veg_fsd_const:
+        value: 0.75
+        ref: null
+      veg_ssa_lw:
+        value: 0.06
+        ref: null
+      veg_ssa_sw:
+        value: 0.46
+        ref: null
+      ref: null
+    stebbs:
+      WallInternalConvectionCoefficient: 0.0
+      InternalMassConvectionCoefficient: 0.0
+      FloorInternalConvectionCoefficient: 0.0
+      WindowInternalConvectionCoefficient: 0.0
+      WallExternalConvectionCoefficient: 0.0
+      WindowExternalConvectionCoefficient: 0.0
+      GroundDepth: 0.0
+      ExternalGroundConductivity: 0.0
+      IndoorAirDensity: 0.0
+      IndoorAirCp: 0.0
+      WallBuildingViewFactor: 0.0
+      WallGroundViewFactor: 0.0
+      WallSkyViewFactor: 0.0
+      MetabolicRate: 0.0
+      LatentSensibleRatio: 0.0
+      ApplianceRating: 0.0
+      TotalNumberofAppliances: 0.0
+      ApplianceUsageFactor: 0.0
+      HeatingSystemEfficiency: 0.0
+      MaxCoolingPower: 0.0
+      CoolingSystemCOP: 0.0
+      VentilationRate: 0.0
+      IndoorAirStartTemperature: 0.0
+      IndoorMassStartTemperature: 0.0
+      WallIndoorSurfaceTemperature: 0.0
+      WallOutdoorSurfaceTemperature: 0.0
+      WindowIndoorSurfaceTemperature: 0.0
+      WindowOutdoorSurfaceTemperature: 0.0
+      GroundFloorIndoorSurfaceTemperature: 0.0
+      GroundFloorOutdoorSurfaceTemperature: 0.0
+      WaterTankTemperature: 0.0
+      InternalWallWaterTankTemperature: 0.0
+      ExternalWallWaterTankTemperature: 0.0
+      WaterTankWallThickness: 0.0
+      MainsWaterTemperature: 0.0
+      WaterTankSurfaceArea: 0.0
+      HotWaterHeatingSetpointTemperature: 0.0
+      HotWaterTankWallEmissivity: 0.0
+      DomesticHotWaterTemperatureInUseInBuilding: 0.0
+      InternalWallDHWVesselTemperature: 0.0
+      ExternalWallDHWVesselTemperature: 0.0
+      DHWVesselWallThickness: 0.0
+      DHWWaterVolume: 0.0
+      DHWSurfaceArea: 0.0
+      DHWVesselEmissivity: 0.0
+      HotWaterFlowRate: 0.0
+      DHWDrainFlowRate: 0.0
+      DHWSpecificHeatCapacity: 0.0
+      HotWaterTankSpecificHeatCapacity: 0.0
+      DHWVesselSpecificHeatCapacity: 0.0
+      DHWDensity: 0.0
+      HotWaterTankWallDensity: 0.0
+      DHWVesselDensity: 0.0
+      HotWaterTankBuildingWallViewFactor: 0.0
+      HotWaterTankInternalMassViewFactor: 0.0
+      HotWaterTankWallConductivity: 0.0
+      HotWaterTankInternalWallConvectionCoefficient: 0.0
+      HotWaterTankExternalWallConvectionCoefficient: 0.0
+      DHWVesselWallConductivity: 0.0
+      DHWVesselInternalWallConvectionCoefficient: 0.0
+      DHWVesselExternalWallConvectionCoefficient: 0.0
+      DHWVesselWallEmissivity: 0.0
+      HotWaterHeatingEfficiency: 0.0
+      MinimumVolumeOfDHWinUse: 0.0
+      ref: null
+    building_archetype:
+      BuildingType: SampleType
+      BuildingName: SampleBuilding
+      BuildingCount: 1
+      Occupants: 1
+      stebbs_Height: 10.0
+      FootprintArea: 64.0
+      WallExternalArea: 80.0
+      RatioInternalVolume: 0.01
+      WWR: 0.2
+      WallThickness: 20.0
+      WallEffectiveConductivity: 60.0
+      WallDensity: 1600.0
+      WallCp: 850.0
+      Wallx1: 1.0
+      WallExternalEmissivity: 0.9
+      WallInternalEmissivity: 0.9
+      WallTransmissivity: 0.0
+      WallAbsorbtivity: 0.8
+      WallReflectivity: 0.2
+      FloorThickness: 0.2
+      GroundFloorEffectiveConductivity: 0.15
+      GroundFloorDensity: 500.0
+      GroundFloorCp: 1500.0
+      WindowThickness: 0.015
+      WindowEffectiveConductivity: 1.0
+      WindowDensity: 2500.0
+      WindowCp: 840.0
+      WindowExternalEmissivity: 0.9
+      WindowInternalEmissivity: 0.9
+      WindowTransmissivity: 0.9
+      WindowAbsorbtivity: 0.01
+      WindowReflectivity: 0.09
+      InternalMassDensity: 0.0
+      InternalMassCp: 0.0
+      InternalMassEmissivity: 0.0
+      MaxHeatingPower: 0.0
+      WaterTankWaterVolume: 0.0
+      MaximumHotWaterHeatingPower: 0.0
+      HeatingSetpointTemperature: 0.0
+      CoolingSetpointTemperature: 0.0
+      ref: null
+    conductance:
+      g_max:
+        value: 3.5
+        ref: null
+      g_k:
+        value: 200.0
+        ref: null
+      g_q_base:
+        value: 0.13
+        ref: null
+      g_q_shape:
+        value: 0.7
+        ref: null
+      g_t:
+        value: 30.0
+        ref: null
+      g_sm:
+        value: 0.05
+        ref: null
+      kmax:
+        value: 1200.0
+        ref: null
+      s1:
+        value: 5.56
+        ref: null
+      s2:
+        value: 0.0
+        ref: null
+      tl:
+        value: -10.0
+        ref: null
+      th:
+        value: 55.0
+        ref: null
+      ref:
+        desc: null
+        ID: test id
+        DOI: test doi
+    irrigation:
+      h_maintain:
+        value: -999.0
+        ref: null
+      faut:
+        value: 0.0
+        ref: null
+      ie_start:
+        value: 1.0
+        ref: null
+      ie_end:
+        value: 366.0
+        ref: null
+      internalwateruse_h:
+        value: 0.0
+        ref: null
+      daywatper:
+        monday: 0.0
+        tuesday: 0.0
+        wednesday: 0.0
+        thursday: 0.0
+        friday: 0.0
+        saturday: 0.0
+        sunday: 0.0
+        ref: null
+      daywat:
+        monday: 0.0
+        tuesday: 0.0
+        wednesday: 0.0
+        thursday: 0.0
+        friday: 0.0
+        saturday: 0.0
+        sunday: 0.0
+        ref: null
+      wuprofa_24hr:
+        working_day:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        holiday:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        ref: null
+      wuprofm_24hr:
+        working_day:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        holiday:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        ref: null
+      ref: null
+    anthropogenic_emissions:
+      startdls:
+        value: 86.0
+        ref: null
+      enddls:
+        value: 303.0
+        ref: null
+      heat:
+        qf0_beu:
+          working_day: 0.88
+          holiday: 0.88
+          ref: null
+        qf_a:
+          working_day: 0.3743
+          holiday: 0.3412
+          ref: null
+        qf_b:
+          working_day: 0.0
+          holiday: 0.0
+          ref: null
+        qf_c:
+          working_day: 0.0073
+          holiday: 0.0067
+          ref: null
+        baset_cooling:
+          working_day: 18.2
+          holiday: 18.2
+          ref: null
+        baset_heating:
+          working_day: 18.2
+          holiday: 18.2
+          ref: null
+        ah_min:
+          working_day: 15.0
+          holiday: 15.0
+          ref: null
+        ah_slope_cooling:
+          working_day: 2.7
+          holiday: 2.7
+          ref: null
+        ah_slope_heating:
+          working_day: 2.7
+          holiday: 2.7
+          ref: null
+        ahprof_24hr:
+          working_day:
+            '1': 0.57
+            '2': 0.45
+            '3': 0.43
+            '4': 0.4
+            '5': 0.4
+            '6': 0.45
+            '7': 0.71
+            '8': 1.2
+            '9': 1.44
+            '10': 1.29
+            '11': 1.28
+            '12': 1.31
+            '13': 1.3
+            '14': 1.32
+            '15': 1.35
+            '16': 1.44
+            '17': 1.51
+            '18': 1.41
+            '19': 1.14
+            '20': 0.99
+            '21': 0.86
+            '22': 0.85
+            '23': 0.8
+            '24': 0.7
+          holiday:
+            '1': 0.65
+            '2': 0.49
+            '3': 0.46
+            '4': 0.47
+            '5': 0.47
+            '6': 0.53
+            '7': 0.7
+            '8': 1.13
+            '9': 1.37
+            '10': 1.37
+            '11': 1.3
+            '12': 1.37
+            '13': 1.33
+            '14': 1.3
+            '15': 1.27
+            '16': 1.36
+            '17': 1.44
+            '18': 1.3
+            '19': 1.1
+            '20': 0.98
+            '21': 0.84
+            '22': 0.9
+            '23': 0.87
+            '24': 0.74
+          ref: null
+        popdensdaytime:
+          working_day: 204.58
+          holiday: 204.58
+          ref: null
+        popdensnighttime: 204.58
+        popprof_24hr:
+          working_day:
+            '1': 0.57
+            '2': 0.45
+            '3': 0.43
+            '4': 0.4
+            '5': 0.4
+            '6': 0.45
+            '7': 0.71
+            '8': 1.2
+            '9': 1.44
+            '10': 1.29
+            '11': 1.28
+            '12': 1.31
+            '13': 1.3
+            '14': 1.32
+            '15': 1.35
+            '16': 1.44
+            '17': 1.51
+            '18': 1.41
+            '19': 1.14
+            '20': 0.99
+            '21': 0.86
+            '22': 0.85
+            '23': 0.8
+            '24': 0.7
+          holiday:
+            '1': 0.65
+            '2': 0.49
+            '3': 0.46
+            '4': 0.47
+            '5': 0.47
+            '6': 0.53
+            '7': 0.7
+            '8': 1.13
+            '9': 1.37
+            '10': 1.37
+            '11': 1.3
+            '12': 1.37
+            '13': 1.33
+            '14': 1.3
+            '15': 1.27
+            '16': 1.36
+            '17': 1.44
+            '18': 1.3
+            '19': 1.1
+            '20': 0.98
+            '21': 0.84
+            '22': 0.9
+            '23': 0.87
+            '24': 0.74
+          ref: null
+        ref: null
+      co2:
+        co2pointsource:
+          value: 0.0
+          ref: null
+        ef_umolco2perj:
+          value: 1.159
+          ref: null
+        enef_v_jkm:
+          value: 3970000.0
+          ref: null
+        fcef_v_kgkm:
+          working_day: 0.285
+          holiday: 0.285
+          ref: null
+        frfossilfuel_heat:
+          value: 0.05
+          ref: null
+        frfossilfuel_nonheat:
+          value: 0.0
+          ref: null
+        maxfcmetab:
+          value: 280.0
+          ref: null
+        maxqfmetab:
+          value: 175.0
+          ref: null
+        minfcmetab:
+          value: 120.0
+          ref: null
+        minqfmetab:
+          value: 75.0
+          ref: null
+        trafficrate:
+          working_day: 0.01
+          holiday: 0.01
+          ref: null
+        trafficunits:
+          value: 1.0
+          ref: null
+        traffprof_24hr:
+          working_day:
+            '1': 0.57
+            '2': 0.45
+            '3': 0.43
+            '4': 0.4
+            '5': 0.4
+            '6': 0.45
+            '7': 0.71
+            '8': 1.2
+            '9': 1.44
+            '10': 1.29
+            '11': 1.28
+            '12': 1.31
+            '13': 1.3
+            '14': 1.32
+            '15': 1.35
+            '16': 1.44
+            '17': 1.51
+            '18': 1.41
+            '19': 1.14
+            '20': 0.99
+            '21': 0.86
+            '22': 0.85
+            '23': 0.8
+            '24': 0.7
+          holiday:
+            '1': 0.57
+            '2': 0.45
+            '3': 0.43
+            '4': 0.4
+            '5': 0.4
+            '6': 0.45
+            '7': 0.71
+            '8': 1.2
+            '9': 1.44
+            '10': 1.29
+            '11': 1.28
+            '12': 1.31
+            '13': 1.3
+            '14': 1.32
+            '15': 1.35
+            '16': 1.44
+            '17': 1.51
+            '18': 1.41
+            '19': 1.14
+            '20': 0.99
+            '21': 0.86
+            '22': 0.85
+            '23': 0.8
+            '24': 0.7
+          ref: null
+        humactivity_24hr:
+          working_day:
+            '1': 0.57
+            '2': 0.45
+            '3': 0.43
+            '4': 0.4
+            '5': 0.4
+            '6': 0.45
+            '7': 0.71
+            '8': 1.2
+            '9': 1.44
+            '10': 1.29
+            '11': 1.28
+            '12': 1.31
+            '13': 1.3
+            '14': 1.32
+            '15': 1.35
+            '16': 1.44
+            '17': 1.51
+            '18': 1.41
+            '19': 1.14
+            '20': 0.99
+            '21': 0.86
+            '22': 0.85
+            '23': 0.8
+            '24': 0.7
+          holiday:
+            '1': 0.57
+            '2': 0.45
+            '3': 0.43
+            '4': 0.4
+            '5': 0.4
+            '6': 0.45
+            '7': 0.71
+            '8': 1.2
+            '9': 1.44
+            '10': 1.29
+            '11': 1.28
+            '12': 1.31
+            '13': 1.3
+            '14': 1.32
+            '15': 1.35
+            '16': 1.44
+            '17': 1.51
+            '18': 1.41
+            '19': 1.14
+            '20': 0.99
+            '21': 0.86
+            '22': 0.85
+            '23': 0.8
+            '24': 0.7
+          ref: null
+        ref: null
+      ref: null
+    snow:
+      crwmax:
+        value: 0.1
+        ref: null
+      crwmin:
+        value: 0.03
+        ref: null
+      narp_emis_snow:
+        value: 0.99
+        ref: null
+      preciplimit:
+        value: 2.2
+        ref: null
+      preciplimitalb:
+        value: 2.0
+        ref: null
+      snowalbmax:
+        value: 0.8
+        ref: null
+      snowalbmin:
+        value: 0.18
+        ref: null
+      snowdensmin:
+        value: 100.0
+        ref: null
+      snowdensmax:
+        value: 450.0
+        ref: null
+      snowlimbldg:
+        value: -999.0
+        ref: null
+      snowlimpaved:
+        value: -999.0
+        ref: null
+      snowprof_24hr:
+        working_day:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        holiday:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        ref: null
+      tau_a:
+        value: 0.01
+        ref: null
+      tau_f:
+        value: 0.1
+        ref: null
+      tau_r:
+        value: 0.02
+        ref: null
+      tempmeltfact:
+        value: 0.14
+        ref: null
+      radmeltfact:
+        value: 0.001
+        ref: null
+      ref: null
+    land_cover:
+      paved:
+        sfr:
+          value: 0.43
+          ref: null
+        emis:
+          value: 0.95
+          ref: null
+        ch_anohm: 0.0
+        rho_cp_anohm: 1200.0
+        k_anohm: 0.4
+        ohm_threshsw:
+          value: 10.0
+          ref: null
+        ohm_threshwd:
+          value: 0.9
+          ref: null
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.722
+              ref: null
+            a2:
+              value: 0.3
+              ref: null
+            a3:
+              value: -36.14
+              ref: null
+            ref: null
+          summer_wet:
+            a1:
+              value: 0.722
+              ref: null
+            a2:
+              value: 0.3
+              ref: null
+            a3:
+              value: -36.14
+              ref: null
+            ref: null
+          winter_dry:
+            a1:
+              value: 0.848
+              ref: null
+            a2:
+              value: 0.3
+              ref: null
+            a3:
+              value: 14.16
+              ref: null
+            ref: null
+          winter_wet:
+            a1:
+              value: 0.848
+              ref: null
+            a2:
+              value: 0.3
+              ref: null
+            a3:
+              value: 14.16
+              ref: null
+            ref: null
+          ref: null
+        soildepth:
+          value: 350.0
+          ref: null
+        soilstorecap:
+          value: 150.0
+          ref: null
+        statelimit:
+          value: 0.48
+          ref: null
+        wetthresh:
+          value: 0.6
+          ref: null
+        sathydraulicconduct:
+          value: 0.0005
+          ref: null
+        waterdist:
+          to_paved: null
+          to_bldgs:
+            value: 0.0
+            ref: null
+          to_dectr:
+            value: 0.0
+            ref: null
+          to_evetr:
+            value: 0.0
+            ref: null
+          to_grass:
+            value: 0.02
+            ref: null
+          to_bsoil:
+            value: 0.0
+            ref: null
+          to_water:
+            value: 0.0
+            ref: null
+          to_runoff:
+            value: 0.98
+            ref: null
+          to_soilstore: null
+          ref: null
+        storedrainprm:
+          store_min:
+            value: 0.48
+            ref: null
+          store_max:
+            value: 0.48
+            ref: null
+          store_cap:
+            value: 0.48
+            ref: null
+          drain_eq:
+            value: 3
+            ref: null
+          drain_coef_1:
+            value: 10.0
+            ref: null
+          drain_coef_2:
+            value: 3.0
+            ref: null
+          ref: null
+        snowpacklimit:
+          value: -999.0
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.15
+            - 0.01
+            - 0.01
+            - 0.01
+            ref: null
+          k:
+            value:
+            - 1.1
+            - 1.1
+            - 1.1
+            - 1.1
+            - 1.1
+            ref: null
+          rho_cp:
+            value:
+            - 2200000.0
+            - 2200000.0
+            - 2200000.0
+            - 2200000.0
+            - 2600000.0
+            ref: null
+          ref: null
+        irrfrac:
+          value: 0.0
+          ref: null
+        ref: null
+        alb:
+          value: 0.1
+          ref: null
+      bldgs:
+        sfr:
+          value: 0.38
+          ref: null
+        emis:
+          value: 0.91
+          ref: null
+        ch_anohm: 0.0
+        rho_cp_anohm: 1200.0
+        k_anohm: 0.4
+        ohm_threshsw:
+          value: 10.0
+          ref: null
+        ohm_threshwd:
+          value: 0.9
+          ref: null
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.51
+              ref: null
+            a2:
+              value: 0.337
+              ref: null
+            a3:
+              value: -28.85
+              ref: null
+            ref: null
+          summer_wet:
+            a1:
+              value: 0.51
+              ref: null
+            a2:
+              value: 0.337
+              ref: null
+            a3:
+              value: -28.85
+              ref: null
+            ref: null
+          winter_dry:
+            a1:
+              value: 0.598
+              ref: null
+            a2:
+              value: 0.337
+              ref: null
+            a3:
+              value: 11.3
+              ref: null
+            ref: null
+          winter_wet:
+            a1:
+              value: 0.598
+              ref: null
+            a2:
+              value: 0.337
+              ref: null
+            a3:
+              value: 11.3
+              ref: null
+            ref: null
+          ref: null
+        soildepth:
+          value: 350.0
+          ref: null
+        soilstorecap:
+          value: 150.0
+          ref: null
+        statelimit:
+          value: 0.25
+          ref: null
+        wetthresh:
+          value: 0.6
+          ref: null
+        sathydraulicconduct:
+          value: 0.0005
+          ref: null
+        waterdist:
+          to_paved:
+            value: 0.1
+            ref: null
+          to_bldgs: null
+          to_dectr:
+            value: 0.0
+            ref: null
+          to_evetr:
+            value: 0.0
+            ref: null
+          to_grass:
+            value: 0.0
+            ref: null
+          to_bsoil:
+            value: 0.0
+            ref: null
+          to_water:
+            value: 0.0
+            ref: null
+          to_runoff:
+            value: 0.9
+            ref: null
+          to_soilstore: null
+          ref: null
+        storedrainprm:
+          store_min:
+            value: 0.25
+            ref: null
+          store_max:
+            value: 0.25
+            ref: null
+          store_cap:
+            value: 0.25
+            ref: null
+          drain_eq:
+            value: 3
+            ref: null
+          drain_coef_1:
+            value: 10.0
+            ref: null
+          drain_coef_2:
+            value: 3.0
+            ref: null
+          ref: null
+        snowpacklimit:
+          value: -999.0
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.5
+            - 1.6
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+            ref: null
+          rho_cp:
+            value:
+            - 1200000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+            ref: null
+          ref: null
+        irrfrac:
+          value: 0.0
+          ref: null
+        ref: null
+        alb:
+          value: 0.12
+          ref: null
+        faibldg:
+          value: 0.11
+          ref: null
+        bldgh:
+          value: 22.0
+          ref: null
+      evetr:
+        sfr:
+          value: 0.0
+          ref: null
+        emis:
+          value: 0.98
+          ref: null
+        ch_anohm: 0.0
+        rho_cp_anohm: 1200.0
+        k_anohm: 0.4
+        ohm_threshsw:
+          value: 10.0
+          ref: null
+        ohm_threshwd:
+          value: 0.9
+          ref: null
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.23
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: -16.91
+              ref: null
+            ref: null
+          summer_wet:
+            a1:
+              value: 0.23
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: -16.91
+              ref: null
+            ref: null
+          winter_dry:
+            a1:
+              value: 0.27
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: 6.62
+              ref: null
+            ref: null
+          winter_wet:
+            a1:
+              value: 0.27
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: 6.62
+              ref: null
+            ref: null
+          ref: null
+        soildepth:
+          value: 350.0
+          ref: null
+        soilstorecap:
+          value: 150.0
+          ref: null
+        statelimit:
+          value: 1.3
+          ref: null
+        wetthresh:
+          value: 1.8
+          ref: null
+        sathydraulicconduct:
+          value: 0.0005
+          ref: null
+        waterdist:
+          to_paved:
+            value: 0.1
+            ref: null
+          to_bldgs:
+            value: 0.0
+            ref: null
+          to_dectr:
+            value: 0.0
+            ref: null
+          to_evetr: null
+          to_grass:
+            value: 0.0
+            ref: null
+          to_bsoil:
+            value: 0.0
+            ref: null
+          to_water:
+            value: 0.0
+            ref: null
+          to_runoff: null
+          to_soilstore:
+            value: 0.9
+            ref: null
+          ref: null
+        storedrainprm:
+          store_min:
+            value: 1.3
+            ref: null
+          store_max:
+            value: 1.3
+            ref: null
+          store_cap:
+            value: 1.3
+            ref: null
+          drain_eq:
+            value: 2
+            ref: null
+          drain_coef_1:
+            value: 0.013
+            ref: null
+          drain_coef_2:
+            value: 1.71
+            ref: null
+          ref: null
+        snowpacklimit:
+          value: -999.0
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.5
+            - 1.6
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+            ref: null
+          rho_cp:
+            value:
+            - 3200000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+            ref: null
+          ref: null
+        irrfrac:
+          value: 0.0
+          ref: null
+        ref: null
+        alb: 0.2
+        alb_min:
+          value: 0.1
+          ref: null
+        alb_max:
+          value: 0.1
+          ref: null
+        beta_bioco2:
+          value: 8.747
+          ref: null
+        beta_enh_bioco2:
+          value: 33.353
+          ref: null
+        alpha_bioco2:
+          value: 0.004
+          ref: null
+        alpha_enh_bioco2:
+          value: 0.016
+          ref: null
+        resp_a:
+          value: 2.43
+          ref: null
+        resp_b:
+          value: 0.0
+          ref: null
+        theta_bioco2:
+          value: 0.96
+          ref: null
+        maxconductance:
+          value: 7.4
+          ref: null
+        min_res_bioco2:
+          value: 0.6
+          ref: null
+        lai:
+          baset:
+            value: 6.0
+            ref: null
+          gddfull:
+            value: 300.0
+            ref: null
+          basete:
+            value: 11.0
+            ref: null
+          sddfull:
+            value: -450.0
+            ref: null
+          laimin:
+            value: 4.0
+            ref: null
+          laimax:
+            value: 5.1
+            ref: null
+          laipower:
+            growth_lai:
+              value: 0.04
+              ref: null
+            growth_gdd:
+              value: 0.001
+              ref: null
+            senescence_lai:
+              value: -1.5
+              ref: null
+            senescence_sdd:
+              value: 0.0015
+              ref: null
+            ref: null
+          laitype:
+            value: 1
+            ref: null
+          ref: null
+        ie_a:
+          value: 0.0
+          ref: null
+        ie_m:
+          value: 0.0
+          ref: null
+        faievetree:
+          value: 0.3
+          ref: null
+        evetreeh:
+          value: 13.1
+          ref: null
+      dectr:
+        sfr:
+          value: 0.02
+          ref: null
+        emis:
+          value: 0.98
+          ref: null
+        ch_anohm: 0.0
+        rho_cp_anohm: 1200.0
+        k_anohm: 0.4
+        ohm_threshsw:
+          value: 10.0
+          ref: null
+        ohm_threshwd:
+          value: 0.9
+          ref: null
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.23
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: -16.91
+              ref: null
+            ref: null
+          summer_wet:
+            a1:
+              value: 0.23
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: -16.91
+              ref: null
+            ref: null
+          winter_dry:
+            a1:
+              value: 0.27
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: 6.62
+              ref: null
+            ref: null
+          winter_wet:
+            a1:
+              value: 0.27
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: 6.62
+              ref: null
+            ref: null
+          ref: null
+        soildepth:
+          value: 350.0
+          ref: null
+        soilstorecap:
+          value: 150.0
+          ref: null
+        statelimit:
+          value: 0.8
+          ref: null
+        wetthresh:
+          value: 1.0
+          ref: null
+        sathydraulicconduct:
+          value: 0.0005
+          ref: null
+        waterdist:
+          to_paved:
+            value: 0.1
+            ref: null
+          to_bldgs:
+            value: 0.0
+            ref: null
+          to_dectr: null
+          to_evetr:
+            value: 0.0
+            ref: null
+          to_grass:
+            value: 0.0
+            ref: null
+          to_bsoil:
+            value: 0.0
+            ref: null
+          to_water:
+            value: 0.0
+            ref: null
+          to_runoff: null
+          to_soilstore:
+            value: 0.9
+            ref: null
+          ref: null
+        storedrainprm:
+          store_min:
+            value: 0.3
+            ref: null
+          store_max:
+            value: 0.8
+            ref: null
+          store_cap:
+            value: 0.3
+            ref: null
+          drain_eq:
+            value: 2
+            ref: null
+          drain_coef_1:
+            value: 0.013
+            ref: null
+          drain_coef_2:
+            value: 1.71
+            ref: null
+          ref: null
+        snowpacklimit:
+          value: -999.0
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.1
+            - 2.2
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+            ref: null
+          rho_cp:
+            value:
+            - 3200000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+            ref: null
+          ref: null
+        irrfrac:
+          value: 0.0
+          ref: null
+        ref: null
+        alb: 0.2
+        alb_min:
+          value: 0.12
+          ref: null
+        alb_max:
+          value: 0.18
+          ref: null
+        beta_bioco2:
+          value: 8.747
+          ref: null
+        beta_enh_bioco2:
+          value: 33.353
+          ref: null
+        alpha_bioco2:
+          value: 0.004
+          ref: null
+        alpha_enh_bioco2:
+          value: 0.016
+          ref: null
+        resp_a:
+          value: 2.43
+          ref: null
+        resp_b:
+          value: 0.0
+          ref: null
+        theta_bioco2:
+          value: 0.96
+          ref: null
+        maxconductance:
+          value: 11.7
+          ref: null
+        min_res_bioco2:
+          value: 0.6
+          ref: null
+        lai:
+          baset:
+            value: 6.0
+            ref: null
+          gddfull:
+            value: 300.0
+            ref: null
+          basete:
+            value: 11.0
+            ref: null
+          sddfull:
+            value: -450.0
+            ref: null
+          laimin:
+            value: 1.0
+            ref: null
+          laimax:
+            value: 5.5
+            ref: null
+          laipower:
+            growth_lai:
+              value: 0.04
+              ref: null
+            growth_gdd:
+              value: 0.001
+              ref: null
+            senescence_lai:
+              value: -1.5
+              ref: null
+            senescence_sdd:
+              value: 0.0015
+              ref: null
+            ref: null
+          laitype:
+            value: 1
+            ref: null
+          ref: null
+        ie_a:
+          value: 0.0
+          ref: null
+        ie_m:
+          value: 0.0
+          ref: null
+        faidectree:
+          value: 0.3
+          ref: null
+        dectreeh:
+          value: 13.1
+          ref: null
+        pormin_dec:
+          value: 0.1
+          ref: null
+        pormax_dec:
+          value: 0.9
+          ref: null
+        capmax_dec:
+          value: 0.8
+          ref: null
+        capmin_dec:
+          value: 0.3
+          ref: null
+      grass:
+        sfr:
+          value: 0.03
+          ref: null
+        emis:
+          value: 0.93
+          ref: null
+        ch_anohm: 0.0
+        rho_cp_anohm: 1200.0
+        k_anohm: 0.4
+        ohm_threshsw:
+          value: 10.0
+          ref: null
+        ohm_threshwd:
+          value: 0.9
+          ref: null
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.23
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: -16.91
+              ref: null
+            ref: null
+          summer_wet:
+            a1:
+              value: 0.23
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: -16.91
+              ref: null
+            ref: null
+          winter_dry:
+            a1:
+              value: 0.27
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: 6.62
+              ref: null
+            ref: null
+          winter_wet:
+            a1:
+              value: 0.27
+              ref: null
+            a2:
+              value: 0.325
+              ref: null
+            a3:
+              value: 6.62
+              ref: null
+            ref: null
+          ref: null
+        soildepth:
+          value: 350.0
+          ref: null
+        soilstorecap:
+          value: 150.0
+          ref: null
+        statelimit:
+          value: 1.9
+          ref: null
+        wetthresh:
+          value: 2.0
+          ref: null
+        sathydraulicconduct:
+          value: 0.0005
+          ref: null
+        waterdist:
+          to_paved:
+            value: 0.0
+            ref: null
+          to_bldgs:
+            value: 0.0
+            ref: null
+          to_dectr:
+            value: 0.0
+            ref: null
+          to_evetr:
+            value: 0.0
+            ref: null
+          to_grass: null
+          to_bsoil:
+            value: 0.0
+            ref: null
+          to_water:
+            value: 0.0
+            ref: null
+          to_runoff: null
+          to_soilstore:
+            value: 1.0
+            ref: null
+          ref: null
+        storedrainprm:
+          store_min:
+            value: 1.9
+            ref: null
+          store_max:
+            value: 1.9
+            ref: null
+          store_cap:
+            value: 1.9
+            ref: null
+          drain_eq:
+            value: 2
+            ref: null
+          drain_coef_1:
+            value: 0.013
+            ref: null
+          drain_coef_2:
+            value: 1.71
+            ref: null
+          ref: null
+        snowpacklimit:
+          value: -999.0
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.05
+            - 0.1
+            - 0.1
+            - 2.2
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+            ref: null
+          rho_cp:
+            value:
+            - 1600000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+            ref: null
+          ref: null
+        irrfrac:
+          value: 0.0
+          ref: null
+        ref: null
+        alb: 0.2
+        alb_min:
+          value: 0.18
+          ref: null
+        alb_max:
+          value: 0.21
+          ref: null
+        beta_bioco2:
+          value: 8.747
+          ref: null
+        beta_enh_bioco2:
+          value: 33.353
+          ref: null
+        alpha_bioco2:
+          value: 0.004
+          ref: null
+        alpha_enh_bioco2:
+          value: 0.016
+          ref: null
+        resp_a:
+          value: 2.43
+          ref: null
+        resp_b:
+          value: 0.0
+          ref: null
+        theta_bioco2:
+          value: 0.96
+          ref: null
+        maxconductance:
+          value: 33.1
+          ref: null
+        min_res_bioco2:
+          value: 0.6
+          ref: null
+        lai:
+          baset:
+            value: 6.0
+            ref: null
+          gddfull:
+            value: 300.0
+            ref: null
+          basete:
+            value: 11.0
+            ref: null
+          sddfull:
+            value: -450.0
+            ref: null
+          laimin:
+            value: 1.6
+            ref: null
+          laimax:
+            value: 5.9
+            ref: null
+          laipower:
+            growth_lai:
+              value: 0.04
+              ref: null
+            growth_gdd:
+              value: 0.001
+              ref: null
+            senescence_lai:
+              value: -1.5
+              ref: null
+            senescence_sdd:
+              value: 0.0015
+              ref: null
+            ref: null
+          laitype:
+            value: 1
+            ref: null
+          ref: null
+        ie_a:
+          value: 0.0
+          ref: null
+        ie_m:
+          value: 0.0
+          ref: null
+      bsoil:
+        sfr:
+          value: 0.0
+          ref: null
+        emis:
+          value: 0.94
+          ref: null
+        ch_anohm: 0.0
+        rho_cp_anohm: 1200.0
+        k_anohm: 0.4
+        ohm_threshsw:
+          value: 10.0
+          ref: null
+        ohm_threshwd:
+          value: 0.9
+          ref: null
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.379
+              ref: null
+            a2:
+              value: 0.335
+              ref: null
+            a3:
+              value: -30.05
+              ref: null
+            ref: null
+          summer_wet:
+            a1:
+              value: 0.379
+              ref: null
+            a2:
+              value: 0.335
+              ref: null
+            a3:
+              value: -30.05
+              ref: null
+            ref: null
+          winter_dry:
+            a1:
+              value: 0.445
+              ref: null
+            a2:
+              value: 0.335
+              ref: null
+            a3:
+              value: 11.77
+              ref: null
+            ref: null
+          winter_wet:
+            a1:
+              value: 0.445
+              ref: null
+            a2:
+              value: 0.335
+              ref: null
+            a3:
+              value: 11.77
+              ref: null
+            ref: null
+          ref: null
+        soildepth:
+          value: 350.0
+          ref: null
+        soilstorecap:
+          value: 150.0
+          ref: null
+        statelimit:
+          value: 0.8
+          ref: null
+        wetthresh:
+          value: 1.0
+          ref: null
+        sathydraulicconduct:
+          value: 0.0005
+          ref: null
+        waterdist:
+          to_paved:
+            value: 0.0
+            ref: null
+          to_bldgs:
+            value: 0.0
+            ref: null
+          to_dectr:
+            value: 0.0
+            ref: null
+          to_evetr:
+            value: 0.0
+            ref: null
+          to_grass:
+            value: 0.0
+            ref: null
+          to_bsoil: null
+          to_water:
+            value: 0.0
+            ref: null
+          to_runoff: null
+          to_soilstore:
+            value: 1.0
+            ref: null
+          ref: null
+        storedrainprm:
+          store_min:
+            value: 0.8
+            ref: null
+          store_max:
+            value: 0.8
+            ref: null
+          store_cap:
+            value: 0.8
+            ref: null
+          drain_eq:
+            value: 3
+            ref: null
+          drain_coef_1:
+            value: 10.0
+            ref: null
+          drain_coef_2:
+            value: 3.0
+            ref: null
+          ref: null
+        snowpacklimit:
+          value: -999.0
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.05
+            - 0.1
+            - 0.1
+            - 2.2
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+            ref: null
+          rho_cp:
+            value:
+            - 1900000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+            ref: null
+          ref: null
+        irrfrac:
+          value: 0.0
+          ref: null
+        ref: null
+        alb:
+          value: 0.18
+          ref: null
+      water:
+        sfr:
+          value: 0.14
+          ref: null
+        emis:
+          value: 0.95
+          ref: null
+        ch_anohm: 0.0
+        rho_cp_anohm: 1200.0
+        k_anohm: 0.4
+        ohm_threshsw:
+          value: 10.0
+          ref: null
+        ohm_threshwd:
+          value: 0.9
+          ref: null
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.534
+              ref: null
+            a2:
+              value: 0.21
+              ref: null
+            a3:
+              value: -33.31
+              ref: null
+            ref: null
+          summer_wet:
+            a1:
+              value: 0.534
+              ref: null
+            a2:
+              value: 0.21
+              ref: null
+            a3:
+              value: -33.31
+              ref: null
+            ref: null
+          winter_dry:
+            a1:
+              value: 0.627
+              ref: null
+            a2:
+              value: 0.21
+              ref: null
+            a3:
+              value: 13.05
+              ref: null
+            ref: null
+          winter_wet:
+            a1:
+              value: 0.627
+              ref: null
+            a2:
+              value: 0.21
+              ref: null
+            a3:
+              value: 13.05
+              ref: null
+            ref: null
+          ref: null
+        soildepth:
+          value: 0.0
+          ref: null
+        soilstorecap:
+          value: 0.0
+          ref: null
+        statelimit:
+          value: 30000.0
+          ref: null
+        wetthresh:
+          value: 0.5
+          ref: null
+        sathydraulicconduct:
+          value: 0.0
+          ref: null
+        waterdist: null
+        storedrainprm:
+          store_min:
+            value: 0.5
+            ref: null
+          store_max:
+            value: 0.5
+            ref: null
+          store_cap:
+            value: 0.5
+            ref: null
+          drain_eq:
+            value: -999
+            ref: null
+          drain_coef_1:
+            value: -999.0
+            ref: null
+          drain_coef_2:
+            value: -999.0
+            ref: null
+          ref: null
+        snowpacklimit:
+          value: 0.0
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.05
+            - 0.1
+            - 0.1
+            - 2.2
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+            ref: null
+          rho_cp:
+            value:
+            - 1900000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+            ref: null
+          ref: null
+        irrfrac:
+          value: 0.0
+          ref: null
+        ref: null
+        alb:
+          value: 0.1
+          ref: null
+        flowchange:
+          value: 0.0
+          ref: null
+      ref: null
+    vertical_layers:
+      nlayer:
+        value: 3
+        ref: null
+      height:
+        value:
+        - 0.0
+        - 11.0
+        - 15.0
+        - 22.0
+        ref: null
+      veg_frac:
+        value:
+        - 0.01
+        - 0.02
+        - 0.01
+        ref: null
+      veg_scale:
+        value:
+        - 10.0
+        - 10.0
+        - 10.0
+        ref: null
+      building_frac:
+        value:
+        - 0.43
+        - 0.38
+        - 0.2
+        ref: null
+      building_scale:
+        value:
+        - 50.0
+        - 50.0
+        - 50.0
+        ref: null
+      roofs:
+      - alb:
+          value: 0.5
+          ref: null
+        emis:
+          value: 0.95
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            ref: null
+          rho_cp:
+            value:
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            ref: null
+          ref: null
+        statelimit:
+          value: 5.0
+          ref: null
+        soilstorecap:
+          value: 120.0
+          ref: null
+        wetthresh:
+          value: 5.0
+          ref: null
+        roof_albedo_dir_mult_fact:
+          value: 1.0
+          ref: null
+        wall_specular_frac:
+          value: 0.1
+          ref: null
+        ref: null
+      - alb:
+          value: 0.5
+          ref: null
+        emis:
+          value: 0.95
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+            ref: null
+          k:
+            value:
+            - 2.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            ref: null
+          rho_cp:
+            value:
+            - 2000000.0
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            ref: null
+          ref: null
+        statelimit:
+          value: 5.0
+          ref: null
+        soilstorecap:
+          value: 120.0
+          ref: null
+        wetthresh:
+          value: 5.0
+          ref: null
+        roof_albedo_dir_mult_fact:
+          value: 1.0
+          ref: null
+        wall_specular_frac:
+          value: 0.1
+          ref: null
+        ref: null
+      - alb:
+          value: 0.2
+          ref: null
+        emis:
+          value: 0.95
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+            ref: null
+          k:
+            value:
+            - 2.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            ref: null
+          rho_cp:
+            value:
+            - 2000000.0
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            ref: null
+          ref: null
+        statelimit:
+          value: 5.0
+          ref: null
+        soilstorecap:
+          value: 120.0
+          ref: null
+        wetthresh:
+          value: 5.0
+          ref: null
+        roof_albedo_dir_mult_fact:
+          value: 1.0
+          ref: null
+        wall_specular_frac:
+          value: 0.1
+          ref: null
+        ref: null
+      walls:
+      - alb:
+          value: 0.5
+          ref: null
+        emis:
+          value: 0.95
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            ref: null
+          rho_cp:
+            value:
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            ref: null
+          ref: null
+        statelimit:
+          value: 5.0
+          ref: null
+        soilstorecap:
+          value: 120.0
+          ref: null
+        wetthresh:
+          value: 5.0
+          ref: null
+        roof_albedo_dir_mult_fact:
+          value: 0.1
+          ref: null
+        wall_specular_frac:
+          value: 0.0
+          ref: null
+        ref: null
+      - alb:
+          value: 0.5
+          ref: null
+        emis:
+          value: 0.95
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            ref: null
+          rho_cp:
+            value:
+            - 2000000.0
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            ref: null
+          ref: null
+        statelimit:
+          value: 5.0
+          ref: null
+        soilstorecap:
+          value: 120.0
+          ref: null
+        wetthresh:
+          value: 5.0
+          ref: null
+        roof_albedo_dir_mult_fact:
+          value: 0.1
+          ref: null
+        wall_specular_frac:
+          value: 0.0
+          ref: null
+        ref: null
+      - alb:
+          value: 0.5
+          ref: null
+        emis:
+          value: 0.95
+          ref: null
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+            ref: null
+          k:
+            value:
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            ref: null
+          rho_cp:
+            value:
+            - 2000000.0
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            ref: null
+          ref: null
+        statelimit:
+          value: 5.0
+          ref: null
+        soilstorecap:
+          value: 120.0
+          ref: null
+        wetthresh:
+          value: 5.0
+          ref: null
+        roof_albedo_dir_mult_fact:
+          value: 0.1
+          ref: null
+        wall_specular_frac:
+          value: 0.0
+          ref: null
+        ref: null
+      ref: null
+    n_buildings:
+      value: 150
+      ref: null
+    h_std:
+      value: 5.0
+      ref: null
+    lambda_c:
+      value: 3.0
+      ref: null
+    ref: null
+  initial_states:
+    snowalb:
+      value: 0.0
+      ref: null
+    paved:
+      state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 120.0
+        ref: null
+      snowfrac:
+        value: 0.0
+        ref: null
+      snowpack:
+        value: 0.0
+        ref: null
+      icefrac:
+        value: 0.2
+        ref: null
+      snowwater:
+        value: 0.0
+        ref: null
+      snowdens:
+        value: 0.0
+        ref: null
+      temperature:
+        value:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        ref: null
+      tsfc:
+        value: 2.0
+        ref: null
+      tin:
+        value: 2.0
+        ref: null
+      ref: null
+    bldgs:
+      state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 120.0
+        ref: null
+      snowfrac:
+        value: 0.0
+        ref: null
+      snowpack:
+        value: 0.0
+        ref: null
+      icefrac:
+        value: 0.2
+        ref: null
+      snowwater:
+        value: 0.0
+        ref: null
+      snowdens:
+        value: 0.0
+        ref: null
+      temperature:
+        value:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        ref: null
+      tsfc:
+        value: 2.0
+        ref: null
+      tin:
+        value: 2.0
+        ref: null
+      ref: null
+    evetr:
+      state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 120.0
+        ref: null
+      snowfrac:
+        value: 0.0
+        ref: null
+      snowpack:
+        value: 0.0
+        ref: null
+      icefrac:
+        value: 0.2
+        ref: null
+      snowwater:
+        value: 0.0
+        ref: null
+      snowdens:
+        value: 0.0
+        ref: null
+      temperature:
+        value:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        ref: null
+      tsfc:
+        value: 2.0
+        ref: null
+      tin:
+        value: 2.0
+        ref: null
+      ref: null
+      alb_id:
+        value: 0.1
+        ref: null
+      lai_id:
+        value: 4.0
+        ref: null
+      gdd_id:
+        value: 0.0
+        ref: null
+      sdd_id:
+        value: -450.0
+        ref: null
+      wu:
+        wu_total:
+          value: 0.0
+          ref: null
+        wu_auto:
+          value: 0.0
+          ref: null
+        wu_manual:
+          value: 0.0
+          ref: null
+        ref: null
+    dectr:
+      state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 120.0
+        ref: null
+      snowfrac:
+        value: 0.0
+        ref: null
+      snowpack:
+        value: 0.0
+        ref: null
+      icefrac:
+        value: 0.2
+        ref: null
+      snowwater:
+        value: 0.0
+        ref: null
+      snowdens:
+        value: 0.0
+        ref: null
+      temperature:
+        value:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        ref: null
+      tsfc:
+        value: 2.0
+        ref: null
+      tin:
+        value: 2.0
+        ref: null
+      ref: null
+      alb_id:
+        value: 0.12
+        ref: null
+      lai_id:
+        value: 1.0
+        ref: null
+      gdd_id:
+        value: 0.0
+        ref: null
+      sdd_id:
+        value: -450.0
+        ref: null
+      wu:
+        wu_total:
+          value: 0.0
+          ref: null
+        wu_auto:
+          value: 0.0
+          ref: null
+        wu_manual:
+          value: 0.0
+          ref: null
+        ref: null
+      porosity_id:
+        value: 0.6
+        ref: null
+      decidcap_id:
+        value: 0.3
+        ref: null
+    grass:
+      state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 120.0
+        ref: null
+      snowfrac:
+        value: 0.0
+        ref: null
+      snowpack:
+        value: 0.0
+        ref: null
+      icefrac:
+        value: 0.2
+        ref: null
+      snowwater:
+        value: 0.0
+        ref: null
+      snowdens:
+        value: 0.0
+        ref: null
+      temperature:
+        value:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        ref: null
+      tsfc:
+        value: 2.0
+        ref: null
+      tin:
+        value: 2.0
+        ref: null
+      ref: null
+      alb_id:
+        value: 0.18
+        ref: null
+      lai_id:
+        value: 1.6
+        ref: null
+      gdd_id:
+        value: 0.0
+        ref: null
+      sdd_id:
+        value: -450.0
+        ref: null
+      wu:
+        wu_total:
+          value: 0.0
+          ref: null
+        wu_auto:
+          value: 0.0
+          ref: null
+        wu_manual:
+          value: 0.0
+          ref: null
+        ref: null
+    bsoil:
+      state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 120.0
+        ref: null
+      snowfrac:
+        value: 0.0
+        ref: null
+      snowpack:
+        value: 0.0
+        ref: null
+      icefrac:
+        value: 0.2
+        ref: null
+      snowwater:
+        value: 0.0
+        ref: null
+      snowdens:
+        value: 0.0
+        ref: null
+      temperature:
+        value:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        ref: null
+      tsfc:
+        value: 2.0
+        ref: null
+      tin:
+        value: 2.0
+        ref: null
+      ref: null
+    water:
+      state:
+        value: 20000.0
+        ref: null
+      soilstore:
+        value: 10.0
+        ref: null
+      snowfrac:
+        value: 0.0
+        ref: null
+      snowpack:
+        value: 0.0
+        ref: null
+      icefrac:
+        value: 0.2
+        ref: null
+      snowwater:
+        value: 0.0
+        ref: null
+      snowdens:
+        value: 0.0
+        ref: null
+      temperature:
+        value:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+        ref: null
+      tsfc:
+        value: 2.0
+        ref: null
+      tin:
+        value: 2.0
+        ref: null
+      ref: null
+    roofs:
+    - state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 20.0
+        ref: null
+      snowfrac: 0.0
+      snowpack: 0.0
+      icefrac: 0.0
+      snowwater: 0.0
+      snowdens: 0.0
+      temperature:
+        value:
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        ref: null
+      tsfc:
+        value: 5.0
+        ref: null
+      tin:
+        value: 5.0
+        ref: null
+      ref: null
+    - state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 20.0
+        ref: null
+      snowfrac: 0.0
+      snowpack: 0.0
+      icefrac: 0.0
+      snowwater: 0.0
+      snowdens: 0.0
+      temperature:
+        value:
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        ref: null
+      tsfc:
+        value: 5.0
+        ref: null
+      tin:
+        value: 5.0
+        ref: null
+      ref: null
+    - state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 20.0
+        ref: null
+      snowfrac: 0.0
+      snowpack: 0.0
+      icefrac: 0.0
+      snowwater: 0.0
+      snowdens: 0.0
+      temperature:
+        value:
+        - 6.0
+        - 6.0
+        - 6.0
+        - 6.0
+        - 6.0
+        ref: null
+      tsfc:
+        value: 6.0
+        ref: null
+      tin:
+        value: 6.0
+        ref: null
+      ref: null
+    walls:
+    - state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 20.0
+        ref: null
+      snowfrac: 0.0
+      snowpack: 0.0
+      icefrac: 0.0
+      snowwater: 0.0
+      snowdens: 0.0
+      temperature:
+        value:
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        ref: null
+      tsfc:
+        value: 5.0
+        ref: null
+      tin:
+        value: 5.0
+        ref: null
+      ref: null
+    - state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 20.0
+        ref: null
+      snowfrac: 0.0
+      snowpack: 0.0
+      icefrac: 0.0
+      snowwater: 0.0
+      snowdens: 0.0
+      temperature:
+        value:
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        ref: null
+      tsfc:
+        value: 5.0
+        ref: null
+      tin:
+        value: 5.0
+        ref: null
+      ref: null
+    - state:
+        value: 0.0
+        ref: null
+      soilstore:
+        value: 20.0
+        ref: null
+      snowfrac: 0.0
+      snowpack: 0.0
+      icefrac: 0.0
+      snowwater: 0.0
+      snowdens: 0.0
+      temperature:
+        value:
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        - 5.0
+        ref: null
+      tsfc:
+        value: 5.0
+        ref: null
+      tin:
+        value: 5.0
+        ref: null
+      ref: null
+    dqndt: 0.0
+    dqnsdt: 0.0
+    dt_since_start: 0.0
+    lenday_id: 0
+    qn_av: 0.0
+    qn_s_av: 0.0
+    tair_av: 0.0
+    tmax_id: 0.0
+    tmin_id: 0.0
+    tstep_prev: 0.0
+    snowfallcum: 0.0
+    hdd_id:
+      hdd_accum: 13.5
+      cdd_accum: 13.5
+      temp_accum: 13.5
+      temp_5day_accum: 13.5
+      precip_accum: 13.5
+      days_since_rain_accum: 13.5
+      hdd_daily: 13.5
+      cdd_daily: 13.5
+      temp_daily_mean: 13.5
+      temp_5day_mean: 13.5
+      precip_daily_total: 13.5
+      days_since_rain: 13.5

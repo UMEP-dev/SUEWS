@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml clean format bridge
+.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml clean format bridge plugin agent-plugin
 
 # Default Python
 PYTHON := python
@@ -10,9 +10,9 @@ help:
 	@echo "  setup      - Create virtual environment (if using uv)"
 	@echo "  dev        - Build and install in editable mode"
 	@echo "  docs-setup - Install documentation dependencies and strip legacy .pth hooks"
-	@echo "  test       - Run standard tests (excludes slow, ~2-3 min)"
+	@echo "  test       - Everyday dev tests (core/data_model/physics/io, no slow)"
 	@echo "  test-smoke - Run smoke tests only (fast CI validation, ~30-60 sec)"
-	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
+	@echo "  test-all   - Run ALL tests including slow and peripheral surfaces"
 	@echo "  audit-deps - Audit Python dependencies and startup hooks"
 	@echo "  docs       - Build documentation"
 	@echo "  clean      - Smart clean (keeps .venv if active)"
@@ -197,27 +197,34 @@ rebuild-meson:
 
 # Run tests - Four local entry points available:
 # - test-smoke: Fast critical tests (~30-60 sec) - used in CI wheel validation
-# - test: Standard tests excluding slow (~2-3 min) - default for development
-# - test-all: All tests including slow (~4-5 min) - comprehensive validation
+# - test: Everyday development tests (model, data model, physics, I/O;
+#         excludes slow and the peripheral surfaces below)
+# - test-all: All tests including slow - comprehensive validation
 # - test-qgis: UMEP/QGIS compatibility tests (Windows + Python 3.12 target)
+#
+# The everyday `test` selection deliberately leaves out peripheral surfaces
+# (test/cmd, test/mcp, test/docs, test/knowledge, test/umep). When you touch
+# one of those, run its directory directly (`pytest test/cmd`) or `make
+# test-all`. CI selects by markers and is unaffected by this default.
+TEST_DEFAULT_PATHS := test/test_api_surface.py test/core test/data_model test/physics test/io_tests
 test:
-	@echo "Running standard tests (excluding slow tests)..."
-	@echo "NOTE: Slow tests (e.g., Fortran state persistence ~3-4 min) are skipped."
-	@echo "      Run 'make test-all' for comprehensive testing."
+	@echo "Running everyday development tests (core, data model, physics, I/O)..."
+	@echo "NOTE: slow regressions and peripheral surfaces (cmd, mcp, docs,"
+	@echo "      knowledge, umep) are excluded - run 'make test-all' or the"
+	@echo "      relevant directory (e.g. 'pytest test/cmd') when touched."
 	@echo ""
-	$(PYTHON) -m pytest test -m "not slow and not qgis" -v --tb=short --durations=10
+	$(PYTHON) -m pytest $(TEST_DEFAULT_PATHS) -m "not slow and not qgis" -v --tb=short --durations=10
 
 # Smoke tests - fast critical path tests for CI
 test-smoke:
 	@echo "Running smoke tests (critical path only)..."
 	@echo "This is the fastest test tier for CI wheel validation."
 	@echo ""
-	$(PYTHON) -m pytest test -m "smoke and not slow and not qgis" -v --tb=short --durations=10
+	$(PYTHON) -m pytest test -m "smoke and not (medium or slow) and not qgis" -v --tb=short --durations=10
 
 # All tests including slow tests
 test-all:
-	@echo "Running ALL tests including slow tests..."
-	@echo "This may take 4-5 minutes."
+	@echo "Running ALL tests including slow tests and peripheral surfaces..."
 	@echo ""
 	$(PYTHON) -m pytest test -v --tb=short --durations=10
 
@@ -293,3 +300,15 @@ bridge:
 format:
 	ruff format src test
 	fprettify --config .fprettify.rc src/suews/src/*.f95 2>/dev/null || true
+
+# Regenerate the distributable plugin bundle (plugins/suews/skills/) from the
+# single source of truth (.claude/skills/). Run after editing a skill; the
+# parity test in test/mcp/test_packaging_manifests.py guards against drift.
+plugin:
+	$(PYTHON) scripts/build_plugin.py
+
+# Generate the standalone SUEWS agent marketplace repository. Override
+# AGENT_PLUGIN_OUT to point at an existing checkout of UMEP-dev/suews-agent.
+AGENT_PLUGIN_OUT ?= ../suews-agent
+agent-plugin:
+	$(PYTHON) scripts/build_agent_plugin.py --output $(AGENT_PLUGIN_OUT)

@@ -1,14 +1,275 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import f90nml
+import numpy as np
 import pandas as pd
 
 # import ray
-
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
-from ._post import resample_output, df_var as df_var_out
+from ._post import _resample_output, df_var as df_var_out
+
+
+_OUTPUT_TIMESTAMP_REFERENCES = {
+    "follow",
+    "utc",
+    "local_standard_time",
+    "daylight",
+}
+_FORCING_TIMESTAMP_REFERENCES = {"utc", "local_standard_time"}
+
+
+def _normalise_output_timestamp_reference(timestamp_reference: object) -> str:
+    """Return a validated output timestamp-reference value."""
+    label = getattr(timestamp_reference, "value", timestamp_reference)
+    label = "follow" if label is None else str(label).lower()
+    if label not in _OUTPUT_TIMESTAMP_REFERENCES:
+        expected = ", ".join(sorted(_OUTPUT_TIMESTAMP_REFERENCES))
+        raise ValueError(
+            f"Invalid output timestamp reference {timestamp_reference!r}; "
+            f"expected one of: {expected}."
+        )
+    return label
+
+
+def _normalise_forcing_timestamp_reference(timestamp_reference: object) -> str:
+    """Return a validated forcing timestamp-reference value."""
+    label = getattr(timestamp_reference, "value", timestamp_reference)
+    label = "local_standard_time" if label is None else str(label).lower()
+    if label not in _FORCING_TIMESTAMP_REFERENCES:
+        expected = ", ".join(sorted(_FORCING_TIMESTAMP_REFERENCES))
+        raise ValueError(
+            f"Invalid forcing timestamp reference {timestamp_reference!r}; "
+            f"expected one of: {expected}."
+        )
+    return label
+
+
+def _timestamp_reference_filename_suffix(timestamp_reference: object) -> str:
+    """Return the filename suffix for an explicit output reference."""
+    label = _normalise_output_timestamp_reference(timestamp_reference)
+    return {
+        "follow": "",
+        "utc": "_UTC",
+        "local_standard_time": "_STANDARD",
+        "daylight": "_DAYLIGHT",
+    }[label]
+
+
+def _state_scalar(
+    df_state_final: Optional[pd.DataFrame], grid: object, name: str
+) -> object:
+    """Read a per-grid scalar from DFState's legacy column shapes."""
+    if df_state_final is None or df_state_final.empty:
+        raise ValueError(
+            f"Cannot relabel output timestamps without df_state_final field {name!r}."
+        )
+
+    try:
+        row = df_state_final.loc[grid]
+    except KeyError:
+        try:
+            row = df_state_final.loc[int(grid)]
+        except (KeyError, TypeError, ValueError):
+            if len(df_state_final.index) != 1:
+                raise
+            row = df_state_final.iloc[0]
+
+    if isinstance(row.index, pd.MultiIndex):
+        key = (name, "0")
+        if key in row.index:
+            return row.loc[key]
+        matches = [
+            column for column in row.index if str(column[0]).lower() == name.lower()
+        ]
+        if matches:
+            return row.loc[matches[0]]
+
+    if name in row.index:
+        return row.loc[name]
+
+    matches = [column for column in row.index if str(column).lower() == name.lower()]
+    if matches:
+        return row.loc[matches[0]]
+
+    raise ValueError(
+        f"Cannot relabel output timestamps: missing DFState field {name!r}."
+    )
+
+
+def _dls_mask(
+    idx_standard: pd.DatetimeIndex, startdls: float, enddls: float
+) -> np.ndarray:
+    """Return the daylight-saving mask on the local-standard clock."""
+    seconds = (
+        idx_standard.hour * 3600
+        + idx_standard.minute * 60
+        + idx_standard.second
+        + idx_standard.microsecond / 1_000_000
+    )
+    decimal_doy = idx_standard.dayofyear.to_numpy(dtype=float) + seconds / 86400
+    if startdls <= enddls:
+        return (decimal_doy >= startdls) & (decimal_doy < enddls)
+    return (decimal_doy >= startdls) | (decimal_doy < enddls)
+
+
+def _relabel_datetime_index(
+    idx_dt: pd.DatetimeIndex,
+    timestamp_reference: object,
+    forcing_timestamp_reference: object,
+    timezone_offset: object,
+    startdls: Optional[object] = None,
+    enddls: Optional[object] = None,
+) -> pd.DatetimeIndex:
+    """Convert one grid's naive index from its forcing clock to the target."""
+    target = _normalise_output_timestamp_reference(timestamp_reference)
+    source = _normalise_forcing_timestamp_reference(forcing_timestamp_reference)
+    if target in {"follow", source}:
+        return idx_dt
+
+    timezone_delta = pd.to_timedelta(float(timezone_offset), unit="h")
+    idx_standard = (
+        idx_dt if source == "local_standard_time" else idx_dt + timezone_delta
+    )
+
+    if target == "local_standard_time":
+        return idx_standard
+    if target == "utc":
+        return idx_standard - timezone_delta
+    if target == "daylight":
+        if startdls is None or enddls is None:
+            raise ValueError(
+                "output.timestamp_reference='daylight' requires startdls and enddls."
+            )
+        startdls_value = float(startdls)
+        enddls_value = float(enddls)
+        if not 1 <= startdls_value <= 366 or not 1 <= enddls_value <= 366:
+            raise ValueError(
+                "output.timestamp_reference='daylight' requires startdls and enddls "
+                "between day 1 and day 366."
+            )
+        dls_offsets = pd.to_timedelta(
+            _dls_mask(idx_standard, startdls_value, enddls_value).astype(int),
+            unit="h",
+        )
+        return idx_standard + dls_offsets
+
+    raise AssertionError(f"Unhandled output timestamp reference: {target}")
+
+
+def relabel_output_timestamps(
+    df_output: pd.DataFrame,
+    timestamp_reference: object,
+    forcing_timestamp_reference: object,
+    df_state_final: Optional[pd.DataFrame],
+) -> pd.DataFrame:
+    """Relabel output timestamps without changing computed values."""
+    target = _normalise_output_timestamp_reference(timestamp_reference)
+    source = _normalise_forcing_timestamp_reference(forcing_timestamp_reference)
+    if target in {"follow", source}:
+        return df_output
+
+    df_relabelled = df_output.copy()
+    index = df_relabelled.index
+
+    if isinstance(index, pd.MultiIndex):
+        if "datetime" not in index.names:
+            raise ValueError(
+                "Cannot relabel output timestamps: index has no datetime level."
+            )
+        datetime_level = index.names.index("datetime")
+        grid_level = index.names.index("grid") if "grid" in index.names else None
+        idx_dt = pd.DatetimeIndex(index.get_level_values(datetime_level))
+
+        if grid_level is None:
+            grid = df_state_final.index[0] if df_state_final is not None else None
+            new_dt = _relabel_datetime_index(
+                idx_dt,
+                target,
+                source,
+                _state_scalar(df_state_final, grid, "timezone"),
+                _state_scalar(df_state_final, grid, "startdls")
+                if target == "daylight"
+                else None,
+                _state_scalar(df_state_final, grid, "enddls")
+                if target == "daylight"
+                else None,
+            )
+        else:
+            grids = index.get_level_values(grid_level)
+            new_dt = pd.Series(idx_dt, index=range(len(idx_dt)), dtype="datetime64[ns]")
+            for grid in pd.Index(grids).unique():
+                mask = grids == grid
+                new_dt.loc[mask] = _relabel_datetime_index(
+                    pd.DatetimeIndex(idx_dt[mask]),
+                    target,
+                    source,
+                    _state_scalar(df_state_final, grid, "timezone"),
+                    _state_scalar(df_state_final, grid, "startdls")
+                    if target == "daylight"
+                    else None,
+                    _state_scalar(df_state_final, grid, "enddls")
+                    if target == "daylight"
+                    else None,
+                )
+            new_dt = pd.DatetimeIndex(new_dt)
+
+        arrays = [
+            new_dt if level == datetime_level else index.get_level_values(level)
+            for level in range(index.nlevels)
+        ]
+        df_relabelled.index = pd.MultiIndex.from_arrays(arrays, names=index.names)
+        return df_relabelled
+
+    if isinstance(index, pd.DatetimeIndex):
+        grid = df_state_final.index[0] if df_state_final is not None else None
+        df_relabelled.index = _relabel_datetime_index(
+            index,
+            target,
+            source,
+            _state_scalar(df_state_final, grid, "timezone"),
+            _state_scalar(df_state_final, grid, "startdls")
+            if target == "daylight"
+            else None,
+            _state_scalar(df_state_final, grid, "enddls")
+            if target == "daylight"
+            else None,
+        )
+        return df_relabelled
+
+    raise ValueError("Cannot relabel output timestamps: index is not datetime-like.")
+
+
+def _output_group_frequencies(
+    df_output: pd.DataFrame, fallback_frequency_s: int
+) -> dict:
+    """Return each output group's nominal source-clock frequency in seconds."""
+    dict_group_frequency_s = {}
+    for group in df_output.columns.get_level_values("group").unique():
+        df_group = df_output[group].dropna(how="all")
+        if df_group.empty:
+            continue
+        if isinstance(df_group.index, pd.MultiIndex) and "grid" in df_group.index.names:
+            grid = df_group.index.get_level_values("grid")[0]
+            df_group = df_group.xs(grid, level="grid")
+        idx_group = pd.DatetimeIndex(
+            df_group.index.get_level_values("datetime")
+            if isinstance(df_group.index, pd.MultiIndex)
+            else df_group.index
+        ).drop_duplicates()
+        if len(idx_group) < 2:
+            dict_group_frequency_s[group] = (
+                86400 if group == "DailyState" else fallback_frequency_s
+            )
+            continue
+        ser_deltas = idx_group.to_series().diff().dropna()
+        ser_positive_deltas = ser_deltas[ser_deltas > pd.Timedelta(0)]
+        if ser_positive_deltas.empty:
+            continue
+        frequency = ser_positive_deltas.mode().iloc[0]
+        dict_group_frequency_s[group] = int(frequency.total_seconds())
+    return dict_group_frequency_s
 
 
 def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
@@ -83,7 +344,15 @@ def format_df_save(df_save):
 #     return path_out
 
 
-def gen_df_year(df_save, year, grid, group, output_level):
+def gen_df_year(
+    df_save,
+    year,
+    grid,
+    group,
+    output_level,
+    timestamps_are_final=False,
+    allow_irregular_timestamps=False,
+):
     # retrieve dataframe of grid for `group`
     # First filter by grid from the index
     df_grid = df_save.xs(grid, level="grid")
@@ -91,8 +360,10 @@ def gen_df_year(df_save, year, grid, group, output_level):
     df_grid_group = df_grid[group].copy()
     # get temporal index
     idx_dt = df_grid_group.index
-    freq = idx_dt.to_series().diff().iloc[-1]
-    df_grid_group = df_grid_group.asfreq(freq)
+    if len(idx_dt) > 1 and not allow_irregular_timestamps:
+        freq = idx_dt.to_series().diff().iloc[-1]
+        if pd.notna(freq):
+            df_grid_group = df_grid_group.asfreq(freq)
     # select output variables in `SUEWS` based on output level
     if group == "SUEWS":
         # Filter to only variables that exist in the dataframe
@@ -104,25 +375,44 @@ def gen_df_year(df_save, year, grid, group, output_level):
     # select data from year of interest and shift back to align with SUEWS convention
     df_year = df_grid_group.loc[f"{year}"]
     # Skip timestamp shift for DailyState as it contains end-of-day values
-    if group != "DailyState":
+    if group != "DailyState" and not timestamps_are_final:
         df_year.index = df_year.index.shift(1)
     # remove `nan`s
     df_year = df_year.dropna(how="all", axis=0)
     return df_year
 
 
-def save_df_grid_group(df_year, grid, group, dir_save, site):
+def save_df_grid_group(
+    df_year,
+    grid,
+    group,
+    dir_save,
+    site,
+    timestamp_reference="follow",
+    freq_s=None,
+    allow_irregular_timestamps=False,
+):
     # processing path
     path_dir = Path(dir_save)
     # pandas bug here: monotonic datetime index would lose `freq` once `pd.concat`ed
-    if df_year.shape[0] > 0 and df_year.index.size >= 2:
+    if freq_s is not None:
+        freq = pd.Timedelta(freq_s, unit="s")
+        if not allow_irregular_timestamps:
+            df_year = df_year.asfreq(freq)
+    elif allow_irregular_timestamps:
+        raise ValueError(
+            "An output frequency is required for irregular daylight timestamps."
+        )
+    elif df_year.shape[0] > 0 and df_year.index.size >= 2:
         ind = df_year.index
         freq_cal = ind[1] - ind[0]
         df_year = df_year.asfreq(freq_cal)
+        freq = pd.Timedelta(df_year.index.freq)
     else:
         df_year = df_year.asfreq("5min")
+        freq = pd.Timedelta(df_year.index.freq)
     # output frequency in min
-    freq_min = int(pd.Timedelta(df_year.index.freq).total_seconds() / 60)
+    freq_min = int(freq.total_seconds() / 60)
     # starting year
     try:
         year = df_year.index[0].year
@@ -130,7 +420,8 @@ def save_df_grid_group(df_year, grid, group, dir_save, site):
         logger_supy.debug("Could not extract year from df_year index:\n%s", df_year)
 
     # sample file name: 'Kc98_2012_SUEWS_60.txt'
-    file_out = f"{site}{grid}_{year}_{group}_{freq_min}.txt"
+    timestamp_suffix = _timestamp_reference_filename_suffix(timestamp_reference)
+    file_out = f"{site}{grid}_{year}_{group}_{freq_min}{timestamp_suffix}.txt"
     # 'DailyState_1440' will be trimmed
     file_out = file_out.replace("DailyState_1440", "DailyState")
     path_out = path_dir / file_out
@@ -195,6 +486,9 @@ def save_df_output(
     save_snow=True,
     debug=False,
     output_groups=None,
+    timestamp_reference="follow",
+    forcing_timestamp_reference="local_standard_time",
+    df_state_final: Optional[pd.DataFrame] = None,
 ) -> list:
     """save supy output dataframe to txt files
 
@@ -219,6 +513,12 @@ def save_df_output(
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
     output_groups : list, optional
         list of output groups to save (e.g., ['SUEWS', 'DailyState', 'ESTM']). If None, defaults to ['SUEWS', 'DailyState'].
+    timestamp_reference : str, optional
+        Saved timestamp reference. ``follow`` preserves the forcing clock.
+    forcing_timestamp_reference : str, optional
+        Clock used by ``df_output`` before any saved-output relabelling.
+    df_state_final : pandas.DataFrame, optional
+        Per-grid timezone and daylight-saving parameters used for relabelling.
 
     Returns
     -------
@@ -264,27 +564,46 @@ def save_df_output(
         df_save_no_daily = df_save
 
     # resample `df_output` at `freq_save` (excluding DailyState)
-    df_rsmp = resample_output(df_save_no_daily, freq_save, _internal=True)
+    if len(df_save_no_daily.columns) > 0:
+        df_rsmp = _resample_output(df_save_no_daily, freq_save)
+    else:
+        df_rsmp = None
 
     # dataframes to save
     if save_tstep:
         # both original and resampled output dataframes
-        list_df_save = [df_save, df_rsmp]
+        list_df_save = []
+        if len(df_save.columns) > 0:
+            # Preserve the historical five-minute singleton fallback when the
+            # native cadence cannot be inferred from more than one timestamp.
+            list_df_save.append((df_save, 300))
+        if df_rsmp is not None and len(df_rsmp.columns) > 0:
+            list_df_save.append((df_rsmp, freq_s))
     else:
         # combine resampled data with DailyState (if it exists)
         list_df_save = []
         if df_dailystate is not None:
-            list_df_save.append(df_dailystate)
-        list_df_save.append(df_rsmp)
+            list_df_save.append((df_dailystate, 86400))
+        if df_rsmp is not None:
+            list_df_save.append((df_rsmp, freq_s))
 
     # save output at the resampling frequency
-    for i, df_save in enumerate(list_df_save):
+    output_timestamp_reference = _normalise_output_timestamp_reference(
+        timestamp_reference
+    )
+    timestamps_are_final = output_timestamp_reference != "follow"
+    for df_save, fallback_frequency_s in list_df_save:
+        dict_group_frequency_s = (
+            _output_group_frequencies(df_save, fallback_frequency_s)
+            if timestamps_are_final
+            else None
+        )
         # Check if this is DailyState-only data
         is_dailystate_only = len(df_save.columns) > 0 and all(
             df_save.columns.get_level_values("group") == "DailyState"
         )
 
-        if not is_dailystate_only:
+        if not is_dailystate_only and not timestamps_are_final:
             # For regular output data, shift temporal index to make timestamps indicating the start of periods
             idx_dt = df_save.index.get_level_values("datetime").drop_duplicates()
 
@@ -304,6 +623,12 @@ def save_df_output(
             # Update the index
             df_save.index = df_save.index.set_levels(idx_dt, level="datetime")
         # For DailyState data, we don't need to shift the index as it already represents daily values
+        df_save = relabel_output_timestamps(
+            df_save,
+            timestamp_reference,
+            forcing_timestamp_reference,
+            df_state_final,
+        )
         # tidy up columns so only necessary groups are included in the output
         df_save.columns = df_save.columns.remove_unused_levels()
         # import os
@@ -323,7 +648,15 @@ def save_df_output(
         #
         # else:
         # SERIAL mode: only on Windows
-        list_path_save_df = save_df_ser(df_save, path_dir_save, site, output_level)
+        list_path_save_df = save_df_ser(
+            df_save,
+            path_dir_save,
+            site,
+            output_level,
+            timestamp_reference,
+            timestamps_are_final=timestamps_are_final,
+            dict_group_frequency_s=dict_group_frequency_s,
+        )
 
         # add up path list
         list_path_save += list_path_save_df
@@ -387,20 +720,57 @@ def save_df_output(
 
 
 # save `df_save` in serial mode
-def save_df_ser(df_save, path_dir_save, site, output_level):
+def save_df_ser(
+    df_save,
+    path_dir_save,
+    site,
+    output_level,
+    timestamp_reference="follow",
+    timestamps_are_final=False,
+    dict_group_frequency_s=None,
+):
     list_grid = df_save.index.get_level_values("grid").unique()
     list_group = df_save.columns.get_level_values("group").unique()
-    list_year = df_save.index.get_level_values("datetime").year[:-1].unique()
+    is_dailystate_only = len(list_group) == 1 and list_group[0] == "DailyState"
+    idx_year = df_save.index.get_level_values("datetime").year
+    if is_dailystate_only or timestamps_are_final:
+        list_year = idx_year.unique()
+    else:
+        # the last index value is dropped as supy uses starting timestamp of each year
+        # for naming files
+        list_year = idx_year[:-1].unique()
     list_path_save_df = []
     for grid in list_grid:
         for group in list_group:
-            # the last index value is dropped as supy uses starting timestamp of each year
-            # for naming files
             for year in list_year:
-                df_year = gen_df_year(df_save, year, grid, group, output_level)
+                allow_irregular_timestamps = (
+                    _normalise_output_timestamp_reference(timestamp_reference)
+                    == "daylight"
+                )
+                df_year = gen_df_year(
+                    df_save,
+                    year,
+                    grid,
+                    group,
+                    output_level,
+                    timestamps_are_final=timestamps_are_final,
+                    allow_irregular_timestamps=allow_irregular_timestamps,
+                )
                 if df_year.shape[0] > 0:
+                    group_frequency_s = (
+                        dict_group_frequency_s.get(group)
+                        if dict_group_frequency_s is not None
+                        else None
+                    )
                     path_save = save_df_grid_group(
-                        df_year, grid, group, path_dir_save, site
+                        df_year,
+                        grid,
+                        group,
+                        path_dir_save,
+                        site,
+                        timestamp_reference,
+                        freq_s=group_frequency_s,
+                        allow_irregular_timestamps=allow_irregular_timestamps,
                     )
                     list_path_save_df.append(path_save)
     return list_path_save_df
@@ -593,6 +963,9 @@ def save_df_output_parquet(
     path_dir_save: Path = Path("."),
     save_tstep=False,
     save_state: bool = True,
+    site_metadata: Optional[str] = None,
+    timestamp_reference="follow",
+    forcing_timestamp_reference="local_standard_time",
 ) -> list:
     """Save supy output to Parquet format.
 
@@ -610,6 +983,15 @@ def save_df_output_parquet(
         Directory to save Parquet file
     save_tstep : bool, optional
         Whether to save at simulation timestep resolution
+    save_state : bool, optional
+        Whether to write the legacy final-state Parquet file.
+    site_metadata : str, optional
+        Original site identifier to record in metadata when ``site`` is a
+        filesystem-safe filename token. Defaults to ``site``.
+    timestamp_reference : str, optional
+        Saved timestamp reference. ``follow`` preserves the forcing clock.
+    forcing_timestamp_reference : str, optional
+        Clock used by ``df_output`` before any saved-output relabelling.
 
     Returns
     -------
@@ -635,7 +1017,7 @@ def save_df_output_parquet(
 
     if not save_tstep:
         # Resample output
-        df_rsmp = resample_output(df_save, freq_save, _internal=True)
+        df_rsmp = _resample_output(df_save, freq_save)
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution
@@ -648,18 +1030,34 @@ def save_df_output_parquet(
     else:
         df_to_save = df_save
 
+    df_to_save = relabel_output_timestamps(
+        df_to_save,
+        timestamp_reference,
+        forcing_timestamp_reference,
+        df_state_final,
+    )
+
     # Construct filenames
     list_path_save = []
+    timestamp_suffix = _timestamp_reference_filename_suffix(timestamp_reference)
+    timestamp_reference_name = _normalise_output_timestamp_reference(
+        timestamp_reference
+    )
 
     # Save output data
-    filename_output = f"{site}_SUEWS_output.parquet" if site else "SUEWS_output.parquet"
+    filename_output = (
+        f"{site}_SUEWS_output{timestamp_suffix}.parquet"
+        if site
+        else f"SUEWS_output{timestamp_suffix}.parquet"
+    )
     path_output = path_dir_save / filename_output
 
     # Save with metadata
     metadata = {
-        "site": site,
+        "site": site if site_metadata is None else site_metadata,
         "output_frequency_s": freq_s,
         "save_tstep": save_tstep,
+        "timestamp_reference": timestamp_reference_name,
         "creation_time": pd.Timestamp.now().isoformat(),
         "version": __version__,
     }
@@ -675,9 +1073,9 @@ def save_df_output_parquet(
 
     if save_state:
         filename_state = (
-            f"{site}_SUEWS_state_final.parquet"
+            f"{site}_SUEWS_state_final{timestamp_suffix}.parquet"
             if site
-            else "SUEWS_state_final.parquet"
+            else f"SUEWS_state_final{timestamp_suffix}.parquet"
         )
         path_state = path_dir_save / filename_state
         df_state_final.to_parquet(
@@ -687,7 +1085,9 @@ def save_df_output_parquet(
 
     # Save metadata as a separate small parquet file
     filename_meta = (
-        f"{site}_SUEWS_metadata.parquet" if site else "SUEWS_metadata.parquet"
+        f"{site}_SUEWS_metadata{timestamp_suffix}.parquet"
+        if site
+        else f"SUEWS_metadata{timestamp_suffix}.parquet"
     )
     path_meta = path_dir_save / filename_meta
     df_meta = pd.DataFrame([metadata])

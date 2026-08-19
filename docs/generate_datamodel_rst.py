@@ -26,9 +26,74 @@ except ImportError:
     sys.path.insert(0, str(SRC_PATH))
     from supy.data_model.doc_utils import ModelDocExtractor
 
+try:
+    from supy.data_model.validation.required_fields import required_when
+except ImportError:
+    # The installed supy predates the conditionally-required field registry.
+    # Degrade to the wording used for parameters whose requirement nothing
+    # records, rather than aborting the whole docs build, but say so plainly:
+    # silently shipping pages that omit the conditions is the failure mode this
+    # registry exists to end.
+    print(
+        "WARNING: the installed supy has no conditionally-required field "
+        "registry, so requirement conditions will be omitted from the "
+        "generated configuration reference. Rebuild supy from this checkout "
+        "(make dev) to include them.",
+        file=sys.stderr,
+    )
+
+    def required_when(model_name: str, field_name: str) -> str:
+        """Fall back to recording no condition."""
+        return ""
+
+
+# Shown for any parameter that carries no default value. Such parameters are
+# typically declared Optional so that a partial configuration still loads and
+# the validation layer can report what is missing, which is not the same thing
+# as the parameter being optional to the science. The wording therefore states
+# only what is certain: no default exists, and whether one must be supplied
+# depends on the configuration.
+#
+# This is guidance addressed to the reader, so it is labelled as a note rather
+# than filed under "Status". "Status" is reserved for a short state token such
+# as "Required"; a sentence of advice is a different kind of content and gets
+# its own label.
+NO_DEFAULT_NOTE_LABEL = "Configuration Note"
+NO_DEFAULT_NOTE = (
+    "No default value. A value may be required depending on which physics "
+    "options and surface types are active in your configuration."
+)
+
 
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
+
+    LAYER_CONVENTION_MODELS = frozenset(
+        {
+            "ThermalLayers",
+            "VerticalLayers",
+            "RoofLayer",
+            "WallLayer",
+            "ModelPhysics",
+        }
+    )
+
+    RELATIONSHIP_REF_TARGETS = frozenset(
+        {
+            "net_radiation",
+            "emissions",
+            "storage_heat",
+            "ohm_inc_qf",
+            "roughness_length_momentum",
+            "roughness_length_heat",
+            "stability",
+            "roughness_sublayer",
+            "roughness_sublayer_level",
+            "surface_conductance",
+            "snow_use",
+            "stebbs",
+        }
+    )
 
     def __init__(self, doc_data: dict[str, Any]):
         """
@@ -132,17 +197,225 @@ class RSTGenerator:
             lines.append(description)
             lines.append("")
 
-        # Add parameters section
-        if model_doc.get("fields"):
-            lines.append("**Parameters:**")
-            lines.append("")
+        if model_name in self.LAYER_CONVENTION_MODELS:
+            lines.extend(
+                [
+                    ".. seealso::",
+                    "",
+                    "   See :ref:`layer_conventions` for facet orientation, "
+                    "material-layer ordering, and the methods that use each property.",
+                    "",
+                ]
+            )
 
-            # Format each field
+        if any(field.get("examples") for field in model_doc.get("fields", [])):
+            lines.extend([
+                ".. note::",
+                "",
+                "   Example values below are parameter choices compiled in the "
+                "SUEWS parameter database, which is being prepared for publication. "
+                "Until its release, the cited studies provide the supporting "
+                "evidence. These values are not defaults or recommendations; "
+                "select or calibrate values for the site.",
+                "",
+            ])
+
+        if model_name == "ModelPhysics":
+            lines.extend(self._format_modelphysics_selector_guide())
+
+        # Add fields directly; the page and option directives already provide
+        # the necessary structure, so a generic "Parameters" label is redundant.
+        if model_doc.get("fields"):
             for field_doc in model_doc["fields"]:
                 lines.extend(self._format_field(field_doc, model_name))
                 lines.append("")  # Blank line between fields
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _format_modelphysics_selector_guide() -> list[str]:
+        """Format public ModelPhysics selector families.
+
+        The generated field list below is extracted from the Pydantic model.
+        This guide documents the public YAML shapes accepted by the validators,
+        including aliases and nested forms that fold to the long-standing
+        DataFrame / Fortran method columns.
+        """
+        return [
+            ".. rubric:: Public selector forms",
+            "",
+            "The scalar ``{value: ...}`` form remains valid for each selector. "
+            "The forms below are the public YAML names and nested families accepted "
+            "by the configuration validators; they are folded to the existing "
+            "method-code fields before SUEWS runs. Registered selector tokens are "
+            "case-insensitive; citation-style choices are shown in their preferred "
+            "case.",
+            "",
+            ".. rubric:: Method dependency graph",
+            "",
+            "The main method interactions are:",
+            "",
+            "- ``snow_use`` -> ``net_radiation`` -> ``storage_heat`` -> ``energy_balance``",
+            "- ``emissions`` -> ``ohm_inc_qf`` -> ``storage_heat``",
+            "- ``storage_heat`` -> ``stebbs`` -> ``stebbs.capacitance``",
+            "- ``roughness_length_momentum`` -> ``roughness_length_heat`` -> ``stability`` -> ``roughness_sublayer`` -> ``roughness_sublayer_level`` -> ``surface_conductance``",
+            "",
+            "Conditional compatibility checks enforce the critical branches: EHC "
+            "and STEBBS storage heat require SPARTACUS net radiation, STEBBS "
+            "storage heat also requires STEBBS enabled, and non-default STEBBS "
+            "capacitance choices require the STEBBS branch.",
+            "",
+            ".. list-table:: Net radiation",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``net_radiation``",
+            "     - ``forcing`` / ``observed``; nested ``narp``; nested ``spartacus``",
+            "     - Selects observed net all-wave radiation, or a nested NARP/SPARTACUS form.",
+            "   * - ``net_radiation.narp.ldown``",
+            "     - ``observed``; ``cloud``; ``air``",
+            "     - Longwave-down source for NARP.",
+            "   * - ``net_radiation.narp.variant``",
+            "     - ``standard``; ``surface``; ``zenith``",
+            "     - Optional NARP variant; ``standard`` is the default.",
+            "   * - ``net_radiation.spartacus.ldown``",
+            "     - ``observed``; ``cloud``; ``air``",
+            "     - Longwave-down source for SPARTACUS-Surface.",
+            "",
+            ".. list-table:: Emissions",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``emissions.heat``",
+            "     - ``observed``; ``L11``; ``J11``; ``L11_updated``",
+            "     - Observed QF cannot be combined with CO2 axes; use modelled heat when CO2 is enabled.",
+            "   * - ``emissions.co2.anthropogenic``",
+            "     - ``none``; ``qf_linked``; ``detailed``",
+            "     - Anthropogenic CO2 branch; use ``none`` only when biogenic is also ``none``.",
+            "   * - ``emissions.co2.biogenic``",
+            "     - ``none``; ``rectangular``; ``bellucco_local``; ``bellucco_general``; ``conductance``",
+            "     - Biogenic CO2 family; a family requires anthropogenic ``qf_linked`` or ``detailed``.",
+            "",
+            ".. list-table:: Storage heat",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``storage_heat``",
+            "     - ``observed``; ``ohm``; ``anohm``; ``estm``; ``ehc``; ``dyohm``; ``stebbs``; ``dyohm_building``",
+            "     - Storage heat source or model family.",
+            "   * - ``storage_heat.ohm.include_qf``",
+            "     - ``true`` / ``false``; ``include`` / ``exclude``",
+            "     - Public home for the OHM QF-inclusion switch.",
+            "",
+            ".. list-table:: Observed/modelled source selectors",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``soil_moisture_deficit``",
+            "     - ``modelled``; ``observed``",
+            "     - Selects water-balance SMD or forcing-file soil moisture.",
+            "   * - ``water_use``",
+            "     - ``modelled``; ``observed``",
+            "     - Selects modelled irrigation/water use or forcing-file values.",
+            "   * - ``leaf_area_index``",
+            "     - ``observed``; ``modelled``",
+            "     - Public alias for the LAI method selector.",
+            "   * - ``frontal_area_index``",
+            "     - ``observed``; ``modelled``",
+            "     - Selects observed or modelled frontal area index.",
+            "   * - ``snow``",
+            "     - ``disabled``; ``enabled``",
+            "     - Public alias for the snow-process switch.",
+            "",
+            ".. warning::",
+            "",
+            "   ``frontal_area_index: modelled`` is retained for compatibility, "
+            "but its building estimate uses grid-cell area as a horizontal length "
+            "scale. It is therefore resolution-dependent and can become very small "
+            "on coarse grids.",
+            "",
+            "   Building surface fraction alone does not determine building FAI. "
+            "For idealised square buildings, :math:`\\lambda_f = \\lambda_p H / b`; "
+            "the same plan-area fraction can represent many narrow buildings or a "
+            "few wide ones. Use ``observed`` with morphology-derived FAI for "
+            "coarse-grid applications. A replacement closure needs a validated "
+            "additional geometry measure; SUEWS does not assume a universal "
+            "building width (:cite:t:`GO99UrbanForm`).",
+            "",
+            ".. list-table:: Other method selectors",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``roughness_length_momentum``",
+            "     - ``fixed``; ``variable``; ``macdonald`` / ``M98``; ``lambdap_dependent`` / ``GO99``; ``alternative``",
+            "     - Momentum roughness-length method.",
+            "   * - ``roughness_length_heat``",
+            "     - ``brutsaert`` / ``B82``; ``kawai`` / ``K09``; ``voogt_grimmond`` / ``VG00``; ``kanda`` / ``K07``; ``adaptive``",
+            "     - Heat roughness-length method.",
+            "   * - ``stability``",
+            "     - ``not_used``; ``not_used2``; ``hoegstrom``; ``CN98``; ``BH71``",
+            "     - Atmospheric stability correction method.",
+            "   * - ``roughness_sublayer``",
+            "     - ``most``; ``rst`` / ``T19``; ``variable``",
+            "     - Roughness sublayer treatment.",
+            "   * - ``roughness_sublayer_level``",
+            "     - ``none``; ``basic``; ``detailed``",
+            "     - Roughness sublayer detail level.",
+            "   * - ``surface_conductance``",
+            "     - ``J11``; ``W16``",
+            "     - Surface conductance method.",
+            "",
+            ".. list-table:: STEBBS",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``stebbs.enabled``",
+            "     - ``false``; ``true``",
+            "     - Master STEBBS switch.",
+            "   * - ``stebbs.parameter_source``",
+            "     - ``default``; ``provided``",
+            "     - Public alias for the STEBBS parameter-source selector.",
+            "   * - ``stebbs.capacitance``",
+            "     - ``default``; ``provided``; ``parameterise``",
+            "     - Reading/STEBBS public selector name for the RC-method choice.",
+            "   * - ``stebbs.setpoint``",
+            "     - ``constant``; ``dependent``; ``scheduled``",
+            "     - Space-heating/cooling setpoint method.",
+            "   * - ``stebbs.same_albedo_wall``; ``stebbs.same_albedo_roof``",
+            "     - ``disabled``; ``enabled``",
+            "     - Wall and roof albedo assumptions.",
+            "   * - ``stebbs.same_emissivity_wall``; ``stebbs.same_emissivity_roof``",
+            "     - ``disabled``; ``enabled``",
+            "     - Wall and roof emissivity assumptions.",
+            "",
+            ".. note::",
+            "",
+            "   The generated parameter list below still includes implementation field "
+            "   names where they differ from public aliases. In user YAML, prefer "
+            "   ``leaf_area_index`` over ``laimethod``, ``snow`` over "
+            "   ``snow_use``, ``storage_heat.ohm.include_qf`` over flat "
+            "   ``ohm_inc_qf``, and ``stebbs.parameter_source`` over "
+            "   ``stebbs.parameters``.",
+            "",
+        ]
 
     @staticmethod
     def _format_meta_tags(model_name: str, model_doc: dict[str, Any]) -> list[str]:
@@ -168,12 +441,15 @@ class RSTGenerator:
         ]
 
     @staticmethod
-    def _add_field_index_entries(field_name: str, model_name: str) -> list[str]:
+    def _add_field_index_entries(
+        field_name: str, model_name: str, legacy_name: str | None = None
+    ) -> list[str]:
         """Add index entries for a field.
 
         Args:
             field_name: Name of the field
             model_name: Name of the containing model
+            legacy_name: Most recent legacy YAML name that resolves to the field
 
         Returns
         -------
@@ -183,12 +459,14 @@ class RSTGenerator:
             ".. index::",
             f"   single: {field_name} (YAML parameter)",
             f"   single: {model_name}; {field_name}",
-            "",
         ]
+        if legacy_name:
+            lines.append(f"   single: {legacy_name} (legacy YAML parameter)")
+        lines.append("")
 
         # Add reference label for physics method fields with relationships
         # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy rename)
-        if field_name in {
+        if field_name in RSTGenerator.RELATIONSHIP_REF_TARGETS or field_name in {
             "stabilitymethod",
             "rslmethod",  # was diagmethod
             "rsllevel",  # was localclimatemethod
@@ -198,6 +476,17 @@ class RSTGenerator:
             lines.append("")
 
         return lines
+
+    @classmethod
+    def _format_relationship_targets(cls, targets: list[str]) -> str:
+        """Format relationship targets as RST refs only when labels exist."""
+        refs = []
+        for target in targets:
+            if target in cls.RELATIONSHIP_REF_TARGETS:
+                refs.append(f":ref:`{target} <{target}>`")
+            else:
+                refs.append(f"``{target}``")
+        return ", ".join(refs)
 
     @staticmethod
     def _format_field_description(field_doc: dict[str, Any]) -> list[str]:
@@ -262,6 +551,82 @@ class RSTGenerator:
 
         return lines
 
+    def _format_unit_and_legacy_name(self, field_doc: dict[str, Any]) -> list[str]:
+        """Format unit and legacy-name metadata for a field."""
+        lines = []
+        unit = field_doc.get("unit")
+        if unit and not field_doc.get("options"):
+            lines.append(f"   :Unit: {self._format_unit(unit)}")
+
+        legacy_name = field_doc.get("legacy_name")
+        if legacy_name:
+            lines.append(f"   :Legacy name: ``{legacy_name}``")
+
+        return lines
+
+    def _format_parameter_examples(self, field_doc: dict[str, Any]) -> list[str]:
+        """Format literature-backed parameter examples as a compact table."""
+        examples = field_doc.get("examples", [])
+        if not examples:
+            return []
+
+        unit = self._format_unit(field_doc.get("unit", ""))
+        display_unit = (
+            unit if unit not in {"equation-dependent", "model-dependent"} else ""
+        )
+        lines = [
+            "",
+            "   .. rubric:: Example values",
+            "",
+            "   .. list-table::",
+            "      :header-rows: 1",
+            "      :widths: 15 40 45",
+            "",
+            "      * - Value",
+            "        - Context",
+            "        - Source",
+        ]
+
+        for example in examples:
+            example_value = example["value"]
+            if isinstance(example_value, float):
+                example_value = format(example_value, ".7g")
+            value = f"``{example_value}``"
+            if display_unit:
+                value = f"{value} {display_unit}"
+
+            surfaces = example.get("surfaces", [])
+            context_parts = [example["origin"]]
+            if surfaces:
+                if len(surfaces) == 1:
+                    surface_text = surfaces[0]
+                else:
+                    surface_text = f"{', '.join(surfaces[:-1])} and {surfaces[-1]}"
+                context_parts.append(surface_text)
+            if example.get("description"):
+                context_parts.append(example["description"])
+            if example.get("season"):
+                context_parts.append(example["season"])
+            if selector := example.get("selector"):
+                context_parts.append(f"{selector['name']}={selector['value']}")
+            context = "; ".join(context_parts)
+
+            reference = example["reference"]
+            docs_citation_key = reference.get("docs_citation_key")
+            if not docs_citation_key:
+                raise ValueError(
+                    "Example-value sources must be added to the documentation "
+                    "bibliography before they are cited"
+                )
+            source = f":cite:t:`{docs_citation_key}`"
+            lines.extend([
+                f"      * - {value}",
+                f"        - {context}",
+                f"        - {source}",
+            ])
+
+        return lines
+
     def _format_field_metadata(
         self, field_doc: dict[str, Any], type_info: dict[str, Any], model_name: str = ""
     ) -> list[str]:
@@ -303,14 +668,10 @@ class RSTGenerator:
                 lines.append(f"      | {opt_str}")
             lines.append("")
 
-        # Add unit (not for enum fields)
-        unit = field_doc.get("unit")
-        if unit and not field_doc.get("options"):
-            formatted_unit = self._format_unit(unit)
-            lines.append(f"   :Unit: {formatted_unit}")
+        lines.extend(self._format_unit_and_legacy_name(field_doc))
 
         # Add default/sample value
-        default_label, default_value = self._format_default(field_doc)
+        default_label, default_value = self._format_default(field_doc, model_name)
         if default_label is not None and default_value is not None:
             lines.append(f"   :{default_label}: {default_value}")
 
@@ -354,13 +715,13 @@ class RSTGenerator:
             # Add depends_on
             depends = relationships.get("depends_on", [])
             if depends:
-                refs = ", ".join(f":ref:`{d} <{d}>`" for d in depends)
+                refs = self._format_relationship_targets(depends)
                 lines.append(f"      **Depends on:** {refs}")
 
             # Add provides_to
             provides = relationships.get("provides_to", [])
             if provides:
-                refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
+                refs = self._format_relationship_targets(provides)
                 lines.append(f"      **Provides to:** {refs}")
 
         return lines
@@ -372,7 +733,11 @@ class RSTGenerator:
         type_info = field_doc.get("type_info", {})
 
         # Add index entries
-        lines.extend(self._add_field_index_entries(field_name, model_name))
+        lines.extend(
+            self._add_field_index_entries(
+                field_name, model_name, field_doc.get("legacy_name")
+            )
+        )
 
         # Use input:option directive for YAML configuration options
         lines.append(f".. input:option:: {field_name}")
@@ -386,6 +751,9 @@ class RSTGenerator:
 
         # Add metadata (options, unit, default, constraints)
         lines.extend(self._format_field_metadata(field_doc, type_info, model_name))
+
+        # Add literature-backed examples independently of defaults
+        lines.extend(self._format_parameter_examples(field_doc))
 
         # Add link to nested model documentation
         nested_model = field_doc.get("nested_model")
@@ -493,32 +861,38 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:  # noqa: PLR0912
+    def _format_default(
+        field_doc: dict[str, Any], model_name: str = ""
+    ) -> tuple[str, str]:
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
         - Required fields: ("Status", "Required")
-        - Optional with defaults: ("Default", "value") or ("Example", "value")
-        - Optional without defaults: ("Default", "None (optional)")
+        - Conditionally required fields: ("Status", "Required when ...")
+        - Fields with defaults: ("Default", "value")
+        - Fields with no default and no known condition:
+          (NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE)
         - Nested models: (None, None) to skip display
 
-        Site-specific fields (detected by doc_utils.py pattern matching) show
-        "Example" instead of "Default" to indicate values are illustrative.
+        A ``Default`` label therefore always introduces a real default value.
+        ``Status`` carries what the validator demands, conditionally or not,
+        and the configuration note carries advice for the parameters whose
+        requirement no validator records.
+
+        Site-specific defaults remain defaults. Literature-backed examples are
+        rendered separately from the parameter-example catalogue.
 
         Args:
             field_doc: Field documentation dictionary with is_site_specific flag
+            model_name: Name of the model declaring the field, used to look up
+                a conditional requirement. Omitted for callers that have no
+                model context, which simply skips that lookup.
         """
         nested_model = field_doc.get("nested_model")
 
         # Skip nested models entirely - structure link is sufficient
         if nested_model:
             return None, None
-
-        # Get the field type to check if it's Optional
-        type_str = str(field_doc.get("type", ""))
-        is_optional = "Optional" in type_str or (
-            "Union[" in type_str and "None" in type_str
-        )
 
         # Check for default value
         default = field_doc.get("default")
@@ -527,22 +901,21 @@ class RSTGenerator:
         if str(default) == "PydanticUndefined":
             return "Status", "Required"
 
-        # Handle None defaults explicitly
         if default is None:
-            # If the field is Optional (like Reference fields), show as optional
-            if is_optional:
-                return "Default", "None (optional)"
-            else:
-                # If not Optional but has None default, still show as optional
-                # (this handles cases where the model has default=None)
-                return "Default", "None (optional)"
+            # The validation layer may record the exact condition under which
+            # this parameter must be supplied. Prefer it: it tells the reader
+            # something specific rather than leaving them to guess.
+            condition = required_when(model_name, field_doc.get("name", ""))
+            if condition:
+                return "Status", f"Required when {condition}"
+
+            # Otherwise say only what is certain. Most such parameters are
+            # declared Optional purely so a partial configuration still loads
+            # and the validation layer can then report what is missing, which
+            # is not the same as the parameter being optional to the science.
+            return NO_DEFAULT_NOTE_LABEL, NO_DEFAULT_NOTE
 
         # We have a non-None default value - format it
-        # Use the is_site_specific flag from doc_utils.py extraction
-        # This provides field-level granularity based on pattern matching
-        is_site_specific = field_doc.get("is_site_specific", False)
-
-        # Format the value for display
         if isinstance(default, (str, int, float, bool)):
             if isinstance(default, str):
                 display_value = (
@@ -569,11 +942,7 @@ class RSTGenerator:
             except (TypeError, ValueError):
                 display_value = f"``{default}``"
 
-        # Choose appropriate label based on field type
-        if is_site_specific:
-            return "Example", display_value
-        else:
-            return "Default", display_value
+        return "Default", display_value
 
     @staticmethod
     def _format_constraints(constraints: dict[str, Any]) -> str:
@@ -1871,7 +2240,7 @@ class RSTGenerator:
             elif model_name in {"RefValue", "Reference"}:
                 categories["utility"].append(model_name)
             # Site properties parameters (nested under site.properties like conductance, irrigation, etc.)
-            # Building/thermal layers (also under site.properties)
+            # Building/material layers (also under site.properties)
             elif any(
                 x in model_lower
                 for x in (

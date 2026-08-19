@@ -4,15 +4,16 @@ This module provides functionality to save and load simulation states,
 separating internal runtime values from user-configurable parameters.
 """
 
-import pickle
-import yaml
-from pathlib import Path
-from typing import Dict, Any, Optional, Union
-import pandas as pd
-import warnings
 from datetime import datetime
+from pathlib import Path
+import pickle
+from typing import Any, Dict, Optional, Union
+import warnings
 
-from ..data_model import SUEWSConfig, InitialStates
+import pandas as pd
+import yaml
+
+from ..data_model import InitialStates, SUEWSConfig
 
 
 def save_final_state(
@@ -56,11 +57,11 @@ def save_final_state(
     yaml_path = output_dir / f"{run_id}_next_initial.yml"
     user_state = extract_user_facing_state(df_state_final, config)
 
-    with open(yaml_path, "w") as f:
+    with open(yaml_path, "w", encoding="utf-8") as f:
         yaml.dump(user_state, f, default_flow_style=False, sort_keys=False)
 
     # Add informative header to YAML file
-    with open(yaml_path, "r") as f:
+    with open(yaml_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     header = f"""# SUEWS Initial State Configuration
@@ -77,7 +78,7 @@ def save_final_state(
 
 """
 
-    with open(yaml_path, "w") as f:
+    with open(yaml_path, "w", encoding="utf-8") as f:
         f.write(header + content)
 
     return pickle_path, yaml_path
@@ -266,7 +267,7 @@ def load_initial_state(
             raise FileNotFoundError(f"Pickle file not found: {pickle_path}")
 
     # Override with user-provided YAML values
-    with open(yaml_path, "r") as f:
+    with open(yaml_path, "r", encoding="utf-8") as f:
         # Skip comment header
         lines = f.readlines()
         yaml_content = "".join([
@@ -352,7 +353,7 @@ def save_state_after_run(
     """Save state after a SuPy simulation run.
 
     Args:
-        sim_result: Result from supy.run_supy
+        sim_result: DataFrame from ``SUEWSOutput.df``
         output_dir: Directory to save state files
         run_id: Optional run identifier
 

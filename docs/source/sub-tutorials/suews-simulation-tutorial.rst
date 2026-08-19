@@ -148,11 +148,12 @@ Update configuration parameters without reloading:
     # Update timestep
     sim.update_config({'model': {'control': {'tstep': 600}}})
     
-    # Update multiple parameters
+    # Update multiple parameters (validated like YAML input;
+    # unknown keys raise ValueError)
     sim.update_config({
         'model': {
             'control': {'tstep': 300},
-            'physics': {'stabilitymethod': 2}
+            'physics': {'stability': 'CN98'}
         }
     })
     
@@ -283,4 +284,4 @@ Further Reading
 
 - :doc:`/api/simulation` - Full API reference
 - :doc:`/inputs/yaml/index` - YAML configuration guide
-- :doc:`/data-structures/df_output` - Understanding output structure
+- :doc:`/outputs/variables/index` - Understanding output variables

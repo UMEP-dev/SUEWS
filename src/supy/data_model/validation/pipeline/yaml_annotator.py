@@ -136,16 +136,16 @@ class ValidationIssue:
                 "value": 12.0,
                 "_comment": "deciduous tree height in meters",
             },
-            "co2pointsource": {"value": 0.0, "_comment": "point source CO2 emissions"},
-            "ef_umolco2perj": {
+            "emission_co2_point_source": {"value": 0.0, "_comment": "point source CO2 emissions"},
+            "emission_factor_co2_fuel": {
                 "value": 1.159,
                 "_comment": "CO2 emission factor (μmol/J)",
             },
-            "frfossilfuel_heat": {
+            "fraction_fossil_fuel_heating": {
                 "value": 0.7,
                 "_comment": "fossil fuel fraction for heating",
             },
-            "frfossilfuel_nonheat": {
+            "fraction_fossil_fuel_non_heating": {
                 "value": 0.7,
                 "_comment": "fossil fuel fraction for non-heating",
             },
@@ -202,7 +202,7 @@ class JsonYamlAnnotator:
     ) -> Path:
         """Generate annotated YAML file with validation feedback."""
         # Read original YAML
-        with open(input_path, "r") as f:
+        with open(input_path, "r", encoding="utf-8") as f:
             yaml_content = f.read()
 
         # Parse to data structure

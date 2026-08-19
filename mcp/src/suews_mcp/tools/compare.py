@@ -20,7 +20,12 @@ def compare_runs(
     metrics: Optional[str] = None,
     variables: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Compare two SUEWS runs (or a run and an observations CSV).
+    """**Use this when the user asks to evaluate or compare runs** —
+    against another scenario, a baseline, or against air-temperature /
+    flux observations. Returns RMSE / bias / r per variable. Pair with
+    `summarise_run` first if either input has not yet been
+    characterised; pair with `diagnose_run` afterwards if the metrics
+    look anomalous (gh#1407).
 
     Parameters
     ----------

@@ -35,6 +35,11 @@ This directory contains internal documentation for SUEWS core developers.
 - **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
   - How we review code
   - What to look for in reviews
+  - Manual maintainer routing for governance and process changes
+
+- **[Scientific Reviewers](SCIENTIFIC_REVIEWERS.md)** - Manual scientific reviewer routing
+  - Module-specific reviewer suggestions
+  - When and how to request scientific review
 
 ### Testing
 - **[Testing Guidelines](testing/TESTING_GUIDELINES.md)** - Overall testing strategy

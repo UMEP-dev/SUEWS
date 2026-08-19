@@ -38,6 +38,12 @@
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-doc-ascii.sh",
             "timeout": 10000,
             "statusMessage": "Checking doc ASCII..."
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-bib-tags.sh",
+            "timeout": 15000,
+            "statusMessage": "Checking bib topic tags..."
           }
         ]
       },
@@ -55,6 +61,12 @@
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-doc-ascii.sh",
             "timeout": 10000,
             "statusMessage": "Checking doc ASCII..."
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-bib-tags.sh",
+            "timeout": 15000,
+            "statusMessage": "Checking bib topic tags..."
           }
         ]
       }

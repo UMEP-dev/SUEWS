@@ -3,6 +3,7 @@ py.install_sources(
         '__init__.py',
         '_check.py',
         '_env.py',
+        '_filename.py',
         '_load.py',
         '_misc.py',
         '_post.py',
@@ -59,6 +60,7 @@ py.install_sources(
             'util/_atm.py',
             'util/_attribution/__init__.py',
             'util/_attribution/_core.py',
+            'util/_attribution/_flux_performance.py',
             'util/_attribution/_helpers.py',
             'util/_attribution/_physics.py',
             'util/_attribution/_q2.py',
@@ -84,7 +86,10 @@ py.install_sources(
             'util/converter/__init__.py',
             'util/converter/df_state.py',
             'util/converter/table/__init__.py',
+            'util/converter/table/legacy.py',
             'util/converter/table/table.py',
+            'util/converter/table/reverse.py',
+            'util/converter/table/table_writer.py',
             'util/converter/table/profile_manager.py',
             'util/converter/table/rules.csv',
             'util/converter/yaml.py',
@@ -95,6 +100,10 @@ py.install_sources(
             'sample_data/Kc_2012_data_60.txt'
         ],
         [
+            '_model_registry/__init__.py',
+            '_model_registry/registry.yaml'
+        ],
+        [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
             'ext_data/README.md'
         ],
@@ -102,6 +111,8 @@ py.install_sources(
             'data_model/__init__.py',
             'data_model/README.md',
             'data_model/doc_utils.py',
+            'data_model/parameter_examples.py',
+            'data_model/parameter_examples.json',
             'data_model/core/__init__.py',
             'data_model/core/config.py',
             'data_model/core/df_column_renames.py',
@@ -112,12 +123,20 @@ py.install_sources(
             'data_model/core/model.py',
             'data_model/core/ohm.py',
             'data_model/core/physics_families.py',
+            'data_model/core/physics_orthogonal.py',
             'data_model/core/profile.py',
             'data_model/core/site.py',
             'data_model/core/state.py',
             'data_model/core/surface.py',
             'data_model/core/timezone_enum.py',
             'data_model/core/type.py',
+            'data_model/configuration/__init__.py',
+            'data_model/configuration/version.py',
+            'data_model/configuration/migration.py',
+            'data_model/configuration/updater.py',
+            'data_model/configuration/publisher.py',
+            'data_model/configuration/exporter.py',
+            'data_model/configuration/registry.py',
             'data_model/schema/__init__.py',
             'data_model/schema/version.py',
             'data_model/schema/migration.py',
@@ -125,7 +144,14 @@ py.install_sources(
             'data_model/schema/publisher.py',
             'data_model/schema/exporter.py',
             'data_model/schema/registry.py',
+            'data_model/forcing/__init__.py',
+            'data_model/forcing/registry.py',
+            'data_model/forcing/variables.py',
+            'data_model/forcing/version.py',
             'data_model/output/__init__.py',
+            'data_model/output/contract.py',
+            'data_model/output/registry.py',
+            'data_model/output/version.py',
             'data_model/output/variables.py',
             'data_model/output/datetime_vars.py',
             'data_model/output/suews_vars.py',
@@ -148,6 +174,7 @@ py.install_sources(
             'data_model/validation/core/feedback.py',
             'data_model/validation/core/utils.py',
             'data_model/validation/core/yaml_helpers.py',
+            'data_model/validation/required_fields.py',
             'data_model/validation/pipeline/__init__.py',
             'data_model/validation/pipeline/orchestrator.py',
             'data_model/validation/pipeline/phase_a.py',
@@ -170,6 +197,16 @@ py.install_sources(
     preserve_path: true,
 )
 
+install_subdir(
+  'data_model/output/artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model/output',
+)
+
+install_subdir(
+  'data_model/forcing/artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model/forcing',
+)
+
 knowledge_pack = custom_target(
   'suews_knowledge_pack',
   command: [
@@ -185,6 +222,16 @@ knowledge_pack = custom_target(
     'chunks.jsonl.gz',
   ],
   depend_files: files('knowledge/pack.py'),
+  # Always rebuild on every build invocation (gh#1406). The pack
+  # content depends on every file under `src/suews/src`,
+  # `src/suews_bridge/src`, and `src/supy/` — declaring those
+  # individually as `depend_files` is brittle (meson `files()` does
+  # not glob), so we let ninja skip the deduplication and run the
+  # builder unconditionally. The pack-build script reads the source
+  # roots and writes deterministic JSON; runtime is on the order of
+  # seconds, well below the cost of carrying a stale pack into a
+  # release wheel.
+  build_always_stale: true,
   build_by_default: true,
   install: true,
   install_dir: py.get_install_dir() / 'supy/knowledge/pack/current',

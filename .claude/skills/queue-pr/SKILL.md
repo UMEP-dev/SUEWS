@@ -10,6 +10,36 @@ GitHub merge queue. The aim is not to avoid all conflicts; it is to discover
 them before queue entry, choose a sensible ordering, and keep history updates
 intentional.
 
+## Safety Rules
+
+- `--enqueue` (any `gh pr merge`) is human-gated. It must never run in
+  autonomous, unattended, or batch mode. It requires explicit per-run user
+  approval naming the merge action ("put these in the merge queue"); the
+  conversational note in step 3 is not sufficient on its own. Never pass
+  `--admin`, never delete branches, and stop if GitHub rejects a PR rather than
+  forcing it through.
+- Posting `--comment` to PRs you do not author/own requires approval, because on
+  a collaboration repo it lands on third parties' PRs. The read-only dry-run scan
+  and comments on your own PRs may proceed when clearly scoped.
+- Do not force-push any PR branch you do not own without explicit approval for
+  that exact branch (matching `split-pr`). For your own coordinator branch,
+  `git push --force-with-lease` after a rebase is fine.
+- Do not auto-resolve scientific or schema conflicts to make Git clean; leave a
+  coordination comment and let the owner worktree decide.
+
+## Autonomous Mode
+
+queue-pr is the terminal merge boundary of the issue -> PR -> merge pipeline, so
+its consequential tiers stay human-gated even under an autonomous orchestrator:
+
+- Auto-applicable (read-only / self-scoped): the dry-run scan and the merge
+  ordering it proposes.
+- Human-gated, always escalate (never auto-applied in a batch): `--enqueue` /
+  any merge, and `--comment` onto PRs you do not own. The terminal outcome for
+  these is escalate-to-human, the same shape as `triage-issue`'s
+  `needs-discussion`. An opt-in standing approval covers only the read-only scan
+  and ordering tiers, never the merge or cross-author-comment tiers.
+
 ## Quick Start
 
 Scan ready-for-review PRs and propose a coordination order:
@@ -165,7 +195,9 @@ make test-smoke
 9. **Prepare queue entry**
    - Rebase or merge from latest `origin/master` only after confirming the
      intended history policy for the branch.
-   - Prefer `git push --force-with-lease` after a rebase.
+   - Prefer `git push --force-with-lease` after a rebase, and only on a branch you
+     own; force-pushing any other PR branch requires explicit per-branch approval
+     (see Safety Rules, Decision Rules, and Section 4).
    - Run `make test-smoke` before requesting merge queue entry.
    - Record the queue order and any known shared files in the PR comment or
      workspace note when coordinating several agents.
@@ -195,8 +227,9 @@ otherwise.
   `origin/master`; use a stacked PR until the dependency lands.
 - Do not run destructive commands such as `git reset --hard` or branch
   checkouts in another active worktree.
-- Do not force-push unless the user asked you to update that PR branch or the
-  branch is clearly yours to maintain.
+- Do not force-push any PR branch you do not own without explicit approval for
+  that exact branch (matching split-pr and Section 4's repair-wave gate). For
+  your own coordinator branch, prefer `git push --force-with-lease` after a rebase.
 - Do not auto-resolve scientific or schema conflicts just because Git can be
   made clean. Leave a coordination comment and let the owner worktree handle
   the domain decision.
@@ -236,6 +269,7 @@ When reporting a repo-wide queue scan, use this structure:
 === READY PR MERGE QUEUE PLAN ===
 Base: master
 Mode: dry-run | comment | enqueue
+Scope: base=<base>, ready-for-review filter; <K> fetched / <total> open; truncated: <yes|no>
 Candidates: N open PRs, M ready-for-review, K queueable
 
 Queue order:
@@ -255,3 +289,11 @@ Actions:
 Always include the PR numbers. The user needs to see exactly which PRs received
 coordination comments, which PRs are currently queueable, and which PRs were
 left alone because they are draft or blocked.
+
+The scanner is a batch stage, so it emits the contract `Scope:` line (see
+`.claude/rules/autonomous-workflow.md`): `<K>` fetched against an independently
+obtained `<total>` open count, with `truncated: yes` when `K < total` (the
+`--limit`, default 100, also corroborates). When `truncated: yes`, the candidate
+list is incomplete -- raise `--limit` (or paginate) before trusting the ordering,
+since merge-queue ordering relies on a complete candidate set. Never rely on the
+default limit for a backlog that may exceed it.

@@ -41,23 +41,390 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 82 | 29 | 80 | 40 | 306 |
-| 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
-| 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
-| 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
-| 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
-| 2021 | 4 | 5 | 1 | 3 | 6 | 19 |
-| 2020 | 7 | 6 | 0 | 3 | 2 | 18 |
-| 2019 | 4 | 8 | 1 | 6 | 1 | 20 |
-| 2018 | 7 | 1 | 6 | 5 | 0 | 19 |
-| 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
+| 2026 | 80       | 86       | 32 | 81 | 40 | 320   |
+| 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
+| 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
+| 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
+| 2022 | 15       | 18       | 0 | 7 | 0 | 40    |
+| 2021 | 4        | 5        | 1 | 3 | 6 | 19    |
+| 2020 | 7        | 6        | 0 | 3 | 2 | 18    |
+| 2019 | 4        | 8        | 1 | 6 | 1 | 20    |
+| 2018 | 7        | 1        | 6 | 5 | 0 | 19    |
+| 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
 
+### 14 Aug 2026
+
+- [change][experimental] Rejected unrecognised nested keys on validated YAML and dictionary configuration loads (#1647)
+  - Errors name the full configuration path and suggest the current field for recognised legacy spellings; the explicit `use_conditional_validation=False` construction path remains unchecked.
+- [bugfix] Completed historical YAML-upgrade drops exposed by strict extra-key validation (#1647)
+  - Retired hot-water-tank view factors, the old occupants profile, and legacy bulk vegetation albedo are now removed in their owning version transitions with an explicit migration log.
+- [doc] Corrected YAML examples that placed coordinates and land-cover data on the site object where they were not applied (#1647)
+
+### 13 Aug 2026
+
+- [feature][experimental] Added configurable saved-output timestamp references (#1589)
+  - `model.control.output.timestamp_reference` can follow the forcing clock or relabel saved text and parquet timestamps to UTC, local standard time, or configured daylight time without changing simulated values.
+  - Explicit references add a matching filename suffix, while the default `follow` policy preserves existing timestamps and filenames.
+
+### 12 Aug 2026
+
+- [bugfix] Preserved elapsed model time across chunk and restart boundaries (#1692)
+  - Checkpoint schema version 2 stores `dt_since_start`, `dt_since_start_prev`, the new-day flag, and the model timestep alongside each grid state, making one-day chunks numerically equivalent to an uninterrupted run within a relative and absolute tolerance of `1e-12` across the 24-hour averaging boundary.
+  - State-only version-1 checkpoints are rejected with an actionable compatibility error because their missing elapsed timer cannot be reconstructed reliably.
+
+- [feature][experimental] Added forcing timestamp-reference control (#1590)
+  - `model.control.forcing.timestamp_reference: utc` keeps forcing timestamps, outputs, daily state boundaries and run bounds in UTC while solar calculations and local diurnal profiles use the site's fixed-offset local standard time.
+  - Omitting the option, or selecting `local_standard_time`, preserves the historical local-standard-time interval-end behaviour.
+
+- [bugfix] Restored chunk checkpoints containing non-finite state sentinels (#1691)
+  - Checkpoint generation now preserves `NaN` using the existing JSON `null` representation and rejects infinities with their exact state member and array index.
+  - State-aware continuation restores `null` as `NaN`, so existing checkpoints no longer fail with only `invalid state payload`; other invalid JSON values report their exact path and type.
+
+- [maintenance] Guarded tests against locating bundled package data through imported modules' `__file__` (#1697)
+  - Reached SuPy's packaged sample data through `importlib.resources`, materialising the whole directory where the YAML config depends on its sibling forcing file.
+  - Added an AST-based CI lint, regression coverage, and test guidance to prevent the fragile path pattern from returning.
+
+- [change][experimental] Completed the naming-convention sweep for CO2 emission parameters (#1688)
+  - Renamed fourteen fused or unit-bearing YAML keys under `anthropogenic_emissions.co2` while preserving old YAML compatibility through the schema migrator and rename registry.
+  - Corrected point-source, metabolic-emission and traffic-rate units against the Fortran physics contract; legacy `df_state` columns remain unchanged.
+
+- [bugfix] Stopped the YAML config reference describing parameters without a default as optional (#1677)
+  - Every parameter carrying no default previously rendered as `Default: None (optional)`, which asserted the opposite of the truth for parameters such as `store_cap` and `base_temperature_senescence`; these are declared `Optional[...] = None` only so a partial configuration still loads and the validation layer can then report what is missing.
+  - Such parameters now render under a `Configuration Note` label stating that no default exists and that a value may be required depending on which physics options and surface types are active. A `Default` label therefore always introduces a real default value, and `Status` stays reserved for the short state token `Required`.
+  - Added regression coverage over the rendered pages, which is the only available gate because the generated config reference is not tracked in git.
+
+- [change][stable] Retired the procedural Python API in favour of `SUEWSSimulation`, `SUEWSConfig`, and `SUEWSOutput` (#1370)
+  - Removed `init_supy`, sample/config loaders, `run_supy` helpers, `save_supy`, and the top-level output-resampling function.
+  - Retained `load_forcing_grid` only as a warning-emitting forwarding shim for the UMEP YAML single-grid workflow; `check_forcing` and `check_state` remain supported utilities.
+
+### 22 Jul 2026
+
+- [bugfix] Relaxed SPARTACUS-Surface land-cover fraction validation so lowest-layer geometry no longer has to equal SUEWS land-cover fractions (#1642)
+  - `vertical_layers.building_frac[0]` and `vertical_layers.veg_frac[0]` can now differ from `land_cover.bldgs.sfr` and `dectr.sfr + evetr.sfr` when land-cover and vertical-morphology data come from different sources; mismatches are reported as review warnings instead of being blocked or automatically corrected.
+  - The validator still enforces per-layer occupancy (`building_frac[i] + veg_frac[i] <= 1`) and the trunk/near-ground vegetation rule, with regression coverage for unmatched layer arrays.
+  - Updated SPARTACUS-Surface documentation and YAML field descriptions to distinguish SUEWS tree land-cover fraction, lowest-layer trunk or near-ground obstruction, and upper-layer crown projected fraction.
+
+### 20 Jul 2026
+
+- [change][experimental] Corrected the building material properties used by DyOHM (#1643)
+  - Storage-heat methods 6 and 8 now calculate building DyOHM coefficients from material layer 0 of `land_cover.bldgs` instead of a SPARTACUS wall.
+  - Method 7 leaves building storage heat and temperatures to STEBBS, does not use or require the `land_cover.bldgs` material layers, and now requires SPARTACUS-Surface net radiation (methods 1001--1003) so its separate roof and wall temperatures are used.
+
+### 13 Jul 2026
+
+- [bugfix] Fixed MacDonald (1998) momentum roughness using a stale displacement height (#1615)
+  - Under `roughness_length_momentum: macdonald` (`RoughLenMomMethod=3`), `z0m` was computed from the persistent `zdm` state, which still held the previous timestep's plan-area-blended displacement height (and zero on the first timestep), instead of the MacDonald displacement height computed alongside it. `z0m` was therefore inflated several-fold and the scheme did not reproduce MacDonald (1998) as published.
+  - Users of this option will see `z0m` drop by roughly a factor of 2 to 4, depending on plan area index, with knock-on changes to aerodynamic resistance and the near-surface diagnostics. Other roughness options are unaffected, as are all reference outputs.
+
+### 11 Jul 2026
+
+- [bugfix] Smoothed OHM coefficient transitions to remove platform-sensitive numerical divergence (#473)
+  - Summer/winter coefficients now blend across 0.25 degC on either side of the configured threshold; wet/dry coefficients blend across the 0.1 mm surface store and 0.02 soil-moisture-ratio transition bands. The bands are deliberately narrow: they remove the discontinuity while keeping results close to previous runs.
+  - Updated the sample reference output and added physics regressions for temperature, surface-wetness, and soil-moisture continuity.
+  - Documented the transition weights, threshold centres, surface applicability, and snow exception.
+
+### 9 Jul 2026
+
+- [feature][experimental] Added the `dyohm_building` storage-heat option (#1601)
+  - Exposed `model.physics.storage_heat: dyohm_building` (`StorageHeatMethod=8`) so DyOHM determines the building storage heat flux while other land-cover surfaces continue to use ordinary OHM.
+
+### 8 Jul 2026
+
+- [change][experimental] Skip output resampling when it is a no-op (#1599)
+  - Saving multi-year sub-hourly runs spent ~80% of the time resampling even when the requested output frequency already matched the model timestep. `resample_output` now returns the frame unchanged (byte-identical) when the data is already at the target frequency.
+  - The guard lives inside `resample_output`, so every caller benefits (`save_supy`, `SUEWSOutput.resample`, the TMY/EPW generator), and uses `pandas.infer_freq` so an irregular index is never falsely treated as a match.
+
+### 29 Jun 2026
+
+- [bugfix] Capped `pandas<3` on the manylinux2014 matrix to stop a numpy/pandas ABI segfault
+  - On CPython 3.10-3.12 Linux, `scipy<1.15` (pinned to retain manylinux2014 wheels) transitively pins `numpy<2.3`. With `pandas` left unpinned, the resolver pulled pandas 3.0.x, whose wheels are ABI-built against numpy>=2.3; running them against numpy 2.2.6 segfaulted inside `DatetimeIndex.shift` (reached via `supy._load.resample_linear_inst`), crashing the nightly `cp312-manylinux` API test job with exit 139.
+  - `pandas` is now constrained to `<3` under exactly the same environment marker as the `scipy<1.15` cap; newer interpreters and non-Linux platforms (which resolve numpy>=2.3) continue to use pandas 3.
+
+### 28 Jun 2026
+
+- [bugfix] Fixed the flood of `PydanticSerializationUnexpectedValue` warnings when serialising a `SUEWSConfig` (#1569)
+  - `FlexibleRefValue(T)` is `Union[RefValue[T], T]`; Pydantic's union serializer only routes a value to the `RefValue[T]` branch cleanly when the instance is parametrised. Bare `RefValue(value)` constructions (used throughout the `df_state` reconstruction path) produced unparametrised instances, emitting one spurious warning per populated field — hundreds for a config rebuilt via `from_state`/`from_output`.
+  - `RefValue(value)` now auto-parametrises to `RefValue[type(value)]`, matching what validation from YAML already produces, so the warnings no longer arise. No diagnostics are suppressed; serialized output is unchanged.
+
+### 26 Jun 2026
+
+- [maintenance] Added a recorded-scientific-evidence policy for physics-changing PRs (#1576)
+  - New `.claude/rules/physics-change-evidence.md`: PRs that change model physics or move a reference output must carry a `## Scientific evidence` PR-body section, obtain domain-owner sign-off, refresh moved fixtures in the same PR, and run the full `-m physics` CI tier before merge.
+  - Wired the `0-physics:change` classification label into `audit-pr`, `triage-pr`, and `triage-issue`; documented it in the `0-` automation namespace and added a contributor pointer in `CONTRIBUTING.md`.
+- [maintenance] CI: run the full physics test tier (incl. `slow`) on `0-physics:change` PRs and in the merge queue (#1576)
+  - Added a `physics-full` test tier that widens only the physics axis to include `slow` (the api axis stays as `standard`); `determine-matrix.sh` selects it when the `0-physics:change` label is present, in both the ready-PR and `merge_group` contexts. This closes the gap where the merge queue's `standard` tier excluded `slow` physics, so a known output-changing PR (#1570) merged without the shift being caught until the nightly.
+- [maintenance] Refreshed the STEBBS building-energy regression fixture for the SPARTACUS longwave changes in #1570
+  - Regenerated `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` so `QHload_cooling_FA` matches the updated longwave environment around the building. #1570 switched the SPARTACUS canyon clear-air longwave source from the forcing air temperature to the RSL-interpolated in-canopy temperature, which runs ~1 K warmer by day; incoming longwave on the wall rises, indoor air temperature increases ~0.5 K, and the threshold-driven cooling load switches on earlier (peak 28 W vs 19 W). Shortwave inputs, heating, lighting and water-mains outputs are unchanged.
+
+### 24 Jun 2026
+
+- [feature][experimental] Added configurable partitioning of global horizontal irradiance into direct and diffuse components for SPARTACUS-Surface (#1567)
+  - Wired forcing-file `kdir` (direct-normal irradiance) and `kdiff` (diffuse-horizontal irradiance) through the Python, Rust, C, and Fortran interfaces.
+  - Moved the partition calculation outside SPARTACUS-Surface so it receives prepared direct-horizontal and diffuse-horizontal canopy-top forcing.
+  - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `epw`. (#1570)
+
+- [feature][experimental] Expanded SPARTACUS radiation diagnostics and vegetation-control inputs (#1570)
+  - Added layer-resolved SW/LW diagnostics, vegetation absorption diagnostics, layer top/base fluxes, and additional ground/top radiation outputs; the SuPy SPARTACUS output metadata now reflects the expanded output schema.
+  - Exposed vegetation-specific SPARTACUS controls through YAML, SuPy, the Rust bridge, and Fortran: `n_stream_lw_forest`, `n_stream_sw_forest`, `n_vegetation_region_forest`, `veg_ext` in vertical layers
+
+- [bugfix] Fixed SPARTACUS mixed-tree and non-urban edge cases (#1570)
+  - Fixed mixed evergreen/deciduous RSL temperature sampling to use weighted half-tree height (from RSL).
+  - Guarded non-urban/forest-only SPARTACUS paths so direct-albedo and longwave fallback logic no longer touch urban-only roof/wall arrays.
+  - Added tests for mixed-tree RSL sampling height and non-urban direct-albedo SPARTACUS runs.
+
+
+### 20 Jun 2026
+
+- [bugfix] Corrected EHC heat-storage parameter packing so roof/wall thermal arrays follow SPARTACUS vertical layers while standard surface arrays follow the seven SUEWS surface classes (#1565)
+  - The EHC bridge schema version is now bumped for the changed packed layout, the zero-layer YAML/bridge/Fortran layout keeps the established empty-payload contract, and the lumped-slab EHC path skips invalid surface-class thermal layers instead of zeroing the whole grid-cell storage response
+  - Added smoke regressions for EHC surface heat-capacity sensitivity, SPARTACUS facet heat-capacity sensitivity, and invalid-surface handling so these failures are caught earlier without running the full benchmark suite
+
+### 17 Jun 2026
+
+- [maintenance] Raised the minimum supported Python to 3.12, dropping 3.9/3.10/3.11 (#1553)
+  - The single abi3 wheel is now built as cp312-abi3 (PyO3 `abi3-py312`, cibuildwheel `cp312`) and still installs on cp312..cp3xx, covering current QGIS 3 LTR and QGIS 4 (Python 3.12 on Windows)
+  - CI build/test matrices, classifiers, ruff target, and the version-conditional dependency markers were trimmed accordingly
+
+### 16 Jun 2026
+
+- [feature][experimental] Observed external water use can now be supplied per land cover in the forcing file via `wuh_paved`, `wuh_bldgs`, `wuh_evetr`, `wuh_dectr`, `wuh_grass`, `wuh_bsoil`, `wuh_water` (mm), replacing the single bulk `wuh`/`wu_m3` value when `WaterUseMethod=observed` (#1449)
+  - The kernel forcing block grows from 23 to 30 columns; a forcing file that supplies only the bulk `wuh` column still works, as it is broadcast to all seven surfaces
+  - A surface whose per-cover column is missing (`-999`) contributes zero observed water use for that timestep rather than inheriting the previous value
+  - The physics/forcing pre-check now fails fast when `WaterUseMethod=observed` but no usable `wuh`/per-cover column is present, instead of silently running on the `-999` sentinel
+
+### 15 Jun 2026
+
+- [bugfix] `SUEWSSimulation.update_forcing()` now normalises in-memory forcing (DataFrame or `SUEWSForcing`) the same way as file/path loading, instead of assigning it directly and bypassing preparation (#1537)
+  - The bypass meant an hourly DataFrame ran at its own timestep rather than the model timestep, so a 300 s model never reached the `23:55` daily-write point and `DailyState` silently stopped being saved
+  - In-memory forcing is now resampled to `model.control.tstep`, and the temporal columns (`iy`/`id`/`it`/`imin`/`isec`) are reasserted from the index so `isec` stays consistent
+  - In-memory inputs are validated as already being in the model-ready canonical form (canonical column names, a `DatetimeIndex`, pressure in hPa) and rejected with a clear error otherwise; pressure that looks like kPa is caught early rather than surfacing later as a generic out-of-range failure. No unit conversion or column renaming is applied to in-memory inputs -- build them via `supy.util.read_forcing` or `SUEWSForcing.from_file` to guarantee the contract
+- [maintenance] Publish only the user-facing `suews` plugin from `.claude-plugin/marketplace.json`; drop the `suews-dev` contributor plugin (marketplace version 1.3.0)
+  - Contributor/maintainer skills remain in the repository under `.claude/skills/` and are available on checkout; a published `suews-dev` plugin added a third manifest to keep in sync without adding reach, since its audience already has the repository cloned
+  - Documented the packaging policy in `.claude/README.md`
+- [maintenance] Reorganised the dev skills into two tiers -- workflow (orchestrator) skills led by the `fix-issue` super-workflow, and operation (building-block) skills -- and repackaged `.claude/README.md` and `CLAUDE.md` around that split: rebuilt the relationship diagram and Development Workflows on the current `triage-issue -> fix-issue -> audit-pr -> split-pr -> queue-pr` pipeline, retired the dead `/start-work` entry point, corrected the skills directory tree, added the previously-missing `/triage-issue`, `/curate-refs`, and `/doc-styler` entries, and cross-linked `doc-styler` from `lint-code`
+  - Removed references to personal cross-project skills (`examine-issue`, `gh-sync`, `gh-debrief`, `gh-check`, `gh-link`, `gh-release`) from the committed `.claude/README.md`, replacing them with portable `git`/`gh` commands and the in-repo `triage-issue`/`prep-release` so the workflow docs work for any contributor who clones the repository
+  - Dropped the `## Design Context` section from `CLAUDE.md` (a redundant summary of `.impeccable.md`, which remains the in-repo source of truth) -- it referenced the personal impeccable-family design skills (`/craft`, `/polish`, `/critique`, `/animate`); `CLAUDE.md` now keeps only a neutral pointer to `.impeccable.md`
+- [maintenance] Consolidated the two documentation operation skills into a single `audit-docs` docs sanity-check skill (ASCII/markup from `doc-styler` + bib topic-tags/metadata from `curate-refs`, moved with history); added a `check-bib-tags.sh` PostToolUse hook so `.bib` edits are audited automatically (alongside the existing `check-doc-ascii.sh`), and retargeted the doc hooks and the `00-project-essentials`/`bib-topic-tags` rules to `/audit-docs`
+- [maintenance] Removed the `setup-dev` skill -- general setup is the `make dev` Quick Start one-liner plus the session-start hook; updated the `CLAUDE.md`/`README.md` pointers accordingly
+
+### 13 Jun 2026
+
+- [feature][experimental] Bidirectional legacy table conversion: regenerate any historical SUEWS table set (`2016a`-`2020a`) from a modern YAML config / `df_state`, complementing the existing forward (`suews-convert`) path, so a configuration can move between any `(version, representation)` pair in either direction (#1522)
+  - New reverse table converter and `df_state -> tables` writer (the previously-missing exporter); the round-trip is verified byte-level across all nine historical versions, with a perturbed-config matrix stressing every value-carry path (weekday/weekend asymmetry, per-surface OHM, parameter vectors, namelist-backed state, cross-file moves and splits)
+- [bugfix] Snow-surface OHM coefficients and thresholds were fabricated from the paved surface in the data model (#1522)
+  - Every surface wrote its own OHM coefficients into `df_state` snow index 7 and `SurfaceProperties` wrote dummy `0` thresholds there, while `SnowParams` carried no fields for them -- so a legacy-loaded config silently ran snow OHM with paved coefficients and a 0 degC threshold
+  - `SnowParams` now owns `ohm_coef` / `ohm_threshold_summer_winter` / `ohm_threshold_wet_dry`, defaulted to the canonical snow OHM row (thresholds 10 degC summer/winter, 0.9 wet/dry); the fabrication is removed
+  - Snow-surface storage-heat output therefore changes for runs with snow enabled; runs without snow are unaffected. The new fields are optional with defaults, so existing YAMLs round-trip unchanged and no schema-version bump is required
+  - The reverse writer routes the combined within-grid runoff/soil-store remainder back to the structurally-correct legacy column (impervious source surfaces to `ToRunoff`, pervious to `ToSoilStore`) instead of silently dropping edited values
+- [bugfix] `2017b` could not be converted at all -- an orphan in the converter version graph crashed with a cryptic `TypeError`; its table format is byte-identical to `2017a`, so it now joins the graph via a zero-delta equivalence edge (#1522)
+- [bugfix] Converter rule matching collected rows where *either* version-graph endpoint matched, which was wrong once two edges shared an endpoint; it now requires both endpoints (#1522)
+- [feature][experimental] Opt-in `SUEWSConfig.strict_initial_state_bounds` (default `True`, strict behaviour unchanged) lets a faithfully-converted legacy config whose initial albedo sits outside the modern seasonal range load with a warning instead of a hard validation error; `suews-convert` sets it for legacy conversions (#1522)
+
+### 11 Jun 2026
+
+- [bugfix] `SUEWSSimulation(config=dict)` and `update_config(dict)` now route through validated `SUEWSConfig` construction instead of mutating model internals by hand (#1530)
+  - Initialising from a full YAML-shaped dict previously failed with `<enum 'Enum'> cannot set attribute 'value'` or `'list' object has no attribute 'keys'`; it now behaves identically to loading the same data from a YAML file
+  - Partial update dicts are deep-merged onto the existing configuration and the result is re-validated, so enum coercion, RefValue wrapping, and range checks apply to dict input exactly as for YAML
+  - New `SUEWSConfig.from_dict()` classmethod is the single validated construction path; `from_yaml()` delegates to it
+- [change] Dict updates via `update_config()` are now strict and explicit (#1530)
+  - Unknown keys raise `ValueError` instead of being silently dropped (this previously masked no-op "updates" in two bundled tutorials, now corrected)
+  - List values (including a plain `sites` list) replace the existing list; the `{index: patch}` / `{site_name: patch}` / single-site shorthand forms for `sites` are kept, but an unmatched site name now raises when multiple sites exist (previously a silent no-op); legacy field aliases (`stabilitymethod`, `output_file`, `forcing_file`, ...) are normalised in partial updates exactly as in full input
+  - A partial dict with no existing configuration raises an informative error instead of failing later with `No objects to concatenate`
+  - Partial updates merge onto only the explicitly-set fields (`exclude_unset`), so conditional validators no longer mistake pydantic defaults for user-declared values on sparse configs
+- [change] Hardened configuration loading and mutation (#1530 follow-ups)
+  - YAML configs are now parsed with `yaml.safe_load`; `yaml.FullLoader` could construct live Python objects from tags such as `!!python/name:os.system` embedded in a config file
+  - Unknown top-level keys in a config (YAML or dict) raise `ValueError` instead of being silently retained as inert extras
+  - Site-completeness checks now apply to dict-loaded configs exactly as to YAML files (previously gated on the YAML file path, so the in-memory dict path skipped them)
+  - `validate_assignment` enabled on `SUEWSConfig`, `Model`, `ModelControl`, `ModelPhysics`, and `Site`, so direct attribute assignment is validated and coerced instead of stored raw
+
+### 5 Jun 2026
+
+- [change][experimental] File logging is now opt-in: importing or using `supy` no longer drops an (often empty) `SuPy.log` into the current working directory (#1516)
+  - Previously a `TimedRotatingFileHandler` was attached at import time and eagerly created `SuPy.log` in the CWD the moment any submodule was used, whether or not anything was ever logged
+  - Console logging is unchanged; only the file handler is now off by default
+  - Enable file logging on demand with `supy.enable_file_logging()` (defaults to `SuPy.log` in the CWD, or pass a path/directory) and turn it off with `supy.disable_file_logging()`
+  - Or enable it without code via the `SUPY_LOGFILE` (explicit path) / `SUPY_LOG_DIR` (directory) environment variables
+  - When enabled, the file is created lazily on the first emitted record (`delay=True`), so no stray empty file appears
+- [change] Finalised the YAML configuration schema to `2026.5` for the 2026.6.5 release (#1256, #1321, #1327, #1333, #1334, #1337, #1372, #1392, #1394, #1452, #1456, #1495)
+  - The `2026.5.dev1`..`2026.5.dev14` development-cycle labels are collapsed into the single released `2026.5` schema; `sample_config.yml`, the migration handlers, and the vendored release fixture now carry `2026.5`
+  - User YAMLs from `2026.4` (or any earlier supported schema) upgrade in one step via `suews-schema migrate your_config.yml` -- the `(2026.4 -> 2026.5)` handler applies the full union of the cycle's renames and restructures and logs every field rename/drop
+  - No model output change: the KCL/London (Ward et al. 2016) energy-balance benchmark fingerprint is byte-identical to the 2026.4.3 release
+
+### 4 Jun 2026
+
+- [bugfix] Legacy SUEWS table to YAML conversion no longer aborts on a missing `stebbsmethod` df_state column (#1500)
+  - `ModelPhysics.from_df_state` now defaults a missing `stebbsmethod` column to `0` (STEBBS disabled) instead of raising `Missing attribute 'stebbsmethod'`, consistent with how the adjacent newer STEBBS columns (`setpointmethod`, `rcmethod`) already default; a present-but-invalid value is still rejected
+  - The originally reported `setpointmethod` symptom was already resolved by the #1456 STEBBS relocation; this completes the issue by hardening the last hard-required STEBBS column and adds regression tests covering both the `setpointmethod` and `stebbsmethod` legacy-DataFrame cases
+
+- [bugfix] Hardened legacy STEBBS `df_state` defaults so older state DataFrames load without the newer nested STEBBS columns (#1510)
+
+- [maintenance] Added a multi-version energy-balance benchmark: a reproducibility harness (byte-identical stats fingerprint per release), restricted Zenodo data supply, and public benchmark pages at suews.io/benchmark (KCL/London, Ward et al. 2016) (#1506)
+
+- [maintenance] Extended the benchmark with a near-surface (RSL) air-temperature axis as a second evaluation dimension (#1508)
+
+- [maintenance] Removed leftover derived-type (`dts`) field-name suffixes and redundant Fortran declarations (#1511)
+
+### 3 Jun 2026
+
+- [change][experimental] Align physics method selectors on the observed/modelled axis (#1501)
+  - `model.physics.frontal_area_index` now exposes only the canonical readable names `observed` and `modelled`; the synonym aliases `provided`, `use_provided`, and `simple_scheme` are removed so it matches `laimethod`, `water_use`, and `soil_moisture_deficit`
+  - Internal source-of-input enums aligned to one vocabulary: `LAIMethod.CALCULATED` becomes `MODELLED`, and `FAIMethod.USE_PROVIDED` / `SIMPLE_SCHEME` become `OBSERVED` / `MODELLED`; integer values are unchanged, so existing YAML and `df_state` round-trip identically
+  - `net_radiation` scalar-name errors now point scheme families (`narp`, `spartacus`) at the nested family form rather than only listing the `ldown_*` names
+
+- [bugfix] Fold legacy flat STEBBS physics switches into the nested `model.physics.stebbs` object during validation so pre-#1456 configs validate cleanly (#1499)
+
+- [feature][experimental] SUEWS agent plugin -- early access to driving SUEWS from AI coding agents (#1496)
+  - Bundles the SUEWS MCP server so an agent (for example Claude) can scaffold, inspect, validate, and run configurations through structured tools rather than by guesswork; pairs with the self-bootstrapping `uvx` MCP install (#1384), the agent-facing `suews inspect` physics block (#1484), and the readable sample-config physics groupings (#1483)
+  - Deliberately early-stage and under active development: the interfaces will change and it is not production-ready yet. We are excited about this direction and will keep building it out
+
+- [maintenance] Resolved the Python interpreter in the `validate-tutorial` hook rather than relying on a bare `python` (#1503)
+
+- [maintenance] Pinned the agent push-token checkout to silence the zizmor `artipacked` finding (#1504)
+
+### 1 Jun 2026
+
+- [feature][experimental] Expose active physics selectors in `suews inspect` output (#1484)
+  - `suews inspect --format json` now includes a structured `physics` block so CLI/MCP clients and AI agents can see each active `model.physics` selector, its numeric code, and accepted readable names without re-deriving them from schema internals
+  - The inspect surface uses public-facing keys such as `leaf_area_index`, `snow`, and `stebbs.parameter_source`, while carrying `internal_key` for the long-standing Fortran-facing names where useful
+  - `storage_heat.ohm.include_qf` is reported under the active OHM storage-heat branch rather than as a top-level `ohm_inc_qf` selector, and is hidden when OHM is not selected
+
+- [feature][experimental] Advertise readable sample-config physics defaults with nested orthogonal groupings (#1483)
+  - `model.physics.storage_heat.ohm.include_qf` now represents the OHM QF inclusion choice under the storage heat selector in the sample config, while legacy flat `ohm_inc_qf` input remains accepted and normalised to the existing Fortran-facing state
+  - `model.physics.net_radiation.narp.ldown` is accepted as the scheme-scoped spelling for NARP longwave forcing options, while the existing `scheme: narp` form remains accepted
+  - The sample also uses readable net-radiation and emissions groupings plus citation-style aliases such as `J11`, `K09`, `CN98`, and `W16` so new YAML users see semantic axes rather than opaque integer method codes
+  - `model.physics.leaf_area_index` and `model.physics.snow` are accepted as public-facing aliases for the existing LAI and snow switches, folding back to `laimethod` and `snow_use` internally
+  - Source-choice physics options now use the consistent public names `observed` and `modelled`; older readable aliases such as `provided`, `use_provided`, and `simple_scheme` remain accepted where already introduced, while `laimethod: calculated` and `laimethod: model` are no longer readable public options
+  - `model.physics.soil_moisture_deficit` now exposes only `modelled` and `observed` as readable public names; the old volumetric/gravimetric split remains an internal numeric compatibility path pending the water/soil-moisture unit unification work
+  - `model.physics.stebbs.parameter_source` is accepted as the public nested spelling for the STEBBS parameter-source choice, folding back to `stebbs.parameters` internally
+
+### 31 May 2026
+
+- [maintenance] Narrow the PyPI publish workflow's tag trigger to CalVer-only, so non-supy tags (e.g. SUEWS-agent releases) do not trigger a supy wheel build + publish (#1384)
+  - `.github/workflows/build-publish_to_pypi.yml` now triggers on `tags: ['[0-9]*']`, mirroring the existing pattern in `.github/workflows/docs-sync.yml`. Tags like `agent/v0.3` are ignored by the publish workflow; users pick up agent updates via `/plugin update`, not a PyPI release
+- [change][experimental] Relocate STEBBS physics switches under `model.physics.stebbs` (#1456)
+  - The legacy flat STEBBS physics switches now serialise under the nested `model.physics.stebbs` object, splitting the `stebbs` master toggle into `enabled` plus `parameters`
+  - Existing flat YAML input remains accepted and is folded during validation and migration; bridge and Fortran-facing columns such as `stebbsmethod`, `rcmethod`, `setpointmethod`, and the `same_*` switches remain unchanged
+  - This is a structural YAML/data-model move; the capacitance selector keeps the Reading-requested `capacitance` name while the wall/roof heat-capacity fraction fields remain physical values
+- [feature][experimental] Accept human-readable names for physics method options (#1471)
+  - YAML input now accepts registered readable method tokens such as `storage_heat: ohm`, `stability: cn98`, `snow_use: enabled`, and nested STEBBS leaves such as `stebbs.capacitance: provided`
+  - The accepted names are input-only compatibility forms; validation still normalises to the existing flat enum-code representation and exports canonical numeric `{value: N}` YAML
+
+### 30 May 2026
+
+- [bugfix] Validator report no longer collapses to a lone `schema_version` INFO line when that field is absent (#1466, #1458)
+  - When a user YAML omitted `schema_version`, Phase C detected it as a normal default and built an INFO entry, which made the multi-phase consolidation short-circuit to an INFO-only report — silently dropping the Phase A renamed-parameter list and the Phase B `REVIEW ADVISED` / `SUGGESTED UPDATES` sections carried in `no_action_messages`
+  - The INFO-only path now fires only for single-phase Phase C runs; multi-phase runs always route through `create_consolidated_report`, folding any Phase C defaults into the `INFO` section alongside (not instead of) the upstream phase sections
+- [feature][experimental] Expand `suews validate` JSON report to include non-error informational messages (#1467)
+  - The JSON sidecar (`report_<name>.json`) written next to the text report is now the consolidated multi-phase `ValidationReport` (`{overall_status, phases:[...]}`), carrying every phase's issues across all severities (`ERROR`, `WARNING`, `INFO`, `SUGGESTION`, `APPLIED_FIX`, `PASS`), not just validation errors. This matches the `data.validation_report` field already exposed by `--format json`. Per-phase sidecars written by direct `run_phase_*` library calls are unchanged (still `PhaseReport`).
+
+### 29 May 2026
+
+- [bugfix] Make standalone Phase B/C validation rename-aware (#1457)
+  - `suews validate` in standalone (BC/C/AC) mode inspected the raw user YAML by current field name without the old->new normalisation that `SUEWSConfig.from_yaml` applies, so a still-compatible config written with a legacy spelling of a field renamed in #1452 (e.g. `outer_cap_fraction` for `capacitance`, `month_mean_air_temperature_diffmax`, the scalar `*_setpoint` names) was mishandled by three raw-dict checks
+  - Most seriously, a legacy `outer_cap_fraction: {value: null}` slipped the orchestrator's critical-null check and could later crash df_state conversion via `int(None)`; the CRU diffmax update and the setpoint-cleanup science adjustment in Phase B were also silently skipped
+  - Fixed by normalising the loaded YAML once at each phase's load chokepoint (`load_user_yaml_normalised` / `normalise_yaml_renames`) so every standalone rule sees current names; a config carrying both a legacy and its current spelling is left untouched so the downstream validator still reports the conflict
+  - The normal `SUEWSConfig.from_yaml` load path was never affected (its sub-models normalise via `@model_validator(mode="before")`)
+
+### 28 May 2026
+
+- [bugfix] `SUEWSOutput.save()` no longer forces parquet output regardless of the configured format (#1451)
+  - The `format` parameter defaulted to `"parquet"`, which always satisfied the `output_format is None` short-circuit in `_save_supy()` and overrode `model.control.output.format` from the run configuration
+  - `format` now defaults to `None`, so an unspecified format follows the configured value (falling back to `txt` when no configuration is present); an explicit `format` argument still wins, matching the existing `SUEWSSimulation.save()` behaviour
+
+### 27 May 2026
+
+- [maintenance] Make the SUEWS plugin's MCP server self-bootstrapping via `uvx`, so installing the plugin is the only onboarding step (#1384)
+  - The bundled `.mcp.json` files now spawn `suews-mcp` through `uvx --from git+...#subdirectory=mcp`, which fetches the MCP server and its `supy` / SUEWS dependency into a cached uv environment on first use — removing the separate `pip install` step and the PATH / venv matching the bare console-script command required
+  - The only prerequisite is `uv` on the machine; once `suews-mcp` is published to PyPI the command collapses to `uvx suews-mcp`
+  - `mcp/README.md`, the `/suews` skill onboarding (`SKILL.md`, `references/fresh-site-setup.md`), and the `fresh_site_setup` MCP prompt now lead with the self-bootstrapping path and keep the explicit `pip` / `uv` install as the dev / offline fallback
+
+### 24 May 2026
+
+- [feature][experimental] Ground the SUEWS agent (CLI + `/suews` skill + MCP) in the surface energy balance and make it installable as a Claude Code / Codex plugin (#1384)
+  - Added two MCP tools: `assess_readiness` (reports which site-defining values are still the bundled sample's defaults, each tagged with its energy-balance role, plus a parameter-importance ladder) and `list_docs` (discovers the curated `suews://docs/{slug}` documentation slugs)
+  - `search_schema` is now a semantic ranked search, and the `suews://docs/{slug}` resource serves the tutorial sources
+  - The MCP now carries its procedural contract internally — server instructions on the `initialize` handshake plus three prompts (`fresh_site_setup`, `parameter_importance`, `evaluate_results`) — so the honesty and energy-balance guidance reaches every MCP client (Claude Desktop, Codex, Cursor), not only the Claude Code `/suews` skill
+  - Parameter importance is derived from QN + QF = QS + QE + QH: albedo first, with QH and surface temperature treated as model outputs (never set) and energy-balance closure recognised as automatic rather than a validation check
+  - Data-source recommendations are limited to an authorised registry (ERA5 / ERA5-Land, GLAMOUR, ESA WorldCover, GEDI, GHSL / GHS-POP, SUEWS-database)
+  - The Claude Code / Codex plugin bundle is generated from the single source skill via `make plugin` and is no longer committed; a parity test guards the generator
+
+### 19 May 2026
+
+- [maintenance] Move automation-only repository labels onto the `0-*` special track
+  - Schema and knowledge-pack audit bypass labels now live under `0-ci:*`, preserving the repository-wide numeric label hierarchy while keeping the maintainer bypasses available
+  - Discourse-created issues now carry `0-source:discourse` plus the existing `1-question` type label, and issue templates no longer reference removed legacy labels such as `bug`, `docs`, or `release`
+
+### 11 May 2026
+
+- [bugfix] Thread `properties.irrigation` YAML block through the Rust bridge into `IrrigationPrm` (#1436)
+  - `apply_site_overrides` in `src/suews_bridge/src/yaml_config.rs` previously had no irrigation applier, so `h_maintain`, `faut`, `ie_start`, `ie_end`, `internalwateruse_h`, per-veg `ie_a`/`ie_m`, `daywat`/`daywatper`, and `wuprofa_24hr`/`wuprofm_24hr` were silently dropped and the bridge handed `IrrigationPrm::default()` (all zeros) to the Fortran physics
+  - Any run with `model.physics.water_use = MODELLED` and a non-trivial irrigation block produced `Irr`/`WUInt`/`WUEveTr`/`WUDecTr`/`WUGrass` identically zero, regardless of the YAML
+  - The bug was masked by every shipped fixture running with `faut=0` or `ie_a=-999`; a new end-to-end regression in `test/physics/test_irrigation_wiring.py` pins the contract in both directions
+
+### 7 May 2026
+
+- [bugfix] Fix validator rule to compare evetr.sfr + dectr.sfr against vertical_layers.veg_frac[0] (bottom layer) instead of max(vertical_layers.veg_frac).
+
 ### 5 May 2026
 
+- [bugfix] Phase A no longer flags `model.control.forcing_file`/`output_file` as missing/extra and no longer surfaces a misleading `model.control.output.format` enum error when the legacy block already carries a valid `format` (#1417)
+  - Phase A previously compared a legacy YAML directly against the current `sample_config.yml`, inserting an all-null current `output` block while leaving the valid legacy `output_file` in place; Phase C then gave precedence to the all-null current block, raising `Input should be 'txt' or 'parquet'` even though the user had `output_file.format: txt`
+  - `phase_a.py` now mirrors the runtime `ModelControl._coerce_legacy_forcing_file` / `_coerce_legacy_output_file` validators: legacy `forcing_file` lifts under `forcing.file`, legacy `output_file` lifts under `output` (with `path -> dir`), current shape wins on duplicates, and a non-dict current `output` is preserved so Phase C still surfaces the genuine validation error
+  - `report_config.txt` records the migration as a renamed parameter (`forcing_file changed to forcing.file`, `output_file changed to output`) so the user sees the same migration breadcrumb that the Pydantic layer emits as a `DeprecationWarning` at runtime
 - [bugfix] Validator no longer leaves `temp_reportA_*.json` / `temp_reportB_*.json` sidecars beside the user's config (#1416)
   - Pipeline cleanup paths in `src/supy/cmd/validate_config.py` and `src/supy/data_model/validation/pipeline/orchestrator.py` now move, copy, and delete each text report alongside its JSON sidecar via shared sidecar-aware helpers, and rewrite `text_report_path` / `json_report_path` / `yaml_out` in the moved sidecar so the final `report_<config>.json` reflects the user-facing names
+
+### 4 May 2026
+
+- [feature][experimental] `suews validate` non-dry-run pipeline now honours `--format json` (#1409 follow-up)
+  - Previously only the `--dry-run --format json` path emitted the canonical envelope; the full Phase A/B/C pipeline always wrote a report file and printed a status banner to console regardless of the format flag, so any consumer expecting JSON had to parse the report file or fall back to dry-run
+  - All 7 pipeline branches (A, B, C, AB, AC, BC, ABC) now funnel through a new `_emit_pipeline_result` helper that emits a canonical envelope (with the structured `ValidationReport` from the 2026-05-01 PhaseReport schema, plus pointers to `report_file` and `updated_yaml` and a `phases_run` list) when `out_format == "json"`. Default `--format table` output is preserved verbatim
+- [bugfix] `knowledge_pack` meson `custom_target` rebuilds on every build (#1406 follow-up)
+  - `depend_files` was scoped to `knowledge/pack.py` alone, so editing `src/supy/data_model/` or `src/supy/cmd/` did not trigger a rebuild and the installed pack drifted from HEAD. Meson `files()` does not glob (and enumerating every source file would be brittle), so the cleanest fix is `build_always_stale: true` — ninja runs the builder unconditionally on every invocation. Pack-build runtime is on the order of seconds, well below the cost of shipping a stale pack into a release wheel
+  - This complements the runtime startup warning + CI freshness audit landed earlier in this PR; with all three layers a stale pack cannot reach a user
+- [doc] `mcp/README.md` Install section now documents TestPyPI dev-install with `--index-strategy unsafe-best-match` (#1398)
+  - Previously only the editable-checkout recipe was documented; users following a naïve TestPyPI command resolved the released `supy` from PyPI (missing 8 of 10 allow-listed `suews` subcommands) or hit `uv` refusing to resolve at all
+  - The new section spells out the two flags that are easy to miss but required for a clean resolve: `--index-strategy unsafe-best-match` (uv's default dependency-confusion guard fights against TestPyPI here) and explicit `==<dev>` pins on both `suews-mcp` and `supy` (instead of `--prerelease=allow`, which leaks pre-releases into transitive deps — see #1399)
+- [maintenance] Knowledge-pack staleness guard at MCP startup + CI freshness audit (#1406)
+  - The pack's meson `custom_target` only depends on `knowledge/pack.py`, so changes under `src/supy/data_model/` or `src/supy/cmd/` did not trigger an automatic rebuild — the installed pack drifted from HEAD and `query_knowledge` started surfacing stale field names. Manual smoke 2026-05-04 found pack `git_sha` lagging HEAD by 5 PRs (incl. the 44-rename ArchetypeProperties refactor)
+  - `suews-mcp` now compares the pack manifest's `suews_version` against the running `supy.__version__` at server startup; on mismatch it logs a stderr warning naming the stale version and pointing at `suews knowledge build`. MCP hosts route stderr to their plugin log so the user sees this without polluting the JSON-RPC stdio channel
+  - New CI workflow `.github/workflows/knowledge-pack-audit.yml` + script `scripts/lint/check_knowledge_pack_freshness.py` flags PRs that touch `src/supy/data_model/**` or `src/supy/cmd/**` without rebuilding the pack. Bypass label: `0-ci:knowledge-pack-audit-ok`
+  - `prep-release` skill checklist updated with the rebuild step
+- [bugfix] `query_knowledge` matches now carry an `audience` tag and a `legacy_name_for` hint when the chunk text references retired field names (#1402)
+  - Previously the tool returned chunks drawn from the full source-evidence pack (Fortran sources, Pydantic data models, validation pipeline docs) without telling the consumer which audience each chunk belonged to. An assistant that called `query_knowledge` first instead of `search_schema` would happily quote internal Fortran names like `stebbsmethod` or `netradiationmethod` back to the user as YAML fields, producing configuration advice that fails validation
+  - The MCP wrapper now annotates each match with `audience` (`user_yaml` for Pydantic / generated schema chunks, `internal_runtime` for Fortran / Rust / pipeline code, `developer_doc` otherwise) derived from `repo_path`, plus a `legacy_name_for` list of `{legacy, current}` pairs whenever a known legacy name from `ALL_FIELD_RENAMES` appears as a whole-word token in the chunk text. The agent should use the `current` form when generating user-facing YAML
+  - Tool docstring updated with a dedicated "Audience annotations" section so the convention is discoverable from the tool description alone
+- [doc] MCP tool docstrings now lead with WHEN-to-use guidance for all 12 tools (#1407)
+  - The 12 `mcp__suews__*` tool descriptions previously described *what* each tool does in passive voice ("Retrieve cited source evidence..."), giving the agent no signal about *when* to reach for it. In the EGU26 poster trace the agent treated all 12 tools as equivalent retrievers and burned a 5-minute window on `query_knowledge` calls instead of using the cheaper `inspect_config` / `search_schema` / `init_case` path
+  - Each tool's docstring now opens with an active-voice "Use this when..." (or "Call this first when...") sentence that names the trigger condition, the cheap-then-expensive ordering, and the typical pair (e.g. `validate_config` after every Write; `inspect_config` before reaching for `query_knowledge`; `summarise_run` before `diagnose_run`)
+- [feature][experimental] `init_case` returns a `recommendation` field and MCP-tool-call-form `next_steps` (#1408)
+  - The CLI's `data.next_steps` is shell-command form ("Edit X", "suews validate X", "suews run X") — useful at a terminal but useless to an MCP agent that needs to know which *MCP tool* to call. In the EGU26 poster trace, after a successful `init_case` the agent fired 11 `query_knowledge` calls before timing out, never editing the YAML
+  - The MCP wrapper now replaces the CLI list with imperative MCP-tool-call form (open and edit the YAML, then call `mcp__suews__inspect_config`, then call `mcp__suews__validate_config`) and surfaces the single highest-priority next move on `data.recommendation` so the agent does not have to scan the array
+- [bugfix] Envelope size policy: `read_example` and `query_knowledge` cap default response under any host token budget (#1403)
+  - `read_example` previously returned the full sample bundle (~1.2 MB of YAML), which every MCP host (Claude Code, Codex, Claude Desktop) rejected as "result exceeds maximum allowed tokens"; the agent then fell into a loop of duplicate `query_knowledge` calls trying to rebuild the example piecewise. New `mode` parameter: `"summary"` (default — file list with sizes plus an 80-line preview per file), `"manifest"` (cheapest — sizes only, no content), `"file"` with `path` (full content of one file, capped at 64 KB)
+  - `query_knowledge` previously emitted full chunk text for every match (~10 KB per Fortran-module match); a `limit=5` query routinely exceeded 50 KB. New `mode` parameter: `"snippet"` (default — per-match text capped at 2 KB with `text_truncated` / `text_full_bytes` flags), `"summary"` (drops text entirely, keeps citation metadata), `"full"` (explicit opt-in for the original unbounded envelope). Default `limit` lowered from 5 to 3
+  - Sibling sub-issue #1404 folded in here — the same `mode` design applies to both tools
+- [bugfix] `suews-mcp` now accepts a `--root` flag and the sandbox rejection message names the configured root (#1405)
+  - The MCP server previously had no CLI argument parsing — the project root came only from the `SUEWS_MCP_PROJECT_ROOT` env var, falling back to `os.getcwd()` at server startup. On a Conductor-isolated launch the cwd is a temp directory (`/private/var/folders/.../cc-isolated-...`), so workspace-absolute paths sent by the agent were rejected with a confusing "outside the project root" error that named the temp dir
+  - `mcp/src/suews_mcp/server.py` now accepts `--root <path>` (with `--help` text); when provided, the value is resolved and exported as `SUEWS_MCP_PROJECT_ROOT` *before* `_build_server()` so per-tool `ProjectRoot` instances inherit it. When omitted the existing env-var / cwd fallback chain is left untouched
+  - `mcp/src/suews_mcp/backend/sandbox.py` rejection message now names both `--root` and `SUEWS_MCP_PROJECT_ROOT` so users debugging a wrong-root launch can self-correct without reading source
+- [bugfix] MCP server provenance: `serverInfo.version` matches package `__version__`; envelope `meta.git_commit` carries through wheel installs (#1401)
+  - `mcp/src/suews_mcp/server.py` plumbs `suews_mcp.__version__` into `server._mcp_server.version` after FastMCP construction so the MCP `initialize` handshake's `serverInfo.version` reports the package version rather than the SDK's own version (was: hardcoded "1.27.0")
+  - `get_ver_git.py` now bakes the build-time short commit hash into the generated `_version_scm.py` as `__commit_hash__`; `supy.cmd.json_envelope._git_commit()` falls back to this when no `.git` directory is reachable at runtime (the wheel-install case where the previous `git rev-parse` lookup returned `None`). The `"unknown"` build-time sentinel surfaces as `null` rather than the literal string
+- [bugfix] `suews-mcp` now resolves the `suews` console script via `sys.executable` sibling lookup (#1400)
+  - MCP plugin hosts (Claude Code, Codex, Claude Desktop, Cursor) launch the MCP server without sourcing the venv, so `subprocess.run(['suews', ...])` failed with `Executable 'suews' not found on PATH` even when `suews` was installed in the same venv as `suews-mcp`. Every CLI-backed tool (`validate_config`, `inspect_config`, `summarise_run`, …) returned an error envelope; only `list_examples` worked because it reads bundled metadata
+  - `mcp/src/suews_mcp/backend/cli.py` now anchors lookup to `Path(sys.executable).parent` first (`shutil.which` for proper Windows `PATHEXT` handling), then falls back to `shutil.which` on the user's PATH for system-wide installs (e.g. `pipx`). Plugin-host raw-stanza examples no longer need to inject `PATH` in their `env` block
+- [bugfix] Pin `httpx<1.0` in `mcp/pyproject.toml` to keep `--prerelease=allow` installs off `httpx 1.0.dev3` (#1399)
+  - The official `mcp` PyPI package transitively depends on `httpx_sse`, which has an unpinned dep on `httpx`; with uv's global `--prerelease=allow` switch the resolver lands on `httpx==1.0.dev3` (which removed `TransportError`), breaking the whole `mcp` import chain on `suews-mcp` startup
+  - Constraining `httpx<1.0` here means even a prerelease-permitted resolve cannot land on the in-flight 1.0 line; sibling docs sub-issue (#1398) covers the install recipe that replaces `--prerelease=allow` with explicit `==<dev>` pins
+- [bugfix] `validate_config` dry-run JSON path now flags structurally-missing critical physics parameters (#1409)
+  - A YAML with `model.physics: {}` previously passed `suews validate --dry-run --format json` with `status="success"`, because Pydantic auto-fills every `ModelPhysics` field with an enum default; the MCP `validate_config` tool consumed the false-success envelope and stopped iterating, leaving users with a config that could not actually run
+  - `validate_single_file` (`src/supy/cmd/validate_config.py`) now performs a structural-presence check against `CRITICAL_PHYSICS_PARAMS` after Pydantic validation; missing fields surface as `MISSING_REQUIRED_FIELD` findings (one per field) so the dry-run JSON path agrees with the full pipeline's Phase A on user-facing semantics
+  - `CRITICAL_PHYSICS_PARAMS` is consolidated to a single module-level constant in `src/supy/data_model/validation/pipeline/orchestrator.py`; the previous local copies in `_check_critical_null_physics_params` and `detect_pydantic_defaults` now import the canonical list
+  - MCP `validate_config` tool docstring spells out which validation classes are run (jsonschema structural, critical-physics structural-presence, Pydantic consistency including site-level critical-null) and which are not (forcing-file content, runtime numerical issues — those need the full pipeline)
+  - Regression tests in `test/cmd/test_validate_config.py` cover both the bad path (paved-only YAML with `model.physics: {}` flags 21 fields) and the happy path (sample config still valid)
 
 ### 3 May 2026
 
@@ -89,6 +456,16 @@ EXAMPLES:
   - `src/supy/_check.py::check_forcing` previously iterated every non-time column in the returned forcing DataFrame and looked it up in `dict_rules_indiv`, so per-landcover extras (`lai_<surface>`, `wuh_<surface>`) introduced by the named-column reader raised `KeyError` instead of being passed through to the kernel. Added a guard that skips columns without a registered range rule
 - [bugfix] Preserve `FORCING_OPTIONAL_FILL` sentinel through Python `resample_sum` (#1372)
   - `src/supy/_load.py::resample_sum` records columns whose input is entirely missing (NaN, after `to_nan` converted the `-999` sentinel) and restores `-999` for those columns after the existing `fillna(0.0)`. Without this restoration an hourly forcing file omitting `Wuh` would surface as a valid `0.0` after resampling, masking the missing input under the observed-water-use path; the guard mirrors the symmetric Rust fix in `interpolate_forcing` for `SUM_COLS`
+- [feature][experimental] Added end-to-end MCP test layer for Codex and Claude Code agents (#1384)
+  - Layer 0 — packaging/manifest sanity (`test/mcp/test_packaging_manifests.py`): asserts `.mcp.json` shape against both Claude Code and Codex (untagged-enum acceptance with code citation), validates plugin-manifest references resolve, asserts top-level vs bundled plugins resolve to equivalent commands
+  - Layer 1 — MCP protocol stdio handshake (`test/mcp/test_protocol_handshake.py`): spawns the real `suews-mcp` subprocess, performs JSON-RPC `initialize` + `tools/list` + `resources/list` + `resources/templates/list`, asserts all 12 tools and all 6 resources are advertised, asserts `read_knowledge_manifest` returns `pack_version` / `schema_version` / `git_sha`
+  - Layer 2 — real-CLI smoke (`test/mcp/test_real_cli_smoke.py`): un-mocked `validate_config` against the bundled sample config (success + provenance) and against a known-bad fixture (`INVALID_YAML` actionable diagnostics); real `query_knowledge` provenance round-trip
+  - Layer 3 — canonical Q&A fixture + evidence-retrieval runner (`test/mcp/fixtures/canonical_questions.yml`, `test/mcp/test_canonical_questions.py`): six positive cases seeded by a domain-expert stress-test set from Prof. Sue Grimmond plus three out-of-scope negative cases; runner asserts each positive question retrieves SUEWS-indexed evidence and each negative question's call survives without crashing
+  - Layer 4 — manual app-adapter smoke checklist (`test/mcp/MANUAL_SMOKE.md`): pre-flight, parallel Claude Code + Codex flows, cross-adapter consistency check on Sue's B5 question, five failure templates (F1–F5)
+- [bugfix] Fixed fresh editable install of `mcp/` failing without first running `python get_ver_git.py` (#1384)
+  - `mcp/pyproject.toml` dynamic-version `attr` now points at the package `__init__` rather than the gitignored `_version_scm.py` directly
+  - Package `__init__` already routes through `_version.py` with a tracked fallback chain (`_version_scm` -> `supy.__version__` -> `"0+unknown"`), so `uv pip install -e mcp/` now works from a clean checkout
+  - Removed empty `test/mcp/__init__.py` that shadowed the `mcp` SDK package and prevented protocol-level tests from importing the SDK
 
 ### 1 May 2026
 
@@ -206,7 +583,7 @@ EXAMPLES:
   - Updated `.claude/rules/python/schema-versioning.md`, `scripts/lint/check_schema_version_bump.py`, and the `prep-release` skill to stop asking contributors to edit `COMPATIBLE_VERSIONS`; the audit now terminates at `_HANDLERS`
 - [maintenance] Guardrails against schema-version drift (#1304)
   - New pytest regression `test/data_model/test_schema_version_sync.py` asserts `src/supy/sample_data/sample_config.yml::schema_version` equals `CURRENT_SCHEMA_VERSION` on every test run; the `verify-build` shell recipe is no longer the only line of defence
-  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
+  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `0-ci:schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
   - New rule `.claude/rules/python/schema-versioning.md` documents when to bump, how to bump, pre-release audit, PR review gate, and the bypass-label workflow; `prep-release` skill gained a schema-audit step, `audit-pr` skill acknowledges the CI gate
 - [change][experimental] Retrospective schema version bump closes the gap from #1240 / #1242 / #1261 (#1304)
   - `CURRENT_SCHEMA_VERSION` stayed at `2025.12` through the STEBBS clean-up (#879 Nov 2025), the `DeepSoilTemperature` rename (#1240), the DHW volume-bound removal (#1242), and the setpoint split (#1261); the YAML upgrade dispatcher had no real schema versions to key on and had to fall back on synthetic labels that sorted numerically below `CURRENT_SCHEMA_VERSION`

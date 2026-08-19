@@ -68,10 +68,15 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
 ## Before Committing
 
 - **Default**: Run `make test-smoke` before committing (fast, critical tests)
-- **Full test**: Run `make test` only when changes affect:
+- **Everyday suite**: Run `make test` (core, data model, physics, I/O; excludes
+  slow tests and peripheral surfaces) when changes affect:
   - Test files in `test/`
   - Core physics modules
   - Data model changes
+- **Peripheral surfaces**: `make test` deliberately skips `test/cmd`,
+  `test/mcp`, `test/docs`, `test/knowledge`, and `test/umep`. When you touch
+  one of those, run its directory directly (e.g. `pytest test/cmd`) or
+  `make test-all`
 - Include new source files in `meson.build`:
   - Python files (.py) in `src/supy/`
   - Fortran files (.f90, .f95) in `src/suews/src/`
@@ -82,7 +87,8 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
 uv venv && source .venv/bin/activate && make dev && make test-smoke
 ```
 
-For full setup options, use `/setup-dev` command.
+For platform-specific setup (macOS, Linux, Windows), see the `Makefile`
+recipes and the installation docs.
 
 ## Build System Notes
 

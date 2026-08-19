@@ -18,7 +18,7 @@ public :: SUEWS_CAPI_BAD_STATE
 
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_GROUPS = 2_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 333_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 331_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 3_c_int
 
 type :: stebbs_prm_shadow
@@ -57,8 +57,6 @@ type :: stebbs_prm_shadow
    real(c_double) :: dhw_density = 0.0_c_double
    real(c_double) :: hot_water_tank_wall_density = 0.0_c_double
    real(c_double) :: dhw_vessel_density = 0.0_c_double
-   real(c_double) :: hot_water_tank_building_wall_view_factor = 0.0_c_double
-   real(c_double) :: hot_water_tank_internal_mass_view_factor = 0.0_c_double
    real(c_double) :: hot_water_tank_wall_conductivity = 0.0_c_double
    real(c_double) :: hot_water_tank_internal_wall_convection_coefficient = 0.0_c_double
    real(c_double) :: hot_water_tank_external_wall_convection_coefficient = 0.0_c_double
@@ -174,8 +172,6 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%dhw_density; idx = idx + 1_c_int
    flat(idx) = state%hot_water_tank_wall_density; idx = idx + 1_c_int
    flat(idx) = state%dhw_vessel_density; idx = idx + 1_c_int
-   flat(idx) = state%hot_water_tank_building_wall_view_factor; idx = idx + 1_c_int
-   flat(idx) = state%hot_water_tank_internal_mass_view_factor; idx = idx + 1_c_int
    flat(idx) = state%hot_water_tank_wall_conductivity; idx = idx + 1_c_int
    flat(idx) = state%hot_water_tank_internal_wall_convection_coefficient; idx = idx + 1_c_int
    flat(idx) = state%hot_water_tank_external_wall_convection_coefficient; idx = idx + 1_c_int
@@ -250,8 +246,6 @@ subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    state%hot_water_density = flat(idx); idx = idx + 1_c_int
    state%hot_water_tank_wall_density = flat(idx); idx = idx + 1_c_int
    state%hot_water_vessel_density = flat(idx); idx = idx + 1_c_int
-   state%hot_water_tank_building_wall_view_factor = flat(idx); idx = idx + 1_c_int
-   state%hot_water_tank_internal_mass_view_factor = flat(idx); idx = idx + 1_c_int
    state%hot_water_tank_wall_conductivity = flat(idx); idx = idx + 1_c_int
    state%hot_water_tank_internal_wall_convection_coefficient = flat(idx); idx = idx + 1_c_int
    state%hot_water_tank_external_wall_convection_coefficient = flat(idx); idx = idx + 1_c_int

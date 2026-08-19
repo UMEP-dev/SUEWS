@@ -32,6 +32,7 @@ pub struct ErrorEntryValuesPayload {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct ErrorEntry {
     pub timer: SuewsTimer,
     pub message: String,
@@ -39,16 +40,6 @@ pub struct ErrorEntry {
     pub is_fatal: bool,
 }
 
-impl Default for ErrorEntry {
-    fn default() -> Self {
-        Self {
-            timer: SuewsTimer::default(),
-            message: String::new(),
-            location: String::new(),
-            is_fatal: false,
-        }
-    }
-}
 
 pub(crate) fn validate_text_field(value: &str, max_len: usize) -> Result<(), BridgeError> {
     if value.as_bytes().contains(&0) {

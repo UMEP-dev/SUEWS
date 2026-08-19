@@ -21,7 +21,12 @@ def convert_config(
     debug_dir: Optional[str] = None,
     no_profile_validation: bool = False,
 ) -> dict[str, Any]:
-    """Convert any supported SUEWS input into a current-schema YAML.
+    """**Use this when the user has a legacy SUEWS input** (RunControl
+    namelist, table CSV, df_state pickle, or an older YAML version)
+    and wants the current schema. Do not call this when starting a
+    new case — `init_case` is the right entry point. Pair with
+    `validate_config` afterwards to check the converted YAML
+    (gh#1407).
 
     Parameters
     ----------

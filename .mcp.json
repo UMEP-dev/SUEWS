@@ -1,7 +1,12 @@
 {
   "mcpServers": {
     "suews": {
-      "command": "suews-mcp"
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp",
+        "suews-mcp"
+      ]
     }
   }
 }

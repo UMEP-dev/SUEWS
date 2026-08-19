@@ -1,9 +1,29 @@
+// Crate-level lint allowances for the SUEWS Rust bridge. Each is justified;
+// every other clippy lint is gated (`-D warnings`) by .github/workflows/rust-clippy.yml.
+//
+// useless_conversion: pyo3's `#[pymethods]` proc-macro expands every
+//   PyResult-returning method with an internal conversion to `PyErr`, which
+//   clippy flags as useless against the generated (unmodifiable) code -- there
+//   is no `.into()` in our source to remove. Standard pyo3 macro noise.
+// non_camel_case_types: the bridge mirrors SUEWS's community-standard forcing
+//   and variable identifiers (qh, qe, kdown, temp_c, ...), deliberately
+//   lower-case per .claude/rules/naming-convention.md Rule 5.
+// type_complexity / too_many_arguments: the FFI/binding surface has wide tuple
+//   returns and many-parameter constructors inherent to the model.
+//   .claude/rules/rust/conventions.md treats both as informal signals,
+//   explicitly "not an automated gate".
+#![allow(clippy::useless_conversion)]
+#![allow(non_camel_case_types)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
+
 mod anthro_emis_prm;
 mod anthro_heat_prm;
 mod anthroemis;
 mod atm;
 mod bioco2;
 mod building_archetype_prm;
+mod checkpoint;
 mod codec;
 mod conductance;
 mod config;
@@ -18,6 +38,7 @@ mod flag;
 mod forcing;
 #[cfg(feature = "physics")]
 mod forcing_io;
+mod forcing_time;
 mod heat_state;
 mod hydro_state;
 mod irrig_daywater;
@@ -66,6 +87,7 @@ pub use anthroemis::*;
 pub use atm::*;
 pub use bioco2::*;
 pub use building_archetype_prm::*;
+pub use checkpoint::*;
 pub use codec::*;
 pub use conductance::*;
 pub use config::*;
@@ -79,6 +101,7 @@ pub use flag::*;
 pub use forcing::*;
 #[cfg(feature = "physics")]
 pub use forcing_io::*;
+pub use forcing_time::*;
 pub use heat_state::*;
 pub use hydro_state::*;
 pub use irrig_daywater::*;
@@ -667,7 +690,7 @@ mod python_bindings {
 
         #[staticmethod]
         fn field_names() -> PyResult<Vec<String>> {
-            suews_forcing_field_names().map_err(map_bridge_error)
+            Ok(suews_forcing_field_names())
         }
 
         fn field_value(&self, name: &str) -> PyResult<f64> {
@@ -4075,11 +4098,10 @@ mod python_bindings {
         forcing_block: Vec<f64>,
         len_sim: usize,
     ) -> PyResult<(Vec<f64>, String, usize)> {
-        let (output_block, state, actual_len) =
+        let (output_block, state, timer, actual_len) =
             run_from_config_str_and_forcing(config_yaml, forcing_block, len_sim)
                 .map_err(map_bridge_error)?;
-        let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let state_json = suews_checkpoint_to_json(&state, &timer).map_err(map_bridge_error)?;
         Ok((output_block, state_json, actual_len))
     }
 
@@ -4091,13 +4113,14 @@ mod python_bindings {
         len_sim: usize,
         state_json: &str,
     ) -> PyResult<(Vec<f64>, String, usize)> {
-        let (output_block, state, actual_len) =
-            run_from_config_str_and_forcing_with_state(
-                config_yaml, forcing_block, len_sim, state_json,
-            )
-            .map_err(map_bridge_error)?;
-        let state_json_out = serde_json::to_string(&suews_state_to_nested_payload(&state))
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let (output_block, state, timer, actual_len) = run_from_config_str_and_forcing_with_state(
+            config_yaml,
+            forcing_block,
+            len_sim,
+            state_json,
+        )
+        .map_err(map_bridge_error)?;
+        let state_json_out = suews_checkpoint_to_json(&state, &timer).map_err(map_bridge_error)?;
         Ok((output_block, state_json_out, actual_len))
     }
 
@@ -4130,11 +4153,11 @@ mod python_bindings {
                 .map(|(idx, config_json)| {
                     // Each thread gets its own copy of forcing (Fortran mutates it)
                     let forcing_copy = forcing_block.clone();
-                    let (output_block, state, actual_len) =
+                    let (output_block, state, timer, actual_len) =
                         run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
                             .map_err(|e| e.to_string())?;
-                    let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
-                        .map_err(|e| e.to_string())?;
+                    let state_json =
+                        suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
                     Ok((idx, output_block, state_json, actual_len))
                 })
                 .collect()
@@ -4155,7 +4178,7 @@ mod python_bindings {
         results
             .into_iter()
             .collect::<Result<Vec<_>, String>>()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
+            .map_err(pyo3::exceptions::PyRuntimeError::new_err)
     }
 
     /// Run multiple grid cells in parallel using injected previous states.
@@ -4193,7 +4216,7 @@ mod python_bindings {
                 .map(|(idx, (config_json, state_json_in))| {
                     // Each thread gets its own copy of forcing (Fortran mutates it)
                     let forcing_copy = forcing_block.clone();
-                    let (output_block, state, actual_len) =
+                    let (output_block, state, timer, actual_len) =
                         run_from_config_str_and_forcing_with_state(
                             config_json,
                             forcing_copy,
@@ -4201,8 +4224,8 @@ mod python_bindings {
                             state_json_in,
                         )
                         .map_err(|e| e.to_string())?;
-                    let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
-                        .map_err(|e| e.to_string())?;
+                    let state_json =
+                        suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
                     Ok((idx, output_block, state_json, actual_len))
                 })
                 .collect()
@@ -4222,7 +4245,7 @@ mod python_bindings {
         results
             .into_iter()
             .collect::<Result<Vec<_>, String>>()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
+            .map_err(pyo3::exceptions::PyRuntimeError::new_err)
     }
 
     /// Return the output group layout as a list of (name, ncols) tuples.
@@ -4381,7 +4404,7 @@ mod python_bindings {
 
     #[pyfunction(name = "suews_forcing_fields")]
     fn suews_forcing_fields_py() -> PyResult<Vec<String>> {
-        suews_forcing_field_names().map_err(map_bridge_error)
+        Ok(suews_forcing_field_names())
     }
 
     #[pyfunction(name = "hydro_state_schema")]

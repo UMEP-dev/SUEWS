@@ -30,18 +30,9 @@ supy - SUEWS that speaks Python
 # List of public symbols (for `from supy import *`)
 __all__ = [
     # Core functions
-    "init_supy",
-    "load_SampleData",
-    "load_sample_data",
     "load_forcing_grid",
-    "load_config_from_df",
-    "run_supy",
-    "save_supy",
     "check_forcing",
     "check_state",
-    "init_config",
-    "run_supy_sample",
-    "resample_output",  # Deprecated - use SUEWSOutput.resample() instead
     # Modules
     "util",
     "data_model",
@@ -56,9 +47,16 @@ __all__ = [
     "SUEWSOutput",
     # Exceptions
     "SUEWSKernelError",
+    # Logging (opt-in file logging)
+    "enable_file_logging",
+    "disable_file_logging",
     # Version
     "show_version",
     "__version__",
+    # Model-version registry (read-only lineage API)
+    "list_model_versions",
+    "model_version_info",
+    "schema_for",
     # CLI
     "SUEWS",
 ]
@@ -66,23 +64,10 @@ __all__ = [
 # Cache for lazy-loaded modules and attributes
 _lazy_cache = {}
 
-# Procedural-API names that must emit a one-shot FutureWarning on first
-# attribute access (gh#1370 phase 2 — visibility). Kept in sync with
-# `supy._supy_module._FUNCTIONAL_DEPRECATIONS`; a regression test asserts
-# the two are equal so a future addition cannot drift silently. Hard-coded
-# here so the lazy-import router does not need to load `_supy_module` on
-# every attribute miss — that would defeat fast CLI startup.
+# The one procedural compatibility name still required by the UMEP processor.
+# Keep this small explicit set in sync with ``_FUNCTIONAL_DEPRECATIONS``.
 _DEPRECATED_FUNCTIONAL_NAMES = frozenset({
-    "init_supy",
     "load_forcing_grid",
-    "load_sample_data",
-    "load_SampleData",
-    "load_config_from_df",
-    "run_supy",
-    "run_supy_sample",
-    "save_supy",
-    "init_config",
-    "resample_output",
 })
 
 
@@ -137,9 +122,9 @@ def __getattr__(name):
     }:
         try:
             from .data_model.validation import (
-                validate_suews_config_conditional,
                 ValidationController,
                 ValidationResult,
+                validate_suews_config_conditional,
             )
 
             _lazy_cache["validate_suews_config_conditional"] = (
@@ -189,11 +174,32 @@ def __getattr__(name):
         except ImportError:
             return None
 
+    # Opt-in file logging controls (lightweight: only touches `_env`)
+    if name in {"enable_file_logging", "disable_file_logging"}:
+        from ._env import disable_file_logging, enable_file_logging
+
+        _lazy_cache["enable_file_logging"] = enable_file_logging
+        _lazy_cache["disable_file_logging"] = disable_file_logging
+        return _lazy_cache[name]
+
     # Version info
     if name == "show_version":
         from ._version import show_version
 
         _lazy_cache[name] = show_version
+        return _lazy_cache[name]
+
+    # Model-version registry (read-only lineage API)
+    if name in {"list_model_versions", "model_version_info", "schema_for"}:
+        from ._model_registry import (
+            list_model_versions,
+            model_version_info,
+            schema_for,
+        )
+
+        _lazy_cache["list_model_versions"] = list_model_versions
+        _lazy_cache["model_version_info"] = model_version_info
+        _lazy_cache["schema_for"] = schema_for
         return _lazy_cache[name]
 
     # CLI command

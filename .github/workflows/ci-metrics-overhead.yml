@@ -1,0 +1,104 @@
+name: CI metrics overhead check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-metrics-overhead-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  default_branch_guard:
+    name: Require default branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check dispatched ref
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            echo "::error::Dispatch this evidence workflow from the default branch."
+            exit 1
+          fi
+
+  build_wheel:
+    name: Build controlled wheel
+    needs: [default_branch_guard]
+    uses: ./.github/workflows/build-wheels-reusable.yml
+    with:
+      buildplat_json: '[["ubuntu-latest","manylinux","x86_64"]]'
+      python_json: '["cp312"]'
+      test_tier: smoke
+
+  paired_overhead:
+    name: Same-job metrics off/on comparison
+    runs-on: ubuntu-latest
+    needs: [build_wheel]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
+
+      - name: Download the single controlled wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-manylinux-x86_64
+          path: wheelhouse/
+
+      - name: Verify exactly one downloaded wheel
+        id: wheel
+        shell: bash
+        run: |
+          wheels=(wheelhouse/*.whl)
+          if [ "${#wheels[@]}" -ne 1 ] || [ ! -f "${wheels[0]}" ]; then
+            echo "::error::Expected exactly one downloaded wheel; found ${#wheels[@]}."
+            exit 1
+          fi
+          echo "path=${wheels[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Install the wheel and pinned pytest scheduler
+        shell: bash
+        env:
+          CONTROLLED_WHEEL: ${{ steps.wheel.outputs.path }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest==9.1.1 pytest-xdist==3.8.0
+          python -m pip install "$CONTROLLED_WHEEL"
+
+      - name: Run fixed-worker metrics off/on/on/off trials
+        shell: bash
+        env:
+          CONTROLLED_WHEEL: ${{ steps.wheel.outputs.path }}
+        run: >-
+          python scripts/suews/benchmark_ci_metrics.py
+          --output-dir ci-metrics-overhead
+          --threshold-percent 2
+          --worker-count 4
+          --scheduler worksteal
+          --source-sha "${{ github.sha }}"
+          --wheel "$CONTROLLED_WHEEL"
+          -- python -m pytest test
+          -m "physics and (core or not slow)"
+          -q --tb=short
+          -n 4 --maxprocesses=4 --dist worksteal
+
+      - name: Upload raw trials and comparison manifest
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ci-metrics-overhead-${{ github.run_id }}
+          path: ci-metrics-overhead/
+          if-no-files-found: error
+          retention-days: 30

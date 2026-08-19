@@ -1,12 +1,21 @@
 import yaml
 import os
 import subprocess
-from typing import Optional
+from copy import deepcopy
 import pandas as pd
 from pathlib import Path
+from typing import Optional
 
 from .report_writer import REPORT_WRITER
-from ...core.field_renames import RAW_YAML_FIELD_RENAMES
+from ...core.field_renames import (
+    RAW_YAML_FIELD_RENAMES,
+    STEBBS_PHYSICS_LEAF_RENAMES,
+)
+from ...core.physics_families import (
+    STEBBS_PUBLIC_KEY_ALIASES,
+    coerce_nested_to_flat,
+    flatten_physics_in_config,
+)
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -33,8 +42,12 @@ PHYSICS_OPTIONS = {
     "roughness_sublayer_level",
     "surface_conductance",
     "snow_use",
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*; the
+    # nested leaf names are listed so is_physics_option() matches the new paths.
     "stebbs",
-    "outer_cap_fraction",
+    "enabled",
+    "parameters",
+    "capacitance",
     "same_albedo_wall",
     "same_albedo_roof",
     "same_emissivity_wall",
@@ -43,6 +56,312 @@ PHYSICS_OPTIONS = {
 }
 
 ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
+
+_MISSING = object()
+
+
+def _is_nullish_tree(value: object) -> bool:
+    """Return True when a generated placeholder carries no user value."""
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return all(_is_nullish_tree(item) for item in value.values())
+    if isinstance(value, list):
+        return all(_is_nullish_tree(item) for item in value)
+    return False
+
+
+def _is_generated_null_placeholder(value: object) -> bool:
+    """Return True for non-empty containers that only contain null placeholders."""
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return bool(value) and all(
+            _is_generated_null_placeholder(item) for item in value.values()
+        )
+    if isinstance(value, list):
+        return bool(value) and all(
+            _is_generated_null_placeholder(item) for item in value
+        )
+    return False
+
+
+# Exact paths whose omission Phase A must not flag, because Pydantic backs
+# them with a safe default. gh#1456 adds the relocated STEBBS master toggle
+# (``enabled`` default false, ``parameters`` default DEFAULT) so that omitting
+# it is not treated as a missing critical physics parameter -- consistent with
+# Phase B (physics_rules.py), which deliberately requires only the relocated
+# leaves (capacitance / setpoint / same_*), not the toggle.
+_DEFAULT_BACKED_CONTROL_PATHS = frozenset(
+    {
+        "model.control.forcing",
+        "model.control.forcing.file",
+        "model.control.output",
+        "model.physics.stebbs.enabled",
+        "model.physics.stebbs.parameters",
+    }
+)
+
+
+def _is_default_backed_control_path(param_path: str) -> bool:
+    """Phase A should not materialise nulls for Pydantic-defaulted controls.
+
+    The STEBBS master toggle (``model.physics.stebbs.enabled`` /
+    ``.parameters``) stays recognised by ``is_physics_option()`` but is treated
+    as default-backed here, so its absence is not flagged critical (gh#1456).
+    """
+    return param_path in _DEFAULT_BACKED_CONTROL_PATHS or param_path.startswith(
+        "model.control.output."
+    )
+
+
+def _normalise_model_control_subobjects(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Normalise legacy model.control sub-objects before Phase A comparison.
+
+    The Pydantic layer already accepts ``forcing_file`` and ``output_file``.
+    Phase A must mirror that compatibility before comparing a user YAML
+    against the current sample config; otherwise it inserts all-null current
+    sub-objects that later take precedence over the valid legacy blocks.
+
+    The returned ``replacements`` list records every legacy key that has
+    been consumed so the report writer can surface the migration in
+    ``renamed_replacements``. The note is recorded both when legacy values
+    are migrated into the modern block and when a current modern block
+    already exists and the legacy duplicate is dropped — mirroring the
+    ``DeprecationWarning`` that ``ModelControl._coerce_legacy_*`` emits at
+    runtime, so the user sees the same migration breadcrumb in
+    ``report_config.txt``.
+    """
+    if not isinstance(config_data, dict):
+        return config_data, []
+
+    normalised = deepcopy(config_data)
+    model = normalised.get("model")
+    if not isinstance(model, dict):
+        return normalised, []
+    control = model.get("control")
+    if not isinstance(control, dict):
+        return normalised, []
+
+    replacements: list[tuple[str, str]] = []
+
+    legacy_forcing = control.pop("forcing_file", _MISSING)
+    if legacy_forcing is not _MISSING:
+        forcing = control.get("forcing")
+        if not isinstance(forcing, dict) or _is_nullish_tree(forcing):
+            control["forcing"] = {"file": legacy_forcing}
+        elif "file" not in forcing or _is_nullish_tree(forcing.get("file")):
+            forcing["file"] = legacy_forcing
+        # else: current forcing.file is real; legacy value is dropped, but
+        # we still record the key migration so the user sees it.
+        replacements.append(("forcing_file", "forcing.file"))
+
+    legacy_output = control.pop("output_file", _MISSING)
+    if legacy_output is not _MISSING:
+        output = control.get("output")
+        output_is_placeholder = output is None or (
+            isinstance(output, dict) and _is_generated_null_placeholder(output)
+        )
+        if output_is_placeholder:
+            if isinstance(legacy_output, dict):
+                migrated = {
+                    key: value
+                    for key, value in legacy_output.items()
+                    if key != "path"
+                }
+                if "path" in legacy_output and "dir" not in migrated:
+                    migrated["dir"] = legacy_output["path"]
+                control["output"] = migrated
+            else:
+                control.pop("output", None)
+        # Always record the migration: either we lifted legacy values into
+        # the modern block, or a real current `output` block already exists
+        # and the legacy duplicate has been dropped (current wins, matching
+        # ModelControl._coerce_legacy_output_file).
+        replacements.append(("output_file", "output"))
+
+    return normalised, replacements
+
+
+_STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
+_STEBBS_NESTED_KEYS = frozenset(
+    {
+        "enabled",
+        "parameters",
+        *STEBBS_PUBLIC_KEY_ALIASES,
+        *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
+        *STEBBS_PHYSICS_LEAF_RENAMES.values(),
+    }
+)
+
+
+def _is_stebbs_master_scalar(entry: object) -> bool:
+    """Return True when ``stebbs`` is the legacy RefValue master toggle."""
+    return (
+        isinstance(entry, dict)
+        and "value" in entry
+        and set(entry) <= _STEBBS_REFVALUE_KEYS
+    )
+
+
+def _wrapped_stebbs_value(value: object, ref: object = None) -> dict:
+    wrapped = {"value": value}
+    if ref is not None:
+        wrapped["ref"] = ref
+    return wrapped
+
+
+def _decompose_stebbs_master_for_phase_a(
+    entry: object,
+) -> Optional[tuple[dict, dict]]:
+    """Split legacy ``stebbs`` 0/1/2 into nested enabled/parameters values."""
+    try:
+        entry = coerce_nested_to_flat("stebbs", entry)
+    except (TypeError, ValueError):
+        return None
+
+    ref = entry.get("ref") if isinstance(entry, dict) else None
+    raw = (
+        entry.get("value")
+        if isinstance(entry, dict) and "value" in entry
+        else entry
+    )
+
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        return None
+
+    if code == 0:
+        return _wrapped_stebbs_value(False, ref), _wrapped_stebbs_value(1)
+    if code == 1:
+        return _wrapped_stebbs_value(True, ref), _wrapped_stebbs_value(1)
+    if code == 2:
+        return _wrapped_stebbs_value(True, ref), _wrapped_stebbs_value(2)
+    return None
+
+
+def _set_if_missing_or_nullish(target: dict, key: str, value: object) -> bool:
+    """Set ``target[key]`` only when absent or carrying a null placeholder."""
+    if key not in target or _is_nullish_tree(target.get(key)):
+        target[key] = value
+        return True
+    return False
+
+
+def _normalise_model_physics_stebbs(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Fold legacy flat STEBBS physics switches before Phase A comparison.
+
+    Phase A writes the user-facing updated YAML from parsed data. Mirror the
+    runtime STEBBS fold here so old flat siblings are migrated into the nested
+    ``model.physics.stebbs`` block instead of being reported as extras while
+    null nested placeholders are inserted.
+    """
+    if not isinstance(config_data, dict):
+        return config_data, []
+
+    normalised = deepcopy(config_data)
+    model = normalised.get("model")
+    if not isinstance(model, dict):
+        return normalised, []
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return normalised, []
+
+    replacements: list[tuple[str, str]] = []
+    existing = physics.get("stebbs")
+    flat_stebbs_keys_present = [
+        key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in physics
+    ]
+    nested_already = (
+        isinstance(existing, dict)
+        and not _is_stebbs_master_scalar(existing)
+        and any(key in existing for key in _STEBBS_NESTED_KEYS)
+    )
+
+    stebbs_block: dict = (
+        dict(existing) if isinstance(existing, dict) and nested_already else {}
+    )
+
+    if isinstance(existing, dict) and "value" in existing:
+        decomposed = _decompose_stebbs_master_for_phase_a(existing)
+        if decomposed is not None:
+            enabled, parameters = decomposed
+            stebbs_block.pop("value", None)
+            # A RefValue-style ``ref`` belongs to the legacy master toggle and
+            # is carried onto ``enabled`` by ``_decompose_stebbs_master...``.
+            stebbs_block.pop("ref", None)
+            _set_if_missing_or_nullish(stebbs_block, "enabled", enabled)
+            _set_if_missing_or_nullish(stebbs_block, "parameters", parameters)
+            replacements.append(("stebbs.value", "stebbs.enabled/parameters"))
+        elif nested_already and _is_nullish_tree(existing.get("value")):
+            stebbs_block.pop("value", None)
+            stebbs_block.pop("ref", None)
+            replacements.append(("stebbs.value", "stebbs.enabled/parameters"))
+        elif (
+            flat_stebbs_keys_present
+            and not nested_already
+            and not _is_nullish_tree(existing)
+        ):
+            stebbs_block = dict(existing)
+    elif "stebbs" in physics and not nested_already:
+        decomposed = _decompose_stebbs_master_for_phase_a(existing)
+        if decomposed is not None:
+            enabled, parameters = decomposed
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            replacements.append(("stebbs", "stebbs.enabled/parameters"))
+        elif flat_stebbs_keys_present:
+            if isinstance(existing, dict):
+                if not _is_nullish_tree(existing):
+                    stebbs_block = dict(existing)
+            elif existing is not None:
+                stebbs_block = {"value": existing}
+
+    for public_key, canonical_key in STEBBS_PUBLIC_KEY_ALIASES.items():
+        if public_key not in stebbs_block:
+            continue
+        public_value = stebbs_block.pop(public_key)
+        _set_if_missing_or_nullish(stebbs_block, canonical_key, public_value)
+        replacements.append((f"stebbs.{public_key}", f"stebbs.{canonical_key}"))
+
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key == nested_leaf or old_key not in stebbs_block:
+            continue
+        old_value = stebbs_block.pop(old_key)
+        _set_if_missing_or_nullish(stebbs_block, nested_leaf, old_value)
+        replacements.append((f"stebbs.{old_key}", f"stebbs.{nested_leaf}"))
+
+    for flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if flat_key not in physics:
+            continue
+        flat_value = physics.pop(flat_key)
+        _set_if_missing_or_nullish(stebbs_block, nested_leaf, flat_value)
+        replacements.append((flat_key, f"stebbs.{nested_leaf}"))
+
+    if stebbs_block:
+        physics["stebbs"] = stebbs_block
+
+    return normalised, replacements
+
+
+def _normalise_phase_a_compatibility(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Apply compatibility folds Phase A must share with the runtime loader."""
+    normalised, replacements = _normalise_model_control_subobjects(config_data)
+    normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
+    replacements.extend(stebbs_replacements)
+    return normalised, replacements
+
 
 def _strip_ref_blocks(obj):
     """
@@ -300,6 +619,12 @@ def categorise_extra_parameters(extra_params: list) -> dict:
 def find_extra_parameters(user_data, standard_data, current_path=""):
     """Find parameters that exist in user data but not in standard data."""
     extra_params = []
+    if current_path == "":
+        user_data, _ = _normalise_phase_a_compatibility(user_data)
+        standard_data, _ = _normalise_phase_a_compatibility(standard_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
+
     if isinstance(user_data, dict) and isinstance(standard_data, dict):
         for key, user_value in user_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
@@ -344,10 +669,18 @@ def find_extra_parameters_in_lists(user_list, standard_list, current_path=""):
 
 def find_missing_parameters(user_data, standard_data, current_path=""):
     missing_params = []
+    if current_path == "":
+        user_data, _ = _normalise_phase_a_compatibility(user_data)
+        standard_data, _ = _normalise_phase_a_compatibility(standard_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
+
     if isinstance(standard_data, dict):
         user_dict = user_data if isinstance(user_data, dict) else {}
         for key, standard_value in standard_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
+            if _is_default_backed_control_path(full_path):
+                continue
             if key not in user_dict:
                 is_physics = is_physics_option(full_path)
                 missing_params.append((full_path, standard_value, is_physics))
@@ -383,6 +716,7 @@ def find_missing_parameters_in_lists(user_list, standard_list, current_path=""):
         "sites[0].properties.vertical_layers.height.value",
         "sites[0].properties.vertical_layers.veg_frac.value",
         "sites[0].properties.vertical_layers.veg_scale.value",
+        "sites[0].properties.vertical_layers.veg_ext.value",
         "sites[0].properties.vertical_layers.building_frac.value",
         "sites[0].properties.vertical_layers.building_scale.value",
     ]
@@ -819,7 +1153,13 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     dimension_errors = []
 
     # Arrays that should have nlayer elements
-    nlayer_arrays = ["veg_frac", "veg_scale", "building_frac", "building_scale"]
+    nlayer_arrays = [
+        "veg_frac",
+        "veg_scale",
+        "veg_ext",
+        "building_frac",
+        "building_scale",
+    ]
     # Array that should have nlayer + 1 elements
     nlayer_plus_one_arrays = ["height"]
     # Nested arrays (roofs/walls) that should have nlayer elements each
@@ -1069,61 +1409,8 @@ def validate_nlayer_limit(user_data: dict) -> list:
                 errors.append((path, nlayer, "Could not interpret nlayer value for limit check."))
     return errors
 
-def _extract_lai_bounds_from_user_data(user_data: dict) -> Optional[dict]:
-    """Collect per-site per-veg-class LAI bounds from a parsed YAML config.
-
-    Returns ``{'laimin': [[eve, dec, grass], ...], 'laimax': [[...], ...]}`` or
-    ``None`` if the configuration lacks the expected structure. Used to seed
-    ``check_forcing``'s pre-flight clamp warning on the YAML validation path.
-    """
-    if not isinstance(user_data, dict):
-        return None
-    sites = user_data.get("sites")
-    if not isinstance(sites, list) or not sites:
-        return None
-
-    def _unwrap(value):
-        if isinstance(value, dict) and "value" in value:
-            return value["value"]
-        return value
-
-    laimin_rows: list = []
-    laimax_rows: list = []
-    for site in sites:
-        if not isinstance(site, dict):
-            continue
-        land_cover = (
-            site.get("properties", {}).get("land_cover", {})
-            if isinstance(site.get("properties"), dict)
-            else {}
-        )
-        class_mins: list = []
-        class_maxs: list = []
-        for veg in ("evetr", "dectr", "grass"):
-            params = land_cover.get(veg, {}) if isinstance(land_cover, dict) else {}
-            lai_params = params.get("lai", {}) if isinstance(params, dict) else {}
-            if not isinstance(lai_params, dict):
-                continue
-            laimin = _unwrap(lai_params.get("lai_min", lai_params.get("laimin")))
-            laimax = _unwrap(lai_params.get("lai_max", lai_params.get("laimax")))
-            if laimin is None or laimax is None:
-                continue
-            try:
-                class_mins.append(float(laimin))
-                class_maxs.append(float(laimax))
-            except (TypeError, ValueError):
-                continue
-        if class_mins and class_maxs:
-            laimin_rows.append(class_mins)
-            laimax_rows.append(class_maxs)
-    if not laimin_rows or not laimax_rows:
-        return None
-    return {"laimin": laimin_rows, "laimax": laimax_rows}
-
-
 def _validate_single_forcing_file(
     forcing_path: Path, yaml_dir: Path, physics: dict = None,
-    lai_bounds: dict = None,
 ) -> list:
     """
     Validate a single forcing data file.
@@ -1187,9 +1474,7 @@ def _validate_single_forcing_file(
         logger_supy.setLevel(logging.CRITICAL + 1)  # Disable all logging
 
         try:
-            issues = check_forcing(
-                df_forcing, fix=False, physics=physics, lai_bounds=lai_bounds
-            )
+            issues = check_forcing(df_forcing, fix=False, physics=physics)
             if issues:
                 # Clean up error messages: remove extra whitespace and newlines, clarify indices
                 cleaned_issues = []
@@ -1233,9 +1518,7 @@ def _validate_single_forcing_file(
     return forcing_errors
 
 
-def validate_forcing_data(
-    user_yaml_file: str, physics: dict = None, lai_bounds: dict = None
-) -> tuple:
+def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
     """
     Validate forcing data file(s) referenced in the user YAML configuration.
 
@@ -1267,7 +1550,7 @@ def validate_forcing_data(
 
     try:
         # Load user YAML to extract forcing file path
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             user_data = yaml.safe_load(f)
 
         # Navigate to model.control.forcing_file
@@ -1317,7 +1600,7 @@ def validate_forcing_data(
             # Validate all files in the list
             for fpath in forcing_file_path:
                 file_errors = _validate_single_forcing_file(
-                    Path(fpath), yaml_dir, physics=physics, lai_bounds=lai_bounds
+                    Path(fpath), yaml_dir, physics=physics
                 )
                 forcing_errors.extend(file_errors)
 
@@ -1327,7 +1610,7 @@ def validate_forcing_data(
         forcing_file_paths = forcing_file_path
         yaml_dir = Path(user_yaml_file).parent
         file_errors = _validate_single_forcing_file(
-            Path(forcing_file_path), yaml_dir, physics=physics, lai_bounds=lai_bounds
+            Path(forcing_file_path), yaml_dir, physics=physics
         )
         forcing_errors.extend(file_errors)
 
@@ -1737,14 +2020,21 @@ def annotate_missing_parameters(
     forcing="on",
 ):
     try:
-        with open(user_file, "r") as f:
+        with open(user_file, "r", encoding="utf-8") as f:
             original_yaml_content = f.read()
         original_yaml_content, renamed_replacements = handle_renamed_parameters(
             original_yaml_content
         )
         user_data = yaml.safe_load(original_yaml_content)
         parsed_renames = handle_renamed_parameters_in_parsed_yaml(user_data)
-        if parsed_renames:
+        (
+            normalised_user_data,
+            compatibility_replacements,
+        ) = _normalise_phase_a_compatibility(user_data)
+        compatibility_normalised = normalised_user_data != user_data
+        user_data = normalised_user_data
+        parsed_renames.extend(compatibility_replacements)
+        if parsed_renames or compatibility_normalised:
             seen_replacements = set(renamed_replacements)
             for replacement in parsed_renames:
                 if replacement not in seen_replacements:
@@ -1761,8 +2051,11 @@ def annotate_missing_parameters(
                 allow_unicode=True,
             )
             original_yaml_content = stream.getvalue()
-        with open(standard_file, "r") as f:
+        with open(standard_file, "r", encoding="utf-8") as f:
             standard_data = yaml.safe_load(f)
+        # Collapse readable physics names in both trees before structure diffs.
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
         return _phase_a_failure_report(
@@ -1798,12 +2091,7 @@ def annotate_missing_parameters(
         physics_config = None
         if user_data and "model" in user_data and "physics" in user_data["model"]:
             physics_config = user_data["model"]["physics"]
-        # Seed the pre-flight LAI-bounds check with per-site laimin/laimax so
-        # ``check_forcing`` can warn when observed LAI will be clamped.
-        lai_bounds = _extract_lai_bounds_from_user_data(user_data)
-        forcing_errors, _ = validate_forcing_data(
-            user_file, physics=physics_config, lai_bounds=lai_bounds
-        )
+        forcing_errors, _ = validate_forcing_data(user_file, physics=physics_config)
 
     user_data_no_ref = _strip_ref_blocks(user_data)
     standard_data_no_ref = _strip_ref_blocks(standard_data)

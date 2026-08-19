@@ -134,7 +134,10 @@ class OHM_Coefficient_season_wetness(BaseModel):
                 {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
             )
         ]
-        # Convert each coefficient
+        # Convert each coefficient. The snow row (surface index 7) is NOT
+        # written here: it belongs to SnowParams.ohm_coef. Writing it from
+        # every surface used to fabricate snow's coefficients from whichever
+        # surface was serialised first.
         for idx_s, coef in enumerate([
             self.summer_wet,
             self.summer_dry,
@@ -142,10 +145,7 @@ class OHM_Coefficient_season_wetness(BaseModel):
             self.winter_dry,
         ]):
             df_coef = coef.to_df_state(grid_id, surf_idx, idx_s)
-            df_coef_extra = coef.to_df_state(
-                grid_id, 7, idx_s
-            )  # always include this extra row to conform to SUEWS convention
-            frames.extend([df_coef, df_coef_extra])
+            frames.append(df_coef)
 
         df_state = pd.concat(frames, axis=1)
         # drop duplicate columns

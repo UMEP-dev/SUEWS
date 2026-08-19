@@ -28,7 +28,7 @@ def temp_config_setup(config_content, forcing_location="next_to_config"):
 
         # Write config
         config_path = config_dir / "config.yml"
-        config_path.write_text(config_content)
+        config_path.write_text(config_content, encoding="utf-8")
 
         # Place forcing file based on test needs
         if forcing_location == "next_to_config":

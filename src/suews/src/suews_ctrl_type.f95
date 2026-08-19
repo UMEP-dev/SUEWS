@@ -63,6 +63,7 @@ MODULE module_ctrl_type
       INTEGER :: SMDMethod = 0 ! Determines method for calculating soil moisture deficit [-]
       INTEGER :: WaterUseMethod = 0 ! Defines how external water use is calculated[-]
       INTEGER :: NetRadiationMethod = 0 ! method for calculation of radiation fluxes [-]
+      INTEGER :: KdownSplitMethod = 3 ! method to partition Kdown into direct and diffuse components [-]
       INTEGER :: StabilityMethod = 0 ! method to calculate atmospheric stability [-]
       INTEGER :: StorageHeatMethod = 0 ! !Determines method for calculating storage heat flux ΔQS [-]
       INTEGER :: Diagnose = 0 ! flag for printing diagnostic info during runtime [N/A]C
@@ -77,6 +78,7 @@ MODULE module_ctrl_type
       INTEGER :: rcmethod = 0 ! method to split building envelope heat capacity in STEBBS [-]
       INTEGER :: setpointmethod = 0 ! method to determine heating/cooling setpoints in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
+      INTEGER :: ForcingTimestampReference = 0 ! forcing timestamp reference: 0=local standard time, 1=UTC [-]
    END TYPE SUEWS_CONFIG
 
    TYPE, PUBLIC :: SUEWS_SITE
@@ -132,7 +134,7 @@ MODULE module_ctrl_type
    CONTAINS
       PROCEDURE :: ALLOCATE => allocate_site_prm_c
       PROCEDURE :: DEALLOCATE => deallocate_site_prm_c
-      PROCEDURE :: cal_surf => SUEWS_cal_surf_DTS
+      PROCEDURE :: cal_surf => SUEWS_cal_surf
 
    END TYPE SUEWS_SITE
 
@@ -190,15 +192,25 @@ MODULE module_ctrl_type
    ! ********** SUEWS_forcing schema **********
    TYPE, PUBLIC :: SUEWS_FORCING
       REAL(KIND(1D0)) :: kdown = 0.0D0 !
+      REAL(KIND(1D0)) :: kdiff = -999.0D0 ! diffuse horizontal irradiance [W m-2]
+      REAL(KIND(1D0)) :: kdir = -999.0D0 ! direct normal irradiance [W m-2]
       REAL(KIND(1D0)) :: l_down = 0.0D0 !
       REAL(KIND(1D0)) :: RH = 0.0D0 !
       REAL(KIND(1D0)) :: pres = 0.0D0 !
       REAL(KIND(1D0)) :: Tair_av_5d = 0.0D0 ! 5-day moving average of air temperature [degC]
       REAL(KIND(1D0)) :: U = 0.0D0 !
       REAL(KIND(1D0)) :: rain = 0.0D0 !
-      REAL(KIND(1D0)) :: Wu_m3 = 0.0D0 !  external water use amount in m3 for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_paved = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_bldgs = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_evetr = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_dectr = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_grass = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_bsoil = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_water = 0.0D0 !  external water use amount in mm for each timestep
       REAL(KIND(1D0)) :: f_cloud = 0.0D0 !
-      REAL(KIND(1D0)) :: LAI_obs = 0.0D0 !
+      REAL(KIND(1D0)) :: LAI_dectr = 0.0D0 !
+      REAL(KIND(1D0)) :: LAI_evetr = 0.0D0 !
+      REAL(KIND(1D0)) :: LAI_grass = 0.0D0 !
       REAL(KIND(1D0)) :: snow_fraction = 0.0D0 !
       REAL(KIND(1D0)) :: xsmd = 0.0D0 !
       REAL(KIND(1D0)) :: qf_obs = 0.0D0 !
@@ -232,6 +244,16 @@ MODULE module_ctrl_type
       INTEGER :: DLS = 0 !daylight saving time offset [h]
 
       INTEGER :: new_day = 0 ! flag to indicate a new day !TODO: Should this be bool?
+
+      ! Fixed-offset local-standard-time fields for solar and profile consumers.
+      ! They are derived internally and intentionally excluded from the C timer ABI.
+      INTEGER :: iy_st = 0
+      INTEGER :: id_st = 0
+      INTEGER :: it_st = 0
+      INTEGER :: imin_st = 0
+      REAL(KIND(1D0)) :: dectime_st = 0.0D0
+      INTEGER, DIMENSION(3) :: dayofWeek_id_st = 0
+      REAL(KIND(1D0)) :: tz_solar = 0.0D0
 
    END TYPE SUEWS_TIMER
 
@@ -591,7 +613,7 @@ CONTAINS
 
 
 
-   SUBROUTINE SUEWS_cal_surf_DTS( &
+   SUBROUTINE SUEWS_cal_surf( &
       self, & !inout
       config & !input
       ) ! output
@@ -674,7 +696,7 @@ CONTAINS
 
       END ASSOCIATE
 
-   END SUBROUTINE SUEWS_cal_surf_DTS
+   END SUBROUTINE SUEWS_cal_surf
 
    SUBROUTINE check_and_reset_unsafe_states(self, ref_state)
       CLASS(SUEWS_STATE), INTENT(inout) :: self

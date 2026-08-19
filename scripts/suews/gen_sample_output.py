@@ -1,36 +1,63 @@
-from datetime import datetime
+"""Regenerate the one-year reference output used by the sample-output tests.
+
+Run from anywhere (the Makefile target `update_sample_output` runs it from test/):
+
+    python scripts/suews/gen_sample_output.py
+
+The reference is stored as twelve plain-CSV monthly shards
+(`sample_output_2012-MM.csv`) rather than a single gzipped blob: plain CSV is
+diff-able and delta-compressed by git across revisions, each shard stays under
+the repository's pre-commit size limit, and there is no gzip timestamp header to
+pin -- the fixture is byte-reproducible by construction. See
+`test/fixtures/data_test/sample_output_io.py` for the split/combine convention.
+
+The previous shards are not copied aside: they are tracked in git, so `git diff`
+shows what moved and `git checkout` restores them.
+"""
+
 from pathlib import Path
+import sys
+
 import supy as sp
 
-# Get the test data directory from the environment variable
-test_data_dir = Path(__file__).parent / "fixtures" / "data_test"
-# test_data_dir = os.environ.get('TEST_DATA_DIR', Path(__file__).parent / 'fixtures' / 'data_test')
+# Resolve the fixture directory from the repository root, not from this file's own
+# directory: the fixtures live under test/, while this script lives under scripts/suews/.
+repo_root = Path(__file__).resolve().parents[2]
+test_data_dir = repo_root / "test" / "fixtures" / "data_test"
+if not test_data_dir.is_dir():
+    raise SystemExit(f"[X] fixture directory not found: {test_data_dir}")
 
-# Construct the file path for the data file (using CSV for transparency)
-p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
-
-# if file exists, rename it with a timestamp
-if p_df_sample.exists():
-    # generate a timestamp as of now
-    dt_stamp = datetime.now()
-    str_stamp = dt_stamp.strftime("%Y%m%d_%H%M%S")
-    # rename the file
-    print(f"Renaming existing file: {p_df_sample.as_posix()}")
-    p_df_sample_save = p_df_sample.with_suffix(f".{str_stamp}.csv.gz")
-    p_df_sample.rename(p_df_sample_save)
-    print(f"Renamed to: {p_df_sample_save.as_posix()}")
+# Share the split/combine convention with the tests (single source of truth).
+sys.path.insert(0, str(test_data_dir))
+from sample_output_io import (  # noqa: E402
+    load_sample_output,
+    write_sample_output_shards,
+)
 
 print("\n========================================")
 print("Generating sample output for testing")
-df_state_init, df_forcing_tstep = sp.load_SampleData()
+simulation = sp.SUEWSSimulation.from_sample_data()
+df_forcing_tstep = simulation.forcing.df
 df_forcing_part = df_forcing_tstep.iloc[: 288 * 366]  # One year (2012 is a leap year)
 
 # single-step results
-df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
+simulation.update_forcing(df_forcing_part)
+df_output_s = simulation.run().df
 
-# Save as CSV with gzip compression (transparent format, no NumPy version issues)
-print(f"Saving sample output to: {p_df_sample.as_posix()}")
-df_output_s.SUEWS.to_csv(p_df_sample, compression="gzip")
+df_output = df_output_s.SUEWS
+print(f"Saving sample output shards to: {test_data_dir.as_posix()}")
+written = write_sample_output_shards(df_output, test_data_dir)
+
+# Self-check: the shards must reconstruct exactly what we just wrote, so the
+# generator and the test loader can never silently disagree.
+reloaded = load_sample_output(test_data_dir)
+if not reloaded.equals(df_output):
+    raise SystemExit(
+        "[X] round-trip check failed: reloaded shards differ from the generated "
+        "output -- the split/combine convention is inconsistent"
+    )
+
 print(
-    f"✓ Saved {df_output_s.SUEWS.shape[0]} rows × {df_output_s.SUEWS.shape[1]} columns"
+    f"[OK] Saved {df_output.shape[0]} rows x {df_output.shape[1]} columns "
+    f"across {len(written)} monthly shards (round-trip verified)"
 )

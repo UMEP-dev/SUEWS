@@ -51,6 +51,8 @@ CONTAINS
       ! Simple anthropogenic heat parameterisation and co2 calculation
       ! Calculates QF_SAHP and Fc_anthro
 
+      USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index
+
       IMPLICIT NONE
 
       INTEGER, INTENT(in) :: &
@@ -144,13 +146,10 @@ CONTAINS
       !NumCapita = (PopDensDaytime + PopDensNighttime)/2
 
       !-----------------------------------------------------------------------
-      ! Account for Daylight saving
-      ih = it - DLS
-      IF (ih < 0) ih = 23
-
-      ! Set weekday/weekend counter
-      iu = 1 !Set to 1=weekday
-      IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
+      ! Profile-hour (daylight saving) and weekday/weekend index
+      ! (GH#1559: centralised in module_util_time)
+      ih = cal_profile_hour(it, DLS)
+      iu = cal_weekday_index(DayofWeek_id(1))
 
       ! Calculate energy emissions and CO2 from human metabolism -------------
       ! Pop dens (cap ha-1 -> cap m-2) x activity level (W cap-1)

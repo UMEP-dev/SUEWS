@@ -227,7 +227,7 @@ class ValidationController(BaseModel):
             site_props = site.get("properties", {})
 
             # For RST, we need reasonable building parameters
-            bldg_height = self._extract_value(site_props.get("building_height"))
+            bldg_height = self._extract_value(site_props.get("archetype_height"))
             if bldg_height is not None:
                 if bldg_height <= 0 or bldg_height > 200:
                     errors.append(

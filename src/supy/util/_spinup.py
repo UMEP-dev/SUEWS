@@ -1,4 +1,5 @@
 from typing import Tuple, Union
+
 import numpy as np
 import pandas as pd
 
@@ -34,7 +35,7 @@ def get_spinup_state(
         A tuple of dataframes containing the spin-up output, state, and forcing data if `save_spinup` is True.
     """
     # this function is inspired by the spinup function in the supy-lcz project led by @matthiasdemuzere
-    from .._supy_module import _run_supy  # import this here to avoid circular import
+    from ..suews_sim import SUEWSSimulation
 
     # if df_forcing is shorter than one year, raise error
     len_forcing = df_forcing.index.max() - df_forcing.index.min()
@@ -89,11 +90,11 @@ def get_spinup_state(
     # Slice forcing
     df_forcing_spinup = df_forcing_spinup.loc[start_spinup:end_spinup]
 
-    # Run supy
-    df_output_lc, df_state_lc = _run_supy(
-        df_forcing=df_forcing_spinup,
-        df_state_init=df_state_lc_init,
-    )
+    simulation = SUEWSSimulation.from_state(df_state_lc_init)
+    simulation.update_forcing(df_forcing_spinup)
+    output = simulation.run()
+    df_output_lc = output.df
+    df_state_lc = output.state_final
 
     print(f"==> spin-up simulations completed, assigning spin-up states!")
     # retrieve the state after spin-up

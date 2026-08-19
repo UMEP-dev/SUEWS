@@ -15,6 +15,119 @@ from typing import Any, Dict, List, Optional, Set, Type, Union, get_args, get_or
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
+from .core.field_renames import (
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    ARCHETYPEPROPERTIES_DEV6_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_PASCAL_RENAMES,
+    ARCHETYPEPROPERTIES_RENAMES,
+    DECTRPROPERTIES_RENAMES,
+    EVETRPROPERTIES_RENAMES,
+    LAIPARAMS_RENAMES,
+    MODELPHYSICS_DEV12_RENAMES,
+    MODELPHYSICS_RENAMES,
+    MODELPHYSICS_SUFFIX_RENAMES,
+    SNOWPARAMS_INTERMEDIATE_RENAMES,
+    SNOWPARAMS_RENAMES,
+    STEBBSPROPERTIES_DEV12_RENAMES,
+    STEBBSPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_DEV8_RENAMES,
+    STEBBSPROPERTIES_RENAMES,
+    SURFACEPROPERTIES_RENAMES,
+    VEGETATEDSURFACEPROPERTIES_RENAMES,
+)
+
+from .parameter_examples import get_parameter_examples
+
+
+def _latest_legacy_names(
+    *rename_tables_newest_first: dict[str, str],
+) -> dict[str, str]:
+    """Return the immediately preceding accepted name for each current field."""
+    name_by_current: dict[str, str] = {}
+    for rename_table in rename_tables_newest_first:
+        names_in_table: dict[str, str] = {}
+        for legacy_name, current_name in rename_table.items():
+            if current_name in names_in_table:
+                raise ValueError(
+                    f"Multiple legacy names in one migration for {current_name}"
+                )
+            names_in_table[current_name] = legacy_name
+        for current_name, legacy_name in names_in_table.items():
+            name_by_current.setdefault(current_name, legacy_name)
+    return name_by_current
+
+
+_LEGACY_NAME_BY_MODEL: dict[str, dict[str, str]] = {
+    "ModelPhysics": _latest_legacy_names(
+        MODELPHYSICS_DEV12_RENAMES,
+        MODELPHYSICS_SUFFIX_RENAMES,
+        MODELPHYSICS_RENAMES,
+    ),
+    "SurfaceProperties": _latest_legacy_names(SURFACEPROPERTIES_RENAMES),
+    "LAIParams": _latest_legacy_names(LAIPARAMS_RENAMES),
+    "VegetatedSurfaceProperties": _latest_legacy_names(
+        VEGETATEDSURFACEPROPERTIES_RENAMES
+    ),
+    "EvetrProperties": _latest_legacy_names(EVETRPROPERTIES_RENAMES),
+    "DectrProperties": _latest_legacy_names(DECTRPROPERTIES_RENAMES),
+    "ArchetypeProperties": _latest_legacy_names(
+        ARCHETYPEPROPERTIES_DEV12_RENAMES,
+        ARCHETYPEPROPERTIES_DEV7_RENAMES,
+        ARCHETYPEPROPERTIES_DEV6_RENAMES,
+        ARCHETYPEPROPERTIES_DEV3_RENAMES,
+        ARCHETYPEPROPERTIES_PASCAL_RENAMES,
+        ARCHETYPEPROPERTIES_RENAMES,
+    ),
+    "StebbsProperties": _latest_legacy_names(
+        STEBBSPROPERTIES_DEV12_RENAMES,
+        STEBBSPROPERTIES_DEV8_RENAMES,
+        STEBBSPROPERTIES_DEV3_RENAMES,
+        STEBBSPROPERTIES_RENAMES,
+    ),
+    "SnowParams": _latest_legacy_names(
+        SNOWPARAMS_INTERMEDIATE_RENAMES,
+        SNOWPARAMS_RENAMES,
+    ),
+}
+
+
+def _documentation_model_names(model_class: Type[BaseModel]) -> list[str]:
+    """Return the model and its Pydantic bases from nearest to furthest."""
+    return [
+        base.__name__
+        for base in model_class.__mro__
+        if inspect.isclass(base) and issubclass(base, BaseModel)
+    ]
+
+
+def _legacy_name_for(model_names: list[str], field_name: str) -> Optional[str]:
+    """Return the nearest model's immediately preceding field name."""
+    return next(
+        (
+            name
+            for model_name in model_names
+            if (name := _LEGACY_NAME_BY_MODEL.get(model_name, {}).get(field_name))
+        ),
+        None,
+    )
+
+
+def _parameter_examples_for(
+    model_names: list[str], field_name: str
+) -> list[dict[str, Any]]:
+    """Merge unique examples registered on a model or any of its bases."""
+    examples = []
+    seen_examples = set()
+    for model_name in model_names:
+        for example in get_parameter_examples(model_name, field_name):
+            identity = json.dumps(example, sort_keys=True)
+            if identity not in seen_examples:
+                seen_examples.add(identity)
+                examples.append(example)
+    return examples
+
 
 class ModelDocExtractor:
     """Extract documentation from Pydantic models into structured JSON format."""
@@ -130,7 +243,7 @@ class ModelDocExtractor:
                 continue
 
             field_doc = self._extract_field(
-                field_name, field_info, model_name, include_internal
+                field_name, field_info, model_class, include_internal
             )
             model_doc["fields"].append(field_doc)
 
@@ -148,10 +261,11 @@ class ModelDocExtractor:
         self,
         field_name: str,
         field_info: FieldInfo,
-        model_name: str,
+        model_class: Type[BaseModel],
         include_internal: bool,
     ) -> Dict[str, Any]:
         """Extract documentation from a single field."""
+        model_name = model_class.__name__
         field_type = field_info.annotation
 
         field_doc = {
@@ -162,6 +276,15 @@ class ModelDocExtractor:
             "is_required": self._is_required_field(field_info),
             "is_site_specific": self._is_site_specific(field_name, model_name),
         }
+
+        metadata_model_names = _documentation_model_names(model_class)
+        legacy_name = _legacy_name_for(metadata_model_names, field_name)
+        if legacy_name:
+            field_doc["legacy_name"] = legacy_name
+
+        examples = _parameter_examples_for(metadata_model_names, field_name)
+        if examples:
+            field_doc["examples"] = examples
 
         # Extract default value
         default_info = self._extract_default(field_info)

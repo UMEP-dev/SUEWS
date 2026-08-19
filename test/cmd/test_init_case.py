@@ -17,7 +17,7 @@ from click.testing import CliRunner
 import pytest
 import yaml
 
-from supy import suews_sim
+import supy.suews_sim as suews_sim
 from supy.cmd.init_case import init_case_cmd
 from supy.cmd.suews_cli import cli as dispatcher
 from supy.suews_sim import SUEWSSimulation

@@ -30,6 +30,11 @@ registered handler in `src/supy/util/converter/yaml_upgrade.py`.
   ([#1256](https://github.com/UMEP-dev/SUEWS/issues/1256)); upgraded by
   the `2026.4 -> 2026.5` handler in
   `src/supy/util/converter/yaml_upgrade.py`.
+- `2026.6.5.yml` - tag
+  [`2026.6.5`](https://github.com/UMEP-dev/SUEWS/releases/tag/2026.6.5).
+  Ships the `2026.5` schema (the `2026.5.dev1`..`2026.5.dev14`
+  development cycle collapsed into one released label). Identity path
+  (parses unchanged under the current validator).
 
 ## Policy
 

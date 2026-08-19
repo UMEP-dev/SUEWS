@@ -250,34 +250,34 @@ impl BuildingArchetypePrm {
         let mut heatingsetpointtemperatureprofile =
             [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
                 BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
-        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
-            for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
-                heatingsetpointtemperatureprofile[day_type][step] = next();
+        for day_row in &mut heatingsetpointtemperatureprofile {
+            for slot in day_row.iter_mut() {
+                *slot = next();
             }
         }
 
         let mut coolingsetpointtemperatureprofile =
             [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
                 BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
-        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
-            for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
-                coolingsetpointtemperatureprofile[day_type][step] = next();
+        for day_row in &mut coolingsetpointtemperatureprofile {
+            for slot in day_row.iter_mut() {
+                *slot = next();
             }
         }
 
         let mut metabolismprofile = [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
             BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
-        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
-            for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
-                metabolismprofile[day_type][step] = next();
+        for day_row in &mut metabolismprofile {
+            for slot in day_row.iter_mut() {
+                *slot = next();
             }
         }
 
         let mut applianceprofile = [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
             BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
-        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
-            for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
-                applianceprofile[day_type][step] = next();
+        for day_row in &mut applianceprofile {
+            for slot in day_row.iter_mut() {
+                *slot = next();
             }
         }
 

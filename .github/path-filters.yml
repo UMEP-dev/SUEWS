@@ -27,6 +27,9 @@ fortran:
   - 'src/suews/src/**'
   # External Fortran library (spartacus-surface)
   - 'src/suews/ext_lib/**'
+  # SUEWS makefiles executed during extension builds
+  - 'src/suews/Makefile'
+  - 'src/suews/Makefile.*'
   # Fortran static library build helper
   - 'src/supy/run_make.py'
 
@@ -72,8 +75,13 @@ pyproject:
 ci:
   # CI workflows and build tooling
   - '.github/path-filters.yml'
+  - '.github/ci-metrics-needs.json'
+  - '.github/workflows/benchmark-pytest-scheduler.yml'
+  - '.github/workflows/benchmark-checkout-provenance.yml'
   - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/workflows/build-wheels-reusable.yml'
   - '.github/workflows/cibuildwheel-debug.yml'
+  - '.github/workflows/ci-metrics-overhead.yml'
   - '.github/actions/build-suews/**'
   - '.github/scripts/**'
   - 'Makefile'

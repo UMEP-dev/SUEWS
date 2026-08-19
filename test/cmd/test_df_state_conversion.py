@@ -26,7 +26,7 @@ class TestDfStateDetection:
     def test_detect_nml_input(self, tmp_path):
         """Test detection of RunControl.nml input."""
         nml_file = tmp_path / "RunControl.nml"
-        nml_file.write_text("&runcontrol\n/\n")
+        nml_file.write_text("&runcontrol\n/\n", encoding="utf-8")
 
         assert detect_input_type(nml_file) == "nml"
 
@@ -149,7 +149,7 @@ class TestCsvFileConversion:
 
         # Check new columns added
         assert "buildingname" in col_names
-        assert "buildingtype" in col_names
+        # building_type dropped (gh#1392): no longer a df_state column
 
     @pytest.mark.slow
     def test_full_yaml_conversion(self, old_csv_path, tmp_path):
@@ -168,7 +168,7 @@ class TestCsvFileConversion:
         # Check it's valid YAML
         import yaml
 
-        with open(output_yaml) as f:
+        with open(output_yaml, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         assert "sites" in config

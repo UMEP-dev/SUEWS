@@ -15,6 +15,17 @@ The text reports written by each phase are unchanged; this module
 adds a JSON sidecar (``<report>.json``) next to every ``<report>.txt``
 so downstream tooling (MCP, agents, CI) can consume the validator
 output without parsing the human-readable form.
+
+Two sidecar shapes exist (gh#1467):
+
+- A direct ``run_phase_A/B/C`` library call writes a single
+  ``PhaseReport`` for that phase.
+- The full ``suews validate`` CLI run writes a consolidated
+  ``ValidationReport`` (``{overall_status, phases:[...]}``) at the final
+  report path, aggregating every phase's issues across all severities so
+  non-error informational messages are exposed, not only errors. This is
+  identical to the stdout ``--format json`` envelope's
+  ``data.validation_report``.
 """
 
 from __future__ import annotations
@@ -143,12 +154,14 @@ class ValidationReport:
 
 @dataclass(frozen=True)
 class JSONReportWriter:
-    """Writes a ``PhaseReport`` to a JSON sidecar file."""
+    """Writes a ``PhaseReport`` or ``ValidationReport`` to a JSON sidecar file."""
 
     encoding: str = "utf-8"
     indent: int = 2
 
-    def write(self, filepath: PathLike, report: PhaseReport) -> None:
+    def write(
+        self, filepath: PathLike, report: Union[PhaseReport, ValidationReport]
+    ) -> None:
         path = Path(filepath)
         text = json.dumps(report.to_dict(), indent=self.indent, ensure_ascii=False)
         with path.open("w", encoding=self.encoding, newline="\n") as handle:

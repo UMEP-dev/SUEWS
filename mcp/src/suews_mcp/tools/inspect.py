@@ -17,7 +17,12 @@ def inspect_config(
     config_path: str,
     project_root: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Inspect a YAML config and return the standard envelope.
+    """**Use this after `init_case` or after Write, before going back to
+    Write** — reports the active fields, surface fractions, and
+    physics methods so you do not have to re-derive them from
+    `query_knowledge`. Cheaper than `query_knowledge` for "what field
+    do I edit"; pair with `validate_config` after each edit cycle
+    (gh#1407).
 
     Parameters
     ----------

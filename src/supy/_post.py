@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
-import copy
+
 from ._env import logger_supy
 from .data_model.output import OUTPUT_REGISTRY
+
 
 ##############################################################################
 # post-processing part
@@ -165,15 +166,66 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 
 
 # resample supy output
-def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=False):
+def _index_freq_matches(df_output, freq):
+    """Return True when ``df_output`` is already at the target frequency ``freq``.
+
+    Uses :func:`pandas.infer_freq`, which returns ``None`` for an irregular or
+    ambiguous index; such an index therefore never matches and always falls
+    through to a real resample (avoiding the false positives a median-of-diffs
+    reconstruction could produce). ``freq`` may be a pandas offset alias
+    (e.g. ``"h"``, ``"5min"``) or a :class:`pandas.Timedelta` (as passed by the
+    save path).
+
+    Parameters
+    ----------
+    df_output : pandas.DataFrame
+        Output frame with a ``datetime`` index level.
+    freq : str or pandas.Timedelta
+        Target resampling frequency.
+
+    Returns
+    -------
+    bool
+        True only when the index cadence is regular and equal to ``freq``.
+    """
+    level = "datetime" if "datetime" in df_output.index.names else -1
+    idx_dt = df_output.index.get_level_values(level).unique().sort_values()
+    if len(idx_dt) < 3:
+        # infer_freq needs at least three timestamps to determine a cadence.
+        return False
+    to_offset = pd.tseries.frequencies.to_offset
+    target_offset = to_offset(freq)
+    try:
+        target_delta = pd.Timedelta(target_offset)
+    except ValueError:
+        # Non-fixed frequencies (e.g. month-end) cannot be compared from a
+        # single interval, so fall through to the full regularity check.
+        target_delta = None
+    if (
+        target_delta is not None
+        and idx_dt.tz is None
+        and idx_dt[1] - idx_dt[0] != target_delta
+    ):
+        # The very first interval already disagrees with a fixed target
+        # cadence. A regular index's inferred frequency always matches its
+        # own interval spacing, so infer_freq (which scans the whole index)
+        # could not possibly find a match here either; skip the scan. Keep
+        # timezone-aware indexes on the full check because a valid calendar
+        # cadence can span a 23- or 25-hour daylight-saving transition.
+        return False
+    inferred = pd.infer_freq(idx_dt)
+    if inferred is None:
+        return False
+    try:
+        return pd.Timedelta(to_offset(inferred)) == target_delta
+    except ValueError:
+        # Non-fixed frequencies (e.g. month-end) cannot become a Timedelta;
+        # compare the offsets directly instead.
+        return to_offset(inferred) == target_offset
+
+
+def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     """Resample SUEWS simulation output to a different temporal frequency.
-
-    .. deprecated:: 2026.2
-        Direct use of this function is deprecated. Use :meth:`SUEWSOutput.resample`
-        instead for the recommended object-oriented interface::
-
-            output = sim.run()
-            resampled = output.resample(freq="h")
 
     This function resamples time series data using variable-appropriate
     aggregation methods. Different variable types are handled correctly:
@@ -185,8 +237,9 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=
     Parameters
     ----------
     df_output : pandas.DataFrame or SUEWSOutput
-        Output DataFrame from `run_supy`, with MultiIndex (grid, datetime)
-        and MultiIndex columns (group, var). Also accepts SUEWSOutput objects.
+        Output DataFrame from ``SUEWSOutput.df``, with MultiIndex
+        (grid, datetime) and MultiIndex columns (group, var). Also accepts
+        ``SUEWSOutput`` objects.
     freq : str, optional
         Target frequency using pandas offset aliases.
         Common values: '30min', '60min' or 'h', '3h', 'D'.
@@ -200,13 +253,19 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=
     pandas.DataFrame
         Resampled DataFrame with same structure as input.
 
+    See Also
+    --------
+    SUEWSOutput.resample : Recommended OOP interface for resampling
+    supy.util.gen_epw : Generate EPW files (supports freq parameter)
+    supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
+
     Notes
     -----
     **Recommended Usage**
 
     For new code, use the object-oriented interface::
 
-        sim = SUEWSSimulation('config.yml')
+        sim = SUEWSSimulation("config.yml")
         output = sim.run()
         resampled = output.resample(freq="h")  # Returns SUEWSOutput
 
@@ -249,28 +308,15 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=
     >>> sim = sp.SUEWSSimulation.from_sample_data()
     >>> output = sim.run()
     >>> resampled = output.resample(freq="h")  # Returns SUEWSOutput
-
-    Legacy usage (deprecated):
-
-    >>> df_state_init, df_forcing = sp.load_SampleData()
-    >>> df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
-    >>> df_hourly = sp.resample_output(df_output, freq="h")
-
-    See Also
-    --------
-    SUEWSOutput.resample : Recommended OOP interface for resampling
-    supy.util.gen_epw : Generate EPW files (supports freq parameter)
-    supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
     """
     # Unwrap SUEWSOutput to raw DataFrame if needed
     if hasattr(df_output, "_df_output"):
         df_output = df_output._df_output
 
-    # Issue deprecation warning for direct external calls
-    if not _internal:
-        from ._supy_module import _warn_functional_deprecation
-
-        _warn_functional_deprecation("resample_output")
+    # Skip resampling entirely when the data is already at the requested
+    # frequency
+    if _index_freq_matches(df_output, freq):
+        return df_output
 
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
@@ -430,7 +476,8 @@ def proc_df_rsl(df_output, debug=False):
 
     # Convert column names from format "var_level" to MultiIndex (var, level)
     df_rsl.columns = (
-        df_rsl.columns.str.split("_")
+        df_rsl.columns.str
+        .split("_")
         .map(lambda l: tuple([l[0], int(l[1])]))
         .rename(["var", "level"])
     )
@@ -469,5 +516,3 @@ def is_numeric(obj):
     if isinstance(obj, np.ndarray):
         return np.issubdtype(obj.dtype, np.number)
     return False
-
-

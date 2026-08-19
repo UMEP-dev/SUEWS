@@ -11,17 +11,21 @@ from typing import Literal, Optional
 import pandas as pd
 
 
-_VAR_SYMBOLS = {"T2": "T2", "q2": "q2", "U10": "U10"}
-_UNITS = {"T2": "degC", "q2": "g/kg", "U10": "m/s"}
+_VAR_SYMBOLS = {"T2": "T2", "q2": "q2", "U10": "U10", "QE": "QE", "QH": "QH"}
+_UNITS = {"T2": "degC", "q2": "g/kg", "U10": "m/s", "QE": "W m-2", "QH": "W m-2"}
 _MAIN_COMPONENTS = {
     "T2": ["T_ref", "flux_total", "resistance", "air_props"],
     "q2": ["q_ref", "flux_total", "resistance", "air_props"],
     "U10": ["forcing", "roughness", "stability"],
+    "QE": ["available_energy", "partition"],
+    "QH": ["available_energy", "partition"],
 }
 _DEFAULT_PLOT_COMPONENTS = {
     "T2": ["flux_total", "resistance", "air_props"],
     "q2": ["flux_total", "resistance", "air_props"],
     "U10": ["forcing", "roughness", "stability"],
+    "QE": ["energy_QN", "energy_QF", "energy_QS", "partition"],
+    "QH": ["energy_QN", "energy_QF", "energy_QS", "partition"],
 }
 
 

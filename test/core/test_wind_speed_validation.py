@@ -293,6 +293,60 @@ class TestPhysicsSpecificValidation:
                 "netradiationmethod=0" in issue and "qn" in issue for issue in issues
             )
 
+    def test_active_requirement_rejects_a_partial_sentinel_gap(self):
+        """Every row must be valid when a conditional requirement is active."""
+        df_forcing = self.create_base_forcing_df()
+        df_forcing["qn"] = 100.0
+        df_forcing.iloc[3, df_forcing.columns.get_loc("qn")] = -999.0
+
+        issues = check_forcing(
+            df_forcing,
+            fix=False,
+            physics={"netradiationmethod": 0},
+        )
+
+        assert any(
+            "netradiationmethod=0" in issue and "qn" in issue and "1 row(s)" in issue
+            for issue in issues
+        )
+
+    @pytest.mark.parametrize(
+        ("snowuse", "netradiationmethod", "must_require_snow"),
+        ((0, 0, False), (0, 3, False), (1, 3, False), (1, 0, True)),
+    )
+    def test_snow_requires_both_legacy_physics_conditions(
+        self,
+        snowuse,
+        netradiationmethod,
+        must_require_snow,
+    ):
+        """Legacy validation uses the same approved snow conjunction."""
+        df_forcing = self.create_base_forcing_df()
+        df_forcing["qn"] = 100
+        physics = {
+            "snowuse": snowuse,
+            "netradiationmethod": netradiationmethod,
+        }
+
+        issues = check_forcing(df_forcing, fix=False, physics=physics) or []
+        snow_issues = [issue for issue in issues if "snow" in issue.lower()]
+        assert bool(snow_issues) is must_require_snow
+
+    def test_compound_snow_requirement_rejects_a_partial_sentinel_gap(self):
+        """Compound requirements use the same every-row missing policy."""
+        df_forcing = self.create_base_forcing_df()
+        df_forcing["qn"] = 100.0
+        df_forcing["snow"] = 0.0
+        df_forcing.iloc[4, df_forcing.columns.get_loc("snow")] = -999.0
+
+        issues = check_forcing(
+            df_forcing,
+            fix=False,
+            physics={"snowuse": 1, "netradiationmethod": 0},
+        )
+
+        assert any("snow" in issue and "1 row(s)" in issue for issue in issues)
+
     def test_emissionsmethod_0_error_includes_zero_hint(self):
         """Test that emissionsmethod=0 error includes hint about setting to zero."""
         df_forcing = self.create_base_forcing_df()

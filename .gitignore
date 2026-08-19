@@ -660,14 +660,23 @@ docs/source/api/_autosummary/
 test/fixtures/gh846/*.zip
 
 
-# Conductor worktree workspaces
-.conductor/
+# Conductor project settings and local worktree state
+.conductor/*
+!.conductor/
+!.conductor/settings.toml
+.conductor/settings.local.toml
 
 # Conductor agent collaboration directory
 .context/
 
-# Auto-generated schema-publisher artefacts
-# (produced by `python -m supy.data_model.schema.exporter` /
+# Auto-generated configuration-schema publisher artefacts
+# (produced by `python -m supy.data_model.configuration.exporter` /
 # `suews-schema publish`; the canonical committed copy lives at
 # docs/source/inputs/tables/schema.json)
 site/schemas/
+
+# Generated plugin bundle: `make plugin` (scripts/build_plugin.py) copies the
+# single-source skill from .claude/skills/suews into the distributable plugin.
+# It is a build artifact (regenerated locally / in CI before publishing), so the
+# duplicated skill copy is not committed; only the plugin manifests + assets are.
+plugins/suews/skills/

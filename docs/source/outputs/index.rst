@@ -38,11 +38,14 @@ Restart Checkpoint
 
 Object-oriented SUEWS runs save ``{site}_SUEWS_checkpoint.json`` as the
 preferred restart artefact. It contains typed runtime state from the backend,
-keyed by grid ID.
+elapsed model-time metadata, and schema versions, keyed by grid ID.
 
-The checkpoint is intentionally only the typed runtime state. To continue a run,
-load the same YAML configuration, attach the next forcing period, and run from
-``SUEWSSimulation.from_checkpoint(...)``.
+The checkpoint does not contain the YAML configuration or forcing data. To
+continue a run, load the same YAML configuration, attach the next forcing
+period, and run from ``SUEWSSimulation.from_checkpoint(...)``. State-only
+checkpoint schema version 1 must be regenerated with schema version 2 before it
+can provide timer continuity. Chunked and restarted outputs are expected to match
+uninterrupted outputs within relative and absolute tolerances of ``1e-12``.
 
 Legacy ``df_state_SSss.csv`` and state parquet files remain documented for
 backwards compatibility and developer inspection, but they are not the preferred
@@ -54,11 +57,45 @@ Temporal Information
 
 .. note::
 
-   Temporal information in output files (``iy``, ``id``, ``it``, ``imin``) are in **local time**
-   (consistent with :ref:`met_forcing`) and indicate the **ending timestamp** of each period.
+   Temporal information in output files (``iy``, ``id``, ``it``, ``imin``)
+   follows the configured forcing timestamp reference (see :ref:`met_forcing`):
+   local standard time by default, or UTC when ``timestamp_reference: utc``.
+   It indicates the **ending timestamp** of each period.
 
    For example, for hourly data, ``2021-09-12 13:00`` indicates a record for the period
    between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
 
-   **Exception for DailyState**: When resampled to daily frequency, DailyState uses
-   day-start labelling for readability. See :ref:`output-dailystate` for details.
+   **Exception for DailyState**: Its daily boundary follows the same forcing/main
+   clock. When resampled to daily frequency, DailyState uses day-start labelling
+   for readability. See :ref:`output-dailystate` for details.
+
+Saved Timestamp Reference
+-------------------------
+
+Saved output follows the configured forcing clock by default. To relabel the
+saved timestamps without changing simulated values, set
+``model.control.output.timestamp_reference``:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       forcing:
+         timestamp_reference: utc
+       output:
+         timestamp_reference: local_standard_time
+
+The supported output values are:
+
+- ``follow``: keep the forcing clock (default);
+- ``utc``: label saved output in UTC;
+- ``local_standard_time``: label saved output in the site's fixed-offset local
+  standard time;
+- ``daylight``: label saved output in local daylight time, adding one hour to
+  local standard time inside the configured ``startdls`` / ``enddls`` window.
+
+``daylight`` requires both DLS boundaries. Relabelling is presentation-only: it
+does not change forcing interpretation, daily boundaries, model timesteps,
+fluxes, or state values. Explicit ``utc``, ``local_standard_time``, and
+``daylight`` selections add ``_UTC``, ``_STANDARD``, or ``_DAYLIGHT`` to saved
+output filenames. ``follow`` retains the existing filenames.

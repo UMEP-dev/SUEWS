@@ -2,7 +2,7 @@
 name: Release Checklist
 about: SUEWS release checklist. ONLY FOR DEVELOPERS!
 title: 'Release YYYY.M.D: [Feature Name]'
-labels: release
+labels: '1-maintenance,2-meta:release'
 assignees: ''
 
 ---

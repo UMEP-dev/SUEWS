@@ -174,7 +174,7 @@ class ProfileManager:
         profiles_df = profiles_df.sort_index()
 
         # Write to file with proper header (matching legacy column naming 0-23)
-        with open(profiles_file, "w") as f:
+        with open(profiles_file, "w", encoding="utf-8") as f:
             # Write first line: column numbers (load_SUEWS_table skips this line)
             f.write("    ".join([str(i) for i in range(1, 26)]) + "\n")
 

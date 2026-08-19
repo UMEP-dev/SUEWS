@@ -14,6 +14,13 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum ForcingTimestampReference {
+    #[default]
+    LocalStandardTime,
+    Utc,
+}
+
 #[derive(Debug, Clone)]
 pub struct RunConfig {
     pub timer: SuewsTimer,
@@ -335,6 +342,7 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     ensure_len_with_default(&mut site.spartacus_layer.building_scale, nlayer, 10.0);
     ensure_len_with_default(&mut site.spartacus_layer.veg_frac, nlayer, 0.0);
     ensure_len_with_default(&mut site.spartacus_layer.veg_scale, nlayer, 10.0);
+    ensure_len_with_default(&mut site.spartacus_layer.veg_ext, nlayer, -999.0);
     ensure_len_with_default(&mut site.spartacus_layer.alb_roof, nlayer, 0.15);
     ensure_len_with_default(
         &mut site.spartacus_layer.emis_roof,
@@ -556,14 +564,33 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(v) = read_i32(site_root, &["properties", "spartacus", "n_stream_lw_urban"]) {
         site.spartacus.n_stream_lw_urban = v;
     }
+    site.spartacus.n_stream_lw_forest = site.spartacus.n_stream_lw_urban;
     if let Some(v) = read_i32(site_root, &["properties", "spartacus", "n_stream_sw_urban"]) {
         site.spartacus.n_stream_sw_urban = v;
+    }
+    if let Some(v) = read_i32(
+        site_root,
+        &["properties", "spartacus", "n_stream_sw_forest"],
+    ) {
+        site.spartacus.n_stream_sw_forest = v;
+    }
+    if let Some(v) = read_i32(
+        site_root,
+        &["properties", "spartacus", "n_stream_lw_forest"],
+    ) {
+        site.spartacus.n_stream_lw_forest = v;
     }
     if let Some(v) = read_i32(
         site_root,
         &["properties", "spartacus", "n_vegetation_region_urban"],
     ) {
         site.spartacus.n_vegetation_region_urban = v;
+    }
+    if let Some(v) = read_i32(
+        site_root,
+        &["properties", "spartacus", "n_vegetation_region_forest"],
+    ) {
+        site.spartacus.n_vegetation_region_forest = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "sw_dn_direct_frac"]) {
         site.spartacus.sw_dn_direct_frac = v;
@@ -598,12 +625,10 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(height_values) =
         read_numeric_sequence(site_root, &["properties", "vertical_layers", "height"])
     {
-        if site.spartacus.height.len() == height_values.len() {
-            assign_prefix(
-                site.spartacus.height.as_mut_slice(),
-                height_values.as_slice(),
-            );
-        } else if !site.spartacus.height.is_empty() {
+        // Both former branches (lengths match, or height non-empty) did the
+        // same prefix-assign, so they collapse to one condition. Behaviour is
+        // unchanged; the duplicated else-if may have been intended to differ.
+        if site.spartacus.height.len() == height_values.len() || !site.spartacus.height.is_empty() {
             assign_prefix(
                 site.spartacus.height.as_mut_slice(),
                 height_values.as_slice(),
@@ -643,6 +668,14 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
         assign_prefix(
             site.spartacus_layer.veg_scale.as_mut_slice(),
             veg_scale.as_slice(),
+        );
+    }
+    if let Some(veg_ext) =
+        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_ext"])
+    {
+        assign_prefix(
+            site.spartacus_layer.veg_ext.as_mut_slice(),
+            veg_ext.as_slice(),
         );
     }
 
@@ -816,6 +849,136 @@ fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) {
             &["properties", "land_cover", surface_name, "snowpacklimit"],
         ) {
             site.snow.snowpack_limit[surface_idx] = v;
+        }
+    }
+}
+
+fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) {
+    // Top-level irrigation scalars: h_maintain, faut, ie_start, ie_end,
+    // internalwateruse_h
+    if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "h_maintain"]) {
+        site.irrigation.h_maintain = v;
+    }
+    if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "faut"]) {
+        site.irrigation.faut = v;
+    }
+    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_start"]) {
+        site.irrigation.ie_start = v;
+    }
+    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_end"]) {
+        site.irrigation.ie_end = v;
+    }
+    if let Some(v) = read_numeric(
+        site_root,
+        &["properties", "irrigation", "internalwateruse_h"],
+    ) {
+        site.irrigation.internalwateruse_h = v;
+    }
+
+    // Per-vegetated-surface irrigation polynomial coefficients (Järvi 2011).
+    // ie_a / ie_m are stored as 3-element arrays indexed by veg surface
+    // (0=EveTr, 1=DecTr, 2=Grass); the YAML places one scalar per land_cover
+    // block but the Fortran physics interprets the three values as a single
+    // polynomial [a0 + a1*Tair + a2*days_since_rain] applied to every irrigated
+    // veg surface (Lewis Cameron / Arup case, gh#1421).
+    for (lc_name, veg_idx) in [("evetr", 0_usize), ("dectr", 1_usize), ("grass", 2_usize)] {
+        if let Some(v) = read_numeric(site_root, &["properties", "land_cover", lc_name, "ie_a"]) {
+            site.irrigation.ie_a[veg_idx] = v;
+        }
+        if let Some(v) = read_numeric(site_root, &["properties", "land_cover", lc_name, "ie_m"]) {
+            site.irrigation.ie_m[veg_idx] = v;
+        }
+    }
+
+    // Per-day daywat (flag) / daywatper (percent of plots irrigated on that day)
+    for (day_name, flag_field, percent_field) in [
+        (
+            "monday",
+            &mut site.irrigation.irr_daywater.monday_flag,
+            &mut site.irrigation.irr_daywater.monday_percent,
+        ),
+        (
+            "tuesday",
+            &mut site.irrigation.irr_daywater.tuesday_flag,
+            &mut site.irrigation.irr_daywater.tuesday_percent,
+        ),
+        (
+            "wednesday",
+            &mut site.irrigation.irr_daywater.wednesday_flag,
+            &mut site.irrigation.irr_daywater.wednesday_percent,
+        ),
+        (
+            "thursday",
+            &mut site.irrigation.irr_daywater.thursday_flag,
+            &mut site.irrigation.irr_daywater.thursday_percent,
+        ),
+        (
+            "friday",
+            &mut site.irrigation.irr_daywater.friday_flag,
+            &mut site.irrigation.irr_daywater.friday_percent,
+        ),
+        (
+            "saturday",
+            &mut site.irrigation.irr_daywater.saturday_flag,
+            &mut site.irrigation.irr_daywater.saturday_percent,
+        ),
+        (
+            "sunday",
+            &mut site.irrigation.irr_daywater.sunday_flag,
+            &mut site.irrigation.irr_daywater.sunday_percent,
+        ),
+    ] {
+        if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "daywat", day_name])
+        {
+            *flag_field = v;
+        }
+        if let Some(v) = read_numeric(
+            site_root,
+            &["properties", "irrigation", "daywatper", day_name],
+        ) {
+            *percent_field = v;
+        }
+    }
+
+    // 24-hour weekday/holiday automatic and manual water-use profiles.
+    for (profile_name, working, holiday) in [
+        (
+            "wuprofa_24hr",
+            &mut site.irrigation.wuprofa_24hr_working,
+            &mut site.irrigation.wuprofa_24hr_holiday,
+        ),
+        (
+            "wuprofm_24hr",
+            &mut site.irrigation.wuprofm_24hr_working,
+            &mut site.irrigation.wuprofm_24hr_holiday,
+        ),
+    ] {
+        for hour in 1..=24_usize {
+            let key = hour.to_string();
+            if let Some(v) = read_numeric(
+                site_root,
+                &[
+                    "properties",
+                    "irrigation",
+                    profile_name,
+                    "working_day",
+                    key.as_str(),
+                ],
+            ) {
+                working[hour - 1] = v;
+            }
+            if let Some(v) = read_numeric(
+                site_root,
+                &[
+                    "properties",
+                    "irrigation",
+                    profile_name,
+                    "holiday",
+                    key.as_str(),
+                ],
+            ) {
+                holiday[hour - 1] = v;
+            }
         }
     }
 }
@@ -1376,86 +1539,92 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     if let Some(v) = read_i32(root, &["model", "control", "diag_qs"]) {
         config.diag_qs = v;
     }
+    config.kdown_split_method =
+        read_i32(root, &["model", "physics", "kdown_split_method"]).unwrap_or(3);
 }
 
-fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
-    // EHC arrays use NSURF (7) as the first dimension to match the physics loop
-    // which iterates i_surf=1..nsurf. The Fortran C API driver now uses nsurf
-    // (not SPARTACUS nlayer) for EHC buffer sizing and unpacking.
-    let nlayer_ehc = NSURF;
-    let mat_len = nlayer_ehc * ndepth;
+fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {
+    let layer_mat_len = nlayer * ndepth;
+    let surf_len = if nlayer == 0 { 0 } else { NSURF };
+    let surf_mat_len = surf_len * ndepth;
 
-    site.ehc.nlayer = nlayer_ehc;
+    site.ehc.nlayer = nlayer;
     site.ehc.ndepth = ndepth;
 
-    // Resize all EHC arrays to correct dimensions (zero-filled by default).
-    site.ehc.soil_storecap_roof.resize(nlayer_ehc, 0.0);
-    site.ehc.soil_storecap_wall.resize(nlayer_ehc, 0.0);
-    site.ehc.state_limit_roof.resize(nlayer_ehc, 0.0);
-    site.ehc.state_limit_wall.resize(nlayer_ehc, 0.0);
-    site.ehc.wet_thresh_roof.resize(nlayer_ehc, 0.0);
-    site.ehc.wet_thresh_wall.resize(nlayer_ehc, 0.0);
-    site.ehc.tin_roof.resize(nlayer_ehc, 5.0);
-    site.ehc.tin_wall.resize(nlayer_ehc, 5.0);
-    site.ehc.tin_surf.resize(nlayer_ehc, 2.0);
-    site.ehc.k_roof.resize(mat_len, 0.0);
-    site.ehc.k_wall.resize(mat_len, 0.0);
-    site.ehc.k_surf.resize(mat_len, 0.0);
-    site.ehc.cp_roof.resize(mat_len, 0.0);
-    site.ehc.cp_wall.resize(mat_len, 0.0);
-    site.ehc.cp_surf.resize(mat_len, 0.0);
-    site.ehc.dz_roof.resize(mat_len, 0.0);
-    site.ehc.dz_wall.resize(mat_len, 0.0);
-    site.ehc.dz_surf.resize(mat_len, 0.0);
+    // Roof and wall arrays follow SPARTACUS vertical layers; standard
+    // surface arrays follow SUEWS surface classes.
+    site.ehc.soil_storecap_roof.resize(nlayer, 0.0);
+    site.ehc.soil_storecap_wall.resize(nlayer, 0.0);
+    site.ehc.state_limit_roof.resize(nlayer, 0.0);
+    site.ehc.state_limit_wall.resize(nlayer, 0.0);
+    site.ehc.wet_thresh_roof.resize(nlayer, 0.0);
+    site.ehc.wet_thresh_wall.resize(nlayer, 0.0);
+    site.ehc.tin_roof.resize(nlayer, 5.0);
+    site.ehc.tin_wall.resize(nlayer, 5.0);
+    site.ehc.tin_surf.resize(surf_len, 2.0);
+    site.ehc.k_roof.resize(layer_mat_len, 0.0);
+    site.ehc.k_wall.resize(layer_mat_len, 0.0);
+    site.ehc.k_surf.resize(surf_mat_len, 0.0);
+    site.ehc.cp_roof.resize(layer_mat_len, 0.0);
+    site.ehc.cp_wall.resize(layer_mat_len, 0.0);
+    site.ehc.cp_surf.resize(surf_mat_len, 0.0);
+    site.ehc.dz_roof.resize(layer_mat_len, 0.0);
+    site.ehc.dz_wall.resize(layer_mat_len, 0.0);
+    site.ehc.dz_surf.resize(surf_mat_len, 0.0);
 
-    // Populate k_surf, cp_surf, dz_surf from each surface type's thermal_layers.
-    // Row-major layout: element [surf_idx * ndepth + depth_idx].
-    for &(surface_name, surface_idx) in &SURFACE_YAML_ORDER {
-        let tl_path = ["properties", "land_cover", surface_name, "thermal_layers"];
-        if let Some(k_vals) = read_numeric_sequence(
-            site_root,
-            &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"],
-        ) {
-            for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
-                site.ehc.k_surf[surface_idx * ndepth + j] = v;
-            }
-        }
-        if let Some(cp_vals) = read_numeric_sequence(
-            site_root,
-            &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
-        )
-        .or_else(|| {
-            read_numeric_sequence(
+    if surf_len > 0 {
+        // Populate k_surf, cp_surf, dz_surf from each surface type's thermal_layers.
+        // Row-major layout: element [surf_idx * ndepth + depth_idx].
+        for &(surface_name, surface_idx) in &SURFACE_YAML_ORDER {
+            let tl_path = ["properties", "land_cover", surface_name, "thermal_layers"];
+            if let Some(k_vals) = read_numeric_sequence(
                 site_root,
-                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"],
+                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"],
+            ) {
+                for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
+                    site.ehc.k_surf[surface_idx * ndepth + j] = v;
+                }
+            }
+            if let Some(cp_vals) = read_numeric_sequence(
+                site_root,
+                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
             )
-        }) {
-            for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
-                site.ehc.cp_surf[surface_idx * ndepth + j] = v;
+            .or_else(|| {
+                read_numeric_sequence(
+                    site_root,
+                    &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"],
+                )
+            }) {
+                for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
+                    site.ehc.cp_surf[surface_idx * ndepth + j] = v;
+                }
             }
-        }
-        if let Some(dz_vals) = read_numeric_sequence(
-            site_root,
-            &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"],
-        ) {
-            for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
-                site.ehc.dz_surf[surface_idx * ndepth + j] = v;
+            if let Some(dz_vals) = read_numeric_sequence(
+                site_root,
+                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"],
+            ) {
+                for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
+                    site.ehc.dz_surf[surface_idx * ndepth + j] = v;
+                }
             }
-        }
 
-        // tin_surf from initial_states.<surface>.tin, fallback to temperature[0].
-        if let Some(v) =
-            read_numeric(site_root, &["initial_states", surface_name, "tin"]).or_else(|| {
-                read_numeric_sequence(site_root, &["initial_states", surface_name, "temperature"])
+            // tin_surf from initial_states.<surface>.tin, fallback to temperature[0].
+            if let Some(v) = read_numeric(site_root, &["initial_states", surface_name, "tin"])
+                .or_else(|| {
+                    read_numeric_sequence(
+                        site_root,
+                        &["initial_states", surface_name, "temperature"],
+                    )
                     .and_then(|vals| vals.first().copied())
-            })
-        {
-            site.ehc.tin_surf[surface_idx] = v;
+                })
+            {
+                site.ehc.tin_surf[surface_idx] = v;
+            }
         }
     }
 
     if let Some(roofs) = read_sequence(site_root, &["properties", "vertical_layers", "roofs"]) {
-        for (layer_idx, roof_root) in roofs.iter().take(nlayer_ehc).enumerate() {
+        for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
             if let Some(v) = read_numeric(roof_root, &["soilstorecap"]) {
                 site.ehc.soil_storecap_roof[layer_idx] = v;
             }
@@ -1487,7 +1656,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 
     if let Some(walls) = read_sequence(site_root, &["properties", "vertical_layers", "walls"]) {
-        for (layer_idx, wall_root) in walls.iter().take(nlayer_ehc).enumerate() {
+        for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
             if let Some(v) = read_numeric(wall_root, &["soilstorecap"]) {
                 site.ehc.soil_storecap_wall[layer_idx] = v;
             }
@@ -1519,7 +1688,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 
     if let Some(roofs) = read_sequence(site_root, &["initial_states", "roofs"]) {
-        for (layer_idx, roof_root) in roofs.iter().take(nlayer_ehc).enumerate() {
+        for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
             if let Some(v) = read_numeric(roof_root, &["tin"]).or_else(|| {
                 read_numeric_sequence(roof_root, &["temperature"])
                     .and_then(|vals| vals.first().copied())
@@ -1530,7 +1699,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 
     if let Some(walls) = read_sequence(site_root, &["initial_states", "walls"]) {
-        for (layer_idx, wall_root) in walls.iter().take(nlayer_ehc).enumerate() {
+        for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
             if let Some(v) = read_numeric(wall_root, &["tin"]).or_else(|| {
                 read_numeric_sequence(wall_root, &["temperature"])
                     .and_then(|vals| vals.first().copied())
@@ -1567,7 +1736,12 @@ fn apply_building_archetype_overrides(
             continue;
         }
 
-        if field_name == "appliance_profile" {
+        // `profile_appliance` (dev12) aliases to the fused `applianceprofile`
+        // in FIELD_RENAMES, unlike sibling profile fields which carry PascalCase
+        // ancestry (see field_renames.rs "PascalCase ancestry" note). The fused
+        // form does not de-camelCase back to `appliance_profile`, so match it
+        // explicitly or the canonical key silently drops the profile (gh#1459).
+        if field_name == "appliance_profile" || field_name == "applianceprofile" {
             apply_day_profile_overrides(&mut mapped, field_value, "applianceprofile", 144)?;
             continue;
         }
@@ -1625,9 +1799,12 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(),
             continue;
         }
 
-        if field_name == "appliance_profile" {
-            // STEBBS YAML stores appliance demand profile under `stebbs`, but
-            // the physics consumes it from building archetype parameters.
+        // STEBBS YAML stores appliance demand profile under `stebbs`, but
+        // the physics consumes it from building archetype parameters. The dev12
+        // key `profile_appliance` aliases to the fused `applianceprofile`, which
+        // does not de-camelCase back to `appliance_profile`; match both so the
+        // canonical key applies the profile (gh#1459).
+        if field_name == "appliance_profile" || field_name == "applianceprofile" {
             apply_day_profile_overrides(
                 &mut archetype_mapped,
                 field_value,
@@ -1667,14 +1844,24 @@ fn apply_site_overrides(
     apply_conductance_overrides(site, root, site_root);
     apply_lumps_overrides(site, site_root);
     apply_spartacus_overrides(site, site_root);
+    if let Some(v) = read_numeric(root, &["model", "physics", "sw_dn_direct_frac"]) {
+        site.spartacus.sw_dn_direct_frac = v;
+    }
+    if let Some(v) = read_numeric(
+        root,
+        &["model", "physics", "kdown_split_constant_direct_fraction"],
+    ) {
+        site.spartacus.sw_dn_direct_frac = v;
+    }
     resize_site_variable_arrays(site, nlayer);
     apply_land_cover_overrides(site, site_root);
     apply_snow_overrides(site, site_root);
+    apply_irrigation_overrides(site, site_root);
     apply_vertical_layers_overrides(site, site_root);
     apply_anthro_emis_overrides(site, site_root);
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
-    apply_ehc_overrides(site, site_root, ndepth);
+    apply_ehc_overrides(site, site_root, nlayer, ndepth);
     Ok(())
 }
 
@@ -1822,9 +2009,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             {
                 let start = surface_idx * ndepth;
                 if start + ndepth <= state.heat_state.temp_surf.len() {
-                    for depth_idx in 0..temps.len().min(ndepth) {
-                        state.heat_state.temp_surf[start + depth_idx] = temps[depth_idx];
-                    }
+                    let copy_len = temps.len().min(ndepth);
+                    state.heat_state.temp_surf[start..start + copy_len]
+                        .copy_from_slice(&temps[..copy_len]);
                 }
             }
         }
@@ -1917,9 +2104,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
                 if let Some(temps) = read_numeric_sequence(roof_root, &["temperature"]) {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_roof.len() {
-                        for depth_idx in 0..temps.len().min(ndepth) {
-                            state.heat_state.temp_roof[start + depth_idx] = temps[depth_idx];
-                        }
+                        let copy_len = temps.len().min(ndepth);
+                        state.heat_state.temp_roof[start..start + copy_len]
+                            .copy_from_slice(&temps[..copy_len]);
                     }
                 }
             }
@@ -1948,9 +2135,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
                 if let Some(temps) = read_numeric_sequence(wall_root, &["temperature"]) {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_wall.len() {
-                        for depth_idx in 0..temps.len().min(ndepth) {
-                            state.heat_state.temp_wall[start + depth_idx] = temps[depth_idx];
-                        }
+                        let copy_len = temps.len().min(ndepth);
+                        state.heat_state.temp_wall[start..start + copy_len]
+                            .copy_from_slice(&temps[..copy_len]);
                     }
                 }
             }
@@ -2023,7 +2210,7 @@ fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value
     }
 }
 
-fn read_sites_indexed<'a>(root: &'a Value, idx: usize) -> Option<&'a Value> {
+fn read_sites_indexed(root: &Value, idx: usize) -> Option<&Value> {
     let sites = get_path(root, &["sites"])?;
     match sites {
         Value::Sequence(items) => items.get(idx),
@@ -2039,6 +2226,23 @@ fn read_forcing_rel(root: &Value) -> Option<String> {
         .or_else(|| read_string(root, &["model", "control", "forcing", "file", "value"]))
         .or_else(|| read_string(root, &["model", "control", "forcing_file"]))
         .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
+}
+
+fn read_forcing_timestamp_reference(root: &Value) -> Result<ForcingTimestampReference, String> {
+    let Some(reference) = read_string(
+        root,
+        &["model", "control", "forcing", "timestamp_reference"],
+    ) else {
+        return Ok(ForcingTimestampReference::LocalStandardTime);
+    };
+
+    match reference.as_str() {
+        "local_standard_time" => Ok(ForcingTimestampReference::LocalStandardTime),
+        "utc" => Ok(ForcingTimestampReference::Utc),
+        _ => Err(format!(
+            "unsupported forcing timestamp_reference `{reference}`; expected `local_standard_time` or `utc`"
+        )),
+    }
 }
 
 pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String> {
@@ -2076,6 +2280,12 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     resize_state_variable_arrays(&mut state, nlayer as usize, ndepth as usize);
 
     apply_state_overrides(&mut state, site_root);
+
+    let forcing_timestamp_reference = read_forcing_timestamp_reference(root)?;
+    config.forcing_timestamp_reference = match forcing_timestamp_reference {
+        ForcingTimestampReference::LocalStandardTime => 0,
+        ForcingTimestampReference::Utc => 1,
+    };
 
     // Prefer the new `output.dir` shape introduced in schema 2026.5.dev8
     // (gh#1372 follow-up); fall back to the legacy `output_file.path` so
@@ -2238,6 +2448,71 @@ mod tests {
     }
 
     #[test]
+    fn forcing_timestamp_reference_defaults_to_local_standard_time() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+
+        assert_eq!(run_cfg.config.forcing_timestamp_reference, 0);
+    }
+
+    #[test]
+    fn forcing_timestamp_reference_accepts_utc_and_rejects_civil_time() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        *get_path_mut(&mut root, &["model", "control", "forcing"])
+            .expect("fixture should define forcing") = serde_yaml::from_str(
+            "file:\n  value: test_2017_data_15_mp.txt\ntimestamp_reference:\n  value: utc\n",
+        )
+        .unwrap();
+        let run_cfg = load_run_config_from_value(&mut root).expect("UTC should parse");
+        assert_eq!(run_cfg.config.forcing_timestamp_reference, 1);
+
+        *get_path_mut(
+            &mut root,
+            &[
+                "model",
+                "control",
+                "forcing",
+                "timestamp_reference",
+                "value",
+            ],
+        )
+        .expect("fixture should define timestamp_reference") =
+            Value::String("civil_time".to_string());
+        let error = load_run_config_from_value(&mut root)
+            .expect_err("daylight-saving civil time should be rejected");
+        assert!(
+            error.contains("timestamp_reference"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn applies_appliance_profile_under_canonical_key() {
+        // gh#1459: the dev12 key `profile_appliance` must still drive the
+        // appliance demand profile through the Rust loader. It aliases to the
+        // fused `applianceprofile`, which earlier slipped past the override
+        // matcher and silently left the profile at its zero default.
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+        let max_appliance = run_cfg
+            .site
+            .building_archtype
+            .applianceprofile
+            .iter()
+            .flatten()
+            .cloned()
+            .fold(0.0_f64, f64::max);
+        assert!(
+            max_appliance > 1.0,
+            "appliance profile not applied from `profile_appliance` (max={max_appliance})"
+        );
+    }
+
+    #[test]
     fn parses_ohm_legacy_surface_field_names() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
@@ -2259,6 +2534,13 @@ mod tests {
 
         let ndepth = run_cfg.ndepth as usize;
         assert!(ndepth > 0);
+        assert_eq!(run_cfg.site.ehc.nlayer, run_cfg.nlayer as usize);
+        assert_eq!(run_cfg.site.ehc.tin_surf.len(), NSURF);
+        assert_eq!(run_cfg.site.ehc.k_surf.len(), NSURF * ndepth);
+        assert_eq!(
+            run_cfg.site.ehc.k_roof.len(),
+            run_cfg.site.ehc.nlayer * ndepth
+        );
 
         assert!((run_cfg.site.ehc.dz_roof[0] - 0.03).abs() < 1.0e-12);
         assert!((run_cfg.site.ehc.k_roof[0] - 0.106).abs() < 1.0e-12);
@@ -2283,17 +2565,40 @@ mod tests {
     }
 
     #[test]
+    fn zero_layer_ehc_yaml_layout_keeps_empty_surface_contract() {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        *get_path_mut(site, &["properties", "vertical_layers", "nlayer", "value"])
+            .expect("fixture should define nlayer") = serde_yaml::to_value(0).unwrap();
+
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+
+        assert_eq!(run_cfg.site.ehc.nlayer, 0);
+        assert_eq!(run_cfg.site.ehc.ndepth, run_cfg.ndepth as usize);
+        assert_eq!(run_cfg.site.ehc.tin_surf.len(), 0);
+        assert_eq!(run_cfg.site.ehc.k_surf.len(), 0);
+        assert_eq!(run_cfg.site.ehc.cp_surf.len(), 0);
+        assert_eq!(run_cfg.site.ehc.dz_surf.len(), 0);
+    }
+
+    #[test]
     fn rejects_incomplete_setpoint_profiles() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        // The raw fixture key is the canonical dev12 name (gh#1459); the
+        // validator's error label is the normalised internal name
+        // (`HeatingSetpointTemperatureProfile`, via `profile_label`), so the
+        // navigation key and the asserted label intentionally differ.
         let working_day = get_path_mut(
             site,
             &[
                 "properties",
                 "building_archetype",
-                "HeatingSetpointTemperatureProfile",
+                "profile_setpoint_temperature_heating_air",
                 "working_day",
             ],
         )
@@ -2316,12 +2621,14 @@ mod tests {
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        // Raw fixture key is the canonical dev12 name (gh#1459); the error
+        // label below stays the normalised internal name (`profile_label`).
         let working_day = get_path_mut(
             site,
             &[
                 "properties",
                 "building_archetype",
-                "CoolingSetpointTemperatureProfile",
+                "profile_setpoint_temperature_cooling_air",
                 "working_day",
             ],
         )
@@ -2348,8 +2655,9 @@ mod tests {
     // accepts either spelling transparently and returns the same
     // `RunConfig` regardless of which one the user wrote.
     //
-    // The fixture already carries new-style names; the legacy variant is
-    // produced by running `normalize_field_names` on a cloned tree first.
+    // The fixture carries new-style names throughout (ModelPhysics since
+    // #1308, STEBBS/archetype since gh#1459); the legacy variant is produced
+    // by running `normalize_field_names` on a cloned tree first.
 
     const FIXTURE_NEW_NAMES: &str =
         include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
@@ -2367,6 +2675,16 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
         assert_eq!(run_cfg.config.emissions_method, 2);
+        assert!((run_cfg.site.spartacus.sw_dn_direct_frac - 0.45).abs() < 1.0e-12);
+
+        // gh#1456: STEBBS switches sourced from the nested
+        // `model.physics.stebbs` object in the fixture (enabled=true,
+        // parameters=1 -> stebbsmethod 1; capacitance=2 -> rcmethod 2;
+        // setpoint=0). These land at flat config indices 18/19/20
+        // (Fortran flat(19)/flat(20)/flat(21)).
+        assert_eq!(run_cfg.config.stebbs_method, 1);
+        assert_eq!(run_cfg.config.rc_method, 2);
+        assert_eq!(run_cfg.config.setpoint_method, 0);
 
         // Surface fields — paved `state_limit` = 0.48 in the fixture.
         assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
@@ -2482,6 +2800,70 @@ mod tests {
                 - cfg_old.site.lc_paved.soil.soil_store_capacity)
                 .abs()
                 < 1.0e-12
+        );
+    }
+
+    #[test]
+    fn load_run_config_nested_and_flat_stebbs_parse_identically() {
+        // gh#1456 highest-risk check (design doc section 5.1): the nested
+        // `model.physics.stebbs` object and the legacy flat form must produce
+        // identical Fortran config, especially flat(19)=stebbsmethod,
+        // flat(20)=rcmethod, flat(21)=setpointmethod.
+        //
+        // `cfg_nested` parses the fixture as-is (nested shape). `cfg_flat`
+        // rewrites the nested object into the legacy flat keys the pre-gh#1456
+        // YAML used (master toggle `stebbs: {value: 1}` composed from
+        // enabled=true+parameters=1, plus flat `outer_cap_fraction` /
+        // `setpoint` / `same_*` siblings).
+        let mut root_nested: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let mut root_flat: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root_flat, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        let Value::Mapping(map) = physics else {
+            panic!("model.physics should be a mapping");
+        };
+        // Drop the nested object and lay down the legacy flat equivalents.
+        map.remove(Value::String("stebbs".into()));
+        let flat = |v: i64| {
+            let mut m = serde_yaml::Mapping::new();
+            m.insert(Value::String("value".into()), Value::Number(v.into()));
+            Value::Mapping(m)
+        };
+        // enabled=true, parameters=1 -> master toggle StebbsMethod code 1.
+        map.insert(Value::String("stebbs".into()), flat(1));
+        map.insert(Value::String("outer_cap_fraction".into()), flat(2));
+        map.insert(Value::String("setpoint".into()), flat(0));
+        map.insert(Value::String("same_albedo_wall".into()), flat(0));
+        map.insert(Value::String("same_albedo_roof".into()), flat(0));
+        map.insert(Value::String("same_emissivity_wall".into()), flat(0));
+        map.insert(Value::String("same_emissivity_roof".into()), flat(0));
+
+        let cfg_nested = load_run_config_from_value(&mut root_nested).expect("parse nested STEBBS");
+        let cfg_flat = load_run_config_from_value(&mut root_flat).expect("parse flat STEBBS");
+
+        // flat(19)/flat(20)/flat(21) — the only STEBBS switches in the c_api
+        // flat config indices (the four same_* switches are Python-only).
+        assert_eq!(cfg_nested.config.stebbs_method, 1);
+        assert_eq!(cfg_nested.config.rc_method, 2);
+        assert_eq!(cfg_nested.config.setpoint_method, 0);
+        assert_eq!(
+            cfg_nested.config.stebbs_method,
+            cfg_flat.config.stebbs_method
+        );
+        assert_eq!(cfg_nested.config.rc_method, cfg_flat.config.rc_method);
+        assert_eq!(
+            cfg_nested.config.setpoint_method,
+            cfg_flat.config.setpoint_method
+        );
+
+        // The full flat config arrays must be byte-for-byte identical.
+        assert_eq!(
+            cfg_nested.config.to_flat(),
+            cfg_flat.config.to_flat(),
+            "nested and flat STEBBS YAML must yield identical Fortran config"
         );
     }
 

@@ -137,6 +137,7 @@ How to support SUEWS?
    integration/index
    troubleshooting
    benchmark/benchmark_report
+   benchmark/drift
    notation
    version-history/version-history
 
@@ -148,6 +149,7 @@ How to support SUEWS?
    :hidden:
 
    contributing/contributing
+   contributing/schema/index
    acknowledgement
    GitHub repository <https://github.com/UMEP-dev/SUEWS>
 

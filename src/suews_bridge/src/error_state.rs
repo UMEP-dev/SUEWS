@@ -33,6 +33,7 @@ pub struct ErrorStateValuesPayload {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct ErrorState {
     pub flag: bool,
     pub code: i32,
@@ -42,18 +43,6 @@ pub struct ErrorState {
     pub log: Vec<ErrorEntry>,
 }
 
-impl Default for ErrorState {
-    fn default() -> Self {
-        Self {
-            flag: false,
-            code: 0,
-            message: String::new(),
-            has_fatal: false,
-            count: 0,
-            log: Vec::new(),
-        }
-    }
-}
 
 fn decode_c_text(buffer: &[c_char]) -> String {
     let bytes: Vec<u8> = buffer.iter().map(|&ch| ch as u8).collect();

@@ -6,13 +6,14 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const SPARTACUS_LAYER_PRM_SCHEMA_VERSION: u32 = 1;
+pub const SPARTACUS_LAYER_PRM_SCHEMA_VERSION: u32 = 2;
 
-const SPARTACUS_LAYER_VEC_FIELDS: [&str; 8] = [
+const SPARTACUS_LAYER_VEC_FIELDS: [&str; 9] = [
     "building_frac",
     "building_scale",
     "veg_frac",
     "veg_scale",
+    "veg_ext",
     "alb_roof",
     "emis_roof",
     "alb_wall",
@@ -33,7 +34,7 @@ pub struct SpartacusLayerPrmSchema {
 
 pub type SpartacusLayerPrmValuesPayload = ValuesPayloadWithDims;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SpartacusLayerPrm {
     pub nlayer: usize,
     pub nspec: usize,
@@ -41,31 +42,13 @@ pub struct SpartacusLayerPrm {
     pub building_scale: Vec<f64>,
     pub veg_frac: Vec<f64>,
     pub veg_scale: Vec<f64>,
+    pub veg_ext: Vec<f64>,
     pub alb_roof: Vec<f64>,
     pub emis_roof: Vec<f64>,
     pub alb_wall: Vec<f64>,
     pub emis_wall: Vec<f64>,
     pub roof_albedo_dir_mult_fact: Vec<f64>,
     pub wall_specular_frac: Vec<f64>,
-}
-
-impl Default for SpartacusLayerPrm {
-    fn default() -> Self {
-        Self {
-            nlayer: 0,
-            nspec: 0,
-            building_frac: Vec::new(),
-            building_scale: Vec::new(),
-            veg_frac: Vec::new(),
-            veg_scale: Vec::new(),
-            alb_roof: Vec::new(),
-            emis_roof: Vec::new(),
-            alb_wall: Vec::new(),
-            emis_wall: Vec::new(),
-            roof_albedo_dir_mult_fact: Vec::new(),
-            wall_specular_frac: Vec::new(),
-        }
-    }
 }
 
 fn matrix_len(nspec: usize, nlayer: usize) -> Result<usize, BridgeError> {
@@ -132,6 +115,7 @@ impl SpartacusLayerPrm {
             &self.building_scale,
             &self.veg_frac,
             &self.veg_scale,
+            &self.veg_ext,
             &self.alb_roof,
             &self.emis_roof,
             &self.alb_wall,
@@ -178,6 +162,7 @@ impl SpartacusLayerPrm {
             building_scale: take(vec_len),
             veg_frac: take(vec_len),
             veg_scale: take(vec_len),
+            veg_ext: take(vec_len),
             alb_roof: take(vec_len),
             emis_roof: take(vec_len),
             alb_wall: take(vec_len),
@@ -199,6 +184,7 @@ impl SpartacusLayerPrm {
         flat.extend_from_slice(&self.building_scale);
         flat.extend_from_slice(&self.veg_frac);
         flat.extend_from_slice(&self.veg_scale);
+        flat.extend_from_slice(&self.veg_ext);
         flat.extend_from_slice(&self.alb_roof);
         flat.extend_from_slice(&self.emis_roof);
         flat.extend_from_slice(&self.alb_wall);

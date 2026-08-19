@@ -333,7 +333,7 @@ def patchup_epw(df_data, df_header, path_epw, lat, lon, tz, alt):
     df_header[7] = line_last
 
     # OverWRITE epw
-    filenew = open(path_epw, "w")
+    filenew = open(path_epw, "w", encoding="utf-8")
     for i in range(len(df_header)):
         filenew.write(df_header[i] + "\n")
     filenew.close()

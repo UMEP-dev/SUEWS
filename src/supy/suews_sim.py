@@ -6,14 +6,17 @@ Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
 import copy
+from enum import Enum
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
 
 import pandas as pd
+from pydantic import BaseModel
 
 from ._check import check_forcing
 from ._env import logger_supy
+from ._filename import safe_filename_component
 from ._run_rust import _check_rust_available, run_suews_rust_chunked
 
 # Import SuPy components directly
@@ -25,7 +28,7 @@ from .data_model.core import SUEWSConfig
 from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
 from .suews_output import SUEWSOutput
-from .util._io import read_forcing
+from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
@@ -81,7 +84,8 @@ class SUEWSSimulation:
         config : str, Path, dict, or SUEWSConfig, optional
             Initial configuration source:
             - Path to YAML configuration file
-            - Dictionary with configuration parameters
+            - Dictionary with a full configuration (YAML-shaped, validated
+              through ``SUEWSConfig`` exactly like a YAML file)
             - SUEWSConfig object
             - None to create empty simulation
         """
@@ -110,10 +114,14 @@ class SUEWSSimulation:
         Parameters
         ----------
         config : str, Path, dict, or SUEWSConfig
-            Configuration source:
-            - Path to YAML file
-            - Dictionary with parameters (can be partial)
-            - SUEWSConfig object
+            Configuration source. Pass a path to a YAML file, a
+            ``SUEWSConfig`` object, or a dictionary with parameters. A
+            dictionary is treated as a full configuration when no config is
+            loaded yet, or as a partial update merged onto the existing config.
+            Either way the result is re-validated through ``SUEWSConfig``, so
+            enum/RefValue coercion and range checks apply exactly as for YAML
+            input. Unknown keys raise ``ValueError``; list values replace the
+            existing list.
         auto_load_forcing : bool, optional
             If True (default), automatically load forcing data specified in the
             config file. If False, forcing must be loaded explicitly using
@@ -158,12 +166,39 @@ class SUEWSSimulation:
                 self._try_load_forcing_from_config()
 
         elif isinstance(config, dict):
-            # Update existing config with dictionary
             if self._config is None:
-                self._config = SUEWSConfig()
+                # No existing config: treat the dict as a full configuration
+                # and build it through the validated SUEWSConfig path
+                # Partial dicts are only meaningful as updates to an existing
+                # configuration.
+                candidate = SUEWSConfig.from_dict(config)
+                if not candidate.sites:
+                    raise ValueError(
+                        "Configuration dict defines no sites. Provide a full "
+                        "configuration dict (including 'sites'), or load a "
+                        "YAML file / SUEWSConfig first and then apply "
+                        "partial updates via update_config()."
+                    )
+                self._config = candidate
 
-            # Deep update the configuration
-            self._update_config_from_dict(config)
+                # Parity with the YAML branch: auto-load forcing declared
+                # in the config. Relative paths resolve against the CWD
+                # here (no file anchor); failures warn rather than raise.
+                if auto_load_forcing:
+                    self._try_load_forcing_from_config()
+            else:
+                # Merge the partial update onto the existing config, then
+                # re-validate the whole configuration so enum coercion,
+                # RefValue wrapping, and range checks all apply.
+                # The merged dict is the user's effective input (original
+                # explicitly-set fields plus this update), so from_dict's
+                # default raw snapshot of it is the correct record for
+                # raw-gated completeness checks.
+                merged = self._merge_config_updates(self._config, config)
+                self._config = SUEWSConfig.from_dict(
+                    merged,
+                    yaml_path=str(self._config_path) if self._config_path else None,
+                )
 
             # Regenerate state DataFrame
             self._df_state_init = self._config.to_df_state()
@@ -175,50 +210,186 @@ class SUEWSSimulation:
 
         return self
 
-    def _update_config_from_dict(self, updates: dict):
-        """Apply dictionary updates to configuration."""
+    @staticmethod
+    def _merge_config_updates(config: SUEWSConfig, updates: dict) -> dict:
+        """Merge a partial update dict onto a validated config's dump.
 
-        def recursive_update(obj, upd):
+        Returns a plain dict ready for re-validation through
+        ``SUEWSConfig.from_dict``; the configuration is never mutated in
+        place, so enum coercion, RefValue wrapping, and range checks always
+        apply to the merged result.
+
+        Merge semantics:
+        - dicts merge recursively into model-backed nodes; unknown field
+          names raise ``ValueError`` instead of being silently dropped
+        - ``{"value": ...}`` dicts merge into RefValue leaves; any other
+          dict shape on a RefValue leaf replaces it wholesale (alternate
+          readable input forms are re-validated, not merged)
+        - lists replace wholesale
+        - ``sites`` additionally accepts the established mini-language:
+          ``{index: patch}``, ``{site_name: patch}``, or a single-site
+          shorthand patch
+        """
+        # Dump only what the user explicitly set (exclude_unset): merging
+        # onto a full dump would materialise pydantic defaults as if the
+        # user had declared them, so conditional validators gated on
+        # model_fields_set or on the raw-input snapshot (e.g. RSL/faibldg,
+        # site completeness) would fire false errors on sparse configs.
+        # Internal bookkeeping keys are re-stamped by from_dict; carrying
+        # them through the merge would nest snapshots inside snapshots.
+        base = {
+            k: v
+            for k, v in config.model_dump(exclude_unset=True, mode="json").items()
+            if not k.startswith("_")
+        }
+
+        def normalise_legacy_input(model_cls, upd):
+            """Run the model's mode='before' validators on an update dict.
+
+            The full from_dict/from_yaml path normalises legacy input
+            forms (field renames such as ``stabilitymethod`` ->
+            ``stability``, the ``output_file``/``forcing_file`` lifts)
+            through each model's before-validators. Partial updates must
+            accept the same forms, so the patch is run through the same
+            machinery before the unknown-key check.
+            """
+            decorators = getattr(model_cls, "__pydantic_decorators__", None)
+            if decorators is None:
+                return upd
+            for name, decorator in decorators.model_validators.items():
+                if decorator.info.mode != "before":
+                    continue
+                validator = getattr(model_cls, name, None)
+                if validator is None:
+                    continue
+                result = validator(upd)
+                if isinstance(result, dict):
+                    upd = result
+            return upd
+
+        def merge_node(node_obj, base_dict, upd, path):
+            if isinstance(node_obj, BaseModel) and not isinstance(node_obj, RefValue):
+                upd = normalise_legacy_input(type(node_obj), dict(upd))
             for key, value in upd.items():
-                if hasattr(obj, key):
-                    attr = getattr(obj, key)
-                    if isinstance(value, dict) and hasattr(attr, "__dict__"):
-                        # Recursive to read nested dictionaries
-                        recursive_update(attr, value)
-                    # Check whether site index or site name is provided
-                    elif isinstance(attr, list):
-                        site_key = list(value.keys())[0]
-                        site_value = value[site_key]
-                        if isinstance(site_key, int):
-                            # Select site on index
-                            attr = attr[site_key]
-                            recursive_update(attr, site_value)
-                        elif isinstance(site_key, str):
-                            # Select site on name
-                            attr_site = next(
-                                (item for item in attr if item.name == site_key),
-                                None,
-                            )
-                            if attr_site:
-                                recursive_update(attr_site, site_value)
-                            elif len(attr) == 1:
-                                # Without name or index and only one site
-                                attr_site = attr[0]
-                                # Distinguish site name pattern from shorthand
-                                # If site_key is an attribute on the site object, it's shorthand
-                                if hasattr(attr_site, site_key):
-                                    # Shorthand pattern: {'name': 'test'} or {'properties': {...}}
-                                    recursive_update(attr_site, value)
-                                else:
-                                    # Site name pattern: {'NonExistent': {'gridiv': 99}}
-                                    recursive_update(attr_site, site_value)
-                            else:
-                                # Otherwise skip these parameters
-                                continue
+                key_path = f"{path}.{key}" if path else str(key)
+                if not path and key == "sites":
+                    merge_sites(base_dict, value)
+                    continue
+                if (
+                    isinstance(node_obj, BaseModel)
+                    and not isinstance(node_obj, RefValue)
+                    and key not in type(node_obj).model_fields
+                ):
+                    raise ValueError(f"Unknown configuration key: '{key_path}'")
+                attr = getattr(node_obj, key, None) if node_obj is not None else None
+                if isinstance(attr, RefValue):
+                    if isinstance(value, dict) and not (
+                        set(value) <= set(RefValue.model_fields)
+                    ):
+                        # Alternate readable input form; replace wholesale
+                        base_dict[key] = copy.deepcopy(value)
+                        continue
+                    # Scalars become {"value": ...} so the field keeps its
+                    # RefValue shape (and any ref metadata) across updates
+                    patch = (
+                        copy.deepcopy(value)
+                        if isinstance(value, dict)
+                        else {"value": copy.deepcopy(value)}
+                    )
+                    base_val = base_dict.get(key)
+                    if isinstance(base_val, dict):
+                        base_val.update(patch)
                     else:
-                        setattr(obj, key, value)
+                        if "value" not in patch:
+                            # Metadata-only patch with no dumped base entry
+                            # (field at its default): seed the current value
+                            # so re-validation does not see a value-less dict
+                            seed = attr.model_dump(exclude_none=True, mode="json")
+                            seed.update(patch)
+                            patch = seed
+                        base_dict[key] = patch
+                elif isinstance(value, dict) and isinstance(attr, BaseModel):
+                    base_val = base_dict.get(key)
+                    if not isinstance(base_val, dict):
+                        base_dict[key] = base_val = {}
+                    merge_node(attr, base_val, value, key_path)
+                elif (
+                    isinstance(value, dict)
+                    and set(value) <= set(RefValue.model_fields)
+                    and "value" not in value
+                    and attr is not None
+                    and not isinstance(attr, (dict, list))
+                ):
+                    # Metadata-only RefValue-shaped patch on a bare-valued
+                    # field: seed the current value before re-validation
+                    current = attr.value if isinstance(attr, Enum) else attr
+                    base_dict[key] = {
+                        "value": copy.deepcopy(current),
+                        **copy.deepcopy(value),
+                    }
+                else:
+                    # Scalars, enums, lists, and dict input for non-model
+                    # nodes replace wholesale; validation coerces the result
+                    base_dict[key] = copy.deepcopy(value)
 
-        recursive_update(self._config, updates)
+        def apply_site_patch(index, patch):
+            if not isinstance(patch, dict):
+                raise ValueError(
+                    f"Site update for sites[{index}] must be a dict, "
+                    f"got {type(patch).__name__}"
+                )
+            if not 0 <= index < len(config.sites):
+                raise ValueError(
+                    f"Site index {index} out of range "
+                    f"({len(config.sites)} site(s) configured)"
+                )
+            merge_node(
+                config.sites[index],
+                base["sites"][index],
+                patch,
+                f"sites[{index}]",
+            )
+
+        def merge_sites(base_dict, sites_value):
+            if isinstance(sites_value, list):
+                # Plain list replaces the sites list wholesale
+                base_dict["sites"] = copy.deepcopy(sites_value)
+                return
+            if not isinstance(sites_value, dict) or not sites_value:
+                raise ValueError("'sites' update must be a non-empty dict or a list")
+            site_names = [getattr(site, "name", None) for site in config.sites]
+            for key, value in sites_value.items():
+                if isinstance(key, int):
+                    apply_site_patch(key, value)
+                elif key in site_names:
+                    apply_site_patch(site_names.index(key), value)
+                elif len(config.sites) == 1:
+                    if hasattr(config.sites[0], key):
+                        # Single-site shorthand: the whole dict is one patch
+                        apply_site_patch(0, sites_value)
+                        return
+                    # Unmatched site name with a single site: patch that site
+                    apply_site_patch(0, value)
+                elif hasattr(config.sites[0], key):
+                    # Single-site shorthand used with multiple sites is
+                    # ambiguous: skip rather than guess which site to patch
+                    logger_supy.warning(
+                        "Skipping ambiguous sites update key '%s': "
+                        "single-site shorthand with multiple sites configured",
+                        key,
+                    )
+                else:
+                    # Not a site field, so it can only be a (misspelled or
+                    # stale) site name: raise rather than silently no-op
+                    raise ValueError(
+                        f"Unknown site '{key}' in sites update. "
+                        f"Configured sites: {', '.join(map(repr, site_names))}"
+                    )
+
+        # Deep-copied so the legacy-input coercions (which restructure
+        # nested dicts in place) never mutate the caller's update dict.
+        merge_node(config, base, copy.deepcopy(updates), "")
+        return base
 
     def update_forcing(
         self, forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing]
@@ -243,9 +414,16 @@ class SUEWSSimulation:
 
         Notes
         -----
-        When loading from file paths, forcing data is resampled to match the
-        model timestep from ``model.control.tstep`` in the configuration.
-        If no configuration is loaded, defaults to 300 seconds (5 minutes).
+        Regardless of input type, forcing data is resampled to match the
+        model timestep from ``model.control.tstep`` in the configuration
+        (defaulting to 300 seconds when no configuration is loaded). In-memory
+        inputs (DataFrame or :class:`~supy.SUEWSForcing`) are validated as
+        already being in the model-ready canonical form -- canonical column
+        names, a :class:`pandas.DatetimeIndex`, and pressure in hPa -- and
+        rejected with a clear error otherwise. Unlike file loading, no column
+        renaming or unit conversion is applied to in-memory inputs; build them
+        with :func:`supy.util.read_forcing` or
+        :meth:`supy.SUEWSForcing.from_file` to guarantee that contract.
 
         Examples
         --------
@@ -272,9 +450,13 @@ class SUEWSSimulation:
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
         if isinstance(forcing_data, SUEWSForcing):
-            self._df_forcing = forcing_data.df.copy()
+            self._df_forcing = prepare_dataframe_forcing(
+                forcing_data.to_dataframe(include_extras=True), tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, pd.DataFrame):
-            self._df_forcing = forcing_data.copy()
+            self._df_forcing = prepare_dataframe_forcing(
+                forcing_data, tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, list):
             # Handle list of files
             self._df_forcing = SUEWSSimulation._load_forcing_from_list(
@@ -497,6 +679,7 @@ class SUEWSSimulation:
                 f"Only the 'rust' backend is available. "
                 f"Remove the backend parameter or use backend='rust'."
             )
+        validate_forcing = run_kwargs.pop("_validate_forcing", True)
 
         max_workers = _validate_n_jobs(n_jobs)
         serial_mode = n_jobs == 1
@@ -545,37 +728,70 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
-        # Validate forcing data, including physics-specific forcing requirements
-        # (e.g. laimethod=0 requires a populated `lai` column). When observed
-        # LAI is selected, pass per-site LAI bounds so the validator can warn
-        # about forcing values that will be clamped at runtime.
-        physics_dict = None
-        lai_bounds = None
-        if self._config is not None and hasattr(self._config, "model"):
-            physics = getattr(self._config.model, "physics", None)
-            if physics is not None and hasattr(physics, "model_dump"):
-                physics_dict = physics.model_dump(mode="python")
-            # Cross-check physics path against forcing columns (gh#1372).
-            # Helper is silent on success; raises ValueError on mismatch.
-            if physics is not None:
-                from .data_model.core.forcing_validation import (
-                    validate_forcing_columns_against_physics,
+        if validate_forcing:
+            # Validate forcing data, including physics-specific forcing requirements
+            # (e.g. laimethod=0 requires populated effective observed-LAI sources).
+            physics_dict = None
+            if self._config is not None and hasattr(self._config, "model"):
+                physics = getattr(self._config.model, "physics", None)
+                if physics is not None and hasattr(physics, "model_dump"):
+                    physics_dict = physics.model_dump(mode="python")
+                # Cross-check physics path against forcing columns.
+                # Helper is silent on success; raises ValueError on mismatch.
+                if physics is not None:
+                    from .data_model.core.forcing_validation import (
+                        validate_forcing_columns_against_physics,
+                    )
+
+                    validate_forcing_columns_against_physics(df_forcing_slice, physics)
+            list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
+            if isinstance(list_issues, list) and len(list_issues) > 0:
+                issues_summary = (
+                    list_issues[:3] if len(list_issues) > 3 else list_issues
                 )
+                suffix = (
+                    f" (and {len(list_issues) - 3} more)"
+                    if len(list_issues) > 3
+                    else ""
+                )
+                raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
+        else:
+            # The retired runner always enforced observed-LAI completeness,
+            # even when its general ``check_input`` switch was false.
+            lai_method = getattr(self._config.model.physics, "leaf_area_index", None)
+            if lai_method is None:
+                lai_method = getattr(self._config.model.physics, "laimethod", None)
+            if hasattr(lai_method, "value"):
+                lai_method = lai_method.value
+            if lai_method is not None and int(lai_method) == 0:
+                from ._check import _check_observed_lai_nonneg
 
-                validate_forcing_columns_against_physics(df_forcing_slice, physics)
-        if self._df_state_init is not None:
-            from ._supy_module import _lai_bounds_from_df_state
+                lai_issues = []
+                if _check_observed_lai_nonneg(df_forcing_slice, lai_issues):
+                    raise RuntimeError(lai_issues[0])
 
-            lai_bounds = _lai_bounds_from_df_state(self._df_state_init)
-        list_issues = check_forcing(
-            df_forcing_slice, physics=physics_dict, lai_bounds=lai_bounds
+        # Preserve observed-soil-moisture preprocessing from the retired
+        # DataFrame runner on the single canonical execution path.
+        soil_moisture_deficit = getattr(
+            self._config.model.physics,
+            "soil_moisture_deficit",
+            None,
         )
-        if isinstance(list_issues, list) and len(list_issues) > 0:
-            issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
-            suffix = (
-                f" (and {len(list_issues) - 3} more)" if len(list_issues) > 3 else ""
+        if soil_moisture_deficit is None:
+            soil_moisture_deficit = getattr(
+                self._config.model.physics,
+                "smdmethod",
+                None,
             )
-            raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
+        if hasattr(soil_moisture_deficit, "value"):
+            soil_moisture_deficit = soil_moisture_deficit.value
+        if soil_moisture_deficit is not None and int(soil_moisture_deficit) > 0:
+            from .util._forcing import convert_observed_soil_moisture
+
+            df_forcing_slice = convert_observed_soil_moisture(
+                df_forcing_slice.copy(),
+                self._df_state_init,
+            )
 
         # Run simulation via Rust bridge
         initial_state_json_by_grid = (
@@ -697,6 +913,7 @@ class SUEWSSimulation:
         # Extract parameters from config
         output_format = None
         output_config = None
+        forcing_timestamp_reference = "local_standard_time"
         freq_s = DEFAULT_OUTPUT_FREQ_SECONDS
         site = ""
 
@@ -713,10 +930,14 @@ class SUEWSSimulation:
                 # Removed for now - can't update from YAML (TODO)
                 # if hasattr(output_config, 'format') and output_config.format is not None:
                 #     output_format = output_config.format
+                control = self._config.model.control
+                if hasattr(control, "forcing"):
+                    forcing_timestamp_reference = control.forcing.timestamp_reference
 
             # Get site name from first site
             if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                 site = self._config.sites[0].name
+        site_filename = safe_filename_component(site)
         if "format" in save_kwargs:  # TODO: When yaml format working, make elif
             output_format = save_kwargs["format"]
 
@@ -727,15 +948,18 @@ class SUEWSSimulation:
             freq_s=int(freq_s),
             site=site,
             path_dir_save=str(output_path),
-            # **save_kwargs # Problematic, save_supy expects explicit arguments
+            # **save_kwargs # The shared save backend expects explicit arguments
             output_config=output_config,
             output_format=output_format,
             save_state=False,
+            forcing_timestamp_reference=forcing_timestamp_reference,
         )
 
         if self._checkpoint is not None:
             checkpoint_name = (
-                f"{site}_SUEWS_checkpoint.json" if site else "SUEWS_checkpoint.json"
+                f"{site_filename}_SUEWS_checkpoint.json"
+                if site_filename
+                else "SUEWS_checkpoint.json"
             )
             checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
             list_path_save.append(checkpoint_path)
@@ -785,39 +1009,9 @@ class SUEWSSimulation:
 
         """
         from ._env import trv_supy_module
-        from ._supy_module import _load_sample_data
 
-        # Load core simulation data (state and forcing)
-        df_state_init, df_forcing = _load_sample_data()
-        sample_config_path = Path(trv_supy_module / "sample_data" / "sample_config.yml")
-
-        sim = cls()
-
-        # Try to load config for metadata (non-critical)
-        # The actual state is set from df_state_init below, so config is optional
-        try:
-            sim.update_config(sample_config_path)
-        except (FileNotFoundError, IOError) as exc:
-            # File access issues - warn but continue
-            warnings.warn(
-                f"Could not load sample configuration file: {exc}\n"
-                "Simulation will use data from df_state_init instead.",
-                UserWarning,
-                stacklevel=2,
-            )
-        except Exception as exc:
-            # Other unexpected errors - warn but continue
-            warnings.warn(
-                f"Unexpected error loading sample configuration: {exc}\n"
-                "Simulation will use data from df_state_init instead.",
-                UserWarning,
-                stacklevel=2,
-            )
-
-        # Set core simulation data (overrides any config-derived state)
-        sim._df_state_init = df_state_init
-        sim._df_forcing = df_forcing
-        return sim
+        sample_config_path = trv_supy_module / "sample_data" / "sample_config.yml"
+        return cls(sample_config_path)
 
     @staticmethod
     def _coerce_checkpoint(
@@ -862,7 +1056,9 @@ class SUEWSSimulation:
                 "call update_config() before continue_from()."
             )
 
-        self._checkpoint = self._coerce_checkpoint(checkpoint)
+        checkpoint_value = self._coerce_checkpoint(checkpoint)
+        checkpoint_value.validate_for_continuation()
+        self._checkpoint = checkpoint_value
         self._df_output = None
         self._df_state_final = None
         self._run_completed = False
@@ -1299,7 +1495,10 @@ class SUEWSSimulation:
         """
         if self._df_forcing is None:
             return None
-        return SUEWSForcing(self._df_forcing)
+        df_main, extras = SUEWSForcing._split_per_landcover_columns(self._df_forcing)
+        forcing = SUEWSForcing(df_main)
+        forcing._extras = extras
+        return forcing
 
     @property
     def results(self) -> Optional[pd.DataFrame]:
@@ -1318,7 +1517,7 @@ class SUEWSSimulation:
         See Also
         --------
         output : Access results as SUEWSOutput object with analysis methods
-        :ref:`df_output_var` : Complete output data structure and variable descriptions
+        :ref:`output_variable_reference` : Complete output variable reference
         get_variable : Extract specific variables from output groups
         save : Save results to files
         """
@@ -1350,7 +1549,7 @@ class SUEWSSimulation:
         See Also
         --------
         run : Run simulation and return SUEWSOutput (preferred)
-        :ref:`df_output_var` : Complete output data structure
+        :ref:`output_variable_reference` : Complete output variable reference
 
         Examples
         --------

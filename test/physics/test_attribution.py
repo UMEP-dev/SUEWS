@@ -21,6 +21,7 @@ import pytest
 
 from supy.util._attribution import (
     AttributionResult,
+    diagnose_flux_performance,
     attribute_t2,
     diagnose_t2,
 )
@@ -257,6 +258,77 @@ class TestFluxBudgetDecomposition(TestCase):
             rtol=1e-10,
             err_msg="Flux budget contributions don't sum to total",
         )
+
+
+class TestFluxPerformanceAttribution(TestCase):
+    """Test model-observation flux performance attribution."""
+
+    def _make_flux_frames(self):
+        idx = pd.date_range("2026-04-01", periods=4, freq="h")
+        obs = pd.DataFrame(
+            {
+                "QN": [200.0, 220.0, 240.0, 180.0],
+                "QF": [20.0, 20.0, 20.0, 20.0],
+                "QS": [100.0, 110.0, 120.0, 90.0],
+                "QE": [30.0, 35.0, 40.0, 25.0],
+                "QH": [90.0, 95.0, 100.0, 85.0],
+            },
+            index=idx,
+        )
+        model = pd.DataFrame(
+            {
+                "QN": [205.0, 225.0, 245.0, 185.0],
+                "QF": [20.0, 20.0, 20.0, 20.0],
+                "QS": [80.0, 85.0, 95.0, 70.0],
+                "QE": [45.0, 55.0, 60.0, 42.0],
+                "QH": [100.0, 105.0, 110.0, 93.0],
+            },
+            index=idx,
+        )
+        return obs, model
+
+    def test_diagnose_flux_performance_closure(self):
+        obs, model = self._make_flux_frames()
+        result = diagnose_flux_performance(obs, model, variable="QE")
+
+        self.assertEqual(result.variable, "QE")
+        total = result.contributions["delta_total"]
+        components = (
+            result.contributions["available_energy"]
+            + result.contributions["partition"]
+        )
+        np.testing.assert_allclose(components, total, rtol=1e-10)
+
+        energy_components = (
+            result.contributions["energy_QN"]
+            + result.contributions["energy_QF"]
+            + result.contributions["energy_QS"]
+        )
+        np.testing.assert_allclose(
+            energy_components,
+            result.contributions["available_energy"],
+            rtol=1e-10,
+        )
+
+    def test_diagnose_flux_performance_derives_qs(self):
+        obs, model = self._make_flux_frames()
+        result = diagnose_flux_performance(
+            obs.drop(columns=["QS"]),
+            model.drop(columns=["QS"]),
+            variable="QH",
+        )
+
+        total = result.contributions["delta_total"]
+        components = (
+            result.contributions["available_energy"]
+            + result.contributions["partition"]
+        )
+        np.testing.assert_allclose(components, total, rtol=1e-10)
+
+    def test_diagnose_flux_performance_rejects_unsupported_variable(self):
+        obs, model = self._make_flux_frames()
+        with self.assertRaises(ValueError):
+            diagnose_flux_performance(obs, model, variable="QS")
 
 
 class TestExtractSuewsGroup(TestCase):

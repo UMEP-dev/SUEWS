@@ -15,6 +15,19 @@ authors = [
 dependencies = [
     "supy",
     "mcp>=1.2",
+    # Directly consumed by `server._async_offload` to push blocking CLI calls
+    # off the FastMCP event loop (gh#1412). It is already a transitive dep of
+    # `mcp`, but the server uses it as a first-class import so we declare it
+    # explicitly.
+    "anyio>=4",
+    # Pin httpx away from the in-flight 1.0 dev line (gh#1399). The official
+    # `mcp` package transitively depends on `httpx_sse`, which has an
+    # unpinned dep on `httpx`. With `uv pip install --prerelease=allow` the
+    # resolver picks up `httpx==1.0.dev3`, which removed `TransportError`
+    # and breaks the `httpx_sse` import chain — taking the whole `mcp`
+    # import down on startup. Constraining here means even a
+    # prerelease-permitted resolve cannot land on `httpx 1.x`.
+    "httpx<1.0",
 ]
 
 [project.optional-dependencies]
@@ -27,7 +40,11 @@ dev = [
 suews-mcp = "suews_mcp.server:main"
 
 [tool.setuptools.dynamic]
-version = { attr = "suews_mcp._version_scm.__version__" }
+# Read via the package __init__ (which itself goes through _version.py with a
+# tracked fallback chain: _version_scm -> supy.__version__ -> "0+unknown").
+# Pointing setuptools directly at _version_scm broke fresh `pip install -e mcp/`
+# because that file is gitignored and only created by `python get_ver_git.py`.
+version = { attr = "suews_mcp.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

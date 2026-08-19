@@ -803,6 +803,15 @@ contains
         lw_internal%wall_net(:,ilay) = lw_internal%wall_in(:,ilay) &
              &  * wall_emissivity(:,jlay) - emiss_wall(:,jlay)*dz(jlay)
 
+        if (allocated(lw_internal%flux_dn_layer_top)) then
+          ! Store fluxes at top/base of layer after absorption diagnostics
+          ! have been computed, so these optional outputs cannot affect them.
+          lw_internal%flux_dn_layer_top(:,ilay) = sum(flux_dn_below(:,1:nreg*ns),2)
+          lw_internal%flux_up_layer_top(:,ilay) = sum(flux_up_below(:,1:nreg*ns),2)
+          lw_internal%flux_dn_layer_base(:,ilay) = sum(flux_dn_above,2)
+          lw_internal%flux_up_layer_base(:,ilay) = sum(flux_up_above,2)
+        end if
+
 #ifdef PRINT_ARRAYS
         print *, 'ABSOLUTE FLUXES DUE TO INTERNAL EMISSION AT LAYER ', jlay
         call print_vector('  flux_dn_below ', flux_dn_below(1,:))
@@ -896,6 +905,15 @@ contains
         end do
         lw_norm%wall_net(:,ilay) = lw_norm%wall_in(:,ilay) &
              &  * wall_emissivity(:,jlay)
+
+        if (allocated(lw_norm%flux_dn_layer_top)) then
+          ! Store fluxes at top/base of layer after absorption diagnostics
+          ! have been computed, so these optional outputs cannot affect them.
+          lw_norm%flux_dn_layer_top(:,ilay) = sum(flux_dn_below(:,1:nreg*ns),2)
+          lw_norm%flux_up_layer_top(:,ilay) = sum(flux_up_below(:,1:nreg*ns),2)
+          lw_norm%flux_dn_layer_base(:,ilay) = sum(flux_dn_above,2)
+          lw_norm%flux_up_layer_base(:,ilay) = sum(flux_up_above,2)
+        end if
 
 #ifdef PRINT_ARRAYS
         print *, 'NORMALIZED FLUXES W.R.T. DIFFUSE INCOMING RADIATION AT LAYER ', jlay

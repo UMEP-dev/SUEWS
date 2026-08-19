@@ -258,7 +258,7 @@ Using in CI/CD
 Future Integration with suews-wizard
 ------------------------------------
 
-The ``suews schema`` CLI is designed to integrate seamlessly with the upcoming ``suews-wizard`` (issue #544):
+The ``suews schema`` CLI is designed to integrate seamlessly with the upcoming ``suews-wizard``:
 
 - The wizard will use the validation logic to ensure created configurations are valid
 - Migration utilities can be called from within the wizard for upgrading existing configs

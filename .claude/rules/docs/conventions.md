@@ -111,6 +111,12 @@ cd docs && make livehtml     # Live-reload development server
 - **Code blocks**: Always specify language (`python`, `bash`, `fortran`, `yaml`)
 - **Cross-references**: `:ref:` for sections, `:doc:` for documents, `:option:` for parameters
 - **British English**: organise, analyse, colour, behaviour
+- **User-facing issue references**: Do not put GitHub issue/PR shorthand such
+  as `gh#1372`, `GH#1372`, `issue #1372`, or `PR #1372` in page titles,
+  section headings, option descriptions, or explanatory prose. Use descriptive
+  reader-facing wording instead. Keep issue numbers in GitHub discussions,
+  changelogs where a formal PR link is part of release metadata, or internal
+  maintainer notes such as `.claude/rules/**`.
 
 ### API References (Classes and Methods)
 
@@ -118,7 +124,7 @@ Use Sphinx roles for proper linking to API documentation:
 
 - **Classes**: `:class:`~supy.SUEWSSimulation`` (tilde hides module path)
 - **Methods**: `:meth:`~supy.SUEWSSimulation.from_sample_data``
-- **Functions**: `:func:`~supy.run_supy``
+- **Functions**: `:func:`~supy.check_forcing``
 - **Attributes**: `:attr:`~supy.SUEWSSimulation.state_init``
 
 Examples:

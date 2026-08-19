@@ -55,3 +55,6 @@ cleaning it and remove its entry from that table, or (b) leave it alone (existin
 
 - `.claude/rules/` - Full conventions (auto-loaded)
 - `references/quick-checks.md` - Common issues
+- For non-ASCII characters in sphinx-gallery `.py` tutorials (comment -> RST,
+  print -> terminal, matplotlib -> LaTeX), use the `audit-docs` skill, which
+  carries the context-specific replacement rules.

@@ -1,14 +1,13 @@
 """Test DailyState output functionality."""
 
 import tempfile
-from pathlib import Path
 
-import numpy as np
+from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
 import pytest
 
-import supy as sp
-from conftest import TIMESTEPS_PER_DAY
+from supy._supy_module import _save_supy
+from supy.data_model.core.model import OutputControl
 
 pytestmark = pytest.mark.physics
 
@@ -16,18 +15,15 @@ pytestmark = pytest.mark.physics
 class TestDailyStateOutput:
     """Test suite for DailyState output handling."""
 
-    def test_dailystate_no_resampling(self):
+    def test_dailystate_no_resampling(self, sample_data_loaded, sample_run_cached):
         """Test that DailyState output is not resampled and preserves daily values."""
-        # Load sample data
-        df_state_init, df_forcing = sp.load_SampleData()
-
         # Run for multiple days to ensure we have DailyState data
-        df_forcing_multi_day = df_forcing.iloc[
-            : TIMESTEPS_PER_DAY * 3
-        ]  # 3 days of 5-min data
+        n_steps = TIMESTEPS_PER_DAY * 3  # 3 days of 5-min data
+        _, df_forcing = sample_data_loaded
+        df_forcing_multi_day = df_forcing.iloc[:n_steps]
 
         # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+        df_output, df_state_final = sample_run_cached(n_steps)
 
         # Check DailyState exists in output
         assert "DailyState" in df_output.columns.get_level_values("group").unique()
@@ -53,20 +49,14 @@ class TestDailyStateOutput:
             "DailyState should only have values at end of day"
         )
 
-    def test_dailystate_save_output(self):
+    def test_dailystate_save_output(self, sample_run_cached):
         """Test that DailyState data is correctly saved to file."""
-        # Load sample data
-        df_state_init, df_forcing = sp.load_SampleData()
-
-        # Run for multiple days
-        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 3]  # 3 days
-
-        # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+        # Run for multiple days (3 days of 5-min data)
+        df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY * 3)
 
         # Save output with default settings (should include DailyState)
         with tempfile.TemporaryDirectory() as dir_temp:
-            list_files = sp.save_supy(df_output, df_state_final, path_dir_save=dir_temp)
+            list_files = _save_supy(df_output, df_state_final, path_dir_save=dir_temp)
 
             # Check that DailyState file was created
             dailystate_files = [f for f in list_files if "DailyState" in f.name]
@@ -100,21 +90,15 @@ class TestDailyStateOutput:
                     f"Missing days in output. Got DOYs: {list(doy_values)}, expected: {expected_doys}"
                 )
 
-    def test_dailystate_different_output_frequencies(self):
+    def test_dailystate_different_output_frequencies(self, sample_run_cached):
         """Test DailyState output with different resampling frequencies."""
-        # Load sample data
-        df_state_init, df_forcing = sp.load_SampleData()
-
-        # Run for multiple days
-        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 2]  # 2 days
-
-        # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+        # Run for multiple days (2 days of 5-min data)
+        df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY * 2)
 
         # Test with different output frequencies
         for freq_s in [300, 1800, 3600]:  # 5min, 30min, 60min
             with tempfile.TemporaryDirectory() as dir_temp:
-                list_files = sp.save_supy(
+                list_files = _save_supy(
                     df_output, df_state_final, path_dir_save=dir_temp, freq_s=freq_s
                 )
 
@@ -125,3 +109,29 @@ class TestDailyStateOutput:
                 # DailyState should not be affected by output frequency
                 df_ds = pd.read_csv(dailystate_files[0], sep="\t")
                 assert len(df_ds) > 0, f"DailyState should have data at freq={freq_s}"
+
+    def test_dailystate_only_output_config_saves_file(self, sample_run_cached):
+        """Test that requesting only DailyState writes a populated output file."""
+        df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY)
+
+        with tempfile.TemporaryDirectory() as dir_temp:
+            list_files = _save_supy(
+                df_output,
+                df_state_final,
+                path_dir_save=dir_temp,
+                output_config=OutputControl(groups=["DailyState"]),
+            )
+
+            assert [f.name for f in list_files if "SUEWS" in f.name] == []
+            dailystate_files = [f for f in list_files if "DailyState" in f.name]
+            assert len(dailystate_files) == 1
+
+            df_saved = pd.read_csv(dailystate_files[0], sep="\t")
+            data_cols = [
+                c
+                for c in df_saved.columns
+                if c not in ["Year", "DOY", "Hour", "Min", "Dectime"]
+            ]
+
+            assert len(df_saved) == 1
+            assert (df_saved[data_cols] != -999).any().any()

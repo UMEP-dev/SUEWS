@@ -3747,7 +3747,7 @@ Input Options
 .. option:: Timezone
 
 	:Description:
-		Time zone [h] for site relative to UTC (east is positive). This should be set according to the times given in the meteorological forcing file(s).
+		Fixed time zone offset [h] from UTC (east is positive), e.g. 0 for UK/GMT, 1 for France/CET. This is a standard-time offset that does not change with daylight saving. Forcing data timestamps must use this same fixed offset year-round.
 
 	:Configuration:
 		.. csv-table::
@@ -4446,7 +4446,7 @@ Input Options
 .. option:: Wuh
 
 	:Description:
-		External water use [|m^3|]
+		Site-mean external water-use depth accumulated over the forcing interval [mm]
 
 	:Configuration:
 		.. csv-table::

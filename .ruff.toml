@@ -5,8 +5,8 @@
 line-length = 88
 indent-width = 4
 
-# Assume Python 3.9 (minimum supported version)
-target-version = "py39"
+# Assume Python 3.12 (minimum supported version)
+target-version = "py312"
 
 # Exclude common directories
 exclude = [
@@ -53,7 +53,7 @@ select = [
     "C4",     # flake8-comprehensions
     "SIM",    # flake8-simplify
     "UP",     # pyupgrade
-    
+
     # Documentation
     "D",      # pydocstyle
     
@@ -138,6 +138,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "docs/source/tutorials/tutorial_05_results_analysis.py" = ["D205", "D400"]
 "docs/source/tutorials/tutorial_06_external_coupling.py" = ["D205", "D301", "D400"]
 "docs/source/tutorials/tutorial_07_attribution.py" = ["D205", "D400"]
+"docs/source/tutorials/tutorial_08_parallel_multi_grid.py" = ["D205", "D400"]
 "docs/table.py" = ["D412"]
 "get_ver_git.py" = ["D103", "D400", "D406", "D407"]
 "scripts/lint/audit_docstrings.py" = ["D103"]
@@ -181,12 +182,12 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "src/supy/data_model/output/snow_vars.py" = ["D401", "D406", "D407"]
 "src/supy/data_model/output/spartacus_vars.py" = ["D400"]
 "src/supy/data_model/output/variables.py" = ["D406", "D407"]
-"src/supy/data_model/schema/__init__.py" = ["D400"]
-"src/supy/data_model/schema/exporter.py" = ["D401", "D406", "D407"]
-"src/supy/data_model/schema/migration.py" = ["D400", "D401", "D406", "D407"]
-"src/supy/data_model/schema/publisher.py" = ["D400", "D401", "D406", "D407"]
-"src/supy/data_model/schema/registry.py" = ["D406", "D407"]
-"src/supy/data_model/schema/updater.py" = ["D401", "D406", "D407"]
+"src/supy/data_model/configuration/__init__.py" = ["D400"]
+"src/supy/data_model/configuration/exporter.py" = ["D401", "D406", "D407"]
+"src/supy/data_model/configuration/migration.py" = ["D400", "D401", "D406", "D407"]
+"src/supy/data_model/configuration/publisher.py" = ["D400", "D401", "D406", "D407"]
+"src/supy/data_model/configuration/registry.py" = ["D406", "D407"]
+"src/supy/data_model/configuration/updater.py" = ["D401", "D406", "D407"]
 "src/supy/data_model/validation/__init__.py" = ["D400"]
 "src/supy/data_model/validation/core/__init__.py" = ["D400"]
 "src/supy/data_model/validation/core/controller.py" = ["D400", "D401", "D406", "D407"]

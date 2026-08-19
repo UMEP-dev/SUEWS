@@ -185,21 +185,7 @@
     "ArchetypeProperties": {
       "description": "Urban morphology and archetype properties.",
       "properties": {
-        "building_type": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "SampleType",
-          "description": "Building archetype type [-]",
-          "display_name": "Building Type",
-          "title": "Building Type"
-        },
-        "building_name": {
+        "archetype_name": {
           "anyOf": [
             {
               "type": "string"
@@ -211,9 +197,9 @@
           "default": "SampleBuilding",
           "description": "Building archetype name [-]",
           "display_name": "Building Name",
-          "title": "Building Name"
+          "title": "Archetype Name"
         },
-        "building_count": {
+        "archetype_building_count": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_int_"
@@ -228,7 +214,7 @@
           "default": 1,
           "description": "Number of buildings of this archetype [-]",
           "display_name": "Building Count",
-          "title": "Building Count",
+          "title": "Archetype Building Count",
           "unit": "dimensionless"
         },
         "occupants": {
@@ -254,7 +240,7 @@
           "title": "Occupants",
           "unit": "dimensionless"
         },
-        "building_height": {
+        "archetype_height": {
           "anyOf": [
             {
               "anyOf": [
@@ -274,10 +260,10 @@
           "default": 10.0,
           "description": "Building height. This should be consistent with wall_external_area and footprint_area. [m]",
           "display_name": "Building Height",
-          "title": "Building Height",
+          "title": "Archetype Height",
           "unit": "m"
         },
-        "footprint_area": {
+        "area_footprint": {
           "anyOf": [
             {
               "anyOf": [
@@ -297,10 +283,10 @@
           "default": 64.0,
           "description": "Building footprint area. This should be consistent with building_height and wall_external_area. [m2]",
           "display_name": "Footprint Area",
-          "title": "Footprint Area",
+          "title": "Area Footprint",
           "unit": "m^2"
         },
-        "wall_external_area": {
+        "area_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -320,10 +306,10 @@
           "default": 80.0,
           "description": "External wall area (including window area). This should be consistent with building_height and footprint_area. [m2]",
           "display_name": "Wall External Area",
-          "title": "Wall External Area",
+          "title": "Area Wall External",
           "unit": "m^2"
         },
-        "internal_volume_ratio": {
+        "ratio_internal_mass_volume": {
           "anyOf": [
             {
               "anyOf": [
@@ -344,10 +330,10 @@
           "default": 0.01,
           "description": "Ratio of internal mass volume to total building volume [-]",
           "display_name": "Ratio Internal Volume",
-          "title": "Internal Volume Ratio",
+          "title": "Ratio Internal Mass Volume",
           "unit": "dimensionless"
         },
-        "internal_mass_area": {
+        "area_internal_mass": {
           "anyOf": [
             {
               "anyOf": [
@@ -367,10 +353,10 @@
           "default": 100,
           "description": "Surface area of internal mass used for indoor heat exchange [m2]",
           "display_name": "Internal Mass Area",
-          "title": "Internal Mass Area",
+          "title": "Area Internal Mass",
           "unit": "m^2"
         },
-        "window_to_wall_ratio": {
+        "ratio_window_to_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -391,7 +377,7 @@
           "default": 0.2,
           "description": "window to wall ratio [-]",
           "display_name": "Window to Wall Ratio",
-          "title": "Window To Wall Ratio",
+          "title": "Ratio Window To Wall",
           "unit": "dimensionless"
         },
         "thickness_wall": {
@@ -576,7 +562,7 @@
           "title": "Specific Heat Capacity Wall Outer",
           "unit": "J kg^-1 K^-1"
         },
-        "fraction_wall_heat_capacity_outer": {
+        "fraction_heat_capacity_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -597,7 +583,7 @@
           "default": 0.5,
           "description": "Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
           "display_name": "Wall Outer Capacity Fraction",
-          "title": "Fraction Wall Heat Capacity Outer",
+          "title": "Fraction Heat Capacity Wall External",
           "unit": "dimensionless"
         },
         "emissivity_wall_external": {
@@ -902,7 +888,7 @@
           "title": "Specific Heat Capacity Roof Outer",
           "unit": "J kg^-1 K^-1"
         },
-        "fraction_roof_heat_capacity_outer": {
+        "fraction_heat_capacity_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -923,7 +909,7 @@
           "default": 0.5,
           "description": "Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
           "display_name": "Roof Outer Capacity Fraction",
-          "title": "Fraction Roof Heat Capacity Outer",
+          "title": "Fraction Heat Capacity Roof External",
           "unit": "dimensionless"
         },
         "emissivity_roof_external": {
@@ -1420,7 +1406,7 @@
           "title": "Emissivity Internal Mass",
           "unit": "dimensionless"
         },
-        "max_heating_power": {
+        "max_power_heating_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1440,10 +1426,10 @@
           "default": 0.0,
           "description": "Maximum power demand of heating system [W]",
           "display_name": "Maximum Heating Power",
-          "title": "Max Heating Power",
+          "title": "Max Power Heating System Air",
           "unit": "W"
         },
-        "hot_water_tank_volume": {
+        "volume_hot_water_tank": {
           "anyOf": [
             {
               "anyOf": [
@@ -1463,10 +1449,10 @@
           "default": 0.15,
           "description": "Volume of water in hot water tank [m3]",
           "display_name": "Water Tank Water Volume",
-          "title": "Hot Water Tank Volume",
+          "title": "Volume Hot Water Tank",
           "unit": "m^3"
         },
-        "maximum_hot_water_heating_power": {
+        "max_power_heating_system_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -1486,10 +1472,10 @@
           "default": 3000.0,
           "description": "Maximum power demand of water heating system [W]",
           "display_name": "Maximum Hot Water Heating Power",
-          "title": "Maximum Hot Water Heating Power",
+          "title": "Max Power Heating System Water",
           "unit": "W"
         },
-        "heating_setpoint_temperature": {
+        "setpoint_temperature_heating_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1509,10 +1495,10 @@
           "default": 0.0,
           "description": "Heating setpoint temperature [degC]",
           "display_name": "Heating Setpoint Temperature",
-          "title": "Heating Setpoint Temperature",
+          "title": "Setpoint Temperature Heating Air",
           "unit": "degC"
         },
-        "cooling_setpoint_temperature": {
+        "setpoint_temperature_cooling_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1532,10 +1518,10 @@
           "default": 26.0,
           "description": "Cooling setpoint temperature [degC]",
           "display_name": "Cooling Setpoint Temperature",
-          "title": "Cooling Setpoint Temperature",
+          "title": "Setpoint Temperature Cooling Air",
           "unit": "degC"
         },
-        "heating_setpoint_temperature_profile": {
+        "profile_setpoint_temperature_heating_air": {
           "anyOf": [
             {
               "$ref": "#/$defs/HeatingSetpointProfile"
@@ -1548,7 +1534,7 @@
           "display_name": "Heating setpoint temperature profile",
           "unit": "degC"
         },
-        "cooling_setpoint_temperature_profile": {
+        "profile_setpoint_temperature_cooling_air": {
           "anyOf": [
             {
               "$ref": "#/$defs/CoolingSetpointProfile"
@@ -1561,7 +1547,7 @@
           "display_name": "Cooling setpoint temperature profile",
           "unit": "degC"
         },
-        "metabolism_profile": {
+        "profile_metabolism": {
           "anyOf": [
             {
               "$ref": "#/$defs/TenMinuteProfile"
@@ -1802,7 +1788,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for the surface, ordered from the exposed surface inward"
         },
         "irrigation_fraction": {
           "anyOf": [
@@ -2114,7 +2100,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for the surface, ordered from the exposed surface inward"
         },
         "irrigation_fraction": {
           "anyOf": [
@@ -2169,7 +2155,7 @@
     "CO2Params": {
       "description": "CO2 emission parameters and profiles.",
       "properties": {
-        "co2pointsource": {
+        "emission_co2_point_source": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2182,12 +2168,12 @@
             }
           ],
           "default": null,
-          "description": "CO2 point source emission factor",
+          "description": "Whole-grid CO2 point-source emission expressed as carbon mass",
           "display_name": "CO2 Point Source",
-          "title": "Co2Pointsource",
-          "unit": "kg m^-2 s^-1"
+          "title": "Emission Co2 Point Source",
+          "unit": "kg C day^-1"
         },
-        "ef_umolco2perj": {
+        "emission_factor_co2_fuel": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2203,10 +2189,10 @@
           "default_description": "Sample benchmark value: 1.159 umol J^-1 (Ward et al. 2016, central London); calibrate by site.",
           "description": "CO2 emission factor per unit of fuel energy",
           "display_name": "Emission Factor (umol CO2/J)",
-          "title": "Ef Umolco2Perj",
+          "title": "Emission Factor Co2 Fuel",
           "unit": "umol J^-1"
         },
-        "enef_v_jkm": {
+        "emission_factor_energy_vehicle": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2219,13 +2205,13 @@
             }
           ],
           "default": null,
-          "description": "Vehicle energy consumption factor",
+          "description": "Vehicle energy consumption per unit distance",
           "display_name": "Energy Emission Factor Vehicles",
           "range_description": "Sample range from benchmark/sample tables: 3.97e6-4.11e6 J km^-1; calibrate by site.",
-          "title": "Enef V Jkm",
+          "title": "Emission Factor Energy Vehicle",
           "unit": "J km^-1"
         },
-        "fcef_v_kgkm": {
+        "emission_factor_co2_vehicle": {
           "anyOf": [
             {
               "$ref": "#/$defs/DayProfile"
@@ -2234,12 +2220,12 @@
               "type": "null"
             }
           ],
-          "default_description": "Sample benchmark value: 0.285 kg km^-1 (Ward et al. 2016, central London); calibrate by site.",
-          "description": "Fuel consumption efficiency for vehicles",
+          "default_description": "Sample benchmark value: 0.285 kg CO2 km^-1 (Ward et al. 2016, central London); calibrate by site.",
+          "description": "Vehicle CO2 emission factor per unit distance",
           "display_name": "Fuel Carbon Emission Factor Vehicles",
-          "unit": "kg km^-1"
+          "unit": "kg CO2 km^-1"
         },
-        "frfossilfuel_heat": {
+        "fraction_fossil_fuel_heating": {
           "anyOf": [
             {
               "anyOf": [
@@ -2261,10 +2247,10 @@
           "description": "Fraction of heating energy from fossil fuels",
           "display_name": "Fossil Fuel Fraction Heating",
           "range_description": "Sample range from benchmark/sample tables: 0.05-0.7 (depends on local energy mix).",
-          "title": "Frfossilfuel Heat",
+          "title": "Fraction Fossil Fuel Heating",
           "unit": "dimensionless"
         },
-        "frfossilfuel_nonheat": {
+        "fraction_fossil_fuel_non_heating": {
           "anyOf": [
             {
               "anyOf": [
@@ -2286,10 +2272,10 @@
           "description": "Fraction of non-heating energy from fossil fuels",
           "display_name": "Fossil Fuel Fraction Non-Heating",
           "range_description": "Sample range from benchmark/sample tables: 0.0-0.7 (depends on local energy mix).",
-          "title": "Frfossilfuel Nonheat",
+          "title": "Fraction Fossil Fuel Non Heating",
           "unit": "dimensionless"
         },
-        "maxfcmetab": {
+        "emission_co2_metabolism_max": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2302,13 +2288,13 @@
             }
           ],
           "default": null,
-          "default_description": "Sample value from benchmark/sample tables: 280.0 umol m^-2 s^-1; calibrate by site.",
-          "description": "Maximum metabolic CO2 flux rate",
+          "default_description": "Sample value from benchmark/sample tables: 280.0 umol cap^-1 s^-1; calibrate by site.",
+          "description": "Maximum daytime metabolic CO2 emission per capita",
           "display_name": "Maximum Metabolic CO2 Flux",
-          "title": "Maxfcmetab",
-          "unit": "umol m^-2 s^-1"
+          "title": "Emission Co2 Metabolism Max",
+          "unit": "umol cap^-1 s^-1"
         },
-        "maxqfmetab": {
+        "emission_heat_metabolism_max": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2321,13 +2307,13 @@
             }
           ],
           "default": null,
-          "default_description": "Sample value from benchmark/sample tables: 175.0 W m^-2; calibrate by site.",
-          "description": "Maximum metabolic heat flux rate",
+          "default_description": "Sample value from benchmark/sample tables: 175.0 W cap^-1; calibrate by site.",
+          "description": "Maximum daytime metabolic heat emission per capita",
           "display_name": "Maximum Metabolic Heat Flux",
-          "title": "Maxqfmetab",
-          "unit": "W m^-2"
+          "title": "Emission Heat Metabolism Max",
+          "unit": "W cap^-1"
         },
-        "minfcmetab": {
+        "emission_co2_metabolism_min": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2340,13 +2326,13 @@
             }
           ],
           "default": null,
-          "default_description": "Sample value from benchmark/sample tables: 120.0 umol m^-2 s^-1; calibrate by site.",
-          "description": "Minimum metabolic CO2 flux rate",
+          "default_description": "Sample value from benchmark/sample tables: 120.0 umol cap^-1 s^-1; calibrate by site.",
+          "description": "Minimum night-time metabolic CO2 emission per capita",
           "display_name": "Minimum Metabolic CO2 Flux",
-          "title": "Minfcmetab",
-          "unit": "umol m^-2 s^-1"
+          "title": "Emission Co2 Metabolism Min",
+          "unit": "umol cap^-1 s^-1"
         },
-        "minqfmetab": {
+        "emission_heat_metabolism_min": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2359,13 +2345,13 @@
             }
           ],
           "default": null,
-          "default_description": "Sample value from benchmark/sample tables: 75.0 W m^-2; calibrate by site.",
-          "description": "Minimum metabolic heat flux rate",
+          "default_description": "Sample value from benchmark/sample tables: 75.0 W cap^-1; calibrate by site.",
+          "description": "Minimum night-time metabolic heat emission per capita",
           "display_name": "Minimum Metabolic Heat Flux",
-          "title": "Minqfmetab",
-          "unit": "W m^-2"
+          "title": "Emission Heat Metabolism Min",
+          "unit": "W cap^-1"
         },
-        "trafficrate": {
+        "traffic_rate": {
           "anyOf": [
             {
               "$ref": "#/$defs/DayProfile"
@@ -2374,11 +2360,11 @@
               "type": "null"
             }
           ],
-          "description": "Traffic rate",
+          "description": "Mean traffic activity; basis selected by type_traffic_rate",
           "display_name": "Traffic Rate",
-          "unit": "vehicle km ha^-1"
+          "unit": "vehicle km m^-2 day^-1 (type 1) or vehicle km cap^-1 day^-1 (type 2)"
         },
-        "trafficunits": {
+        "type_traffic_rate": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -2391,12 +2377,12 @@
             }
           ],
           "default": null,
-          "description": "Units for traffic density normalisation",
-          "display_name": "Traffic Units",
-          "title": "Trafficunits",
-          "unit": "vehicle km ha^-1"
+          "description": "Traffic-rate basis: 1 for per area, 2 for per capita",
+          "display_name": "Traffic Rate Type",
+          "title": "Type Traffic Rate",
+          "unit": "dimensionless"
         },
-        "traffprof_24hr": {
+        "profile_traffic_24hr": {
           "anyOf": [
             {
               "$ref": "#/$defs/HourlyProfile"
@@ -2409,7 +2395,7 @@
           "display_name": "Traffic Profile (24hr)",
           "unit": "dimensionless"
         },
-        "humactivity_24hr": {
+        "profile_human_activity_24hr": {
           "anyOf": [
             {
               "$ref": "#/$defs/HourlyProfile"
@@ -2979,7 +2965,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for the surface, ordered from the exposed surface inward"
         },
         "irrigation_fraction": {
           "anyOf": [
@@ -3342,14 +3328,39 @@
       "type": "object"
     },
     "EmissionsMethod": {
-      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using daily mean air temperature\n4: J19 - J\u00e4rvi et al. (2019) method with building energy, metabolism, and traffic\n5: J19_UPDATED - As method 4 but also calculates CO2 emissions\n11: BIOGEN_RECT_L11 - Rectangular hyperbola photosynthesis + L11 QF (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola photosynthesis + J11 QF (experimental)\n13: BIOGEN_RECT_L11U - Rectangular hyperbola photosynthesis + L11_UPDATED QF (experimental)\n14: BIOGEN_RECT_J19 - Rectangular hyperbola photosynthesis + J19 QF (experimental)\n15: BIOGEN_RECT_J19U - Rectangular hyperbola photosynthesis + J19_UPDATED QF (experimental)\n21: BIOGEN_NRECT_L11 - Non-rectangular hyperbola (Bellucco 2017) + L11 QF (experimental)\n22: BIOGEN_NRECT_J11 - Non-rectangular hyperbola (Bellucco 2017) + J11 QF (experimental)\n23: BIOGEN_NRECT_L11U - Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF (experimental)\n24: BIOGEN_NRECT_J19 - Non-rectangular hyperbola (Bellucco 2017) + J19 QF (experimental)\n25: BIOGEN_NRECT_J19U - Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF (experimental)\n41: BIOGEN_COND_L11 - Conductance-based photosynthesis (J\u00e4rvi 2019) + L11 QF (experimental)\n42: BIOGEN_COND_J11 - Conductance-based photosynthesis (J\u00e4rvi 2019) + J11 QF (experimental)\n43: BIOGEN_COND_L11U - Conductance-based photosynthesis (J\u00e4rvi 2019) + L11_UPDATED QF (experimental)\n44: BIOGEN_COND_J19 - Conductance-based photosynthesis (J\u00e4rvi 2019) + J19 QF (experimental)\n45: BIOGEN_COND_J19U - Conductance-based photosynthesis (J\u00e4rvi 2019) + J19_UPDATED QF (experimental)",
+      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using daily mean air temperature\n4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes\n11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
       "enum": [
         0,
         1,
         2,
         3,
         4,
-        5
+        5,
+        6,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46
       ],
       "title": "EmissionsMethod",
       "type": "integer"
@@ -3568,7 +3579,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for the surface, ordered from the exposed surface inward"
         },
         "irrigation_fraction": {
           "anyOf": [
@@ -3867,7 +3878,7 @@
       "type": "object"
     },
     "FAIMethod": {
-      "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: USE_PROVIDED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)\n1: SIMPLE_SCHEME - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
+      "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)\n1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights",
       "enum": [
         0,
         1
@@ -3876,7 +3887,7 @@
       "type": "integer"
     },
     "ForcingControl": {
-      "description": "Configuration block for meteorological forcing input.\n\nCreated in gh#1372 so future forcing-related fields (sub-hourly\ndisaggregation, gh#1373; resampling policy; etc.) have a stable\nhome rather than accreting flat ``forcing_*`` siblings under\n:class:`ModelControl`.",
+      "description": "Configuration block for meteorological forcing input.\n\nGroups forcing-related fields, such as sub-hourly disaggregation and\nresampling policy, under a stable home rather than accreting flat\n``forcing_*`` siblings under :class:`ModelControl`.",
       "properties": {
         "file": {
           "anyOf": [
@@ -3899,10 +3910,32 @@
           "default": "forcing.txt",
           "description": "Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt']). When multiple files are provided, they are concatenated in chronological order. For details, see :ref:`met_input`.",
           "title": "File"
+        },
+        "timestamp_reference": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_ForcingTimestampReference_"
+            },
+            {
+              "$ref": "#/$defs/ForcingTimestampReference"
+            }
+          ],
+          "default": "local_standard_time",
+          "description": "Clock used by the forcing timestamps. 'local_standard_time' preserves the historical fixed-offset, interval-end convention. With 'utc', forcing timestamps, output timestamps and daily state boundaries remain in UTC, while solar calculations and local diurnal profiles use the site's derived fixed-offset standard time. Daylight-saving civil time is not supported.",
+          "title": "Timestamp Reference"
         }
       },
       "title": "Forcing Control",
       "type": "object"
+    },
+    "ForcingTimestampReference": {
+      "description": "Supported forcing timestamp references.",
+      "enum": [
+        "local_standard_time",
+        "utc"
+      ],
+      "title": "ForcingTimestampReference",
+      "type": "string"
     },
     "GSModel": {
       "description": "Stomatal conductance parameterisation method for vegetation surfaces.\n\n1: JARVI - Original parameterisation (J\u00e4rvi et al. 2011) based on environmental controls\n2: WARD - Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses",
@@ -4127,7 +4160,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for the surface, ordered from the exposed surface inward"
         },
         "irrigation_fraction": {
           "anyOf": [
@@ -6708,8 +6741,18 @@
       "title": "Irrigation",
       "type": "object"
     },
+    "KdownSplitMethod": {
+      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid\n2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction\n3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach",
+      "enum": [
+        1,
+        2,
+        3
+      ],
+      "title": "KdownSplitMethod",
+      "type": "integer"
+    },
     "LAIMethod": {
-      "description": "Method for determining leaf area index (LAI).\n\n0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.\n1: CALCULATED - LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
+      "description": "Method for determining leaf area index (LAI).\n\n0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.\n1: MODELLED - LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
       "enum": [
         0,
         1
@@ -7169,8 +7212,33 @@
             }
           ],
           "default": 3,
+          "depends_on": [
+            "snow_use"
+          ],
           "description": "Method for calculating net all-wave radiation (Q*). Options: 0 (OBSERVED) = Uses observed Q* values from forcing file; 1 (LDOWN_OBSERVED) = Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L\u2193) from forcing file; 2 (LDOWN_CLOUD) = Models Q* using NARP with L\u2193 estimated from cloud cover fraction; 3 (LDOWN_AIR) = Models Q* using NARP with L\u2193 estimated from air temperature and relative humidity; 11 (LDOWN_SURFACE) = Surface temperature variant of method 1 (not recommended); 12 (LDOWN_CLOUD_SURFACE) = Surface temperature variant of method 2 (not recommended); 13 (LDOWN_AIR_SURFACE) = Surface temperature variant of method 3 (not recommended); 100 (LDOWN_ZENITH) = Zenith angle correction variant of method 1 (not recommended); 200 (LDOWN_CLOUD_ZENITH) = Zenith angle correction variant of method 2 (not recommended); 300 (LDOWN_AIR_ZENITH) = Zenith angle correction variant of method 3 (not recommended); 1001 (LDOWN_SS_OBSERVED) = SPARTACUS-Surface integration with observed L\u2193 (experimental); 1002 (LDOWN_SS_CLOUD) = SPARTACUS-Surface integration with L\u2193 from cloud fraction (experimental); 1003 (LDOWN_SS_AIR) = SPARTACUS-Surface integration with L\u2193 from air temperature/humidity (experimental)",
+          "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by EHC (5) and STEBBS (7) storage heat.",
+          "provides_to": [
+            "storage_heat"
+          ],
           "title": "Net Radiation",
+          "unit": "dimensionless"
+        },
+        "kdown_split_method": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_KdownSplitMethod_"
+            },
+            {
+              "$ref": "#/$defs/KdownSplitMethod"
+            }
+          ],
+          "default": 3,
+          "depends_on": [
+            "net_radiation"
+          ],
+          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (EPW) = Uses the pressure-corrected DISC/static-DIRINT approach",
+          "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
+          "title": "Kdown Split Method",
           "unit": "dimensionless"
         },
         "emissions": {
@@ -7183,7 +7251,12 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using daily mean air temperature; 4 (J19) = J\u00e4rvi et al. (2019) method with building energy, metabolism, and traffic; 5 (J19_UPDATED) = As method 4 but also calculates CO2 emissions; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola photosynthesis + L11 QF (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola photosynthesis + J11 QF (experimental); 13 (BIOGEN_RECT_L11U) = Rectangular hyperbola photosynthesis + L11_UPDATED QF (experimental); 14 (BIOGEN_RECT_J19) = Rectangular hyperbola photosynthesis + J19 QF (experimental); 15 (BIOGEN_RECT_J19U) = Rectangular hyperbola photosynthesis + J19_UPDATED QF (experimental); 21 (BIOGEN_NRECT_L11) = Non-rectangular hyperbola (Bellucco 2017) + L11 QF (experimental); 22 (BIOGEN_NRECT_J11) = Non-rectangular hyperbola (Bellucco 2017) + J11 QF (experimental); 23 (BIOGEN_NRECT_L11U) = Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF (experimental); 24 (BIOGEN_NRECT_J19) = Non-rectangular hyperbola (Bellucco 2017) + J19 QF (experimental); 25 (BIOGEN_NRECT_J19U) = Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF (experimental); 41 (BIOGEN_COND_L11) = Conductance-based photosynthesis (J\u00e4rvi 2019) + L11 QF (experimental); 42 (BIOGEN_COND_J11) = Conductance-based photosynthesis (J\u00e4rvi 2019) + J11 QF (experimental); 43 (BIOGEN_COND_L11U) = Conductance-based photosynthesis (J\u00e4rvi 2019) + L11_UPDATED QF (experimental); 44 (BIOGEN_COND_J19) = Conductance-based photosynthesis (J\u00e4rvi 2019) + J19 QF (experimental); 45 (BIOGEN_COND_J19U) = Conductance-based photosynthesis (J\u00e4rvi 2019) + J19_UPDATED QF (experimental)",
+          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using daily mean air temperature; 4 (J19) = Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 5 (J19_UPDATED) = Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 6 (L11_UPDATED_DETAILED) = Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 13 (BIOGEN_RECT_L11_UPDATED) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 14 (BIOGEN_RECT_L11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 15 (BIOGEN_RECT_J11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 16 (BIOGEN_RECT_L11_UPDATED_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 21 (BIOGEN_BELLUCCO_LOCAL_L11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 22 (BIOGEN_BELLUCCO_LOCAL_J11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 23 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 24 (BIOGEN_BELLUCCO_LOCAL_L11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 25 (BIOGEN_BELLUCCO_LOCAL_J11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 26 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 31 (BIOGEN_BELLUCCO_GENERAL_L11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 32 (BIOGEN_BELLUCCO_GENERAL_J11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 33 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 34 (BIOGEN_BELLUCCO_GENERAL_L11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 35 (BIOGEN_BELLUCCO_GENERAL_J11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 36 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 41 (BIOGEN_CONDUCTANCE_L11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 42 (BIOGEN_CONDUCTANCE_J11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 43 (BIOGEN_CONDUCTANCE_L11_UPDATED) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 44 (BIOGEN_CONDUCTANCE_L11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 45 (BIOGEN_CONDUCTANCE_J11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 46 (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
+          "note": "Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.",
+          "provides_to": [
+            "ohm_inc_qf",
+            "energy_balance"
+          ],
           "title": "Emissions",
           "unit": "dimensionless"
         },
@@ -7197,7 +7270,17 @@
             }
           ],
           "default": 1,
-          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS values from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only (use with OhmIncQf=0); 3 (ANOHM) = Analytical OHM (Sun et al., 2017) - not recommended; 4 (ESTM) = Element Surface Temperature Method (Offerle et al., 2005) - not recommended; 5 (EHC) = Explicit Heat Conduction model with separate roof/wall/ground temperatures; 6 (DyOHM) = Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients; 7 (STEBBS) = use STEBBS storage heat flux for building, others use OHM",
+          "depends_on": [
+            "net_radiation",
+            "ohm_inc_qf",
+            "snow_use",
+            "stebbs"
+          ],
+          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS values from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only (use with OhmIncQf=0); 3 (ANOHM) = Analytical OHM (Sun et al., 2017) - not recommended; 4 (ESTM) = Element Surface Temperature Method (Offerle et al., 2005) - not recommended; 5 (EHC) = Uses all five material layers for conducting roof, wall, and land-cover facets; 6 (DyOHM) = Dynamic OHM using the outermost material layer of each SUEWS land-cover surface; 7 (STEBBS) = STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces; 8 (DyOHM_BUILDING) = DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
+          "note": "EHC (5) uses all five material layers for its conducting roof, wall, and solid non-building land-cover facets. DyOHM (6) uses only the outermost material layer of each SUEWS land-cover surface, including land_cover.bldgs for buildings. Method 7 uses STEBBS for building storage heat and temperatures, does not use land_cover.bldgs material layers, and applies DyOHM to non-building surfaces; it requires SPARTACUS-Surface net radiation (1001--1003). Method 8 applies DyOHM only to the building surface and requires OhmIncQf=0.",
+          "provides_to": [
+            "energy_balance"
+          ],
           "title": "Storage Heat",
           "unit": "dimensionless"
         },
@@ -7211,7 +7294,15 @@
             }
           ],
           "default": 0,
+          "depends_on": [
+            "emissions",
+            "storage_heat"
+          ],
           "description": "Controls inclusion of anthropogenic heat flux in OHM storage heat calculations. Options: 0 (EXCLUDE) = Use Q* only (required when StorageHeatMethod=1); 1 (INCLUDE) = Use Q*+QF (for other OHM-based storage heat methods)",
+          "note": "Controls whether QF from emissions is added to Q* in OHM-based storage heat calculations.",
+          "provides_to": [
+            "storage_heat"
+          ],
           "title": "Ohm Inc Qf",
           "unit": "dimensionless"
         },
@@ -7226,6 +7317,11 @@
           ],
           "default": 2,
           "description": "Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed roughness length from site parameters; 2 (VARIABLE) = Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999); 3 (MACDONALD) = MacDonald et al. (1998) morphometric method based on building geometry; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction \u03bbp (Grimmond & Oke 1999); 5 (ALTERNATIVE) = Alternative variable method",
+          "note": "Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.",
+          "provides_to": [
+            "roughness_length_heat",
+            "stability"
+          ],
           "title": "Roughness Length Momentum",
           "unit": "dimensionless"
         },
@@ -7239,7 +7335,14 @@
             }
           ],
           "default": 2,
+          "depends_on": [
+            "roughness_length_momentum"
+          ],
           "description": "Method for calculating thermal roughness length (z0h). Options: 1 (BRUTSAERT) = Brutsaert (1982) z0h = z0m/10 (see Grimmond & Oke 1986); 2 (KAWAI) = Kawai et al. (2009) formulation; 3 (VOOGT_GRIMMOND) = Voogt and Grimmond (2000) formulation; 4 (KANDA) = Kanda et al. (2007) formulation; 5 (ADAPTIVE) = Adaptively using z0m based on pervious coverage: if fully pervious, use method 1; otherwise, use method 2",
+          "note": "Calculates heat roughness length (z0h) from z0m for stability corrections.",
+          "provides_to": [
+            "stability"
+          ],
           "title": "Roughness Length Heat",
           "unit": "dimensionless"
         },
@@ -7254,8 +7357,10 @@
           ],
           "default": 3,
           "description": "Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 (NOT_USED) = Reserved; 1 (NOT_USED2) = Reserved; 2 (HOEGSTROM) = Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended); 3 (CAMPBELL_NORMAN) = Campbell & Norman (1998) formulations for both momentum and heat; 4 (BUSINGER_HOEGSTROM) = Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
-          "note": "Provides stability correction functions used by roughness_sublayer calculations",
+          "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
           "provides_to": [
+            "roughness_length_momentum",
+            "roughness_length_heat",
             "roughness_sublayer"
           ],
           "title": "Stability",
@@ -7299,7 +7404,7 @@
             }
           ],
           "default": 1,
-          "description": "Method for determining leaf area index (LAI). Options: 0 (OBSERVED) = Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.; 1 (CALCULATED) = LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
+          "description": "Method for determining leaf area index (LAI). Options: 0 (OBSERVED) = Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.; 1 (MODELLED) = LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
           "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
           "title": "Laimethod",
           "unit": "dimensionless"
@@ -7335,7 +7440,7 @@
             }
           ],
           "default": 0,
-          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (USE_PROVIDED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (SIMPLE_SCHEME) = Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
+          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (OBSERVED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (MODELLED) = Calculate FAI using simple scheme based on surface fractions and heights",
           "title": "Frontal Area Index",
           "unit": "dimensionless"
         },
@@ -7389,106 +7494,25 @@
           ],
           "default": 0,
           "description": "Controls snow process calculations (J\u00e4rvi et al. 2014). Options: 0 (DISABLED) = Snow processes not included; 1 (ENABLED) = Snow accumulation, melt, and albedo effects included",
+          "note": "Controls snow processes that affect radiation dispatch, storage heat, and near-surface conductance adjustments.",
+          "provides_to": [
+            "net_radiation",
+            "storage_heat",
+            "roughness_sublayer_level"
+          ],
           "title": "Snow Use",
           "unit": "dimensionless"
         },
         "stebbs": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_StebbsMethod_"
-            },
-            {
-              "$ref": "#/$defs/StebbsMethod"
-            }
+          "$ref": "#/$defs/StebbsPhysics",
+          "depends_on": [
+            "storage_heat"
           ],
-          "default": 0,
-          "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS calculations disabled; 1 (DEFAULT) = STEBBS enabled with default parameters; 2 (PROVIDED) = STEBBS enabled with user-specified parameters",
-          "title": "Stebbs",
-          "unit": "dimensionless"
-        },
-        "outer_cap_fraction": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_RCMethod_"
-            },
-            {
-              "$ref": "#/$defs/RCMethod"
-            }
-          ],
-          "default": 0,
-          "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
-          "title": "Outer Cap Fraction",
-          "unit": "dimensionless"
-        },
-        "setpoint": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SetpointMethod_"
-            },
-            {
-              "$ref": "#/$defs/SetpointMethod"
-            }
-          ],
-          "default": 0,
-          "description": "Method to determine the approach of space heating/cooling setpoints in STEBBS. Options: 0 (Constant) = Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.; 1 (Dependent) = Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.; 2 (Scheduled) = Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.",
-          "title": "Setpoint",
-          "unit": "dimensionless"
-        },
-        "same_albedo_wall": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameAlbedoWall_"
-            },
-            {
-              "$ref": "#/$defs/SameAlbedoWall"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same albedoes for walls.",
-          "title": "Same Albedo Wall",
-          "unit": "dimensionless"
-        },
-        "same_albedo_roof": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameAlbedoRoof_"
-            },
-            {
-              "$ref": "#/$defs/SameAlbedoRoof"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same albedoes for roofs.",
-          "title": "Same Albedo Roof",
-          "unit": "dimensionless"
-        },
-        "same_emissivity_wall": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameEmissivityWall_"
-            },
-            {
-              "$ref": "#/$defs/SameEmissivityWall"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same emissivities for walls.",
-          "title": "Same Emissivity Wall",
-          "unit": "dimensionless"
-        },
-        "same_emissivity_roof": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameEmissivityRoof_"
-            },
-            {
-              "$ref": "#/$defs/SameEmissivityRoof"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same emissivities for roofs.",
-          "title": "Same Emissivity Roof",
-          "unit": "dimensionless"
+          "description": "STEBBS physics switches: master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches.",
+          "note": "When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.",
+          "provides_to": [
+            "stebbs.capacitance"
+          ]
         },
         "ref": {
           "anyOf": [
@@ -7657,7 +7681,7 @@
       "type": "integer"
     },
     "OutputControl": {
-      "description": "Configuration block for model output files.\n\nRenamed from ``OutputConfig`` and lifted out of the legacy\n``Union[str, OutputConfig]`` ``output_file`` field in gh#1372 follow-up,\nso the ``model.control`` surface is uniform with the new ``forcing:``\nsub-object. The legacy string form (silently ignored since 2025.10.15)\nis dropped.",
+      "description": "Configuration block for model output files.\n\nRenamed from ``OutputConfig`` and lifted out of the legacy\n``Union[str, OutputConfig]`` ``output_file`` field so the\n``model.control`` surface is uniform with the new ``forcing:`` sub-object.\nThe legacy string form (silently ignored since 2025.10.15) is dropped.",
       "properties": {
         "format": {
           "$ref": "#/$defs/OutputFormat",
@@ -7705,6 +7729,11 @@
           "default": null,
           "description": "Output directory where result files will be saved. If not specified, defaults to the current working directory.",
           "title": "Dir"
+        },
+        "timestamp_reference": {
+          "$ref": "#/$defs/OutputTimestampReference",
+          "default": "follow",
+          "description": "Timestamp reference for saved output. 'follow' keeps the forcing timestamp reference, 'utc' and 'local_standard_time' select those fixed clocks explicitly, and 'daylight' adds the configured daylight-saving offset to local standard time inside the DLS window."
         }
       },
       "title": "Output Control",
@@ -7717,6 +7746,17 @@
         "parquet"
       ],
       "title": "OutputFormat",
+      "type": "string"
+    },
+    "OutputTimestampReference": {
+      "description": "Supported saved-output timestamp references.\n\n``follow`` keeps the forcing clock. ``utc`` and\n``local_standard_time`` select those fixed clocks explicitly.\n``daylight`` adds the configured daylight-saving offset to local\nstandard time inside the DLS window.",
+      "enum": [
+        "follow",
+        "utc",
+        "local_standard_time",
+        "daylight"
+      ],
+      "title": "OutputTimestampReference",
       "type": "string"
     },
     "PavedProperties": {
@@ -7933,7 +7973,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for the surface, ordered from the exposed surface inward"
         },
         "irrigation_fraction": {
           "anyOf": [
@@ -7986,7 +8026,7 @@
       "type": "object"
     },
     "RCMethod": {
-      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
+      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\nExposed on the YAML / data-model surface as ``stebbs.capacitance`` (the\nfield formerly named ``outer_cap_fraction``). The ``rcmethod``\nDataFrame column the Fortran bridge reads is unchanged.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
       "enum": [
         0,
         1,
@@ -8077,6 +8117,37 @@
       "title": "RefValue[FAIMethod]",
       "type": "object"
     },
+    "RefValue_ForcingTimestampReference_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForcingTimestampReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[ForcingTimestampReference]",
+      "type": "object"
+    },
     "RefValue_GSModel_": {
       "additionalProperties": false,
       "properties": {
@@ -8137,6 +8208,37 @@
         "value"
       ],
       "title": "RefValue[HeatRoughnessMethod]",
+      "type": "object"
+    },
+    "RefValue_KdownSplitMethod_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KdownSplitMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[KdownSplitMethod]",
       "type": "object"
     },
     "RefValue_LAIMethod_": {
@@ -8716,13 +8818,13 @@
       "title": "RefValue[StabilityMethod]",
       "type": "object"
     },
-    "RefValue_StebbsMethod_": {
+    "RefValue_StebbsParameterSource_": {
       "additionalProperties": false,
       "properties": {
         "value": {
           "anyOf": [
             {
-              "$ref": "#/$defs/StebbsMethod"
+              "$ref": "#/$defs/StebbsParameterSource"
             },
             {
               "type": "null"
@@ -8744,7 +8846,7 @@
       "required": [
         "value"
       ],
-      "title": "RefValue[StebbsMethod]",
+      "title": "RefValue[StebbsParameterSource]",
       "type": "object"
     },
     "RefValue_StorageHeatMethod_": {
@@ -8842,6 +8944,38 @@
         "value"
       ],
       "title": "RefValue[WaterUseMethod]",
+      "type": "object"
+    },
+    "RefValue_bool_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[bool]",
       "type": "object"
     },
     "RefValue_float_": {
@@ -8987,6 +9121,7 @@
       "type": "object"
     },
     "RoofLayer": {
+      "description": "Properties of a horizontal roof facet in a SPARTACUS vertical layer.",
       "properties": {
         "alb": {
           "anyOf": [
@@ -9024,7 +9159,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for this facet, ordered from the exposed surface inward"
         },
         "state_limit": {
           "anyOf": [
@@ -9092,7 +9227,7 @@
             }
           ],
           "default": 0.1,
-          "description": "Directional albedo multiplication factor for roofs",
+          "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; ignored for wall facets",
           "display_name": "Roof Albedo Direct Multiplier",
           "title": "Roof Albedo Dir Mult Fact",
           "unit": "dimensionless"
@@ -9110,7 +9245,7 @@
             }
           ],
           "default": 0.1,
-          "description": "Specular reflection fraction for walls",
+          "description": "SPARTACUS-Surface specular reflection fraction for wall facets; ignored for roof facets",
           "display_name": "Wall Specular Fraction",
           "title": "Wall Specular Frac",
           "unit": "dimensionless"
@@ -9253,6 +9388,36 @@
           "title": "N Stream Sw Urban",
           "unit": "dimensionless"
         },
+        "n_stream_lw_forest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_int_"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "default": 2,
+          "description": "Number of streams for longwave radiation in forest columns",
+          "display_name": "N Stream Lw Forest",
+          "title": "N Stream Lw Forest",
+          "unit": "dimensionless"
+        },
+        "n_stream_sw_forest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_int_"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "default": 1,
+          "description": "Number of streams for shortwave radiation in forest columns",
+          "display_name": "N Stream Sw Forest",
+          "title": "N Stream Sw Forest",
+          "unit": "dimensionless"
+        },
         "n_vegetation_region_urban": {
           "anyOf": [
             {
@@ -9268,19 +9433,19 @@
           "title": "N Vegetation Region Urban",
           "unit": "dimensionless"
         },
-        "sw_dn_direct_frac": {
+        "n_vegetation_region_forest": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "$ref": "#/$defs/RefValue_int_"
             },
             {
-              "type": "number"
+              "type": "integer"
             }
           ],
-          "default": 0.5,
-          "description": "Fraction of downward shortwave radiation that is direct",
-          "display_name": "Sw Dn Direct Frac",
-          "title": "Sw Dn Direct Frac",
+          "default": 1,
+          "description": "Number of vegetation regions in forest columns",
+          "display_name": "N Vegetation Region Forest",
+          "title": "N Vegetation Region Forest",
           "unit": "dimensionless"
         },
         "use_sw_direct_albedo": {
@@ -9517,7 +9682,7 @@
             }
           ],
           "default": 0.0,
-          "description": "Time zone offset from UTC",
+          "description": "Fixed time zone offset from UTC in hours (e.g. 0 for UK/GMT, 1 for France/CET). This is a standard-time offset that does not change with daylight saving. Forcing data timestamps must use this same fixed offset year-round.",
           "display_name": "Time zone (UTC offset)",
           "title": "Timezone",
           "unit": "h"
@@ -10005,6 +10170,54 @@
           "title": "Radiation Melt Factor",
           "unit": "mm W^-1 m^2 h^-1"
         },
+        "ohm_threshold_summer_winter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 10.0,
+          "description": "Summer/winter threshold based on temperature for the snow surface's OHM calculation",
+          "display_name": "OHM Summer/Winter Threshold (Snow)",
+          "title": "Ohm Threshold Summer Winter",
+          "unit": "degC"
+        },
+        "ohm_threshold_wet_dry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.9,
+          "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied to the snow surface",
+          "display_name": "OHM Wet/Dry Threshold (Snow)",
+          "title": "Ohm Threshold Wet Dry",
+          "unit": "dimensionless"
+        },
+        "ohm_coef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OHM_Coefficient_season_wetness"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "OHM coefficients for the snow surface (df_state surface index 7)",
+          "display_name": "OHM Coefficients (Snow)"
+        },
         "ref": {
           "anyOf": [
             {
@@ -10126,20 +10339,157 @@
       "title": "StabilityMethod",
       "type": "integer"
     },
-    "StebbsMethod": {
-      "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures.\n\n0: NONE - STEBBS calculations disabled\n1: DEFAULT - STEBBS enabled with default parameters\n2: PROVIDED - STEBBS enabled with user-specified parameters",
+    "StebbsParameterSource": {
+      "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``).\n\nOnly consulted when STEBBS is enabled; ignored otherwise. The values equal\nthe non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column\nis simply ``int(parameters)`` whenever STEBBS is enabled.\n\n1: DEFAULT - STEBBS uses default parameters\n2: PROVIDED - STEBBS uses user-specified parameters",
       "enum": [
-        0,
         1,
         2
       ],
-      "title": "StebbsMethod",
+      "title": "StebbsParameterSource",
       "type": "integer"
+    },
+    "StebbsPhysics": {
+      "description": "STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.\n\nGroups the six STEBBS-scoped method switches that previously sat flat on\n``model.physics``. The master on/off toggle is split into\n``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two\ncompose back to the single legacy ``stebbsmethod`` integer column on\n``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The\nDataFrame / Fortran column names are unchanged.",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_bool_"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": false,
+          "description": "Master on/off switch for STEBBS. When false, STEBBS calculations are disabled and `parameters` is ignored.",
+          "note": "Enables the STEBBS branch; capacitance/RC options are only meaningful when STEBBS is enabled.",
+          "provides_to": [
+            "stebbs.capacitance"
+          ],
+          "title": "Enabled",
+          "unit": "dimensionless"
+        },
+        "parameters": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_StebbsParameterSource_"
+            },
+            {
+              "$ref": "#/$defs/StebbsParameterSource"
+            }
+          ],
+          "default": 1,
+          "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``). Options: 1 (DEFAULT) = STEBBS uses default parameters; 2 (PROVIDED) = STEBBS uses user-specified parameters",
+          "title": "Parameters",
+          "unit": "dimensionless"
+        },
+        "capacitance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_RCMethod_"
+            },
+            {
+              "$ref": "#/$defs/RCMethod"
+            }
+          ],
+          "default": 0,
+          "depends_on": [
+            "stebbs.enabled"
+          ],
+          "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
+          "note": "Only meaningful when STEBBS is enabled; controls building-envelope heat-capacity splitting.",
+          "title": "Capacitance",
+          "unit": "dimensionless"
+        },
+        "setpoint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SetpointMethod_"
+            },
+            {
+              "$ref": "#/$defs/SetpointMethod"
+            }
+          ],
+          "default": 0,
+          "description": "Method to determine the approach of space heating/cooling setpoints in STEBBS. Options: 0 (Constant) = Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.; 1 (Dependent) = Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.; 2 (Scheduled) = Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.",
+          "title": "Setpoint",
+          "unit": "dimensionless"
+        },
+        "same_albedo_wall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameAlbedoWall_"
+            },
+            {
+              "$ref": "#/$defs/SameAlbedoWall"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same albedoes for walls.",
+          "title": "Same Albedo Wall",
+          "unit": "dimensionless"
+        },
+        "same_albedo_roof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameAlbedoRoof_"
+            },
+            {
+              "$ref": "#/$defs/SameAlbedoRoof"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same albedoes for roofs.",
+          "title": "Same Albedo Roof",
+          "unit": "dimensionless"
+        },
+        "same_emissivity_wall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameEmissivityWall_"
+            },
+            {
+              "$ref": "#/$defs/SameEmissivityWall"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same emissivities for walls.",
+          "title": "Same Emissivity Wall",
+          "unit": "dimensionless"
+        },
+        "same_emissivity_roof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameEmissivityRoof_"
+            },
+            {
+              "$ref": "#/$defs/SameEmissivityRoof"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same emissivities for roofs.",
+          "title": "Same Emissivity Roof",
+          "unit": "dimensionless"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "STEBBS Physics Methods",
+      "type": "object"
     },
     "StebbsProperties": {
       "description": "STEBBS (Surface Temperature Energy Balance for Building Surfaces) model parameters.\n\nControls the building energy balance calculations including internal heating/cooling,\nbuilding materials properties, and thermal behaviour.",
       "properties": {
-        "wall_internal_convection_coefficient": {
+        "convection_coefficient_wall_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -10161,10 +10511,10 @@
           "description": "Internal convection coefficient of walls [W m-2 K-1]",
           "display_name": "Wall Internal Convection Coefficient",
           "range_description": "Value must be greater than zero.",
-          "title": "Wall Internal Convection Coefficient",
+          "title": "Convection Coefficient Wall Internal",
           "unit": "W m^-2 K^-1"
         },
-        "roof_internal_convection_coefficient": {
+        "convection_coefficient_roof_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -10184,10 +10534,10 @@
           "default": 10.0,
           "description": "Internal convection coefficient of roof [W m-2 K-1]",
           "display_name": "Roof Internal Convection Coefficient",
-          "title": "Roof Internal Convection Coefficient",
+          "title": "Convection Coefficient Roof Internal",
           "unit": "W m^-2 K^-1"
         },
-        "internal_mass_convection_coefficient": {
+        "convection_coefficient_internal_mass": {
           "anyOf": [
             {
               "anyOf": [
@@ -10207,10 +10557,10 @@
           "default": 7.69,
           "description": "Convection coefficient of internal mass [W m-2 K-1]",
           "display_name": "Internal Mass Convection Coefficient",
-          "title": "Internal Mass Convection Coefficient",
+          "title": "Convection Coefficient Internal Mass",
           "unit": "W m^-2 K^-1"
         },
-        "floor_internal_convection_coefficient": {
+        "convection_coefficient_ground_floor_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -10230,10 +10580,10 @@
           "default": 5.88,
           "description": "Internal convection coefficient of ground floor [W m-2 K-1]",
           "display_name": "Floor Internal Convection Coefficient",
-          "title": "Floor Internal Convection Coefficient",
+          "title": "Convection Coefficient Ground Floor Internal",
           "unit": "W m^-2 K^-1"
         },
-        "window_internal_convection_coefficient": {
+        "convection_coefficient_window_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -10253,10 +10603,10 @@
           "default": 7.69,
           "description": "Internal convection coefficient of windows [W m-2 K-1]",
           "display_name": "Window Internal Convection Coefficient",
-          "title": "Window Internal Convection Coefficient",
+          "title": "Convection Coefficient Window Internal",
           "unit": "W m^-2 K^-1"
         },
-        "wall_external_convection_coefficient": {
+        "convection_coefficient_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -10276,10 +10626,10 @@
           "default": 25.0,
           "description": "Initial external convection coefficient of walls and roof [W m-2 K-1]",
           "display_name": "Wall External Convection Coefficient",
-          "title": "Wall External Convection Coefficient",
+          "title": "Convection Coefficient Wall External",
           "unit": "W m^-2 K^-1"
         },
-        "roof_external_convection_coefficient": {
+        "convection_coefficient_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -10299,10 +10649,10 @@
           "default": 25.0,
           "description": "Initial external convection coefficient of roof [W m-2 K-1]",
           "display_name": "Roof External Convection Coefficient",
-          "title": "Roof External Convection Coefficient",
+          "title": "Convection Coefficient Roof External",
           "unit": "W m^-2 K^-1"
         },
-        "window_external_convection_coefficient": {
+        "convection_coefficient_window_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -10322,10 +10672,10 @@
           "default": 25.0,
           "description": "Initial external convection coefficient of windows [W m-2 K-1]",
           "display_name": "Window External Convection Coefficient",
-          "title": "Window External Convection Coefficient",
+          "title": "Convection Coefficient Window External",
           "unit": "W m^-2 K^-1"
         },
-        "ground_depth": {
+        "depth_ground": {
           "anyOf": [
             {
               "anyOf": [
@@ -10345,10 +10695,10 @@
           "default": 3.0,
           "description": "Depth of external ground (deep soil) [m]",
           "display_name": "Ground Depth",
-          "title": "Ground Depth",
+          "title": "Depth Ground",
           "unit": "m"
         },
-        "external_ground_conductivity": {
+        "thermal_conductivity_ground": {
           "anyOf": [
             {
               "anyOf": [
@@ -10368,10 +10718,10 @@
           "default": 0.193,
           "description": "External ground thermal conductivity",
           "display_name": "External Ground Conductivity",
-          "title": "External Ground Conductivity",
+          "title": "Thermal Conductivity Ground",
           "unit": "W m^-1 K^-1"
         },
-        "metabolism_threshold": {
+        "threshold_metabolism": {
           "anyOf": [
             {
               "anyOf": [
@@ -10391,10 +10741,10 @@
           "default": 74.3,
           "description": "threshold of metabolic rate to determine occupancy active or inactive [W]",
           "display_name": "Metabolic Rate Threshold",
-          "title": "Metabolism Threshold",
+          "title": "Threshold Metabolism",
           "unit": "W"
         },
-        "latent_sensible_ratio": {
+        "ratio_latent_sensible": {
           "anyOf": [
             {
               "anyOf": [
@@ -10415,7 +10765,7 @@
           "default": 0.0,
           "description": "Latent-to-sensible ratio of metabolic energy release of occupants [-]",
           "display_name": "Latent Sensible Ratio",
-          "title": "Latent Sensible Ratio",
+          "title": "Ratio Latent Sensible",
           "unit": "dimensionless"
         },
         "daylight_control": {
@@ -10436,7 +10786,7 @@
           "title": "Daylight Control",
           "unit": "dimensionless"
         },
-        "lighting_illuminance_threshold": {
+        "threshold_lighting_illuminance": {
           "anyOf": [
             {
               "anyOf": [
@@ -10456,10 +10806,10 @@
           "default": 300.0,
           "description": "Indoor illuminance threshold above which electric lighting is switched off [lx]",
           "display_name": "Lighting Illuminance Threshold",
-          "title": "Lighting Illuminance Threshold",
+          "title": "Threshold Lighting Illuminance",
           "unit": "lx"
         },
-        "heating_system_efficiency": {
+        "efficiency_heating_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -10480,10 +10830,10 @@
           "default": 0.9,
           "description": "Efficiency of space heating system [-]",
           "display_name": "Heating System Efficiency",
-          "title": "Heating System Efficiency",
+          "title": "Efficiency Heating System Air",
           "unit": "dimensionless"
         },
-        "max_cooling_power": {
+        "max_power_cooling_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -10503,10 +10853,10 @@
           "default": 0.0,
           "description": "Maximum power demand of cooling system [W]",
           "display_name": "Maximum Cooling Power",
-          "title": "Max Cooling Power",
+          "title": "Max Power Cooling System Air",
           "unit": "W"
         },
-        "cooling_system_cop": {
+        "efficiency_cooling_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -10526,10 +10876,10 @@
           "default": 3.4,
           "description": "Coefficient of performance of cooling system [-]",
           "display_name": "Cooling System COP",
-          "title": "Cooling System Cop",
+          "title": "Efficiency Cooling System Air",
           "unit": "dimensionless"
         },
-        "ventilation_rate": {
+        "rate_ventilation": {
           "anyOf": [
             {
               "anyOf": [
@@ -10549,10 +10899,10 @@
           "default": 0.0,
           "description": "Ventilation rate (air changes per hour, ACH) [h-1]",
           "display_name": "Ventilation Rate",
-          "title": "Ventilation Rate",
+          "title": "Rate Ventilation",
           "unit": "h^-1"
         },
-        "initial_outdoor_temperature": {
+        "temperature_air_outdoor_initial": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10567,10 +10917,10 @@
           "default": 0.0,
           "description": "Initial outdoor temperature [degC]",
           "display_name": "Initial Outdoor Temperature",
-          "title": "Initial Outdoor Temperature",
+          "title": "Temperature Air Outdoor Initial",
           "unit": "degC"
         },
-        "initial_indoor_temperature": {
+        "temperature_air_indoor_initial": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10585,10 +10935,10 @@
           "default": 0.0,
           "description": "Initial indoor temperature [degC]",
           "display_name": "Initial Indoor Temperature",
-          "title": "Initial Indoor Temperature",
+          "title": "Temperature Air Indoor Initial",
           "unit": "degC"
         },
-        "annual_mean_air_temperature": {
+        "temperature_air_annual_mean": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10603,10 +10953,10 @@
           "default": 10.0,
           "description": "Annual mean air temperature [degC]",
           "display_name": "Annual Mean Air Temperature",
-          "title": "Annual Mean Air Temperature",
+          "title": "Temperature Air Annual Mean",
           "unit": "degC"
         },
-        "month_mean_air_temperature_diffmax": {
+        "temperature_air_month_mean_diffmax": {
           "anyOf": [
             {
               "anyOf": [
@@ -10626,10 +10976,10 @@
           "default": 10.0,
           "description": "Maximum difference in monthly outdoor air temperature [degC]",
           "display_name": "Maximum difference in monthly outdoor air temperature",
-          "title": "Month Mean Air Temperature Diffmax",
+          "title": "Temperature Air Month Mean Diffmax",
           "unit": "degC"
         },
-        "hot_water_tank_wall_thickness": {
+        "thickness_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10649,10 +10999,10 @@
           "default": 0.01,
           "description": "Hot water tank wall thickness [m]",
           "display_name": "Water Tank Wall Thickness",
-          "title": "Hot Water Tank Wall Thickness",
+          "title": "Thickness Hot Water Tank Wall",
           "unit": "m"
         },
-        "mains_water_temperature": {
+        "temperature_mains_water": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10667,10 +11017,10 @@
           "default": 0.0,
           "description": "Temperature of water coming into the water tank [degC]",
           "display_name": "Mains Water Temperature",
-          "title": "Mains Water Temperature",
+          "title": "Temperature Mains Water",
           "unit": "degC"
         },
-        "hot_water_tank_surface_area": {
+        "surface_area_hot_water_tank": {
           "anyOf": [
             {
               "anyOf": [
@@ -10690,10 +11040,10 @@
           "default": 2.0,
           "description": "Surface area of hot water tank cylinder [m2]",
           "display_name": "Water Tank Surface Area",
-          "title": "Hot Water Tank Surface Area",
+          "title": "Surface Area Hot Water Tank",
           "unit": "m^2"
         },
-        "hot_water_heating_setpoint_temperature": {
+        "setpoint_temperature_heating_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10713,10 +11063,10 @@
           "default": 60.0,
           "description": "Water tank setpoint temperature [degC]",
           "display_name": "Hot Water Heating Setpoint Temperature",
-          "title": "Hot Water Heating Setpoint Temperature",
+          "title": "Setpoint Temperature Heating Water",
           "unit": "degC"
         },
-        "hot_water_tank_wall_emissivity": {
+        "emissivity_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10737,10 +11087,10 @@
           "default": 0.0,
           "description": "Effective external wall emissivity of the hot water tank [-]",
           "display_name": "Hot Water Tank Wall Emissivity",
-          "title": "Hot Water Tank Wall Emissivity",
+          "title": "Emissivity Hot Water Tank Wall",
           "unit": "dimensionless"
         },
-        "hot_water_vessel_wall_thickness": {
+        "thickness_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10760,10 +11110,10 @@
           "default": 0.005,
           "description": "Hot water vessel wall thickness [m]",
           "display_name": "Hot Water Vessel Wall Thickness",
-          "title": "Hot Water Vessel Wall Thickness",
+          "title": "Thickness Hot Water Vessel Wall",
           "unit": "m"
         },
-        "hot_water_volume": {
+        "volume_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10785,10 +11135,10 @@
           "description": "Volume of water held in use in building [m3]",
           "display_name": "Hot Water Volume",
           "range_description": "Missing range explanation.",
-          "title": "Hot Water Volume",
+          "title": "Volume Hot Water",
           "unit": "m^3"
         },
-        "hot_water_surface_area": {
+        "surface_area_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10808,10 +11158,10 @@
           "default": 0.5,
           "description": "Surface area of hot water in vessels in building [m2]",
           "display_name": "Hot Water Surface Area",
-          "title": "Hot Water Surface Area",
+          "title": "Surface Area Hot Water",
           "unit": "m^2"
         },
-        "hot_water_flow_rate": {
+        "rate_flow_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10831,10 +11181,10 @@
           "default": 0.0,
           "description": "Hot water flow rate from tank to vessel [m3 s-1]",
           "display_name": "Hot Water Flow Rate",
-          "title": "Hot Water Flow Rate",
+          "title": "Rate Flow Hot Water",
           "unit": "m^3 s^-1"
         },
-        "hot_water_flow_profile": {
+        "profile_flow_hot_water": {
           "anyOf": [
             {
               "$ref": "#/$defs/TenMinuteProfile"
@@ -10847,7 +11197,7 @@
           "display_name": "Hot Water Flow Profile",
           "unit": "m^3 s^-1"
         },
-        "hot_water_specific_heat_capacity": {
+        "specific_heat_capacity_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10867,10 +11217,10 @@
           "default": 4186.0,
           "description": "Specific heat capacity of hot water [J kg-1 K-1]",
           "display_name": "Hot Water Specific Heat Capacity",
-          "title": "Hot Water Specific Heat Capacity",
+          "title": "Specific Heat Capacity Hot Water",
           "unit": "J kg^-1 K^-1"
         },
-        "hot_water_tank_specific_heat_capacity": {
+        "specific_heat_capacity_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10890,10 +11240,10 @@
           "default": 500.0,
           "description": "Specific heat capacity of hot water tank wall [J kg-1 K-1]",
           "display_name": "Hot Water Tank Specific Heat Capacity",
-          "title": "Hot Water Tank Specific Heat Capacity",
+          "title": "Specific Heat Capacity Hot Water Tank Wall",
           "unit": "J kg^-1 K^-1"
         },
-        "hot_water_vessel_specific_heat_capacity": {
+        "specific_heat_capacity_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10913,10 +11263,10 @@
           "default": 500.0,
           "description": "Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]",
           "display_name": "Hot Water Vessel Specific Heat Capacity",
-          "title": "Hot Water Vessel Specific Heat Capacity",
+          "title": "Specific Heat Capacity Hot Water Vessel Wall",
           "unit": "J kg^-1 K^-1"
         },
-        "hot_water_density": {
+        "density_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10936,10 +11286,10 @@
           "default": 1000.0,
           "description": "Density of hot water in use [kg m-3]",
           "display_name": "Hot Water Density",
-          "title": "Hot Water Density",
+          "title": "Density Hot Water",
           "unit": "kg m^-3"
         },
-        "hot_water_tank_wall_density": {
+        "density_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10959,10 +11309,10 @@
           "default": 2500.0,
           "description": "Density of hot water tank wall [kg m-3]",
           "display_name": "Hot Water Tank Wall Density",
-          "title": "Hot Water Tank Wall Density",
+          "title": "Density Hot Water Tank Wall",
           "unit": "kg m^-3"
         },
-        "hot_water_vessel_density": {
+        "density_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10982,58 +11332,10 @@
           "default": 2500.0,
           "description": "Density of vessels containing hot water in use [kg m-3]",
           "display_name": "Hot Water Vessel Density",
-          "title": "Hot Water Vessel Density",
+          "title": "Density Hot Water Vessel Wall",
           "unit": "kg m^-3"
         },
-        "hot_water_tank_building_wall_view_factor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Water tank/vessel internal building wall/roof view factor [-]",
-          "display_name": "Hot Water Tank Building Wall View Factor",
-          "title": "Hot Water Tank Building Wall View Factor",
-          "unit": "dimensionless"
-        },
-        "hot_water_tank_internal_mass_view_factor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Water tank/vessel building internal mass view factor [-]",
-          "display_name": "Hot Water Tank Internal Mass View Factor",
-          "title": "Hot Water Tank Internal Mass View Factor",
-          "unit": "dimensionless"
-        },
-        "hot_water_tank_wall_conductivity": {
+        "conductivity_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -11053,10 +11355,10 @@
           "default": 0.5,
           "description": "Effective wall conductivity of the hot water tank [W m-1 K-1]",
           "display_name": "Hot Water Tank Wall Conductivity",
-          "title": "Hot Water Tank Wall Conductivity",
+          "title": "Conductivity Hot Water Tank Wall",
           "unit": "W m^-1 K^-1"
         },
-        "hot_water_tank_internal_wall_convection_coefficient": {
+        "convection_coefficient_hot_water_tank_wall_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -11076,10 +11378,10 @@
           "default": 7.7,
           "description": "Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
           "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
-          "title": "Hot Water Tank Internal Wall Convection Coefficient",
+          "title": "Convection Coefficient Hot Water Tank Wall Internal",
           "unit": "W m^-2 K^-1"
         },
-        "hot_water_tank_external_wall_convection_coefficient": {
+        "convection_coefficient_hot_water_tank_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -11099,10 +11401,10 @@
           "default": 7.7,
           "description": "Effective external wall convection coefficient of the hot water tank [W m-2 K-1]",
           "display_name": "Hot Water Tank External Wall Convection Coefficient",
-          "title": "Hot Water Tank External Wall Convection Coefficient",
+          "title": "Convection Coefficient Hot Water Tank Wall External",
           "unit": "W m^-2 K^-1"
         },
-        "hot_water_vessel_wall_conductivity": {
+        "conductivity_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -11122,10 +11424,10 @@
           "default": 0.5,
           "description": "Effective wall conductivity of the hot water tank [W m-1 K-1]",
           "display_name": "Hot Water Vessel Wall Conductivity",
-          "title": "Hot Water Vessel Wall Conductivity",
+          "title": "Conductivity Hot Water Vessel Wall",
           "unit": "W m^-1 K^-1"
         },
-        "hot_water_vessel_internal_wall_convection_coefficient": {
+        "convection_coefficient_hot_water_tank_vessel_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -11145,10 +11447,10 @@
           "default": 7.7,
           "description": "Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel Internal Wall Convection Coefficient",
-          "title": "Hot Water Vessel Internal Wall Convection Coefficient",
+          "title": "Convection Coefficient Hot Water Tank Vessel Internal",
           "unit": "W m^-2 K^-1"
         },
-        "hot_water_vessel_external_wall_convection_coefficient": {
+        "convection_coefficient_hot_water_tank_vessel_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -11168,10 +11470,10 @@
           "default": 7.7,
           "description": "Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel External Wall Convection Coefficient",
-          "title": "Hot Water Vessel External Wall Convection Coefficient",
+          "title": "Convection Coefficient Hot Water Tank Vessel External",
           "unit": "W m^-2 K^-1"
         },
-        "hot_water_vessel_wall_emissivity": {
+        "emissivity_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -11192,10 +11494,10 @@
           "default": 0.9,
           "description": "Effective external wall emissivity of hot water being used within building [-]",
           "display_name": "Hot Water Vessel Wall Emissivity",
-          "title": "Hot Water Vessel Wall Emissivity",
+          "title": "Emissivity Hot Water Vessel Wall",
           "unit": "dimensionless"
         },
-        "hot_water_heating_efficiency": {
+        "efficiency_heating_system_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -11216,10 +11518,10 @@
           "default": 0.9,
           "description": "Efficiency of hot water system [-]",
           "display_name": "Hot Water Heating Efficiency",
-          "title": "Hot Water Heating Efficiency",
+          "title": "Efficiency Heating System Water",
           "unit": "dimensionless"
         },
-        "appliance_profile": {
+        "profile_appliance": {
           "anyOf": [
             {
               "$ref": "#/$defs/TenMinuteProfile"
@@ -11232,7 +11534,7 @@
           "display_name": "Appliance Profile",
           "unit": "dimensionless"
         },
-        "lighting_power_density": {
+        "power_density_lighting": {
           "anyOf": [
             {
               "anyOf": [
@@ -11252,7 +11554,7 @@
           "default": 2,
           "description": "Lighting power per building floor area [W m-2]",
           "display_name": "Lighting Power Density",
-          "title": "Lighting Power Density",
+          "title": "Power Density Lighting",
           "unit": "W m^-2"
         },
         "ref": {
@@ -11330,7 +11632,7 @@
             }
           ],
           "default": null,
-          "description": "Current water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage.",
+          "description": "Current surface/interception water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html.",
           "display_name": "Storage Capacity",
           "title": "Store Cap",
           "unit": "mm"
@@ -11402,7 +11704,7 @@
       "type": "object"
     },
     "StorageHeatMethod": {
-      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures\n6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients\n7: STEBBS - use STEBBS storage heat flux for building, others use OHM",
+      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets\n6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface\n7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces\n8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
       "enum": [
         0,
         1,
@@ -11410,7 +11712,8 @@
         4,
         5,
         6,
-        7
+        7,
+        8
       ],
       "title": "StorageHeatMethod",
       "type": "integer"
@@ -11707,7 +12010,7 @@
       "type": "object"
     },
     "ThermalLayers": {
-      "description": "Thermal properties of surface layers.",
+      "description": "Five material layers and their thermal properties for a surface facet.\n\nThe material layers are ordered from the exposed surface inward. They extend\ndownward for horizontal ground and roof facets and horizontally into vertical\nwall facets.",
       "properties": {
         "dz": {
           "anyOf": [
@@ -11732,7 +12035,7 @@
             }
           ],
           "default": null,
-          "description": "Thickness of thermal layers from surface to depth",
+          "description": "Individual thickness of each of the five material layers, ordered from the exposed surface inward; values are not cumulative depths",
           "display_name": "Layer Thickness",
           "title": "Dz",
           "unit": "m"
@@ -11760,7 +12063,7 @@
             }
           ],
           "default": null,
-          "description": "Thermal conductivity of each thermal layer",
+          "description": "Thermal conductivity of each of the five material layers, in the same exposed-surface-to-interior order as dz",
           "display_name": "Thermal Conductivity",
           "title": "K",
           "unit": "W m^-1 K^-1"
@@ -11788,7 +12091,7 @@
             }
           ],
           "default": null,
-          "description": "Volumetric heat capacity of each thermal layer",
+          "description": "Volumetric heat capacity of each of the five material layers, in the same exposed-surface-to-interior order as dz",
           "display_name": "Volumetric Heat Capacity",
           "title": "Rho Cp",
           "unit": "J m^-3 K^-1"
@@ -11805,7 +12108,7 @@
           "default": null
         }
       },
-      "title": "Thermal Layers",
+      "title": "Material Layers",
       "type": "object"
     },
     "TimezoneOffset": {
@@ -11855,7 +12158,7 @@
       "type": "number"
     },
     "VerticalLayers": {
-      "description": "Vertical structure of surface layers.",
+      "description": "SPARTACUS-Surface vertical layers and their roof and wall facets.\n\nThe layers divide the height range from ground level to the maximum building\nheight into intervals bounded by horizontal planes and ordered upward. Roof\nentries describe horizontal facets associated with each layer; wall entries\ndescribe vertical facets spanning each layer.",
       "properties": {
         "nlayer": {
           "anyOf": [
@@ -11867,7 +12170,7 @@
             }
           ],
           "default": 3,
-          "description": "Number of vertical layers in the urban canopy",
+          "description": "Number of SPARTACUS vertical layers between ground level and the maximum building height",
           "display_name": "Number of Layers",
           "ge": 1,
           "le": 15,
@@ -11892,7 +12195,7 @@
             20.0,
             30.0
           ],
-          "description": "Heights of layer boundaries, length must be nlayer+1",
+          "description": "Heights of the horizontal boundaries between vertical layers, ordered from ground upward; length must be nlayer+1",
           "display_name": "Layer Heights",
           "title": "Height",
           "unit": "m"
@@ -11914,7 +12217,7 @@
             0.0,
             0.0
           ],
-          "description": "Fraction of vegetation in each layer, length must be nlayer",
+          "description": "Fraction of vegetation obstruction in each vertical layer, length must be nlayer. The lowest layer value may represent trunk or near-ground obstruction and is not required to equal total tree land-cover fraction.",
           "display_name": "Vegetation Fraction",
           "title": "Veg Frac",
           "unit": "dimensionless"
@@ -11936,10 +12239,32 @@
             1.0,
             1.0
           ],
-          "description": "Scaling factor for vegetation in each layer, length must be nlayer",
+          "description": "Scaling factor for vegetation in each SPARTACUS vertical layer; length must be nlayer",
           "display_name": "Vegetation Scale",
           "title": "Veg Scale",
           "unit": "dimensionless"
+        },
+        "veg_ext": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_List_float__"
+            },
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [
+            -999.0,
+            -999.0,
+            -999.0
+          ],
+          "description": "Optional vegetation extinction coefficient override in each SPARTACUS vertical layer; -999 derives from LAI",
+          "display_name": "Vegetation Extinction",
+          "title": "Veg Ext",
+          "unit": "m-1"
         },
         "building_frac": {
           "anyOf": [
@@ -11958,7 +12283,7 @@
             0.3,
             0.2
           ],
-          "description": "Cumulative grid building fraction at each vertical layer (decreasing with height), length must be nlayer",
+          "description": "Cumulative grid building fraction at each SPARTACUS vertical layer, decreasing with height; length must be nlayer",
           "display_name": "Building Fraction",
           "title": "Building Frac",
           "unit": "-"
@@ -11980,13 +12305,13 @@
             10.0,
             10.0
           ],
-          "description": "Diameter of buildings at each vertical layer, length must be nlayer",
+          "description": "Diameter of buildings at each SPARTACUS vertical layer; length must be nlayer",
           "display_name": "Building Scale",
           "title": "Building Scale",
           "unit": "m"
         },
         "roofs": {
-          "description": "Properties for roof surfaces in each layer, length must be nlayer",
+          "description": "Properties of horizontal roof facets at the upper boundary of each SPARTACUS vertical layer, ordered from the lowest layer upward; length must be nlayer",
           "display_name": "Roofs",
           "items": {
             "$ref": "#/$defs/RoofLayer"
@@ -11995,7 +12320,7 @@
           "type": "array"
         },
         "walls": {
-          "description": "Properties for wall surfaces in each layer, length must be nlayer",
+          "description": "Properties of vertical wall facets spanning each SPARTACUS vertical layer, ordered from the lowest layer upward; length must be nlayer",
           "display_name": "Walls",
           "items": {
             "$ref": "#/$defs/WallLayer"
@@ -12015,10 +12340,11 @@
           "default": null
         }
       },
-      "title": "Vertical Layers",
+      "title": "SPARTACUS Vertical Layers",
       "type": "object"
     },
     "WallLayer": {
+      "description": "Properties of a vertical wall facet in a SPARTACUS vertical layer.",
       "properties": {
         "alb": {
           "anyOf": [
@@ -12056,7 +12382,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for this facet, ordered from the exposed surface inward"
         },
         "state_limit": {
           "anyOf": [
@@ -12124,7 +12450,7 @@
             }
           ],
           "default": 0.1,
-          "description": "Directional albedo multiplication factor for roofs",
+          "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; ignored for wall facets",
           "display_name": "Roof Albedo Direct Multiplier",
           "title": "Roof Albedo Dir Mult Fact",
           "unit": "dimensionless"
@@ -12142,7 +12468,7 @@
             }
           ],
           "default": 0.1,
-          "description": "Specular reflection fraction for walls",
+          "description": "SPARTACUS-Surface specular reflection fraction for wall facets; ignored for roof facets",
           "display_name": "Wall Specular Fraction",
           "title": "Wall Specular Frac",
           "unit": "dimensionless"
@@ -12617,7 +12943,7 @@
         },
         "thermal_layers": {
           "$ref": "#/$defs/ThermalLayers",
-          "description": "Thermal layers for the surface"
+          "description": "Five material layers for the surface, ordered from the exposed surface inward"
         },
         "irrigation_fraction": {
           "anyOf": [
@@ -12863,7 +13189,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev9. gh#1372: cumulative restructure of the model.control surface, introducing both ForcingControl and OutputControl sub-objects in a single bump per the dev-label convention (`.claude/rules/python/schema-versioning.md`). (a) Forcing restructure: model.control.forcing_file (str | list[str] | RefValue) is moved under model.control.forcing.file via _apply_forcing_subobject_restructure, creating a stable home for future forcing fields (gh#1373 sub-hourly disaggregation; resampling policy). Forcing-file *content* semantics also tighten: header column names are now read (previously discarded) and matched against the canonical forcing column set; baseline-10 columns (iy, id, it, imin, Tair, RH, U, pres, kdown, rain) are required; missing optional canonical columns are filled with -999; whitelisted per-landcover columns are loaded into SUEWSForcing.extras / ForcingData.extras: lai_<surface> for the three vegetated surfaces (evetr, dectr, grass) only, and wuh_<surface> (external water use) for every surface {paved, bldgs, evetr, dectr, grass, bsoil, water}. Each wuh_<surface> value is a depth in mm per forcing time step (same unit as rain) applied to that surface only; xsmd remains a bulk site-level column. (b) Output restructure: model.control.output_file (Union[str, OutputConfig]) is moved under model.control.output via _apply_output_subobject_restructure - mirrors the ForcingControl move so the model.control surface is uniform. The deprecated string form (silently ignored since 2025.10.15) is dropped; the inner `path` field is renamed to `dir` (clarifies it as a directory). For backward compatibility the Pydantic ModelControl class retains a deprecated `output_file` @property alias (with DeprecationWarning, scheduled for removal in 2026.6) so external Python consumers (UMEP postprocessor, etc.) keep working through the migration window. The (2026.5.dev8 -> 2026.5.dev9) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and runs forcing-restructure first, then output-restructure (audit-log order matches the gh#1372 chronology).",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev3. Development schema completing the CO2Params naming-convention sweep (#1688): fourteen fused or unit-bearing anthropogenic-emissions keys renamed to quantity-first or category-prefixed identifiers. Existing 2026.6.dev2 YAMLs remain compatible through an explicit rename migration; legacy df_state column names are unchanged.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12893,6 +13219,13 @@
       "title": "Description",
       "type": "string"
     },
+    "strict_initial_state_bounds": {
+      "default": true,
+      "description": "Enforce that initial-state values (e.g. initial albedo) lie within their seasonal parameter ranges. Set to False by suews-convert for legacy table sets whose source data carries faithful out-of-range initial conditions the legacy Fortran never enforced; relaxing the check then logs a warning instead of failing validation.",
+      "display_name": "Strict Initial-State Bounds",
+      "title": "Strict Initial State Bounds",
+      "type": "boolean"
+    },
     "model": {
       "$ref": "#/$defs/Model",
       "description": "Model control and physics parameters",
@@ -12909,20 +13242,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.5.dev9",
+  "title": "SUEWS Configuration Schema v2026.6.dev3",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev9.json",
-  "version": "2026.5.dev9",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev3.json",
+  "version": "2026.6.dev3",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.5.dev9"
+    "schema_version": "2026.6.dev3"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.5.dev9",
+      "schema_version": "2026.6.dev3",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

@@ -1,0 +1,209 @@
+# Matched hosted comparison for gh#1626. This is intentionally manual: normal
+# pull requests must not pay for four full physics runs.
+name: Hosted pytest scheduler ABBA
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Build and Publish workflow run containing the Linux cp312 wheel
+        required: true
+        type: string
+      expected_sha:
+        description: Exact 40-character source SHA built by source_run_id
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hosted-pytest-scheduler-abba
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    name: One-runner loadscope/worksteal ABBA
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Verify successful source run and SHA
+        id: source
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "source_run_id must be a positive integer" >&2
+            exit 2
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$RUNNER_TEMP/source-run.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          source_run_id = os.environ["SOURCE_RUN_ID"]
+          expected_sha = os.environ["EXPECTED_SHA"]
+          if not source_run_id.isdigit() or int(source_run_id) <= 0:
+              raise SystemExit("source_run_id must be a positive integer")
+          if re.fullmatch(r"[0-9a-f]{40}", expected_sha) is None:
+              raise SystemExit("expected_sha must be a lowercase 40-character hex digest")
+          payload = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "source-run.json").read_text(encoding="utf-8")
+          )
+          if payload.get("conclusion") != "success":
+              raise SystemExit("source workflow run did not conclude successfully")
+          if payload.get("path") != ".github/workflows/build-publish_to_pypi.yml":
+              raise SystemExit("source_run_id is not the Build and Publish workflow")
+          if payload.get("head_sha") != expected_sha:
+              raise SystemExit("source workflow SHA does not match expected_sha")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"sha={expected_sha}\n")
+          PY
+
+      - name: Checkout the exact built source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Download the exact Linux wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-manylinux-x86_64
+          path: wheelhouse
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id }}
+
+      - name: Resolve the single downloaded wheel
+        id: wheel
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          wheels = sorted(Path("wheelhouse").glob("*.whl"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected exactly one wheel, found {len(wheels)}")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"path={wheels[0].resolve()}\n")
+          PY
+
+      - name: Install the one wheel and pinned scheduler stack
+        shell: bash
+        env:
+          WHEEL_PATH: ${{ steps.wheel.outputs.path }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest==9.1.1 pytest-xdist==3.8.0
+          python -m pip install "$WHEEL_PATH"
+
+      - name: A1 - loadscope
+        continue-on-error: true
+        shell: bash
+        env:
+          SUEWS_CI_METRICS: scheduler-abba/loadscope-a.json
+        run: >-
+          python -m pytest -p scripts.suews.pytest_ci_metrics test
+          -m "physics and (core or not slow)" -v --tb=short --durations=10
+          -n auto --maxprocesses=4 --dist loadscope
+          -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-loadscope-a"
+
+      - name: B1 - worksteal
+        continue-on-error: true
+        shell: bash
+        env:
+          SUEWS_CI_METRICS: scheduler-abba/worksteal-a.json
+        run: >-
+          python -m pytest -p scripts.suews.pytest_ci_metrics test
+          -m "physics and (core or not slow)" -v --tb=short --durations=10
+          -n auto --maxprocesses=4 --dist worksteal
+          -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-worksteal-a"
+
+      - name: B2 - worksteal
+        continue-on-error: true
+        shell: bash
+        env:
+          SUEWS_CI_METRICS: scheduler-abba/worksteal-b.json
+        run: >-
+          python -m pytest -p scripts.suews.pytest_ci_metrics test
+          -m "physics and (core or not slow)" -v --tb=short --durations=10
+          -n auto --maxprocesses=4 --dist worksteal
+          -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-worksteal-b"
+
+      - name: A2 - loadscope
+        continue-on-error: true
+        shell: bash
+        env:
+          SUEWS_CI_METRICS: scheduler-abba/loadscope-b.json
+        run: >-
+          python -m pytest -p scripts.suews.pytest_ci_metrics test
+          -m "physics and (core or not slow)" -v --tb=short --durations=10
+          -n auto --maxprocesses=4 --dist loadscope
+          -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-loadscope-b"
+
+      - name: Record runner memory capacity
+        if: always()
+        id: memory
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          fields = {}
+          for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+              key, value = line.split(":", maxsplit=1)
+              fields[key] = value.strip()
+          total_kib = int(fields["MemTotal"].split()[0])
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"bytes={total_kib * 1024}\n")
+          PY
+
+      - name: Apply policy v2 headroom gate and peak RSS advisory
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RUNNER_MEMORY_BYTES: ${{ steps.memory.outputs.bytes }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          WHEEL_PATH: ${{ steps.wheel.outputs.path }}
+        run: >-
+          python scripts/suews/compare_scheduler_runs.py
+          scheduler-abba/loadscope-a.json
+          scheduler-abba/worksteal-a.json
+          scheduler-abba/worksteal-b.json
+          scheduler-abba/loadscope-b.json
+          --runner-memory-bytes "$RUNNER_MEMORY_BYTES"
+          --source-run-id "$SOURCE_RUN_ID"
+          --source-sha "$SOURCE_SHA"
+          --expected-source-sha "$EXPECTED_SHA"
+          --wheel "$WHEEL_PATH"
+          --max-median-session-regression-fraction 0.05
+          --peak-rss-regression-advisory-fraction 0.10
+          --min-memory-headroom-fraction 0.20
+          --output scheduler-abba/comparison.json
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload raw trials and decision manifest
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: hosted-pytest-scheduler-abba-${{ github.run_id }}
+          path: scheduler-abba/
+          if-no-files-found: error
+          retention-days: 30

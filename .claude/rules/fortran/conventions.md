@@ -44,6 +44,22 @@ Conventions for SUEWS Fortran source files.
 
 ---
 
+## Code Size (heuristics, not gates)
+
+- **One module per file.** The `suews_<category>_<name>.f95` naming implies a
+  single primary module per file; do not accumulate unrelated modules in one file.
+- **Keep procedures focused.** Aim to keep a new subroutine/function to a single
+  calculation, roughly a few hundred lines at most; extract helpers rather than
+  growing one procedure. The legacy giants (e.g. the driver output packing) are
+  migration debt, not a template.
+- **Prefer derived types over long argument lists.** Bundle related state into a
+  `dts_*` type and pass that, instead of adding more positional arguments; flag
+  procedures with very many arguments for a derived-type refactor.
+- A change that only stays small by editing an oversized procedure is a signal to
+  split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
+
+---
+
 ## Examples
 
 ```fortran

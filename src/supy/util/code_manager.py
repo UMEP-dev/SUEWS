@@ -431,7 +431,7 @@ class TemplateSystem:
         df.set_index("Code", inplace=True)
 
         # Write to file
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             # Write header
             f.write("    ".join(template["header"]) + "\n")
             # Write data
@@ -550,7 +550,7 @@ class UniversalCodeManager:
         df.set_index("Code", inplace=True)
 
         # Write to file
-        with open(file_path, "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write("    ".join(fields) + "\n")
             for idx, row in df.iterrows():
                 values = "    ".join(
@@ -595,7 +595,7 @@ class UniversalCodeManager:
             df = df.sort_index()
 
             # Write back to file
-            with open(file_path, "w") as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 # Write header
                 f.write("Code    " + "    ".join(df.columns) + "\n")
                 # Write data

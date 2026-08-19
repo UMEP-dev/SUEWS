@@ -2,9 +2,10 @@ use crate::anthro_emis_prm::anthro_emis_prm_from_ordered_values;
 use crate::anthroemis::anthroemis_state_from_ordered_values;
 use crate::atm::atm_state_from_ordered_values;
 use crate::building_archetype_prm::building_archetype_prm_from_ordered_values;
+use crate::checkpoint::suews_checkpoint_from_json;
 use crate::conductance::conductance_prm_from_ordered_values;
 use crate::config::SuewsConfig;
-use crate::core::{ohm_state_from_ordered_values, NSURF};
+use crate::core::{ohm_state_from_ordered_values, SURFACE_NAMES};
 use crate::ehc_prm::{ehc_prm_from_ordered_values, EhcPrm};
 use crate::error::BridgeError;
 use crate::ffi;
@@ -27,18 +28,19 @@ use crate::snow::snow_state_from_ordered_values;
 use crate::snow_prm::snow_prm_from_ordered_values;
 use crate::solar::solar_state_from_ordered_values;
 use crate::spartacus_layer_prm::{spartacus_layer_prm_from_ordered_values, SpartacusLayerPrm};
-use crate::spartacus_prm::{spartacus_prm_from_ordered_values, SpartacusPrm};
+use crate::spartacus_prm::SpartacusPrm;
 use crate::stebbs_prm::stebbs_prm_from_ordered_values;
 use crate::stebbs_state::stebbs_state_from_ordered_values;
 use crate::suews_site::SuewsSite;
-use crate::suews_state::{suews_state_from_nested_payload, SuewsState};
+use crate::suews_state::SuewsState;
 use crate::surf_store::surf_store_prm_from_ordered_values;
 use crate::timer::{SuewsTimer, SUEWS_TIMER_FLAT_LEN};
-use crate::yaml_config::load_run_config_from_str;
+use crate::yaml_config::{load_run_config_from_str, RunConfig};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-pub const MET_FORCING_COLS: usize = 21;
+pub const MET_FORCING_COLS: usize = 32;
+const BUILDING_SURFACE_INDEX: usize = 1;
 
 // Per-group output column counts (including 5-column datetime prefix).
 // Auto-generated from Fortran ncolumnsDataOut* constants in suews_ctrl_const.f95.
@@ -404,8 +406,20 @@ fn validate_site_codec(
     let nlayer_usize = usize::try_from(nlayer).map_err(|_| BridgeError::BadBuffer)?;
 
     let spartacus_slice = member_slice(site_flat, site_toc, SITE_MEMBER_SPARTACUS)?;
+    let legacy_spartacus_len = 14usize
+        .checked_add(nlayer_usize + 1)
+        .ok_or(BridgeError::BadBuffer)?;
+    let v2_spartacus_len = 16usize
+        .checked_add(nlayer_usize + 1)
+        .ok_or(BridgeError::BadBuffer)?;
     let spartacus = if spartacus_slice.len() == 14 {
-        spartacus_prm_from_ordered_values(spartacus_slice)?
+        SpartacusPrm::from_legacy_flat_with_height_len(spartacus_slice, 0)?
+    } else if spartacus_slice.len() == legacy_spartacus_len {
+        SpartacusPrm::from_legacy_flat_with_height_len(spartacus_slice, nlayer_usize + 1)?
+    } else if spartacus_slice.len() == 16 {
+        SpartacusPrm::from_v2_flat_with_height_len(spartacus_slice, 0)?
+    } else if spartacus_slice.len() == v2_spartacus_len {
+        SpartacusPrm::from_v2_flat_with_height_len(spartacus_slice, nlayer_usize + 1)?
     } else {
         SpartacusPrm::from_flat_with_height_len(spartacus_slice, nlayer_usize + 1)?
     };
@@ -415,13 +429,13 @@ fn validate_site_codec(
     let ehc = if ehc_slice.is_empty() {
         ehc_prm_from_ordered_values(ehc_slice)?
     } else {
-        EhcPrm::from_flat_with_dims(ehc_slice, NSURF, ndepth as usize)?
+        EhcPrm::from_flat_with_dims(ehc_slice, nlayer_usize, ndepth as usize)?
     };
     let spartacus_layer_slice = member_slice(site_flat, site_toc, SITE_MEMBER_SPARTACUS_LAYER)?;
     let spartacus_layer = if spartacus_layer_slice.is_empty() {
         spartacus_layer_prm_from_ordered_values(spartacus_layer_slice)?
     } else {
-        let base_len = 8usize
+        let base_len = 9usize
             .checked_mul(nlayer_usize)
             .ok_or(BridgeError::BadBuffer)?;
         if spartacus_layer_slice.len() < base_len {
@@ -568,11 +582,81 @@ fn fortran_weekday_from_ymd(year: i32, month: i32, day: i32) -> i32 {
     w + 1
 }
 
+fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError> {
+    let storage_heat_method = run_cfg.config.storage_heat_method;
+    if !matches!(storage_heat_method, 6..=8) {
+        return Ok(());
+    }
+
+    if storage_heat_method == 7 && !matches!(run_cfg.config.net_radiation_method, 1001..=1003) {
+        return Err(simulation_error(format!(
+            "STEBBS storage heat (method 7) requires SPARTACUS-Surface net radiation (1001, 1002, or 1003); got {}",
+            run_cfg.config.net_radiation_method
+        )));
+    }
+
+    let ndepth = usize::try_from(run_cfg.ndepth)
+        .ok()
+        .filter(|&value| value > 0)
+        .ok_or_else(|| simulation_error("DyOHM requires a positive material-layer count"))?;
+
+    // Methods 6 and 8 calculate building DyOHM coefficients, whose
+    // parameterisation uses the building surface-to-plan-area ratio.
+    if matches!(storage_heat_method, 6 | 8) {
+        let lambda_c = run_cfg.site_scalars.lambda_c;
+        if !lambda_c.is_finite() || lambda_c <= 0.0 {
+            return Err(simulation_error(format!(
+                "invalid site scalar for building DyOHM: lambda_c={lambda_c}"
+            )));
+        }
+    }
+
+    for (surf_idx, &surface_name) in SURFACE_NAMES.iter().enumerate() {
+        let material_is_used = match storage_heat_method {
+            // Full DyOHM uses every SUEWS surface. STEBBS owns the building
+            // storage heat and temperatures in method 7, so only non-building
+            // surfaces use DyOHM materials. Building-only DyOHM uses buildings.
+            6 => true,
+            7 => surf_idx != BUILDING_SURFACE_INDEX,
+            8 => surf_idx == BUILDING_SURFACE_INDEX,
+            _ => false,
+        };
+        if !material_is_used {
+            continue;
+        }
+
+        let offset = surf_idx
+            .checked_mul(ndepth)
+            .ok_or_else(|| simulation_error("DyOHM material-layer offset overflow"))?;
+        let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
+        let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
+        let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
+        if !dz.is_finite()
+            || !cp.is_finite()
+            || !k.is_finite()
+            || dz <= 0.0
+            || cp <= 0.0
+            || k <= 0.0
+        {
+            let surface_name = if surf_idx == BUILDING_SURFACE_INDEX {
+                "bldgs"
+            } else {
+                surface_name
+            };
+            return Err(simulation_error(format!(
+                "invalid outermost material layer for DyOHM surface `{surface_name}`: dz={dz}, rho_cp={cp}, k={k}"
+            )));
+        }
+    }
+
+    Ok(())
+}
+
 pub fn run_from_config_str_and_forcing(
     config_yaml: &str,
     forcing_block: Vec<f64>,
     len_sim: usize,
-) -> Result<(Vec<f64>, SuewsState, usize), BridgeError> {
+) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -611,40 +695,7 @@ pub fn run_from_config_str_and_forcing(
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
-    // Guardrail: DyOHM (storageheatmethod 6/7) requires positive material
-    // properties and lambda_c. Catch malformed config input before entering
-    // Fortran to avoid opaque runtime errors.
-    let storage_heat_method = run_cfg.config.storage_heat_method;
-    if storage_heat_method == 6 || storage_heat_method == 7 {
-        let lambda_c = run_cfg.site_scalars.lambda_c;
-        if lambda_c <= 0.0 {
-            return Err(simulation_error(format!(
-                "invalid site scalar for DyOHM: lambda_c={lambda_c}"
-            )));
-        }
-
-        let dz_wall_11 = run_cfg.site.ehc.dz_wall.first().copied().unwrap_or(0.0);
-        let cp_wall_11 = run_cfg.site.ehc.cp_wall.first().copied().unwrap_or(0.0);
-        let k_wall_11 = run_cfg.site.ehc.k_wall.first().copied().unwrap_or(0.0);
-        if dz_wall_11 <= 0.0 || cp_wall_11 <= 0.0 || k_wall_11 <= 0.0 {
-            return Err(simulation_error(format!(
-                "invalid EHC wall layer(1,1) for DyOHM: dz={dz_wall_11}, cp={cp_wall_11}, k={k_wall_11}"
-            )));
-        }
-
-        for surf_idx in 0..NSURF {
-            let offset = surf_idx;
-            let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
-            let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
-            let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
-            if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
-                return Err(simulation_error(format!(
-                    "invalid EHC surface layer(1,{}) for DyOHM: dz={dz}, cp={cp}, k={k}",
-                    surf_idx + 1
-                )));
-            }
-        }
-    }
+    validate_dyohm_material_inputs(&run_cfg)?;
 
     let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
     let day_of_month = {
@@ -703,18 +754,17 @@ pub fn run_from_config_str_and_forcing(
         ndepth: run_cfg.ndepth,
     })?;
 
-    Ok((sim_out.output_block, sim_out.state, len_sim))
+    Ok((sim_out.output_block, sim_out.state, sim_out.timer, len_sim))
 }
 
 /// Like [`run_from_config_str_and_forcing`] but replaces the config-derived
-/// initial state with a state decoded from *state_json* (the nested-payload
-/// JSON produced by a previous run).
+/// initial state and elapsed timer with a checkpoint decoded from *state_json*.
 pub fn run_from_config_str_and_forcing_with_state(
     config_yaml: &str,
     forcing_block: Vec<f64>,
     len_sim: usize,
     state_json: &str,
-) -> Result<(Vec<f64>, SuewsState, usize), BridgeError> {
+) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -734,10 +784,15 @@ pub fn run_from_config_str_and_forcing_with_state(
         )));
     }
 
-    // Decode state from previous chunk's JSON output.
-    let state_value: serde_json::Value = serde_json::from_str(state_json)
-        .map_err(|e| simulation_error(format!("invalid state JSON: {e}")))?;
-    run_cfg.state = suews_state_from_nested_payload(&state_value)?;
+    // Decode state and elapsed timer from the previous chunk's checkpoint.
+    let checkpoint = suews_checkpoint_from_json(state_json)?;
+    if checkpoint.timer.tstep != run_cfg.timer.tstep {
+        return Err(simulation_error(format!(
+            "checkpoint timestep {} s does not match configuration timestep {} s",
+            checkpoint.timer.tstep, run_cfg.timer.tstep
+        )));
+    }
+    run_cfg.state = checkpoint.state;
 
     // Set timer fields from the first forcing row.
     let first_row = &forcing_block[..MET_FORCING_COLS];
@@ -750,45 +805,15 @@ pub fn run_from_config_str_and_forcing_with_state(
     run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
-    // Keep first-step timing consistent with non-state run path.
-    run_cfg.timer.dt_since_start = run_cfg.timer.tstep;
-    run_cfg.timer.dt_since_start_prev = 0;
+    run_cfg.timer.dt_since_start = checkpoint.timer.dt_since_start;
+    run_cfg.timer.dt_since_start_prev = checkpoint.timer.dt_since_start_prev;
+    run_cfg.timer.new_day = checkpoint.timer.new_day;
     run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
         + run_cfg.timer.it as f64 / 24.0
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
-    let storage_heat_method = run_cfg.config.storage_heat_method;
-    if storage_heat_method == 6 || storage_heat_method == 7 {
-        let lambda_c = run_cfg.site_scalars.lambda_c;
-        if lambda_c <= 0.0 {
-            return Err(simulation_error(format!(
-                "invalid site scalar for DyOHM: lambda_c={lambda_c}"
-            )));
-        }
-
-        let dz_wall_11 = run_cfg.site.ehc.dz_wall.first().copied().unwrap_or(0.0);
-        let cp_wall_11 = run_cfg.site.ehc.cp_wall.first().copied().unwrap_or(0.0);
-        let k_wall_11 = run_cfg.site.ehc.k_wall.first().copied().unwrap_or(0.0);
-        if dz_wall_11 <= 0.0 || cp_wall_11 <= 0.0 || k_wall_11 <= 0.0 {
-            return Err(simulation_error(format!(
-                "invalid EHC wall layer(1,1) for DyOHM: dz={dz_wall_11}, cp={cp_wall_11}, k={k_wall_11}"
-            )));
-        }
-
-        for surf_idx in 0..NSURF {
-            let offset = surf_idx;
-            let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
-            let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
-            let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
-            if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
-                return Err(simulation_error(format!(
-                    "invalid EHC surface layer(1,{}) for DyOHM: dz={dz}, cp={cp}, k={k}",
-                    surf_idx + 1
-                )));
-            }
-        }
-    }
+    validate_dyohm_material_inputs(&run_cfg)?;
 
     let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
     let day_of_month = {
@@ -837,7 +862,7 @@ pub fn run_from_config_str_and_forcing_with_state(
         ndepth: run_cfg.ndepth,
     })?;
 
-    Ok((sim_out.output_block, sim_out.state, len_sim))
+    Ok((sim_out.output_block, sim_out.state, sim_out.timer, len_sim))
 }
 
 pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, BridgeError> {
@@ -883,7 +908,12 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         return Err(BridgeError::BadState);
     }
 
-    validate_site_codec(&site_members.flat, &site_members.toc, input.nlayer, input.ndepth)?;
+    validate_site_codec(
+        &site_members.flat,
+        &site_members.toc,
+        input.nlayer,
+        input.ndepth,
+    )?;
 
     let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
     let mut state_out = vec![0.0_f64; state_members.flat.len()];
@@ -985,8 +1015,119 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
 
 #[cfg(test)]
 mod tests {
-    use super::OUTPUT_GROUP_LAYOUT;
+    use super::{validate_dyohm_material_inputs, BUILDING_SURFACE_INDEX, OUTPUT_GROUP_LAYOUT};
     use crate::ffi;
+    use crate::yaml_config::load_run_config_from_str;
+
+    fn fixture_run_config(storage_heat_method: i32) -> crate::yaml_config::RunConfig {
+        let yaml = include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut run_cfg = load_run_config_from_str(yaml).expect("fixture config should parse");
+        run_cfg.config.storage_heat_method = storage_heat_method;
+        run_cfg
+    }
+
+    #[test]
+    fn dyohm_building_validation_uses_building_not_wall() {
+        let mut run_cfg = fixture_run_config(8);
+        run_cfg.site.ehc.dz_wall[0] = 0.0;
+        run_cfg.site.ehc.cp_wall[0] = 0.0;
+        run_cfg.site.ehc.k_wall[0] = 0.0;
+
+        validate_dyohm_material_inputs(&run_cfg)
+            .expect("wall materials should not be required by building DyOHM");
+
+        let building_offset = BUILDING_SURFACE_INDEX * run_cfg.ndepth as usize;
+        run_cfg.site.ehc.dz_surf[building_offset] = 0.0;
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("invalid building material should be rejected")
+            .to_string();
+        assert!(error.contains("bldgs"), "unexpected error: {error}");
+    }
+
+    #[test]
+    fn stebbs_with_dyohm_does_not_require_building_material() {
+        let mut run_cfg = fixture_run_config(7);
+        let building_offset = BUILDING_SURFACE_INDEX * run_cfg.ndepth as usize;
+        run_cfg.site.ehc.dz_surf[building_offset] = 0.0;
+        run_cfg.site.ehc.cp_surf[building_offset] = 0.0;
+        run_cfg.site.ehc.k_surf[building_offset] = 0.0;
+
+        validate_dyohm_material_inputs(&run_cfg)
+            .expect("STEBBS owns building storage heat and temperatures in method 7");
+
+        let evetr_offset = 2 * run_cfg.ndepth as usize;
+        run_cfg.site.ehc.cp_surf[evetr_offset] = 0.0;
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("method 7 still requires non-building DyOHM materials")
+            .to_string();
+        assert!(error.contains("evetr"), "unexpected error: {error}");
+    }
+
+    #[test]
+    fn stebbs_with_dyohm_requires_spartacus_radiation() {
+        let mut run_cfg = fixture_run_config(7);
+        run_cfg.config.net_radiation_method = 3;
+
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("method 7 should reject non-SPARTACUS radiation")
+            .to_string();
+
+        assert!(
+            error.contains("1001, 1002, or 1003"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn dyohm_methods_do_not_require_spartacus_radiation() {
+        for storage_heat_method in [6, 8] {
+            let mut run_cfg = fixture_run_config(storage_heat_method);
+            run_cfg.config.net_radiation_method = 3;
+
+            validate_dyohm_material_inputs(&run_cfg)
+                .expect("DyOHM methods 6 and 8 should allow NARP radiation");
+        }
+    }
+
+    #[test]
+    fn dyohm_validation_indexes_outermost_layer_for_each_surface() {
+        let mut run_cfg = fixture_run_config(6);
+        let evetr_offset = 2 * run_cfg.ndepth as usize;
+        run_cfg.site.ehc.k_surf[evetr_offset] = 0.0;
+
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("invalid evergreen-tree outermost layer should be rejected")
+            .to_string();
+        assert!(error.contains("evetr"), "unexpected error: {error}");
+    }
+
+    #[test]
+    fn stebbs_with_dyohm_does_not_require_building_lambda_c() {
+        let mut run_cfg = fixture_run_config(7);
+        run_cfg.site_scalars.lambda_c = 0.0;
+
+        validate_dyohm_material_inputs(&run_cfg)
+            .expect("method 7 uses a fixed non-building lambda and STEBBS for buildings");
+    }
+
+    #[test]
+    fn dyohm_validation_rejects_nonfinite_inputs() {
+        let mut run_cfg = fixture_run_config(6);
+        let building_offset = BUILDING_SURFACE_INDEX * run_cfg.ndepth as usize;
+        run_cfg.site.ehc.k_surf[building_offset] = f64::NAN;
+
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("non-finite material properties should be rejected")
+            .to_string();
+        assert!(error.contains("bldgs"), "unexpected error: {error}");
+
+        run_cfg.site.ehc.k_surf[building_offset] = 1.0;
+        run_cfg.site_scalars.lambda_c = f64::INFINITY;
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("non-finite lambda_c should be rejected")
+            .to_string();
+        assert!(error.contains("lambda_c"), "unexpected error: {error}");
+    }
 
     #[test]
     fn output_group_layout_matches_fortran_ncolumns() {
@@ -1014,11 +1155,7 @@ mod tests {
         let mut err = -1_i32;
 
         unsafe {
-            ffi::suews_output_group_ncolumns(
-                ncols_arr.as_mut_ptr(),
-                &mut n_groups,
-                &mut err,
-            );
+            ffi::suews_output_group_ncolumns(ncols_arr.as_mut_ptr(), &mut n_groups, &mut err);
         }
 
         assert_eq!(

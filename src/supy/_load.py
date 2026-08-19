@@ -15,7 +15,8 @@ from packaging import version
 
 
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
-from ._misc import path_insensitive 
+from ._misc import path_insensitive
+from .data_model.forcing import FORCING_REGISTRY
 
 # choose different second representation to accommodate different pandas versions
 # pandas version <1.5
@@ -98,74 +99,48 @@ dict_varSiteSelect2File = {
 dict_Code2File.update(dict_varSiteSelect2File)
 
 
-# define data types for different resampling schemes
-# time: temporal info
-# avg: average values of period ending at timestamps
-# inst: instantaneous values at timestamps
-# sum: sum of period ending at timestamps
-dict_var_type_forcing = {
-    "iy": "time",
-    "id": "time",
-    "it": "time",
-    "imin": "time",
-    "qn": "avg",
-    "qh": "avg",
-    "qe": "avg",
-    "qs": "avg",
-    "qf": "avg",
-    "U": "inst",
-    "RH": "inst",
-    "Tair": "inst",
-    "pres": "inst",
-    "rain": "sum",
-    "kdown": "avg",
-    "snow": "inst",
-    "ldown": "avg",
-    "fcld": "inst",
-    "Wuh": "sum",
-    "xsmd": "inst",
-    "lai": "inst",
-    "kdiff": "avg",
-    "kdir": "avg",
-    "wdir": "inst",
-    "isec": "time",
-}
+# Compatibility projection used by the existing resampling code. ``isec`` is
+# derived internally and therefore remains outside the external registry.
+dict_var_type_forcing = {**FORCING_REGISTRY.temporal_types, "isec": "time"}
 
 
 # gh#1372 -- canonical forcing column name set (Python side, 24 cols),
-# baseline-required subset, per-landcover whitelist, and surface short
+# baseline-required datetime columns, baseline-required meteorological subset
+# (six non-datetime cols), per-landcover whitelist, and surface short
 # codes. Column names are matched case-insensitively against the
 # lower-cased canonical set; the DataFrame uses the canonical (cased)
 # names below. Whitelist must stay in sync with the Rust constants in
 # src/suews_bridge/src/forcing_io.rs.
-CANONICAL_FORCING_COLUMNS: list[str] = [
-    "iy", "id", "it", "imin",
-    "qn", "qh", "qe", "qs", "qf",
-    "U", "RH", "Tair", "pres", "rain", "kdown",
-    "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
-    "kdiff", "kdir", "wdir",
-]
-BASELINE_FORCING_COLUMNS: frozenset[str] = frozenset({
-    "iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain",
-})
-PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai", "wuh"})
-LANDCOVER_SUFFIXES: tuple[str, ...] = (
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-)
+BASELINE_DATETIME_FORCING_COLUMNS = FORCING_REGISTRY.baseline_datetime_columns
+BASELINE_DATETIME_FORCING_SET: frozenset[str] = frozenset(BASELINE_DATETIME_FORCING_COLUMNS)
+
+BASELINE_FORCING_COLUMNS = FORCING_REGISTRY.baseline_driver_columns
+BASELINE_FORCING_COLUMNS_SET: frozenset[str] = frozenset(BASELINE_FORCING_COLUMNS)
+
+OPTIONAL_FORCING_COLUMNS = list(FORCING_REGISTRY.optional_canonical_columns)
+
+ORDERED_CANONICAL_FORCING_COLUMNS = FORCING_REGISTRY.canonical_file_columns
+CANONICAL_FORCING_COLUMNS = frozenset(ORDERED_CANONICAL_FORCING_COLUMNS)
+
+_PER_LANDCOVER_COLUMNS = FORCING_REGISTRY.per_landcover_columns
+PER_LANDCOVER_FORCING_VARS = frozenset(_PER_LANDCOVER_COLUMNS)
 # LAI is only meaningful for vegetated surfaces; the other four surface
 # types do not carry a leaf-area-index value. wuh (external water use)
 # is accepted on every surface — irrigation and impervious-surface
 # washing on land surfaces, fountains and ornamental water features on
 # the open-water surface (gh#1372 follow-up; see meeting 2026-05-01).
-LAI_LANDCOVER_SUFFIXES: tuple[str, ...] = ("evetr", "dectr", "grass")
-WUH_LANDCOVER_SUFFIXES: tuple[str, ...] = (
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+LAI_LANDCOVER_SUFFIXES = tuple(
+    name.removeprefix("lai_") for name in _PER_LANDCOVER_COLUMNS["lai"]
 )
+WUH_LANDCOVER_SUFFIXES = tuple(
+    name.removeprefix("wuh_") for name in _PER_LANDCOVER_COLUMNS["wuh"]
+)
+LANDCOVER_SUFFIXES = WUH_LANDCOVER_SUFFIXES
 PER_LANDCOVER_ALLOWED_SUFFIXES: dict[str, tuple[str, ...]] = {
     "lai": LAI_LANDCOVER_SUFFIXES,
     "wuh": WUH_LANDCOVER_SUFFIXES,
 }
-FORCING_OPTIONAL_FILL: float = -999.0
+FORCING_OPTIONAL_FILL = FORCING_REGISTRY.missing_value
 
 
 def _is_per_landcover_column(name: str) -> bool:
@@ -183,6 +158,27 @@ def _per_landcover_forcing_var(name: str) -> Optional[str]:
         if lowered[len(prefix):] in allowed:
             return var
     return None
+
+
+def _validate_wuh_values(data_forcing: pd.DataFrame) -> None:
+    """Validate observed water use before generic sentinel normalisation."""
+    for column in data_forcing.columns:
+        is_wuh = str(column).casefold() == "wuh" or (
+            _per_landcover_forcing_var(str(column)) == "wuh"
+        )
+        if not is_wuh:
+            continue
+        values = data_forcing[column]
+        invalid = (values != FORCING_OPTIONAL_FILL) & (
+            ~np.isfinite(values) | (values < 0)
+        )
+        if invalid.any():
+            positions = np.flatnonzero(invalid.to_numpy()).tolist()
+            raise ValueError(
+                f"forcing column '{column}' must contain finite non-negative "
+                f"water-use depths or exact {FORCING_OPTIONAL_FILL}; invalid "
+                f"row position(s): {positions}"
+            )
 
 
 def _coalesce_case_variant_columns(
@@ -509,12 +505,11 @@ def resample_kdn(data_raw_kdn, tstep_mod, timezone, lat, lon, alt):
 # correct precipitation by even redistribution over resampled periods
 def resample_sum(data_raw_precip, tstep_in, tstep_mod):
     # gh#1372 review: preserve the FORCING_OPTIONAL_FILL (-999) sentinel
-    # for sum columns that carry no real data. ``to_nan`` upstream has
-    # already converted the sentinel to NaN; without this guard the
+    # for ordinary sum columns that carry no real data. ``to_nan`` upstream
+    # has converted their sentinel to NaN; without this guard the
     # ``fillna(0.0)`` at the end would silently turn "missing" into
-    # "valid zero", masking truly absent inputs (e.g. an hourly forcing
-    # file that omits Wuh would surface as zero water use instead of
-    # being treated as missing under the observed-water-use path).
+    # "valid zero". Wuh is restored before this function and handled per
+    # input interval below because it uses the exact -999 contract.
     sentinel_columns = [
         c for c in data_raw_precip.columns if data_raw_precip[c].isna().all()
     ]
@@ -537,6 +532,23 @@ def resample_sum(data_raw_precip, tstep_in, tstep_mod):
     # Restore sentinel for columns that were entirely missing on input.
     for col in sentinel_columns:
         data_tstep_precip_adj[col] = FORCING_OPTIONAL_FILL
+    # Wuh uses an exact per-interval sentinel contract. Split each valid
+    # accumulated depth evenly and repeat -999 across the corresponding
+    # output interval, matching the Rust reader.
+    ratio_steps = int(tstep_in / tstep_mod)
+    for col in data_raw_precip.columns:
+        is_wuh = str(col).casefold() == "wuh" or (
+            _per_landcover_forcing_var(str(col)) == "wuh"
+        )
+        if not is_wuh:
+            continue
+        expanded = np.repeat(data_raw_precip[col].to_numpy(), ratio_steps)
+        expanded = expanded[: len(data_tstep_precip_adj)]
+        data_tstep_precip_adj[col] = np.where(
+            expanded == FORCING_OPTIONAL_FILL,
+            FORCING_OPTIONAL_FILL,
+            expanded * ratio_precip,
+        )
     return data_tstep_precip_adj
 
 
@@ -623,8 +635,17 @@ def resample_forcing_met(
 
     from .util import to_nan
 
+    _validate_wuh_values(data_met_raw)
+    wuh_columns = [
+        column
+        for column in data_met_raw.columns
+        if str(column).casefold() == "wuh"
+        or _per_landcover_forcing_var(str(column)) == "wuh"
+    ]
+    data_wuh_raw = data_met_raw.loc[:, wuh_columns].copy()
     data_met_raw = data_met_raw.copy()
     data_met_raw = to_nan(data_met_raw)
+    data_met_raw.loc[:, wuh_columns] = data_wuh_raw
     # this line is kept for occasional debugging:
     if logger_supy.level < 20:
         p_data_met_raw = "data_met_raw.pkl"
@@ -728,11 +749,11 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
     """
 
     # drop rows with missing timestamp information (e.g., footer lines with -9)
-    df_raw = df_raw.dropna(subset=df_raw.columns[:4])
+    df_raw = df_raw.dropna(subset=BASELINE_DATETIME_FORCING_SET)
 
     # set timestamp as index
     idx_dt = pd.date_range(
-        *df_raw.iloc[[0, -1], :4]
+        *df_raw.iloc[[0, -1]][list(BASELINE_DATETIME_FORCING_COLUMNS)]
         .astype(int)
         .astype(str)
         .apply(lambda ser: ser.str.cat(sep=" "), axis=1)
@@ -740,7 +761,7 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
         periods=df_raw.shape[0],
     )
     list_dt = [
-        *df_raw.iloc[:, :4]
+        *df_raw[list(BASELINE_DATETIME_FORCING_COLUMNS)]
         .astype(int)
         .astype(str)
         .apply(lambda ser: ser.str.cat(sep=" "), axis=1)
@@ -846,6 +867,30 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     return df_combined
 
 
+def _validate_integer_timestamp_columns(
+    df_forcing: pd.DataFrame,
+    columns: list[str],
+) -> None:
+    """Reject timestamp coordinates that would be truncated by integer casting."""
+    for column in columns:
+        numeric = pd.to_numeric(df_forcing[column], errors="coerce")
+        invalid = numeric.isna() | ~np.isfinite(numeric) | (numeric % 1 != 0)
+        if not invalid.any():
+            continue
+
+        offenders = [
+            f"row {index}: {value!r}"
+            for index, value in df_forcing.loc[invalid, column].head(5).items()
+        ]
+        remaining = int(invalid.sum()) - len(offenders)
+        if remaining:
+            offenders.append(f"... (+{remaining} more)")
+        raise ValueError(
+            f"forcing timestamp column '{column}' must contain integer values; "
+            f"invalid value(s): {', '.join(offenders)}"
+        )
+
+
 def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     """Reindex a raw forcing DataFrame against canonical names (gh#1372).
 
@@ -870,24 +915,27 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     # would reject files the previous positional loader accepted.
     header_groups: dict[str, list[str]] = {}
     for col in df_forcing_met.columns:
-        header_groups.setdefault(str(col).lstrip("%").lower(), []).append(col)
+        normalised = str(col).lstrip("%")
+        variable = FORCING_REGISTRY.by_file_name(normalised)
+        group_name = variable.name if variable is not None else normalised
+        header_groups.setdefault(group_name.lower(), []).append(col)
     canonical_lower = {c.lower() for c in CANONICAL_FORCING_COLUMNS}
 
     # 1) Baseline-required columns must be present (case-insensitive).
     missing_baseline = [
-        canon for canon in CANONICAL_FORCING_COLUMNS
-        if canon in BASELINE_FORCING_COLUMNS and canon.lower() not in header_groups
+        baseline for baseline in FORCING_REGISTRY.baseline_file_columns
+        if baseline.lower() not in header_groups
     ]
     if missing_baseline:
         raise ValueError(
             "forcing file(s) missing required baseline columns: "
             f"{missing_baseline}. Required baseline (case-insensitive): "
-            f"{sorted(BASELINE_FORCING_COLUMNS)}."
+            f"{list(FORCING_REGISTRY.baseline_file_columns)}."
         )
 
     # 2) Pull canonical columns out (rename to the canonical case).
     canonical_present: dict[str, pd.Series] = {}
-    for canon in CANONICAL_FORCING_COLUMNS:
+    for canon in ORDERED_CANONICAL_FORCING_COLUMNS:
         actual = header_groups.get(canon.lower())
         if actual is not None:
             canonical_present[canon] = _coalesce_case_variant_columns(
@@ -913,7 +961,7 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     # 4) Assemble the canonical 24-column DataFrame; fill missing optionals.
     n_rows = len(df_forcing_met)
     out_cols: dict[str, np.ndarray] = {}
-    for canon in CANONICAL_FORCING_COLUMNS:
+    for canon in ORDERED_CANONICAL_FORCING_COLUMNS:
         if canon in canonical_present:
             out_cols[canon] = canonical_present[canon].to_numpy()
         else:
@@ -925,11 +973,14 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
         df_canonical[name] = series.to_numpy()
 
     # 6) Existing post-processing.
+    _validate_wuh_values(df_canonical)
     df_canonical["pres"] *= 10  # kPa -> hPa
     df_canonical["isec"] = 0
-    df_canonical[["iy", "id", "it", "imin", "isec"]] = df_canonical[
-        ["iy", "id", "it", "imin", "isec"]
-    ].astype(np.int64)
+    complete_dt_columns = list(BASELINE_DATETIME_FORCING_COLUMNS) + ["isec"]
+    _validate_integer_timestamp_columns(df_canonical, complete_dt_columns)
+    df_canonical[complete_dt_columns] = df_canonical[complete_dt_columns].astype(
+        np.int64
+    )
     df_canonical = set_index_dt(df_canonical)
     return df_canonical
 

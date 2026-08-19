@@ -115,6 +115,11 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
 Parameter Documentation
 -----------------------
 
+Before configuring height-dependent roof and wall properties, read
+:ref:`layer_conventions`. It defines the SPARTACUS vertical-layer geometry and,
+separately, the input structure for five material layers. It also identifies
+which storage-heat and radiation methods use each property.
+
 **Complete Parameter Reference:**
 
 The full documentation for all YAML parameters is available in the :doc:`config-reference/index`. This reference includes:
@@ -182,7 +187,7 @@ The forcing file must be a text file with specific columns in the correct order.
 
 - Data must be continuous (no gaps)
 - Time stamps indicate the **end** of each period
-- Use local time (not UTC)
+- Use local standard time (fixed UTC offset, not civil time with daylight-saving shifts; see :doc:`/inputs/forcing-data` for details)
 - Use -999 for missing optional variables
 
 For detailed format specifications, column order, and optional variables, see :doc:`/inputs/forcing-data`.
@@ -282,7 +287,7 @@ Urban Site Configuration
 Tips for Success
 ----------------
 
-1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it — configs that omit physics-required blocks (``conductance``, per-surface ``lai``, tree ``fai_*``/``height_*``, ``bldgs.bldgh``/``faibldg``) raise a :class:`ValueError` at load (gh#1333)
+1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it; configs that omit physics-required blocks (``conductance``, per-surface ``lai``, tree ``fai_*``/``height_*``, ``bldgs.bldgh``/``faibldg``) raise a :class:`ValueError` at load time.
 2. **Validate early**: Run validation before long simulations
 3. **Check the report**: Understand what the validator changed
 4. **Use meaningful names**: Help yourself remember what each simulation is for

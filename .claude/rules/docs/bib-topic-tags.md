@@ -1,10 +1,18 @@
-# Bibliography topic tags
+# Bibliography conventions
 
-Rules for the `keywords` field on entries in `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`.
+Rules for entries in `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`.
 
-These bib files drive `docs/source/related_publications.rst` and `docs/source/community_publications.rst`, which render per-topic subsections with stable `.. _pub-<slug>:` anchors for external deep-linking. The curator at `.claude/skills/curate-refs/` enforces this convention and backfills missing metadata.
+These bib files drive `docs/source/related_publications.rst` and `docs/source/community_publications.rst`, which render per-topic subsections with stable `.. _pub-<slug>:` anchors for external deep-linking. The `audit-docs` skill (`.claude/skills/audit-docs/`) enforces this convention and backfills missing metadata.
 
 ---
+
+## Required metadata
+
+Every entry MUST include non-empty `title`, `author`, and `year` fields.
+All entry types other than `@unpublished` MUST also include a non-empty `doi`.
+An `@unpublished` entry MUST instead include a non-empty `note` describing its
+publication status, such as `In preparation` or `Under review`; its `doi` is
+optional.
 
 ## Every entry MUST carry at least one topic slug
 
@@ -45,21 +53,21 @@ When adding a new slug:
 
 1. Update the vocabulary list above.
 2. Update the header comment of both bib files.
-3. Update `VOCAB` in `.claude/skills/curate-refs/scripts/audit.py`.
+3. Update `VOCAB` in `.claude/skills/audit-docs/scripts/audit.py`.
 4. Add a new topic section in `docs/source/related_publications.rst` with a `.. _pub-<slug>:` anchor and filtered bibliography directive.
-5. Rerun `/curate-refs` to confirm all entries still pass.
+5. Rerun `/audit-docs` (refs mode) to confirm all entries still pass.
 
 ## Programmatic enforcement
 
 Run before committing any bib change:
 
 ```
-/curate-refs
+/audit-docs
 ```
 
-The skill documentation at `.claude/skills/curate-refs/SKILL.md` covers:
+The skill documentation at `.claude/skills/audit-docs/SKILL.md` covers:
 
 - Base audit (no network, no API key required) — convention check only.
-- `/curate-refs --enrich` — optionally fetch missing `abstract` fields via WoS/Crossref cascade (requires `WOS_EXPANDED_API_KEY` or `WOS_API_KEY`; `--crossref-only` fallback for collaborators without a WoS key).
+- `/audit-docs` refs-mode enrichment — optionally fetch missing `abstract` fields via WoS/Crossref cascade (requires `WOS_EXPANDED_API_KEY` or `WOS_API_KEY`; `--crossref-only` fallback for collaborators without a WoS key).
 
 The existing user-level `refs-checker` skill handles DOI-to-metadata verification against Crossref/WoS — complementary and different purpose.

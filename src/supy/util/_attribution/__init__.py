@@ -9,6 +9,7 @@ Supported Variables
 - **T2** (2m temperature): Linear flux-gradient profile
 - **q2** (2m specific humidity): Linear flux-gradient profile
 - **U10** (10m wind speed): Logarithmic momentum profile
+- **QE/QH performance**: Model-observation flux error decomposition
 
 Mathematical Foundation
 -----------------------
@@ -47,6 +48,7 @@ from ._result import AttributionResult
 from ._t2 import attribute_t2, diagnose_t2
 from ._q2 import attribute_q2, diagnose_q2
 from ._u10 import attribute_u10, diagnose_u10
+from ._flux_performance import diagnose_flux_performance
 
 
 # =============================================================================
@@ -170,6 +172,7 @@ __all__ = [
     "diagnose_t2",
     "diagnose_q2",
     "diagnose_u10",
+    "diagnose_flux_performance",
     # Generic dispatchers
     "attribute",
     "diagnose",

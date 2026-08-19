@@ -9,9 +9,9 @@ To run this script, navigate to the `docs/` directory and execute:
 """
 
 import argparse
+from pathlib import Path
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
 # Import supy - it must be installed (via make dev) for docs to build
@@ -36,6 +36,11 @@ class OutputVariableRSTGenerator:
     def __init__(self):
         """Initialize the RST generator."""
         self.registry = OUTPUT_REGISTRY
+        self.groups = tuple(
+            dict.fromkeys(
+                OutputGroup(variable.group) for variable in self.registry.variables
+            )
+        )
 
     VALID_STYLES = frozenset({"simple", "tabbed", "dropdown"})
 
@@ -58,7 +63,7 @@ class OutputVariableRSTGenerator:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate RST for each output group
-        for group in OutputGroup:
+        for group in self.groups:
             variables = self.registry.by_group(group)
             if not variables:
                 continue
@@ -84,7 +89,7 @@ class OutputVariableRSTGenerator:
             f.write(index_content)
         print(f"Generated: {index_file} (style: {style})")
 
-        print(f"\nGenerated documentation for {len(list(OutputGroup))} output groups")
+        print(f"\nGenerated documentation for {len(self.groups)} output groups")
         print(f"Total variables documented: {len(self.registry.variables)}")
 
     def _format_group(self, group: OutputGroup, variables: list) -> str:
@@ -127,11 +132,8 @@ class OutputVariableRSTGenerator:
         lines.append(f"This group contains {len(variables)} output variables.")
         lines.append("")
 
-        # Sort variables by name
-        sorted_vars = sorted(variables, key=lambda v: v.name)
-
-        # Format each variable
-        for var in sorted_vars:
+        # Preserve registry order: it defines each variable's contract ordinal.
+        for var in variables:
             lines.extend(self._format_variable(var))
             lines.append("")  # Blank line between variables
 
@@ -346,7 +348,7 @@ class OutputVariableRSTGenerator:
         ]
 
         # List all groups
-        for group in OutputGroup:
+        for group in self.groups:
             variables = self.registry.by_group(group)
             if not variables:
                 continue
@@ -366,7 +368,7 @@ class OutputVariableRSTGenerator:
             "",
         ])
 
-        for group in OutputGroup:
+        for group in self.groups:
             if self.registry.by_group(group):
                 lines.append(f"   {group.value.lower()}")
 
@@ -387,7 +389,7 @@ class OutputVariableRSTGenerator:
         ]
 
         # Create dropdown for each group
-        for group in OutputGroup:
+        for group in self.groups:
             variables = self.registry.by_group(group)
             if not variables:
                 continue
@@ -418,7 +420,7 @@ class OutputVariableRSTGenerator:
             "",
         ])
 
-        for group in OutputGroup:
+        for group in self.groups:
             if self.registry.by_group(group):
                 lines.append(f"   {group.value.lower()}")
 
@@ -439,7 +441,7 @@ class OutputVariableRSTGenerator:
         ]
 
         # Create tab for each group
-        for group in OutputGroup:
+        for group in self.groups:
             variables = self.registry.by_group(group)
             if not variables:
                 continue
@@ -468,7 +470,7 @@ class OutputVariableRSTGenerator:
             "",
         ])
 
-        for group in OutputGroup:
+        for group in self.groups:
             if self.registry.by_group(group):
                 lines.append(f"   {group.value.lower()}")
 

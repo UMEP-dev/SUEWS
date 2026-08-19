@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Mapping
 from typing import (
     Dict,
     List,
@@ -33,11 +34,22 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import FAIMethod, LAIMethod, Model, OutputControl
+from .model import FAIMethod, LAIMethod, Model, OutputTimestampReference
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
+from ..validation.required_fields import (
+    BUILDING_REQUIRED,
+    BUILDING_REQUIRED_PROVIDED_FAI,
+    CONDUCTANCE_REQUIRED,
+    DECIDUOUS_REQUIRED,
+    DECIDUOUS_REQUIRED_PROVIDED_FAI,
+    EVERGREEN_REQUIRED,
+    EVERGREEN_REQUIRED_PROVIDED_FAI,
+    LAI_CALCULATED_ONLY_REQUIRED,
+    LAI_REQUIRED,
+)
 
 from datetime import datetime
 import pytz
@@ -127,6 +139,108 @@ def _get_basemodel_type(annotation):
     return None
 
 
+def _assign_trusted(model_obj, field, value):
+    """Assign a field without triggering validate_assignment.
+
+    Named validation bypass for the legacy df_state -> config
+    reconstruction (``from_df_state``): that path predates validation and
+    must keep accepting raw values that cross-field validators would
+    reject (users mutate df_state directly in the deprecated DataFrame
+    workflow). Keeps ``model_fields_set`` accurate so ``exclude_unset``
+    dumps still include the assigned fields.
+    """
+    object.__setattr__(model_obj, field, value)
+    model_obj.__pydantic_fields_set__.add(field)
+
+
+_MISSING = object()
+
+
+def _raw_refvalue(value):
+    """Unwrap a YAML RefValue-shaped mapping without normalising nested blocks."""
+    if isinstance(value, dict) and "value" in value:
+        return value["value"]
+    return value
+
+
+def _normalise_legacy_kdown_direct_fraction(value):
+    """Return a comparable key for raw legacy direct-fraction values."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        try:
+            hash(value)
+        except TypeError:
+            return repr(value)
+        return value
+
+
+def _legacy_yaml_key_suggestion(key: object) -> Optional[str]:
+    """Return an unambiguous current name for a legacy YAML key."""
+    from .field_renames import RAW_YAML_FIELD_RENAMES
+
+    matches = {
+        current
+        for legacy, current in RAW_YAML_FIELD_RENAMES.items()
+        if legacy.casefold() == str(key).casefold()
+    }
+    return matches.pop() if len(matches) == 1 else None
+
+
+def _prefixed_line_errors(error: ValidationError, prefix: tuple) -> list[dict]:
+    """Return Pydantic line errors with a root configuration path prefix."""
+    line_errors = []
+    for item in error.errors(include_url=False):
+        line_error = {
+            key: value for key, value in item.items() if key not in {"msg", "url"}
+        }
+        line_error["loc"] = (*prefix, *item["loc"])
+        line_errors.append(line_error)
+    return line_errors
+
+
+def _find_legacy_spartacus_kdown_direct_fractions(values):
+    """Return legacy SPARTACUS direct-fraction values in raw YAML."""
+    fractions = []
+    sites = values.get("sites") if isinstance(values, dict) else None
+    if not isinstance(sites, list):
+        return fractions
+    for site in sites:
+        if not isinstance(site, dict):
+            continue
+        spartacus = (
+            site.get("properties", {})
+            .get("spartacus", {})
+            if isinstance(site.get("properties"), dict)
+            else {}
+        )
+        if isinstance(spartacus, dict) and "sw_dn_direct_frac" in spartacus:
+            fractions.append(_raw_refvalue(spartacus["sw_dn_direct_frac"]))
+    return fractions
+
+
+def _raw_physics_has_kdown_direct_fraction(physics):
+    """Detect new direct-fraction spellings in a raw ``model.physics`` dict."""
+    if not isinstance(physics, dict):
+        return False
+    if any(
+        key in physics
+        for key in (
+            "kdown_split_constant_direct_fraction",
+            "sw_dn_direct_frac",
+        )
+    ):
+        return True
+    split = physics.get("kdown_split_method")
+    if not isinstance(split, dict):
+        return False
+    constant = split.get("constant")
+    return isinstance(constant, dict) and any(
+        key in constant
+        for key in ("sw_dn_direct_frac",)
+    )
+
+
 def _strip_internal_fields(data, model_cls):
     """Recursively remove fields marked with internal_only=True from a model_dump dict.
 
@@ -172,7 +286,70 @@ def _strip_internal_fields(data, model_cls):
 class SUEWSConfig(BaseModel):
     """Main SUEWS configuration."""
 
-    model_config = ConfigDict(title="SUEWS Configuration", extra="allow")
+    # extra="allow" exists solely for the private bookkeeping keys below;
+    # user-facing unknown keys are rejected by _reject_unknown_top_level_keys.
+    model_config = ConfigDict(
+        title="SUEWS Configuration",
+        extra="allow",
+        validate_assignment=True,
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_unknown_top_level_keys(cls, values):
+        """Reject unknown top-level keys instead of silently retaining them.
+
+        gh#1530 follow-up: with ``extra="allow"`` a typo such as ``site:``
+        would be kept as an inert extra attribute and the user's data
+        silently ignored. Underscore-prefixed keys are the reserved internal
+        bookkeeping namespace (``_yaml_path``, ``_auto_generate_annotated``,
+        ``_yaml_raw``, ``_validation_summary``) and round-trip freely.
+        """
+        if isinstance(values, dict):
+            unknown = [
+                key
+                for key in values
+                if key not in cls.model_fields
+                and not str(key).startswith("_")
+            ]
+            if unknown:
+                valid = ", ".join(sorted(cls.model_fields))
+                raise ValueError(
+                    f"Unknown top-level configuration key(s): "
+                    f"{', '.join(map(repr, unknown))}. Valid keys: {valid}"
+                )
+        return values
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_spartacus_kdown_direct_fraction(cls, values):
+        """Accept legacy ``properties.spartacus.sw_dn_direct_frac`` YAML input."""
+        if not isinstance(values, dict):
+            return values
+        model = values.setdefault("model", {})
+        if not isinstance(model, dict):
+            return values
+        physics = model.setdefault("physics", {})
+        if not isinstance(physics, dict) or _raw_physics_has_kdown_direct_fraction(
+            physics
+        ):
+            return values
+
+        legacy_fractions = _find_legacy_spartacus_kdown_direct_fractions(values)
+        if legacy_fractions:
+            distinct_fractions = {
+                _normalise_legacy_kdown_direct_fraction(fraction)
+                for fraction in legacy_fractions
+            }
+            if len(distinct_fractions) > 1:
+                raise ValueError(
+                    "Legacy sites[*].properties.spartacus.sw_dn_direct_frac "
+                    "contains multiple distinct values. Set the shared "
+                    "model.physics.kdown_split_method.constant.sw_dn_direct_frac "
+                    "value explicitly before migrating."
+                )
+            physics["sw_dn_direct_frac"] = legacy_fractions[0]
+        return values
 
     name: str = Field(
         default="sample config",
@@ -189,6 +366,17 @@ class SUEWSConfig(BaseModel):
         description="Description of this SUEWS configuration",
         json_schema_extra={"display_name": "Configuration Description"},
     )
+    strict_initial_state_bounds: bool = Field(
+        default=True,
+        description=(
+            "Enforce that initial-state values (e.g. initial albedo) lie within "
+            "their seasonal parameter ranges. Set to False by suews-convert for "
+            "legacy table sets whose source data carries faithful out-of-range "
+            "initial conditions the legacy Fortran never enforced; relaxing the "
+            "check then logs a warning instead of failing validation."
+        ),
+        json_schema_extra={"display_name": "Strict Initial-State Bounds"},
+    )
     model: Model = Field(
         default_factory=Model,
         description="Model control and physics parameters",
@@ -201,75 +389,84 @@ class SUEWSConfig(BaseModel):
         json_schema_extra={"display_name": "Sites"},
     )
 
+    @model_validator(mode="after")
+    def _sync_kdown_direct_fraction_to_spartacus(self) -> "SUEWSConfig":
+        """Mirror model-owned k-down split fraction to the legacy bridge slot."""
+        fraction = _unwrap_value(self.model.physics.sw_dn_direct_frac)
+        for site in self.sites:
+            _assign_trusted(
+                site.properties.spartacus,
+                "sw_dn_direct_frac",
+                float(fraction),
+            )
+        return self
+
     # Class-level constant for STEBBS validation parameters
     STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
-        "wall_internal_convection_coefficient",
-        "internal_mass_convection_coefficient",
-        "floor_internal_convection_coefficient",
-        "window_internal_convection_coefficient",
-        "wall_external_convection_coefficient",
-        "window_external_convection_coefficient",
-        "ground_depth",
-        "external_ground_conductivity",
-        "metabolism_threshold",
-        "latent_sensible_ratio",
+        "convection_coefficient_wall_internal",
+        "convection_coefficient_internal_mass",
+        "convection_coefficient_ground_floor_internal",
+        "convection_coefficient_window_internal",
+        "convection_coefficient_wall_external",
+        "convection_coefficient_window_external",
+        "depth_ground",
+        "thermal_conductivity_ground",
+        "threshold_metabolism",
+        "ratio_latent_sensible",
         "daylight_control",
-        "lighting_illuminance_threshold",
-        "appliance_profile",
-        "lighting_power_density",
-        "heating_system_efficiency",
-        "max_cooling_power",
-        "cooling_system_cop",
-        "ventilation_rate",
-        "initial_outdoor_temperature",
-        "initial_indoor_temperature",
-        "annual_mean_air_temperature",
-        "month_mean_air_temperature_diffmax",
-        "hot_water_tank_wall_thickness",
-        "mains_water_temperature",
-        "hot_water_tank_surface_area",
-        "hot_water_heating_setpoint_temperature",
-        "hot_water_tank_wall_emissivity",
-        "hot_water_vessel_wall_thickness",
-        "hot_water_volume",
-        "hot_water_surface_area",
-        "hot_water_flow_rate",
-        "hot_water_flow_profile",
-        "hot_water_specific_heat_capacity",
-        "hot_water_tank_specific_heat_capacity",
-        "hot_water_vessel_specific_heat_capacity",
-        "hot_water_density",
-        "hot_water_tank_wall_density",
-        "hot_water_vessel_density",
-        "hot_water_tank_building_wall_view_factor",
-        "hot_water_tank_internal_mass_view_factor",
-        "hot_water_tank_wall_conductivity",
-        "hot_water_tank_internal_wall_convection_coefficient",
-        "hot_water_tank_external_wall_convection_coefficient",
-        "hot_water_vessel_wall_conductivity",
-        "hot_water_vessel_internal_wall_convection_coefficient",
-        "hot_water_vessel_external_wall_convection_coefficient",
-        "hot_water_vessel_wall_emissivity",
-        "hot_water_heating_efficiency",
+        "threshold_lighting_illuminance",
+        "profile_appliance",
+        "power_density_lighting",
+        "efficiency_heating_system_air",
+        "max_power_cooling_system_air",
+        "efficiency_cooling_system_air",
+        "rate_ventilation",
+        "temperature_air_outdoor_initial",
+        "temperature_air_indoor_initial",
+        "temperature_air_annual_mean",
+        "temperature_air_month_mean_diffmax",
+        "thickness_hot_water_tank_wall",
+        "temperature_mains_water",
+        "surface_area_hot_water_tank",
+        "setpoint_temperature_heating_water",
+        "emissivity_hot_water_tank_wall",
+        "thickness_hot_water_vessel_wall",
+        "volume_hot_water",
+        "surface_area_hot_water",
+        "rate_flow_hot_water",
+        "profile_flow_hot_water",
+        "specific_heat_capacity_hot_water",
+        "specific_heat_capacity_hot_water_tank_wall",
+        "specific_heat_capacity_hot_water_vessel_wall",
+        "density_hot_water",
+        "density_hot_water_tank_wall",
+        "density_hot_water_vessel_wall",
+        "conductivity_hot_water_tank_wall",
+        "convection_coefficient_hot_water_tank_wall_internal",
+        "convection_coefficient_hot_water_tank_wall_external",
+        "conductivity_hot_water_vessel_wall",
+        "convection_coefficient_hot_water_tank_vessel_internal",
+        "convection_coefficient_hot_water_tank_vessel_external",
+        "emissivity_hot_water_vessel_wall",
+        "efficiency_heating_system_water",
     ]
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
-        "building_type",
-        "building_name",
-        "building_count",
+        "archetype_name",
+        "archetype_building_count",
         "occupants",
-        "metabolism_profile",
-        "building_height",
-        "footprint_area",
-        "wall_external_area",
-        "internal_volume_ratio",
-        "internal_mass_area",
-        "window_to_wall_ratio",
+        "profile_metabolism",
+        "archetype_height",
+        "area_footprint",
+        "area_wall_external",
+        "ratio_internal_mass_volume",
+        "area_internal_mass",
+        "ratio_window_to_wall",
         "thickness_wall",
         "conductivity_wall",
         "density_wall",
         "specific_heat_capacity_wall",
-        "fraction_wall_heat_capacity_outer",
+        "fraction_heat_capacity_wall_external",
         "emissivity_wall_external",
         "emissivity_wall_internal",
         "transmissivity_wall_external",
@@ -291,13 +488,13 @@ class SUEWSConfig(BaseModel):
         "density_internal_mass",
         "specific_heat_capacity_internal_mass",
         "emissivity_internal_mass",
-        "max_heating_power",
-        "hot_water_tank_volume",
-        "maximum_hot_water_heating_power",
-        "heating_setpoint_temperature",
-        "cooling_setpoint_temperature",
-        "heating_setpoint_temperature_profile",
-        "cooling_setpoint_temperature_profile",
+        "max_power_heating_system_air",
+        "volume_hot_water_tank",
+        "max_power_heating_system_water",
+        "setpoint_temperature_heating_air",
+        "setpoint_temperature_cooling_air",
+        "profile_setpoint_temperature_heating_air",
+        "profile_setpoint_temperature_cooling_air",
     ]
 
     # Sort the filtered columns numerically
@@ -409,7 +606,7 @@ class SUEWSConfig(BaseModel):
         SUEWSConfig
             The validated SUEWSConfig instance (self).
         """
-        from ..schema import validate_schema_version, CURRENT_SCHEMA_VERSION
+        from ..configuration import validate_schema_version, CURRENT_SCHEMA_VERSION
 
         # If no schema version specified, set to current
         if self.schema_version is None:
@@ -455,11 +652,65 @@ class SUEWSConfig(BaseModel):
                     f"Output frequency must be positive, got {output_control.freq}s"
                 )
 
+            # tstep is FlexibleRefValue: unwrap a RefValue form before the
+            # modulo check (gh#1530 follow-up)
             tstep = self.model.control.tstep
+            tstep = getattr(tstep, "value", tstep)
             if output_control.freq % tstep != 0:
                 raise ValueError(
                     f"Output frequency ({output_control.freq}s) must be a multiple of timestep ({tstep}s)"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_model_output_timestamp_reference(self) -> "SUEWSConfig":
+        """Validate output timestamp reference against site timezone fields."""
+        timestamp_reference = self.model.control.output.timestamp_reference
+        if timestamp_reference == OutputTimestampReference.FOLLOW:
+            return self
+
+        errors = []
+        for site_index, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
+            if not site.properties:
+                continue
+
+            timezone_val = _unwrap_value(site.properties.timezone)
+            is_zero_offset = False
+            try:
+                is_zero_offset = float(timezone_val) == 0.0
+            except (TypeError, ValueError):
+                pass
+
+            if timestamp_reference in {
+                OutputTimestampReference.LOCAL_STANDARD_TIME,
+                OutputTimestampReference.DAYLIGHT,
+            } and is_zero_offset:
+                warnings.warn(
+                    f"{site_name}: output.timestamp_reference={timestamp_reference.value!r} "
+                    "uses a zero UTC offset, so labels will match UTC except "
+                    "for any daylight-saving adjustment.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            if timestamp_reference != OutputTimestampReference.DAYLIGHT:
+                continue
+
+            anthro = site.properties.anthropogenic_emissions
+            startdls_val = _unwrap_value(anthro.startdls)
+            enddls_val = _unwrap_value(anthro.enddls)
+            if startdls_val is None or enddls_val is None:
+                errors.append(
+                    f"{site_name}: output.timestamp_reference='daylight' requires "
+                    "both anthropogenic_emissions.startdls and "
+                    "anthropogenic_emissions.enddls."
+                )
+
+        if errors:
+            raise ValueError(
+                "Output timestamp reference validation failed: " + "; ".join(errors)
+            )
         return self
 
     @model_validator(mode="after")
@@ -873,9 +1124,15 @@ class SUEWSConfig(BaseModel):
                         alb_id_val = _unwrap_value(surface_state.alb_id)
                         if alb_id_val is not None:
                             if not (alb_min_val <= alb_id_val <= alb_max_val):
-                                errors.append(
+                                msg = (
                                     f"{site_name} {surface_description}: alb_id ({alb_id_val}) must be in range [alb_min, alb_max] ([{alb_min_val}, {alb_max_val}] provided)"
                                 )
+                                if self.strict_initial_state_bounds:
+                                    errors.append(msg)
+                                else:
+                                    logger_supy.warning(
+                                        f"Relaxed initial-state bound (legacy): {msg}"
+                                    )
 
         if errors:
             raise ValueError("; ".join(errors))
@@ -1145,20 +1402,20 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         The following parameters are checked:
-        - co2pointsource: CO2 point source emission factor
-        - ef_umolco2perj: CO2 emission factor per unit of fuel energy
-        - frfossilfuel_heat: Fraction of heating energy from fossil fuels
-        - frfossilfuel_nonheat: Fraction of non-heating energy from fossil fuels
+        - emission_co2_point_source: CO2 point source emission factor
+        - emission_factor_co2_fuel: CO2 emission factor per unit of fuel energy
+        - fraction_fossil_fuel_heating: Fraction of heating energy from fossil fuels
+        - fraction_fossil_fuel_non_heating: Fraction of non-heating energy from fossil fuels
 
         Any missing parameters are added to the validation summary.
         """
         from ..validation.core.utils import check_missing_params
 
         critical_params = {
-            "co2pointsource": "CO2 point source emission factor",
-            "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-            "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-            "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
+            "emission_co2_point_source": "CO2 point source emission factor",
+            "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+            "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
+            "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
         }
 
         missing_params = check_missing_params(
@@ -1496,7 +1753,7 @@ class SUEWSConfig(BaseModel):
         try:
             import yaml
 
-            with open(yaml_path, "r") as f:
+            with open(yaml_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             # Navigate to the surface using path like "sites[0]/properties/land_cover/paved"
@@ -1534,29 +1791,52 @@ class SUEWSConfig(BaseModel):
             self._validation_summary["sites_with_issues"].append(site_name)
         return True
 
-    def _needs_stebbs_validation(self) -> bool:
+    def _composed_stebbsmethod(self):
         """
-        Return True if STEBBS should be validated,
-        i.e. physics.stebbs == 1.
-        """
+        Compose the legacy ``stebbsmethod`` integer from the nested STEBBS block.
 
+        gh#1456: the STEBBS master toggle is now nested as
+        ``model.physics.stebbs.enabled`` + ``.parameters``. These compose back
+        to the single legacy ``stebbsmethod`` code: ``0`` when disabled,
+        otherwise ``int(parameters)`` (1 for DEFAULT, 2 for PROVIDED).
+
+        Returns
+        -------
+        int or None
+            The composed ``stebbsmethod`` code (0/1/2), or ``None`` when the
+            STEBBS block / toggle is absent or unreadable.
+        """
         if not hasattr(self.model, "physics") or not hasattr(
             self.model.physics, "stebbs"
         ):
-            return False
+            return None
 
-        stebbs_method = self.model.physics.stebbs
+        stebbs = self.model.physics.stebbs
 
-        if hasattr(stebbs_method, "value"):
-            stebbs_method = stebbs_method.value
-        if hasattr(stebbs_method, "__int__"):
-            stebbs_method = int(stebbs_method)
-        if isinstance(stebbs_method, str) and stebbs_method == "1":
-            stebbs_method = 1
+        enabled = getattr(stebbs, "enabled", None)
+        if hasattr(enabled, "value"):
+            enabled = enabled.value
+        if not bool(enabled):
+            return 0
 
-        # print(f"Final stebbs_method value for validation: {stebbs_method} (type: {type(stebbs_method)})")
+        parameters = getattr(stebbs, "parameters", None)
+        if hasattr(parameters, "value"):
+            parameters = parameters.value
+        if hasattr(parameters, "__int__"):
+            parameters = int(parameters)
+        if isinstance(parameters, str) and parameters.isdigit():
+            parameters = int(parameters)
 
-        return stebbs_method == 1
+        return parameters if isinstance(parameters, int) else 1
+
+    def _needs_stebbs_validation(self) -> bool:
+        """
+        Return True if STEBBS should be validated.
+
+        i.e. STEBBS is enabled with default parameters (composed
+        ``stebbsmethod`` == 1).
+        """
+        return self._composed_stebbsmethod() == 1
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
@@ -1627,14 +1907,14 @@ class SUEWSConfig(BaseModel):
                 if val is None:
                     missing_params.append(param)
 
-        # Check if window_to_wall_ratio is present and zero or one
-        wwr = getattr(building_archetype, "window_to_wall_ratio", None)
+        # Check if ratio_window_to_wall is present and zero or one
+        wwr = getattr(building_archetype, "ratio_window_to_wall", None)
         wwr_val = _unwrap_value(wwr) if wwr is not None else None
 
         # Window parameter lists
         window_params_stebbs = [
-            "window_internal_convection_coefficient",
-            "window_external_convection_coefficient",
+            "convection_coefficient_window_internal",
+            "convection_coefficient_window_external",
         ]
         window_params_bldgarc = [
             "thickness_window",
@@ -1648,10 +1928,10 @@ class SUEWSConfig(BaseModel):
             "reflectivity_window_external",
         ]
 
-        # Wall parameter lists for window_to_wall_ratio == 1.0
+        # Wall parameter lists for ratio_window_to_wall == 1.0
         wall_params_stebbs = [
-            "wall_external_convection_coefficient",
-            "wall_internal_convection_coefficient",
+            "convection_coefficient_wall_external",
+            "convection_coefficient_wall_internal",
             ]
         wall_params_bldgarc = [
             "emissivity_wall_external",
@@ -1666,7 +1946,9 @@ class SUEWSConfig(BaseModel):
         ]
 
         # Check setpoint value
-        setpointmethod = getattr(self.model.physics, "setpoint", None)
+        # gh#1456: setpoint method moved to model.physics.stebbs.setpoint.
+        stebbs_physics = getattr(self.model.physics, "stebbs", None)
+        setpointmethod = getattr(stebbs_physics, "setpoint", None) if stebbs_physics is not None else None
         setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
         try:
             setpointmethod_val = int(setpointmethod_val)
@@ -1675,12 +1957,12 @@ class SUEWSConfig(BaseModel):
 
         # Setpoint parameter groups
         setpoint_params_bldgarc = [
-            "heating_setpoint_temperature",
-            "cooling_setpoint_temperature",
+            "setpoint_temperature_heating_air",
+            "setpoint_temperature_cooling_air",
         ]
         setpoint_profile_params_bldgarc = [
-            "heating_setpoint_temperature_profile",
-            "cooling_setpoint_temperature_profile",
+            "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
         ]
 
         # Daylight control parameter groups
@@ -1691,7 +1973,7 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             daylightcontrol_val = None
 
-        daylightcontrol_params_stebbs = ["lighting_illuminance_threshold"]
+        daylightcontrol_params_stebbs = ["threshold_lighting_illuminance"]
 
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
@@ -1827,12 +2109,12 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if `storage_heat_method` is set to 6 or 7 and was explicitly configured by the user,
+            True if `storage_heat_method` is set to 6, 7, or 8 and was explicitly configured by the user,
             False otherwise.
 
         Notes
         -----
-        - Validation is only triggered if `storage_heat_method` is 6 or 7 AND the value was explicitly set
+        - Validation is only triggered if `storage_heat_method` is 6, 7, or 8 AND the value was explicitly set
           (not just the default value).
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
@@ -1847,8 +2129,8 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             pass
 
-        # Only validate if method == 6 or 7 AND it was explicitly set
-        if shm == 6 or shm == 7:
+        # Only validate if method == 6, 7, or 8 AND it was explicitly set
+        if shm in {6, 7, 8}:
             return self._is_physics_explicitly_configured("storage_heat")
         return False
     
@@ -1907,10 +2189,12 @@ class SUEWSConfig(BaseModel):
         validation for identical surface properties (e.g., albedo or emissivity)
         across all relevant layers.
         """
+        # gh#1456: same_albedo_* moved under model.physics.stebbs.
         physics = getattr(self.model, "physics", None)
-        if not physics or not hasattr(physics, attr):
+        stebbs = getattr(physics, "stebbs", None) if physics else None
+        if not stebbs or not hasattr(stebbs, attr):
             return False
-        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
+        val = getattr(getattr(stebbs, attr), "value", getattr(stebbs, attr))
         try:
             return int(val) == 1
         except (TypeError, ValueError):
@@ -1970,10 +2254,12 @@ class SUEWSConfig(BaseModel):
         configuration is explicitly enabled (set to 1), which triggers
         validation for identical surface emissivity across all relevant layers.
         """
+        # gh#1456: same_emissivity_* moved under model.physics.stebbs.
         physics = getattr(self.model, "physics", None)
-        if not physics or not hasattr(physics, attr):
+        stebbs = getattr(physics, "stebbs", None) if physics else None
+        if not stebbs or not hasattr(stebbs, attr):
             return False
-        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
+        val = getattr(getattr(stebbs, attr), "value", getattr(stebbs, attr))
         try:
             return int(val) == 1
         except (TypeError, ValueError):
@@ -1999,9 +2285,13 @@ class SUEWSConfig(BaseModel):
         Validate DyOHM storage-heat method requirements for a site.
 
         This function checks that all required parameters for the DyOHM storage-heat
-        method (storage_heat_method 6 or 7) are present and valid for the given site.
-        It ensures that vertical_layers.walls, thermal_layers, and initial_states
-        arrays are non-empty and contain only numeric values, and that lambda_c is set.
+        method (storage_heat_method 6, 7, or 8) are present and valid for the given site.
+        It ensures that required building material properties and initial-state
+        arrays are non-empty and contain only finite numeric values. Building material
+        properties and ``lambda_c`` are required only for methods 6 and 8, which
+        calculate building DyOHM coefficients. STEBBS owns the building storage
+        heat and temperatures in method 7, which requires SPARTACUS-Surface net
+        radiation.
 
         Parameters
         ----------
@@ -2017,10 +2307,15 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        - Checks for presence and validity of vertical_layers.walls and their thermal_layers.
-        - Ensures that dz, k, and rho_cp arrays are non-empty and numeric.
+        - For methods 6 and 8, checks ``land_cover.bldgs.thermal_layers`` rather
+          than a SPARTACUS wall.
+        - Ensures that required material-property arrays are non-empty and finite.
+          Methods 6 and 8 require building dz, k, and rho_cp. Method 7 does not
+          use the building material layers.
+        - Requires method 7 to use SPARTACUS-Surface net radiation (1001--1003),
+          which consumes the separate STEBBS roof and wall temperatures.
         - Validates initial_states.qn_surfs and dqndt_surf arrays.
-        - Checks that lambda_c is set and non-null.
+        - Checks that lambda_c is set and non-null for methods 6 and 8.
         """
         issues: List[str] = []
 
@@ -2030,29 +2325,65 @@ class SUEWSConfig(BaseModel):
         if not props:
             return issues
 
-        vl = getattr(props, "vertical_layers", None)
-        walls = getattr(vl, "walls", None) if vl else None
+        physics = getattr(getattr(self, "model", None), "physics", None)
+        storage_heat = getattr(physics, "storage_heat", None)
+        storage_heat_method = getattr(storage_heat, "value", storage_heat)
+        storage_heat_method = getattr(storage_heat_method, "value", storage_heat_method)
+        try:
+            storage_heat_method = int(storage_heat_method)
+        except (TypeError, ValueError):
+            storage_heat_method = None
 
-        if not walls or len(walls) == 0:
-            issues.append(
-                f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → missing vertical_layers.walls"
+        if storage_heat_method == 7:
+            net_radiation = getattr(physics, "net_radiation", None)
+            net_radiation_method = getattr(
+                net_radiation, "value", net_radiation
             )
-            return issues
-
-        th = getattr(walls[0], "thermal_layers", None)
-        for arr in ("dz", "k", "rho_cp"):
-            field = getattr(th, arr, None) if th else None
-            vals = getattr(field, "value", None) if field else None
-            if (
-                not isinstance(vals, list)
-                or len(vals) == 0
-                or any(v is None for v in vals)
-                or any(not isinstance(v, (int, float)) for v in vals)
-            ):
+            net_radiation_method = getattr(
+                net_radiation_method, "value", net_radiation_method
+            )
+            try:
+                net_radiation_method = int(net_radiation_method)
+            except (TypeError, ValueError):
+                net_radiation_method = None
+            if net_radiation_method not in {1001, 1002, 1003}:
                 issues.append(
-                    f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → "
-                    f"thermal_layers.{arr} must be a non‐empty list of numeric values (no nulls)"
+                    f"{site_name}: storage_heat_method 7 uses separate STEBBS "
+                    "roof and wall temperatures and requires "
+                    "model.physics.net_radiation to be a SPARTACUS-Surface "
+                    "method (1001, 1002, or 1003)"
                 )
+
+        land_cover = getattr(props, "land_cover", None)
+        bldgs = getattr(land_cover, "bldgs", None) if land_cover else None
+
+        if storage_heat_method in {6, 8}:
+            if bldgs is None:
+                issues.append(
+                    f"{site_name}: storage_heat_method {storage_heat_method} "
+                    "(building DyOHM) selected -> missing "
+                    "properties.land_cover.bldgs"
+                )
+            else:
+                th = getattr(bldgs, "thermal_layers", None)
+                for arr in ("dz", "k", "rho_cp"):
+                    field = getattr(th, arr, None) if th else None
+                    vals = getattr(field, "value", None) if field else None
+                    if (
+                        not isinstance(vals, list)
+                        or len(vals) == 0
+                        or any(
+                            not isinstance(v, (int, float)) or not np.isfinite(v)
+                            for v in vals
+                        )
+                    ):
+                        issues.append(
+                            f"{site_name}: storage_heat_method "
+                            f"{storage_heat_method} selected -> "
+                            "properties.land_cover.bldgs.thermal_layers."
+                            f"{arr} must be a non-empty list of finite numeric "
+                            "values (no nulls, NaN, or infinities)"
+                        )
 
         for arr in ("qn_surfs", "dqndt_surf"):
             field = getattr(states, arr, None) if states else None
@@ -2064,19 +2395,24 @@ class SUEWSConfig(BaseModel):
             if (
                 not isinstance(vals, list)
                 or len(vals) == 0
-                or any(v is None for v in vals)
-                or any(not isinstance(v, (int, float)) for v in vals)
+                or any(
+                    not isinstance(v, (int, float)) or not np.isfinite(v)
+                    for v in vals
+                )
             ):
                 issues.append(
-                    f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → "
-                    f"initial_states.{arr} must be a non‐empty list of numeric values (no nulls)"
+                    f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
+                    f"initial_states.{arr} must be a non-empty list of finite "
+                    "numeric values (no nulls, NaN, or infinities)"
                 )
 
-        lam = getattr(getattr(props, "lambda_c", None), "value", None)
-        if lam in (None, ""):
-            issues.append(
-                f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → properties.lambda_c must be set and non-null"
-            )
+        if storage_heat_method in {6, 8}:
+            lam = getattr(getattr(props, "lambda_c", None), "value", None)
+            if lam in (None, ""):
+                issues.append(
+                    f"{site_name}: storage_heat_method {storage_heat_method} (DyOHM building) selected -> "
+                    "properties.lambda_c must be set and non-null"
+                )
 
         return issues
 
@@ -2302,7 +2638,7 @@ class SUEWSConfig(BaseModel):
 
         If SPARTACUS is enabled, this function enforces that:
         - The building height (bldgh) does not exceed the domain top (height[nlayer]).
-        - If stebbs_method == 1, the archetype's building_height also does not exceed the domain top.
+        - If stebbs_method == 1, the archetype's archetype_height also does not exceed the domain top.
 
         Parameters
         ----------
@@ -2319,7 +2655,7 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - The domain top is defined as the last entry in the vertical_layers.height array (height[nlayer]).
-        - If stebbs_method == 1, both bldgh and building_height are checked.
+        - If stebbs_method == 1, both bldgh and archetype_height are checked.
         - All issues are reported with the site name for clarity.
         """
         issues: List[str] = []
@@ -2346,90 +2682,91 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbs == 1, also check building_height
-            stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs", None))
-
-            try:
-                stebbs_method_val = int(stebbs_method)
-            except (TypeError, ValueError):
-                stebbs_method_val = None
+            # If stebbs == 1, also check archetype_height
+            # gh#1456: compose the legacy stebbsmethod from the nested
+            # model.physics.stebbs (enabled + parameters) block.
+            stebbs_method_val = self._composed_stebbsmethod()
 
             if stebbs_method_val == 1:
                 building_archetype = getattr(props, "building_archetype", None)
-                building_height = _unwrap_value(getattr(building_archetype, "building_height", None)) if building_archetype else None
+                building_height = _unwrap_value(getattr(building_archetype, "archetype_height", None)) if building_archetype else None
                 if building_height is not None and building_height > spartacus_top:
                     issues.append(
-                        f"Site '{site_name}' has building_height={building_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
+                        f"Site '{site_name}' has archetype_height={building_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                     )
         return issues
 
     def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
         """
-        Validate SPARTACUS building and vegetation surface fractions for a site.
+        Validate SPARTACUS surface-fraction bounds for a site.
 
-        If SPARTACUS is enabled, this function checks that:
-        - The building surface fraction (bldgs.sfr) matches the first entry of vertical_layers.building_frac.
-        - The sum of evergreen and deciduous tree surface fractions (evetr.sfr + dectr.sfr)
-          matches the maximum value in vertical_layers.veg_frac.
+        SPARTACUS vertical-layer fractions describe radiative geometry, so the
+        layer fractions do not have to equal the corresponding land-cover
+        fractions. Building and vegetation fractions are still checked together
+        so that no layer exceeds full occupancy.
 
         Returns
         -------
         list of str
             List of issue messages if validation fails; empty if valid.
-
-        Notes
-        -----
-        - Uses a tolerance of 1e-6 for floating point comparisons.
-        - Returns early if required properties are missing.
         """
         issues: list = []
         site_name = getattr(site, "name", f"Site {site_index}")
         props = getattr(site, "properties", None)
-        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+        if not props:
             return issues
 
-        lc = props.land_cover
-        bldgs = getattr(lc, "bldgs", None)
-        evetr = getattr(lc, "evetr", None)
-        dectr = getattr(lc, "dectr", None)
         vertical_layers = getattr(props, "vertical_layers", None)
         if not vertical_layers:
             return issues
 
-        # Unwrap values
-        bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
-        evetr_sfr = _unwrap_value(getattr(evetr, "sfr", None)) if evetr else 0.0
-        dectr_sfr = _unwrap_value(getattr(dectr, "sfr", None)) if dectr else 0.0
-        veg_sfr = (evetr_sfr or 0.0) + (dectr_sfr or 0.0)
-
         building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
         veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
+        if not isinstance(veg_frac, (list, tuple)):
+            return issues
 
         tol = 1e-6
 
-        # Buildings: surface fraction vs first SPARTACUS layer
-        if (
-            isinstance(building_frac, (list, tuple))
-            and len(building_frac) > 0
-            and bldgs_sfr is not None
-        ):
-            if not np.isclose(bldgs_sfr, building_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
-                    f"vertical_layers.building_frac[0] ({building_frac[0]})"
-                )
+        def _layer_fraction_at(values: list | tuple, layer_idx: int) -> float | None:
+            if layer_idx >= len(values):
+                return 0.0
+            return _unwrap_value(values[layer_idx])
 
-        # Vegetation: surface fraction vs maximum veg_frac across layers
-        if isinstance(veg_frac, (list, tuple)) and len(veg_frac) > 0:
-            veg_frac_max = max(veg_frac)
-            if not np.isclose(veg_sfr, veg_frac_max, atol=tol):
-                issues.append(
-                    f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match "
-                    f"max(vertical_layers.veg_frac) ({veg_frac_max})"
-                )
+        # Per-layer occupancy bound: buildings and vegetation together cannot
+        # exceed full occupancy in any layer. Needs both fraction arrays.
+        if isinstance(building_frac, (list, tuple)):
+            for layer_idx in range(max(len(building_frac), len(veg_frac))):
+                building_layer_frac = _layer_fraction_at(building_frac, layer_idx)
+                veg_layer_frac = _layer_fraction_at(veg_frac, layer_idx)
+                if building_layer_frac is None or veg_layer_frac is None:
+                    continue
+                layer_total = building_layer_frac + veg_layer_frac
+                if layer_total - 1.0 > tol:
+                    issues.append(
+                        f"{site_name}: vertical_layers.building_frac[{layer_idx}] "
+                        f"+ vertical_layers.veg_frac[{layer_idx}] ({layer_total}) "
+                        "exceeds 1.0"
+                    )
+
+        # Trunk / near-ground rule needs only the vegetation profile: if any
+        # upper layer carries vegetation, the lowest layer must be non-zero.
+        first_veg_frac = _unwrap_value(veg_frac[0]) if veg_frac else None
+        upper_has_vegetation = False
+        for veg_layer_frac in veg_frac[1:]:
+            veg_layer_frac = _unwrap_value(veg_layer_frac)
+            if veg_layer_frac is not None and veg_layer_frac > tol:
+                upper_has_vegetation = True
+                break
+        if upper_has_vegetation and (
+            first_veg_frac is None or first_veg_frac <= tol
+        ):
+            issues.append(
+                f"{site_name}: vertical_layers.veg_frac[0] must be greater "
+                "than 0 when vegetation is present in upper layers"
+            )
 
         return issues
-    
+
     def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
         """
         Validate that veg_scale and veg_frac are zero above the tree canopy layer.
@@ -2532,7 +2869,7 @@ class SUEWSConfig(BaseModel):
           `stebbs_method == 1`.
         - RSL: Validates that `bldgs.faibldg` is set when `rsl_method == 2`.
         - StorageHeat: Checks DyOHM storage-heat method requirements when
-          `storage_heat_method == 6 or 7`.
+          `storage_heat_method == 6, 7, or 8`.
         - same_albedo_wall/roof: Ensures uniform albedo across wall/roof layers and
           matches the building archetype if enabled.
         - same_emissivity_wall/roof: Ensures uniform emissivity across wall/roof
@@ -2679,30 +3016,10 @@ class SUEWSConfig(BaseModel):
         - Handles both direct values and RefValue wrappers.
         - Returns an empty list if all critical parameters are set.
         """
-        # Critical physics parameters that get converted to int() in df_state
-        CRITICAL_PHYSICS_PARAMS = [
-            "net_radiation",
-            "emissions",
-            "storage_heat",
-            "ohm_inc_qf",
-            "roughness_length_momentum",
-            "roughness_length_heat",
-            "stability",
-            "soil_moisture_deficit",
-            "water_use",
-            "roughness_sublayer",
-            "frontal_area_index",
-            "roughness_sublayer_level",
-            "surface_conductance",
-            "snow_use",
-            "stebbs",
-            "outer_cap_fraction",
-            "setpoint",
-            "same_albedo_wall",
-            "same_albedo_roof",
-            "same_emissivity_wall",
-            "same_emissivity_roof",
-        ]
+        # Single source of truth for the critical-physics list lives in the
+        # validation pipeline orchestrator (gh#1409); imported lazily to
+        # avoid a circular import at module load time.
+        from ..validation.pipeline.orchestrator import CRITICAL_PHYSICS_PARAMS
 
         critical_issues = []
 
@@ -2710,21 +3027,31 @@ class SUEWSConfig(BaseModel):
             return critical_issues
 
         physics = self.model.physics
+        # gh#1456: several critical physics switches now live on the nested
+        # model.physics.stebbs object. Resolve each critical param against the
+        # top-level physics first, then the nested stebbs container.
+        stebbs = getattr(physics, "stebbs", None)
 
         for param_name in CRITICAL_PHYSICS_PARAMS:
             if hasattr(physics, param_name):
-                param_value = getattr(physics, param_name)
-                # Handle RefValue wrapper
-                if hasattr(param_value, "value"):
-                    actual_value = param_value.value
-                else:
-                    actual_value = param_value
+                container = physics
+            elif stebbs is not None and hasattr(stebbs, param_name):
+                container = stebbs
+            else:
+                continue
 
-                # Check if the parameter is null
-                if actual_value is None:
-                    critical_issues.append(
-                        f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value"
-                    )
+            param_value = getattr(container, param_name)
+            # Handle RefValue wrapper
+            if hasattr(param_value, "value"):
+                actual_value = param_value.value
+            else:
+                actual_value = param_value
+
+            # Check if the parameter is null
+            if actual_value is None:
+                critical_issues.append(
+                    f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value"
+                )
 
         return critical_issues
 
@@ -2773,14 +3100,16 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        Gated on ``self._yaml_path`` AND on raw-YAML presence in
-        ``self._yaml_raw``. The check fires only when:
+        Gated on raw-input presence in ``self._yaml_raw``. The check
+        fires only when:
 
-        1. The configuration was loaded from a YAML file (not a
-           programmatic ``SUEWSConfig(sites=[Site(...)])`` construction),
-           AND
+        1. The configuration was loaded from user-shaped input — a YAML
+           file via ``from_yaml`` or a dict via ``from_dict``, both of
+           which record the raw input (not a programmatic
+           ``SUEWSConfig(sites=[Site(...)])`` construction, which does
+           not), AND
         2. The site carries an explicit ``land_cover`` mapping in the raw
-           YAML. Within that block, both user-declared surface mappings
+           input. Within that block, both user-declared surface mappings
            and omitted surfaces that remain active through
            ``default_factory`` are checked. Sites that omit
            ``land_cover`` entirely are skipped.
@@ -2797,7 +3126,7 @@ class SUEWSConfig(BaseModel):
         """
         issues: List[Dict[str, str]] = []
 
-        if getattr(self, "_yaml_path", None) is None:
+        if getattr(self, "_yaml_raw", None) is None:
             return issues
 
         if not getattr(self, "sites", None):
@@ -2812,14 +3141,14 @@ class SUEWSConfig(BaseModel):
             return getattr(value, "value", value)
 
         lai_method = _scalar_value(
-            getattr(physics, "laimethod", LAIMethod.CALCULATED)
+            getattr(physics, "laimethod", LAIMethod.MODELLED)
         )
         require_calculated_lai = lai_method != LAIMethod.OBSERVED.value
 
         fai_method = _scalar_value(
-            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+            getattr(physics, "frontal_area_index", FAIMethod.OBSERVED)
         )
-        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+        require_provided_fai = fai_method == FAIMethod.OBSERVED.value
 
         def _raw_site_properties(site_index: int) -> Dict[str, Any]:
             """Return the raw ``sites[i].properties`` dict, or an empty
@@ -2871,109 +3200,22 @@ class SUEWSConfig(BaseModel):
             raw_surface = raw_lc.get(surface_name)
             return raw_surface is None or isinstance(raw_surface, dict)
 
-        lai_required = {
-            "lai_max": (
-                "Maximum LAI is required for active vegetation",
-                "Add maximum leaf area index for full leaf-on conditions",
-            ),
-        }
-        lai_calculated_only_required = {
-            "base_temperature": (
-                "Base temperature is required for active vegetation",
-                "Add the base temperature for growing degree day accumulation",
-            ),
-            "base_temperature_senescence": (
-                "Senescence base temperature is required for active vegetation",
-                "Add the base temperature for senescence degree day accumulation",
-            ),
-            "gdd_full": (
-                "Growing degree days for full LAI are required for active vegetation",
-                "Add the growing degree day threshold for full leaf-on conditions",
-            ),
-            "sdd_full": (
-                "Senescence degree days are required for active vegetation",
-                "Add the senescence degree day threshold for leaf-off conditions",
-            ),
-        }
-        conductance_required = {
-            "g_max": (
-                "Maximum surface conductance is required for active vegetation",
-                "Add g_max for evapotranspiration calculations",
-            ),
-            "g_k": (
-                "Solar radiation response parameter is required for active vegetation",
-                "Add g_k for evapotranspiration calculations",
-            ),
-            "g_q_base": (
-                "Vapour pressure deficit base parameter is required for active vegetation",
-                "Add g_q_base for evapotranspiration calculations",
-            ),
-            "g_q_shape": (
-                "Vapour pressure deficit shape parameter is required for active vegetation",
-                "Add g_q_shape for evapotranspiration calculations",
-            ),
-            "g_t": (
-                "Temperature response parameter is required for active vegetation",
-                "Add g_t for evapotranspiration calculations",
-            ),
-            "g_sm": (
-                "Soil moisture response parameter is required for active vegetation",
-                "Add g_sm for evapotranspiration calculations",
-            ),
-            "kmax": (
-                "Maximum shortwave radiation parameter is required for active vegetation",
-                "Add kmax for evapotranspiration calculations",
-            ),
-            "s1": (
-                "Lower soil moisture threshold is required for active vegetation",
-                "Add s1 for evapotranspiration calculations",
-            ),
-            "s2": (
-                "Soil moisture dependence parameter is required for active vegetation",
-                "Add s2 for evapotranspiration calculations",
-            ),
-            "tl": (
-                "Lower temperature threshold is required for active vegetation",
-                "Add tl for evapotranspiration calculations",
-            ),
-            "th": (
-                "Upper temperature threshold is required for active vegetation",
-                "Add th for evapotranspiration calculations",
-            ),
-        }
-        building_required = {
-            "bldgh": (
-                "Building height is required when buildings are active",
-                "Add building height in meters",
-            ),
-        }
+        # Sourced from the shared registry so the documentation generator can
+        # describe the same conditions to readers. Copied rather than aliased,
+        # because the FAI entries below are added conditionally per call.
+        lai_required = dict(LAI_REQUIRED)
+        lai_calculated_only_required = dict(LAI_CALCULATED_ONLY_REQUIRED)
+        conductance_required = dict(CONDUCTANCE_REQUIRED)
+
+        building_required = dict(BUILDING_REQUIRED)
         if require_provided_fai:
-            building_required["faibldg"] = (
-                "Building frontal area index is required when buildings are active",
-                "Add frontal area index for wind and roughness calculations",
-            )
-        evergreen_required = {
-            "height_evergreen_tree": (
-                "Evergreen tree height is required when evergreen vegetation is active",
-                "Add evergreen tree height in meters",
-            ),
-        }
+            building_required.update(BUILDING_REQUIRED_PROVIDED_FAI)
+        evergreen_required = dict(EVERGREEN_REQUIRED)
         if require_provided_fai:
-            evergreen_required["fai_evergreen_tree"] = (
-                "Evergreen tree frontal area index is required when evergreen vegetation is active",
-                "Add evergreen tree frontal area index",
-            )
-        deciduous_required = {
-            "height_deciduous_tree": (
-                "Deciduous tree height is required when deciduous vegetation is active",
-                "Add deciduous tree height in meters",
-            ),
-        }
+            evergreen_required.update(EVERGREEN_REQUIRED_PROVIDED_FAI)
+        deciduous_required = dict(DECIDUOUS_REQUIRED)
         if require_provided_fai:
-            deciduous_required["fai_deciduous_tree"] = (
-                "Deciduous tree frontal area index is required when deciduous vegetation is active",
-                "Add deciduous tree frontal area index",
-            )
+            deciduous_required.update(DECIDUOUS_REQUIRED_PROVIDED_FAI)
 
         def _add_issue(
             *,
@@ -3300,10 +3542,10 @@ class SUEWSConfig(BaseModel):
             from ..validation.core.utils import check_missing_params
 
             critical_params = {
-                "co2pointsource": "CO2 point source emission factor",
-                "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-                "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-                "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
+                "emission_co2_point_source": "CO2 point source emission factor",
+                "emission_factor_co2_fuel": "CO2 emission factor per unit of fuel energy",
+                "fraction_fossil_fuel_heating": "Fraction of heating energy from fossil fuels",
+                "fraction_fossil_fuel_non_heating": "Fraction of non-heating energy from fossil fuels",
             }
 
             missing_params = check_missing_params(
@@ -3340,9 +3582,9 @@ class SUEWSConfig(BaseModel):
             return getattr(value, "value", value)
 
         fai_method = _scalar_value(
-            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+            getattr(physics, "frontal_area_index", FAIMethod.OBSERVED)
         )
-        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+        require_provided_fai = fai_method == FAIMethod.OBSERVED.value
 
         surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
 
@@ -3912,12 +4154,12 @@ class SUEWSConfig(BaseModel):
                 anthro_co2 = site.properties.anthropogenic_emissions.co2
                 hourly_profiles.extend([
                     (
-                        "anthropogenic_emissions.co2.traffprof_24hr",
-                        anthro_co2.traffprof_24hr,
+                        "anthropogenic_emissions.co2.profile_traffic_24hr",
+                        anthro_co2.profile_traffic_24hr,
                     ),
                     (
-                        "anthropogenic_emissions.co2.humactivity_24hr",
-                        anthro_co2.humactivity_24hr,
+                        "anthropogenic_emissions.co2.profile_human_activity_24hr",
+                        anthro_co2.profile_human_activity_24hr,
                     ),
                 ])
 
@@ -4144,6 +4386,45 @@ class SUEWSConfig(BaseModel):
         return self
 
     @classmethod
+    def _validate_raw_mapping(cls, config_data: dict) -> "SUEWSConfig":
+        """Validate user-controlled config subtrees with strict extra keys."""
+        prepared = cls.convert_legacy_hdd_formats(config_data)
+        prepared = cls._migrate_legacy_spartacus_kdown_direct_fraction(prepared)
+        line_errors = []
+
+        raw_model = prepared.get("model")
+        if isinstance(raw_model, Mapping):
+            try:
+                prepared["model"] = Model.model_validate(
+                    raw_model, extra="forbid"
+                )
+            except ValidationError as error:
+                line_errors.extend(_prefixed_line_errors(error, ("model",)))
+
+        raw_sites = prepared.get("sites")
+        if isinstance(raw_sites, Iterable) and not isinstance(
+            raw_sites, (str, bytes, Mapping)
+        ):
+            validated_sites = []
+            for index, raw_site in enumerate(raw_sites):
+                if isinstance(raw_site, Mapping):
+                    try:
+                        raw_site = Site.model_validate(
+                            raw_site, extra="forbid"
+                        )
+                    except ValidationError as error:
+                        line_errors.extend(
+                            _prefixed_line_errors(error, ("sites", index))
+                        )
+                validated_sites.append(raw_site)
+            prepared["sites"] = validated_sites
+
+        if line_errors:
+            raise ValidationError.from_exception_data("SUEWSConfig", line_errors)
+
+        return cls(**prepared)
+
+    @classmethod
     def _transform_validation_error(
         cls,
         error: ValidationError,
@@ -4151,10 +4432,11 @@ class SUEWSConfig(BaseModel):
         *,
         had_signature: bool = True,
     ) -> ValidationError:
-        """Transform Pydantic validation errors to use GRIDID instead of array indices.
+        """Transform Pydantic validation errors to label sites by GRIDID.
 
-        Uses structured error data to avoid string replacement collisions when
-        GRIDID values overlap with array indices (e.g., site 0 has GRIDID=1).
+        Uses structured error data to avoid string replacement collisions, and
+        formats locations as ``sites[gridiv=...]`` so a GRIDID such as 1 is not
+        mistaken for a second list item.
 
         `had_signature` carries whether the source YAML actually shipped a
         `schema_version` field. It is forwarded to `_drift_hint` so unsigned
@@ -4181,19 +4463,6 @@ class SUEWSConfig(BaseModel):
         modified_errors = []
         for err in error.errors():
             err_copy = err.copy()
-            loc_list = list(err_copy["loc"])
-
-            # Replace numeric site index with GRIDID in location tuple
-            if (
-                len(loc_list) >= 2
-                and loc_list[0] == "sites"
-                and isinstance(loc_list[1], int)
-            ):
-                site_idx = loc_list[1]
-                if site_idx in site_gridid_map:
-                    loc_list[1] = site_gridid_map[site_idx]
-
-            err_copy["loc"] = tuple(loc_list)
             modified_errors.append(err_copy)
 
         # Format into readable message
@@ -4202,11 +4471,14 @@ class SUEWSConfig(BaseModel):
         ]
 
         for err in modified_errors:
-            loc_str = ".".join(str(x) for x in err["loc"])
+            loc_str = cls._format_validation_loc(err["loc"], site_gridid_map)
             error_lines.append(loc_str)
-            error_lines.append(
-                f"  {err['msg']} [type={err['type']}]"
-            )
+            message = err["msg"]
+            if err.get("type") == "extra_forbidden" and err.get("loc"):
+                suggestion = _legacy_yaml_key_suggestion(err["loc"][-1])
+                if suggestion is not None:
+                    message += f"; legacy field was renamed to '{suggestion}'"
+            error_lines.append(f"  {message} [type={err['type']}]")
             if "url" in err:
                 error_lines.append(f"    For further information visit {err['url']}")
 
@@ -4229,6 +4501,29 @@ class SUEWSConfig(BaseModel):
         error_msg = "\n".join(error_lines)
         raise ValueError(f"SUEWS Configuration Validation Error:\n{error_msg}")
 
+    @staticmethod
+    def _format_validation_loc(loc: tuple, site_gridid_map: dict) -> str:
+        """Format a Pydantic error location with explicit site GRIDID labels."""
+        parts = []
+        index = 0
+        while index < len(loc):
+            item = loc[index]
+            if (
+                item == "sites"
+                and index + 1 < len(loc)
+                and isinstance(loc[index + 1], int)
+            ):
+                site_idx = loc[index + 1]
+                if site_idx in site_gridid_map:
+                    parts.append(f"sites[gridiv={site_gridid_map[site_idx]}]")
+                else:
+                    parts.append(f"sites[{site_idx}]")
+                index += 2
+                continue
+            parts.append(str(item))
+            index += 1
+        return ".".join(parts)
+
     @classmethod
     def _drift_hint(
         cls, config_data: dict, *, had_signature: bool = True
@@ -4247,8 +4542,8 @@ class SUEWSConfig(BaseModel):
         self-contradictory hint that pointed users at a command that could
         not work.
         """
-        from ..schema import CURRENT_SCHEMA_VERSION
-        from ..schema.migration import SchemaMigrator
+        from ..configuration import CURRENT_SCHEMA_VERSION
+        from ..configuration.migration import SchemaMigrator
 
         if had_signature:
             try:
@@ -4319,22 +4614,59 @@ class SUEWSConfig(BaseModel):
         Returns:
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
-        with open(path, "r") as file:
-            config_data = yaml.load(file, Loader=yaml.FullLoader)
+        with open(path, "r", encoding="utf-8") as file:
+            config_data = yaml.safe_load(file)
 
-        # Snapshot the raw user YAML so site-level completeness checks can
+        return cls.from_dict(
+            config_data,
+            use_conditional_validation=use_conditional_validation,
+            strict=strict,
+            auto_generate_annotated=auto_generate_annotated,
+            yaml_path=path,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        config_data: dict,
+        use_conditional_validation: bool = True,
+        strict: bool = True,
+        auto_generate_annotated: bool = False,
+        yaml_path: Optional[str] = None,
+    ) -> "SUEWSConfig":
+        """Initialize SUEWSConfig from a configuration dict with validation.
+
+        This is the single validated construction path for dict input
+        (gh#1530); ``from_yaml`` delegates here after reading the file.
+
+        Args:
+            config_data (dict): Configuration data, YAML-shaped.
+            use_conditional_validation (bool): Whether to use conditional validation
+            strict (bool): If True, raise errors on validation failure
+            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
+            yaml_path (str, optional): Source YAML path, when loaded from a file.
+
+        Returns:
+            SUEWSConfig: Validated instance of SUEWSConfig
+        """
+        # Work on a copy so the caller's dict is never mutated (validators
+        # such as the legacy output_file coercion pop keys in place).
+        config_data = deepcopy(config_data)
+
+        # Snapshot the raw user input so site-level completeness checks can
         # distinguish user-declared surfaces from pydantic-factory defaults
         # (gh#1333 follow-up). Deep-copied so later mutations of
         # ``config_data`` do not bleed into the validator's view.
         yaml_raw_snapshot = deepcopy(config_data)
 
-        # Store yaml path in config data for later use
-        config_data["_yaml_path"] = path
+        # Store source path (if any) in config data for later use
+        if yaml_path is not None:
+            config_data["_yaml_path"] = yaml_path
         config_data["_auto_generate_annotated"] = auto_generate_annotated
         config_data["_yaml_raw"] = yaml_raw_snapshot
 
         # Log schema version information if present
-        from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
+        from ..configuration import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
 
         # Remember whether the source YAML carried a schema_version field so the
         # drift-hint builder does not report the default-stamped CURRENT_SCHEMA_VERSION
@@ -4361,7 +4693,9 @@ class SUEWSConfig(BaseModel):
                 "Running comprehensive Pydantic validation with conditional checks."
             )
             try:
-                return cls(**config_data)
+                # Root ``extra="allow"`` is reserved for the bookkeeping keys
+                # above; the shared raw-mapping path enforces strictness below.
+                return cls._validate_raw_mapping(config_data)
             except ValidationError as e:
                 # Transform Pydantic validation error messages to use GRIDID instead of array indices
                 transformed_error = cls._transform_validation_error(
@@ -4382,7 +4716,7 @@ class SUEWSConfig(BaseModel):
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""
-        with open(columns_file, "r") as f:
+        with open(columns_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         tuples = []
@@ -4430,6 +4764,14 @@ class SUEWSConfig(BaseModel):
                 grid_id = self.sites[i].gridiv
                 df_site = self.sites[i].to_df_state(grid_id)
                 df_model = self.model.to_df_state(grid_id)
+                direct_fraction_positions = [
+                    idx
+                    for idx, col in enumerate(df_model.columns)
+                    if col == ("sw_dn_direct_frac", "0")
+                ]
+                if direct_fraction_positions:
+                    direct_fraction = df_model.iloc[0, direct_fraction_positions[0]]
+                    df_site[("sw_dn_direct_frac", "0")] = direct_fraction
                 df_site = pd.concat([df_site, df_model], axis=1)
                 # Remove duplicate columns immediately after combining site+model
                 # This prevents InvalidIndexError when concatenating multiple sites (axis=0)
@@ -4541,35 +4883,37 @@ class SUEWSConfig(BaseModel):
 
             # Set site properties
             site_properties = SiteProperties.from_df_state(df, grid_id)
-            site.properties = site_properties
+            _assign_trusted(site, "properties", site_properties)
 
             # Set initial states
             initial_states = InitialStates.from_df_state(df, grid_id)
-            site.initial_states = initial_states
+            _assign_trusted(site, "initial_states", initial_states)
 
             sites.append(site)
 
         # Update config with reconstructed data
-        config.sites = sites
+        _assign_trusted(config, "sites", sites)
 
         # Reconstruct model
-        config.model = Model.from_df_state(df, grid_ids[0])
+        _assign_trusted(config, "model", Model.from_df_state(df, grid_ids[0]))
 
         # Set name and description, using defaults if columns don't exist
         if ("config", "0") in df.columns:
-            config.name = df.loc[grid_ids[0], ("config", "0")]
+            _assign_trusted(config, "name", df.loc[grid_ids[0], ("config", "0")])
         elif "config" in df.columns:
-            config.name = df["config"].iloc[0]
+            _assign_trusted(config, "name", df["config"].iloc[0])
         else:
-            config.name = "Converted from legacy format"
+            _assign_trusted(config, "name", "Converted from legacy format")
 
         if ("description", "0") in df.columns:
-            config.description = df.loc[grid_ids[0], ("description", "0")]
+            _assign_trusted(config, "description", df.loc[grid_ids[0], ("description", "0")])
         elif "description" in df.columns:
-            config.description = df["description"].iloc[0]
+            _assign_trusted(config, "description", df["description"].iloc[0])
         else:
-            config.description = (
-                "Configuration converted from legacy SUEWS table format"
+            _assign_trusted(
+                config,
+                "description",
+                "Configuration converted from legacy SUEWS table format",
             )
 
         return config
@@ -4593,6 +4937,12 @@ class SUEWSConfig(BaseModel):
         # Strip private implementation fields
         for key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):
             config_dict.pop(key, None)
+
+        # `strict_initial_state_bounds` is a converter-set legacy-compatibility
+        # flag; surface it only when actively relaxed (False), so normal configs
+        # stay clean and the field does not appear in user-facing exports.
+        if config_dict.get("strict_initial_state_bounds") is True:
+            config_dict.pop("strict_initial_state_bounds", None)
 
         if not include_internal:
             _strip_internal_fields(config_dict, type(self))

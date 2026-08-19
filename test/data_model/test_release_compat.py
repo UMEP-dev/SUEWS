@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from supy.data_model.core.config import SUEWSConfig
-from supy.data_model.schema import CURRENT_SCHEMA_VERSION
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.util.converter.yaml_upgrade import (
     _PACKAGE_TO_SCHEMA,  # noqa: PLC2701 - test introspects the registry
     upgrade_yaml,

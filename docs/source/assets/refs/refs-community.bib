@@ -1,9 +1,15 @@
 @comment{
-   SUEWS publications -- topic taxonomy (GH#1310)
+   SUEWS publications -- topic taxonomy
 
    Every entry MUST carry `keywords = {<slug>[, <slug>...]}` with at least
    one slug from the controlled vocabulary below. Slugs are lowercase,
    hyphen-separated, no spaces, no uppercase.
+
+   Required metadata: every entry must include non-empty title, author, and
+   year fields. All entry types other than unpublished must also include a
+   non-empty DOI. An unpublished entry must instead include a non-empty note
+   describing its status, such as "In preparation" or "Under review"; its DOI
+   is optional.
 
    Controlled vocabulary:
      energy-balance         Surface energy balance partitioning, flux schemes
@@ -19,7 +25,7 @@
    each relevant section of docs/source/related_publications.rst, plus the
    "All publications" fallback.
 
-   Programmatic curation: /curate-refs  (.claude/skills/curate-refs/SKILL.md)
+   Programmatic curation: /audit-docs  (.claude/skills/audit-docs/SKILL.md)
 }
 
 % Community submissions of SUEWS-related publications
@@ -28,7 +34,7 @@
 % 2. Add your BibTeX entry below
 % 3. Include a comment above your entry describing how SUEWS was used in your work
 
-% Example entry from issue #80
+% Example entry
 % Used SUEWS for urban climate modelling
 @article{panagiotakis2021,
   title     = {Evaluation of nature-based solutions implementation scenarios, using urban surface modelling},
@@ -43,4 +49,22 @@
   publisher = {Pivot Science Publications Corp.},
   abstract = {The present paper aims to study the impact of Nature Based Solutions (NBS) on the urban environment. The Surface Urban Energy and Water balance Scheme (SUEWS) is used to quantify the impact of NBS in the city of Heraklion, Crete, Greece, a densely built urban area. Local meteorological data and data from an Eddy Covariance flux tower installed in the city center are used for the model simulation and evaluation. Five different scenarios are tested by replacing the city’s roofs and pavements with green infrastructure, i.e., trees and grass, and water bodies. The NBS impact evaluation is based on the changes of air temperature above 2m from the ground, relative humidity and energy fluxes. A decrease of the air temperature is revealed with the highest reduction (2.3%) occurring when the pavements are replaced with grass for all scenarios. The reduction of the air temperature is followed by a decrease in turbulent sensible heat flux. For almost all cases, an increase of the relative humidity is noticed, accompanied by a considerable increase of the turbulent latent heat flux. Therefore, NBS in cities change the energy balance significantly and modify the urban environment for the citizens' benefit.},
   keywords = {energy-balance, water-balance},
+}
+
+% Applied SUEWS in a biogenic CO2 flux model intercomparison for four urban
+% parks in Zurich
+@article{S25,
+  author = {Stagakis, Stavros and Brunner, Dominik and Li, Junwei and Backman, Leif and Karvonen, Anni and Constantin, Lionel and J{\"a}rvi, Leena and Havu, Minttu and Chen, Jia and Emberger, Sophie and Kulmala, Liisa},
+  title = {Intercomparison of biogenic {CO$_{2}$} flux models in four urban parks in the city of {Zurich}},
+  journal = {Biogeosciences},
+  volume = {22},
+  number = {9},
+  pages = {2133--2161},
+  year = {2025},
+  month = may,
+  publisher = {Copernicus GmbH},
+  doi = {10.5194/bg-22-2133-2025},
+  url = {https://doi.org/10.5194/bg-22-2133-2025},
+  issn = {1726-4189},
+  keywords = {carbon-flux},
 }

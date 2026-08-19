@@ -1,36 +1,38 @@
 .. _surface_data_preparation:
 
+======================================
 Preparing Surface Characteristics Data
 ======================================
 
 This guide explains how to move from a real study area to site-specific SUEWS
-surface parameters. It complements the :doc:`/inputs/yaml/index` guide, which
-explains configuration structure and validation.
+(Surface Urban Energy and Water Balance Scheme) surface parameters. It
+complements the :doc:`/inputs/yaml/index` guide, which explains configuration
+structure and validation.
 
 Use this page when you know *which* parameters are needed, but need practical
 advice on where to obtain data and how to derive values.
 
 Recommended Workflow
---------------------
+====================
 
 1. Delineate the site footprint used for the SUEWS grid.
-2. Compile geospatial layers (land cover, elevation, buildings, vegetation).
+2. Compile compatible land-cover, building, and vegetation datasets.
 3. Derive surface fractions and morphology from the same footprint.
 4. Derive seasonal biophysical parameters (albedo, LAI, phenology).
-5. Fill the YAML configuration and run ``suews-validate``.
+5. Fill the YAML configuration and run ``suews validate --format json config.yml``.
 6. Compare against local observations and refine sensitive parameters.
 
 For broader setup context, see :doc:`/workflow`.
 
 Land Cover Fractions
---------------------
+====================
 
-Physical meaning
-~~~~~~~~~~~~~~~~
+Land-cover meaning
+------------------
 Fraction of grid area occupied by each of the seven SUEWS surface types.
 
-YAML configuration path
-~~~~~~~~~~~~~~~~~~~~~~~
+Land-cover YAML paths
+---------------------
 
 Set one fraction for each surface type:
 
@@ -42,18 +44,17 @@ Set one fraction for each surface type:
 - ``sites.<site>.properties.land_cover.bsoil.sfr``
 - ``sites.<site>.properties.land_cover.water.sfr``
 
-Fractions should sum to 1.0 (the validator can correct small rounding errors).
+Fractions must sum to 1.0. Re-run the validator after normalising them.
 
-Data sources
-~~~~~~~~~~~~
+Land-cover sources
+------------------
 
-- `UMEP`_ (QGIS tools for land cover fractions from raster/vector inputs)
-- `CORINE Land Cover`_ (Europe)
-- `NLCD`_ (United States)
-- `OpenStreetMap`_ (global vector features)
+- `ESA WorldCover`_ (global land-cover maps at 10 m resolution)
+- `Copernicus Global Dynamic Land Cover`_ (global land-cover maps and fraction
+  layers)
 
-Derivation method
-~~~~~~~~~~~~~~~~~
+Land-cover derivation
+---------------------
 
 1. Reproject all datasets to a metric CRS.
 2. Clip to the SUEWS site footprint.
@@ -61,20 +62,20 @@ Derivation method
 4. Compute area fractions by class and normalise to 1.0.
 5. Check consistency with local imagery.
 
-Parameter reference
-~~~~~~~~~~~~~~~~~~~
+Land-cover parameter reference
+------------------------------
 
 See :doc:`/inputs/yaml/config-reference/index` for full parameter definitions.
 
 Albedo
-------
+======
 
-Physical meaning
-~~~~~~~~~~~~~~~~
+Albedo meaning
+--------------
 Shortwave reflectance controlling net radiation partitioning at the surface.
 
-YAML configuration path
-~~~~~~~~~~~~~~~~~~~~~~~
+Albedo YAML paths
+-----------------
 
 - Non-vegetated surfaces (single albedo):
 
@@ -89,109 +90,112 @@ YAML configuration path
   - ``sites.<site>.properties.land_cover.dectr.alb_min`` and ``alb_max``
   - ``sites.<site>.properties.land_cover.grass.alb_min`` and ``alb_max``
 
-Data sources
-~~~~~~~~~~~~
+Albedo sources
+--------------
 
-- `MODIS MCD43A3`_ (broadband albedo)
-- `Landsat Collection 2 Surface Reflectance`_
-- Field measurements (radiometers)
+- Site-specific radiometer measurements
+- The `SUEWS input database`_ for curated values by surface and urban typology
 
-Derivation method
-~~~~~~~~~~~~~~~~~
+Albedo derivation
+-----------------
 
-1. Extract albedo for the study footprint and quality-filter cloud/snow pixels.
-2. Compute representative statistics for the simulation period.
+1. Aggregate local radiometer measurements over representative periods, where
+   available.
+2. Otherwise select the closest matching surface or urban typology from the
+   SUEWS input database and record that assumption.
 3. Use a single representative ``alb`` for non-vegetated surfaces.
 4. Use seasonal low/high values for ``alb_min`` and ``alb_max`` on vegetation.
 
-Parameter reference
-~~~~~~~~~~~~~~~~~~~
+Albedo parameter reference
+--------------------------
 
 See :doc:`/inputs/yaml/config-reference/index`.
 
 Urban Morphology
-----------------
+================
 
-Physical meaning
-~~~~~~~~~~~~~~~~
+Morphology meaning
+------------------
 Building and vegetation structure controlling roughness, turbulence, and radiation.
 
-YAML configuration path
-~~~~~~~~~~~~~~~~~~~~~~~
+Morphology YAML paths
+---------------------
 
 - ``sites.<site>.properties.land_cover.bldgs.bldgh``
 - ``sites.<site>.properties.land_cover.bldgs.faibldg``
-- ``sites.<site>.properties.land_cover.evetr.evetreeh``
-- ``sites.<site>.properties.land_cover.dectr.dectreeh``
+- ``sites.<site>.properties.land_cover.evetr.height_evergreen_tree``
+- ``sites.<site>.properties.land_cover.dectr.height_deciduous_tree``
 
-Data sources
-~~~~~~~~~~~~
+Morphology sources
+------------------
 
-- Airborne or national `LiDAR`_ products
-- `OpenStreetMap`_ building footprints/attributes
-- `UMEP`_ Morphometric Calculator tools
-- `Global Human Settlement Layer (GHSL)`_ products
+- `GLAMOUR`_ for global building height and plan-area fraction at 100 m
+  resolution
+- `GEDI canopy height`_ for a global 30 m vegetation-height product
+- Site-specific building and vegetation surveys where available
 
-Derivation method
-~~~~~~~~~~~~~~~~~
+Morphology derivation
+---------------------
 
-1. Build a DSM/DTM or equivalent elevation model.
-2. Derive mean building height within the site.
-3. Estimate frontal area index from geometry and wind-direction context.
-4. Derive representative tree heights from canopy products or field surveys.
+1. Derive mean building height and plan-area fraction for the site footprint.
+2. Estimate frontal area index from compatible building geometry and the wind
+   directions represented by the model. Do not infer it from plan-area
+   fraction alone.
+3. Derive representative tree heights from canopy products or field surveys.
+4. Check GEDI-derived heights against local information in dense urban areas,
+   where buildings can contaminate the canopy-height signal.
 
-Parameter reference
-~~~~~~~~~~~~~~~~~~~
+Morphology parameter reference
+------------------------------
 
 See :doc:`/inputs/yaml/config-reference/index`.
 
 Leaf Area Index (LAI) and Phenology
------------------------------------
+===================================
 
-Physical meaning
-~~~~~~~~~~~~~~~~
+LAI and phenology meaning
+-------------------------
 Seasonal vegetation state controlling transpiration, interception, and radiation.
 
-YAML configuration path
-~~~~~~~~~~~~~~~~~~~~~~~
+LAI and phenology YAML paths
+----------------------------
 
 For each vegetated surface (``evetr``, ``dectr``, ``grass``):
 
-- ``sites.<site>.properties.land_cover.<surface>.lai.laimin``
-- ``sites.<site>.properties.land_cover.<surface>.lai.laimax``
-- ``sites.<site>.properties.land_cover.<surface>.lai.gddfull``
-- ``sites.<site>.properties.land_cover.<surface>.lai.sddfull``
+- ``sites.<site>.properties.land_cover.<surface>.lai.lai_min``
+- ``sites.<site>.properties.land_cover.<surface>.lai.lai_max``
+- ``sites.<site>.properties.land_cover.<surface>.lai.gdd_full``
+- ``sites.<site>.properties.land_cover.<surface>.lai.sdd_full``
 
-Data sources
-~~~~~~~~~~~~
+LAI and phenology sources
+-------------------------
 
-- `MODIS LAI`_ products
-- `Copernicus LAI`_ products
-- Field LAI measurements (e.g., LAI-2200, hemispherical photography)
+- Site-specific LAI and phenology measurements
+- The `SUEWS input database`_ for curated values by vegetation typology
 
-Derivation method
-~~~~~~~~~~~~~~~~~
+LAI and phenology derivation
+----------------------------
 
-1. Extract multi-year seasonal LAI trajectories for the footprint.
-2. Set ``laimin`` from dormant-season values and ``laimax`` from peak values.
-3. Estimate phenology thresholds (``gddfull``, ``sddfull``) from local climate
+1. Compile multi-year seasonal LAI trajectories for the footprint.
+2. Set ``lai_min`` from dormant-season values and ``lai_max`` from peak values.
+3. Estimate phenology thresholds (``gdd_full``, ``sdd_full``) from local climate
    and observed green-up/senescence timing.
 4. Check that values are physically consistent for local vegetation types.
 
-Parameter reference
-~~~~~~~~~~~~~~~~~~~
+LAI and phenology parameter reference
+-------------------------------------
 
 See :doc:`/inputs/yaml/config-reference/index`.
 
-OHM Coefficients
-----------------
+Storage-heat (OHM) Coefficients
+===============================
 
-Physical meaning
-~~~~~~~~~~~~~~~~
+OHM-coefficient meaning
+-----------------------
 Coefficients ``a1``, ``a2``, and ``a3`` for storage heat flux parameterisation.
 
-YAML configuration path
-~~~~~~~~~~~~~~~~~~~~~~~
+OHM-coefficient YAML paths
+--------------------------
 
 For each surface, coefficients are set by season and wetness state, for example:
 
@@ -201,37 +205,37 @@ For each surface, coefficients are set by season and wetness state, for example:
 
 The same pattern applies for ``summer_dry``, ``winter_wet``, and ``winter_dry``.
 
-Data sources
-~~~~~~~~~~~~
+OHM-coefficient sources
+-----------------------
 
 - Site-specific flux and radiation measurements (if available)
 - Published coefficient sets in the SUEWS documentation/literature
 
-Derivation method
-~~~~~~~~~~~~~~~~~
+OHM-coefficient derivation
+--------------------------
 
 If you have suitable observations, derive coefficients using
-``supy.util.derive_ohm_coef()`` as shown in
+:func:`~supy.util.derive_ohm_coef` as shown in
 :doc:`/inputs/tables/SUEWS_SiteInfo/SUEWS_OHMCoefficients`.
 
 If you do not have local flux data, start from literature/default sets and
 prioritise sensitivity testing before introducing custom coefficients.
 
-Parameter reference
-~~~~~~~~~~~~~~~~~~~
+OHM-coefficient parameter reference
+-----------------------------------
 
 See :doc:`/inputs/yaml/config-reference/index` and
 :doc:`/inputs/tables/SUEWS_SiteInfo/SUEWS_OHMCoefficients`.
 
-Surface Conductance
--------------------
+Surface-conductance Parameters
+==============================
 
-Physical meaning
-~~~~~~~~~~~~~~~~
+Surface-conductance meaning
+---------------------------
 Parameters controlling potential and realised stomatal/surface conductance.
 
-YAML configuration path
-~~~~~~~~~~~~~~~~~~~~~~~
+Surface-conductance YAML paths
+------------------------------
 
 - Site-level conductance parameter:
 
@@ -239,63 +243,55 @@ YAML configuration path
 
 - Vegetation surface conductance limits:
 
-  - ``sites.<site>.properties.land_cover.evetr.maxconductance``
-  - ``sites.<site>.properties.land_cover.dectr.maxconductance``
-  - ``sites.<site>.properties.land_cover.grass.maxconductance``
+  - ``sites.<site>.properties.land_cover.evetr.max_conductance``
+  - ``sites.<site>.properties.land_cover.dectr.max_conductance``
+  - ``sites.<site>.properties.land_cover.grass.max_conductance``
 
-Data sources
-~~~~~~~~~~~~
+Surface-conductance sources
+---------------------------
 
 - Eddy covariance inversions
 - Leaf- or canopy-level gas exchange observations
-- Published parameter sets for similar vegetation and climate regimes
+- The `SUEWS input database`_ for curated values by vegetation typology
 
-Derivation method
-~~~~~~~~~~~~~~~~~
+Surface-conductance derivation
+------------------------------
 
 Direct local estimation is data-intensive. In most applications, begin with
 published values for similar sites, then calibrate within physically realistic
 ranges against local fluxes where available.
 
-Parameter reference
-~~~~~~~~~~~~~~~~~~~
+Surface-conductance parameter reference
+---------------------------------------
 
 See :doc:`/inputs/yaml/config-reference/index`.
 
-SUEWS-database (Under Development)
-----------------------------------
+SUEWS Input Database
+====================
 
-A dedicated repository for curated SUEWS surface parameter datasets is under
-active development:
+A dedicated repository provides the evolving input database used by the SUEWS
+Database Manager and SUEWS Database Prepare plugins:
 
-- `UMEP-dev/SUEWS-database`_
+- `SUEWS input database`_
 
 Use it as a starting point where relevant, but still verify representativeness
 for your site and period.
 
 References and Tools
---------------------
+====================
 
-The following resources are commonly used when preparing SUEWS surface data:
+Use these project-supported resources when preparing surface data:
 
-- `UMEP`_ (QGIS pre-processing tools)
-- `CORINE Land Cover`_
-- `NLCD`_
-- `OpenStreetMap`_
-- `MODIS MCD43A3`_ (albedo)
-- `MODIS LAI`_ and `Copernicus LAI`_
-- `Landsat Collection 2 Surface Reflectance`_
-- `Global Human Settlement Layer (GHSL)`_
-- `UMEP-dev/SUEWS-database`_
+- `ESA WorldCover`_ and `Copernicus Global Dynamic Land Cover`_ for land cover
+- `GLAMOUR`_ for building morphology
+- `GEDI canopy height`_ for vegetation height
+- The `SUEWS input database`_ for parameter values and typologies
 
-.. _UMEP: https://umep-docs.readthedocs.io/en/latest/
-.. _CORINE Land Cover: https://land.copernicus.eu/en/products/corine-land-cover
-.. _NLCD: https://www.usgs.gov/centers/eros/science/national-land-cover-database
-.. _OpenStreetMap: https://www.openstreetmap.org/
-.. _MODIS MCD43A3: https://lpdaac.usgs.gov/products/mcd43a3v061/
-.. _MODIS LAI: https://lpdaac.usgs.gov/products/mcd15a3hv061/
-.. _Copernicus LAI: https://land.copernicus.eu/global/products/lai
-.. _Landsat Collection 2 Surface Reflectance: https://www.usgs.gov/landsat-missions/landsat-collection-2-surface-reflectance
-.. _LiDAR: https://www.usgs.gov/programs/3d-elevation-program
-.. _Global Human Settlement Layer (GHSL): https://ghsl.jrc.ec.europa.eu/
-.. _UMEP-dev/SUEWS-database: https://github.com/UMEP-dev/SUEWS-database
+Other datasets and manual GIS routes may be useful, but confirm their suitability
+with the SUEWS team before relying on them.
+
+.. _ESA WorldCover: https://esa-worldcover.org/en/data-access
+.. _Copernicus Global Dynamic Land Cover: https://land.copernicus.eu/en/products/global-dynamic-land-cover
+.. _GLAMOUR: https://zenodo.org/records/10396451
+.. _GEDI canopy height: https://glad.umd.edu/dataset/gedi/
+.. _SUEWS input database: https://github.com/UMEP-dev/SUEWS-database

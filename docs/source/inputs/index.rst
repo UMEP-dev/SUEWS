@@ -16,13 +16,13 @@ SUEWS supports two formats for providing input parameters:
 
    yaml/index
    forcing-data
+   surface-data-preparation
    yaml/config-reference/index
 
 .. toctree::
    :maxdepth: 1
    :caption: Tools and Utilities
 
-   surface-data-preparation
    converter
    transition_guide
    yaml/validation

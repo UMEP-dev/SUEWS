@@ -2,8 +2,9 @@
 
 
 
+==============
 Typical Values
-##############
+==============
 
 .. note::
 
@@ -36,4 +37,3 @@ Storage Heat Flux Related
       :file: typical-OHM-coefficients.csv
       :header-rows: 1
       :stub-columns: 1
-

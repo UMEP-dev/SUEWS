@@ -360,7 +360,8 @@ Data Requirements and Quality
 
 .. tip::
 
-   **Data Sources**: Use the `UMEP`_ plugin for QGIS to derive land cover fractions from satellite imagery or local spatial datasets.
+   Derive all surface inputs over the same site footprint and record the
+   datasets, processing steps, and assumptions.
 
 For detailed guidance on obtaining and preparing surface characteristics data,
 see :doc:`/inputs/surface-data-preparation`.
@@ -648,5 +649,3 @@ See `Recent Publications <Recent_publications>`__ for the latest research using 
 **Training and Workshops:**
 
 The SUEWS community regularly organises training workshops and webinars. Check the mailing list for announcements of upcoming events.
-
-.. _`UMEP`: http://umep-docs.readthedocs.io/en/latest/index.html

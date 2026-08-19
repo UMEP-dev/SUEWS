@@ -60,9 +60,15 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
+
+from version_audit import (
+    extract_literal_assignments,
+    read_file_at_ref,
+    resolve_merge_base,
+    run_git,
+)
 
 # Paths that own the public YAML configuration shape (relative to repo root).
 # Output registries, forcing contracts and validation implementation are
@@ -93,29 +99,6 @@ _SCHEMA_DOC_PATHS: tuple[str, ...] = (
 )
 
 
-def _run(args: list[str]) -> str:
-    """Run a subprocess and return stdout; raise on non-zero exit."""
-    result = subprocess.run(
-        args,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return result.stdout
-
-
-def _merge_base(base_ref: str) -> str:
-    """Return the merge-base commit between `base_ref` and `HEAD`.
-
-    The audit cares about what *this branch* did, not about what landed
-    on `base_ref` after the branch diverged. Resolving the merge-base
-    explicitly lets both the changed-file listing and the base-side
-    schema-version lookup compare against the same reference point,
-    even when `base_ref` has advanced with unrelated commits.
-    """
-    return _run(["git", "merge-base", base_ref, "HEAD"]).strip()
-
-
 def _paths_from_name_status(output: str) -> set[str]:
     """Return both paths from NUL-delimited ``git --name-status -z`` output."""
     paths: set[str] = set()
@@ -143,9 +126,10 @@ def _list_changed_files(base_ref: str, include_worktree: bool) -> list[str]:
     against the merge-base so uncommitted edits are included but
     unrelated commits on `base_ref` are still filtered out.
     """
-    comparison = _merge_base(base_ref) if include_worktree else f"{base_ref}...HEAD"
-    output = _run([
-        "git",
+    comparison = (
+        resolve_merge_base(base_ref) if include_worktree else f"{base_ref}...HEAD"
+    )
+    output = run_git([
         "diff",
         "--name-status",
         "-z",
@@ -156,8 +140,7 @@ def _list_changed_files(base_ref: str, include_worktree: bool) -> list[str]:
     if include_worktree:
         paths.update(
             path
-            for path in _run([
-                "git",
+            for path in run_git([
                 "ls-files",
                 "--others",
                 "--exclude-standard",
@@ -175,24 +158,16 @@ def _is_watched(path: str) -> bool:
     )
 
 
-_CURRENT_SCHEMA_VERSION_PATTERN = re.compile(
-    r"^\s*CURRENT_SCHEMA_VERSION\s*=\s*['\"]([^'\"]+)['\"]",
-    re.MULTILINE,
-)
-
-
 def _extract_current_schema_version(source: str) -> str | None:
-    """Return the quoted value of the top-level `CURRENT_SCHEMA_VERSION`.
-
-    Matches the first `CURRENT_SCHEMA_VERSION = "<value>"` assignment in
-    `source`. Returns None when the constant is absent, which lets callers
-    treat "file missing" and "file refactored beyond recognition" as hard
-    failures rather than silent passes.
-    """
-    match = _CURRENT_SCHEMA_VERSION_PATTERN.search(source)
-    if match is None:
+    """Return the string literal assigned to ``CURRENT_SCHEMA_VERSION``."""
+    try:
+        value = extract_literal_assignments(
+            source,
+            ("CURRENT_SCHEMA_VERSION",),
+        )["CURRENT_SCHEMA_VERSION"]
+    except (SyntaxError, ValueError):
         return None
-    return match.group(1)
+    return value if isinstance(value, str) else None
 
 
 def _load_schema_version_at_base(base_ref: str) -> str | None:
@@ -212,15 +187,13 @@ def _load_schema_version_at_base(base_ref: str) -> str | None:
     value counts as a bump from "nothing").
     """
     try:
-        merge_base = _merge_base(base_ref)
+        merge_base = resolve_merge_base(base_ref)
     except subprocess.CalledProcessError:
         return None
-    try:
-        return _extract_current_schema_version(
-            _run(["git", "show", f"{merge_base}:{_SCHEMA_VERSION_FILE}"])
-        )
-    except subprocess.CalledProcessError:
+    source = read_file_at_ref(merge_base, _SCHEMA_VERSION_FILE)
+    if source is None:
         return None
+    return _extract_current_schema_version(source)
 
 
 def _load_schema_version_worktree() -> str | None:

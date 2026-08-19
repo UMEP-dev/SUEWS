@@ -25,12 +25,10 @@ import pytest
 pytestmark = pytest.mark.api
 
 
-SCRIPT_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "scripts"
-    / "lint"
-    / "check_schema_version_bump.py"
-)
+LINT_ROOT = Path(__file__).resolve().parents[2] / "scripts" / "lint"
+if str(LINT_ROOT) not in sys.path:
+    sys.path.insert(0, str(LINT_ROOT))
+SCRIPT_PATH = LINT_ROOT / "check_schema_version_bump.py"
 SCRIPT_SPEC = importlib.util.spec_from_file_location(
     "check_schema_version_bump", SCRIPT_PATH
 )
@@ -151,6 +149,9 @@ def test_main_entry_chdirs_to_repo_root(branched_repo: Path) -> None:
     target_dir.mkdir(parents=True)
     script_copy = target_dir / SCRIPT_PATH.name
     script_copy.write_text(SCRIPT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    helper_path = LINT_ROOT / "version_audit.py"
+    helper_copy = target_dir / helper_path.name
+    helper_copy.write_text(helper_path.read_text(encoding="utf-8"), encoding="utf-8")
     nested = branched_repo / "src"
     assert nested.is_dir()
 
@@ -171,7 +172,7 @@ def test_main_entry_chdirs_to_repo_root(branched_repo: Path) -> None:
 
 
 def test_extract_current_schema_version_parses_literal() -> None:
-    """Sanity check on the regex: it must find the quoted value even
+    """Sanity check on literal parsing: it must find the quoted value even
     when other assignments appear above it.
     """
     source = (

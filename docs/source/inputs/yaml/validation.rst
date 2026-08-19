@@ -121,7 +121,7 @@ Example excerpt:
 
     ## SUGGESTED UPDATES
     - Suggested (3) scientific initialisation update(s).
-    - These suggestions were not written to YAML. They may be inappropriate for observed initial states, spin-up workflows, historical timezone settings, or specialist case studies.
+    - These suggestions were not written to the updated YAML. They may be inappropriate for observed initial states, spin-up workflows, historical timezone settings, or specialist case studies.
     -- initial_states.paved at site [1]: temperature, tsfc, tin -> 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1. Source: CRU TS climatology-derived initialisation heuristic.)
     -- anthropogenic_emissions.startdls at site [1]: 0 -> 86 (Calculated DLS start for coordinates (51.51, -0.13). Source: Timezone and daylight-saving calculation from site coordinates.)
 

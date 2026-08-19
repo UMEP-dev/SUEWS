@@ -4805,6 +4805,15 @@ def test_phase_b_report_uses_review_and_suggestion_sections():
     assert "## REVIEW ADVISED" in report
     assert "## SUGGESTED UPDATES" in report
     assert "## NO ACTION NEEDED" not in report
+    assert (
+        "- These suggestions were not written to the updated YAML. They may be "
+        "inappropriate for observed initial states, spin-up workflows, historical "
+        "timezone settings, or specialist case studies."
+    ) in report.splitlines()
+    assert (
+        "- Re-run with --science-fixes apply to apply them to the updated YAML, or "
+        "--science-fixes off to suppress scientific transformation suggestions."
+    ) in report.splitlines()
 
 
 def test_phase_b_structured_result_and_rule_order():

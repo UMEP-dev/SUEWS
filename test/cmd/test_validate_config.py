@@ -822,6 +822,165 @@ def test_emit_pipeline_result_warning_status_matches_inner_report(
     assert envelope["data"]["validation_report"]["overall_status"] == "WARNING"
 
 
+@pytest.mark.parametrize("mode", ["public", "dev"])
+@pytest.mark.parametrize(
+    "pipeline, failed_phase",
+    [
+        ("A", "A"),
+        ("B", "B"),
+        ("C", "C"),
+        ("AB", "A"),
+        ("AB", "B"),
+        ("AC", "A"),
+        ("AC", "C"),
+        ("BC", "B"),
+        ("BC", "C"),
+        ("ABC", "A"),
+        ("ABC", "B"),
+        ("ABC", "C"),
+    ],
+)
+def test_final_text_report_matches_failed_structured_phase(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    mode: str,
+    pipeline: str,
+    failed_phase: str,
+) -> None:
+    """Every pipeline selection derives its final header from PhaseReport."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+    from supy.data_model.validation.pipeline.report_writer import (
+        VALIDATION_PHASE_NAMES,
+    )
+
+    phases = []
+    for phase in pipeline:
+        issues = []
+        if phase == failed_phase:
+            issues.append(
+                Issue(
+                    phase=phase,
+                    severity=SEVERITY_ERROR,
+                    code=f"{phase}.TEST.ERROR",
+                    message="blocking error",
+                )
+            )
+        phases.append(PhaseReport(phase=phase, issues=issues))
+        if issues:
+            break
+
+    report_path = tmp_path / f"report_{pipeline}_{failed_phase}_{mode}.txt"
+    report_path.write_text(
+        "# SUEWS Validation Report\n"
+        "# ==================================================\n"
+        f"# Mode: {'Public' if mode == 'public' else 'Developer'}\n"
+        "# ==================================================\n\n"
+        "## ACTION NEEDED\n"
+        "- Fix the blocking error.\n",
+        encoding="utf-8",
+    )
+
+    exit_code = _emit_pipeline_result(
+        phases=phases,
+        report_path=report_path,
+        yaml_path=tmp_path / "updated.yml",
+        out_format="table",
+        command=f"suews validate --pipeline {pipeline}",
+        started_at="2026-08-19T00:00:00Z",
+    )
+    capsys.readouterr()
+
+    assert exit_code == 1
+    text = report_path.read_text(encoding="utf-8")
+    expected_name = VALIDATION_PHASE_NAMES[failed_phase]
+    assert f"# Validation stopped at: {expected_name}" in text
+    assert text.count("# Validation stopped at:") == 1
+    assert f"# Mode: {'Public' if mode == 'public' else 'Developer'}" in text
+
+    payload = json.loads(
+        report_path.with_suffix(".json").read_text(encoding="utf-8")
+    )
+    failed_entries = [
+        phase for phase in payload["phases"] if phase["status"] == "FAILED"
+    ]
+    assert [phase["phase"] for phase in failed_entries] == [failed_phase]
+    assert expected_name == VALIDATION_PHASE_NAMES[failed_entries[0]["phase"]]
+
+
+@pytest.mark.parametrize("pipeline", ["A", "B", "C", "AB", "AC", "BC", "ABC"])
+@pytest.mark.parametrize("outcome", ["success", "warning"])
+def test_completed_pipeline_reports_omit_stopping_phase(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    pipeline: str,
+    outcome: str,
+) -> None:
+    """Successful and warning-only single/combined reports do not say stopped."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_WARNING,
+    )
+
+    phases = [PhaseReport(phase=phase, issues=[]) for phase in pipeline]
+    if outcome == "warning":
+        phase = phases[-1].phase
+        phases[-1].issues.append(
+            Issue(
+                phase=phase,
+                severity=SEVERITY_WARNING,
+                code=f"{phase}.TEST.WARNING",
+                message="review this",
+            )
+        )
+
+    report_path = tmp_path / f"report_{pipeline}_{outcome}.txt"
+    report_path.write_text(
+        "# SUEWS Validation Report\n"
+        "# ==================================================\n"
+        "# Mode: Public\n"
+        "# ==================================================\n\n"
+        "## INFO\n"
+        "- Validation completed.\n",
+        encoding="utf-8",
+    )
+
+    exit_code = _emit_pipeline_result(
+        phases=phases,
+        report_path=report_path,
+        yaml_path=tmp_path / "updated.yml",
+        out_format="table",
+        command=f"suews validate --pipeline {pipeline}",
+        started_at="2026-08-19T00:00:00Z",
+    )
+    capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Validation stopped at:" not in report_path.read_text(encoding="utf-8")
+    payload = json.loads(
+        report_path.with_suffix(".json").read_text(encoding="utf-8")
+    )
+    assert payload["overall_status"] == (
+        "WARNING" if outcome == "warning" else "PASSED"
+    )
+
+
+def test_pre_pipeline_input_error_does_not_claim_stopping_phase(tmp_path: Path) -> None:
+    """A Click input-path failure occurs before any A/B/C result exists."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    result = CliRunner().invoke(validate_cli, [str(tmp_path / "missing.yml")])
+
+    assert result.exit_code == 2
+    assert "Validation stopped at:" not in result.output
+
+
 def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
     """The bundled sample config declares every critical physics key, so
     the structural-presence check must not fire.

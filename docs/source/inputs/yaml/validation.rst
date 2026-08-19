@@ -101,6 +101,13 @@ Reports use stable action sections:
   applied because ``--science-fixes apply`` was selected.
 - **INFO**: non-blocking notes and successful validation summaries.
 
+When validation stops on a blocking failure, the header names the first failed
+stage recorded in the structured phase results: **Completeness Check** (A),
+**Scientific Validation** (B), or **Model Compatibility** (C). Public and
+developer reports use the same stage names. Reports that complete successfully,
+including warning-only reports, omit this line. Input and command errors that
+occur before a validation phase starts do not claim an A, B, or C stage.
+
 Example excerpt:
 
 .. code-block:: text
@@ -108,6 +115,7 @@ Example excerpt:
     # SUEWS Validation Report
     # ==================================================
     # Mode: Public
+    # Validation stopped at: Scientific Validation
     # ==================================================
 
     ## ACTION NEEDED

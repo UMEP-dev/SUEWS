@@ -41,7 +41,7 @@ use module_c_api_conductance, only: conductance_prm_unpack
 use module_c_api_stebbs_prm, only: stebbs_prm_unpack
 use module_c_api_flag, only: flag_state_unpack
 use module_c_api_anthro_emis_state, only: anthroemis_state_unpack
-use module_c_api_ohm, only: ohm_state_unpack
+use module_c_api_ohm, only: SUEWS_CAPI_OHM_STATE_LEN, ohm_state_pack, ohm_state_unpack
 use module_c_api_solar, only: solar_state_unpack
 use module_c_api_atm, only: atm_state_unpack
 use module_c_api_phenology, only: phenology_state_unpack
@@ -99,7 +99,6 @@ integer(c_int), parameter :: SUEWS_CAPI_STATE_MEMBER_NHOOD = 13_c_int
 
 integer(c_int), parameter :: SUEWS_CAPI_FLAG_STATE_LEN = 5_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ANTHROEMIS_STATE_LEN = 22_c_int
-integer(c_int), parameter :: SUEWS_CAPI_OHM_STATE_LEN = 53_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SOLAR_STATE_LEN = 3_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ATM_STATE_LEN = 39_c_int
 integer(c_int), parameter :: SUEWS_CAPI_PHENOLOGY_STATE_LEN = 76_c_int
@@ -1207,7 +1206,7 @@ subroutine pack_state_to_output( &
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
-   call pack_ohm_state(state%ohmState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   call ohm_state_pack(state%ohmState, state_out_flat(int(member_offset) + 1), member_len, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
       err = local_err
       return
@@ -1395,73 +1394,6 @@ subroutine pack_anthroemis_state(s, flat, n_flat, err)
 
    err = SUEWS_CAPI_OK
 end subroutine pack_anthroemis_state
-
-subroutine pack_ohm_state(s, flat, n_flat, err)
-   implicit none
-   type(OHM_STATE), intent(in) :: s
-   real(c_double), intent(out) :: flat(*)
-   integer(c_int), intent(in) :: n_flat
-   integer(c_int), intent(out) :: err
-   integer(c_int) :: idx
-   integer(c_int) :: i
-
-   if (n_flat<SUEWS_CAPI_OHM_STATE_LEN) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-
-   idx = 1_c_int
-   flat(idx) = s%qn_av; idx = idx + 1_c_int
-   flat(idx) = s%dqndt; idx = idx + 1_c_int
-
-   do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%qn_surfs(i); idx = idx + 1_c_int
-   end do
-   do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%dqndt_surf(i); idx = idx + 1_c_int
-   end do
-
-   flat(idx) = s%qn_s_av; idx = idx + 1_c_int
-   flat(idx) = s%dqnsdt; idx = idx + 1_c_int
-   flat(idx) = s%a1; idx = idx + 1_c_int
-   flat(idx) = s%a2; idx = idx + 1_c_int
-   flat(idx) = s%a3; idx = idx + 1_c_int
-   flat(idx) = s%t2_prev; idx = idx + 1_c_int
-   flat(idx) = s%ws_rav; idx = idx + 1_c_int
-   flat(idx) = s%tair_prev; idx = idx + 1_c_int
-
-   do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%qn_rav(i); idx = idx + 1_c_int
-   end do
-
-   flat(idx) = s%a1_paved; idx = idx + 1_c_int
-   flat(idx) = s%a1_bldg; idx = idx + 1_c_int
-   flat(idx) = s%a1_evetr; idx = idx + 1_c_int
-   flat(idx) = s%a1_dectr; idx = idx + 1_c_int
-   flat(idx) = s%a1_grass; idx = idx + 1_c_int
-   flat(idx) = s%a1_bsoil; idx = idx + 1_c_int
-   flat(idx) = s%a1_water; idx = idx + 1_c_int
-
-   flat(idx) = s%a2_paved; idx = idx + 1_c_int
-   flat(idx) = s%a2_bldg; idx = idx + 1_c_int
-   flat(idx) = s%a2_evetr; idx = idx + 1_c_int
-   flat(idx) = s%a2_dectr; idx = idx + 1_c_int
-   flat(idx) = s%a2_grass; idx = idx + 1_c_int
-   flat(idx) = s%a2_bsoil; idx = idx + 1_c_int
-   flat(idx) = s%a2_water; idx = idx + 1_c_int
-
-   flat(idx) = s%a3_paved; idx = idx + 1_c_int
-   flat(idx) = s%a3_bldg; idx = idx + 1_c_int
-   flat(idx) = s%a3_evetr; idx = idx + 1_c_int
-   flat(idx) = s%a3_dectr; idx = idx + 1_c_int
-   flat(idx) = s%a3_grass; idx = idx + 1_c_int
-   flat(idx) = s%a3_bsoil; idx = idx + 1_c_int
-   flat(idx) = s%a3_water; idx = idx + 1_c_int
-
-   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
-
-   err = SUEWS_CAPI_OK
-end subroutine pack_ohm_state
 
 subroutine pack_solar_state(s, flat, n_flat, err)
    implicit none

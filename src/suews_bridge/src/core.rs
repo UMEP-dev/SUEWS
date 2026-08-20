@@ -7,8 +7,11 @@ use crate::ffi;
 use std::collections::BTreeMap;
 
 pub const NSURF: usize = 7;
-pub const OHM_STATE_FLAT_LEN: usize = 53;
-pub const OHM_STATE_SCHEMA_VERSION: u32 = 1;
+pub const ANOHM_MAX_SAMPLES: usize = 48;
+pub const OHM_STATE_V1_FLAT_LEN: usize = 53;
+pub const OHM_STATE_FLAT_LEN: usize =
+    OHM_STATE_V1_FLAT_LEN + 5 + 14 * ANOHM_MAX_SAMPLES + 3 * NSURF;
+pub const OHM_STATE_SCHEMA_VERSION: u32 = 2;
 pub const SURFACE_NAMES: [&str; NSURF] =
     ["paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water"];
 
@@ -50,6 +53,28 @@ pub struct OhmState {
     pub dyn_a2: [f64; NSURF],
     pub dyn_a3: [f64; NSURF],
     pub iter_safe: bool,
+    pub anohm_working_day: i32,
+    pub anohm_working_count: i32,
+    pub anohm_working_t_hr: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_working_sd: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_working_ta: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_working_rh: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_working_pres: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_working_ws: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_working_ah: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_coeff_day: i32,
+    pub anohm_coeff_count: i32,
+    pub anohm_coeff_ready: bool,
+    pub anohm_coeff_t_hr: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_coeff_sd: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_coeff_ta: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_coeff_rh: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_coeff_pres: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_coeff_ws: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_coeff_ah: [f64; ANOHM_MAX_SAMPLES],
+    pub anohm_a1_surf: [f64; NSURF],
+    pub anohm_a2_surf: [f64; NSURF],
+    pub anohm_a3_surf: [f64; NSURF],
 }
 
 impl Default for OhmState {
@@ -72,14 +97,63 @@ impl Default for OhmState {
             dyn_a2: [0.0; NSURF],
             dyn_a3: [0.0; NSURF],
             iter_safe: true,
+            anohm_working_day: -999,
+            anohm_working_count: 0,
+            anohm_working_t_hr: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_working_sd: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_working_ta: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_working_rh: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_working_pres: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_working_ws: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_working_ah: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_coeff_day: -999,
+            anohm_coeff_count: 0,
+            anohm_coeff_ready: false,
+            anohm_coeff_t_hr: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_coeff_sd: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_coeff_ta: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_coeff_rh: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_coeff_pres: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_coeff_ws: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_coeff_ah: [-999.0; ANOHM_MAX_SAMPLES],
+            anohm_a1_surf: [-999.0; NSURF],
+            anohm_a2_surf: [-999.0; NSURF],
+            anohm_a3_surf: [-999.0; NSURF],
         }
     }
 }
 
-impl OhmState {
-    pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
-        validate_flat_len(flat, OHM_STATE_FLAT_LEN)?;
+fn decode_int(value: f64) -> Result<i32, BridgeError> {
+    if !value.is_finite() {
+        return Err(BridgeError::BadState);
+    }
 
+    let rounded = value.round();
+    if (value - rounded).abs() > 1.0e-9 || rounded < i32::MIN as f64 || rounded > i32::MAX as f64 {
+        return Err(BridgeError::BadState);
+    }
+
+    Ok(rounded as i32)
+}
+
+fn decode_sample_count(value: f64) -> Result<i32, BridgeError> {
+    let count = decode_int(value)?;
+    if !(0..=ANOHM_MAX_SAMPLES as i32).contains(&count) {
+        return Err(BridgeError::BadState);
+    }
+    Ok(count)
+}
+
+fn take_array<const N: usize>(flat: &[f64], idx: &mut usize) -> [f64; N] {
+    let mut values = [0.0; N];
+    values.copy_from_slice(&flat[*idx..*idx + N]);
+    *idx += N;
+    values
+}
+
+impl OhmState {
+    fn from_v1_flat(flat: &[f64]) -> Result<Self, BridgeError> {
+        validate_flat_len(flat, OHM_STATE_V1_FLAT_LEN)?;
         let mut idx = 0_usize;
         let mut next = || {
             let value = flat[idx];
@@ -127,6 +201,45 @@ impl OhmState {
         Ok(state)
     }
 
+    pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
+        validate_flat_len(flat, OHM_STATE_FLAT_LEN)?;
+
+        let mut state = Self::from_v1_flat(&flat[..OHM_STATE_V1_FLAT_LEN])?;
+        let mut idx = OHM_STATE_V1_FLAT_LEN;
+
+        state.anohm_working_day = decode_int(flat[idx])?;
+        idx += 1;
+        state.anohm_working_count = decode_sample_count(flat[idx])?;
+        idx += 1;
+        state.anohm_working_t_hr = take_array(flat, &mut idx);
+        state.anohm_working_sd = take_array(flat, &mut idx);
+        state.anohm_working_ta = take_array(flat, &mut idx);
+        state.anohm_working_rh = take_array(flat, &mut idx);
+        state.anohm_working_pres = take_array(flat, &mut idx);
+        state.anohm_working_ws = take_array(flat, &mut idx);
+        state.anohm_working_ah = take_array(flat, &mut idx);
+
+        state.anohm_coeff_day = decode_int(flat[idx])?;
+        idx += 1;
+        state.anohm_coeff_count = decode_sample_count(flat[idx])?;
+        idx += 1;
+        state.anohm_coeff_ready = flat[idx] >= 0.5;
+        idx += 1;
+        state.anohm_coeff_t_hr = take_array(flat, &mut idx);
+        state.anohm_coeff_sd = take_array(flat, &mut idx);
+        state.anohm_coeff_ta = take_array(flat, &mut idx);
+        state.anohm_coeff_rh = take_array(flat, &mut idx);
+        state.anohm_coeff_pres = take_array(flat, &mut idx);
+        state.anohm_coeff_ws = take_array(flat, &mut idx);
+        state.anohm_coeff_ah = take_array(flat, &mut idx);
+        state.anohm_a1_surf = take_array(flat, &mut idx);
+        state.anohm_a2_surf = take_array(flat, &mut idx);
+        state.anohm_a3_surf = take_array(flat, &mut idx);
+
+        debug_assert_eq!(idx, OHM_STATE_FLAT_LEN);
+        Ok(state)
+    }
+
     pub fn to_flat(&self) -> Vec<f64> {
         let mut flat = Vec::with_capacity(OHM_STATE_FLAT_LEN);
 
@@ -149,6 +262,30 @@ impl OhmState {
         flat.extend_from_slice(&self.dyn_a2);
         flat.extend_from_slice(&self.dyn_a3);
         flat.push(if self.iter_safe { 1.0 } else { 0.0 });
+
+        flat.push(self.anohm_working_day as f64);
+        flat.push(self.anohm_working_count as f64);
+        flat.extend_from_slice(&self.anohm_working_t_hr);
+        flat.extend_from_slice(&self.anohm_working_sd);
+        flat.extend_from_slice(&self.anohm_working_ta);
+        flat.extend_from_slice(&self.anohm_working_rh);
+        flat.extend_from_slice(&self.anohm_working_pres);
+        flat.extend_from_slice(&self.anohm_working_ws);
+        flat.extend_from_slice(&self.anohm_working_ah);
+
+        flat.push(self.anohm_coeff_day as f64);
+        flat.push(self.anohm_coeff_count as f64);
+        flat.push(if self.anohm_coeff_ready { 1.0 } else { 0.0 });
+        flat.extend_from_slice(&self.anohm_coeff_t_hr);
+        flat.extend_from_slice(&self.anohm_coeff_sd);
+        flat.extend_from_slice(&self.anohm_coeff_ta);
+        flat.extend_from_slice(&self.anohm_coeff_rh);
+        flat.extend_from_slice(&self.anohm_coeff_pres);
+        flat.extend_from_slice(&self.anohm_coeff_ws);
+        flat.extend_from_slice(&self.anohm_coeff_ah);
+        flat.extend_from_slice(&self.anohm_a1_surf);
+        flat.extend_from_slice(&self.anohm_a2_surf);
+        flat.extend_from_slice(&self.anohm_a3_surf);
 
         flat
     }
@@ -385,6 +522,12 @@ pub fn ohm_state_field_names() -> Vec<String> {
         }
     }
 
+    fn push_indexed_fields(names: &mut Vec<String>, prefix: &str, len: usize) {
+        for idx in 1..=len {
+            names.push(format!("{prefix}.{idx}"));
+        }
+    }
+
     let mut names = Vec::with_capacity(OHM_STATE_FLAT_LEN);
 
     names.push("qn_av".to_string());
@@ -407,6 +550,29 @@ pub fn ohm_state_field_names() -> Vec<String> {
     push_surface_fields(&mut names, "dyn_a3");
 
     names.push("iter_safe".to_string());
+    names.push("anohm_working_day".to_string());
+    names.push("anohm_working_count".to_string());
+    push_indexed_fields(&mut names, "anohm_working_t_hr", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_working_sd", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_working_ta", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_working_rh", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_working_pres", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_working_ws", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_working_ah", ANOHM_MAX_SAMPLES);
+
+    names.push("anohm_coeff_day".to_string());
+    names.push("anohm_coeff_count".to_string());
+    names.push("anohm_coeff_ready".to_string());
+    push_indexed_fields(&mut names, "anohm_coeff_t_hr", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_coeff_sd", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_coeff_ta", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_coeff_rh", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_coeff_pres", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_coeff_ws", ANOHM_MAX_SAMPLES);
+    push_indexed_fields(&mut names, "anohm_coeff_ah", ANOHM_MAX_SAMPLES);
+    push_surface_fields(&mut names, "anohm_a1_surf");
+    push_surface_fields(&mut names, "anohm_a2_surf");
+    push_surface_fields(&mut names, "anohm_a3_surf");
 
     debug_assert_eq!(names.len(), OHM_STATE_FLAT_LEN);
     names
@@ -462,6 +628,9 @@ pub fn ohm_state_to_values_payload(state: &OhmState) -> OhmStateValuesPayload {
 pub fn ohm_state_from_values_payload(
     payload: &OhmStateValuesPayload,
 ) -> Result<OhmState, BridgeError> {
+    if payload.schema_version == 1 {
+        return OhmState::from_v1_flat(&payload.values);
+    }
     from_values_payload(payload)
 }
 
@@ -622,7 +791,7 @@ mod tests {
         );
         assert_eq!(
             names.last().expect("field list should not be empty"),
-            "iter_safe"
+            "anohm_a3_surf.water"
         );
     }
 
@@ -631,6 +800,12 @@ mod tests {
         let mut state =
             ohm_state_default_from_fortran().expect("default state should be available");
         assert!(state.iter_safe);
+        state.anohm_a1_surf = [0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17];
+        state.anohm_a2_surf = [0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27];
+        state.anohm_a3_surf = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+        let expected_a1 = state.anohm_a1_surf;
+        let expected_a2 = state.anohm_a2_surf;
+        let expected_a3 = state.anohm_a3_surf;
 
         let qs = ohm_state_step(&mut state, 300, 0, 200.0, 0.3, 0.1, 5.0)
             .expect("state step should succeed");
@@ -638,6 +813,9 @@ mod tests {
         assert!(qs.is_finite());
         assert!(state.qn_av.is_finite());
         assert!(state.dqndt.is_finite());
+        assert_eq!(state.anohm_a1_surf, expected_a1);
+        assert_eq!(state.anohm_a2_surf, expected_a2);
+        assert_eq!(state.anohm_a3_surf, expected_a3);
 
         let flat = state.to_flat();
         let state2 = OhmState::from_flat(&flat).expect("flat roundtrip should succeed");
@@ -682,11 +860,18 @@ mod tests {
 
     #[test]
     fn values_payload_roundtrip_and_version_guard() {
-        let state = ohm_state_default_from_fortran().expect("default state should be available");
+        let mut state =
+            ohm_state_default_from_fortran().expect("default state should be available");
+        state.anohm_a1_surf = [0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37];
+        state.anohm_a2_surf = [0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47];
+        state.anohm_a3_surf = [11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0];
         let payload = ohm_state_to_values_payload(&state);
         let recovered =
             ohm_state_from_values_payload(&payload).expect("payload decode should work");
         assert_eq!(state, recovered);
+        assert_eq!(recovered.anohm_a1_surf, state.anohm_a1_surf);
+        assert_eq!(recovered.anohm_a2_surf, state.anohm_a2_surf);
+        assert_eq!(recovered.anohm_a3_surf, state.anohm_a3_surf);
 
         let bad_payload = OhmStateValuesPayload {
             schema_version: OHM_STATE_SCHEMA_VERSION + 1,
@@ -695,6 +880,27 @@ mod tests {
         let err = ohm_state_from_values_payload(&bad_payload)
             .expect_err("payload with schema mismatch should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn values_payload_restores_v1_with_default_anohm_buffers() {
+        let state = ohm_state_default_from_fortran().expect("default state should be available");
+        let payload = OhmStateValuesPayload {
+            schema_version: 1,
+            values: state.to_flat()[..OHM_STATE_V1_FLAT_LEN].to_vec(),
+        };
+
+        let recovered = ohm_state_from_values_payload(&payload)
+            .expect("version-1 OHM state should remain readable");
+
+        assert_eq!(recovered.qn_av, state.qn_av);
+        assert_eq!(recovered.anohm_working_day, -999);
+        assert_eq!(recovered.anohm_working_count, 0);
+        assert!(!recovered.anohm_coeff_ready);
+        assert_eq!(recovered.anohm_working_sd, [-999.0; ANOHM_MAX_SAMPLES]);
+        assert_eq!(recovered.anohm_a1_surf, [-999.0; NSURF]);
+        assert_eq!(recovered.anohm_a2_surf, [-999.0; NSURF]);
+        assert_eq!(recovered.anohm_a3_surf, [-999.0; NSURF]);
     }
 
     #[test]
@@ -709,5 +915,15 @@ mod tests {
         let long = vec![0.0_f64; OHM_STATE_FLAT_LEN + 1];
         let err = OhmState::from_flat(&long).expect_err("long payload should fail");
         assert_eq!(err, BridgeError::BadBuffer);
+    }
+
+    #[test]
+    fn from_flat_rejects_anohm_count_outside_buffer() {
+        let state = ohm_state_default_from_fortran().expect("default state should be available");
+        let mut flat = state.to_flat();
+        flat[OHM_STATE_V1_FLAT_LEN + 1] = (ANOHM_MAX_SAMPLES + 1) as f64;
+
+        let err = OhmState::from_flat(&flat).expect_err("oversized sample count should fail");
+        assert_eq!(err, BridgeError::BadState);
     }
 }

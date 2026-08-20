@@ -23,7 +23,7 @@ import io
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
-from .report_writer import REPORT_WRITER
+from .report_writer import REPORT_WRITER, sync_text_report_stopping_phase
 from ...core.physics_families import flatten_physics_in_config
 
 # Import Phase A and B functions
@@ -772,6 +772,7 @@ def run_phase_a(
         ))
 
     if report_file:
+        sync_text_report_stopping_phase(report_file, [phase_report])
         json_path = Path(report_file).with_suffix(".json")
         phase_report.json_report_path = str(json_path)
         JSON_REPORT_WRITER.write(json_path, phase_report)
@@ -858,6 +859,7 @@ def run_phase_b(
         ))
 
     if science_report_file:
+        sync_text_report_stopping_phase(science_report_file, [phase_report])
         json_path = Path(science_report_file).with_suffix(".json")
         phase_report.json_report_path = str(json_path)
         JSON_REPORT_WRITER.write(json_path, phase_report)
@@ -935,6 +937,7 @@ def run_phase_c(
     )
 
     if pydantic_report_file:
+        sync_text_report_stopping_phase(pydantic_report_file, [phase_report])
         json_path = Path(pydantic_report_file).with_suffix(".json")
         phase_report.json_report_path = str(json_path)
         JSON_REPORT_WRITER.write(json_path, phase_report)

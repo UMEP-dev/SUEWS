@@ -11,10 +11,11 @@ Phase B (see ``phase_b_rules/rules_core.py``); both share the same
 ``Issue.severity`` strings so consumers do not need to special-case
 which phase produced the issue.
 
-The text reports written by each phase are unchanged; this module
-adds a JSON sidecar (``<report>.json``) next to every ``<report>.txt``
-so downstream tooling (MCP, agents, CI) can consume the validator
-output without parsing the human-readable form.
+The text reports retain their existing action sections and add a stopping-stage
+line for blocking failures, derived from these structured phase results. This
+module also adds a JSON sidecar (``<report>.json``) next to every
+``<report>.txt`` so downstream tooling (MCP, agents, CI) can consume the
+validator output without parsing the human-readable form.
 
 Two sidecar shapes exist (gh#1467):
 

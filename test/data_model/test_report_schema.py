@@ -14,6 +14,9 @@ from supy.data_model.validation.pipeline.report_schema import (
     SEVERITY_WARNING,
     ValidationReport,
 )
+from supy.data_model.validation.pipeline.report_writer import (
+    format_report_stopping_phase,
+)
 
 pytestmark = pytest.mark.api
 
@@ -112,3 +115,94 @@ def test_json_report_writer_emits_utf8_with_trailing_newline(tmp_path):
     assert text.endswith("\n")
     payload = json.loads(text)
     assert payload["issues"][0]["message"] == "é"
+
+
+@pytest.mark.parametrize(
+    "failed_phase, expected_name",
+    [
+        ("A", "Completeness Check"),
+        ("B", "Scientific Validation"),
+        ("C", "Model Compatibility"),
+    ],
+)
+def test_report_header_uses_first_failed_structured_phase(
+    failed_phase, expected_name
+):
+    content = (
+        "# SUEWS Validation Report\n"
+        "# ==================================================\n"
+        "# Mode: Public\n"
+        "# ==================================================\n"
+    )
+    phases = [PhaseReport(phase="A", issues=[])] if failed_phase != "A" else []
+    if failed_phase == "C":
+        phases.append(PhaseReport(phase="B", issues=[]))
+    phases.append(
+        PhaseReport(
+            phase=failed_phase,
+            issues=[
+                Issue(
+                    phase=failed_phase,
+                    severity=SEVERITY_ERROR,
+                    code=f"{failed_phase}.TEST.ERROR",
+                    message="blocking error",
+                )
+            ],
+        )
+    )
+
+    formatted = format_report_stopping_phase(content, phases)
+
+    assert f"# Validation stopped at: {expected_name}\n" in formatted
+    assert formatted.count("# Validation stopped at:") == 1
+
+
+def test_report_header_uses_first_failure_when_multiple_phases_failed():
+    content = "# SUEWS Validation Report\n# Mode: Public\n"
+    failed_phases = [
+        PhaseReport(
+            phase=phase,
+            issues=[
+                Issue(
+                    phase=phase,
+                    severity=SEVERITY_ERROR,
+                    code=f"{phase}.TEST.ERROR",
+                    message="blocking error",
+                )
+            ],
+        )
+        for phase in ("B", "C")
+    ]
+
+    formatted = format_report_stopping_phase(content, failed_phases)
+
+    assert "# Validation stopped at: Scientific Validation\n" in formatted
+    assert "Model Compatibility" not in formatted
+
+
+@pytest.mark.parametrize("status", ["success", "warning"])
+def test_report_header_omits_stopping_phase_without_errors(status):
+    content = (
+        "# SUEWS Validation Report\n"
+        "# ==================================================\n"
+        "# Mode: Developer\n"
+        "# Validation stopped at: Completeness Check\n"
+        "# ==================================================\n"
+    )
+    issues = []
+    if status == "warning":
+        issues.append(
+            Issue(
+                phase="A",
+                severity=SEVERITY_WARNING,
+                code="A.TEST.WARNING",
+                message="review this",
+            )
+        )
+
+    formatted = format_report_stopping_phase(
+        content, [PhaseReport(phase="A", issues=issues)]
+    )
+
+    assert "Validation stopped at:" not in formatted
+    assert "# Mode: Developer\n" in formatted

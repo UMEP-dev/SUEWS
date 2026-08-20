@@ -22,7 +22,10 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.progress import track
 
-from ..data_model.validation.pipeline.report_writer import REPORT_WRITER
+from ..data_model.validation.pipeline.report_writer import (
+    REPORT_WRITER,
+    sync_text_report_stopping_phase,
+)
 
 # Import the new JSON output formatter
 try:
@@ -1103,6 +1106,8 @@ def _emit_pipeline_result(
                 phase_report.yaml_in = None
             if phase_report.yaml_out and not Path(phase_report.yaml_out).exists():
                 phase_report.yaml_out = None
+
+        sync_text_report_stopping_phase(report_path, phases)
 
     # gh#1467: persist the consolidated multi-phase ValidationReport as the
     # JSON sidecar next to the final text report, in BOTH table and json

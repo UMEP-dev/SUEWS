@@ -56,6 +56,11 @@ def test_phase_a_emits_json_sidecar(tmp_path, sample_yaml_path):
         assert "code" in issue
         # Phase A codes always start with "A."
         assert issue["code"].startswith("A.")
+    text = report_file.read_text(encoding="utf-8")
+    if payload["status"] == "FAILED":
+        assert "# Validation stopped at: Completeness Check" in text
+    else:
+        assert "Validation stopped at:" not in text
 
 
 def test_phase_b_emits_json_sidecar(tmp_path, sample_yaml_path):
@@ -90,6 +95,11 @@ def test_phase_b_emits_json_sidecar(tmp_path, sample_yaml_path):
         assert "severity" in issue
         assert "code" in issue
         assert "message" in issue
+    text = science_report.read_text(encoding="utf-8")
+    if payload["status"] == "FAILED":
+        assert "# Validation stopped at: Scientific Validation" in text
+    else:
+        assert "Validation stopped at:" not in text
 
 
 def test_phase_c_emits_json_for_passing_config(tmp_path, sample_yaml_path):
@@ -114,6 +124,9 @@ def test_phase_c_emits_json_for_passing_config(tmp_path, sample_yaml_path):
     # Sample config should pass; status is PASSED unless there are
     # legitimate warnings in the sample.
     assert payload["status"] in {"PASSED", "WARNING"}
+    assert "Validation stopped at:" not in pydantic_report.read_text(
+        encoding="utf-8"
+    )
 
 
 def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
@@ -143,6 +156,9 @@ def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
     payload = json.loads(pydantic_report.with_suffix(".json").read_text(encoding="utf-8"))
     assert payload["phase"] == "C"
     assert payload["status"] == "FAILED"
+    assert "# Validation stopped at: Model Compatibility" in (
+        pydantic_report.read_text(encoding="utf-8")
+    )
     # At least one issue should be a structured Pydantic error.
     pydantic_codes = [i["code"] for i in payload["issues"] if i["code"].startswith("C.PYDANTIC.")]
     assert pydantic_codes, "Expected at least one C.PYDANTIC.* issue"

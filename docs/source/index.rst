@@ -173,4 +173,4 @@ How to support SUEWS?
    :hidden:
 
    community_publications
-   Community <https://community.suews.io/invites/bKjzoboyVV>
+   Community <https://community.suews.io>

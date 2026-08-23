@@ -277,6 +277,10 @@ runs:
         if-no-files-found: error
         retention-days: 14
 
+    - name: Verify wheel licence metadata
+      shell: bash
+      run: python scripts/suews/check_dist_license.py wheelhouse/*.whl
+
     - name: Upload wheels
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:

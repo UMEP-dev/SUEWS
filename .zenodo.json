@@ -1,7 +1,7 @@
 {
   "title": "SUEWS: Surface Urban Energy and Water Balance Scheme",
   "description": "SUEWS (Surface Urban Energy and Water balance Scheme) is a state-of-the-art urban land surface model for simulating the urban surface energy balance, water balance, and anthropogenic heat flux.",
-  "license": "GPL-3.0",
+  "license": "MPL-2.0",
   "upload_type": "software",
   "creators": [
     {

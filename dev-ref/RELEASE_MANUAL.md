@@ -70,6 +70,7 @@ From a single tag push:
    - Builds one `cp312-abi3` wheel per (OS, arch) via cibuildwheel
    - The Rust bridge uses PyO3 `abi3-py312`, so the wheel installs on cp312..cp3xx
    - Creates version `2024.10.7`
+   - Verifies the PEP 639 licence expression and bundled MPL/Apache licence files
 
 2. **Cross-CPython API tests** (`test_api_cross_python` job)
    - Installs the single wheel into each test CPython (BOOKEND for PRs, ALL for tags)
@@ -830,7 +831,7 @@ Integration is now active. The setup included:
        {"name": "Ward, Helen"},
        {"name": "Omidvar, Hamidreza"}
      ],
-     "license": "GPL-3.0",
+     "license": "MPL-2.0",
      "title": "SUEWS: Surface Urban Energy and Water Balance Scheme",
      "keywords": ["urban climate", "energy balance", "hydrology", "meteorology"]
    }

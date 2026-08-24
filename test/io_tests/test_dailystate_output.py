@@ -474,11 +474,10 @@ class TestDailyStateOutput:
             "when day length <= 12 and SDD > SDDFull"
         )
 
-
-    def test_dailystate_lai_southern_hemisphere_degree_day_reset(
+    def test_dailystate_lai_southern_hemisphere_sdd_reset(
         self, sample_data_loaded, sample_yaml_path
     ):
-        """Southern Hemisphere resets GDD and SDD using reversed day conditions."""
+        """Southern Hemisphere resets SDD during summer."""
 
         sim = sp.SUEWSSimulation(str(sample_yaml_path))
 
@@ -490,26 +489,36 @@ class TestDailyStateOutput:
         lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
         lai_config.lai_type.value = 1
 
-        gdd_full = lai_config.gdd_full.value
-        sdd_full = lai_config.sdd_full.value
         crit_days = 50
+        summer_day = 250
+        sdd_reset_day = 300
 
         initial_states = sim._config.sites[0].initial_states.dectr
-        initial_states.gdd_id.value = gdd_full
-        initial_states.sdd_id.value = 0.0
+        initial_states.gdd_id.value = crit_days + 1
+        initial_states.sdd_id.value = 1.0
 
         _, df_forcing = sample_data_loaded
 
         # Shift the forcing by six months so the existing seasonal cycle
-        # occurs in the opposite part of the calendar year.
+        # occurs in the Southern Hemisphere calendar.
         df_forcing = df_forcing.copy()
         df_forcing.index = df_forcing.index + pd.Timedelta(days=182)
+
+        # Only simulate Southern Hemisphere summer, before the generic
+        # transition-day reset at sdd_reset_day.
+        day_of_year = df_forcing.index.dayofyear
+        df_forcing = df_forcing[
+            (day_of_year > summer_day)
+            & (day_of_year < sdd_reset_day)
+        ]
 
         sim.update_forcing(df_forcing)
         sim.run()
 
-        df_output = sim.output
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+        df_dailystate = (
+            sim.output.loc[:, "DailyState"]
+            .dropna(how="all")
+        )
 
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
@@ -518,26 +527,15 @@ class TestDailyStateOutput:
         # evaluated using the previous timestep.
         gdd = gdd.iloc[1:]
         sdd = sdd.iloc[1:]
-        
+
         day_of_year = (
             df_dailystate.index.get_level_values("datetime").dayofyear[1:]
         )
 
-        # The reset conditions operate on the current state, so use the
-        # previous output state to identify an actual reset.
-        previous_gdd = gdd.shift(1)
         previous_sdd = sdd.shift(1)
 
-        # ---------------------------------------------------------------
-        # SDD reset
-        # ---------------------------------------------------------------
-        #
-        # Southern Hemisphere logic:
-        #
-        #   GDD > critDays AND id > 250 -> SDD = 0
-        #
         sdd_reset = (
-            (day_of_year > 250)
+            (day_of_year > summer_day)
             & (gdd > crit_days)
             & (previous_sdd != 0)
             & (sdd == 0)
@@ -545,19 +543,67 @@ class TestDailyStateOutput:
 
         assert sdd_reset.any(), (
             "Southern Hemisphere did not reset SDD when "
-            "GDD > critDays and day of year > 250"
+            "GDD > critDays and day of year > summer_day"
         )
 
-        # ---------------------------------------------------------------
-        # GDD reset
-        # ---------------------------------------------------------------
-        #
-        # Southern Hemisphere logic:
-        #
-        #   SDD < -critDays AND id < 250 -> GDD = 0
-        #
+    def test_dailystate_lai_southern_hemisphere_gdd_reset(
+        self, sample_data_loaded, sample_yaml_path
+    ):
+        """Southern Hemisphere resets GDD during winter."""
+
+        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+
+        # Check that this is a Southern Hemisphere simulation.
+        sim._config.sites[0].properties.lat.value = -(
+            abs(sim._config.sites[0].properties.lat.value)
+        )
+
+        lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
+        lai_config.lai_type.value = 1
+
+        crit_days = 50
+        winter_day = 250
+        sdd_reset_day = 300
+
+        initial_states = sim._config.sites[0].initial_states.dectr
+        initial_states.gdd_id.value = 1.0
+        initial_states.sdd_id.value = -(crit_days + 1)
+
+        _, df_forcing = sample_data_loaded
+
+        # Shift the forcing by six months so the existing seasonal cycle
+        # occurs in the Southern Hemisphere calendar.
+        df_forcing = df_forcing.copy()
+        df_forcing.index = df_forcing.index + pd.Timedelta(days=182)
+
+        # Only simulate Southern Hemisphere winter, before the generic
+        # transition-day reset at sdd_reset_day.
+        day_of_year = df_forcing.index.dayofyear
+
+        sim.update_forcing(df_forcing)
+        sim.run()
+
+        df_dailystate = (
+            sim.output.loc[:, "DailyState"]
+            .dropna(how="all")
+        )
+
+        gdd = df_dailystate["GDD_DecTr"]
+        sdd = df_dailystate["SDD_DecTr"]
+
+        # Ignore the first timestep because the degree-day states are
+        # evaluated using the previous timestep.
+        gdd = gdd.iloc[1:]
+        sdd = sdd.iloc[1:]
+
+        day_of_year = (
+            df_dailystate.index.get_level_values("datetime").dayofyear[1:]
+        )
+
+        previous_gdd = gdd.shift(1)
+
         gdd_reset = (
-            (day_of_year < 250)
+            (day_of_year < winter_day)
             & (sdd < -crit_days)
             & (previous_gdd != 0)
             & (gdd == 0)
@@ -565,5 +611,5 @@ class TestDailyStateOutput:
 
         assert gdd_reset.any(), (
             "Southern Hemisphere did not reset GDD when "
-            "SDD < -critDays and day of year < 250"
+            "SDD < -critDays and day of year < winter_day"
         )

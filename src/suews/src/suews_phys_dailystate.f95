@@ -881,7 +881,7 @@ CONTAINS
                LAI_id_next=LAI_id_next &
             )
          
-         else if (LAItype == LAI_ORIGINAL) THEN !Original LAI type
+         else if (LAItype <= LAI_ORIGINAL) THEN !Original LAI type
 
             if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
                call calculate_sdd_type0( &

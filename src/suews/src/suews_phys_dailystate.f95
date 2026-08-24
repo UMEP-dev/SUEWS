@@ -988,13 +988,9 @@ CONTAINS
                start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
 
             case default
-
-               start_senescence = .false.
-
-               call set_supy_error( &
-                  107, &
-                  'update_GDDLAI: invalid senescence mode' &
-               )
+               ! Invalid option falls back to SEN_SDD. No error yet registered.
+               ! default currently not possible as function calls hard-coded
+               start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
 
          end select
 

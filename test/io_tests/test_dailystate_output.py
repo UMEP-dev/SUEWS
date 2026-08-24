@@ -573,7 +573,7 @@ class TestDailyStateOutput:
         sdd_full = lai_config.sdd_full.value
 
         initial_states = sim._config.sites[0].initial_states.dectr
-        initial_states.gdd_id.value = 1.0
+        initial_states.gdd_id.value = 0
         initial_states.sdd_id.value = sdd_full
 
         _, df_forcing = sample_data_loaded
@@ -591,37 +591,48 @@ class TestDailyStateOutput:
             .dropna(how="all")
         )
 
-        # Ensure cold spring condition is not met
-        delta_gdd = (
-            df_dailystate["Tmin"].shift(1)
-            + df_dailystate["Tmax"].shift(1)
-        ) / 2 - base_t_gdd
-
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
 
-        # Ignore the first timestep because the degree-day states are
-        # evaluated using the previous timestep.
+        # Ensure cold spring condition is not met (delta_gdd >= 0)
+        delta_gdd = (
+            (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
+            - base_t_gdd
+        )
+
+        day_of_year = (
+            df_dailystate.index.get_level_values("datetime").dayofyear
+        )
+
+        # State used by the model before applying today's delta.
+        previous_gdd = gdd.shift(1)
+
+        # The model uses Tmin/Tmax from the previous timestep.
+        delta_gdd = delta_gdd.shift(1)
+
+        gdd_before_limit = previous_gdd + delta_gdd
+
+        # Ignore the first timestep, where no previous state exists.
         gdd = gdd.iloc[1:]
         sdd = sdd.iloc[1:]
         delta_gdd = delta_gdd.iloc[1:]
-
-        day_of_year = (
-            df_dailystate.index.get_level_values("datetime").dayofyear[1:]
-        )
-
-        previous_gdd = gdd.shift(1)
+        day_of_year = day_of_year[1:]
+        gdd_before_limit = gdd_before_limit.iloc[1:]
 
         gdd_reset = (
             (day_of_year < winter_day)
-            & (delta_gdd >= 0)
             & (sdd < -crit_days)
-            & (previous_gdd != 0)
+            & (sdd <= sdd_full)
+            # Exclude the cold-spring reset.
+            & (delta_gdd >= 0)
+            # Exclude the GDDFull limit reset.
+            & (gdd_before_limit < gdd_full)
+            # There must have been GDD available to reset.
+            & (gdd_before_limit > 0)
             & (gdd == 0)
         )
 
         assert gdd_reset.any(), (
             "Southern Hemisphere did not reset GDD when "
-            "SDD < -critDays, day of year < winter_day, "
-            "and delta_gdd >= 0"
+            "SDD < -critDays, day of year < winter_day."
         )

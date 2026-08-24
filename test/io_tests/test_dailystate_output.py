@@ -493,8 +493,11 @@ class TestDailyStateOutput:
         summer_day = 250
         sdd_reset_day = 300
 
+        gdd_full = lai_config.gdd_full.value
+        sdd_full = lai_config.sdd_full.value
+
         initial_states = sim._config.sites[0].initial_states.dectr
-        initial_states.gdd_id.value = crit_days + 1
+        initial_states.gdd_id.value = gdd_full
         initial_states.sdd_id.value = 1.0
 
         _, df_forcing = sample_data_loaded
@@ -563,11 +566,15 @@ class TestDailyStateOutput:
 
         crit_days = 50
         winter_day = 250
-        sdd_reset_day = 300
+
+        base_t_gdd = lai_config.base_temperature.value
+
+        gdd_full = lai_config.gdd_full.value
+        sdd_full = lai_config.sdd_full.value
 
         initial_states = sim._config.sites[0].initial_states.dectr
         initial_states.gdd_id.value = 1.0
-        initial_states.sdd_id.value = -(crit_days + 1)
+        initial_states.sdd_id.value = sdd_full
 
         _, df_forcing = sample_data_loaded
 
@@ -575,10 +582,6 @@ class TestDailyStateOutput:
         # occurs in the Southern Hemisphere calendar.
         df_forcing = df_forcing.copy()
         df_forcing.index = df_forcing.index + pd.Timedelta(days=182)
-
-        # Only simulate Southern Hemisphere winter, before the generic
-        # transition-day reset at sdd_reset_day.
-        day_of_year = df_forcing.index.dayofyear
 
         sim.update_forcing(df_forcing)
         sim.run()
@@ -588,6 +591,12 @@ class TestDailyStateOutput:
             .dropna(how="all")
         )
 
+        # Ensure cold spring condition is not met
+        delta_gdd = (
+            df_dailystate["Tmin"].shift(1)
+            + df_dailystate["Tmax"].shift(1)
+        ) / 2 - base_t_gdd
+
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
 
@@ -595,6 +604,7 @@ class TestDailyStateOutput:
         # evaluated using the previous timestep.
         gdd = gdd.iloc[1:]
         sdd = sdd.iloc[1:]
+        delta_gdd = delta_gdd.iloc[1:]
 
         day_of_year = (
             df_dailystate.index.get_level_values("datetime").dayofyear[1:]
@@ -604,6 +614,7 @@ class TestDailyStateOutput:
 
         gdd_reset = (
             (day_of_year < winter_day)
+            & (delta_gdd >= 0)
             & (sdd < -crit_days)
             & (previous_gdd != 0)
             & (gdd == 0)
@@ -611,5 +622,6 @@ class TestDailyStateOutput:
 
         assert gdd_reset.any(), (
             "Southern Hemisphere did not reset GDD when "
-            "SDD < -critDays and day of year < winter_day"
+            "SDD < -critDays, day of year < winter_day, "
+            "and delta_gdd >= 0"
         )

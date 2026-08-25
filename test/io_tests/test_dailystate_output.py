@@ -511,7 +511,7 @@ class TestDailyStateOutput:
         # transition-day reset at sdd_reset_day.
         day_of_year = df_forcing.index.dayofyear
         df_forcing = df_forcing[
-            (day_of_year > summer_day)
+            (day_of_year >= summer_day)
             & (day_of_year < sdd_reset_day)
         ]
 
@@ -526,20 +526,22 @@ class TestDailyStateOutput:
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
 
+        previous_sdd = sdd.shift(1)
+
         # Ignore the first timestep because the degree-day states are
         # evaluated using the previous timestep.
         gdd = gdd.iloc[1:]
         sdd = sdd.iloc[1:]
+        previous_sdd = previous_sdd.iloc[1:]
 
         day_of_year = (
             df_dailystate.index.get_level_values("datetime").dayofyear[1:]
         )
 
-        previous_sdd = sdd.shift(1)
-
         sdd_reset = (
-            (day_of_year > summer_day)
+            (day_of_year >= summer_day)
             & (gdd > crit_days)
+            & (previous_sdd.notna())
             & (previous_sdd != 0)
             & (sdd == 0)
         )
@@ -591,6 +593,10 @@ class TestDailyStateOutput:
             .dropna(how="all")
         )
 
+        day_of_year = (
+            df_dailystate.index.get_level_values("datetime").dayofyear
+        )
+
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
 
@@ -600,24 +606,18 @@ class TestDailyStateOutput:
             - base_t_gdd
         )
 
-        day_of_year = (
-            df_dailystate.index.get_level_values("datetime").dayofyear
-        )
-
         # State used by the model before applying today's delta.
         previous_gdd = gdd.shift(1)
 
-        # The model uses Tmin/Tmax from the previous timestep.
-        delta_gdd = delta_gdd.shift(1)
-
-        gdd_before_limit = previous_gdd + delta_gdd
+        gdd_before_limit = previous_gdd + delta_gdd.clip(lower=0)
 
         # Ignore the first timestep, where no previous state exists.
         gdd = gdd.iloc[1:]
         sdd = sdd.iloc[1:]
+        previous_gdd = previous_gdd.iloc[1:]
         delta_gdd = delta_gdd.iloc[1:]
-        day_of_year = day_of_year[1:]
         gdd_before_limit = gdd_before_limit.iloc[1:]
+        day_of_year = day_of_year[1:]
 
         gdd_reset = (
             (day_of_year < winter_day)

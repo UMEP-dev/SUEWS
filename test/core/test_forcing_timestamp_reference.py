@@ -45,7 +45,12 @@ def _run(rust_module, config, forcing, state_json=None):
 
 
 def _output_datetimes(output, length):
-    block = np.asarray(output).reshape(length, -1)
+    # The bridge returns the block as native-endian bytes (GH-1718); older
+    # builds returned a list of floats. Accept both.
+    if isinstance(output, (bytes, bytearray, memoryview)):
+        block = np.frombuffer(output, dtype=np.float64).reshape(length, -1)
+    else:
+        block = np.asarray(output).reshape(length, -1)
     return (
         pd.to_datetime({
             "year": block[:, 0].astype(int),

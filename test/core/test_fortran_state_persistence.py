@@ -25,6 +25,7 @@ pytestmark = pytest.mark.physics
 
 _RESULT_PREFIX = "__SUEWS_NATIVE_RESULT__"
 _NATIVE_SEQUENCE_RUNNER = f"""
+import array
 import json
 import os
 import sys
@@ -44,7 +45,11 @@ for case_name in payload["sequence"]:
     results.append(
         {{
             "actual_len": actual_len,
-            "output_flat": output_flat,
+            # The bridge returns bytes (GH-1718); decode to a plain list so the
+            # payload stays JSON-serialisable (older list output passes through).
+            "output_flat": list(array.array("d", output_flat))
+            if isinstance(output_flat, (bytes, bytearray))
+            else output_flat,
             "state_json": state_json,
         }}
     )

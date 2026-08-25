@@ -126,9 +126,9 @@ pub use phenology::*;
 pub use roughness::*;
 #[cfg(feature = "physics")]
 pub use sim::{
-    run_from_config_str_and_forcing, run_from_config_str_and_forcing_with_state,
-    run_simulation, SimulationInput, SimulationOutput,
-    SiteScalars, OUTPUT_SUEWS_COLS, OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT,
+    run_from_config_str_and_forcing, run_from_config_str_and_forcing_with_state, run_simulation,
+    SimulationInput, SimulationOutput, SiteScalars, OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT,
+    OUTPUT_SUEWS_COLS,
 };
 pub use snow::*;
 pub use snow_prm::*;
@@ -152,10 +152,25 @@ mod python_bindings {
     use crate::*;
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
+    use pyo3::types::PyBytes;
     use std::collections::{BTreeMap, HashMap};
 
     fn map_bridge_error(err: BridgeError) -> PyErr {
         PyRuntimeError::new_err(err.to_string())
+    }
+
+    /// View a `[f64]` slice as native-endian bytes and hand it to Python as a
+    /// `bytes` object. Returning bytes instead of `Vec<f64>` avoids PyO3
+    /// boxing every element into a Python float (a ~4x memory blow-up for a
+    /// grid-year output block, GH-1718); the Python side reconstructs the
+    /// array zero-copy with `np.frombuffer(..., dtype=np.float64)`.
+    fn f64s_to_pybytes(py: Python<'_>, values: &[f64]) -> Py<PyBytes> {
+        // SAFETY: f64 has no padding and any byte pattern is a valid u8;
+        // the slice length in bytes is exactly `size_of_val(values)`.
+        let bytes: &[u8] = unsafe {
+            std::slice::from_raw_parts(values.as_ptr() as *const u8, std::mem::size_of_val(values))
+        };
+        PyBytes::new(py, bytes).unbind()
     }
 
     #[pyclass(name = "OhmModel")]
@@ -4086,33 +4101,35 @@ mod python_bindings {
         lon: f64,
         alt: f64,
     ) -> PyResult<(f64, f64)> {
-        let (az, zen) = sunposition_calc(year, idectime, utc, lat, lon, alt)
-            .map_err(map_bridge_error)?;
+        let (az, zen) =
+            sunposition_calc(year, idectime, utc, lat, lon, alt).map_err(map_bridge_error)?;
         Ok((az, zen))
     }
 
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews")]
     fn run_suews_py(
+        py: Python<'_>,
         config_yaml: &str,
         forcing_block: Vec<f64>,
         len_sim: usize,
-    ) -> PyResult<(Vec<f64>, String, usize)> {
+    ) -> PyResult<(Py<PyBytes>, String, usize)> {
         let (output_block, state, timer, actual_len) =
             run_from_config_str_and_forcing(config_yaml, forcing_block, len_sim)
                 .map_err(map_bridge_error)?;
         let state_json = suews_checkpoint_to_json(&state, &timer).map_err(map_bridge_error)?;
-        Ok((output_block, state_json, actual_len))
+        Ok((f64s_to_pybytes(py, &output_block), state_json, actual_len))
     }
 
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_with_state")]
     fn run_suews_with_state_py(
+        py: Python<'_>,
         config_yaml: &str,
         forcing_block: Vec<f64>,
         len_sim: usize,
         state_json: &str,
-    ) -> PyResult<(Vec<f64>, String, usize)> {
+    ) -> PyResult<(Py<PyBytes>, String, usize)> {
         let (output_block, state, timer, actual_len) = run_from_config_str_and_forcing_with_state(
             config_yaml,
             forcing_block,
@@ -4121,7 +4138,11 @@ mod python_bindings {
         )
         .map_err(map_bridge_error)?;
         let state_json_out = suews_checkpoint_to_json(&state, &timer).map_err(map_bridge_error)?;
-        Ok((output_block, state_json_out, actual_len))
+        Ok((
+            f64s_to_pybytes(py, &output_block),
+            state_json_out,
+            actual_len,
+        ))
     }
 
     /// Run multiple grid cells in parallel using Rayon thread pool.
@@ -4133,11 +4154,12 @@ mod python_bindings {
     #[pyfunction(name = "run_suews_multi")]
     #[pyo3(signature = (config_jsons, forcing_block, len_sim, max_workers=None))]
     fn run_suews_multi_py(
+        py: Python<'_>,
         config_jsons: Vec<String>,
         forcing_block: Vec<f64>,
         len_sim: usize,
         max_workers: Option<usize>,
-    ) -> PyResult<Vec<(usize, Vec<f64>, String, usize)>> {
+    ) -> PyResult<Vec<(usize, Py<PyBytes>, String, usize)>> {
         use rayon::prelude::*;
 
         if max_workers == Some(0) {
@@ -4174,11 +4196,23 @@ mod python_bindings {
                 run_parallel()
             };
 
-        // Convert errors to PyResult
+        // Convert errors to PyResult, then box each output block as bytes
         results
             .into_iter()
             .collect::<Result<Vec<_>, String>>()
             .map_err(pyo3::exceptions::PyRuntimeError::new_err)
+            .map(|list| {
+                list.into_iter()
+                    .map(|(idx, output_block, state_json, actual_len)| {
+                        (
+                            idx,
+                            f64s_to_pybytes(py, &output_block),
+                            state_json,
+                            actual_len,
+                        )
+                    })
+                    .collect()
+            })
     }
 
     /// Run multiple grid cells in parallel using injected previous states.
@@ -4189,12 +4223,13 @@ mod python_bindings {
     #[pyfunction(name = "run_suews_multi_with_state")]
     #[pyo3(signature = (config_jsons, forcing_block, len_sim, state_jsons, max_workers=None))]
     fn run_suews_multi_with_state_py(
+        py: Python<'_>,
         config_jsons: Vec<String>,
         forcing_block: Vec<f64>,
         len_sim: usize,
         state_jsons: Vec<String>,
         max_workers: Option<usize>,
-    ) -> PyResult<Vec<(usize, Vec<f64>, String, usize)>> {
+    ) -> PyResult<Vec<(usize, Py<PyBytes>, String, usize)>> {
         use rayon::prelude::*;
 
         if max_workers == Some(0) {
@@ -4246,6 +4281,18 @@ mod python_bindings {
             .into_iter()
             .collect::<Result<Vec<_>, String>>()
             .map_err(pyo3::exceptions::PyRuntimeError::new_err)
+            .map(|list| {
+                list.into_iter()
+                    .map(|(idx, output_block, state_json, actual_len)| {
+                        (
+                            idx,
+                            f64s_to_pybytes(py, &output_block),
+                            state_json,
+                            actual_len,
+                        )
+                    })
+                    .collect()
+            })
     }
 
     /// Return the output group layout as a list of (name, ncols) tuples.
@@ -4289,11 +4336,7 @@ mod python_bindings {
         let mut n_groups = 0i32;
         let mut err = 0i32;
         unsafe {
-            ffi::suews_output_group_ncolumns(
-                ncols_arr.as_mut_ptr(),
-                &mut n_groups,
-                &mut err,
-            );
+            ffi::suews_output_group_ncolumns(ncols_arr.as_mut_ptr(), &mut n_groups, &mut err);
         }
         if err != 0 {
             return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(

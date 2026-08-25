@@ -236,7 +236,7 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
 
 
 def _parse_output_block(
-    output_flat: list[float],
+    output_flat: bytes | list[float],
     len_sim: int,
     grid_id: int,
 ) -> pd.DataFrame:
@@ -245,10 +245,18 @@ def _parse_output_block(
     The flat buffer contains *len_sim* rows of ``OUTPUT_ALL_COLS`` columns.
     Each of the 11 output groups occupies a contiguous slice and carries its
     own 5-column datetime prefix.  We extract the datetime from the first
-    group (SUEWS), then for every group strip its datetime prefix and build
-    a ``(group, var)`` MultiIndex column set via :func:`gen_index`.
+    group (SUEWS), then strip every group's datetime prefix and build one
+    frame with ``(group, var)`` MultiIndex columns via :func:`gen_index`.
+
+    The bridge hands the buffer over as native-endian ``bytes`` so that no
+    boxed Python floats are created at the FFI boundary (GH-1718);
+    ``np.frombuffer`` reconstructs the array zero-copy. A plain sequence is
+    still accepted for older bridge builds.
     """
-    output_array = np.asarray(output_flat, dtype=np.float64)
+    if isinstance(output_flat, (bytes, bytearray, memoryview)):
+        output_array = np.frombuffer(output_flat, dtype=np.float64)
+    else:
+        output_array = np.asarray(output_flat, dtype=np.float64)
     expected = len_sim * OUTPUT_ALL_COLS
     if output_array.size != expected:
         if len_sim > 0 and output_array.size % len_sim == 0:
@@ -270,31 +278,47 @@ def _parse_output_block(
     # Datetime from the first group (SUEWS)
     datetime_index = _build_datetime_index(output_block)
 
-    list_df_group: list[pd.DataFrame] = []
+    # Column bookkeeping for all groups up front, so the data columns can be
+    # gathered in ONE fancy-index copy (writable) instead of building eleven
+    # per-group frames and concatenating them - the frame pipeline previously
+    # held several whole-year copies at peak (GH-1718).
+    list_col_idx: list[np.ndarray] = []
+    list_group_cols: list[pd.MultiIndex] = []
     col_offset = 0
     for group_name, ncols in OUTPUT_GROUP_LAYOUT:
-        group_data = output_block[:, col_offset + OUTPUT_TIME_COLS : col_offset + ncols]
+        n_data = ncols - OUTPUT_TIME_COLS
         idx = gen_index(f"dataoutline{group_name.lower()}")
-        try:
-            df_group = pd.DataFrame(group_data, columns=idx, index=datetime_index)
-        except ValueError as exc:
+        if len(idx) != n_data:
             raise RuntimeError(
                 f"Failed to parse Rust backend output group '{group_name}': "
-                f"received {group_data.shape[1]} data columns, but the Python "
+                f"received {n_data} data columns, but the Python "
                 f"registry expects {len(idx)}. "
-                f"{_output_layout_update_hint(group_name)} "
-                f"Original pandas error: {exc}"
-            ) from exc
-        # SUEWS uses -999 as missing-data sentinel; expose these as NaN in
-        # Python outputs so downstream filtering/resampling behaves correctly.
-        df_group = df_group.mask(df_group == -999.0)
-        list_df_group.append(df_group)
+                f"{_output_layout_update_hint(group_name)}"
+            )
+        list_col_idx.append(
+            np.arange(col_offset + OUTPUT_TIME_COLS, col_offset + ncols)
+        )
+        list_group_cols.append(idx)
         col_offset += ncols
 
-    df_output = pd.concat(list_df_group, axis=1)
-    df_output.index = pd.MultiIndex.from_product(
-        [[_normalise_grid_id(grid_id)], datetime_index],
-        names=["grid", "datetime"],
+    ar_data = output_block[:, np.concatenate(list_col_idx)]
+    # SUEWS uses -999 as missing-data sentinel; expose these as NaN in
+    # Python outputs so downstream filtering/resampling behaves correctly.
+    # In-place on the freshly copied array: no further whole-year copy.
+    ar_data[ar_data == -999.0] = np.nan
+
+    cols_all = list_group_cols[0]
+    for idx in list_group_cols[1:]:
+        cols_all = cols_all.append(idx)
+
+    df_output = pd.DataFrame(
+        ar_data,
+        columns=cols_all,
+        index=pd.MultiIndex.from_product(
+            [[_normalise_grid_id(grid_id)], datetime_index],
+            names=["grid", "datetime"],
+        ),
+        copy=False,
     )
     return df_output
 
@@ -451,6 +475,9 @@ def run_suews_rust_multi(
             (list_grid_ids[idx], output_flat, state_json, len_sim)
             for idx, output_flat, state_json, len_sim in raw_results
         ]
+        # Drop the duplicate references so each buffer is owned only by
+        # `results` and freed as soon as its grid is parsed below (GH-1718).
+        del raw_results
     else:
         results = []
         for idx, config_json in enumerate(list_config_jsons):
@@ -465,7 +492,12 @@ def run_suews_rust_multi(
     list_df_output = []
     dict_state_json: dict[int, str] = {}
 
-    for grid_id, output_flat, state_json, len_sim in results:
+    # Consume from the tail so each grid's output buffer is released as soon
+    # as it has been parsed, instead of all buffers living until the loop ends
+    # (one whole-year block per grid, GH-1718).
+    results.reverse()
+    while results:
+        grid_id, output_flat, state_json, len_sim = results.pop()
         if len_sim != len_forcing:
             raise RuntimeError(
                 f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
@@ -567,6 +599,9 @@ def run_suews_rust_multi_with_state(
             (list_grid_ids[idx], output_flat, state_json, len_sim)
             for idx, output_flat, state_json, len_sim in raw_results
         ]
+        # Drop the duplicate references so each buffer is owned only by
+        # `results` and freed as soon as its grid is parsed below (GH-1718).
+        del raw_results
     else:
         results = []
         for idx, config_json in enumerate(list_config_jsons):
@@ -581,7 +616,12 @@ def run_suews_rust_multi_with_state(
     list_df_output = []
     dict_state_json: dict[int, str] = {}
 
-    for grid_id, output_flat, state_json, len_sim in results:
+    # Consume from the tail so each grid's output buffer is released as soon
+    # as it has been parsed, instead of all buffers living until the loop ends
+    # (one whole-year block per grid, GH-1718).
+    results.reverse()
+    while results:
+        grid_id, output_flat, state_json, len_sim = results.pop()
         if len_sim != len_forcing:
             raise RuntimeError(
                 f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"

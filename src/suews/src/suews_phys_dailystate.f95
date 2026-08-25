@@ -585,6 +585,8 @@ CONTAINS
       integer, parameter :: LAI_ORIGINAL = 0
       integer, parameter :: LAI_NEW = 1
       integer, parameter :: LAI_INVERSE = 2
+      integer, parameter :: LAI_MANAGED = 3
+      integer, parameter :: GDD_MANAGED = 4
 
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
@@ -898,7 +900,7 @@ CONTAINS
 
          logical :: start_senescence
 
-         if (lai_type < 2) then
+         if (lai_type < LAI_INVERSE) then
             if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
                call calculate_gdd( &
                   LAI_id_prev=LAI_id_prev, &
@@ -962,7 +964,7 @@ CONTAINS
                )
             end if
          
-         else if (lai_type == 3) then ! For managed grass - if max LAI set to min
+         else if (lai_type == LAI_MANAGED) then ! For managed grass - if max LAI set to min
             if (LAI_id_prev == LAIMax) then
                LAI_id_next = LAIMin
                gdd_id = 0 ! How should GDD be treated for grass year round?
@@ -978,7 +980,7 @@ CONTAINS
             
             end if
 
-         else if (lai_type == 4) then ! For managed grass - if MAX GDD set to LAI min
+         else if (lai_type == GDD_MANAGED) then ! For managed grass - if MAX GDD set to LAI min
             if (gdd_id == gddFull) then
                LAI_id_next = LAIMin
                gdd_id = 0

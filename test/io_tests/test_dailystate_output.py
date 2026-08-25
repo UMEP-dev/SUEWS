@@ -636,3 +636,30 @@ class TestDailyStateOutput:
             "Southern Hemisphere did not reset GDD when "
             "SDD < -critDays, day of year < winter_day."
         )
+
+    def test_dailystate_lai_observed_invalid_fortran_guard(
+        self, sample_data_loaded, sample_yaml_path, monkeypatch
+    ):
+        """Invalid observed LAI reaching Fortran raises error 105."""
+
+        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+
+        sim._config.model.physics.laimethod.value = 0
+        sim._df_state_init = sim._config.to_df_state()
+
+        _, df_forcing = sample_data_loaded
+        df_forcing = df_forcing.copy()
+
+        first_day = df_forcing.index.normalize() == df_forcing.index[0].normalize()
+        df_forcing.loc[first_day, "lai"] = -1.0
+
+        sim.update_forcing(df_forcing)
+
+        monkeypatch.setattr(
+            sp._check,
+            "_check_observed_lai_nonneg",
+            lambda *a, **k: False,
+        )
+
+        with pytest.raises(RuntimeError, match="code 105"):
+            sim.run(_validate_forcing=False)

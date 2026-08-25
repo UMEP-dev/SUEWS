@@ -573,7 +573,6 @@ CONTAINS
       real(kind(1D0)), dimension(nvegsurf), intent(out) :: LAI_id_next !LAI for each veg surface [m2 m-2]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAI_id_prev ! LAI of previous day
 
-      real(kind(1D0)) :: mean_temp ! Mean temperature of previous day
       real(kind(1D0)) :: delta_SDD !Switches and checks for GDD
       real(kind(1D0)) :: delta_GDD !Switches and checks for GDD
       real(kind(1D0)) :: indHelp !Switches and checks for GDD
@@ -585,6 +584,7 @@ CONTAINS
       
       integer, parameter :: LAI_ORIGINAL = 0
       integer, parameter :: LAI_NEW = 1
+      integer, parameter :: LAI_INVERSE = 2
 
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
@@ -599,8 +599,6 @@ CONTAINS
          call observed_lai(valid_observed_lai)
          if (.not. valid_observed_lai) return
       end if
-
-      mean_temp = calc_mean_temp(Tmin_id_prev, Tmax_id_prev)
       
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
@@ -612,12 +610,9 @@ CONTAINS
             base_t_sdd=BaseT_SDD(iv), &
             delta_gdd=delta_GDD, &
             delta_sdd=delta_SDD, &
+            lai_type=laitype(iv), &
             ind_help=indHelp &
          )
-         if (LAItype(iv) == 2) then
-            delta_GDD = -delta_GDD
-            delta_SDD = -delta_SDD
-         end if
 
          call apply_delta_gdd_sdd( &
             gdd_prev=GDD_id_prev(iv), &
@@ -642,7 +637,7 @@ CONTAINS
          )
 
          ! With these limits SDD, GDD is set to zero
-         if (LAItype(iv) /= 2) then
+         if (LAItype(iv) /= LAI_INVERSE) then
             if (SDD_id(iv) < -critDays .and. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
             if (GDD_id(iv) > critDays .and. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
          else
@@ -767,20 +762,9 @@ CONTAINS
 
       end subroutine observed_lai
 
-      function calc_mean_temp(temp1, temp2) result(mean_temp)
-         implicit none
-
-         real(kind(1D0)), intent(in) :: temp1
-         real(kind(1D0)), intent(in) :: temp2
-         real(kind(1D0)) :: mean_temp
-
-         mean_temp = (temp1 + temp2)/2
-      
-      END FUNCTION calc_mean_temp
-
       subroutine calc_delta_gdd_sdd( &
             tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
-            delta_gdd, delta_sdd, ind_help)
+            delta_gdd, delta_sdd, lai_type, ind_help)
 
          implicit none
 
@@ -791,6 +775,9 @@ CONTAINS
 
          real(kind(1D0)), intent(out) :: delta_gdd
          real(kind(1D0)), intent(out) :: delta_sdd
+
+         integer, intent(in) :: lai_type
+
          real(kind(1D0)), intent(out) :: ind_help
 
          ! Calculate GDD and SDD
@@ -800,6 +787,12 @@ CONTAINS
          delta_sdd = calc_delta_degree_days( &
             tmin_prev, tmax_prev, base_t_sdd)
 
+            
+         if (lai_type == LAI_INVERSE) then
+            delta_gdd = -delta_gdd
+            delta_sdd = -delta_sdd
+         end if
+            
          ! SDD cannot be positive
          if (delta_sdd > 0) delta_sdd = 0
 
@@ -951,7 +944,7 @@ CONTAINS
 
             end if
          
-         else if (lai_type == 2) then
+         else if (lai_type == LAI_INVERSE) then
             if (sdd_id < 0 .and. sdd_id > sddFull) then !Leaves can still fall
                call calculate_sdd_type1( &
                   LAI_id_prev=LAI_id_prev, &
@@ -1030,10 +1023,10 @@ CONTAINS
          real(kind(1D0)), intent(inout) :: gdd_id
 
          ! if SDD is not zero by the transition day, force it
-         if (lai_type < 2) then
+         if (lai_type /= LAI_INVERSE) then
             if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
 
-         else if (lai_type == 2) then
+         else if (lai_type == LAI_INVERSE) then
             if (id == sdd_reset_day .and. gdd_id /= 0) gdd_id = 0
          
          end if
@@ -1047,13 +1040,13 @@ CONTAINS
             if (sdd_id < -crit_days .and. id < winter_day) gdd_id = 0
 
          else
-            if (lai_type < 2) then
+            if (lai_type /= LAI_INVERSE) then
                ! Set SDD to zero in northern summer
                if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0
                ! Set GDD zero in northern winter
                if (sdd_id < -crit_days .and. id > winter_day) gdd_id = 0
             
-            else if (lai_type == 2) then
+            else if (lai_type == LAI_INVERSE) then
                ! Set GDD to zero in summer time
                if (sdd_id < -critDays .and. id < summer_day) gdd_id = 0
                ! Set SDD zero in winter time

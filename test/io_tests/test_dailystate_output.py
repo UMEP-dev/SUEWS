@@ -354,9 +354,24 @@ class TestDailyStateOutput:
         sdd_full = lai_config.sdd_full.value
         lai_min = lai_config.lai_min.value
 
-        _, df_forcing = sample_data_loaded
+        # Start from a fully grown canopy so only the autumn window needs
+        # simulating: growth is complete (GDD at full) and senescence has
+        # not begun. Running spring/summer from a cold start adds ~10 s per
+        # test on the slowest CI platform without touching the branch under
+        # test.
+        initial_states = sim._config.sites[0].initial_states.dectr
+        initial_states.lai_id.value = lai_config.lai_max.value
+        initial_states.gdd_id.value = gdd_full
+        initial_states.sdd_id.value = 0.0
 
-        sim.update_forcing(df_forcing.copy())
+        _, df_forcing = sample_data_loaded
+        df_forcing = df_forcing.copy()
+
+        # Autumn window: SDD accumulates and the senescence branch fires.
+        day_of_year = df_forcing.index.dayofyear
+        df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
+
+        sim.update_forcing(df_forcing)
         sim.run()
 
         df_output = sim.output
@@ -422,9 +437,21 @@ class TestDailyStateOutput:
         sdd_full = lai_config.sdd_full.value
         lai_min = lai_config.lai_min.value
 
-        _, df_forcing = sample_data_loaded
+        # Start from a fully grown canopy and simulate only the autumn
+        # window (see the LAItype 0 test above): day length drops below
+        # 12 h from the September equinox, which is what this branch needs.
+        initial_states = sim._config.sites[0].initial_states.dectr
+        initial_states.lai_id.value = lai_config.lai_max.value
+        initial_states.gdd_id.value = gdd_full
+        initial_states.sdd_id.value = 0.0
 
-        sim.update_forcing(df_forcing.copy())
+        _, df_forcing = sample_data_loaded
+        df_forcing = df_forcing.copy()
+
+        day_of_year = df_forcing.index.dayofyear
+        df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
+
+        sim.update_forcing(df_forcing)
         sim.run()
 
         df_output = sim.output
@@ -584,6 +611,15 @@ class TestDailyStateOutput:
         # occurs in the Southern Hemisphere calendar.
         df_forcing = df_forcing.copy()
         df_forcing.index = df_forcing.index + pd.Timedelta(days=182)
+
+        # The shifted forcing starts at day 183, and every qualifying reset
+        # falls before winter_day (250), so the first ~67 days of the run
+        # are all this test needs. Slice by elapsed time: a day-of-year
+        # filter would also catch a non-contiguous wrapped segment from the
+        # end of the shifted year.
+        df_forcing = df_forcing[
+            df_forcing.index < df_forcing.index[0] + pd.Timedelta(days=67)
+        ]
 
         sim.update_forcing(df_forcing)
         sim.run()

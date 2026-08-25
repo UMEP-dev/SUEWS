@@ -462,7 +462,7 @@ class LAIParams(BaseModel):
         default_factory=LAIPowerCoefficients,
         description="LAI calculation power parameters for growth and senescence",
     )
-    laitype: FlexibleRefValue(LAIType) = Field(
+    lai_type: FlexibleRefValue(LAIType) = Field(
         default=LAIType.ORIGINAL,
         description=_enum_description(LAIType),
         json_schema_extra={

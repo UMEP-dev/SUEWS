@@ -652,74 +652,37 @@ CONTAINS
 
          ! Now calculate LAI itself
          if (lat >= 0) THEN !Northern hemispere
-            if (LAItype(iv) < 1.5) then
-               call reset_degree_day_states( &
+            call reset_degree_day_states( &
+               id=id, &
+               sdd_reset_day=140, &
+               crit_days=critDays, &
+               summer_day=170, &
+               winter_day=170, &
+               lai_type=laitype(iv), &
+               southern_hemisphere=.false., &
+               sdd_id=SDD_id(iv), &
+               gdd_id=GDD_id(iv) &
+            )
+            if (LAICalcYes /= 0) then
+               call calculate_lai( &
+                  senescence_mode=SEN_DAYLENGTH, &
                   id=id, &
-                  sdd_reset_day=140, &
-                  crit_days=critDays, &
-                  summer_day=170, &
-                  winter_day=170, &
-                  southern_hemisphere=.false., &
-                  sdd_id=SDD_id(iv), &
-                  gdd_id=GDD_id(iv) &
+                  SDD_id=SDD_id(iv), &
+                  GDD_id=GDD_id(iv), &
+                  critDays=critDays, &
+                  LAItype=LAItype(iv), &
+                  LAIPower=LAIPower(:, iv), &
+                  GDDFull=GDDFull(iv), &
+                  SDDFull=SDDFull(iv), &
+                  lenDay_id_prev=lenDay_id_prev, &
+                  laimax=laimax(iv), &
+                  laimin=laimin(iv), &
+                  lai_type=laitype(iv), &
+                  LAI_id_prev=LAI_id_prev(iv), &
+                  LAI_id_next=LAI_id_next(iv) &
                )
-               if (LAICalcYes /= 0) then
-                  call calculate_lai( &
-                     senescence_mode=SEN_DAYLENGTH, &
-                     id=id, &
-                     SDD_id=SDD_id(iv), &
-                     GDD_id=GDD_id(iv), &
-                     critDays=critDays, &
-                     LAItype=LAItype(iv), &
-                     LAIPower=LAIPower(:, iv), &
-                     GDDFull=GDDFull(iv), &
-                     SDDFull=SDDFull(iv), &
-                     lenDay_id_prev=lenDay_id_prev, &
-                     laimax=laimax(iv), &
-                     laimin=laimin(iv), &
-                     LAI_id_prev=LAI_id_prev(iv), &
-                     LAI_id_next=LAI_id_next(iv) &
-                  )
-               end if
-            else if (laitype(iv) == 2) then ! Inverted LAI behaviour (for evergreen trees)
-               !If GDD is not zero by mid May, this is forced
-               if (id == 140 .and. GDD_id(iv) /= 0) GDD_id(iv) = 0
-               ! Set GDD to zero in summer time
-               if (SDD_id(iv) < -critDays .and. id < 170) GDD_id(iv) = 0
-               ! Set SDD zero in winter time
-               if (GDD_id(iv) > critDays .and. id > 170) SDD_id(iv) = 0
-               
-               if (SDD_id(iv) < 0 .and. SDD_id(iv) > SDDFull(iv)) then !Leaves can still fall
-                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
-                  !! Use day length to start senescence at high latitudes (N hemisphere)
-               else if (lenDay_id_prev <= 12 .and. GDD_id(iv) < GDDFull(iv)) then !Start growth
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
-               else
-                  LAI_id_next(iv) = LAI_id_prev(iv)
-               end if
-            else if (LAItype(iv) == 3) then ! For managed grass - if max LAI set to min
-               if (LAI_id_prev(iv) == LAIMax(iv)) then
-                  LAI_id_next(iv) = LAIMin(iv)
-                  GDD_id(iv) = 0
-               else if (GDD_id(iv) > 0 .and. GDD_id(iv) < GDDFull(iv)) then !Leaves can still grow
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
-               else if (lenDay_id_prev <= 12 .and. SDD_id(iv) > SDDFull(iv)) then !Start senescence
-                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
-               else
-                  LAI_id_next(iv) = LAI_id_prev(iv)
-               end if
-            else if (LAItype(iv) == 4) then ! For managed grass - if MAX GDD set to LAI min
-               if (GDD_id(iv) == GDDFull(iv)) then
-                  LAI_id_next(iv) = LAIMin(iv)
-                  GDD_id(iv) = 0
-               else if (lenDay_id_prev <= 12 .and. SDD_id(iv) > SDDFull(iv)) then !Start senescence
-                     LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
-               else if (GDD_id(iv) > 0 .and. GDD_id(iv) < GDDFull(iv)) then !Leaves can still grow
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
-               else
-                  LAI_id_next(iv) = LAI_id_prev(iv)
-               end if
             end if
+
          else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
             call reset_degree_day_states( &
                id=id, &
@@ -727,6 +690,7 @@ CONTAINS
                crit_days=critDays, &
                summer_day=250, &
                winter_day=250, &
+               lai_type=laitype(iv), &
                southern_hemisphere=.true., &
                sdd_id=SDD_id(iv), &
                gdd_id=GDD_id(iv) &
@@ -745,6 +709,7 @@ CONTAINS
                   lenDay_id_prev=lenDay_id_prev, &
                   laimax=laimax(iv), &
                   laimin=laimin(iv), &
+                  lai_type=laitype(iv), &
                   LAI_id_prev=LAI_id_prev(iv), &
                   LAI_id_next=LAI_id_next(iv) &
                )
@@ -912,7 +877,7 @@ CONTAINS
       subroutine calculate_lai( &
             senescence_mode, &
             id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, &
-            lenDay_id_prev, LAI_id_prev, laimax, laimin, LAI_id_next)
+            lenDay_id_prev, LAI_id_prev, laimax, laimin, lai_type, LAI_id_next)
 
          implicit none
 
@@ -933,52 +898,107 @@ CONTAINS
          real(kind(1D0)), intent(in) :: LAI_id_prev
          real(kind(1D0)), intent(in) :: laimax
          real(kind(1D0)), intent(in) :: laimin
+
+         integer, intent(in) :: lai_type
+         
          real(kind(1D0)), intent(out) :: LAI_id_next
 
          logical :: start_senescence
 
-         if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
-            call calculate_gdd( &
-               LAI_id_prev=LAI_id_prev, &
-               LAIPower=LAIPower, &
-               GDD_id=GDD_id, &
-               LAI_id_next=LAI_id_next &
-            )
-         
-         else if (LAItype <= LAI_ORIGINAL) THEN !Original LAI type
-
-            if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
-               call calculate_sdd_type0( &
+         if (lai_type < 2) then
+            if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
+               call calculate_gdd( &
                   LAI_id_prev=LAI_id_prev, &
                   LAIPower=LAIPower, &
-                  SDD_id=SDD_id, &
+                  GDD_id=GDD_id, &
                   LAI_id_next=LAI_id_next &
                )
+            
+            else if (LAItype <= LAI_ORIGINAL) THEN !Original LAI type
+               if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
+                  call calculate_sdd_type0( &
+                     LAI_id_prev=LAI_id_prev, &
+                     LAIPower=LAIPower, &
+                     SDD_id=SDD_id, &
+                     LAI_id_next=LAI_id_next &
+                  )
+
+               else
+                  LAI_id_next = LAI_id_prev
+
+               end if
 
             else
-               LAI_id_next = LAI_id_prev
+               !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
+               start_senescence = check_start_senescence( &
+                  senescence_mode=senescence_mode, &
+                  lenDay_id_prev=lenDay_id_prev, &
+                  SDD_id=SDD_id, &
+                  SDDFull=SDDFull &
+               )
+               if (start_senescence) then !Start senescence
+                  call calculate_sdd_type1( &
+                     LAI_id_prev=LAI_id_prev, &
+                     LAIPower=LAIPower, &
+                     SDD_id=SDD_id, &
+                     LAI_id_next=LAI_id_next &
+                  )
+
+               else
+                  LAI_id_next = LAI_id_prev
+               
+               end if
 
             end if
-
-         else
-
-            !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
-            start_senescence = check_start_senescence( &
-               senescence_mode=senescence_mode, &
-               lenDay_id_prev=lenDay_id_prev, &
-               SDD_id=SDD_id, &
-               SDDFull=SDDFull &
-            )
-
-            if (start_senescence) then !Start senescence
+         
+         else if (lai_type == 2) then
+            if (sdd_id < 0 .and. sdd_id > sddFull) then !Leaves can still fall
                call calculate_sdd_type1( &
                   LAI_id_prev=LAI_id_prev, &
                   LAIPower=LAIPower, &
                   SDD_id=SDD_id, &
                   LAI_id_next=LAI_id_next &
                )
+            !! Use day length to start senescence at high latitudes (N hemisphere)
+            else if (lenDay_id_prev <= 12 .and. gdd_id < gddFull) then !Start growth
+               call calculate_gdd( &
+                  LAI_id_prev=LAI_id_prev, &
+                  LAIPower=LAIPower, &
+                  GDD_id=GDD_id, &
+                  LAI_id_next=LAI_id_next &
+               )
+            end if
+         
+         else if (lai_type == 3) then ! For managed grass - if max LAI set to min
+            if (LAI_id_prev == LAIMax) then
+               LAI_id_next = LAIMin
+               gdd_id = 0 ! How should GDD be treated for grass year round?
+
+            else if (gdd_id > 0 .and. gdd_id < gddFull) then !Leaves can still grow
+               LAI_id_next = (LAI_id_prev**LAIPower(1) * gdd_id * LAIPower(2)) + LAI_id_prev
+            
+            else if (lenDay_id_prev <= 12 .and. sdd_id > sddFull) then !Start senescence
+               LAI_id_next = (LAI_id_prev * LAIPower(3) * (1 - sdd_id) * LAIPower(4)) + LAI_id_prev
+            
             else
                LAI_id_next = LAI_id_prev
+            
+            end if
+
+         else if (lai_type == 4) then ! For managed grass - if MAX GDD set to LAI min
+            if (gdd_id == gddFull) then
+               LAI_id_next = LAIMin
+               gdd_id = 0
+            
+            else if (lenDay_id_prev <= 12 .and. sdd_id > sddFull) then !Start senescence
+                  LAI_id_next = (LAI_id_prev*LAIPower(3) * (1 - sdd_id) * LAIPower(4)) + LAI_id_prev
+            
+            else if (gdd_id > 0 .and. gdd_id < gddFull) then !Leaves can still grow
+               LAI_id_next = (LAI_id_prev**LAIPower(1) * gdd_id * LAIPower(2)) + LAI_id_prev
+            
+            else
+               LAI_id_next = LAI_id_prev
+            
             end if
 
          end if
@@ -993,7 +1013,7 @@ CONTAINS
       end subroutine calculate_lai
 
       subroutine reset_degree_day_states( &
-         id, sdd_reset_day, crit_days, summer_day, winter_day, &
+         id, sdd_reset_day, crit_days, summer_day, winter_day, lai_type, &
          southern_hemisphere, sdd_id, gdd_id)
 
          implicit none
@@ -1003,29 +1023,43 @@ CONTAINS
          integer, intent(in) :: crit_days
          integer, intent(in) :: summer_day
          integer, intent(in) :: winter_day
+         integer, intent(in) :: lai_type
          logical, intent(in) :: southern_hemisphere
 
          real(kind(1D0)), intent(inout) :: sdd_id
          real(kind(1D0)), intent(inout) :: gdd_id
 
          ! if SDD is not zero by the transition day, force it
-         if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
+         if (lai_type < 2) then
+            if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
+
+         else if (lai_type == 2) then
+            if (id == sdd_reset_day .and. gdd_id /= 0) gdd_id = 0
+         
+         end if
+
+         ! TODO: New lai_type (>1) not tested/implemented for southern hemisphere
 
          if (southern_hemisphere) then
-
             ! Set SDD to zero in southern summer
             if (gdd_id > crit_days .and. id > summer_day) sdd_id = 0
-
             ! Set GDD zero in southern winter
             if (sdd_id < -crit_days .and. id < winter_day) gdd_id = 0
 
          else
-
-            ! Set SDD to zero in northern summer
-            if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0
-
-            ! Set GDD zero in northern winter
-            if (sdd_id < -crit_days .and. id > winter_day) gdd_id = 0
+            if (lai_type < 2) then
+               ! Set SDD to zero in northern summer
+               if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0
+               ! Set GDD zero in northern winter
+               if (sdd_id < -crit_days .and. id > winter_day) gdd_id = 0
+            
+            else if (lai_type == 2) then
+               ! Set GDD to zero in summer time
+               if (sdd_id < -critDays .and. id < summer_day) gdd_id = 0
+               ! Set SDD zero in winter time
+               if (gdd_id > critDays .and. id > winter_day) sdd_id = 0
+            
+            end if
 
          end if
 
@@ -1070,8 +1104,7 @@ CONTAINS
          real(kind(1D0)), intent(in) :: GDD_id
          real(kind(1D0)), intent(out) :: LAI_id_next
 
-         LAI_id_next = (LAI_id_prev**LAIPower(1) * &
-                        GDD_id * LAIPower(2)) + LAI_id_prev
+         LAI_id_next = (LAI_id_prev**LAIPower(1) * GDD_id * LAIPower(2)) + LAI_id_prev
 
       end subroutine calculate_gdd
    

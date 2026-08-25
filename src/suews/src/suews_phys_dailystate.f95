@@ -529,43 +529,7 @@ CONTAINS
 
    END SUBROUTINE update_Veg
 
-   FUNCTION calc_mean_temp(temp1, temp2) RESULT(mean_temp)
-      IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(IN) :: temp1
-      REAL(KIND(1D0)), INTENT(IN) :: temp2
-      REAL(KIND(1D0)) :: mean_temp      
-      mean_temp = (temp1 + temp2)/2
-   END FUNCTION calc_mean_temp
-
-   FUNCTION calc_delta_DD(base_temp, current_temp) RESULT (delta_DD)
-      IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(IN) :: base_temp
-      REAL(KIND(1D0)), INTENT(IN) :: current_temp
-      REAL(KIND(1D0)) :: delta_DD
-      delta_DD = current_temp - base_temp
-   END FUNCTION calc_delta_DD
-
-   FUNCTION calc_LAI_GDD(lai_prev, lai_power1, lai_power2, gdd_id) RESULT (lai)
-      IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(IN) :: lai_prev
-      REAL(KIND(1D0)), INTENT(IN) :: lai_power1
-      REAL(KIND(1D0)), INTENT(IN) :: lai_power2
-      REAL(KIND(1D0)), INTENT(IN) :: gdd_id
-      REAL(KIND(1D0)) :: lai
-      lai = (lai_prev**lai_power1*gdd_id*lai_power2) + lai_prev
-   END FUNCTION
-
-   FUNCTION calc_LAI_SDD(lai_prev, lai_power1, lai_power2, sdd_id) RESULT (lai)
-      IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(IN) :: lai_prev
-      REAL(KIND(1D0)), INTENT(IN) :: lai_power1
-      REAL(KIND(1D0)), INTENT(IN) :: lai_power2
-      REAL(KIND(1D0)), INTENT(IN) :: sdd_id
-      REAL(KIND(1D0)) :: lai
-      lai = (lai_prev*lai_power1*(1 - sdd_id)*lai_power2) + lai_prev
-   END FUNCTION
-
-   SUBROUTINE update_GDDLAI( &
+   subroutine update_GDDLAI( &
       id, LAICalcYes, & !input
       lat, LAI_obs, &
       Tmin_id_prev, Tmax_id_prev, lenDay_id_prev, &
@@ -717,7 +681,7 @@ CONTAINS
                      LAI_id_next=LAI_id_next(iv) &
                   )
                end if
-            else if (laitype(iv) == 2) ! Inverted LAI behaviour (for evergreen trees)
+            else if (laitype(iv) == 2) then ! Inverted LAI behaviour (for evergreen trees)
                !If GDD is not zero by mid May, this is forced
                if (id == 140 .and. GDD_id(iv) /= 0) GDD_id(iv) = 0
                ! Set GDD to zero in summer time
@@ -792,7 +756,7 @@ CONTAINS
 
       !------------------------------------------------------------------------------
 
-   CONTAINS
+   contains
    
       subroutine observed_lai(valid)
 

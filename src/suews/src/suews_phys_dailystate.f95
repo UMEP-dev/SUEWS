@@ -569,7 +569,7 @@ CONTAINS
       real(kind(1D0)), dimension(3), intent(inout) :: GDD_id !Growing Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(3), intent(inout) :: SDD_id !Senescence Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(nvegsurf), intent(out) :: LAI_id_next !LAI for each veg surface [m2 m-2]
-      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: LAI_id_prev ! LAI of previous day
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAI_id_prev ! LAI of previous day
 
       real(kind(1D0)) :: delta_SDD !Switches and checks for GDD
       real(kind(1D0)) :: delta_GDD !Switches and checks for GDD

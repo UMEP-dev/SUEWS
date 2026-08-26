@@ -618,11 +618,6 @@ CONTAINS
             gdd_id=GDD_id(iv), &
             sdd_id=SDD_id(iv) &
          )
-         
-         ! Possibility for cold spring
-         IF (SDD_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
-            GDD_id(iv) = 0
-         END IF
 
          call limit_gdd_sdd( &
             GDD_id=GDD_id(iv), &
@@ -660,6 +655,7 @@ CONTAINS
                   LAIPower=LAIPower(:, iv), &
                   GDDFull=GDDFull(iv), &
                   SDDFull=SDDFull(iv), &
+                  ind_help=indHelp, &
                   lenDay_id_prev=lenDay_id_prev, &
                   laimax=laimax(iv), &
                   laimin=laimin(iv), &
@@ -689,6 +685,7 @@ CONTAINS
                   LAIPower=LAIPower(:, iv), &
                   GDDFull=GDDFull(iv), &
                   SDDFull=SDDFull(iv), &
+                  ind_help=indHelp, &
                   lenDay_id_prev=lenDay_id_prev, &
                   laimax=laimax(iv), &
                   laimin=laimin(iv), &
@@ -848,7 +845,7 @@ CONTAINS
       subroutine calculate_lai( &
             senescence_mode, &
             id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, &
-            lenDay_id_prev, LAI_id_prev, laimax, laimin, LAI_id_next)
+            ind_help, lenDay_id_prev, LAI_id_prev, laimax, laimin, LAI_id_next)
 
          implicit none
 
@@ -871,15 +868,20 @@ CONTAINS
          real(kind(1D0)), intent(in) :: laimin
          real(kind(1D0)), intent(out) :: LAI_id_next
 
+         real(kind(1D0)), intent(in) :: ind_help
+
          logical :: start_senescence
 
          if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
-            call calculate_gdd( &
-               LAI_id_prev=LAI_id_prev, &
-               LAIPower=LAIPower, &
-               GDD_id=GDD_id, &
-               LAI_id_next=LAI_id_next &
-            )
+            ! Allow cold-spring to prevent further growth
+            if (.not. ind_help < 0) then
+               call calculate_gdd( &
+                  LAI_id_prev=LAI_id_prev, &
+                  LAIPower=LAIPower, &
+                  GDD_id=GDD_id, &
+                  LAI_id_next=LAI_id_next &
+               )
+            end if
          
          else if (LAItype <= LAI_ORIGINAL) THEN !Original LAI type
 

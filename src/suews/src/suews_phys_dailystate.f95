@@ -582,6 +582,7 @@ CONTAINS
       
       integer, parameter :: LAI_ORIGINAL = 0
       integer, parameter :: LAI_NEW = 1
+      integer, parameter :: LAI_INVERTED = 2
 
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
@@ -1010,7 +1011,7 @@ CONTAINS
                         GDD_id * LAIPower(2)) + LAI_id_prev
 
       end subroutine calculate_gdd
-   
+
       subroutine calculate_sdd_type0( &
             LAI_id_prev, LAIPower, SDD_id, LAI_id_next)
 

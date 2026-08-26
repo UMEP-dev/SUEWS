@@ -606,6 +606,7 @@ CONTAINS
             tmax_prev=Tmax_id_prev, &
             base_t_gdd=BaseT_GDD(iv), &
             base_t_sdd=BaseT_SDD(iv), &
+            lai_type=laitype(iv), &
             delta_gdd=delta_GDD, &
             delta_sdd=delta_SDD, &
             ind_help=indHelp &
@@ -751,7 +752,7 @@ CONTAINS
       end subroutine observed_lai
 
       subroutine calc_delta_gdd_sdd( &
-            tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
+            tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, lai_type, &
             delta_gdd, delta_sdd, ind_help)
 
          implicit none
@@ -760,7 +761,9 @@ CONTAINS
          real(kind(1D0)), intent(in)  :: tmax_prev
          real(kind(1D0)), intent(in)  :: base_t_gdd
          real(kind(1D0)), intent(in)  :: base_t_sdd
-
+         
+         integer, intent(in) :: lai_type
+         
          real(kind(1D0)), intent(out) :: delta_gdd
          real(kind(1D0)), intent(out) :: delta_sdd
          real(kind(1D0)), intent(out) :: ind_help
@@ -771,6 +774,11 @@ CONTAINS
 
          delta_sdd = calc_delta_degree_days( &
             tmin_prev, tmax_prev, base_t_sdd)
+
+         if (lai_type == LAI_INVERSE) then
+            delta_gdd = -delta_gdd
+            delta_sdd = -delta_sdd
+         end if
 
          ! SDD cannot be positive
          if (delta_sdd > 0) delta_sdd = 0

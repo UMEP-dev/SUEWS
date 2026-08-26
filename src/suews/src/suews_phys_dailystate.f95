@@ -898,7 +898,6 @@ CONTAINS
             if (sdd_id < -crit_days .and. id < winter_day) gdd_id = 0
 
          else
-
             if (lai_type /= LAI_INVERTED) then
                ! Set SDD to zero in northern summer
                if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0

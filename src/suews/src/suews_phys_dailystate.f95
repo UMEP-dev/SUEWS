@@ -775,7 +775,7 @@ CONTAINS
          delta_sdd = calc_delta_degree_days( &
             tmin_prev, tmax_prev, base_t_sdd)
 
-         if (lai_type == LAI_INVERSE) then
+         if (lai_type == LAI_INVERTED) then
             delta_gdd = -delta_gdd
             delta_sdd = -delta_sdd
          end if

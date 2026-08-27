@@ -793,7 +793,6 @@ CONTAINS
          real(kind(1D0)), intent(in) :: sdd_full
          real(kind(1D0)), intent(inout) :: gdd_id
          real(kind(1D0)), intent(inout) :: sdd_id
-         
 
          !Start senescence
          if (gdd_id >= gdd_full) then
@@ -840,6 +839,8 @@ CONTAINS
 
          logical :: start_senescence
 
+         lai_id_next = lai_id_prev
+
          if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
             call calculate_gdd( &
                lai_id_prev=lai_id_prev, &
@@ -849,7 +850,6 @@ CONTAINS
             )
          
          else if (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
-
             if (sdd_id < 0 .and. sdd_id > sdd_full) then !Start senescence
                call calculate_sdd_type0( &
                   lai_id_prev=lai_id_prev, &
@@ -857,14 +857,9 @@ CONTAINS
                   sdd_id=sdd_id, &
                   lai_id_next=lai_id_next &
                )
-
-            else
-               lai_id_next = lai_id_prev
-
             end if
 
          else
-
             !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
             start_senescence = check_start_senescence( &
                senescence_mode=senescence_mode, &
@@ -880,8 +875,6 @@ CONTAINS
                   sdd_id=sdd_id, &
                   lai_id_next=lai_id_next &
                )
-            else
-               lai_id_next = lai_id_prev
             end if
 
          end if

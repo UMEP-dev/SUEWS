@@ -607,6 +607,21 @@ CONTAINS
          if (.not. valid_observed_lai) return
       end if
       
+      ! Determine N/S hemisphere parameters
+      if (lat >= 0) then
+         sdd_reset_day = 140
+         summer_day = 170
+         winter_day = 170
+         southern_hemisphere = .false.
+         senescence_mode = SEN_DAYLENGTH
+      else
+         sdd_reset_day = 300
+         summer_day = 250
+         winter_day = 250
+         southern_hemisphere = .true.
+         senescence_mode = SEN_SDD
+      end if
+
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
 
@@ -645,21 +660,6 @@ CONTAINS
          ! With these limits SDD, GDD is set to zero
          if (sdd_id(iv) < -critDays .AND. sdd_id(iv) > SDDFull(iv)) gdd_id(iv) = 0
          if (gdd_id(iv) > critDays .AND. gdd_id(iv) < GDDFull(iv)) sdd_id(iv) = 0
-
-         ! Determine N/S hemisphere parameters
-         if (lat >= 0) then
-            sdd_reset_day = 140
-            summer_day = 170
-            winter_day = 170
-            southern_hemisphere = .false.
-            senescence_mode = SEN_DAYLENGTH
-         else
-            sdd_reset_day = 300
-            summer_day = 250
-            winter_day = 250
-            southern_hemisphere = .true.
-            senescence_mode = SEN_SDD
-         end if
          
          ! Now calculate LAI itself
          call reset_degree_day_states( &

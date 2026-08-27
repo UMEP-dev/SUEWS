@@ -636,8 +636,8 @@ CONTAINS
          )
          
          ! Calculate cumulative growing and senescence degree days
-         gdd_id(iv) = gdd_prev(iv) + delta_gdd
-         sdd_id(iv) = sdd_prev(iv) + delta_sdd
+         gdd_id(iv) = gdd_id_prev(iv) + delta_gdd
+         sdd_id(iv) = sdd_id_prev(iv) + delta_sdd
          
          ! Possibility for cold spring
          IF (sdd_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN

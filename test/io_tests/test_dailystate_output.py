@@ -296,13 +296,68 @@ class TestDailyStateOutput:
             "during the winter period"
         )
 
+    def test_dailystate_cold_spring_condition(
+        self, sample_config_loaded, sample_run_cached,
+    ):
+        """
+        Test that ensures when the cold spring condition is met, the accumulated GDD value is
+        retained whilst LAI growth is prevented.
+        """
+        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
+
+        base_t_gdd = config_lai_dectr.base_temperature.value
+        gdd_full = config_lai_dectr.gdd_full.value
+        sdd_full = config_lai_dectr.sdd_full.value
+
+        df_output, df_state_final = sample_run_cached()
+
+        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+
+        lai = df_dailystate["LAI_DecTr"]
+        previous_lai = lai.shift(1)
+
+        lai = lai.iloc[1:]
+        previous_lai = previous_lai.iloc[1:]
+
+        delta_lai_model = lai - previous_lai
+
+
+        gdd = df_dailystate["GDD_DecTr"]
+        sdd = df_dailystate["SDD_DecTr"]
+        previous_gdd = gdd.shift(1)
+        delta_gdd = (
+            (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
+            - base_t_gdd
+        )
+
+        # Ignore initial timestep, previous state required for test
+        gdd = gdd.iloc[1:]
+        sdd = sdd.iloc[1:]
+        previous_gdd = previous_gdd.iloc[1:]
+        delta_gdd_calculated = delta_gdd.iloc[1:]
+        delta_gdd_model = gdd - previous_gdd
+
+        cold_spring_condition = (
+            (sdd <= sdd_full)
+            & (delta_gdd_calculated < 0)
+            & (previous_gdd != 0) # Must check a transition, not retaining zero state
+        )
+
+        cold_spring_gdd_transition = delta_gdd_model.loc[cold_spring_condition]
+        cold_spring_lai_transition = delta_lai_model.loc[cold_spring_condition]
+
+        assert((cold_spring_gdd_transition == 0).all())
+        assert((cold_spring_lai_transition == 0).all())
+
     def test_dailystate_lai_gdd_growth_branch(
         self, sample_data_loaded, sample_run_cached, sample_config_loaded
     ):
         """LAI increases while GDD is between zero and GDDFull."""
 
         config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
+        base_t_gdd = config_lai_dectr.base_temperature.value
         gdd_full = config_lai_dectr.gdd_full.value
+        sdd_full = config_lai_dectr.sdd_full.value
         lai_max = config_lai_dectr.lai_max.value
 
         df_output, _ = sample_run_cached()
@@ -311,20 +366,36 @@ class TestDailyStateOutput:
 
         lai = df_dailystate["LAI_DecTr"]
         gdd = df_dailystate["GDD_DecTr"]
+        sdd = df_dailystate["SDD_DecTr"]
+        delta_gdd = (
+            (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
+            - base_t_gdd
+        )
 
         lai_change = lai.diff().iloc[1:]
-        gdd = gdd.iloc[1:]
         lai = lai.iloc[1:]
+        gdd = gdd.iloc[1:]
+        sdd = sdd.iloc[1:]
+
+
+        delta_gdd_calculated = delta_gdd.iloc[1:]
+
+        cold_spring_condition = (
+            (sdd <= sdd_full)
+            & (delta_gdd_calculated < 0)
+        )
 
         # calculate_lai() uses the GDD growth branch when:
         #
         #     GDD > 0 AND GDD < GDDFull
+        #     Cold spring condition is false
         #
         growth = (gdd > 0) & (gdd < gdd_full)
 
         valid_growth = (
             (lai_change > 0)
             | (lai >= lai_max)
+            | (cold_spring_condition)
         )
 
         assert growth.any(), (
@@ -699,57 +770,3 @@ class TestDailyStateOutput:
 
         with pytest.raises(RuntimeError, match="code 105"):
             sim.run(_validate_forcing=False)
-
-    
-    def test_dailystate_cold_spring_condition(
-        self, sample_config_loaded, sample_run_cached,
-    ):
-        """
-        Test that ensures when the cold spring condition is met, the accumulated GDD value is
-        retained whilst LAI growth is prevented.
-        """
-        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
-
-        base_t_gdd = config_lai_dectr.base_temperature.value
-        gdd_full = config_lai_dectr.gdd_full.value
-        sdd_full = config_lai_dectr.sdd_full.value
-
-        df_output, df_state_final = sample_run_cached()
-
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
-
-        lai = df_dailystate["LAI_DecTr"]
-        previous_lai = lai.shift(1)
-
-        lai = lai.iloc[1:]
-        previous_lai = previous_lai.iloc[1:]
-
-        delta_lai_model = lai - previous_lai
-
-
-        gdd = df_dailystate["GDD_DecTr"]
-        sdd = df_dailystate["SDD_DecTr"]
-        previous_gdd = gdd.shift(1)
-        delta_gdd = (
-            (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
-            - base_t_gdd
-        )
-
-        # Ignore initial timestep, previous state required for test
-        gdd = gdd.iloc[1:]
-        sdd = sdd.iloc[1:]
-        previous_gdd = previous_gdd.iloc[1:]
-        delta_gdd_calculated = delta_gdd.iloc[1:]
-        delta_gdd_model = gdd - previous_gdd
-
-        cold_spring_condition = (
-            (sdd <= sdd_full)
-            & (delta_gdd_calculated < 0)
-            & (previous_gdd != 0) # Must check a transition, not retaining zero state
-        )
-
-        cold_spring_gdd_transition = delta_gdd_model.loc[cold_spring_condition]
-        cold_spring_lai_transition = delta_lai_model.loc[cold_spring_condition]
-
-        assert((cold_spring_gdd_transition == 0).all())
-        assert((cold_spring_lai_transition == 0).all())

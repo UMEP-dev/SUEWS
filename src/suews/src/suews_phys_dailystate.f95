@@ -578,7 +578,7 @@ CONTAINS
       real(kind(1D0)), dimension(3) :: gdd_id_prev ! GDD of previous day
       real(kind(1D0)), dimension(3) :: sdd_id_prev ! SDD of previous day
 
-      integer :: critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
+      integer :: crit_days = 50 !Critical limit for GDD when GDD or SDD is set to zero
       integer :: iv
       
       ! Enumeration parameters for the LAI type
@@ -646,7 +646,7 @@ CONTAINS
          END IF
 
          call limit_gdd_sdd( &
-            crit_days=critDays, &
+            crit_days=crit_days, &
             gdd_full=GDDFull(iv), &
             sdd_full=SDDFull(iv), &
             gdd_id=gdd_id(iv), &
@@ -659,7 +659,7 @@ CONTAINS
             sdd_reset_day=sdd_reset_day, &
             summer_day=summer_day, &
             winter_day=winter_day, &
-            crit_days=critDays, &
+            crit_days=crit_days, &
             gdd_id=gdd_id(iv), &
             sdd_id=sdd_id(iv), &
             southern_hemisphere=southern_hemisphere &
@@ -795,13 +795,13 @@ CONTAINS
          !Start senescence
          if (gdd_id >= gdd_full) then
             gdd_id = gdd_full !Leaves should not grow so delete yes from earlier
-            if (sdd_id < -critDays) gdd_id = 0
+            if (sdd_id < -crit_days) gdd_id = 0
          end if
 
          !After senescence now start growing leaves
          if (sdd_id <= sdd_full) then
             sdd_id = sdd_full !Leaves off so add back earlier
-            if (gdd_id > critDays) sdd_id = 0
+            if (gdd_id > crit_days) sdd_id = 0
          end if
 
          ! With these limits SDD, GDD is set to zero

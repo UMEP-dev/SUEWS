@@ -608,6 +608,7 @@ CONTAINS
       end if
       
       ! Determine N/S hemisphere parameters
+      ! TODO: Move outside timestep loop as timestep independent
       if (lat >= 0) then
          sdd_reset_day = 140
          summer_day = 170
@@ -651,10 +652,6 @@ CONTAINS
             SDDFull=SDDFull(iv), &
             critDays=critDays &
          )
-
-         ! With these limits SDD, GDD is set to zero
-         if (sdd_id(iv) < -critDays .AND. sdd_id(iv) > SDDFull(iv)) gdd_id(iv) = 0
-         if (gdd_id(iv) > critDays .AND. gdd_id(iv) < GDDFull(iv)) sdd_id(iv) = 0
          
          ! Now calculate LAI itself
          call reset_degree_day_states( &
@@ -793,10 +790,10 @@ CONTAINS
 
          real(kind(1D0)), intent(inout) :: GDD_id
          real(kind(1D0)), intent(inout) :: SDD_id
-         real(kind(1D0)), intent(in)    :: GDDFull
-         real(kind(1D0)), intent(in)    :: SDDFull
+         real(kind(1D0)), intent(in) :: GDDFull
+         real(kind(1D0)), intent(in) :: SDDFull
          
-         integer, intent(in)    :: critDays
+         integer, intent(in) :: critDays
 
          !Start senescence
          if (GDD_id >= GDDFull) then
@@ -809,6 +806,10 @@ CONTAINS
             SDD_id = SDDFull !Leaves off so add back earlier
             if (GDD_id > critDays) SDD_id = 0
          end if
+
+         ! With these limits SDD, GDD is set to zero
+         if (sdd_id < -critDays .AND. sdd_id > SDDFull) gdd_id = 0
+         if (gdd_id > critDays .AND. gdd_id < GDDFull) sdd_id = 0
 
       end subroutine limit_gdd_sdd
 

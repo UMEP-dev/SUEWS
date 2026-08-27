@@ -725,9 +725,7 @@ CONTAINS
 
          ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
          ! daily state without applying the GDD/SDD envelope.
-         do iv = 1, NVegSurf
-            LAI_id_next(iv) = LAI_obs(iv)
-         end do
+         LAI_id_next = LAI_obs
 
          valid = .true.
 

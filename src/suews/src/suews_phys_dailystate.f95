@@ -646,11 +646,11 @@ CONTAINS
          END IF
 
          call limit_gdd_sdd( &
-            gdd_id=gdd_id(iv), &
-            sdd_id=sdd_id(iv), &
+            crit_days=critDays, &
             gdd_full=GDDFull(iv), &
             sdd_full=SDDFull(iv), &
-            crit_days=critDays &
+            gdd_id=gdd_id(iv), &
+            sdd_id=sdd_id(iv) &
          )
          
          ! Now calculate LAI itself
@@ -784,16 +784,16 @@ CONTAINS
       end function calc_delta_degree_days
 
       subroutine limit_gdd_sdd( &
-            gdd_id, sdd_id, gdd_full, sdd_full, crit_days)
+            crit_days, gdd_full, sdd_full, gdd_id, sdd_id)
 
          implicit none
 
-         real(kind(1D0)), intent(inout) :: gdd_id
-         real(kind(1D0)), intent(inout) :: sdd_id
+         integer, intent(in) :: crit_days
          real(kind(1D0)), intent(in) :: gdd_full
          real(kind(1D0)), intent(in) :: sdd_full
+         real(kind(1D0)), intent(inout) :: gdd_id
+         real(kind(1D0)), intent(inout) :: sdd_id
          
-         integer, intent(in) :: crit_days
 
          !Start senescence
          if (gdd_id >= gdd_full) then

@@ -648,9 +648,9 @@ CONTAINS
          call limit_gdd_sdd( &
             gdd_id=gdd_id(iv), &
             sdd_id=sdd_id(iv), &
-            GDDFull=GDDFull(iv), &
-            SDDFull=SDDFull(iv), &
-            critDays=critDays &
+            gdd_full=GDDFull(iv), &
+            sdd_full=SDDFull(iv), &
+            crit_days=critDays &
          )
          
          ! Now calculate LAI itself
@@ -784,32 +784,32 @@ CONTAINS
       end function calc_delta_degree_days
 
       subroutine limit_gdd_sdd( &
-            GDD_id, SDD_id, GDDFull, SDDFull, critDays)
+            gdd_id, sdd_id, gdd_full, sdd_full, crit_days)
 
          implicit none
 
-         real(kind(1D0)), intent(inout) :: GDD_id
-         real(kind(1D0)), intent(inout) :: SDD_id
-         real(kind(1D0)), intent(in) :: GDDFull
-         real(kind(1D0)), intent(in) :: SDDFull
+         real(kind(1D0)), intent(inout) :: gdd_id
+         real(kind(1D0)), intent(inout) :: sdd_id
+         real(kind(1D0)), intent(in) :: gdd_full
+         real(kind(1D0)), intent(in) :: sdd_full
          
-         integer, intent(in) :: critDays
+         integer, intent(in) :: crit_days
 
          !Start senescence
-         if (GDD_id >= GDDFull) then
-            GDD_id = GDDFull !Leaves should not grow so delete yes from earlier
-            if (SDD_id < -critDays) GDD_id = 0
+         if (gdd_id >= gdd_full) then
+            gdd_id = gdd_full !Leaves should not grow so delete yes from earlier
+            if (sdd_id < -critDays) gdd_id = 0
          end if
 
          !After senescence now start growing leaves
-         if (SDD_id <= SDDFull) then
-            SDD_id = SDDFull !Leaves off so add back earlier
-            if (GDD_id > critDays) SDD_id = 0
+         if (sdd_id <= sdd_full) then
+            sdd_id = sdd_full !Leaves off so add back earlier
+            if (gdd_id > critDays) sdd_id = 0
          end if
 
          ! With these limits SDD, GDD is set to zero
-         if (sdd_id < -critDays .AND. sdd_id > SDDFull) gdd_id = 0
-         if (gdd_id > critDays .AND. gdd_id < GDDFull) sdd_id = 0
+         if (sdd_id < -critDays .AND. sdd_id > sdd_full) gdd_id = 0
+         if (gdd_id > critDays .AND. gdd_id < gdd_full) sdd_id = 0
 
       end subroutine limit_gdd_sdd
 

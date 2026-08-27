@@ -805,8 +805,8 @@ CONTAINS
          end if
 
          ! With these limits SDD, GDD is set to zero
-         if (sdd_id < -critDays .AND. sdd_id > sdd_full) gdd_id = 0
-         if (gdd_id > critDays .AND. gdd_id < gdd_full) sdd_id = 0
+         if (sdd_id < -crit_days .AND. sdd_id > sdd_full) gdd_id = 0
+         if (gdd_id > crit_days .AND. gdd_id < gdd_full) sdd_id = 0
 
       end subroutine limit_gdd_sdd
 

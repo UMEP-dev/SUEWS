@@ -555,7 +555,7 @@ CONTAINS
       real(kind(1D0)), intent(in) :: lenDay_id_prev
 
       ! --- Vegetation phenology ---------------------------------------------------------------------
-      ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
+      ! Parameters provided in input information for each vegetation surface
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_GDD !Base temperature for growing degree days [degC]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_SDD !Base temperature for senescence degree days [degC]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: GDDFull !Growing degree days needed for full capacity [degC]
@@ -563,31 +563,35 @@ CONTAINS
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: laimin !Min LAI [m2 m-2]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: laimax !Max LAI [m2 m-2]
       real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
-      !! N.B. currently DecTr only, although input provided for all veg types
-      integer, dimension(nvegsurf), intent(in) :: LAIType !LAI equation to use: original (0) or new (1)
+      
+      ! LAI equation to use: original (0) or new (1)
+      integer, dimension(nvegsurf), intent(in) :: LAIType
 
-      real(kind(1D0)), dimension(3), intent(inout) :: GDD_id !Growing Degree Days (see SUEWS_DailyState.f95)
-      real(kind(1D0)), dimension(3), intent(inout) :: SDD_id !Senescence Degree Days (see SUEWS_DailyState.f95)
-      real(kind(1D0)), dimension(nvegsurf), intent(out) :: LAI_id_next !LAI for each veg surface [m2 m-2]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAI_id_prev ! LAI of previous day
+      real(kind(1D0)), dimension(3), intent(inout) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
+      real(kind(1D0)), dimension(3), intent(inout) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_id_prev ! LAI of previous day
+      real(kind(1D0)), dimension(nvegsurf), intent(out) :: lai_id_next !LAI for each veg surface [m2 m-2]
 
-      real(kind(1D0)) :: delta_SDD !Switches and checks for GDD
-      real(kind(1D0)) :: delta_GDD !Switches and checks for GDD
+      real(kind(1D0)) :: delta_sdd !Switches and checks for GDD
+      real(kind(1D0)) :: delta_gdd !Switches and checks for GDD
       real(kind(1D0)) :: indHelp !Switches and checks for GDD
-      real(kind(1D0)), dimension(3) :: GDD_id_prev ! GDD of previous day
-      real(kind(1D0)), dimension(3) :: SDD_id_prev ! SDD of previous day
+      real(kind(1D0)), dimension(3) :: gdd_id_prev ! GDD of previous day
+      real(kind(1D0)), dimension(3) :: sdd_id_prev ! SDD of previous day
 
       integer :: critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
       integer :: iv
       
+      ! Enumeration parameters for the LAI type
       integer, parameter :: LAI_ORIGINAL = 0
       integer, parameter :: LAI_NEW = 1
 
+      ! Enumeration parameters for senescence conditions
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
 
       logical :: valid_observed_lai
 
+      ! Hemisphere specific parameters for LAI calculations
       integer :: sdd_reset_day
       integer :: summer_day
       integer :: winter_day
@@ -595,8 +599,8 @@ CONTAINS
       logical :: southern_hemisphere
       
       ! translate values of previous day to local variables
-      GDD_id_prev = GDD_id
-      SDD_id_prev = SDD_id
+      gdd_id_prev = gdd_id
+      sdd_id_prev = sdd_id
 
       if (LAICalcYes == 0) then
          call observed_lai(valid_observed_lai)
@@ -611,36 +615,36 @@ CONTAINS
             tmax_prev=Tmax_id_prev, &
             base_t_gdd=BaseT_GDD(iv), &
             base_t_sdd=BaseT_SDD(iv), &
-            delta_gdd=delta_GDD, &
-            delta_sdd=delta_SDD, &
+            delta_gdd=delta_gdd, &
+            delta_sdd=delta_sdd, &
             ind_help=indHelp &
          )
          
          call apply_delta_gdd_sdd( &
-            gdd_prev=GDD_id_prev(iv), &
-            sdd_prev=SDD_id_prev(iv), &
-            delta_gdd=delta_GDD, &
-            delta_sdd=delta_SDD, &
-            gdd_id=GDD_id(iv), &
-            sdd_id=SDD_id(iv) &
+            gdd_prev=gdd_id_prev(iv), &
+            sdd_prev=sdd_id_prev(iv), &
+            delta_gdd=delta_gdd, &
+            delta_sdd=delta_sdd, &
+            gdd_id=gdd_id(iv), &
+            sdd_id=sdd_id(iv) &
          )
          
          ! Possibility for cold spring
-         IF (SDD_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
-            GDD_id(iv) = 0
+         IF (sdd_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
+            gdd_id(iv) = 0
          END IF
 
          call limit_gdd_sdd( &
-            GDD_id=GDD_id(iv), &
-            SDD_id=SDD_id(iv), &
+            gdd_id=gdd_id(iv), &
+            sdd_id=sdd_id(iv), &
             GDDFull=GDDFull(iv), &
             SDDFull=SDDFull(iv), &
             critDays=critDays &
          )
 
          ! With these limits SDD, GDD is set to zero
-         if (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
-         if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+         if (sdd_id(iv) < -critDays .AND. sdd_id(iv) > SDDFull(iv)) gdd_id(iv) = 0
+         if (gdd_id(iv) > critDays .AND. gdd_id(iv) < GDDFull(iv)) sdd_id(iv) = 0
 
          ! Determine N/S hemisphere parameters
          if (lat >= 0) then

@@ -67,6 +67,7 @@ contains
       integer, parameter :: SEN_SDD = 2
 
       logical :: valid_observed_lai
+      logical :: cold_spring
       
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
@@ -97,6 +98,12 @@ contains
             delta_sdd=delta_SDD, &
             gdd_id=GDD_id(iv), &
             sdd_id=SDD_id(iv) &
+         )
+
+         cold_spring = cold_spring_condition( &
+            sdd_id=sdd_id(iv), &
+            sdd_full=sddFull(iv), &
+            ind_help=indHelp &
          )
 
          call limit_gdd_sdd( &
@@ -135,7 +142,7 @@ contains
                   LAIPower=LAIPower(:, iv), &
                   GDDFull=GDDFull(iv), &
                   SDDFull=SDDFull(iv), &
-                  ind_help=indHelp, &
+                  cold_spring=cold_spring, &
                   lenDay_id_prev=lenDay_id_prev, &
                   laimax=laimax(iv), &
                   laimin=laimin(iv), &
@@ -143,6 +150,7 @@ contains
                   LAI_id_next=LAI_id_next(iv) &
                )
             end if
+
          else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
             call reset_degree_day_states( &
                id=id, &
@@ -154,6 +162,7 @@ contains
                sdd_id=SDD_id(iv), &
                gdd_id=GDD_id(iv) &
             )
+
             if (LAICalcYes /= 0) then
                call calculate_lai( &
                   senescence_mode=SEN_SDD, &
@@ -165,13 +174,14 @@ contains
                   LAIPower=LAIPower(:, iv), &
                   GDDFull=GDDFull(iv), &
                   SDDFull=SDDFull(iv), &
-                  ind_help=indHelp, &
+                  cold_spring=cold_spring, &
                   lenDay_id_prev=lenDay_id_prev, &
                   laimax=laimax(iv), &
                   laimin=laimin(iv), &
                   LAI_id_prev=LAI_id_prev(iv), &
                   LAI_id_next=LAI_id_next(iv) &
                )
+
             end if
 
          end if !N or S hemisphere
@@ -296,6 +306,20 @@ contains
 
       end subroutine apply_delta_gdd_sdd
 
+      function cold_spring_condition(sdd_id, sdd_full, ind_help) result(cold_spring)
+      
+         implicit none
+
+         real(kind(1D0)), intent(in) :: sdd_id
+         real(kind(1D0)), intent(in) :: sdd_full
+         real(kind(1D0)), intent(in) :: ind_help
+         
+         logical :: cold_spring
+
+         cold_spring = ((sdd_id <= sdd_full) .and. (ind_help < 0))
+
+      end function cold_spring_condition
+
       subroutine limit_gdd_sdd( &
             GDD_id, SDD_id, GDDFull, SDDFull, critDays)
 
@@ -303,10 +327,10 @@ contains
 
          real(kind(1D0)), intent(inout) :: GDD_id
          real(kind(1D0)), intent(inout) :: SDD_id
-         real(kind(1D0)), intent(in)    :: GDDFull
-         real(kind(1D0)), intent(in)    :: SDDFull
+         real(kind(1D0)), intent(in) :: GDDFull
+         real(kind(1D0)), intent(in) :: SDDFull
          
-         integer, intent(in)    :: critDays
+         integer, intent(in) :: critDays
 
          !Start senescence
          if (GDD_id >= GDDFull) then
@@ -325,7 +349,7 @@ contains
       subroutine calculate_lai( &
             senescence_mode, &
             id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, &
-            ind_help, lenDay_id_prev, LAI_id_prev, laimax, laimin, LAI_id_next)
+            cold_spring, lenDay_id_prev, LAI_id_prev, laimax, laimin, LAI_id_next)
 
          implicit none
 
@@ -348,13 +372,13 @@ contains
          real(kind(1D0)), intent(in) :: laimin
          real(kind(1D0)), intent(out) :: LAI_id_next
 
-         real(kind(1D0)), intent(in) :: ind_help
+         logical, intent(in) :: cold_spring
 
          logical :: start_senescence
 
          if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
             ! Allow cold-spring to prevent further growth
-            if (.not. ind_help < 0) then
+            if (.not. cold_spring) then
                call calculate_gdd( &
                   LAI_id_prev=LAI_id_prev, &
                   LAIPower=LAIPower, &

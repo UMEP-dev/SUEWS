@@ -635,14 +635,9 @@ CONTAINS
             ind_help=indHelp &
          )
          
-         call apply_delta_gdd_sdd( &
-            gdd_prev=gdd_id_prev(iv), &
-            sdd_prev=sdd_id_prev(iv), &
-            delta_gdd=delta_gdd, &
-            delta_sdd=delta_sdd, &
-            gdd_id=gdd_id(iv), &
-            sdd_id=sdd_id(iv) &
-         )
+         ! Calculate cumulative growing and senescence degree days
+         gdd_id(iv) = gdd_prev(iv) + delta_gdd
+         sdd_id(iv) = sdd_prev(iv) + delta_sdd
          
          ! Possibility for cold spring
          IF (sdd_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
@@ -790,26 +785,6 @@ CONTAINS
          delta_dd = (Tmin_prev + Tmax_prev) / 2 - base_t
 
       end function calc_delta_degree_days
-
-      subroutine apply_delta_gdd_sdd(gdd_prev, sdd_prev, &
-                                    delta_gdd, delta_sdd, &
-                                    gdd_id, sdd_id)
-
-         implicit none
-
-         real(kind(1D0)), intent(in) :: gdd_prev
-         real(kind(1D0)), intent(in) :: sdd_prev
-         real(kind(1D0)), intent(in) :: delta_gdd
-         real(kind(1D0)), intent(in) :: delta_sdd
-
-         real(kind(1D0)), intent(out) :: gdd_id
-         real(kind(1D0)), intent(out) :: sdd_id
-
-         ! Calculate cumulative growing and senescence degree days
-         gdd_id = gdd_prev + delta_gdd
-         sdd_id = sdd_prev + delta_sdd
-
-      end subroutine apply_delta_gdd_sdd
 
       subroutine limit_gdd_sdd( &
             GDD_id, SDD_id, GDDFull, SDDFull, critDays)

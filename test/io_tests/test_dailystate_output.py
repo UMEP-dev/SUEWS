@@ -780,3 +780,42 @@ class TestDailyStateOutput:
 
         with pytest.raises(RuntimeError, match="code 105"):
             sim.run(_validate_forcing=False)
+
+    
+    def test_dailystate_gdd_stagnates_during_cold_spring(
+        self, sample_config_loaded, sample_run_cached,
+    ):
+        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
+
+        base_t_gdd = config_lai_dectr.base_temperature.value
+        gdd_full = config_lai_dectr.gdd_full.value
+        sdd_full = config_lai_dectr.sdd_full.value
+
+        df_output, df_state_final = sample_run_cached()
+
+        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+
+        gdd = df_dailystate["GDD_DecTr"]
+        sdd = df_dailystate["SDD_DecTr"]
+        previous_gdd = gdd.shift(1)
+        delta_gdd = (
+            (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
+            - base_t_gdd
+        )
+
+        # Ignore initial timestep, previous state required for test
+        gdd = gdd.iloc[1:]
+        sdd = sdd.iloc[1:]
+        previous_gdd = previous_gdd.iloc[1:]
+        delta_gdd_calculated = delta_gdd.iloc[1:]
+        delta_gdd_model = gdd - previous_gdd
+
+        cold_spring_condition = (
+            (sdd <= sdd_full)
+            & (delta_gdd_calculated < 0)
+            & (previous_gdd != 0) # Must check a transition, not retaining zero state
+        )
+
+        cold_spring_transition = delta_gdd_model.loc[cold_spring_condition]
+
+        assert((cold_spring_transition == 0).all())

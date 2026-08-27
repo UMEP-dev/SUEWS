@@ -76,6 +76,8 @@ contains
       integer :: senescence_mode
       logical :: southern_hemisphere
 
+      logical :: cold_spring
+
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
       SDD_id_prev = SDD_id
@@ -117,11 +119,12 @@ contains
          ! Calculate cumulative growing and senescence degree days
          gdd_id(iv) = gdd_id_prev(iv) + delta_gdd
          sdd_id(iv) = sdd_id_prev(iv) + delta_sdd
-         
-         ! Possibility for cold spring
-         IF (sdd_id(iv) <= sdd_full(iv) .AND. ind_help < 0) THEN
-            gdd_id(iv) = 0
-         END IF
+
+         cold_spring = cold_spring_condition( &
+            sdd_id=sdd_id(iv), &
+            sdd_full=sdd_full(iv), &
+            ind_help=ind_help &
+         )
 
          call limit_gdd_sdd( &
             gdd_full=gdd_full(iv), &
@@ -149,6 +152,7 @@ contains
                sdd_id=sdd_id(iv), &
                gdd_full=gdd_full(iv), &
                sdd_full=sdd_full(iv), &
+               cold_spring=cold_spring, &
                lai_type=lai_type(iv), &
                lai_power=lai_power(:, iv), &
                lai_max=lai_max(iv), &
@@ -278,6 +282,20 @@ contains
 
       end subroutine apply_delta_gdd_sdd
 
+      function cold_spring_condition(sdd_id, sdd_full, ind_help) result(cold_spring)
+      
+         implicit none
+
+         real(kind(1D0)), intent(in) :: sdd_id
+         real(kind(1D0)), intent(in) :: sdd_full
+         real(kind(1D0)), intent(in) :: ind_help
+         
+         logical :: cold_spring
+
+         cold_spring = ((sdd_id <= sdd_full) .and. (ind_help < 0))
+
+      end function cold_spring_condition
+
       subroutine limit_gdd_sdd( &
             gdd_full, sdd_full, gdd_id, sdd_id)
 
@@ -308,8 +326,8 @@ contains
 
       subroutine calculate_lai( &
             senescence_mode, &
-            id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, &
-            ind_help, lenDay_id_prev, LAI_id_prev, laimax, laimin, LAI_id_next)
+            id, SDD_id, GDD_id, LAItype, LAIPower, GDDFull, SDDFull, &
+            cold_spring, lenDay_id_prev, LAI_id_prev, laimax, laimin, LAI_id_next)
 
          implicit none
 
@@ -319,7 +337,6 @@ contains
          real(kind(1D0)), intent(in) :: gdd_id
          real(kind(1D0)), intent(in) :: sdd_id
          
-         integer, intent(in) :: critDays
          integer, intent(in) :: LAItype
          
          real(kind(1D0)), dimension(4), intent(in) :: LAIPower
@@ -332,13 +349,13 @@ contains
          real(kind(1D0)), intent(in) :: laimin
          real(kind(1D0)), intent(out) :: LAI_id_next
 
-         real(kind(1D0)), intent(in) :: ind_help
+         logical, intent(in) :: cold_spring
 
          logical :: start_senescence
 
          if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
             ! Allow cold-spring to prevent further growth
-            if (.not. ind_help < 0) then
+            if (.not. cold_spring) then
                call calculate_gdd( &
                   LAI_id_prev=LAI_id_prev, &
                   LAIPower=LAIPower, &

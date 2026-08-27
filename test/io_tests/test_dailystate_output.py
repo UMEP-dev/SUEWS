@@ -832,7 +832,5 @@ class TestDailyStateOutput:
         cold_spring_gdd_transition = delta_gdd_model.loc[cold_spring_condition]
         cold_spring_lai_transition = delta_lai_model.loc[cold_spring_condition]
 
-        import pdb; pdb.set_trace()
-
         assert((cold_spring_gdd_transition == 0).all())
         assert((cold_spring_lai_transition == 0).all())

@@ -701,7 +701,7 @@ CONTAINS
                   LAI_id_prev=LAI_id_prev(iv), &
                   LAI_id_next=LAI_id_next(iv) &
                )
-               
+
             end if
 
          end if !N or S hemisphere
@@ -833,7 +833,8 @@ CONTAINS
          real(kind(1D0)), intent(in) :: sdd_id
          real(kind(1D0)), intent(in) :: sdd_full
          real(kind(1D0)), intent(in) :: ind_help
-         logical, intent(out) :: cold_spring
+         
+         logical :: cold_spring
 
          cold_spring = ((sdd_id <= sdd_full) .and. (ind_help < 0))
 

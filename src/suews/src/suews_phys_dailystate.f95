@@ -563,8 +563,9 @@ CONTAINS
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: laimin !Min LAI [m2 m-2]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: laimax !Max LAI [m2 m-2]
       real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
-      
+
       ! LAI equation to use: original (0) or new (1)
+      !! N.B. currently DecTr only, although input provided for all veg types
       integer, dimension(nvegsurf), intent(in) :: LAIType
 
       real(kind(1D0)), dimension(3), intent(inout) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
@@ -578,7 +579,7 @@ CONTAINS
       real(kind(1D0)), dimension(3) :: gdd_id_prev ! GDD of previous day
       real(kind(1D0)), dimension(3) :: sdd_id_prev ! SDD of previous day
 
-      integer :: crit_days = 50 !Critical limit for GDD when GDD or SDD is set to zero
+      integer, parameter :: crit_days = 50 !Critical limit for GDD when GDD or SDD is set to zero
       integer :: iv
       
       ! Enumeration parameters for the LAI type
@@ -615,7 +616,7 @@ CONTAINS
          winter_day = 170
          southern_hemisphere = .false.
          senescence_mode = SEN_DAYLENGTH
-      else
+      else !! N.B. not identical to N hemisphere - return to later
          sdd_reset_day = 300
          summer_day = 250
          winter_day = 250
@@ -652,7 +653,7 @@ CONTAINS
             gdd_id=gdd_id(iv), &
             sdd_id=sdd_id(iv) &
          )
-         
+
          ! Now calculate LAI itself
          call reset_degree_day_states( &
             id=id, &
@@ -668,12 +669,11 @@ CONTAINS
          if (LAICalcYes /= 0) then
             call calculate_lai( &
                senescence_mode=senescence_mode, &
-               id=id, &
-               len_day_id_prev=lenday_id_prev, &
+               len_day_id_prev=lenDay_id_prev, &
                gdd_id=gdd_id(iv), &
                sdd_id=sdd_id(iv), &
-               gdd_full=gddFull(iv), &
-               sdd_full=sddFull(iv), &
+               gdd_full=GDDFull(iv), &
+               sdd_full=SDDFull(iv), &
                lai_type=LAItype(iv), &
                lai_power=LAIPower(:, iv), &
                lai_max=laimax(iv), &
@@ -812,16 +812,15 @@ CONTAINS
 
       subroutine calculate_lai( &
             senescence_mode, &
-            id, sdd_id, gdd_id, lai_type, lai_power, gdd_full, sdd_full, &
+            sdd_id, gdd_id, lai_type, lai_power, gdd_full, sdd_full, &
             len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
 
          integer, intent(in) :: senescence_mode
-         integer, intent(in) :: id
 
-         real(kind(1D0)), intent(inout) :: sdd_id
-         real(kind(1D0)), intent(inout) :: gdd_id
+         real(kind(1D0)), intent(in) :: sdd_id
+         real(kind(1D0)), intent(in) :: gdd_id
          
          integer, intent(in) :: lai_type
          

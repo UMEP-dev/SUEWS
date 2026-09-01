@@ -2475,7 +2475,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%conductivity_roofext = building_archtype%roof_external_effective_conductivity
    self%conductivity_groundfloor = building_archtype%ground_floor_effective_conductivity
    self%conductivity_window = building_archtype%window_effective_conductivity
-   self%conductivity_ground = building_archtype%ground_floor_effective_conductivity
+   self%conductivity_ground = stebbsPrm%external_ground_conductivity
    self%density_wall = building_archtype%wall_density
    self%density_wallext = building_archtype%wall_external_density
    self%density_roof = building_archtype%roof_density

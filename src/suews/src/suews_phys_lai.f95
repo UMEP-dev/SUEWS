@@ -15,7 +15,7 @@ contains
       gdd_full, sdd_full, &
       lai_min, lai_max, lai_power, lai_type, &
       lai_id_prev, &
-      gdd_id, sdd_id, & !inout
+      gdd_type, gdd_id, sdd_id, & !inout
       lai_id_next) !output
       
       implicit none
@@ -43,8 +43,12 @@ contains
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_min !Min LAI [m2 m-2]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_max !Max LAI [m2 m-2]
       real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: lai_power !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
+
       !! N.B. currently DecTr only, although input provided for all veg types
       integer, dimension(nvegsurf), intent(in) :: lai_type !LAI equation to use: original (0) or new (1)
+      
+      ! 0: Use accumulated GDD for LAI calculations, 1: Use daily change in GDD
+      integer, dimension(nvegsurf), intent(in):: gdd_type
 
       real(kind(1D0)), dimension(3), intent(inout) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(3), intent(inout) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
@@ -72,7 +76,6 @@ contains
       ! Option for gdd value in LAI calculation
       integer, parameter :: GDD_ACCUMULATIVE = 0
       integer, parameter :: GDD_CHANGE = 1
-      integer :: gdd_option = 1
 
       logical :: valid_observed_lai
 
@@ -153,7 +156,7 @@ contains
 
          if (lai_calc_yes /= 0) then
             call calculate_lai( &
-               gdd_option=gdd_option, &
+               gdd_type=gdd_type(iv), &
                senescence_mode=senescence_mode, &
                len_day_id_prev=len_day_id_prev, &
                gdd_id=gdd_id(iv), &
@@ -313,13 +316,13 @@ contains
       end subroutine limit_gdd_sdd
 
       subroutine calculate_lai( &
-            gdd_option, senescence_mode, &
+            gdd_type, senescence_mode, &
             gdd_id, sdd_id, lai_type, lai_power, gdd_full, sdd_full, &
             cold_spring, len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
 
-         integer, intent(in) :: gdd_option
+         integer, intent(in) :: gdd_type
          integer, intent(in) :: senescence_mode
 
          real(kind(1D0)), intent(in) :: gdd_id
@@ -347,7 +350,7 @@ contains
          lai_id_next = lai_id_prev
 
          if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
-            if (gdd_option == GDD_CHANGE) then
+            if (gdd_type == GDD_CHANGE) then
                gdd = delta_gdd
             else
                gdd = gdd_id

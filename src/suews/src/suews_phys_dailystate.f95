@@ -214,6 +214,9 @@ CONTAINS
                LAIType => [evetrPrm%lai%lai_type, &
                            dectrPrm%lai%lai_type, &
                            grassPrm%lai%lai_type], &
+               gdd_type => [evetrPrm%lai%gdd_type, &
+                              dectrPrm%lai%gdd_type, &
+                              grassPrm%lai%gdd_type], &
                BaseT => [evetrPrm%lai%base_temperature, &
                          dectrPrm%lai%base_temperature, &
                          grassPrm%lai%base_temperature], &
@@ -339,7 +342,7 @@ CONTAINS
                         GDDFull, SDDFull, &
                         LAIMin, LAIMax, LAIPower, LAIType, &
                         LAI_id_prev, &
-                        GDD_id, SDD_id, & !inout
+                        gdd_type, GDD_id, SDD_id, & !inout
                         LAI_id) !output
                      IF (supy_error_flag) RETURN
 
@@ -535,7 +538,7 @@ CONTAINS
       GDDFull, SDDFull, &
       LAIMin, LAIMax, LAIPower, LAIType, &
       LAI_id_prev, &
-      GDD_id, SDD_id, & !inout
+      gdd_type, GDD_id, SDD_id, & !inout
       LAI_id_next) !output
       
       implicit none
@@ -568,6 +571,9 @@ CONTAINS
       !! N.B. currently DecTr only, although input provided for all veg types
       integer, dimension(nvegsurf), intent(in) :: LAIType
 
+      ! 0: Use accumulated GDD for LAI calculations, 1: Use daily change in GDD
+      integer, dimension(nvegsurf), intent(in):: gdd_type
+
       real(kind(1D0)), dimension(3), intent(inout) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(3), intent(inout) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_id_prev ! LAI of previous day
@@ -593,8 +599,6 @@ CONTAINS
       ! Option for gdd value in LAI calculation
       integer, parameter :: GDD_ACCUMULATIVE = 0
       integer, parameter :: GDD_CHANGE = 1
-
-      integer :: gdd_option = 1
 
       logical :: valid_observed_lai
       logical :: cold_spring
@@ -675,7 +679,7 @@ CONTAINS
 
          if (LAICalcYes /= 0) then
             call calculate_lai( &
-               gdd_option=gdd_option, &
+               gdd_type=gdd_type(iv), &
                senescence_mode=senescence_mode, &
                len_day_id_prev=lenDay_id_prev, &
                gdd_id=gdd_id(iv), &
@@ -835,13 +839,13 @@ CONTAINS
       end subroutine limit_gdd_sdd
 
       subroutine calculate_lai( &
-            gdd_option, senescence_mode, &
+            gdd_type, senescence_mode, &
             sdd_id, gdd_id, delta_gdd, lai_type, lai_power, gdd_full, sdd_full, &
             cold_spring, len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
 
-         integer, intent(in) :: gdd_option
+         integer, intent(in) :: gdd_type
          integer, intent(in) :: senescence_mode
 
          real(kind(1D0)), intent(in) :: sdd_id
@@ -869,7 +873,7 @@ CONTAINS
          lai_id_next = lai_id_prev
 
          if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
-            if (gdd_option == GDD_CHANGE) then
+            if (gdd_type == GDD_CHANGE) then
                gdd = delta_gdd
             else
                gdd = gdd_id

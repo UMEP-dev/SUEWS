@@ -67,7 +67,7 @@ jobs:
         run: python scripts/suews/ci_phase_metrics.py stop checkout
 
       - name: Build SUEWS wheels
-        uses: ./.github/actions/build-suews
+        uses: $/.github/actions/build-suews
         with:
           buildplat: ${{ matrix.buildplat[0] }}
           buildplat_name: ${{ matrix.buildplat[1] }}

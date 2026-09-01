@@ -426,7 +426,7 @@ jobs:
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
-    uses: ./.github/workflows/build-wheels-reusable.yml
+    uses: $/.github/workflows/build-wheels-reusable.yml
     with:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
@@ -475,7 +475,7 @@ jobs:
       always() &&
       needs.build_wheels.result == 'success' &&
       needs.build_mcp.result == 'success'
-    uses: ./.github/workflows/test-api-cross-python-reusable.yml
+    uses: $/.github/workflows/test-api-cross-python-reusable.yml
     with:
       # Fall back to the full buildplat when api_buildplat is empty: the
       # determine_matrix job runs determine-matrix.sh from the BASE branch

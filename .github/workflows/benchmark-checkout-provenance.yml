@@ -226,7 +226,11 @@ jobs:
           SUEWS_CI_PHASES: ${{ runner.temp }}/suews-ci-metrics/physics-cp312-win-AMD64-phases.json
         run: python scripts/suews/ci_phase_metrics.py stop checkout
 
-      - name: Build and smoke-test one blob-filtered Windows wheel
+      # Deliberately workspace-relative: this harness reproduces the wheel built
+      # at `expected_sha`, so it must build with that commit's own build action,
+      # not the action from whatever commit is running the workflow. `$/...`
+      # would resolve against the running commit and break the comparison.
+      - name: Build and smoke-test one blob-filtered Windows wheel # zizmor: ignore[self-repository]
         uses: ./.github/actions/build-suews
         with:
           buildplat: windows-2025

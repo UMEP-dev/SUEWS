@@ -2,7 +2,9 @@
 """Enforce commit-SHA pinning for external GitHub Actions.
 
 This blocks floating refs like ``@v4``, ``@main``, ``@beta``, and branch names in
-workflow definitions. Local actions (``./...``) are allowed.
+workflow definitions. Same-repository actions are allowed in both forms: the
+workspace-relative ``./...`` form and GitHub's self-repository ``$/...`` form,
+which resolves to the running commit and is itself a form of pinning.
 """
 
 from __future__ import annotations
@@ -34,7 +36,7 @@ def main() -> int:
                 continue
 
             action_ref = match.group(1)
-            if action_ref.startswith("./") or action_ref.startswith("docker://"):
+            if action_ref.startswith(("./", "$/", "docker://")):
                 continue
             if SHA_REF_PATTERN.match(action_ref):
                 continue

@@ -8,7 +8,6 @@ import pytest
 
 import supy as sp
 
-
 pytestmark = [pytest.mark.physics, pytest.mark.core]
 
 STEBBS_CONFIG = (
@@ -32,10 +31,15 @@ def _rust_library_available() -> bool:
     return False
 
 
-def _run_one_second_stebbs_probe():
+def _run_one_second_stebbs_probe(external_ground_conductivity=None):
     """Run a short STEBBS case with one internal update per forcing row."""
     simulation = sp.SUEWSSimulation(STEBBS_CONFIG)
     simulation.config.model.control.tstep = 1
+    if external_ground_conductivity is not None:
+        stebbs_properties = simulation.config.sites[0].properties.stebbs
+        stebbs_properties.thermal_conductivity_ground.value = (
+            external_ground_conductivity
+        )
     simulation._df_state_init = simulation.config.to_df_state()
 
     forcing = simulation.forcing.df.loc["2017-08-26"].iloc[:8].copy()
@@ -65,12 +69,36 @@ def test_roof_convection_uses_roof_temperature_and_orientation():
     assert roof_surface_to_air < 0.0
 
     # TARP's stable downward-facing correlation for an internal roof surface.
-    roof_coefficient = (
-        1.810 * abs(roof_surface_to_air) ** (1.0 / 3.0) / 1.382
-    )
+    roof_coefficient = 1.810 * abs(roof_surface_to_air) ** (1.0 / 3.0) / 1.382
     expected_flux = roof_coefficient * -roof_surface_to_air
 
     assert current["QHconv_introof_FA"] == pytest.approx(
+        expected_flux,
+        rel=2.0e-6,
+        abs=1.0e-10,
+    )
+
+
+@pytest.mark.skipif(
+    not _rust_library_available(),
+    reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+)
+def test_ground_conduction_uses_external_ground_conductivity():
+    """Ground heat flux must use the external-soil conductivity parameter."""
+    external_ground_conductivity = 1.93
+    output = _run_one_second_stebbs_probe(external_ground_conductivity)
+    previous = output.iloc[-2]
+    current = output.iloc[-1]
+
+    deep_ground_temperature = 273.15 + 10.738
+    ground_depth = 2.0
+    expected_flux = (
+        external_ground_conductivity
+        * (previous["Textgrndflr"] - deep_ground_temperature)
+        / ground_depth
+    )
+
+    assert current["QHcond_ground_FA"] == pytest.approx(
         expected_flux,
         rel=2.0e-6,
         abs=1.0e-10,

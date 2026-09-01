@@ -175,6 +175,7 @@ UTILS = suews_ctrl_const.o \
 	suews_util_datetime.o \
 	suews_util_profile.o
 
+
 # SUEWS physics modules
 PHYS =	\
 	suews_phys_narp.o \
@@ -185,6 +186,7 @@ PHYS =	\
 	suews_phys_waterdist.o \
 	suews_phys_evap.o \
 	suews_phys_snow.o \
+	suews_phys_lai.o \
 	suews_phys_dailystate.o \
 	suews_phys_ehc.o \
 	suews_phys_estm.o \
@@ -297,11 +299,13 @@ libutil: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS))
 	mkdir -p $(DIR_LIB_SUEWS)
 	ar r $(LIBUTILS) $^
 
+libphys: | libutil
 libphys: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS))
 	@echo "Compiling SUEWS physics modules..."
 	mkdir -p $(DIR_LIB_SUEWS)
 	ar r $(LIBPHYS) $^
 
+libdriver: | libphys
 libdriver: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS) $(DRIVER))
 	@echo "Compiling SUEWS driver module..."
 	mkdir -p $(DIR_LIB_SUEWS)

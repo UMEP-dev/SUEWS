@@ -1166,8 +1166,8 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
       self%h_o(3) = ext_conv_coeff(ws_out_hbh, self%t_ext_window - Tair_out_hbh) !window
       
       self%h_i(1) = int_conv_coeff(dT = (self%t_int_wall - self%Tair_ind), surf_type = 1) !wall
-      self%h_i(2) = int_conv_coeff(dT = (self%t_int_window - self%Tair_ind), surf_type = 1) !windows
-      self%h_i(3) = int_conv_coeff(dT = (self%t_int_roof - self%Tair_ind), surf_type = 2) !roof
+      self%h_i(2) = int_conv_coeff(dT = (self%t_int_roof - self%Tair_ind), surf_type = 2) !roof
+      self%h_i(3) = int_conv_coeff(dT = (self%t_int_window - self%Tair_ind), surf_type = 1) !windows
       self%h_i(4) = int_conv_coeff(dT = (self%t_int_ground_floor - self%Tair_ind), surf_type = 3) !floor
       self%h_i(5) = int_conv_coeff(dT = (self%t_indoor_mass - self%Tair_ind), surf_type = 1) !nternal mass,assume vertical
       !calculate indoor air density

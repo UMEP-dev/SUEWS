@@ -29,7 +29,7 @@ jobs:
   build_wheel:
     name: Build controlled wheel
     needs: [default_branch_guard]
-    uses: ./.github/workflows/build-wheels-reusable.yml
+    uses: $/.github/workflows/build-wheels-reusable.yml
     with:
       buildplat_json: '[["ubuntu-latest","manylinux","x86_64"]]'
       python_json: '["cp312"]'

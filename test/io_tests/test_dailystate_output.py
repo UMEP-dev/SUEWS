@@ -306,6 +306,7 @@ class TestDailyStateOutput:
         config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
 
         base_t_gdd = config_lai_dectr.base_temperature.value
+        base_t_sdd = config_lai_dectr.base_temperature_senescence.value
         gdd_full = config_lai_dectr.gdd_full.value
         sdd_full = config_lai_dectr.sdd_full.value
 
@@ -325,20 +326,29 @@ class TestDailyStateOutput:
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
         previous_gdd = gdd.shift(1)
-        delta_gdd = (
+        previous_sdd = sdd.shift(1)
+        
+        delta_gdd_calculated = (
             (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
             - base_t_gdd
-        )
+        ).clip(lower=0)
+        delta_sdd_calculated = (
+            (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
+            - base_t_sdd
+        ).clip(upper=0)
 
         # Ignore initial timestep, previous state required for test
         gdd = gdd.iloc[1:]
         sdd = sdd.iloc[1:]
         previous_gdd = previous_gdd.iloc[1:]
-        delta_gdd_calculated = delta_gdd.iloc[1:]
+        previous_sdd = previous_sdd.iloc[1:]
+        delta_gdd_calculated = delta_gdd_calculated.iloc[1:]
+        delta_sdd_calculated = delta_sdd_calculated.iloc[1:]
+
         delta_gdd_model = gdd - previous_gdd
 
         cold_spring_condition = (
-            (sdd <= sdd_full)
+            ((previous_sdd + delta_sdd_calculated) <= sdd_full)
             & (delta_gdd_calculated < 0)
             & (previous_gdd != 0) # Must check a transition, not retaining zero state
         )

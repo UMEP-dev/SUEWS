@@ -43,9 +43,13 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
 
       - name: Run zizmor
+        # Pinned deliberately: each zizmor release can add audits, which silently
+        # moves this advisory baseline (v1.30.0 introduced `self-repository`).
+        # Dependabot does not update versions inside `run:` lines, so bump this by
+        # hand and review the new findings in the same PR.
         run: |
           set -o pipefail
-          uv tool run zizmor --no-online-audits --format=plain .github/workflows .github/actions | tee zizmor.txt
+          uv tool run zizmor@1.30.0 --no-online-audits --format=plain .github/workflows .github/actions | tee zizmor.txt
 
       - name: Add zizmor summary
         if: always()

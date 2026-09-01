@@ -590,6 +590,12 @@ CONTAINS
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
 
+      ! Option for gdd value in LAI calculation
+      integer, parameter :: GDD_ACCUMULATIVE = 0
+      integer, parameter :: GDD_CHANGE = 1
+
+      integer :: gdd_option = 1
+
       logical :: valid_observed_lai
       logical :: cold_spring
 
@@ -669,9 +675,11 @@ CONTAINS
 
          if (LAICalcYes /= 0) then
             call calculate_lai( &
+               gdd_option=gdd_option, &
                senescence_mode=senescence_mode, &
                len_day_id_prev=lenDay_id_prev, &
                gdd_id=gdd_id(iv), &
+               delta_gdd=delta_gdd, &
                sdd_id=sdd_id(iv), &
                gdd_full=GDDFull(iv), &
                sdd_full=SDDFull(iv), &
@@ -827,16 +835,18 @@ CONTAINS
       end subroutine limit_gdd_sdd
 
       subroutine calculate_lai( &
-            senescence_mode, &
-            sdd_id, gdd_id, lai_type, lai_power, gdd_full, sdd_full, &
+            gdd_option, senescence_mode, &
+            sdd_id, gdd_id, delta_gdd, lai_type, lai_power, gdd_full, sdd_full, &
             cold_spring, len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
 
+         integer, intent(in) :: gdd_option
          integer, intent(in) :: senescence_mode
 
          real(kind(1D0)), intent(in) :: sdd_id
          real(kind(1D0)), intent(in) :: gdd_id
+         real(kind(1D0)), intent(in) :: delta_gdd
          
          integer, intent(in) :: lai_type
          
@@ -854,14 +864,21 @@ CONTAINS
 
          logical :: start_senescence
 
+         real(kind(1D0)) :: gdd = 0
+
          lai_id_next = lai_id_prev
 
          if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
+            if (gdd_option == GDD_CHANGE) then
+               gdd = delta_gdd
+            else
+               gdd = gdd_id
+            end if 
             if (.not. cold_spring) then
                call calculate_gdd( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
-                  gdd_id=gdd_id, &
+                  gdd=gdd, &
                   lai_id_next=lai_id_next &
                )
             end if
@@ -974,17 +991,17 @@ CONTAINS
       end function check_start_senescence
 
       subroutine calculate_gdd( &
-            lai_id_prev, lai_power, gdd_id, lai_id_next)
+            lai_id_prev, lai_power, gdd, lai_id_next)
 
          implicit none
 
          real(kind(1D0)), intent(in) :: lai_id_prev
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
-         real(kind(1D0)), intent(in) :: gdd_id
+         real(kind(1D0)), intent(in) :: gdd
          real(kind(1D0)), intent(out) :: lai_id_next
 
          lai_id_next = (lai_id_prev**lai_power(1) * &
-                        gdd_id * lai_power(2)) + lai_id_prev
+                        gdd * lai_power(2)) + lai_id_prev
 
       end subroutine calculate_gdd
    

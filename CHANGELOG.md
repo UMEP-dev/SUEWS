@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 86       | 32 | 81 | 40 | 320   |
+| 2026 | 80       | 86       | 32 | 81 | 41 | 321   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,10 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 21 Aug 2026
+
+- [doc] Replaced the single-use Discourse invite link with the public `community.suews.io` URL across the documentation and the landing page, now that forum registration is open (#1713)
 
 ### 14 Aug 2026
 

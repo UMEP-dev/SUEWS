@@ -216,9 +216,9 @@ CONTAINS
                LAIType => [evetrPrm%lai%lai_type, &
                            dectrPrm%lai%lai_type, &
                            grassPrm%lai%lai_type], &
-               gdd_type => [evetrPrm%lai%gdd_type, &
-                              dectrPrm%lai%gdd_type, &
-                              grassPrm%lai%gdd_type], &
+               gdd_type => [evetrPrm%lai%dd_type, &
+                            dectrPrm%lai%dd_type, &
+                            grassPrm%lai%dd_type], &
                BaseT => [evetrPrm%lai%base_temperature, &
                          dectrPrm%lai%base_temperature, &
                          grassPrm%lai%base_temperature], &
@@ -336,7 +336,7 @@ CONTAINS
                   ! This was revised and checked on 16 Feb 2014 by LJ
                   !------------------------------------------------------------------------------
                   IF (execute_subroutines) THEN
-                     CALL update_GDDLAI( &
+                     CALL update_gddlai( &
                         id, LAICalcYes, & !input
                         lat, [lai_evetr, lai_dectr, lai_grass], &
                         Tmin_id, Tmax_id, lenDay_id, &

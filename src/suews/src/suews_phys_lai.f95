@@ -65,6 +65,7 @@ contains
       ! Enumeration parameters for the LAI type
       integer, parameter :: LAI_ORIGINAL = 0
       integer, parameter :: LAI_NEW = 1
+      integer, parameter :: LAI_INVERTED = 2
 
       ! Enumeration parameters for senescence conditions
       integer, parameter :: SEN_DAYLENGTH = 1
@@ -125,6 +126,11 @@ contains
             if (delta_sdd > 0) delta_sdd = 0
          else
             delta_sdd = 0.0D0
+         end if
+
+         if (lai_type(iv) == LAI_INVERTED) then
+            delta_gdd = -delta_gdd
+            delta_sdd = -delta_sdd
          end if
 
          ! Calculate cumulative growing and senescence degree days
@@ -230,18 +236,24 @@ contains
       end function calc_delta_degree_days
 
       subroutine limit_gdd_sdd( &
-            gdd_full, sdd_full, gdd_id, sdd_id)
+            lai_type, gdd_full, sdd_full, gdd_id, sdd_id)
 
          implicit none
 
+         integer, intent(in) :: lai_type
          real(kind(1D0)), intent(in) :: gdd_full
          real(kind(1D0)), intent(in) :: sdd_full
          real(kind(1D0)), intent(inout) :: gdd_id
          real(kind(1D0)), intent(inout) :: sdd_id
 
          ! With these limits SDD, GDD is set to zero
-         if (sdd_id < -CRIT_DAYS .AND. sdd_id > sdd_full) gdd_id = 0
-         if (gdd_id > CRIT_DAYS .AND. gdd_id < gdd_full) sdd_id = 0
+         if (lai_type /= LAI_INVERTED) then
+            if (sdd_id < -CRIT_DAYS .and. sdd_id > sdd_full) gdd_id = 0
+            if (gdd_id > CRIT_DAYS .and. gdd_id < gdd_full) sdd_id = 0
+         else
+            if (gdd_id > CRIT_DAYS .and. gdd_id < gdd_full) sdd_id = 0
+            if (sdd_id < -CRIT_DAYS .and. sdd_id > sdd_full) gdd_id = 0
+         end if
 
       end subroutine limit_gdd_sdd
 
@@ -322,22 +334,28 @@ contains
       end subroutine calculate_lai
 
       subroutine reset_degree_day_states( &
-         id, sdd_reset_day, summer_day, winter_day, &
-         southern_hemisphere, sdd_id, gdd_id)
+         id, lai_type, sdd_reset_day, summer_day, winter_day, &
+         southern_hemisphere, gdd_id, sdd_id)
 
          implicit none
 
          integer, intent(in) :: id
+         integer, intent(in) :: lai_type
          integer, intent(in) :: sdd_reset_day
          integer, intent(in) :: summer_day
          integer, intent(in) :: winter_day
          logical, intent(in) :: southern_hemisphere
 
-         real(kind(1D0)), intent(inout) :: sdd_id
          real(kind(1D0)), intent(inout) :: gdd_id
+         real(kind(1D0)), intent(inout) :: sdd_id
 
          ! if SDD is not zero by the transition day, force it
-         if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
+         if (lai_type /= LAI_INVERTED) then
+            if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
+
+         else
+            if (id == sdd_reset_day .and. gdd_id /= 0) gdd_id = 0
+         end if
 
          if (southern_hemisphere) then
 
@@ -348,13 +366,18 @@ contains
             if (sdd_id < -CRIT_DAYS .and. id < winter_day) gdd_id = 0
 
          else
-
-            ! Set SDD to zero in northern summer
-            if (gdd_id > CRIT_DAYS .and. id < summer_day) sdd_id = 0
-
-            ! Set GDD zero in northern winter
-            if (sdd_id < -CRIT_DAYS .and. id > winter_day) gdd_id = 0
-
+            if (lai_type /= LAI_INVERTED) then
+               ! Set SDD to zero in northern summer
+               if (gdd_id > CRIT_DAYS .and. id < summer_day) sdd_id = 0
+               ! Set GDD zero in northern winter
+               if (sdd_id < -CRIT_DAYS .and. id > winter_day) gdd_id = 0
+            
+            else
+               ! Set GDD to zero in summer time
+               if (sdd_id < -CRIT_DAYS .and. id < summer_day) gdd_id = 0
+               ! Set SDD zero in winter time
+               if (gdd_id > CRIT_DAYS .and. id > winter_day) sdd_id = 0
+            end if
          end if
 
       end subroutine reset_degree_day_states

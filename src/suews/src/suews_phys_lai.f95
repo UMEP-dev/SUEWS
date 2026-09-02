@@ -384,7 +384,7 @@ contains
             start_senescence = check_start_senescence( &
                senescence_mode=senescence_mode, &
                len_day_id_prev=len_day_id_prev, &
-               sdd=sdd, &
+               sdd_id=sdd_id, &
                sdd_full=sdd_full &
             )
 

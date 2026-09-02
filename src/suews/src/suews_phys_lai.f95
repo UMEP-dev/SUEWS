@@ -84,7 +84,11 @@ contains
       SDD_id_prev = SDD_id
 
       if (lai_calc_yes == 0) then
-         call observed_lai(valid_observed_lai)
+         call observed_lai( &
+            lai_obs=lai_id_prev, &
+            lai_id_next=lai_id_next, &
+            valid=valid_observed_lai &
+         )
          if (.not. valid_observed_lai) return
       end if
       
@@ -168,10 +172,12 @@ contains
 
    CONTAINS
    
-      subroutine observed_lai(valid)
+      subroutine observed_lai(lai_obs, lai_id_next, valid)
 
          implicit none
 
+         real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_obs
+         real(kind(1D0)), dimension(nvegsurf), intent(out) :: lai_id_next
          logical, intent(out) :: valid
 
          valid = .false.
@@ -204,10 +210,7 @@ contains
 
          ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
          ! daily state without applying the GDD/SDD envelope.
-         do iv = 1, NVegSurf
-            LAI_id_next(iv) = LAI_obs(iv)
-         end do
-
+         lai_id_next = lai_obs
          valid = .true.
 
       end subroutine observed_lai

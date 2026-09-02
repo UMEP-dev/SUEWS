@@ -126,7 +126,6 @@ contains
          END IF
 
          call limit_gdd_sdd( &
-            CRIT_DAYS=CRIT_DAYS, &
             gdd_full=gdd_full(iv), &
             sdd_full=sdd_full(iv), &
             gdd_id=gdd_id(iv), &
@@ -260,11 +259,10 @@ contains
       end function calc_delta_degree_days
 
       subroutine limit_gdd_sdd( &
-            CRIT_DAYS, gdd_full, sdd_full, gdd_id, sdd_id)
+            gdd_full, sdd_full, gdd_id, sdd_id)
 
          implicit none
 
-         integer, intent(in) :: CRIT_DAYS
          real(kind(1D0)), intent(in) :: gdd_full
          real(kind(1D0)), intent(in) :: sdd_full
          real(kind(1D0)), intent(inout) :: gdd_id

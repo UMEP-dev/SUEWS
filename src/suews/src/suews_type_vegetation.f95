@@ -25,7 +25,7 @@ module module_type_vegetation
       REAL(KIND(1D0)) :: lai_max = 0.0D0 ! Maximum LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(4) :: lai_power = 0.0D0 ! Coefficients for LAI equation: 1,2 - leaf growth; 3,4 - leaf off [-]
       INTEGER :: lai_type = 0 ! LAI equation to use: original (0) or new (1) [-]
-      integer :: gdd_type = 0 ! GDD option for LAI calculations: accumulated (0) or daily change (1)
+      INTEGER :: dd_type = 0 ! GDD option for LAI calculations: accumulated (0) or daily change (1)
    END TYPE LAI_PRM
 
    TYPE, PUBLIC :: PHENOLOGY_STATE

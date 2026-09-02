@@ -15,7 +15,7 @@ contains
       gdd_full, sdd_full, &
       lai_min, lai_max, lai_power, lai_type, &
       lai_id_prev, &
-      gdd_type, gdd_id, sdd_id, & !inout
+      dd_type, gdd_id, sdd_id, & !inout
       lai_id_next) !output
       
       implicit none
@@ -48,7 +48,7 @@ contains
       integer, dimension(nvegsurf), intent(in) :: lai_type !LAI equation to use: original (0) or new (1)
       
       ! 0: Use accumulated GDD for LAI calculations, 1: Use daily change in GDD
-      integer, dimension(nvegsurf), intent(in):: gdd_type
+      integer, dimension(nvegsurf), intent(in):: dd_type
 
       real(kind(1D0)), dimension(3), intent(inout) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(3), intent(inout) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
@@ -156,7 +156,7 @@ contains
 
          if (lai_calc_yes /= 0) then
             call calculate_lai( &
-               gdd_type=gdd_type(iv), &
+               dd_type=dd_type(iv), &
                senescence_mode=senescence_mode, &
                len_day_id_prev=len_day_id_prev, &
                gdd_id=gdd_id(iv), &
@@ -316,13 +316,13 @@ contains
       end subroutine limit_gdd_sdd
 
       subroutine calculate_lai( &
-            gdd_type, senescence_mode, &
+            dd_type, senescence_mode, &
             gdd_id, sdd_id, lai_type, lai_power, gdd_full, sdd_full, &
             cold_spring, len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
 
-         integer, intent(in) :: gdd_type
+         integer, intent(in) :: dd_type
          integer, intent(in) :: senescence_mode
 
          real(kind(1D0)), intent(in) :: gdd_id
@@ -345,16 +345,20 @@ contains
          logical :: start_senescence
 
          ! Temp variable to store gdd value based on gdd_option
-         real(kind(1D0)) :: gdd = 0
+         real(kind(1D0)) :: gdd
+         real(kind(1D0)) :: sdd
 
          lai_id_next = lai_id_prev
 
+         if (dd_type == GDD_CHANGE) then
+            gdd = delta_gdd
+            sdd = delta_sdd
+         else
+            gdd = gdd_id
+            sdd = sdd_id
+         end if
+
          if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
-            if (gdd_type == GDD_CHANGE) then
-               gdd = delta_gdd
-            else
-               gdd = gdd_id
-            end if 
             ! Allow cold-spring to prevent further growth
             if (.not. cold_spring) then
                call calculate_gdd( &
@@ -370,7 +374,7 @@ contains
                call calculate_sdd_type0( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
-                  sdd_id=sdd_id, &
+                  sdd=sdd, &
                   lai_id_next=lai_id_next &
                )
             end if
@@ -380,7 +384,7 @@ contains
             start_senescence = check_start_senescence( &
                senescence_mode=senescence_mode, &
                len_day_id_prev=len_day_id_prev, &
-               sdd_id=sdd_id, &
+               sdd=sdd, &
                sdd_full=sdd_full &
             )
 
@@ -388,7 +392,7 @@ contains
                call calculate_sdd_type1( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
-                  sdd_id=sdd_id, &
+                  sdd=sdd, &
                   lai_id_next=lai_id_next &
                )
             end if
@@ -487,29 +491,29 @@ contains
       end subroutine calculate_gdd
    
       subroutine calculate_sdd_type0( &
-            lai_id_prev, lai_power, sdd_id, lai_id_next)
+            lai_id_prev, lai_power, sdd, lai_id_next)
 
          implicit none
 
          real(kind(1D0)), intent(in) :: lai_id_prev
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
-         real(kind(1D0)), intent(in) :: sdd_id
+         real(kind(1D0)), intent(in) :: sdd
          real(kind(1D0)), intent(out) :: lai_id_next
 
-         lai_id_next = (lai_id_prev**lai_power(3) * sdd_id * lai_power(4)) + lai_id_prev
+         lai_id_next = (lai_id_prev**lai_power(3) * sdd * lai_power(4)) + lai_id_prev
       end subroutine calculate_sdd_type0
    
       subroutine calculate_sdd_type1( & ! 
-            lai_id_prev, lai_power, sdd_id, lai_id_next)
+            lai_id_prev, lai_power, sdd, lai_id_next)
 
          implicit none
 
          real(kind(1D0)), intent(in) :: lai_id_prev
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
-         real(kind(1D0)), intent(in) :: sdd_id
+         real(kind(1D0)), intent(in) :: sdd
          real(kind(1D0)), intent(out) :: lai_id_next
 
-         lai_id_next = (lai_id_prev * lai_power(3) * (1 - sdd_id) * lai_power(4)) + lai_id_prev
+         lai_id_next = (lai_id_prev * lai_power(3) * (1 - sdd) * lai_power(4)) + lai_id_prev
 
       end subroutine calculate_sdd_type1
 

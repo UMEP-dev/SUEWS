@@ -341,7 +341,7 @@ contains
 
          lai_id_next = lai_id_prev
 
-         if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
+         if (gdd_id >= gdd_full) then !Leaves can still grow
             ! Allow cold-spring to prevent further growth
             if (.not. cold_spring) then
                call calculate_gdd( &
@@ -353,7 +353,7 @@ contains
             end if
          
          else if (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
-            if (sdd_id < 0 .and. sdd_id > sdd_full) then !Start senescence
+            if (sdd_id <= sdd_full) then !Start senescence
                call calculate_sdd_type0( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
@@ -444,15 +444,15 @@ contains
          select case (senescence_mode)
 
             case (SEN_DAYLENGTH)
-               start_senescence = ((len_day_id_prev <= 12) .and. (sdd_id > sdd_full))
+               start_senescence = (len_day_id_prev <= 12)
 
             case (SEN_SDD)
-               start_senescence = ((sdd_id < 0) .and. (sdd_id > sdd_full))
+               start_senescence = (sdd_id <= sdd_full)
 
             case default
                ! Invalid option falls back to SEN_SDD. No error yet registered.
                ! default currently not possible as function calls hard-coded
-               start_senescence = ((sdd_id < 0) .and. (sdd_id > sdd_full))
+               start_senescence = (sdd_id <= sdd_full)
 
          end select
 

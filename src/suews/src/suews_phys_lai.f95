@@ -54,7 +54,7 @@ contains
 
       real(kind(1D0)) :: delta_gdd !Switches and checks for GDD
       real(kind(1D0)) :: delta_sdd !Switches and checks for GDD
-      real(kind(1D0)) :: ind_help !Switches and checks for GDD
+      
       real(kind(1D0)), dimension(3) :: gdd_id_prev ! GDD of previous day
       real(kind(1D0)), dimension(3) :: sdd_id_prev ! SDD of previous day
 
@@ -70,10 +70,6 @@ contains
       integer, parameter :: SEN_DAYLENGTH = 1
       integer, parameter :: SEN_SDD = 2
 
-      ! Option for gdd value in LAI calculation
-      integer, parameter :: GDD_ACCUMULATIVE = 0
-      integer, parameter :: GDD_CHANGE = 1
-
       logical :: valid_observed_lai
 
       ! Hemisphere specific parameters for LAI calculations
@@ -82,8 +78,6 @@ contains
       integer :: winter_day
       integer :: senescence_mode
       logical :: southern_hemisphere
-
-      logical :: cold_spring
 
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
@@ -112,16 +106,11 @@ contains
 
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
-         ! Help switch to allow GDD to go to zero in spring-time
-         ind_help = 0
 
          if (lai_id_prev(iv) < lai_max(iv)) then
             delta_gdd = calc_delta_degree_days(t_min_id_prev, t_max_id_prev, base_t_gdd(iv))
             ! GDD cannot be negative
-            if (delta_gdd < 0) then
-               ind_help = delta_gdd
-               delta_gdd = 0
-            end if
+            if (delta_gdd < 0) delta_gdd = 0
          else
             delta_gdd = 0.0D0
          end if
@@ -137,12 +126,6 @@ contains
          ! Calculate cumulative growing and senescence degree days
          gdd_id(iv) = gdd_id_prev(iv) + delta_gdd
          sdd_id(iv) = sdd_id_prev(iv) + delta_sdd
-
-         cold_spring = cold_spring_condition( &
-            sdd_id=sdd_id(iv), &
-            sdd_full=sdd_full(iv), &
-            ind_help=ind_help &
-         )
 
          call limit_gdd_sdd( &
             gdd_full=gdd_full(iv), &
@@ -170,7 +153,6 @@ contains
                sdd_id=sdd_id(iv), &
                gdd_full=gdd_full(iv), &
                sdd_full=sdd_full(iv), &
-               cold_spring=cold_spring, &
                lai_type=lai_type(iv), &
                lai_power=lai_power(:, iv), &
                lai_max=lai_max(iv), &
@@ -244,20 +226,6 @@ contains
 
       end function calc_delta_degree_days
 
-      function cold_spring_condition(sdd_id, sdd_full, ind_help) result(cold_spring)
-      
-         implicit none
-
-         real(kind(1D0)), intent(in) :: sdd_id
-         real(kind(1D0)), intent(in) :: sdd_full
-         real(kind(1D0)), intent(in) :: ind_help
-         
-         logical :: cold_spring
-
-         cold_spring = ((sdd_id <= sdd_full) .and. (ind_help < 0))
-
-      end function cold_spring_condition
-
       subroutine limit_gdd_sdd( &
             gdd_full, sdd_full, gdd_id, sdd_id)
 
@@ -277,7 +245,7 @@ contains
       subroutine calculate_lai( &
             senescence_mode, &
             gdd_id, sdd_id, lai_type, lai_power, gdd_full, sdd_full, &
-            cold_spring, len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
+            len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
 
@@ -298,22 +266,18 @@ contains
          real(kind(1D0)), intent(in) :: lai_min
          real(kind(1D0)), intent(out) :: lai_id_next
 
-         logical, intent(in) :: cold_spring
-
          logical :: start_senescence
 
          lai_id_next = lai_id_prev
 
          if (gdd_id >= gdd_full) then !Leaves can still grow
             ! Allow cold-spring to prevent further growth
-            if (.not. cold_spring) then
-               call calculate_gdd( &
-                  lai_id_prev=lai_id_prev, &
-                  lai_power=lai_power, &
-                  gdd=delta_gdd, &
-                  lai_id_next=lai_id_next &
-               )
-            end if
+            call calculate_gdd( &
+               lai_id_prev=lai_id_prev, &
+               lai_power=lai_power, &
+               gdd=delta_gdd, &
+               lai_id_next=lai_id_next &
+            )
          
          else if (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
             if (sdd_id <= sdd_full) then !Start senescence
@@ -407,7 +371,7 @@ contains
          select case (senescence_mode)
 
             case (SEN_DAYLENGTH)
-               start_senescence = (len_day_id_prev <= 12)
+               start_senescence = (len_day_id_prev <= 12 .and. (sdd_id <= sdd_full))
 
             case (SEN_SDD)
                start_senescence = (sdd_id <= sdd_full)

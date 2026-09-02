@@ -15,7 +15,7 @@ contains
       gdd_full, sdd_full, &
       lai_min, lai_max, lai_power, lai_type, &
       lai_id_prev, &
-      dd_type, gdd_id, sdd_id, & !inout
+      gdd_id, sdd_id, & !inout
       lai_id_next) !output
       
       implicit none
@@ -46,9 +46,6 @@ contains
 
       !! N.B. currently DecTr only, although input provided for all veg types
       integer, dimension(nvegsurf), intent(in) :: lai_type !LAI equation to use: original (0) or new (1)
-      
-      ! 0: Use accumulated GDD for LAI calculations, 1: Use daily change in GDD
-      integer, dimension(nvegsurf), intent(in):: dd_type
 
       real(kind(1D0)), dimension(3), intent(inout) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(3), intent(inout) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
@@ -156,7 +153,6 @@ contains
 
          if (lai_calc_yes /= 0) then
             call calculate_lai( &
-               dd_type=dd_type(iv), &
                senescence_mode=senescence_mode, &
                len_day_id_prev=len_day_id_prev, &
                gdd_id=gdd_id(iv), &
@@ -316,13 +312,12 @@ contains
       end subroutine limit_gdd_sdd
 
       subroutine calculate_lai( &
-            dd_type, senescence_mode, &
+            senescence_mode, &
             gdd_id, sdd_id, lai_type, lai_power, gdd_full, sdd_full, &
             cold_spring, len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
 
-         integer, intent(in) :: dd_type
          integer, intent(in) :: senescence_mode
 
          real(kind(1D0)), intent(in) :: gdd_id
@@ -344,19 +339,7 @@ contains
 
          logical :: start_senescence
 
-         ! Temp variable to store gdd value based on gdd_option
-         real(kind(1D0)) :: gdd
-         real(kind(1D0)) :: sdd
-
          lai_id_next = lai_id_prev
-
-         if (dd_type == GDD_CHANGE) then
-            gdd = delta_gdd
-            sdd = delta_sdd
-         else
-            gdd = gdd_id
-            sdd = sdd_id
-         end if
 
          if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
             ! Allow cold-spring to prevent further growth
@@ -364,7 +347,7 @@ contains
                call calculate_gdd( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
-                  gdd=gdd, &
+                  gdd=delta_gdd, &
                   lai_id_next=lai_id_next &
                )
             end if
@@ -374,7 +357,7 @@ contains
                call calculate_sdd_type0( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
-                  sdd=sdd, &
+                  sdd=delta_sdd, &
                   lai_id_next=lai_id_next &
                )
             end if
@@ -392,7 +375,7 @@ contains
                call calculate_sdd_type1( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
-                  sdd=sdd, &
+                  sdd=delta_sdd, &
                   lai_id_next=lai_id_next &
                )
             end if

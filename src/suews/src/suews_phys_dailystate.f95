@@ -216,9 +216,6 @@ CONTAINS
                LAIType => [evetrPrm%lai%lai_type, &
                            dectrPrm%lai%lai_type, &
                            grassPrm%lai%lai_type], &
-               gdd_type => [evetrPrm%lai%dd_type, &
-                            dectrPrm%lai%dd_type, &
-                            grassPrm%lai%dd_type], &
                BaseT => [evetrPrm%lai%base_temperature, &
                          dectrPrm%lai%base_temperature, &
                          grassPrm%lai%base_temperature], &
@@ -344,7 +341,7 @@ CONTAINS
                         GDDFull, SDDFull, &
                         LAIMin, LAIMax, LAIPower, LAIType, &
                         LAI_id_prev, &
-                        gdd_type, GDD_id, SDD_id, & !inout
+                        GDD_id, SDD_id, & !inout
                         LAI_id) !output
                      IF (supy_error_flag) RETURN
 

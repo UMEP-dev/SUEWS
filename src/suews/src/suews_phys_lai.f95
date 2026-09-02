@@ -85,7 +85,7 @@ contains
 
       if (lai_calc_yes == 0) then
          call observed_lai( &
-            lai_obs=lai_id_prev, &
+            lai_obs=lai_obs, &
             lai_id_next=lai_id_next, &
             valid=valid_observed_lai &
          )
@@ -281,7 +281,7 @@ contains
                gdd=delta_gdd, &
                lai_id_next=lai_id_next &
             )
-            if (lai_id_next == 0) lai_id_next = 0.00001 ! Prevent zero LAI from being stuck at zero if growth expected
+            if (lai_id_next <= 0) lai_id_next = 0.00001 ! Prevent zero LAI from being stuck at zero if growth expected
          
          else if (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
             if (sdd_id <= sdd_full) then !Start senescence

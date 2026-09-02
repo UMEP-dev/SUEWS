@@ -281,6 +281,7 @@ contains
                gdd=delta_gdd, &
                lai_id_next=lai_id_next &
             )
+            if (lai_id_next == 0) lai_id_next = 0.00001 ! Prevent zero LAI from being stuck at zero if growth expected
          
          else if (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
             if (sdd_id <= sdd_full) then !Start senescence
@@ -398,7 +399,7 @@ contains
          real(kind(1D0)), intent(in) :: gdd
          real(kind(1D0)), intent(out) :: lai_id_next
 
-         LAI_id_next = (lai_id_prev**lai_power(1) * gdd * lai_power(2)) + lai_id_prev
+         LAI_id_next = ((lai_id_prev)**lai_power(1) * gdd * lai_power(2)) + lai_id_prev
 
       end subroutine calculate_gdd
    

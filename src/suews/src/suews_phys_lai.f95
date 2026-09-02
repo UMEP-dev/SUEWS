@@ -112,16 +112,27 @@ contains
 
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
+         ! Help switch to allow GDD to go to zero in spring-time
+         ind_help = 0
 
-         call calc_delta_gdd_sdd( &
-            tmin_prev=t_min_id_prev, &
-            tmax_prev=t_max_id_prev, &
-            base_t_gdd=base_t_gdd(iv), &
-            base_t_sdd=base_t_sdd(iv), &
-            delta_gdd=delta_gdd, &
-            delta_sdd=delta_sdd, &
-            ind_help=ind_help &
-         )
+         if (lai_id_prev(iv) < lai_max(iv)) then
+            delta_gdd = calc_delta_degree_days(t_min_id_prev, t_max_id_prev, base_t_gdd(iv))
+            ! GDD cannot be negative
+            if (delta_gdd < 0) then
+               ind_help = delta_gdd
+               delta_gdd = 0
+            end if
+         else
+            delta_gdd = 0.0D0
+         end if
+
+         if (lai_id_prev(iv) > lai_min(iv)) then
+            delta_sdd = calc_delta_degree_days(t_min_id_prev, t_max_id_prev, base_t_sdd(iv))
+            ! SDD cannot be positive
+            if (delta_sdd > 0) delta_sdd = 0
+         else
+            delta_sdd = 0.0D0
+         end if
 
          ! Calculate cumulative growing and senescence degree days
          gdd_id(iv) = gdd_id_prev(iv) + delta_gdd
@@ -219,42 +230,6 @@ contains
 
       end subroutine observed_lai
 
-      subroutine calc_delta_gdd_sdd( &
-            tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
-            delta_gdd, delta_sdd, ind_help)
-
-         implicit none
-
-         real(kind(1D0)), intent(in)  :: tmin_prev
-         real(kind(1D0)), intent(in)  :: tmax_prev
-         real(kind(1D0)), intent(in)  :: base_t_gdd
-         real(kind(1D0)), intent(in)  :: base_t_sdd
-
-         real(kind(1D0)), intent(out) :: delta_gdd
-         real(kind(1D0)), intent(out) :: delta_sdd
-         real(kind(1D0)), intent(out) :: ind_help
-
-         ! Calculate GDD and SDD
-         delta_gdd = calc_delta_degree_days( &
-            tmin_prev, tmax_prev, base_t_gdd)
-
-         delta_sdd = calc_delta_degree_days( &
-            tmin_prev, tmax_prev, base_t_sdd)
-
-         ! SDD cannot be positive
-         if (delta_sdd > 0) delta_sdd = 0
-
-         ! Help switch to allow GDD to go to zero in spring-time
-         ind_help = 0
-
-         ! GDD cannot be negative
-         if (delta_gdd < 0) then
-            ind_help = delta_gdd
-            delta_gdd = 0
-         end if
-
-      end subroutine calc_delta_gdd_sdd
-
       function calc_delta_degree_days(Tmin_prev, Tmax_prev, base_t) result(delta_dd)
 
          implicit none
@@ -292,18 +267,6 @@ contains
          real(kind(1D0)), intent(in) :: sdd_full
          real(kind(1D0)), intent(inout) :: gdd_id
          real(kind(1D0)), intent(inout) :: sdd_id
-
-         !Start senescence
-         if (gdd_id >= gdd_full) then
-            gdd_id = gdd_full !Leaves should not grow so delete yes from earlier
-            if (sdd_id < -CRIT_DAYS) gdd_id = 0
-         end if
-
-         !After senescence now start growing leaves
-         if (sdd_id <= sdd_full) then
-            sdd_id = sdd_full !Leaves off so add back earlier
-            if (gdd_id > CRIT_DAYS) sdd_id = 0
-         end if
 
          ! With these limits SDD, GDD is set to zero
          if (sdd_id < -CRIT_DAYS .AND. sdd_id > sdd_full) gdd_id = 0

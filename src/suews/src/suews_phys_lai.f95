@@ -431,8 +431,7 @@ contains
          real(kind(1D0)), intent(in) :: gdd
          real(kind(1D0)), intent(out) :: lai_id_next
 
-         LAI_id_next = (lai_id_prev**lai_power(1) * &
-                        gdd * lai_power(2)) + lai_id_prev
+         LAI_id_next = (lai_id_prev**lai_power(1) * gdd * lai_power(2)) + lai_id_prev
 
       end subroutine calculate_gdd
    

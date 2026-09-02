@@ -138,6 +138,7 @@ contains
          sdd_id(iv) = sdd_id_prev(iv) + delta_sdd
 
          call limit_gdd_sdd( &
+            lai_type=lai_type(iv), &
             gdd_full=gdd_full(iv), &
             sdd_full=sdd_full(iv), &
             gdd_id=gdd_id(iv), &
@@ -147,6 +148,7 @@ contains
          ! Now calculate LAI itself
          call reset_degree_day_states( &
             id=id, &
+            lai_type=lai_type(iv), &
             sdd_reset_day=sdd_reset_day, &
             summer_day=summer_day, &
             winter_day=winter_day, &

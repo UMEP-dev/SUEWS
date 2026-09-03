@@ -255,6 +255,7 @@ src_f95_all = [
   'suews_phys_resist.f95',
   'suews_phys_evap.f95',
   'suews_phys_snow.f95',
+  'suews_phys_lai.f95',
   'suews_phys_dailystate.f95',
   'suews_phys_lumps.f95',
   'suews_phys_anthro.f95',
@@ -263,6 +264,7 @@ src_f95_all = [
   'suews_phys_ohm.f95',
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
+  'suews_phys_lai.f95',
   'suews_ctrl_driver.f95',
 ]
 

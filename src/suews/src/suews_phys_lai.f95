@@ -315,20 +315,18 @@ contains
          lai_id_next = lai_id_prev
 
          if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
-            call calculate_gdd( &
+            lai_id_next = calculate_gdd( &
                lai_id_prev=lai_id_prev, &
                lai_power=lai_power, &
-               gdd_id=gdd_id, &
-               lai_id_next=lai_id_next &
+               gdd_id=gdd_id &
             )
          
          else if (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
             if (sdd_id < 0 .and. sdd_id > sdd_full) then !Start senescence
-               call calculate_sdd_type0( &
+               lai_id_next = calculate_sdd_type0( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
-                  sdd_id=sdd_id, &
-                  lai_id_next=lai_id_next &
+                  sdd_id=sdd_id &
                )
             end if
 
@@ -342,11 +340,10 @@ contains
             )
 
             if (start_senescence) then !Start senescence
-               call calculate_sdd_type1( &
+               lai_id_next = calculate_sdd_type1( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
-                  sdd_id=sdd_id, &
-                  lai_id_next=lai_id_next &
+                  sdd_id=sdd_id &
                )
             end if
 
@@ -428,48 +425,44 @@ contains
 
       end function check_start_senescence
 
-      subroutine calculate_gdd( &
-            lai_id_prev, lai_power, gdd_id, lai_id_next)
+      function calculate_gdd(lai_id_prev, lai_power, gdd_id) result(lai_id_next)
 
          implicit none
 
          real(kind(1D0)), intent(in) :: lai_id_prev
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
          real(kind(1D0)), intent(in) :: gdd_id
-         real(kind(1D0)), intent(out) :: lai_id_next
+         real(kind(1D0)) :: lai_id_next
 
-         lai_id_next = (lai_id_prev**lai_power(1) * &
-                        gdd_id * lai_power(2)) + lai_id_prev
+         lai_id_next = (lai_id_prev**lai_power(1) * gdd_id * lai_power(2)) + lai_id_prev
 
-      end subroutine calculate_gdd
+      end function calculate_gdd
    
-      subroutine calculate_sdd_type0( &
-            lai_id_prev, lai_power, sdd_id, lai_id_next)
+      function calculate_sdd_type0(lai_id_prev, lai_power, sdd_id) result(lai_id_next)
 
          implicit none
 
          real(kind(1D0)), intent(in) :: lai_id_prev
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
          real(kind(1D0)), intent(in) :: sdd_id
-         real(kind(1D0)), intent(out) :: lai_id_next
+         real(kind(1D0)) :: lai_id_next
 
          lai_id_next = (lai_id_prev**lai_power(3) * sdd_id * lai_power(4)) + lai_id_prev
 
-      end subroutine calculate_sdd_type0
+      end function calculate_sdd_type0
    
-      subroutine calculate_sdd_type1( & ! 
-            lai_id_prev, lai_power, sdd_id, lai_id_next)
+      function calculate_sdd_type1(lai_id_prev, lai_power, sdd_id) result(lai_id_next)
 
          implicit none
 
          real(kind(1D0)), intent(in) :: lai_id_prev
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
          real(kind(1D0)), intent(in) :: sdd_id
-         real(kind(1D0)), intent(out) :: lai_id_next
+         real(kind(1D0)) :: lai_id_next
 
          lai_id_next = (lai_id_prev * lai_power(3) * (1 - sdd_id) * lai_power(4)) + lai_id_prev
 
-      end subroutine calculate_sdd_type1
+      end function calculate_sdd_type1
 
       subroutine limit_lai(lai_id_next, lai_max, lai_min)
 

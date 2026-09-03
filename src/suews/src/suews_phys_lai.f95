@@ -114,18 +114,12 @@ contains
             base_t_gdd=base_t_gdd(iv), &
             base_t_sdd=base_t_sdd(iv), &
             delta_gdd=delta_gdd, &
-            delta_sdd=delta_sdd, &
-            ind_help=ind_help &
+            delta_sdd=delta_sdd &
          )
 
          ! Calculate cumulative growing and senescence degree days
          gdd_id(iv) = gdd_id_prev(iv) + delta_gdd
          sdd_id(iv) = sdd_id_prev(iv) + delta_sdd
-         
-         ! Possibility for cold spring
-         IF (sdd_id(iv) <= sdd_full(iv) .AND. ind_help < 0) THEN
-            gdd_id(iv) = 0
-         END IF
 
          call limit_gdd_sdd( &
             gdd_full=gdd_full(iv), &
@@ -214,7 +208,7 @@ contains
 
       subroutine calc_delta_gdd_sdd( &
             tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
-            delta_gdd, delta_sdd, ind_help)
+            delta_gdd, delta_sdd)
 
          implicit none
 
@@ -225,7 +219,6 @@ contains
 
          real(kind(1D0)), intent(out) :: delta_gdd
          real(kind(1D0)), intent(out) :: delta_sdd
-         real(kind(1D0)), intent(out) :: ind_help
 
          ! Calculate GDD and SDD
          delta_gdd = calc_delta_degree_days( &
@@ -237,12 +230,8 @@ contains
          ! SDD cannot be positive
          if (delta_sdd > 0) delta_sdd = 0
 
-         ! Help switch to allow GDD to go to zero in spring-time
-         ind_help = 0
-
          ! GDD cannot be negative
          if (delta_gdd < 0) then
-            ind_help = delta_gdd
             delta_gdd = 0
          end if
 

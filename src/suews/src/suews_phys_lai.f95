@@ -147,8 +147,8 @@ contains
                delta_sdd=delta_sdd, &
                gdd_id=gdd_id(iv), &
                sdd_id=sdd_id(iv), &
-               gdd_full=gdd_full(iv), &
-               sdd_full=sdd_full(iv), &
+               gdd_base=gdd_full(iv), &
+               sdd_base=sdd_full(iv), &
                lai_type=lai_type(iv), &
                lai_power=lai_power(:, iv), &
                lai_max=lai_max(iv), &
@@ -282,7 +282,7 @@ contains
       subroutine calculate_lai( &
             senescence_mode, &
             delta_gdd, delta_sdd, gdd_id, sdd_id, &
-            gdd_full, sdd_full, lai_power, lai_type, &
+            gdd_base, sdd_base, lai_power, lai_type, &
             len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
@@ -293,8 +293,8 @@ contains
          real(kind(1D0)), intent(in) :: delta_sdd
          real(kind(1D0)), intent(in) :: gdd_id
          real(kind(1D0)), intent(in) :: sdd_id
-         real(kind(1D0)), intent(in) :: gdd_full
-         real(kind(1D0)), intent(in) :: sdd_full
+         real(kind(1D0)), intent(in) :: gdd_base
+         real(kind(1D0)), intent(in) :: sdd_base
 
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
 
@@ -311,7 +311,7 @@ contains
 
          lai_id_next = lai_id_prev
 
-         if (gdd_id > 0 .and. gdd_id < gdd_full) then !Leaves can still grow
+         if (gdd_id >= gdd_base) then !Leaves can still grow
             lai_id_next = calculate_gdd( &
                lai_id_prev=lai_id_prev, &
                lai_power=lai_power, &
@@ -319,7 +319,7 @@ contains
             )
          
          else if (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
-            if (sdd_id < 0 .and. sdd_id > sdd_full) then !Start senescence
+            if (sdd_id <= sdd_base) then !Start senescence
                lai_id_next = calculate_sdd_type0( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
@@ -333,7 +333,7 @@ contains
                senescence_mode=senescence_mode, &
                len_day_id_prev=len_day_id_prev, &
                sdd_id=sdd_id, &
-               sdd_full=sdd_full &
+               sdd_base=sdd_base &
             )
 
             if (start_senescence) then !Start senescence
@@ -393,7 +393,7 @@ contains
 
       end subroutine reset_degree_day_states
 
-      function check_start_senescence(senescence_mode, len_day_id_prev, sdd_id, sdd_full) result(start_senescence)
+      function check_start_senescence(senescence_mode, len_day_id_prev, sdd_id, sdd_base) result(start_senescence)
          
          implicit none
          
@@ -401,22 +401,22 @@ contains
 
          real(kind(1D0)), intent(in) :: len_day_id_prev
          real(kind(1D0)), intent(in) :: sdd_id
-         real(kind(1D0)), intent(in) :: sdd_full
+         real(kind(1D0)), intent(in) :: sdd_base
 
          logical :: start_senescence
          
          select case (senescence_mode)
 
             case (SEN_DAYLENGTH)
-               start_senescence = ((len_day_id_prev <= 12) .and. (sdd_id > sdd_full))
+               start_senescence = ((len_day_id_prev <= 12) .and. (sdd_id <= sdd_base))
 
             case (SEN_SDD)
-               start_senescence = ((sdd_id < 0) .and. (sdd_id > sdd_full))
+               start_senescence = (sdd_id <= sdd_base)
 
             case default
                ! Invalid option falls back to SEN_SDD. No error yet registered.
                ! default currently not possible as function calls hard-coded
-               start_senescence = ((sdd_id < 0) .and. (sdd_id > sdd_full))
+               start_senescence = (sdd_id <= sdd_base)
 
          end select
 

@@ -5,6 +5,17 @@ module module_phys_lai
 
     implicit none
 
+      !Critical limit for GDD when GDD or SDD is set to zero
+      integer, parameter :: CRIT_DAYS = 50
+      
+      ! Enumeration parameters for the LAI type
+      integer, parameter :: LAI_ORIGINAL = 0
+      integer, parameter :: LAI_NEW = 1
+
+      ! Enumeration parameters for senescence conditions
+      integer, parameter :: SEN_DAYLENGTH = 1
+      integer, parameter :: SEN_SDD = 2
+
 contains
 
     subroutine update_gddlai( &
@@ -57,17 +68,8 @@ contains
       real(kind(1D0)), dimension(3) :: gdd_id_prev ! GDD of previous day
       real(kind(1D0)), dimension(3) :: sdd_id_prev ! SDD of previous day
 
-      integer, parameter :: CRIT_DAYS = 50 !Critical limit for GDD when GDD or SDD is set to zero
-
-      integer :: iv
       
-      ! Enumeration parameters for the LAI type
-      integer, parameter :: LAI_ORIGINAL = 0
-      integer, parameter :: LAI_NEW = 1
-
-      ! Enumeration parameters for senescence conditions
-      integer, parameter :: SEN_DAYLENGTH = 1
-      integer, parameter :: SEN_SDD = 2
+      integer :: iv
 
       logical :: valid_observed_lai
 

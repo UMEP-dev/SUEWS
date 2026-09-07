@@ -770,7 +770,9 @@ CONTAINS
          !Evaporation
          ev_tot = ev_snowfree*sfr_surf(WaterSurf) + ev_snow(WaterSurf)*sfr_surf(WaterSurf)
          qe_tot = ev_snow(WaterSurf)*tlv_sub*sfr_surf(WaterSurf) + ev_snowfree*tlv*sfr_surf(WaterSurf)
-         runoff_tot = runoff_snowfree(is) !The total runoff from the area
+         ! area-weight the water-body runoff like every other surface (and like the
+         ! snow-free path), otherwise the grid runoff counts it at 1/sfr_surf(WaterSurf)
+         runoff_tot = runoff_snowfree(is)*sfr_surf(is) !The total runoff from the area
 
          IF (SnowPack(WaterSurf) > 0) THEN !Fraction only 1 or 0
             SnowFrac(WaterSurf) = 1

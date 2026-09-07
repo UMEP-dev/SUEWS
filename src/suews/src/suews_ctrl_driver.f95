@@ -2832,13 +2832,11 @@ CONTAINS
       ! TYPE(HEAT_STATE), INTENT(INOUT) :: heatState
       ! TYPE(HYDRO_STATE), INTENT(INOUT) :: hydroState
 
-      TYPE(HYDRO_STATE) :: hydroState_prev
-      TYPE(HYDRO_STATE) :: hydroState_next
+      TYPE(HYDRO_STATE) :: hydroState_prev ! snapshot of the incoming hydrological state
 
       ! TYPE(PHENOLOGY_STATE) :: phenState
       ! TYPE(SNOW_STATE) :: snowState
-      TYPE(SNOW_STATE) :: snowState_prev
-      TYPE(SNOW_STATE) :: snowState_next
+      TYPE(SNOW_STATE) :: snowState_prev ! snapshot of the incoming snow state
 
       INTEGER, DIMENSION(nsurf) :: snowCalcSwitch
 
@@ -2939,10 +2937,6 @@ CONTAINS
          hydroState_prev = hydroState
          snowState_prev = snowState
 
-         ! initialize the next state
-         hydroState_next = hydroState
-         snowState_next = snowState
-
          ASSOCIATE ( &
             avdens => atmState%av_density, &
             avcp => atmState%av_cp, &
@@ -2998,7 +2992,7 @@ CONTAINS
             iceFrac_in => snowState_prev%ice_frac, &
             SnowDens_in => snowState_prev%snow_density, &
             SnowfallCum_in => snowState_prev%snowfall_cum, &
-            SnowAlb_in => snowState_next%snow_albedo, &
+            SnowAlb_in => snowState%snow_albedo, &
             EvapMethod => config%EvapMethod, &
             Diagnose => config%Diagnose &
             )
@@ -3051,6 +3045,12 @@ CONTAINS
                state_per_tstep = 0
                NWstate_per_tstep = 0
                chSnow_per_interval = 0
+               ! Grid aggregates accumulated inside SnowCalc across surfaces:
+               ! initialise once here, not once per surface, or the outputs
+               ! only ever carry the last (water) surface.
+               swe = 0
+               mwstore = 0
+               SnowRemoval = 0
                qe = 0
 
                runoffAGveg = 0
@@ -3100,14 +3100,11 @@ CONTAINS
                DO is = 1, nsurf !For each surface in turn
                   qe_tot = 0
                   ev_tot = 0
-                  swe = 0
                   ev_snow = 0
                   runoff_tot = 0
                   surf_chang_tot = 0
                   chSnow_tot = 0
-                  SnowRemoval = 0
                   runoffPipes = 0
-                  mwstore = 0
                   runoffwaterbody = 0
                   IF (sfr_surf(is) > 0) THEN
                      ! IF (Diagnose == 1) WRITE (*, *) 'Calling SnowCalc...'
@@ -3161,27 +3158,32 @@ CONTAINS
                ! runoffWaterBody_m3 = runoffWaterBody/1000*SurfaceArea
                ! runoffPipes_m3 = runoffPipes/1000*SurfaceArea
 
-               hydroState_next%state_surf = state_id_surf
-               hydroState_next%soil_store_surf = soilstore_id
+               ! Write the updated states back into modState so they persist to the
+               ! next timestep and feed this timestep's energy balance. Previously the
+               ! results were left in local copies and discarded, so no snowpack could
+               ! ever accumulate with SnowUse == 1.
+               hydroState%state_surf = state_id_surf
+               hydroState%soil_store_surf = soilstore_id
+               snowState%snow_water = SnowWater
+               snowState%ice_frac = iceFrac
+               snowState%snow_albedo = SnowAlb
+               snowState%snow_density = SnowDens
+               snowState%snow_pack = SnowPack
+               snowState%snow_fraction = SnowFrac
+               snowState%snowfall_cum = SnowfallCum
+               snowState%qm = Qm
+               snowState%qm_freeze = QmFreez
+               snowState%qm_rain = QmRain
+               snowState%mwh = mwh
 
-               snowState_next%snow_water = SnowWater
-               snowState_next%ice_frac = iceFrac
-
-               snowState_next%snow_albedo = SnowAlb
-               snowState_next%snow_density = SnowDens
-               snowState_next%snow_pack = SnowPack
-               snowState_next%snow_fraction = SnowFrac
-               snowState_next%snowfall_cum = SnowfallCum
-
-               ! pack output into one line
                dataOutLineSnow = [ &
-                                 snowState_next%snow_pack(1:nsurf), mw_ind(1:nsurf), Qm_melt(1:nsurf), & !26
-                                 Qm_rain(1:nsurf), Qm_freezState(1:nsurf), snowState_next%snow_fraction(1:(nsurf - 1)), & !46
+                                 snowState%snow_pack(1:nsurf), mw_ind(1:nsurf), Qm_melt(1:nsurf), & !26
+                                 Qm_rain(1:nsurf), Qm_freezState(1:nsurf), snowState%snow_fraction(1:(nsurf - 1)), & !46
                                  rainOnSnow(1:nsurf), & !53
                                  qn_ind_snow(1:nsurf), kup_ind_snow(1:nsurf), freezMelt(1:nsurf), & !74
-                                 SnowWater(1:nsurf), snowState_next%snow_density(1:nsurf), & !88
+                                 SnowWater(1:nsurf), snowState%snow_density(1:nsurf), & !88
                                  snowDepth(1:nsurf), Tsurf_ind_snow(1:nsurf), &
-                                 snowState_next%snow_albedo]
+                                 snowState%snow_albedo]
 
             END ASSOCIATE
          END ASSOCIATE

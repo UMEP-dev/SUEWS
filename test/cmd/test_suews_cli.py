@@ -11,6 +11,7 @@ Validates:
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import sys
 
 from click.testing import CliRunner
@@ -304,3 +305,84 @@ def test_rust_bridge_main_accepts_explicit_argv(
     # POSIX both pass; ``rust_bridge.main`` stringifies the Path before exec.
     assert captured["cmd"] == [str(fake_binary), "--version"]
     assert captured["check"] is False
+
+
+# ---------------------------------------------------------------------------
+# Onboarding consistency
+#
+# What the README, the ``suews run`` help text and the setup messages teach
+# must match the canonical ``suews <subcmd>`` interface and the Python floor
+# declared in ``pyproject.toml``. These guard the drift that let the README
+# and ``suews run --help`` keep recommending the deprecated hyphenated aliases.
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_LEGACY_ALIAS_PATTERN = re.compile(r"\bsuews-(run|validate|convert|schema|inspect)\b")
+_PYTHON_FLOOR_CLAIM_PATTERN = re.compile(
+    r"Python (\d+)\.(\d+)\s*(?:\+|or newer|and newer|or later)"
+    r"|version_info < \((\d+), (\d+)\)"
+)
+_ONBOARDING_FILES = (
+    "README.md",
+    "Makefile",
+    "docs/README.md",
+    "dev-ref/building-locally.md",
+    "dev-ref/onboarding-guide.md",
+)
+
+
+def _read_repo_file(relative_path: str) -> str:
+    path = _REPO_ROOT / relative_path
+    if not path.is_file():
+        pytest.skip(f"{relative_path} not present; not running from a source checkout")
+    return path.read_text(encoding="utf-8")
+
+
+def _required_python_floor() -> tuple[int, int]:
+    import tomllib
+
+    project = tomllib.loads(_read_repo_file("pyproject.toml"))["project"]
+    spec = project["requires-python"].strip()
+    match = re.fullmatch(r">=\s*(\d+)\.(\d+)", spec)
+    assert match, f"unexpected requires-python spec: {spec!r}"
+    return int(match.group(1)), int(match.group(2))
+
+
+def test_run_help_teaches_canonical_commands() -> None:
+    from supy.cmd.suews_cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["run", "--help"])
+    assert result.exit_code == 0, result.output
+    assert "suews run config.yml" in result.output
+    assert "suews convert -i RunControl.nml" in result.output
+    assert not _LEGACY_ALIAS_PATTERN.search(result.output), result.output
+
+
+def test_readme_teaches_only_resolvable_subcommands() -> None:
+    from supy.cmd.suews_cli import cli
+
+    readme = _read_repo_file("README.md")
+    legacy = sorted(set(_LEGACY_ALIAS_PATTERN.findall(readme)))
+    assert not legacy, f"README still teaches deprecated aliases: {legacy}"
+    taught = set(re.findall(r"\bsuews ([a-z]+)\b", readme))
+    assert taught, "README no longer documents any suews subcommand"
+    missing = sorted(taught - set(cli.commands))
+    assert not missing, f"README teaches unknown subcommands: {missing}"
+
+
+@pytest.mark.parametrize("relative_path", _ONBOARDING_FILES)
+def test_onboarding_files_do_not_understate_python_floor(relative_path: str) -> None:
+    floor = _required_python_floor()
+    text = _read_repo_file(relative_path)
+    claims = [
+        (int(major or check_major), int(minor or check_minor))
+        for major, minor, check_major, check_minor in _PYTHON_FLOOR_CLAIM_PATTERN.findall(
+            text
+        )
+    ]
+    understated = sorted({claim for claim in claims if claim < floor})
+    assert not understated, (
+        f"{relative_path} claims a Python floor below requires-python "
+        f"{floor[0]}.{floor[1]}: {understated}"
+    )

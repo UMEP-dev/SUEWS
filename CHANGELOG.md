@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
+- [bugfix] `SUEWSForcing.resample` no longer aggregates the `-999` missing sentinel as a number: an all-missing rain interval was reported as 0 mm, missing `Wuh` readings summed to -1998 mm and the mean of a valid and a missing radiation value came out as -449.5 W m-2 (#1748)
+  - Sentinels and NaN are masked first; an output interval is missing unless it is fully covered by valid rows (sums and means) or its endpoint is valid (instantaneous values), temporal columns are rebuilt from the output index, per-surface extras follow the same rules, and finer or non-integer target frequencies are rejected rather than silently interpolated.
+
 - [bugfix] `SUEWSForcing.save(format="suews")` now writes a native forcing file that `from_file` loads back losslessly: temporal columns are derived from the datetime index (no leading index column, no internal `isec`), pressure is converted back from hPa to the file's kPa using the forcing registry's `runtime_scale` with sentinels left untouched, columns follow the registry's canonical order, and per-landcover extension columns (`lai_<surface>`, `wuh_<surface>`) are written after them. Timestamps not aligned to whole minutes are rejected with a clear error, since the native format has no seconds field. Previously a saved file reloaded with pressure inflated tenfold and every extension column dropped. `format="csv"` now includes the extension columns too. (#1751)
 
 - [bugfix] `suews compare` now aligns on time, selects grids explicitly and reports finite paired samples (#1744)

@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 from importlib.resources import as_file
+from inspect import signature
 from pathlib import Path
 import subprocess
 import sys
@@ -150,6 +151,10 @@ def cli_runner():
     CliRunner
         Click test runner instance
     """
+    # Click <8.2 requires opting out of mixed stderr; newer versions always
+    # capture both streams separately and have removed this argument.
+    if "mix_stderr" in signature(CliRunner).parameters:
+        return CliRunner(mix_stderr=False)
     return CliRunner()
 
 

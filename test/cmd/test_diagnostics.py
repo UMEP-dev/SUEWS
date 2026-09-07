@@ -269,9 +269,12 @@ def test_sentinel_values_are_treated_as_missing(tmp_path: Path) -> None:
     assert res_nan.details["fractions"]["df_output.csv"]["QH"] == pytest.approx(0.4)
 
     res_eb = check_energy_balance_closure(run_dir)
-    assert res_eb.passed, res_eb.message
     assert res_eb.details["n_rows_evaluated"] == 6
     assert res_eb.details["n_rows_skipped_nonfinite"] == 4
+    # The evaluable rows close, but 40% of the partition was skipped.
+    assert res_eb.details["ratio_mean"] == pytest.approx(0.0)
+    assert not res_eb.passed
+    assert res_eb.details["partitions"]["df_output.csv"]["status"] == "low_coverage"
 
 
 def test_all_rows_nonfinite_gives_warning(tmp_path: Path) -> None:
@@ -318,9 +321,113 @@ def test_every_csv_partition_is_inspected(tmp_path: Path) -> None:
     assert "df_output_z.csv:QH" in res_nan.message
 
     res_eb = check_energy_balance_closure(run_dir)
+    assert not res_eb.passed
     assert res_eb.details["n_partitions"] == 2
     assert res_eb.details["n_rows"] == 2 * n
     assert res_eb.details["n_rows_skipped_nonfinite"] == n
+    assert res_eb.details["partitions"]["df_output_a.csv"]["status"] == "pass"
+    assert (
+        res_eb.details["partitions"]["df_output_z.csv"]["status"] == "no_evaluable_rows"
+    )
+    assert "df_output_z.csv: no evaluable rows" in res_eb.message
+
+
+def test_single_bad_partition_is_not_averaged_away(tmp_path: Path) -> None:
+    """100 balanced rows in one file plus one 100% residual row in another."""
+    run_dir = _closure_dir(tmp_path)
+    n = 100
+    _write_csv(
+        run_dir / "df_output_a.csv",
+        QN=[200.0] * n,
+        QF=[20.0] * n,
+        QH=[100.0] * n,
+        QE=[80.0] * n,
+        QS=[40.0] * n,
+    )
+    _write_csv(
+        run_dir / "df_output_b.csv",
+        QN=[200.0],
+        QF=[20.0],
+        QH=[300.0],
+        QE=[80.0],
+        QS=[40.0],
+    )
+    res = check_energy_balance_closure(run_dir)
+    assert not res.passed
+    assert res.severity == "warning"
+    partitions = res.details["partitions"]
+    assert partitions["df_output_a.csv"]["status"] == "pass"
+    assert partitions["df_output_b.csv"]["status"] == "residual"
+    assert partitions["df_output_b.csv"]["ratio_mean"] == pytest.approx(1.0)
+    assert "df_output_b.csv: residual 1.000" in res.message
+    # The aggregate is still reported, but it does not decide the verdict.
+    assert res.details["ratio_mean"] == pytest.approx(1.0 / 101.0)
+
+
+def test_partition_with_all_qs_missing_blocks_pass(tmp_path: Path) -> None:
+    """A second partition whose QS is entirely NaN must not be certified."""
+    run_dir = _closure_dir(tmp_path)
+    n = 100
+    _write_csv(
+        run_dir / "df_output_a.csv",
+        QN=[200.0] * n,
+        QF=[20.0] * n,
+        QH=[100.0] * n,
+        QE=[80.0] * n,
+        QS=[40.0] * n,
+    )
+    _write_csv(
+        run_dir / "df_output_b.csv",
+        QN=[200.0] * n,
+        QF=[20.0] * n,
+        QH=[100.0] * n,
+        QE=[80.0] * n,
+        QS=[np.nan] * n,
+    )
+    (run_dir / "provenance.json").write_text("{}", encoding="utf-8")
+
+    by_name = {res.name: res for res in check_run(run_dir)}
+    # QH/QE/QN are finite, so the NaN check cannot see the problem ...
+    assert by_name["nan_proportion"].passed
+    # ... but closure must refuse to certify the unevaluated partition.
+    res = by_name["energy_balance_closure"]
+    assert not res.passed
+    assert res.details["partitions"]["df_output_b.csv"]["status"] == "no_evaluable_rows"
+    assert res.details["partitions"]["df_output_b.csv"]["n_rows_evaluated"] == 0
+
+
+def test_closure_coverage_threshold(tmp_path: Path) -> None:
+    """Up to 5% skipped rows still pass; more than that is low coverage."""
+    run_dir = _closure_dir(tmp_path)
+    n = 100
+    qs_ok = [40.0] * n
+    qs_ok[:4] = [np.nan] * 4
+    _write_csv(
+        run_dir / "df_output.csv",
+        QN=[200.0] * n,
+        QF=[20.0] * n,
+        QH=[100.0] * n,
+        QE=[80.0] * n,
+        QS=qs_ok,
+    )
+    res = check_energy_balance_closure(run_dir)
+    assert res.passed, res.message
+    assert res.details["partitions"]["df_output.csv"]["coverage"] == pytest.approx(0.96)
+
+    qs_bad = [40.0] * n
+    qs_bad[:6] = [np.nan] * 6
+    _write_csv(
+        run_dir / "df_output.csv",
+        QN=[200.0] * n,
+        QF=[20.0] * n,
+        QH=[100.0] * n,
+        QE=[80.0] * n,
+        QS=qs_bad,
+    )
+    res = check_energy_balance_closure(run_dir)
+    assert not res.passed
+    assert res.details["partitions"]["df_output.csv"]["status"] == "low_coverage"
+    assert "94.0% of rows evaluable" in res.message
 
 
 def test_every_grid_in_parquet_is_a_partition(tmp_path: Path) -> None:
@@ -433,9 +540,12 @@ def test_legacy_text_output_partitions(tmp_path: Path) -> None:
     ] == pytest.approx(1.0)
 
     res_eb = check_energy_balance_closure(run_dir)
-    assert res_eb.passed, res_eb.message
+    assert not res_eb.passed
     assert res_eb.details["n_rows_evaluated"] == 4
     assert res_eb.details["n_rows_skipped_nonfinite"] == 4
+    partitions = res_eb.details["partitions"]
+    assert partitions["Site1_2012_SUEWS_60.txt"]["status"] == "pass"
+    assert partitions["Site2_2012_SUEWS_60.txt"]["status"] == "no_evaluable_rows"
 
 
 def test_check_run_aggregator_returns_all_checks(tmp_path: Path) -> None:

@@ -16,10 +16,11 @@ Phase-1 checks (intentionally minimal):
 - ``check_energy_balance_closure`` -- mean
   ``|(QN + QF + QMRain) - (QH + QE + QS + QM + QMFreeze)| / |QN| < 0.10``.
 
-Every partition of the run output is inspected: all files of the
-highest-priority format present (parquet, then CSV, then legacy text) and
-every grid within a multi-grid file. Values equal to the legacy ``-999``
-sentinel are treated as missing.
+Every partition of the run output is inspected and judged on its own:
+all files of the highest-priority format present (parquet, then CSV,
+then legacy text) and every grid within a multi-grid file. A run passes
+a check only when every partition passes it. Values equal to the legacy
+``-999`` sentinel are treated as missing.
 
 Severity ladder: ``pass`` (passed=True), ``warning`` (passed=False but
 non-fatal), ``fail`` (passed=False and the run is unusable).
@@ -57,8 +58,8 @@ _MISSING_SENTINEL = -999.0
 
 # Energy-balance identity used by the model driver (``qh_residual`` in
 # ``suews_ctrl_driver.f95``): QN + QF + QMRain = QH + QE + QS + QM + QMFreeze.
-# The snow terms and QF are absent from simple configurations and are
-# treated as zero when their column is missing.
+# Current writers emit every term; reduced or older outputs may lack QF
+# or the snow terms, which are then treated as zero and reported.
 _CLOSURE_REQUIRED = ("QN", "QH", "QE", "QS")
 _CLOSURE_SOURCES_OPTIONAL = ("QF", "QMRain")
 _CLOSURE_SINKS_OPTIONAL = ("QM", "QMFreeze")
@@ -152,40 +153,60 @@ def _closure_terms(df_output: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     return pd.DataFrame(dict_terms), list_missing
 
 
-def _collect_closure_terms(
-    list_partitions: list[tuple[str, pd.DataFrame]],
-) -> tuple[pd.DataFrame, list[str]] | CheckResult:
-    """Concatenate the closure terms of every partition.
+def _missing_required(df_output: pd.DataFrame) -> list[str]:
+    return [name for name in _CLOSURE_REQUIRED if name not in df_output.columns]
 
-    Returns the combined term frame and the sorted list of optional terms
-    absent from any partition, or a ``fail`` result naming the first
-    partition that lacks a required term.
+
+def _evaluate_partition_closure(df_terms: pd.DataFrame) -> dict[str, Any]:
+    """Evaluate closure for one partition and return its statistics.
+
+    Rows enter the evaluation when ``|QN| > 1`` and every term is finite.
+    ``status`` is ``"pass"`` when the mean ratio is below the threshold and
+    at least ``1 - _NAN_THRESHOLD_FRACTION`` of the non-trivial rows were
+    evaluable, ``"no_evaluable_rows"`` when nothing could be evaluated,
+    ``"low_coverage"`` when too many rows were skipped, and
+    ``"residual"`` when the mean ratio exceeds the threshold.
     """
-    list_frames: list[pd.DataFrame] = []
-    set_missing_optional: set[str] = set()
-    for label, df_output in list_partitions:
-        list_missing_required = [
-            name for name in _CLOSURE_REQUIRED if name not in df_output.columns
-        ]
-        if list_missing_required:
-            return CheckResult(
-                name="energy_balance_closure",
-                severity="fail",
-                passed=False,
-                message=(
-                    f"{', '.join(list_missing_required)} missing in {label}; "
-                    "cannot compute energy balance closure."
-                ),
-                details={
-                    "partition": label,
-                    "missing": list_missing_required,
-                    "available_columns": [str(c) for c in df_output.columns][:30],
-                },
-            )
-        df_terms, list_missing_optional = _closure_terms(df_output)
-        set_missing_optional.update(list_missing_optional)
-        list_frames.append(df_terms)
-    return pd.concat(list_frames, ignore_index=True), sorted(set_missing_optional)
+    ser_qn = df_terms["QN"]
+    mask_nontrivial = ser_qn.notna() & (ser_qn.abs() > 1.0)
+    mask_finite = df_terms.notna().all(axis=1)
+    mask_valid = mask_nontrivial & mask_finite
+    n_nontrivial = int(mask_nontrivial.sum())
+    n_evaluated = int(mask_valid.sum())
+    stats: dict[str, Any] = {
+        "n_rows": len(df_terms),
+        "n_rows_evaluated": n_evaluated,
+        "n_rows_skipped_nonfinite": n_nontrivial - n_evaluated,
+        "ratio_mean": None,
+        "status": "no_evaluable_rows",
+    }
+    if n_evaluated == 0:
+        return stats
+
+    ser_sources = df_terms["QN"] + df_terms["QF"] + df_terms["QMRain"]
+    ser_sinks = df_terms["QH"] + df_terms["QE"] + df_terms["QS"]
+    ser_sinks += df_terms["QM"] + df_terms["QMFreeze"]
+    ser_ratio = (ser_sources - ser_sinks).abs()[mask_valid] / ser_qn[mask_valid].abs()
+    ratio_mean = float(ser_ratio.mean())
+    stats["ratio_mean"] = ratio_mean
+    coverage = n_evaluated / n_nontrivial
+    stats["coverage"] = coverage
+    if ratio_mean >= _ENERGY_BALANCE_THRESHOLD:
+        stats["status"] = "residual"
+    elif coverage < 1.0 - _NAN_THRESHOLD_FRACTION:
+        stats["status"] = "low_coverage"
+    else:
+        stats["status"] = "pass"
+    return stats
+
+
+def _describe_partition_problem(label: str, stats: dict[str, Any]) -> str:
+    status = stats["status"]
+    if status == "residual":
+        return f"{label}: residual {stats['ratio_mean']:.3f}"
+    if status == "low_coverage":
+        return f"{label}: only {stats['coverage']:.1%} of rows evaluable"
+    return f"{label}: no evaluable rows"
 
 
 def _read_error(name: str, path_run_dir: Path, exc: Exception) -> CheckResult:
@@ -333,19 +354,25 @@ def check_nan_proportion(path_run_dir: Path) -> CheckResult:
 
 
 def check_energy_balance_closure(path_run_dir: Path) -> CheckResult:
-    """Energy-balance consistency check over every output partition.
+    """Energy-balance consistency check, judged per output partition.
 
-    Computes ``mean(|(QN + QF + QMRain) - (QH + QE + QS + QM + QMFreeze)| /
-    |QN|)`` over rows where every term is finite and ``|QN| > 1``, then
-    flags the run when the ratio exceeds 10%. QN, QH, QE and QS must be
-    present; QF and the snow terms are treated as zero when their column
-    is absent, and the absent terms are listed in ``details``.
+    For every partition (file, and grid within a file) computes
+    ``mean(|(QN + QF + QMRain) - (QH + QE + QS + QM + QMFreeze)| / |QN|)``
+    over rows where every term is finite and ``|QN| > 1``. QN, QH, QE
+    and QS must be present; QF and the snow terms are treated as zero
+    when their column is absent, and the absent terms are listed in
+    ``details``.
+
+    A partition passes when its mean ratio is below 10% and at least 95%
+    of its non-trivial rows could be evaluated. The run passes only when
+    every partition passes: a partition with an excessive residual, too
+    few evaluable rows, or none at all, is reported and blocks the pass,
+    so a healthy partition cannot mask a broken one. ``details`` carries
+    the per-partition statistics and the row-weighted aggregate ratio.
 
     SUEWS closes this identity by construction, so the check is a
     consistency test of the saved output rather than evidence of
-    scientific skill. Legacy text output stores the snow group in a
-    separate file that is not read here, so snow terms read as absent in
-    that format.
+    scientific skill.
     """
     try:
         list_partitions = _load_output_partitions(path_run_dir)
@@ -355,66 +382,82 @@ def check_energy_balance_closure(path_run_dir: Path) -> CheckResult:
     if list_partitions is None:
         return _no_output("energy_balance_closure", path_run_dir)
 
-    collected = _collect_closure_terms(list_partitions)
-    if isinstance(collected, CheckResult):
-        return collected
-    df_all, list_missing_optional = collected
+    dict_partitions: dict[str, dict[str, Any]] = {}
+    set_missing_optional: set[str] = set()
+    list_problems: list[str] = []
+    for label, df_output in list_partitions:
+        list_missing_required = _missing_required(df_output)
+        if list_missing_required:
+            return CheckResult(
+                name="energy_balance_closure",
+                severity="fail",
+                passed=False,
+                message=(
+                    f"{', '.join(list_missing_required)} missing in {label}; "
+                    "cannot compute energy balance closure."
+                ),
+                details={
+                    "partition": label,
+                    "missing": list_missing_required,
+                    "available_columns": [str(c) for c in df_output.columns][:30],
+                },
+            )
+        df_terms, list_missing_optional = _closure_terms(df_output)
+        set_missing_optional.update(list_missing_optional)
+        stats = _evaluate_partition_closure(df_terms)
+        dict_partitions[label] = stats
+        if stats["status"] != "pass":
+            list_problems.append(_describe_partition_problem(label, stats))
 
-    ser_qn = df_all["QN"]
-    mask_nontrivial = ser_qn.notna() & (ser_qn.abs() > 1.0)
-    mask_finite = df_all.notna().all(axis=1)
-    mask_valid = mask_nontrivial & mask_finite
-
-    details: dict[str, Any] = {
-        "n_partitions": len(list_partitions),
-        "n_rows": len(df_all),
-        "n_rows_evaluated": int(mask_valid.sum()),
-        "n_rows_skipped_nonfinite": int((mask_nontrivial & ~mask_finite).sum()),
-        "terms_missing": list_missing_optional,
-    }
-
-    if not mask_valid.any():
-        return CheckResult(
-            name="energy_balance_closure",
-            severity="warning",
-            passed=False,
-            message=(
-                "No rows with finite closure terms and non-trivial QN to evaluate."
-            ),
-            details=details,
+    n_evaluated = sum(st["n_rows_evaluated"] for st in dict_partitions.values())
+    ratio_mean = (
+        sum(
+            st["ratio_mean"] * st["n_rows_evaluated"]
+            for st in dict_partitions.values()
+            if st["ratio_mean"] is not None
         )
-
-    ser_sources = df_all["QN"] + df_all["QF"] + df_all["QMRain"]
-    ser_sinks = df_all["QH"] + df_all["QE"] + df_all["QS"]
-    ser_sinks += df_all["QM"] + df_all["QMFreeze"]
-    ser_residual = (ser_sources - ser_sinks).abs()
-    ser_ratio = ser_residual[mask_valid] / ser_qn[mask_valid].abs()
-    ratio_mean = float(ser_ratio.mean())
-    details["ratio_mean"] = ratio_mean
-
+        / n_evaluated
+        if n_evaluated
+        else None
+    )
+    details: dict[str, Any] = {
+        "threshold_ratio": _ENERGY_BALANCE_THRESHOLD,
+        "n_partitions": len(list_partitions),
+        "n_rows": sum(st["n_rows"] for st in dict_partitions.values()),
+        "n_rows_evaluated": n_evaluated,
+        "n_rows_skipped_nonfinite": sum(
+            st["n_rows_skipped_nonfinite"] for st in dict_partitions.values()
+        ),
+        "ratio_mean": ratio_mean,
+        "terms_missing": sorted(set_missing_optional),
+        "partitions": dict_partitions,
+    }
     note_missing = (
         f" (absent terms treated as zero: {', '.join(details['terms_missing'])})"
         if details["terms_missing"]
         else ""
     )
-    if ratio_mean < _ENERGY_BALANCE_THRESHOLD:
+
+    if list_problems:
         return CheckResult(
             name="energy_balance_closure",
-            severity="pass",
-            passed=True,
+            severity="warning",
+            passed=False,
             message=(
-                f"Mean closure residual {ratio_mean:.3f} < "
-                f"{_ENERGY_BALANCE_THRESHOLD:.2f}{note_missing}."
+                f"Closure not confirmed in {len(list_problems)} of "
+                f"{len(list_partitions)} partition(s): "
+                f"{'; '.join(list_problems)}{note_missing}."
             ),
             details=details,
         )
     return CheckResult(
         name="energy_balance_closure",
-        severity="warning",
-        passed=False,
+        severity="pass",
+        passed=True,
         message=(
-            f"Mean closure residual {ratio_mean:.3f} exceeds "
-            f"{_ENERGY_BALANCE_THRESHOLD:.2f}{note_missing}."
+            f"Mean closure residual {ratio_mean:.3f} < "
+            f"{_ENERGY_BALANCE_THRESHOLD:.2f} in every one of "
+            f"{len(list_partitions)} partition(s){note_missing}."
         ),
         details=details,
     )

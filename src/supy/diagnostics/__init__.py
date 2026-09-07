@@ -16,8 +16,9 @@ Phase-1 checks (intentionally minimal):
 - :func:`check_energy_balance_closure` -- mean
   ``|(QN + QF + QMRain) - (QH + QE + QS + QM + QMFreeze)| / |QN| < 0.10``.
 
-Every partition of the run output is inspected (all files of the
-highest-priority format present, and every grid within a file); the
+Every partition of the run output is inspected and judged on its own
+(all files of the highest-priority format present, and every grid
+within a file); a run passes only when every partition passes. The
 legacy ``-999`` sentinel is treated as missing.
 
 Severity ladder: ``pass`` (passed=True), ``warning`` (passed=False but

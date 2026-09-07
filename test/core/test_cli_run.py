@@ -8,18 +8,22 @@ This is especially important for editable installs where each subprocess
 triggers a ninja rebuild check (10-20+ seconds).
 """
 
-import tempfile
 from pathlib import Path
+import shutil
 
+from conftest import run_cli_command
+import pandas as pd
 import pytest
+
+from supy.cmd.SUEWS import SUEWS
 
 pytestmark = pytest.mark.api
 
-# Import the CLI command for in-process testing
-from supy.cmd.SUEWS import SUEWS
 
-# Import shared CLI testing utilities from conftest
-from conftest import CliResultAdapter, run_cli_command
+@pytest.fixture(autouse=True)
+def isolated_working_directory(tmp_path, monkeypatch):
+    """Keep default-file searches and simulation outputs local to each test."""
+    monkeypatch.chdir(tmp_path)
 
 
 class TestCLIRun:
@@ -36,11 +40,14 @@ class TestCLIRun:
         return test_data_dir / "benchmark1"
 
     @pytest.fixture
-    def sample_yaml(self, benchmark_dir):
-        """Path to sample YAML configuration."""
-        yaml_file = benchmark_dir / "benchmark1_short.yml"
-        if not yaml_file.exists():
-            pytest.skip(f"Sample YAML not found: {yaml_file}")
+    def sample_yaml(self, benchmark_dir, tmp_path):
+        """Copy the committed short case with its relative forcing dependency."""
+        yaml_file = tmp_path / "benchmark1_short.yml"
+        shutil.copyfile(benchmark_dir / yaml_file.name, yaml_file)
+        forcing_dir = tmp_path / "forcing"
+        forcing_dir.mkdir()
+        forcing_name = "Kc1_2011_data_5_short.txt"
+        shutil.copyfile(benchmark_dir / "forcing" / forcing_name, forcing_dir / forcing_name)
         return yaml_file
 
     @pytest.fixture
@@ -81,25 +88,6 @@ class TestCLIRun:
         assert "DEPRECATED" in result.stdout or "deprecated" in result.stdout.lower()
 
     # ========== YAML FORMAT TESTS ==========
-
-    def test_yaml_positional_argument(self, cli_runner, sample_yaml, tmp_path):
-        """Test running with YAML file as positional argument."""
-        # Run in temp directory to avoid polluting test fixtures
-        result = self.run_suews_run(
-            cli_runner,
-            str(sample_yaml),
-            check=True,
-        )
-        assert result.returncode == 0
-        assert "YAML configuration" in result.stdout
-        assert "successfully done" in result.stdout
-
-    def test_yaml_auto_detection(self, cli_runner, sample_yaml):
-        """Test that .yml extension is auto-detected as YAML format."""
-        result = self.run_suews_run(cli_runner, str(sample_yaml), check=True)
-        assert "YAML configuration" in result.stdout
-        # Should NOT show namelist deprecation warning
-        assert "DEPRECATION WARNING" not in result.stderr
 
     def test_yaml_missing_forcing(self, cli_runner, tmp_path):
         """Test error handling when YAML config lacks forcing data."""
@@ -174,26 +162,21 @@ sites:
     # ========== DEFAULT FILE SEARCH TESTS ==========
 
     def test_default_yaml_search(self, cli_runner, sample_yaml):
-        """Test that config.yml is found by default if it exists."""
-        # Use CliRunner's isolated_filesystem for clean working directory
-        with cli_runner.isolated_filesystem():
-            # Copy sample YAML to config.yml in isolated dir
-            Path("config.yml").write_text(
-                sample_yaml.read_text(encoding="utf-8"), encoding="utf-8"
-            )
+        """A default config must be discovered and complete its simulation."""
+        sample_yaml.rename(sample_yaml.with_name("config.yml"))
 
-            result = self.run_suews_run(cli_runner, check=False)
-            if result.returncode == 0:
-                assert "Using default configuration: config.yml" in result.stdout
+        result = self.run_suews_run(cli_runner)
+
+        assert "Using default configuration: config.yml" in result.stdout
+        assert "successfully done" in result.stdout
 
     def test_no_default_file_error(self, cli_runner):
         """Test error when no default config file exists."""
-        # Use CliRunner's isolated_filesystem for empty working directory
-        with cli_runner.isolated_filesystem():
-            result = self.run_suews_run(cli_runner, check=False)
-            assert result.returncode != 0
-            combined = result.stderr + result.stdout
-            assert "No configuration file found" in combined
+        result = self.run_suews_run(cli_runner, check=False)
+        assert result.returncode != 0
+        assert "No configuration file found" in result.stderr
+        assert "config.yml" in result.stderr
+        assert "No configuration file found" not in result.stdout
 
     # ========== ERROR HANDLING TESTS ==========
 
@@ -213,23 +196,20 @@ sites:
 
     # ========== INTEGRATION TESTS ==========
 
-    @pytest.mark.skipif(
-        not (
-            Path(__file__).parent.parent / "fixtures/benchmark1/benchmark1_short.yml"
-        ).exists(),
-        reason="Benchmark data not available",
-    )
-    def test_yaml_full_simulation(self, cli_runner, benchmark_dir, tmp_path):
-        """End-to-end test: YAML config → run → output files created."""
-        yaml_file = benchmark_dir / "benchmark1_short.yml"
+    def test_yaml_full_simulation(self, cli_runner, sample_yaml, tmp_path):
+        """An explicit YAML path is detected, run successfully, and saved."""
+        result = self.run_suews_run(cli_runner, str(sample_yaml))
 
-        # Use CliRunner for in-process testing
-        result = self.run_suews_run(cli_runner, str(yaml_file), check=False)
-
-        if result.returncode == 0:
-            assert "successfully done" in result.stdout
-            # Just verify successful execution
-            assert "The following files have been written out:" in result.stdout
+        # Cover positional arguments and format detection in this same run.
+        assert "YAML configuration" in result.stdout
+        assert "DEPRECATION WARNING" not in result.stderr
+        assert "successfully done" in result.stdout
+        assert "The following files have been written out:" in result.stdout
+        output_files = list(tmp_path.glob("*_SUEWS_output.parquet"))
+        assert len(output_files) == 1
+        output = pd.read_parquet(output_files[0])
+        assert not output.empty
+        assert output_files[0].name in result.stdout
 
     # ========== DEPRECATION WARNING TESTS ==========
 

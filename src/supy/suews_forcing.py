@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from ._load import ForcingConflictError  # noqa: F401  (public re-export)
 from .data_model.forcing import FORCING_REGISTRY
 
 # Compatibility projections retained for downstream users of these module
@@ -178,7 +179,11 @@ class SUEWSForcing:
 
     @classmethod
     def from_file(
-        cls, path: Union[str, Path, List[Union[str, Path]]], tstep_mod: int = 300
+        cls,
+        path: Union[str, Path, List[Union[str, Path]]],
+        tstep_mod: int = 300,
+        *,
+        on_conflict: str = "error",
     ) -> "SUEWSForcing":
         """
         Load forcing from file(s).
@@ -186,14 +191,29 @@ class SUEWSForcing:
         Parameters
         ----------
         path : str, Path, or list of str/Path
-            Path to forcing file, or list of paths to concatenate
+            Path to forcing file, or list of paths to merge
         tstep_mod : int, optional
             Model timestep in seconds (default 300s = 5 min)
+        on_conflict : {"error", "first", "last"}, optional
+            What to do when two files carry *different* observations for
+            the same timestamp and variable. ``"error"`` (default) raises
+            :class:`ForcingConflictError` naming the files, timestamps and
+            variables. ``"first"`` / ``"last"`` keep the value from the
+            earlier / later file in ``path`` order and log a warning.
+            Overlapping records that agree are deduplicated silently under
+            every policy, and a value missing in one file (``NaN`` or
+            ``-999``) is filled from the other rather than treated as a
+            conflict.
 
         Returns
         -------
         SUEWSForcing
             Loaded forcing data
+
+        Raises
+        ------
+        ForcingConflictError
+            Overlapping files disagree and ``on_conflict="error"``.
 
         Examples
         --------
@@ -201,10 +221,14 @@ class SUEWSForcing:
 
         >>> forcing = SUEWSForcing.from_file("forcing_2023.txt")
 
-        Multiple files:
+        Multiple files (overlaps must agree, or be resolved explicitly):
 
         >>> forcing = SUEWSForcing.from_file(["2023.txt", "2024.txt"])
+        >>> forcing = SUEWSForcing.from_file(
+        ...     ["gapfilled.txt", "raw.txt"], on_conflict="first"
+        ... )
         """
+        from ._load import merge_forcing_frames
         from .util._io import read_forcing
 
         # Handle list of paths
@@ -213,16 +237,18 @@ class SUEWSForcing:
                 raise ValueError("Empty forcing file list provided")
 
             dfs = []
+            sources = []
             for p in path:
                 file_path = Path(p).expanduser().resolve()
                 if not file_path.exists():
                     raise FileNotFoundError(f"Forcing file not found: {file_path}")
-                df = read_forcing(str(file_path), tstep_mod=tstep_mod)
+                df = read_forcing(
+                    str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict
+                )
                 dfs.append(df)
+                sources.append(str(file_path))
 
-            combined = pd.concat(dfs, axis=0).sort_index()
-            # Remove any duplicates
-            combined = combined[~combined.index.duplicated(keep="first")]
+            combined = merge_forcing_frames(dfs, sources, on_conflict=on_conflict)
             df_main, extras = cls._split_per_landcover_columns(combined)
             instance = cls(df_main, source=f"[{len(path)} files]")
             instance._extras = extras
@@ -233,7 +259,7 @@ class SUEWSForcing:
         if not file_path.exists():
             raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
-        df = read_forcing(str(file_path), tstep_mod=tstep_mod)
+        df = read_forcing(str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict)
         df_main, extras = cls._split_per_landcover_columns(df)
         instance = cls(df_main, source=str(file_path))
         instance._extras = extras
@@ -626,63 +652,246 @@ class SUEWSForcing:
     # Manipulation (domain-specific methods)
     # =========================================================================
 
+    _TIME_COLUMNS = ("iy", "id", "it", "imin", "isec")
+
+    def _regular_timestep(self) -> pd.Timedelta:
+        """Return the single spacing of the index, rejecting irregular data."""
+        index = self._data.index
+        if len(index) < 2:
+            raise ValueError(
+                "SUEWSForcing.resample needs at least two timestamps to "
+                "establish the source timestep"
+            )
+        diffs = index.to_series().diff().dropna()
+        if diffs.nunique() != 1:
+            raise ValueError(
+                "SUEWSForcing.resample requires a regular DatetimeIndex; "
+                f"found {diffs.nunique()} distinct spacings between "
+                f"{diffs.min()} and {diffs.max()}"
+            )
+        return pd.Timedelta(diffs.iloc[0])
+
+    @staticmethod
+    def _fixed_frequency(freq: str) -> pd.Timedelta:
+        """Convert ``freq`` to a fixed duration, rejecting calendar offsets."""
+        try:
+            return pd.Timedelta(freq)
+        except ValueError:
+            pass
+        try:
+            return pd.Timedelta(pd.tseries.frequencies.to_offset(freq))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "SUEWSForcing.resample needs a fixed-length frequency such as "
+                f"'30min', '1h' or '1D'; got {freq!r}"
+            ) from exc
+
+    @staticmethod
+    def _rows_per_bin(freq: str, source: pd.Timedelta, target: pd.Timedelta) -> int:
+        """Return the number of source rows per output interval."""
+        if target < source:
+            raise ValueError(
+                f"SUEWSForcing.resample only coarsens data: {freq!r} is finer "
+                f"than the current timestep of {source}. Load the file with "
+                "SUEWSForcing.from_file(path, tstep_mod=...) or use "
+                "supy.util._io.resample_forcing_df for physics-aware "
+                "disaggregation."
+            )
+        if target % source != pd.Timedelta(0):
+            raise ValueError(
+                f"SUEWSForcing.resample target {freq!r} is not an integer "
+                f"multiple of the current timestep of {source}"
+            )
+        return int(target / source)
+
+    @staticmethod
+    def _require_aligned_phase(
+        index: pd.DatetimeIndex, freq: str, source: pd.Timedelta
+    ) -> None:
+        """Reject timestamps whose source intervals cannot tile the target bins.
+
+        A row at ``t`` covers ``(t - source, t]``; the rows can only tile an
+        output interval ending on the target grid if the timestamps sit on
+        multiples of the source step (00:05, 00:10, ... for 5-minute data).
+        Rows at 00:02, 00:07, ... would otherwise be counted as full
+        coverage of ``(00:00, 00:10]`` and 00:07 reported as the 00:10
+        endpoint.
+        """
+        offset = pd.Timedelta(index[0].value % source.value)
+        if offset != pd.Timedelta(0):
+            raise ValueError(
+                "SUEWSForcing.resample requires timestamps on the source-step "
+                f"grid so that intervals tile the {freq!r} bins; the index "
+                f"starts at {index[0]}, which is {offset} past the nearest "
+                f"{source} boundary. Re-label the data rather than shifting "
+                "the observations."
+            )
+
+    @staticmethod
+    def _aggregation_kind(column: str) -> str:
+        """Map a forcing column to ``sum``, ``mean`` or ``inst`` semantics."""
+        from ._load import _per_landcover_forcing_var
+
+        if _per_landcover_forcing_var(column) == "wuh":
+            return "sum"
+        var_type = FORCING_VAR_TYPES.get(column, "inst")
+        if var_type == "avg":
+            return "mean"
+        if var_type == "sum":
+            return "sum"
+        return "inst"
+
+    @classmethod
+    def _aggregate_bins(
+        cls, masked: pd.DataFrame, freq: str, rows_per_bin: int
+    ) -> pd.DataFrame:
+        """Aggregate NaN-masked columns into right-labelled intervals.
+
+        An interval is NaN unless it holds ``rows_per_bin`` rows and,
+        for sums and means, every row is valid; instantaneous columns
+        take the value at the interval end without NaN-skipping.
+        """
+        grouper = masked.resample(freq, closed="right", label="right")
+        # Complete means the bin holds every source row AND its last row ends
+        # exactly on the bin label, so the source intervals tile the bin.
+        last_stamp = pd.Series(masked.index, index=masked.index)
+        last_stamp = last_stamp.resample(freq, closed="right", label="right").last()
+        complete = (grouper.size() == rows_per_bin) & (last_stamp == last_stamp.index)
+        all_valid = grouper.count().eq(rows_per_bin)
+        sums = grouper.sum(min_count=1)
+        means = grouper.mean()
+
+        end_pos = pd.Series(np.arange(len(masked)), index=masked.index)
+        end_pos = end_pos.resample(freq, closed="right", label="right").last()
+        has_end = end_pos.notna().to_numpy()
+        end_vals = np.full((len(end_pos), masked.shape[1]), np.nan)
+        end_vals[has_end] = masked.to_numpy()[end_pos[has_end].astype(int)]
+        endpoint = pd.DataFrame(end_vals, index=end_pos.index, columns=masked.columns)
+
+        out = pd.DataFrame(index=complete.index)
+        for col in masked.columns:
+            kind = cls._aggregation_kind(col)
+            if kind == "sum":
+                values = sums[col].where(all_valid[col])
+            elif kind == "mean":
+                values = means[col].where(all_valid[col])
+            else:
+                values = endpoint[col]
+            out[col] = values.where(complete)
+        return out
+
+    @staticmethod
+    def _time_columns_from_index(index: pd.DatetimeIndex) -> Dict[str, np.ndarray]:
+        """Return the SUEWS temporal columns derived from ``index``."""
+        return {
+            "iy": index.year.to_numpy().astype("int64"),
+            "id": index.dayofyear.to_numpy().astype("int64"),
+            "it": index.hour.to_numpy().astype("int64"),
+            "imin": index.minute.to_numpy().astype("int64"),
+            "isec": index.second.to_numpy().astype("int64"),
+        }
+
     def resample(self, freq: str) -> "SUEWSForcing":
         """
-        Resample to different temporal resolution.
+        Aggregate forcing to a coarser temporal resolution.
 
-        Uses appropriate aggregation methods for each variable type:
-        - Instantaneous variables: last value
-        - Average variables: mean
-        - Sum variables: sum
+        Each output interval ``(t - freq, t]`` is labelled by its end
+        time ``t`` (``closed="right", label="right"``), matching the
+        period-ending timestamps SUEWS uses. Values are aggregated by
+        variable type:
+
+        - Accumulated variables (``rain``, ``Wuh``, ``wuh_<surface>``):
+          sum over the interval.
+        - Interval-average variables (radiation and other ``avg``
+          columns): mean over the interval.
+        - Instantaneous variables (``Tair``, ``RH``, ``U``, ``pres``,
+          ``lai_<surface>`` and any unrecognised column): the value at
+          the interval end.
+
+        Missing values are preserved rather than aggregated into
+        plausible numbers. ``NaN`` and the SUEWS missing sentinel (any
+        value at or below ``-900``) are masked before aggregation, and an
+        output interval is reported as missing (``-999``) unless
+
+        - it is fully covered by ``freq / timestep`` source rows, and
+        - every one of those rows is valid (sums and means), or the
+          row at the interval end is valid (instantaneous values).
+
+        The stricter rule is deliberate: a partial sum understates an
+        accumulation, a partial mean of a diurnal variable is biased,
+        and an earlier valid reading substituted for a missing endpoint
+        is an invented observation. Leading or trailing intervals that
+        the data only partly covers are therefore reported as missing.
+        Use :meth:`fill_gaps` afterwards if gap filling is wanted.
+
+        Temporal columns (``iy``, ``id``, ``it``, ``imin``, ``isec``)
+        are rebuilt from the output index. Per-landcover extension
+        columns follow the same rules.
+
+        Timestamps must sit on the source-step grid (for example 00:05,
+        00:10 for 5-minute data) so that the source intervals tile the
+        output intervals exactly; offset timestamps such as 00:02, 00:07
+        are rejected rather than shifted.
+
+        Only coarsening by an integer multiple of the source timestep is
+        supported. Disaggregating to a finer timestep uses the
+        physics-aware distribution in
+        :meth:`SUEWSForcing.from_file` (``tstep_mod``) or
+        :func:`supy.util._io.resample_forcing_df`, which this method
+        does not replicate.
 
         Parameters
         ----------
         freq : str
-            Target frequency (e.g., "1H", "30min")
+            Target frequency (e.g. ``"1h"``, ``"30min"``); must be an
+            integer multiple of the current timestep.
 
         Returns
         -------
         SUEWSForcing
-            New forcing object at resampled frequency
+            New forcing object at the coarser frequency. When ``freq``
+            equals the current timestep the data are returned unchanged.
+
+        Raises
+        ------
+        ValueError
+            If the index is irregular or offset from the source-step
+            grid, ``freq`` is finer than the current timestep, or
+            ``freq`` is not an integer multiple of it.
         """
-        resampled = self._data.copy()
+        from .util._missing import from_nan, to_nan
 
-        # Build aggregation dict based on variable types
-        agg_dict = {}
-        for col in resampled.columns:
-            var_type = FORCING_VAR_TYPES.get(col, "inst")
-            if var_type == "time":
-                agg_dict[col] = "last"
-            elif var_type == "avg":
-                agg_dict[col] = "mean"
-            elif var_type == "sum":
-                agg_dict[col] = "sum"
-            else:  # inst
-                agg_dict[col] = "last"
+        source_step = self._regular_timestep()
+        target_step = self._fixed_frequency(freq)
+        if target_step == source_step:
+            unchanged = SUEWSForcing(self._data, source=self._source)
+            unchanged._extras = _normalise_extras(self.extras)
+            return unchanged
+        rows_per_bin = self._rows_per_bin(freq, source_step, target_step)
+        self._require_aligned_phase(self._data.index, freq, source_step)
 
-        resampled = resampled.resample(freq, closed="right", label="right").agg(
-            agg_dict
+        value_cols = [c for c in self._data.columns if c not in self._TIME_COLUMNS]
+        frame = self._data[value_cols].astype(float)
+        extras_cols: List[str] = []
+        if self.extras:
+            extras_df = self._extras_frame().astype(float)
+            extras_cols = list(extras_df.columns)
+            frame = pd.concat([frame, extras_df], axis=1)
+
+        out = from_nan(self._aggregate_bins(to_nan(frame), freq, rows_per_bin))
+
+        time_values = self._time_columns_from_index(out.index)
+        resampled = pd.DataFrame(
+            {
+                col: time_values[col] if col in time_values else out[col]
+                for col in self._data.columns
+            },
+            index=out.index,
         )
 
         result = SUEWSForcing(resampled, source=f"{self._source}@{freq}")
-        if self.extras:
-            from ._load import _per_landcover_forcing_var
-
-            extras_df = self._extras_frame()
-            extras_agg = {}
-            for col in extras_df.columns:
-                extras_agg[col] = (
-                    "sum"
-                    if _per_landcover_forcing_var(col) == "wuh"
-                    else "last"
-                )
-            extras_resampled = extras_df.resample(
-                freq, closed="right", label="right"
-            ).agg(extras_agg)
-            result._extras = {
-                name: extras_resampled[name].to_numpy()
-                for name in extras_resampled.columns
-            }
+        if extras_cols:
+            result._extras = {name: out[name].to_numpy() for name in extras_cols}
         return result
 
     def fill_gaps(self, method: str = "interpolate", **kwargs) -> "SUEWSForcing":
@@ -751,18 +960,172 @@ class SUEWSForcing:
         -------
         Path
             Path to saved file
+
+        Notes
+        -----
+        ``format="suews"`` writes a native SUEWS forcing file that
+        :meth:`from_file` (and :func:`supy.util.read_forcing`) load back
+        losslessly:
+
+        - ``iy``, ``id``, ``it``, ``imin`` are derived from the datetime
+          index (interval-end convention), so midnight rows read back as
+          ``it=0, imin=0`` on their own day; ``isec`` is internal and is
+          not written. Because the format has no seconds field, timestamps
+          that are not aligned to whole minutes are rejected with
+          ``ValueError`` rather than silently shifted.
+        - Columns follow the registry's canonical file order, with the
+          registry's canonical header spelling (``U``, ``RH``, ``Tair``,
+          ``Wuh``). Optional canonical columns absent in memory are
+          filled with the ``-999`` sentinel; missing baseline columns
+          raise ``ValueError``.
+        - Variables whose in-memory unit differs from the file unit are
+          converted back to the file unit using the registry's
+          ``runtime_scale`` (pressure: hPa in memory, kPa in file; see
+          gh#1751 and gh#1547). Sentinels and NaN are never scaled and are written as
+          ``-999``.
+        - Per-landcover extension columns (``lai_<surface>``,
+          ``wuh_<surface>``, :attr:`extras`) are appended after the
+          canonical columns so they survive the round trip.
+        - Any other column carried by the in-memory frame is written after
+          the extras with a warning; the loader ignores unknown headers, so
+          such columns do not survive a reload.
+
+        ``format="csv"`` writes the in-memory frame (internal units, e.g.
+        pressure in hPa) with the datetime index as the first column and
+        the extension columns appended. It is a plain data export and is
+        not loadable by :meth:`from_file`.
         """
         path = Path(path)
 
         if format == "suews":
-            # SUEWS native text format
-            self._data.to_csv(path, sep="\t", index=True)
+            df_file = self._encode_native_forcing()
+            df_file.to_csv(path, sep="\t", index=False, lineterminator="\n")
         elif format == "csv":
-            self._data.to_csv(path, index=True)
+            self.to_dataframe(include_extras=True).to_csv(
+                path, index=True, lineterminator="\n"
+            )
         else:
             raise ValueError(f"Unknown format: {format}. Use 'suews' or 'csv'.")
 
         return path
+
+    def _encode_native_forcing(self) -> pd.DataFrame:
+        """Return the in-memory forcing encoded in native SUEWS file form.
+
+        This is the inverse of the file loader
+        (:func:`supy._load._apply_named_column_matching` followed by
+        :func:`supy._load.set_index_dt`): temporal columns come from the
+        index, file units are restored from the registry's
+        ``runtime_scale``, and the column layout is the registry's
+        canonical file order followed by per-landcover extensions.
+        """
+        import warnings
+
+        from ._load import BASELINE_DATETIME_FORCING_COLUMNS, FORCING_OPTIONAL_FILL
+        from .util._missing import SUEWS_MISSING_THRESHOLD
+
+        data = self._data
+        if not isinstance(data.index, pd.DatetimeIndex):
+            raise ValueError(
+                "Forcing must have a pandas.DatetimeIndex to be written in the "
+                f"native SUEWS format; got {type(data.index).__name__}."
+            )
+
+        # The native format carries year/day/hour/minute only. Writing a
+        # timestamp with a seconds (or sub-second) component would silently
+        # shift it onto the minute, so refuse rather than claim a lossless
+        # export (gh#1751).
+        idx = data.index
+        misaligned = idx[idx != idx.floor("min")]
+        if len(misaligned):
+            shown = ", ".join(str(ts) for ts in misaligned[:3])
+            more = f" (+{len(misaligned) - 3} more)" if len(misaligned) > 3 else ""
+            raise ValueError(
+                "Native SUEWS forcing files resolve timestamps to whole minutes; "
+                f"{len(misaligned)} timestamp(s) carry seconds and cannot be "
+                f"written without shifting time: {shown}{more}. Resample or "
+                "shift the forcing to minute-aligned timestamps first, or use "
+                "format='csv' to keep the full datetime index."
+            )
+
+        datetime_cols = set(BASELINE_DATETIME_FORCING_COLUMNS)
+        lower_to_actual = {str(col).lower(): col for col in data.columns}
+
+        def _column(name: str) -> Optional[pd.Series]:
+            actual = lower_to_actual.get(name.lower())
+            return None if actual is None else data[actual]
+
+        missing_baseline = [
+            variable.name
+            for variable in FORCING_REGISTRY.legacy_variables
+            if variable.requiredness == "baseline"
+            and variable.name not in datetime_cols
+            and _column(variable.name) is None
+        ]
+        if missing_baseline:
+            raise ValueError(
+                "Forcing is missing required baseline columns and cannot be "
+                f"written as a native SUEWS file: {missing_baseline}."
+            )
+
+        n_rows = len(data)
+        out: Dict[str, np.ndarray] = {}
+        out["iy"] = idx.year.to_numpy(dtype=np.int64)
+        out["id"] = idx.dayofyear.to_numpy(dtype=np.int64)
+        out["it"] = idx.hour.to_numpy(dtype=np.int64)
+        out["imin"] = idx.minute.to_numpy(dtype=np.int64)
+
+        def _to_file_values(values: np.ndarray, scale: float) -> np.ndarray:
+            values = np.asarray(values, dtype=np.float64)
+            missing = ~np.isfinite(values) | (values <= SUEWS_MISSING_THRESHOLD)
+            if scale != 1.0:
+                values = np.where(missing, values, values / scale)
+            return np.where(missing, FORCING_OPTIONAL_FILL, values)
+
+        consumed = set(datetime_cols) | {"isec"}
+        for variable in FORCING_REGISTRY.legacy_variables:
+            if variable.name in datetime_cols:
+                continue
+            series = _column(variable.name)
+            if series is None:
+                out[variable.name] = np.full(n_rows, FORCING_OPTIONAL_FILL)
+                continue
+            consumed.add(str(series.name).lower())
+            out[variable.name] = _to_file_values(
+                series.to_numpy(), variable.runtime_scale
+            )
+
+        # Per-landcover extensions (gh#1372): the registry order first, then
+        # any further whitelisted names carried in ``extras``.
+        extras = self.extras
+        ordered_extras = [
+            name
+            for columns in FORCING_REGISTRY.per_landcover_columns.values()
+            for name in columns
+            if name in extras
+        ]
+        ordered_extras += [name for name in extras if name not in ordered_extras]
+        for name in ordered_extras:
+            values = np.asarray(extras[name], dtype=np.float64)
+            if values.shape[0] != n_rows:
+                raise ValueError(
+                    f"Extension column '{name}' has {values.shape[0]} values "
+                    f"but the forcing has {n_rows} rows."
+                )
+            out[name] = _to_file_values(values, 1.0)
+
+        unknown = [col for col in data.columns if str(col).lower() not in consumed]
+        if unknown:
+            warnings.warn(
+                "Columns not part of the SUEWS forcing contract are written "
+                f"but will be ignored when the file is loaded: {unknown}.",
+                UserWarning,
+                stacklevel=3,
+            )
+            for col in unknown:
+                out[str(col)] = _to_file_values(data[col].to_numpy(), 1.0)
+
+        return pd.DataFrame(out)
 
     # =========================================================================
     # Rich display

@@ -140,9 +140,8 @@ The build system automatically:
 
 ### Dependencies
 Python dependencies specified in `pyproject.toml`.
-Runtime installs support Python 3.9 and newer. Documentation tooling requires
-Python 3.11 or newer because current Sphinx extension versions, including
-`sphinx-design>=0.7.0`, do not support Python 3.9/3.10.
+SUEWS requires Python 3.12 or newer (`requires-python` in `pyproject.toml`);
+the documentation tooling runs on the same interpreter.
 Recommended local setup:
 
 ```bash

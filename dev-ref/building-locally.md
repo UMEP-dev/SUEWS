@@ -4,7 +4,7 @@ If you want to build SUEWS from source for local use, this guide covers prerequi
 
 ## Prerequisites
 
-- Python 3.9+
+- Python 3.12 or newer
 - `gfortran` compiler (≥ 9.3.0)
   - macOS: `brew install gcc`
   - Ubuntu/Debian: `sudo apt-get install gfortran`

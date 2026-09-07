@@ -1,11 +1,14 @@
 """``suews init`` -- scaffold a new SUEWS YAML case from a template.
 
-Wave-3 ships a single template (``simple-urban``), backed by the
-``sample_data/sample_config.yml`` already vendored with supy. The other
+Two templates ship today, both backed by files vendored under
+``sample_data``: ``simple-urban`` (``sample_config.yml``, the default NARP
+configuration) and ``spartacus`` (``sample_config_spartacus.yml``, the same
+KCL site with SPARTACUS-Surface net radiation and a vertical-layer geometry
+that satisfies the SPARTACUS validation contract; see gh#1699). The other
 template names accepted by ``--template`` (``multi-site``,
-``teaching-demo``, ``spartacus``) are reserved but not yet shipped: the
-command rejects them with a clear "not yet shipped" envelope so users
-get an actionable signal rather than a confusing fallback.
+``teaching-demo``) are reserved but not yet shipped: the command rejects
+them with a clear "not yet shipped" envelope so users get an actionable
+signal rather than a confusing fallback.
 """
 
 from __future__ import annotations
@@ -20,12 +23,13 @@ from ..data_model.configuration.version import CURRENT_SCHEMA_VERSION
 from .json_envelope import EXIT_USER_ERROR, Envelope, _now_iso
 
 # Mapping of template name -> (relative path under ``src/supy/sample_data``,
-# whether it ships in this wave). Only ``simple-urban`` is shipped today.
+# whether it ships in this wave). ``simple-urban`` and ``spartacus`` ship
+# today; the remaining names are reserved.
 _TEMPLATES: dict[str, tuple[str, bool]] = {
     "simple-urban": ("sample_config.yml", True),
     "multi-site": ("sample_config.yml", False),
     "teaching-demo": ("sample_config.yml", False),
-    "spartacus": ("sample_config.yml", False),
+    "spartacus": ("sample_config_spartacus.yml", True),
 }
 
 # Companion files to copy alongside the YAML when the source template
@@ -80,9 +84,10 @@ def _copy_companion_files(path_sample_dir: Path, path_target_dir: Path) -> list[
     help=(
         "Initialise a new SUEWS case directory by copying a packaged template "
         "into TARGET_DIR. The directory is created if missing; existing "
-        "config files are not overwritten. Currently only the 'simple-urban' "
-        "template is shipped; the other names are reserved and rejected with "
-        "a structured error envelope."
+        "config files are not overwritten. The 'simple-urban' (default NARP "
+        "sample) and 'spartacus' (SPARTACUS-Surface net radiation) templates "
+        "are shipped; the other names are reserved and rejected with a "
+        "structured error envelope."
     ),
 )
 @click.argument(
@@ -119,7 +124,7 @@ def init_case_cmd(target_dir: str, template: str, output_format: str) -> None:
     if not is_shipped:
         message = (
             f"Template '{template_key}' is reserved but not yet shipped. "
-            "Only 'simple-urban' is currently available."
+            "Available templates: 'simple-urban', 'spartacus'."
         )
         _emit_error(
             message,

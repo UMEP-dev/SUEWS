@@ -85,6 +85,30 @@ def test_init_unshipped_template_returns_structured_error(tmp_path: Path) -> Non
     assert "not yet shipped" in msg.lower() or "reserved" in msg.lower()
 
 
+def test_init_spartacus_template_ships_dedicated_example(tmp_path: Path) -> None:
+    """The spartacus template scaffolds the dedicated SPARTACUS example (gh#1699)."""
+    out_dir = tmp_path / "case03b"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        init_case_cmd,
+        [str(out_dir), "--template", "spartacus", "--format", "json"],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.stdout)
+    assert envelope["status"] == "success"
+    path_yaml = out_dir / "sample_config_spartacus.yml"
+    assert str(path_yaml) in envelope["data"]["files_created"]
+    assert (out_dir / "Kc_2012_data_60.txt").exists()
+    assert not (out_dir / "sample_config.yml").exists()
+
+    result_validate = CliRunner().invoke(
+        dispatcher,
+        ["validate", "--pipeline", "C", "--dry-run", str(path_yaml)],
+    )
+    assert result_validate.exit_code == 0, result_validate.output
+
+
 def test_init_refuses_overwrite(tmp_path: Path) -> None:
     """A second init into the same directory must refuse to clobber."""
     out_dir = tmp_path / "case04"

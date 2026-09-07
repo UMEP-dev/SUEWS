@@ -1,4 +1,5 @@
 import copy
+from importlib.resources import as_file, files
 
 import numpy as np
 import pytest
@@ -120,7 +121,10 @@ def _with_vertical_layer_cp(layers, rho_cp):
 
 
 def _run_short_spartacus_ehc_with_building_cp(rho_cp):
-    sim = sp.SUEWSSimulation.from_sample_data()
+    # The shipped SPARTACUS example already carries a layer geometry that
+    # passes the SPARTACUS vegetation check (gh#1699), so no data repair.
+    with as_file(files("supy").joinpath("sample_data/sample_config_spartacus.yml")) as path:
+        sim = sp.SUEWSSimulation(path)
     cfg = sim._config.model_dump(exclude_none=True, mode="json")
     land_cover = cfg["sites"][0]["properties"]["land_cover"]
     vertical_layers = cfg["sites"][0]["properties"]["vertical_layers"]
@@ -130,8 +134,6 @@ def _run_short_spartacus_ehc_with_building_cp(rho_cp):
     vertical_layers["veg_frac"]["value"][0] = (
         land_cover["evetr"]["sfr"]["value"] + land_cover["dectr"]["sfr"]["value"]
     )
-    vertical_layers["veg_frac"]["value"][2] = 0.0
-    vertical_layers["veg_scale"]["value"][2] = 0.0
     cfg["model"]["physics"]["net_radiation"] = {"value": 1003}
     cfg["model"]["physics"]["storage_heat"] = {"value": 5}
     for internal_key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):

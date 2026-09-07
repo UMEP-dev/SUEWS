@@ -97,6 +97,7 @@ py.install_sources(
         ],
         [
             'sample_data/sample_config.yml',
+            'sample_data/sample_config_spartacus.yml',
             'sample_data/Kc_2012_data_60.txt'
         ],
         [

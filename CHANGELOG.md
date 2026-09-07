@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 7 Sep 2026
+
+- [feature][experimental] Added a dedicated SPARTACUS-Surface example, `sample_data/sample_config_spartacus.yml`, and shipped it as the `suews init --template spartacus` template (#1699)
+  - Same KCL site as the default sample with `net_radiation: spartacus/ldown: air` and a vegetation-free 15-22 m layer, so it passes the SPARTACUS vegetation-layer check without test-side repair; the default NARP sample and the validators are unchanged.
+  - Public-path SPARTACUS tests now load the example directly; new contract tests pin the example to the default sample plus its documented delta.
+  - Documented the SPARTACUS vegetation-layer constraint in the layer-conventions page.
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

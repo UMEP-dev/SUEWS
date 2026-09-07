@@ -65,7 +65,8 @@ Key points:
   between grids/timesteps and surfaces the error to Python.
 - **Never** call `STOP`, `ERROR STOP`, `CALL abort`, or `WRITE(*,...)`.
 
-Working examples: `suews_phys_stebbs.f95:469`, `suews_phys_rslprof.f95:658`,
+Working examples: `suews_phys_stebbs.f95` (STEBBS thermal-parameter guard),
+`suews_phys_rslprof.f95` (`interp_z` NaN guards),
 `suews_phys_dailystate.f95` (observed-LAI guard, GH#1296).
 
 ---

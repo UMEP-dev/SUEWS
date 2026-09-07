@@ -216,11 +216,9 @@ fn decode_kernel_warnings(
     text_len: usize,
 ) -> KernelWarnings {
     let stored = usize::try_from(stored).unwrap_or(0);
-    let n = stored.min(timer.len() / 4).min(if text_len == 0 {
-        0
-    } else {
-        text.len() / text_len
-    });
+    let n = stored
+        .min(timer.len() / 4)
+        .min(text.len().checked_div(text_len).unwrap_or(0));
     let mut entries = Vec::with_capacity(n);
     for i in 0..n {
         let record = &text[i * text_len..(i + 1) * text_len];

@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
-- [bugfix] Fortran kernel warnings now reach the user: the per-grid warning log survives the whole run, each entry is stamped with its timestep, the log crosses the Rust bridge, and SuPy logs a deduplicated summary and exposes `SUEWSSimulation.kernel_warnings` / `SUEWSOutput.kernel_warnings` (#1737)
+- [bugfix] Fortran kernel warnings now reach the user: the per-grid warning log survives the whole run, each entry is stamped with its timestep, the log crosses the Rust bridge, and SuPy logs a deduplicated summary and exposes `SUEWSSimulation.kernel_warnings` / `SUEWSOutput.kernel_warnings` (#1743; issue #1737)
   - The 20 physics fallbacks that reported through the no-op `add_supy_warning` stub (SPARTACUS flat-tile substitution, EHC leaving QS at zero, STEBBS, RSL, ESTM, AnOHM, Kdown split, DyOHM stability) now report through the per-grid state; the stub is removed.
   - The kernel counts every report separately from the 512-entry log cap, so long runs report the true occurrence count instead of silently truncating.
   - Internal: `run_suews*` bridge functions return a fourth element `(total, [(iy, id, it, imin, location, message), ...])`; the Python runner accepts both the old three-element and the new four-element tuples.

@@ -204,7 +204,6 @@ def _dyohm_sim_with_unstable_paved_layer(sample_yaml_path, n_steps):
     return sim
 
 
-@pytest.mark.smoke
 def test_stubbed_site_warning_reaches_user_with_grid_and_timestep(
     sample_yaml_path, caplog
 ):

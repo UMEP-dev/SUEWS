@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 7 Sep 2026
+
+- [bugfix] `SUEWSForcing.save(format="suews")` now writes a native forcing file that `from_file` loads back losslessly: temporal columns are derived from the datetime index (no leading index column, no internal `isec`), pressure is converted back from hPa to the file's kPa using the forcing registry's `runtime_scale` with sentinels left untouched, columns follow the registry's canonical order, and per-landcover extension columns (`lai_<surface>`, `wuh_<surface>`) are written after them. Previously a saved file reloaded with pressure inflated tenfold and every extension column dropped. `format="csv"` now includes the extension columns too. (#1751)
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

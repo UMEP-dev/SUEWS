@@ -751,18 +751,154 @@ class SUEWSForcing:
         -------
         Path
             Path to saved file
+
+        Notes
+        -----
+        ``format="suews"`` writes a native SUEWS forcing file that
+        :meth:`from_file` (and :func:`supy.util.read_forcing`) load back
+        losslessly:
+
+        - ``iy``, ``id``, ``it``, ``imin`` are derived from the datetime
+          index (interval-end convention), so midnight rows read back as
+          ``it=0, imin=0`` on their own day; ``isec`` is internal and is
+          not written.
+        - Columns follow the registry's canonical file order, with the
+          registry's canonical header spelling (``U``, ``RH``, ``Tair``,
+          ``Wuh``). Optional canonical columns absent in memory are
+          filled with the ``-999`` sentinel; missing baseline columns
+          raise ``ValueError``.
+        - Variables whose in-memory unit differs from the file unit are
+          converted back to the file unit using the registry's
+          ``runtime_scale`` (pressure: hPa in memory, kPa in file; see
+          gh#1751 and gh#1547). Sentinels and NaN are never scaled and are written as
+          ``-999``.
+        - Per-landcover extension columns (``lai_<surface>``,
+          ``wuh_<surface>``, :attr:`extras`) are appended after the
+          canonical columns so they survive the round trip.
+        - Any other column carried by the in-memory frame is written after
+          the extras with a warning; the loader ignores unknown headers, so
+          such columns do not survive a reload.
+
+        ``format="csv"`` writes the in-memory frame (internal units, e.g.
+        pressure in hPa) with the datetime index as the first column and
+        the extension columns appended. It is a plain data export and is
+        not loadable by :meth:`from_file`.
         """
         path = Path(path)
 
         if format == "suews":
-            # SUEWS native text format
-            self._data.to_csv(path, sep="\t", index=True)
+            df_file = self._encode_native_forcing()
+            df_file.to_csv(path, sep="\t", index=False, lineterminator="\n")
         elif format == "csv":
-            self._data.to_csv(path, index=True)
+            self.to_dataframe(include_extras=True).to_csv(
+                path, index=True, lineterminator="\n"
+            )
         else:
             raise ValueError(f"Unknown format: {format}. Use 'suews' or 'csv'.")
 
         return path
+
+    def _encode_native_forcing(self) -> pd.DataFrame:
+        """Return the in-memory forcing encoded in native SUEWS file form.
+
+        This is the inverse of the file loader
+        (:func:`supy._load._apply_named_column_matching` followed by
+        :func:`supy._load.set_index_dt`): temporal columns come from the
+        index, file units are restored from the registry's
+        ``runtime_scale``, and the column layout is the registry's
+        canonical file order followed by per-landcover extensions.
+        """
+        import warnings
+
+        from ._load import BASELINE_DATETIME_FORCING_COLUMNS, FORCING_OPTIONAL_FILL
+        from .util._missing import SUEWS_MISSING_THRESHOLD
+
+        data = self._data
+        if not isinstance(data.index, pd.DatetimeIndex):
+            raise ValueError(
+                "Forcing must have a pandas.DatetimeIndex to be written in the "
+                f"native SUEWS format; got {type(data.index).__name__}."
+            )
+
+        datetime_cols = set(BASELINE_DATETIME_FORCING_COLUMNS)
+        lower_to_actual = {str(col).lower(): col for col in data.columns}
+
+        def _column(name: str) -> Optional[pd.Series]:
+            actual = lower_to_actual.get(name.lower())
+            return None if actual is None else data[actual]
+
+        missing_baseline = [
+            variable.name
+            for variable in FORCING_REGISTRY.legacy_variables
+            if variable.requiredness == "baseline"
+            and variable.name not in datetime_cols
+            and _column(variable.name) is None
+        ]
+        if missing_baseline:
+            raise ValueError(
+                "Forcing is missing required baseline columns and cannot be "
+                f"written as a native SUEWS file: {missing_baseline}."
+            )
+
+        n_rows = len(data)
+        out: Dict[str, np.ndarray] = {}
+        idx = data.index
+        out["iy"] = idx.year.to_numpy(dtype=np.int64)
+        out["id"] = idx.dayofyear.to_numpy(dtype=np.int64)
+        out["it"] = idx.hour.to_numpy(dtype=np.int64)
+        out["imin"] = idx.minute.to_numpy(dtype=np.int64)
+
+        def _to_file_values(values: np.ndarray, scale: float) -> np.ndarray:
+            values = np.asarray(values, dtype=np.float64)
+            missing = ~np.isfinite(values) | (values <= SUEWS_MISSING_THRESHOLD)
+            if scale != 1.0:
+                values = np.where(missing, values, values / scale)
+            return np.where(missing, FORCING_OPTIONAL_FILL, values)
+
+        consumed = set(datetime_cols) | {"isec"}
+        for variable in FORCING_REGISTRY.legacy_variables:
+            if variable.name in datetime_cols:
+                continue
+            series = _column(variable.name)
+            if series is None:
+                out[variable.name] = np.full(n_rows, FORCING_OPTIONAL_FILL)
+                continue
+            consumed.add(str(series.name).lower())
+            out[variable.name] = _to_file_values(
+                series.to_numpy(), variable.runtime_scale
+            )
+
+        # Per-landcover extensions (gh#1372): the registry order first, then
+        # any further whitelisted names carried in ``extras``.
+        extras = self.extras
+        ordered_extras = [
+            name
+            for columns in FORCING_REGISTRY.per_landcover_columns.values()
+            for name in columns
+            if name in extras
+        ]
+        ordered_extras += [name for name in extras if name not in ordered_extras]
+        for name in ordered_extras:
+            values = np.asarray(extras[name], dtype=np.float64)
+            if values.shape[0] != n_rows:
+                raise ValueError(
+                    f"Extension column '{name}' has {values.shape[0]} values "
+                    f"but the forcing has {n_rows} rows."
+                )
+            out[name] = _to_file_values(values, 1.0)
+
+        unknown = [col for col in data.columns if str(col).lower() not in consumed]
+        if unknown:
+            warnings.warn(
+                "Columns not part of the SUEWS forcing contract are written "
+                f"but will be ignored when the file is loaded: {unknown}.",
+                UserWarning,
+                stacklevel=3,
+            )
+            for col in unknown:
+                out[str(col)] = _to_file_values(data[col].to_numpy(), 1.0)
+
+        return pd.DataFrame(out)
 
     # =========================================================================
     # Rich display

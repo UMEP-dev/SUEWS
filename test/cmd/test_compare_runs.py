@@ -480,3 +480,53 @@ def test_text_output_labels_alignment_and_grid(tmp_path: Path) -> None:
     assert "alignment: time" in result.output
     assert "grid     : baseline=1 scenario=1" in result.output
     assert "n=4" in result.output
+
+
+def test_multi_grid_run_against_observations_csv_with_grid(tmp_path: Path) -> None:
+    """--grid selects the run grid while an unlabelled observations CSV is accepted."""
+    _write_two_grid_parquet(tmp_path / "run", 0.0)
+    path_obs = tmp_path / "observations.csv"
+    pd.DataFrame({
+        "datetime": pd.date_range("2024-06-01", periods=4, freq="h"),
+        "QH": [
+            21.0,
+            22.0,
+            23.0,
+            24.0,
+        ],  # grid 2 QH is 20..23; bias = scenario - baseline = +1
+    }).to_csv(path_obs, index=False)
+
+    result, envelope = _invoke_json(
+        str(tmp_path / "run"), str(path_obs), "--variables", "QH", "--grid", "2"
+    )
+
+    assert result.exit_code == 0, result.output
+    assert envelope["data"]["grid"] == {"baseline": "2", "scenario": None}
+    assert envelope["data"]["per_variable"]["QH"]["bias"] == pytest.approx(1.0)
+    assert envelope["data"]["per_variable"]["QH"]["n"] == 4
+
+    result, envelope = _invoke_json(
+        str(tmp_path / "run"), str(path_obs), "--variables", "QH"
+    )
+    assert result.exit_code == 1
+    assert "--grid" in envelope["errors"][0]["message"]
+
+
+def test_grid_does_not_disambiguate_several_unlabelled_partitions(
+    tmp_path: Path,
+) -> None:
+    _write_two_grid_parquet(tmp_path / "run", 0.0)
+    run_dir = tmp_path / "obs"
+    run_dir.mkdir()
+    for name in ("df_output_a.csv", "df_output_b.csv"):
+        pd.DataFrame({
+            "datetime": pd.date_range("2024-06-01", periods=4, freq="h"),
+            "QH": [1.0, 2.0, 3.0, 4.0],
+        }).to_csv(run_dir / name, index=False)
+
+    result, envelope = _invoke_json(
+        str(tmp_path / "run"), str(run_dir), "--variables", "QH", "--grid", "2"
+    )
+
+    assert result.exit_code == 1
+    assert "scenario: grid '2' not present" in envelope["errors"][0]["message"]

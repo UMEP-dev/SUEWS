@@ -71,21 +71,29 @@ def _select_grid(
     present; otherwise the caller is asked to choose.
 
     Returns ``(frame, grid_identity)``; the identity is ``None`` for inputs
-    that carry no grid label (for example an observations CSV).
+    that carry no grid label (for example an observations CSV). Such an
+    input is accepted alongside ``--grid`` only when it is a single
+    partition; several unlabelled partitions are ambiguous and rejected.
     """
     groups: dict[str | None, list[pd.DataFrame]] = {}
     for label, df_partition in list_partitions:
         groups.setdefault(_partition_grid(label), []).append(df_partition)
 
     if grid is not None:
-        if grid not in groups:
+        if grid in groups:
+            chosen = grid
+        elif list(groups) == [None] and len(groups[None]) == 1:
+            # A single unlabelled series (typically an observations CSV) has
+            # no grid to select; it is accepted as-is and reported with an
+            # unknown grid identity while --grid still picks the run grid.
+            chosen = None
+        else:
             available = (
                 ", ".join(g for g in groups if g is not None) or "none identifiable"
             )
             raise ValueError(
                 f"{side}: grid {grid!r} not present (available: {available})"
             )
-        chosen = grid
     elif len(groups) == 1:
         chosen = next(iter(groups))
     else:

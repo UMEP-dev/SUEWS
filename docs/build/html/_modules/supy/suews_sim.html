@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.9.7.dev6 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.9.7.dev7 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=6e529ddd"></script>
+    <script src="../../_static/documentation_options.js?v=d5ae1fc0"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.7.dev6" />
+  <meta name="docsearch:version" content="2026.9.7.dev7" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.7.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d2698e2c3902c1916dff5bfb0186fad4dddc82e2" style="color: #31708f;">d2698e2</a>).
+        (2026.9.7.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/19d775426be86ffb09cad5e8d3f1277cfafe5262" style="color: #31708f;">19d7754</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -193,8 +193,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.7.dev6 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.7.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.7.dev7 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.7.dev7 documentation - Home"/>
   
   
 </a></div>
@@ -611,6 +611,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">._check</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_forcing</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._filename</span><span class="w"> </span><span class="kn">import</span> <span class="n">safe_filename_component</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._load</span><span class="w"> </span><span class="kn">import</span> <span class="n">merge_forcing_frames</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._run_rust</span><span class="w"> </span><span class="kn">import</span> <span class="n">_check_rust_available</span><span class="p">,</span> <span class="n">run_suews_rust_chunked</span>
 
 <span class="c1"># Import SuPy components directly</span>
@@ -993,7 +994,10 @@
 <div class="viewcode-block" id="SUEWSSimulation.update_forcing">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.update_forcing">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_forcing</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">forcing_data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">SUEWSForcing</span><span class="p">]</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">forcing_data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">SUEWSForcing</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">on_conflict</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"error"</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Update meteorological forcing data.</span>
@@ -1003,10 +1007,18 @@
 <span class="sd">        forcing_data : str, Path, list of paths, pandas.DataFrame, or SUEWSForcing</span>
 <span class="sd">            Forcing data source:</span>
 <span class="sd">            - Path to a single forcing file</span>
-<span class="sd">            - List of paths to forcing files (concatenated in order)</span>
+<span class="sd">            - List of paths to forcing files (merged by timestamp)</span>
 <span class="sd">            - Path to directory containing forcing files (deprecated)</span>
 <span class="sd">            - DataFrame with forcing data</span>
 <span class="sd">            - SUEWSForcing object</span>
+<span class="sd">        on_conflict : {"error", "first", "last"}, optional</span>
+<span class="sd">            Applies when several files are merged. Overlapping records that</span>
+<span class="sd">            agree are deduplicated; records that disagree for the same</span>
+<span class="sd">            timestamp and variable raise</span>
+<span class="sd">            :class:`~supy.suews_forcing.ForcingConflictError` by default.</span>
+<span class="sd">            ``"first"`` / ``"last"`` resolve them by list order (earlier /</span>
+<span class="sd">            later file wins) and log a warning. Ignored for DataFrame and</span>
+<span class="sd">            SUEWSForcing inputs.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1061,14 +1073,14 @@
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="c1"># Handle list of files</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">_load_forcing_from_list</span><span class="p">(</span>
-                <span class="n">forcing_data</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span>
+                <span class="n">forcing_data</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">,</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
             <span class="n">forcing_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">forcing_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Forcing path not found: </span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">_load_forcing_file</span><span class="p">(</span>
-                <span class="n">forcing_path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span>
+                <span class="n">forcing_path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">,</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported forcing data type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -1170,13 +1182,22 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_load_forcing_from_list</span><span class="p">(</span>
-        <span class="n">forcing_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]],</span> <span class="n">tstep_mod</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span>
+        <span class="n">forcing_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]],</span>
+        <span class="n">tstep_mod</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">on_conflict</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"error"</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Load and concatenate forcing data from a list of files."""</span>
+<span class="w">        </span><span class="sd">"""Load and merge forcing data from a list of files.</span>
+
+<span class="sd">        Overlapping timestamps are reconciled by</span>
+<span class="sd">        :func:`supy._load.merge_forcing_frames`: identical records are</span>
+<span class="sd">        deduplicated, conflicting observations raise unless ``on_conflict``</span>
+<span class="sd">        selects a precedence.</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">forcing_list</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Empty forcing file list provided"</span><span class="p">)</span>
 
         <span class="n">dfs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">sources</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">forcing_list</span><span class="p">:</span>
             <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
 
@@ -1189,15 +1210,16 @@
                     <span class="s2">"Directories are not allowed in lists."</span>
                 <span class="p">)</span>
 
-            <span class="n">df</span> <span class="o">=</span> <span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">,</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span><span class="p">)</span>
             <span class="n">dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+            <span class="n">sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
 
-        <span class="n">result</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">infer_freq</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">result</span>
+        <span class="k">return</span> <span class="n">merge_forcing_frames</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="n">sources</span><span class="p">,</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span><span class="p">)</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_load_forcing_file</span><span class="p">(</span><span class="n">forcing_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_forcing_file</span><span class="p">(</span>
+        <span class="n">forcing_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span> <span class="n">on_conflict</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"error"</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Load forcing data from file or directory."""</span>
         <span class="k">if</span> <span class="n">forcing_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
             <span class="c1"># Issue deprecation warning for directory usage</span>
@@ -1218,14 +1240,18 @@
                     <span class="sa">f</span><span class="s2">"No forcing files found in directory: </span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">"</span>
                 <span class="p">)</span>
 
-            <span class="c1"># Concatenate all files</span>
-            <span class="n">dfs</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">forcing_files</span><span class="p">:</span>
-                <span class="n">dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">))</span>
-
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
+            <span class="c1"># Merge all files, reconciling overlapping timestamps</span>
+            <span class="n">dfs</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">,</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">forcing_files</span>
+            <span class="p">]</span>
+            <span class="k">return</span> <span class="n">merge_forcing_frames</span><span class="p">(</span>
+                <span class="n">dfs</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">forcing_files</span><span class="p">],</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span>
+            <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">forcing_path</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">read_forcing</span><span class="p">(</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">forcing_path</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">,</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span>
+            <span class="p">)</span>
 
 <div class="viewcode-block" id="SUEWSSimulation.run">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.run">[docs]</a>
@@ -2324,8 +2350,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.7.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d2698e2c3902c1916dff5bfb0186fad4dddc82e2">d2698e2</a> |
+  <p>Version: 2026.9.7.dev7 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/19d775426be86ffb09cad5e8d3f1277cfafe5262">19d7754</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

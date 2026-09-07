@@ -36,9 +36,11 @@ The model represents seven surface types -- paved, buildings, evergreen trees/sh
 * **Storage heat schemes**: OHM, AnOHM, ESTM, EHC (explicit heat conduction)
 * **Building energy**: STEBBS (Simple Thermal Energy Balance for Building Scheme)
 * **Python API**: YAML configuration, pandas DataFrames, programmatic simulations
-* **CLI tools**: `suews-run`, `suews-validate`, `suews-convert`, `suews-schema`
+* **CLI tools**: `suews run`, `suews validate`, `suews convert`, `suews schema`
 
 ## Quick Start
+
+SUEWS requires Python 3.12 or newer.
 
 ```bash
 pip install supy
@@ -47,7 +49,7 @@ pip install supy
 **Run from the command line:**
 
 ```bash
-suews-run /path/to/config.yml
+suews run /path/to/config.yml
 ```
 
 **Or use the Python API:**

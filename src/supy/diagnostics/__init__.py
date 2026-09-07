@@ -8,11 +8,18 @@ keeps the checks individually testable and the aggregator trivial.
 Phase-1 checks (intentionally minimal):
 
 - :func:`check_provenance_present` -- ``provenance.json`` sidecar exists.
-- :func:`check_output_files_present` -- at least one ``df_output*.csv``
-  or ``*.parquet`` produced by ``suews run`` is present.
-- :func:`check_nan_proportion` -- NaN fraction in QH/QE/QN below 5%.
+- :func:`check_output_files_present` -- at least one ``df_output*.csv``,
+  ``*.parquet`` or legacy ``*_SUEWS_*.txt`` produced by ``suews run`` is
+  present.
+- :func:`check_nan_proportion` -- missing fraction in QH/QE/QN below 5%
+  in every output partition.
 - :func:`check_energy_balance_closure` -- mean
-  ``|QN - (QH + QE + QS + QF)| / |QN| < 0.10``.
+  ``|(QN + QF + QMRain) - (QH + QE + QS + QM + QMFreeze)| / |QN| < 0.10``.
+
+Every partition of the run output is inspected and judged on its own
+(all files of the highest-priority format present, and every grid
+within a file); a run passes only when every partition passes. The
+legacy ``-999`` sentinel is treated as missing.
 
 Severity ladder: ``pass`` (passed=True), ``warning`` (passed=False but
 non-fatal), ``fail`` (passed=False and the run is unusable).

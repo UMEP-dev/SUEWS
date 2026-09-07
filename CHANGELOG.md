@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 7 Sep 2026
+
+- [doc] Aligned the onboarding text with the canonical `suews run` / `suews validate` / `suews convert` / `suews schema` commands and the Python 3.12+ runtime floor (#1745)
+  - README quick start, `suews run --help` and its namelist deprecation messages no longer recommend the deprecated hyphenated aliases
+  - `make docs-setup`, `docs/README.md` and the developer building/onboarding guides now state the `requires-python` floor from `pyproject.toml` instead of Python 3.9+
+  - Tests in `test/cmd/test_suews_cli.py` check that `suews run --help` and the README teach resolvable canonical commands and that the onboarding files do not understate the runtime floor
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

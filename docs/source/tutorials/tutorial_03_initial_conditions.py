@@ -109,8 +109,12 @@ forcing_data = sim.forcing
 # Typically 2-3 iterations suffice for convergence (change < 1 mm).
 n_spinup = 3
 for i in range(n_spinup):
-    # Create new simulation from checkpoint and re-attach forcing
-    sim_next = SUEWSSimulation.from_checkpoint(sim.config, sim.checkpoint)
+    # Create new simulation from checkpoint and re-attach forcing.
+    # The same period is re-run on purpose, so switch off the continuity
+    # check that otherwise rejects forcing overlapping the checkpoint.
+    sim_next = SUEWSSimulation.from_checkpoint(
+        sim.config, sim.checkpoint, check_continuity=False
+    )
     sim_next.update_forcing(forcing_data)
     _ = sim_next.run()
     soil_history.append(sim_next.state_final.filter(like="soilstore").mean().mean())

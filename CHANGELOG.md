@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 7 Sep 2026
+
+- [change][stable] Checkpoint continuation now requires the forcing to start one model timestep after the checkpoint's `last_timestamp`; overlapping or gapped forcing, a missing `last_timestamp`, and a repeated `run()` on the same instance raise a `ValueError` instead of running silently from the evolved state (#1735)
+  - `SUEWSSimulation.from_checkpoint(...)` and `continue_from(...)` accept `check_continuity=False` for deliberate re-runs such as spin-up cycling; the opt-out applies to the next `run()` only
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

@@ -245,7 +245,10 @@ def test_checkpoint_grid_ids_must_match_config():
     sim = SUEWSSimulation(str(config_path))
     forcing = sim.forcing.df.iloc[:12]
     sim.update_forcing(forcing)
-    checkpoint = SUEWSCheckpoint.from_grid_states({2: _checkpoint_payload()})
+    checkpoint = SUEWSCheckpoint.from_grid_states(
+        {2: _checkpoint_payload()},
+        last_timestamp=forcing.index[0] - pd.Timedelta(seconds=300),
+    )
     sim.continue_from(checkpoint)
 
     with pytest.raises(ValueError, match=r"missing checkpoint states.*unexpected"):
@@ -303,3 +306,119 @@ def test_checkpoint_file_continuation_roundtrip(tmp_path):
     assert output.checkpoint is not None
     assert not output.df.empty
     assert Path(checkpoint_path).exists()
+
+
+def _first_hour_checkpoint():
+    """Run the first 12 sample rows and return (sim, checkpoint, first 48 rows)."""
+    sim = SUEWSSimulation.from_sample_data()
+    forcing = sim.forcing.df.iloc[:48]
+    sim.update_forcing(forcing.iloc[:12])
+    sim.run(n_jobs=1)
+    return sim, sim.checkpoint, forcing
+
+
+def test_continuation_rejects_overlapping_forcing():
+    """Forcing that restarts inside the checkpointed period is refused."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, checkpoint)
+    sim_next.update_forcing(forcing.iloc[:12])
+
+    with pytest.raises(
+        ValueError, match=r"overlaps the checkpointed period.*reset\(\)"
+    ):
+        sim_next.run(n_jobs=1)
+
+
+def test_continuation_rejects_gapped_forcing():
+    """Forcing that skips timesteps after the checkpoint is refused."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, checkpoint)
+    sim_next.update_forcing(forcing.iloc[24:36])
+
+    with pytest.raises(ValueError, match="leaving a gap after the checkpointed period"):
+        sim_next.run(n_jobs=1)
+
+
+def test_continuation_check_ignores_validate_forcing_switch():
+    """The continuity check is not part of the optional forcing validation."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, checkpoint)
+    sim_next.update_forcing(forcing.iloc[24:36])
+
+    with pytest.raises(ValueError, match="leaving a gap"):
+        sim_next.run(n_jobs=1, _validate_forcing=False)
+
+
+def test_continuation_requires_last_timestamp_metadata():
+    """A checkpoint without last_timestamp cannot be checked and is refused."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    bare = SUEWSCheckpoint.from_grid_states(checkpoint.grid_states)
+    assert bare.last_timestamp is None
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, bare)
+    sim_next.update_forcing(forcing.iloc[12:24])
+
+    with pytest.raises(ValueError, match="no last_timestamp metadata"):
+        sim_next.run(n_jobs=1)
+
+
+def test_continuation_opt_out_allows_recycled_forcing():
+    """check_continuity=False permits deliberate re-runs from the checkpoint."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    sim_next = SUEWSSimulation.from_checkpoint(
+        sim.config, checkpoint, check_continuity=False
+    )
+    sim_next.update_forcing(forcing.iloc[:12])
+    output = sim_next.run(n_jobs=1)
+
+    assert len(output.df) == 12
+    # The opt-out applies to one run only: the new checkpoint is checked again.
+    with pytest.raises(ValueError, match="overlaps the checkpointed period"):
+        sim_next.run(n_jobs=1)
+
+
+def test_same_instance_repeated_run_is_rejected():
+    """run() twice on one instance is an overlapping continuation."""
+    sim = SUEWSSimulation.from_sample_data()
+    sim.update_forcing(sim.forcing.df.iloc[:12])
+    sim.run(n_jobs=1)
+
+    with pytest.raises(ValueError, match=r"overlaps.*reset\(\)"):
+        sim.run(n_jobs=1)
+
+    assert sim.reset().run(n_jobs=1).df.shape[0] == 12
+
+
+def test_same_instance_date_sliced_continuation_is_accepted():
+    """Contiguous start_date/end_date slices continue on one instance."""
+    sim = SUEWSSimulation.from_sample_data()
+    forcing = sim.forcing.df.iloc[:24]
+    sim.update_forcing(forcing)
+    sim.run(end_date=forcing.index[11], n_jobs=1)
+    output = sim.run(start_date=forcing.index[12], n_jobs=1)
+
+    assert output.df.index.get_level_values("datetime")[0] == forcing.index[12]
+    assert len(output.df) == 12
+
+
+def test_chunked_continuation_from_checkpoint_matches_uninterrupted_run():
+    """A contiguous from_checkpoint run with internal chunking is not refused."""
+    sim_full = SUEWSSimulation.from_sample_data()
+    forcing = sim_full.forcing.df.iloc[:600]
+    sim_full.update_forcing(forcing)
+    output_full = sim_full.run(n_jobs=1)
+
+    sim_first = SUEWSSimulation.from_sample_data()
+    sim_first.update_forcing(forcing.iloc[:12])
+    sim_first.run(n_jobs=1)
+
+    sim_second = SUEWSSimulation.from_checkpoint(sim_first.config, sim_first.checkpoint)
+    sim_second.update_forcing(forcing.iloc[12:])
+    output_second = sim_second.run(chunk_day=1, n_jobs=1)
+
+    pd.testing.assert_frame_equal(
+        output_second.df,
+        output_full.df.loc[output_second.df.index],
+        check_exact=False,
+        rtol=CHECKPOINT_RTOL,
+        atol=CHECKPOINT_ATOL,
+    )

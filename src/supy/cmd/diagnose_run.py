@@ -39,8 +39,11 @@ def _build_recommendations(list_results: list[Any]) -> list[str]:
             continue
         if res.name == "provenance_present":
             list_recommendations.append(
-                "Preserve the run command, configuration path, and git commit "
-                "in a provenance.json sidecar before archiving the run."
+                "The provenance.json sidecar is missing: `suews run "
+                "<config.yml>` and SUEWSSimulation.save() write it alongside "
+                "the outputs (configuration and forcing identities, build "
+                "version, simulated period). Re-run or save again to restore "
+                "it before archiving the run."
             )
         elif res.name == "output_files_present":
             list_recommendations.append(

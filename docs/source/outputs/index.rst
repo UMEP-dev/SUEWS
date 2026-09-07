@@ -52,6 +52,43 @@ backwards compatibility and developer inspection, but they are not the preferred
 restart artefact for new object-oriented workflows.
 
 
+Run Provenance
+--------------
+
+provenance.json
+^^^^^^^^^^^^^^^
+
+Every save (``suews run <config.yml>`` or ``SUEWSSimulation.save()``) writes a
+small ``provenance.json`` next to the output files. It records what a saved
+run directory was produced from, so the run can be audited or compared later
+without the original session:
+
+- ``config`` and ``forcing``: the configuration and forcing files by file
+  name, size and SHA-256 content hash, plus the configuration schema
+  version, site names and grid IDs. Directories and absolute paths are never
+  written, so the file can be shared as it is. In-memory inputs are recorded
+  as ``"source": "in-memory"``.
+- ``supy_version`` and ``git_commit``: the SuPy build that ran.
+- ``period``: the requested start and end (explicit ``run()`` arguments or the
+  configuration's ``start_time`` / ``end_time``), the period actually
+  simulated with its number of timesteps, and the model timestep in seconds.
+  Comparing ``requested`` with ``actual`` shows whether a request was clipped
+  to the available forcing; ``clipped`` and ``policy`` carry the verdict of
+  the period-coverage check when it ran, and are ``null`` otherwise.
+- ``timestamps``: the labelling convention (``interval_end``; timestamps mark
+  the end of each interval) and the forcing and output ``timestamp_reference``
+  settings.
+- ``run``: interface (``cli`` or ``python``), the ``suews run`` command line
+  when applicable, wall-clock start and end, ``n_jobs``, ``chunk_day`` and
+  whether the run continued from a checkpoint.
+- ``output``: format, output frequency, the files written and the checkpoint
+  file name.
+
+``suews diagnose`` checks for this file (``provenance_present``), and the MCP
+resource ``suews://runs/{run_id}/provenance`` returns its content. A
+top-level ``format_version`` (currently ``1``) identifies the layout.
+
+
 Temporal Information
 --------------------
 

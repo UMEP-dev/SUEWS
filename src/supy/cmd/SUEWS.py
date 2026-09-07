@@ -136,7 +136,7 @@ def _run_with_yaml(config_path):
 
         # Save results
         click.echo("\nSaving results ...")
-        output_files = sim.save()
+        output_files = sim.save(command=f"suews run {config_path.name}")
 
         # Show output files
         click.echo("\nThe following files have been written out:")

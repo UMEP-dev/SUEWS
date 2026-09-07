@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
-- [bugfix] `SUEWSForcing.save(format="suews")` now writes a native forcing file that `from_file` loads back losslessly: temporal columns are derived from the datetime index (no leading index column, no internal `isec`), pressure is converted back from hPa to the file's kPa using the forcing registry's `runtime_scale` with sentinels left untouched, columns follow the registry's canonical order, and per-landcover extension columns (`lai_<surface>`, `wuh_<surface>`) are written after them. Previously a saved file reloaded with pressure inflated tenfold and every extension column dropped. `format="csv"` now includes the extension columns too. (#1751)
+- [bugfix] `SUEWSForcing.save(format="suews")` now writes a native forcing file that `from_file` loads back losslessly: temporal columns are derived from the datetime index (no leading index column, no internal `isec`), pressure is converted back from hPa to the file's kPa using the forcing registry's `runtime_scale` with sentinels left untouched, columns follow the registry's canonical order, and per-landcover extension columns (`lai_<surface>`, `wuh_<surface>`) are written after them. Timestamps not aligned to whole minutes are rejected with a clear error, since the native format has no seconds field. Previously a saved file reloaded with pressure inflated tenfold and every extension column dropped. `format="csv"` now includes the extension columns too. (#1751)
 
 ### 1 Sep 2026
 

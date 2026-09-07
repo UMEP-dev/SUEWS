@@ -761,7 +761,9 @@ class SUEWSForcing:
         - ``iy``, ``id``, ``it``, ``imin`` are derived from the datetime
           index (interval-end convention), so midnight rows read back as
           ``it=0, imin=0`` on their own day; ``isec`` is internal and is
-          not written.
+          not written. Because the format has no seconds field, timestamps
+          that are not aligned to whole minutes are rejected with
+          ``ValueError`` rather than silently shifted.
         - Columns follow the registry's canonical file order, with the
           registry's canonical header spelling (``U``, ``RH``, ``Tair``,
           ``Wuh``). Optional canonical columns absent in memory are
@@ -820,6 +822,23 @@ class SUEWSForcing:
                 f"native SUEWS format; got {type(data.index).__name__}."
             )
 
+        # The native format carries year/day/hour/minute only. Writing a
+        # timestamp with a seconds (or sub-second) component would silently
+        # shift it onto the minute, so refuse rather than claim a lossless
+        # export (gh#1751).
+        idx = data.index
+        misaligned = idx[idx != idx.floor("min")]
+        if len(misaligned):
+            shown = ", ".join(str(ts) for ts in misaligned[:3])
+            more = f" (+{len(misaligned) - 3} more)" if len(misaligned) > 3 else ""
+            raise ValueError(
+                "Native SUEWS forcing files resolve timestamps to whole minutes; "
+                f"{len(misaligned)} timestamp(s) carry seconds and cannot be "
+                f"written without shifting time: {shown}{more}. Resample or "
+                "shift the forcing to minute-aligned timestamps first, or use "
+                "format='csv' to keep the full datetime index."
+            )
+
         datetime_cols = set(BASELINE_DATETIME_FORCING_COLUMNS)
         lower_to_actual = {str(col).lower(): col for col in data.columns}
 
@@ -842,7 +861,6 @@ class SUEWSForcing:
 
         n_rows = len(data)
         out: Dict[str, np.ndarray] = {}
-        idx = data.index
         out["iy"] = idx.year.to_numpy(dtype=np.int64)
         out["id"] = idx.dayofyear.to_numpy(dtype=np.int64)
         out["it"] = idx.hour.to_numpy(dtype=np.int64)

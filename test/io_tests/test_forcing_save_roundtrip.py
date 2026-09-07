@@ -168,6 +168,34 @@ class TestNativeSaveErrors:
         with pytest.raises(ValueError, match="baseline"):
             SUEWSForcing(df).save(tmp_path / "forcing.txt")
 
+    @pytest.mark.parametrize(
+        "offset",
+        [pd.Timedelta(seconds=30), pd.Timedelta(milliseconds=500)],
+        ids=["seconds", "sub-second"],
+    )
+    def test_non_minute_aligned_timestamps_are_rejected(self, tmp_path, offset):
+        # The native format has no seconds field; writing 00:05:30 as imin=5
+        # would shift time by 30 s while claiming a lossless export.
+        index = pd.date_range("2012-01-01 00:05", periods=12, freq="5min") + offset
+        forcing = _synthetic_forcing(index)
+        path = tmp_path / "forcing.txt"
+        with pytest.raises(ValueError, match="whole minutes") as excinfo:
+            forcing.save(path)
+        assert "12 timestamp" in str(excinfo.value)
+        assert str(index[0]) in str(excinfo.value)
+        assert not path.exists()
+
+    def test_single_misaligned_timestamp_is_reported(self, tmp_path):
+        index = pd.date_range("2012-01-01 00:05", periods=12, freq="5min")
+        index = (
+            index[:6]
+            .append(pd.DatetimeIndex([index[6] + pd.Timedelta(seconds=1)]))
+            .append(index[7:])
+        )
+        forcing = _synthetic_forcing(index)
+        with pytest.raises(ValueError, match="1 timestamp"):
+            forcing.save(tmp_path / "forcing.txt")
+
     def test_unknown_column_is_written_with_warning(
         self, five_minute_forcing, tmp_path
     ):

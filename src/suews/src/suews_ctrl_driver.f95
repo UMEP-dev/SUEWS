@@ -682,7 +682,7 @@ CONTAINS
 
             ! Sync module-level error state to modState for thread-safe access
             ! This enables Python to read errors from modState%errorState
-            CALL sync_error_to_state(modState)
+            CALL sync_error_to_state(modState, timer)
 
          END ASSOCIATE
       END ASSOCIATE
@@ -6687,18 +6687,24 @@ END FUNCTION cal_tsfc_dyohm
    ! (set by ErrorHint and set_supy_error) to the per-grid-cell state.
    ! Future: direct use of modState%errorState will eliminate need for sync.
    !==============================================================================
-   SUBROUTINE sync_error_to_state(modState)
-      USE module_ctrl_type, ONLY: SUEWS_STATE
+   SUBROUTINE sync_error_to_state(modState, timer)
+      USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
 
       IMPLICIT NONE
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
 
       ! Copy module-level error state to modState%errorState
       IF (supy_error_flag) THEN
          CALL modState%errorState%set(supy_error_code, TRIM(supy_error_message))
       ELSE
-         CALL modState%errorState%reset()
+         ! Clear only the fatal fields: the warning log must survive the whole
+         ! run so it can be surfaced to the user (GH#1737).
+         CALL modState%errorState%clear_fatal()
       END IF
+
+      ! Give every warning raised during this timestep its timestamp
+      CALL modState%errorState%stamp_pending(timer)
 
    END SUBROUTINE sync_error_to_state
 

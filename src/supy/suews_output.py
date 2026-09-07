@@ -71,6 +71,7 @@ class SUEWSOutput:
         config: Optional[Any] = None,
         metadata: Optional[Dict[str, Any]] = None,
         checkpoint: Optional[SUEWSCheckpoint] = None,
+        kernel_warnings: Optional[pd.DataFrame] = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -87,6 +88,9 @@ class SUEWSOutput:
             Typed restart checkpoint from the Rust backend
         metadata : dict, optional
             Additional metadata (timing, version, etc.)
+        kernel_warnings : pd.DataFrame, optional
+            Non-fatal warnings raised by the Fortran kernel (columns
+            ``grid``, ``datetime``, ``location``, ``message``)
         """
         self._df_output = df_output.copy()
         self._df_state_final = (
@@ -95,6 +99,11 @@ class SUEWSOutput:
         self._config = config
         self._checkpoint = checkpoint
         self._metadata = metadata or {}
+        self._kernel_warnings = (
+            kernel_warnings.copy()
+            if kernel_warnings is not None
+            else pd.DataFrame(columns=["grid", "datetime", "location", "message"])
+        )
 
     # =========================================================================
     # Core data access
@@ -138,6 +147,15 @@ class SUEWSOutput:
     def checkpoint(self) -> Optional[SUEWSCheckpoint]:
         """Typed checkpoint for restart/continuation runs."""
         return self._checkpoint
+
+    @property
+    def kernel_warnings(self) -> pd.DataFrame:
+        """Non-fatal warnings raised by the Fortran kernel during this run.
+
+        One row per recorded warning (``grid``, ``datetime``, ``location``,
+        ``message``); empty for a clean run. See GH#1737.
+        """
+        return self._kernel_warnings.copy()
 
     @property
     def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:

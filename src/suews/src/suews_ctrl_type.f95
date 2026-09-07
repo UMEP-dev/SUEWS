@@ -158,12 +158,16 @@ MODULE module_ctrl_type
       CHARACTER(LEN=512) :: message = ''   ! Error message describing the problem (legacy)
       LOGICAL :: has_fatal = .FALSE.       ! Any fatal error occurred?
       TYPE(error_entry), ALLOCATABLE :: log(:)  ! Error/warning log
-      INTEGER :: count = 0                 ! Number of entries in log
+      INTEGER :: count = 0                 ! Number of entries stored in log
+      INTEGER :: n_total = 0               ! Number of reports received, including those dropped by the log cap
+      INTEGER :: n_stamped = 0             ! Number of log entries already stamped with a timer (GH#1737)
    CONTAINS
       PROCEDURE :: set => set_error_state
       PROCEDURE :: reset => reset_error_state
+      PROCEDURE :: clear_fatal => clear_fatal_error_state
       PROCEDURE :: has_error => has_error_state
       PROCEDURE :: report => report_error_impl
+      PROCEDURE :: stamp_pending => stamp_pending_error_entries
       PROCEDURE :: clear_log => clear_error_log
    END TYPE error_state
 
@@ -363,7 +367,19 @@ CONTAINS
       self%message = ''
       self%has_fatal = .FALSE.
       self%count = 0
+      self%n_total = 0
+      self%n_stamped = 0
    END SUBROUTINE reset_error_state
+
+   SUBROUTINE clear_fatal_error_state(self)
+      !> Clear the fatal-error fields only, leaving the warning log intact.
+      !> Used by the per-timestep sync so warnings persist for the whole run (GH#1737).
+      CLASS(error_state), INTENT(INOUT) :: self
+
+      self%flag = .FALSE.
+      self%code = 0
+      self%message = ''
+   END SUBROUTINE clear_fatal_error_state
 
    FUNCTION has_error_state(self) RESULT(has_err)
       !> Check if error state indicates an error
@@ -399,6 +415,9 @@ CONTAINS
          self%message = message
       END IF
 
+      ! Every report is counted, so a capped log cannot under-report (GH#1737)
+      self%n_total = self%n_total + 1
+
       ! Cap non-fatal entries to avoid unbounded allocation in year-long runs
       IF (.NOT. fatal .AND. self%count >= MAX_WARNING_LOG) RETURN
 
@@ -430,12 +449,28 @@ CONTAINS
       self%log(self%count)%is_fatal = fatal
    END SUBROUTINE report_error_impl
 
+   SUBROUTINE stamp_pending_error_entries(self, timer)
+      !> Stamp every entry logged since the previous call with the current timer.
+      !> Call sites inside physics routines rarely hold the timer, so the driver
+      !> stamps once per timestep instead (GH#1737).
+      CLASS(error_state), INTENT(INOUT) :: self
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      INTEGER :: i
+
+      DO i = self%n_stamped + 1, self%count
+         self%log(i)%timer = timer
+      END DO
+      self%n_stamped = self%count
+   END SUBROUTINE stamp_pending_error_entries
+
    SUBROUTINE clear_error_log(self)
       !> Clear the error log and reset all error state
       CLASS(error_state), INTENT(INOUT) :: self
 
       IF (ALLOCATED(self%log)) DEALLOCATE (self%log)
       self%count = 0
+      self%n_total = 0
+      self%n_stamped = 0
       self%has_fatal = .FALSE.
       self%flag = .FALSE.
       self%code = 0

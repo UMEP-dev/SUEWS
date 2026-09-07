@@ -127,7 +127,8 @@ pub use roughness::*;
 #[cfg(feature = "physics")]
 pub use sim::{
     run_from_config_str_and_forcing, run_from_config_str_and_forcing_with_state, run_simulation,
-    SimulationInput, SimulationOutput, SiteScalars, OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT,
+    KernelWarning, KernelWarnings, SimulationInput, SimulationOutput, SiteScalars,
+    KERNEL_WARNING_MAX, KERNEL_WARNING_TEXT_LEN, OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT,
     OUTPUT_SUEWS_COLS,
 };
 pub use snow::*;
@@ -4106,6 +4107,32 @@ mod python_bindings {
         Ok((az, zen))
     }
 
+    /// Python-facing shape of one grid's kernel warnings (GH#1737):
+    /// `(total, [(iy, id, it, imin, location, message), ...])`.
+    #[cfg(feature = "physics")]
+    type PyKernelWarnings = (usize, Vec<(i32, i32, i32, i32, String, String)>);
+
+    #[cfg(feature = "physics")]
+    fn kernel_warnings_to_py(warnings: &KernelWarnings) -> PyKernelWarnings {
+        (
+            warnings.total,
+            warnings
+                .entries
+                .iter()
+                .map(|w| {
+                    (
+                        w.iy,
+                        w.id,
+                        w.it,
+                        w.imin,
+                        w.location.clone(),
+                        w.message.clone(),
+                    )
+                })
+                .collect(),
+        )
+    }
+
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews")]
     fn run_suews_py(
@@ -4113,12 +4140,17 @@ mod python_bindings {
         config_yaml: &str,
         forcing_block: Vec<f64>,
         len_sim: usize,
-    ) -> PyResult<(Py<PyBytes>, String, usize)> {
-        let (output_block, state, timer, actual_len) =
+    ) -> PyResult<(Py<PyBytes>, String, usize, PyKernelWarnings)> {
+        let (output_block, state, timer, actual_len, warnings) =
             run_from_config_str_and_forcing(config_yaml, forcing_block, len_sim)
                 .map_err(map_bridge_error)?;
         let state_json = suews_checkpoint_to_json(&state, &timer).map_err(map_bridge_error)?;
-        Ok((f64s_to_pybytes(py, &output_block), state_json, actual_len))
+        Ok((
+            f64s_to_pybytes(py, &output_block),
+            state_json,
+            actual_len,
+            kernel_warnings_to_py(&warnings),
+        ))
     }
 
     #[cfg(feature = "physics")]
@@ -4129,19 +4161,21 @@ mod python_bindings {
         forcing_block: Vec<f64>,
         len_sim: usize,
         state_json: &str,
-    ) -> PyResult<(Py<PyBytes>, String, usize)> {
-        let (output_block, state, timer, actual_len) = run_from_config_str_and_forcing_with_state(
-            config_yaml,
-            forcing_block,
-            len_sim,
-            state_json,
-        )
-        .map_err(map_bridge_error)?;
+    ) -> PyResult<(Py<PyBytes>, String, usize, PyKernelWarnings)> {
+        let (output_block, state, timer, actual_len, warnings) =
+            run_from_config_str_and_forcing_with_state(
+                config_yaml,
+                forcing_block,
+                len_sim,
+                state_json,
+            )
+            .map_err(map_bridge_error)?;
         let state_json_out = suews_checkpoint_to_json(&state, &timer).map_err(map_bridge_error)?;
         Ok((
             f64s_to_pybytes(py, &output_block),
             state_json_out,
             actual_len,
+            kernel_warnings_to_py(&warnings),
         ))
     }
 
@@ -4159,7 +4193,7 @@ mod python_bindings {
         forcing_block: Vec<f64>,
         len_sim: usize,
         max_workers: Option<usize>,
-    ) -> PyResult<Vec<(usize, Py<PyBytes>, String, usize)>> {
+    ) -> PyResult<Vec<(usize, Py<PyBytes>, String, usize, PyKernelWarnings)>> {
         use rayon::prelude::*;
 
         if max_workers == Some(0) {
@@ -4175,17 +4209,17 @@ mod python_bindings {
                 .map(|(idx, config_json)| {
                     // Each thread gets its own copy of forcing (Fortran mutates it)
                     let forcing_copy = forcing_block.clone();
-                    let (output_block, state, timer, actual_len) =
+                    let (output_block, state, timer, actual_len, warnings) =
                         run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
                             .map_err(|e| e.to_string())?;
                     let state_json =
                         suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
-                    Ok((idx, output_block, state_json, actual_len))
+                    Ok((idx, output_block, state_json, actual_len, warnings))
                 })
                 .collect()
         };
 
-        let results: Vec<Result<(usize, Vec<f64>, String, usize), _>> =
+        let results: Vec<Result<(usize, Vec<f64>, String, usize, KernelWarnings), _>> =
             if let Some(workers) = max_workers {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(workers)
@@ -4203,12 +4237,13 @@ mod python_bindings {
             .map_err(pyo3::exceptions::PyRuntimeError::new_err)
             .map(|list| {
                 list.into_iter()
-                    .map(|(idx, output_block, state_json, actual_len)| {
+                    .map(|(idx, output_block, state_json, actual_len, warnings)| {
                         (
                             idx,
                             f64s_to_pybytes(py, &output_block),
                             state_json,
                             actual_len,
+                            kernel_warnings_to_py(&warnings),
                         )
                     })
                     .collect()
@@ -4229,7 +4264,7 @@ mod python_bindings {
         len_sim: usize,
         state_jsons: Vec<String>,
         max_workers: Option<usize>,
-    ) -> PyResult<Vec<(usize, Py<PyBytes>, String, usize)>> {
+    ) -> PyResult<Vec<(usize, Py<PyBytes>, String, usize, PyKernelWarnings)>> {
         use rayon::prelude::*;
 
         if max_workers == Some(0) {
@@ -4251,7 +4286,7 @@ mod python_bindings {
                 .map(|(idx, (config_json, state_json_in))| {
                     // Each thread gets its own copy of forcing (Fortran mutates it)
                     let forcing_copy = forcing_block.clone();
-                    let (output_block, state, timer, actual_len) =
+                    let (output_block, state, timer, actual_len, warnings) =
                         run_from_config_str_and_forcing_with_state(
                             config_json,
                             forcing_copy,
@@ -4261,12 +4296,12 @@ mod python_bindings {
                         .map_err(|e| e.to_string())?;
                     let state_json =
                         suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
-                    Ok((idx, output_block, state_json, actual_len))
+                    Ok((idx, output_block, state_json, actual_len, warnings))
                 })
                 .collect()
         };
 
-        let results: Vec<Result<(usize, Vec<f64>, String, usize), _>> =
+        let results: Vec<Result<(usize, Vec<f64>, String, usize, KernelWarnings), _>> =
             if let Some(workers) = max_workers {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(workers)
@@ -4283,12 +4318,13 @@ mod python_bindings {
             .map_err(pyo3::exceptions::PyRuntimeError::new_err)
             .map(|list| {
                 list.into_iter()
-                    .map(|(idx, output_block, state_json, actual_len)| {
+                    .map(|(idx, output_block, state_json, actual_len, warnings)| {
                         (
                             idx,
                             f64s_to_pybytes(py, &output_block),
                             state_json,
                             actual_len,
+                            kernel_warnings_to_py(&warnings),
                         )
                     })
                     .collect()

@@ -724,8 +724,6 @@ class TestSampleOutput(TestCase):
         )
 
 
-
-
 if __name__ == "__main__":
     import unittest
 
@@ -826,7 +824,11 @@ class TestSTEBBSOutput(TestCase):
             f"{validation_steps} validation steps)..."
         )
         simulation.update_forcing(df_forcing)
-        output = simulation.run()
+        # The fixture forcing spans 2017-08-26 00:00 to 2017-08-27 23:55; run
+        # exactly those rows rather than the calendar days the YAML names.
+        output = simulation.run(
+            start_date=df_forcing.index[0], end_date=df_forcing.index[-1]
+        )
         df_output = output.df
 
         # Load reference output

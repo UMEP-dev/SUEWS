@@ -707,6 +707,10 @@ class TestRun:
         sim._config = sample_config_loaded.model_copy(deep=True)
         sim._df_state_init = sample_state.copy()
         sim._df_forcing = sample_forcing.iloc[:2].copy()
+        # Two rows do not cover the sample year the YAML requests; run
+        # over the loaded forcing so the mocked bridge call is reached.
+        sim._config.model.control.start_time = None
+        sim._config.model.control.end_time = None
         return sim
 
     @staticmethod
@@ -1026,20 +1030,16 @@ class TestRun:
         assert output is not None
         assert len(output.df) > 0
 
-        # Results should be approximately one day of timesteps, with small tolerance
-        # for edge effects (first/last timestep handling)
-        tolerance = 5
-        assert len(output.times) <= expected_timesteps_per_day + tolerance, (
-            f"Expected ~{expected_timesteps_per_day} timesteps for 1 day "
+        # A date-only bound covers the whole day under interval-end stamping:
+        # exactly one day of rows, from the first row after midnight up to and
+        # including the row stamped at the following midnight.
+        assert len(output.times) == expected_timesteps_per_day, (
+            f"Expected {expected_timesteps_per_day} timesteps for 1 day "
             f"(at {timestep_minutes}-min resolution), got {len(output.times)}. "
             f"Config date range not being respected (full forcing has {full_forcing_len})."
         )
-
-        # Verify the results are within the configured date
-        results_start_date = output.times.min().date()
-        results_end_date = output.times.max().date()
-        assert results_start_date == full_forcing_start.date()
-        assert results_end_date == full_forcing_start.date()
+        assert output.times.min() == full_forcing_start
+        assert output.times.max() == pd.Timestamp(config_end) + pd.Timedelta(days=1)
 
 
 class TestSave:
@@ -1102,8 +1102,8 @@ class TestIntegration:
         _, df_forcing = load_sample_frames()
         sim.update_forcing(df_forcing.iloc[:48])  # 4 hours
 
-        # Run and save
-        results = sim.run()
+        # Run and save (bound the run to the short forcing loaded above)
+        results = sim.run(end_date=sim.forcing.index[-1])
         paths = sim.save(tmp_path)
 
         assert len(results) > 0
@@ -1173,12 +1173,12 @@ class TestMethodChaining:
 
         assert sim.is_ready()
 
-        # Now run
-        sim.run()
+        # Now run (bound to the short forcing loaded above)
+        sim.run(end_date=sim.forcing.index[-1])
         assert sim.is_complete()
 
         assert sim.reset() is sim
-        sim.run()
+        sim.run(end_date=sim.forcing.index[-1])
         assert sim.is_complete()
 
 
@@ -1315,7 +1315,7 @@ class TestContinuationRuns:
 
         df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
-        output1 = sim1.run()
+        output1 = sim1.run(end_date=df_forcing.index[-1])
         assert isinstance(output1.checkpoint, SUEWSCheckpoint)
 
         # Save checkpoint
@@ -1336,7 +1336,7 @@ class TestContinuationRuns:
         sim2.update_forcing(df_forcing_2)
         assert sim2.is_ready() is True
 
-        sim2.run()
+        sim2.run(start_date=df_forcing_2.index[0], end_date=df_forcing_2.index[-1])
         assert sim2.is_complete() is True
 
     def test_save_parquet_writes_checkpoint_not_df_state(self, tmp_path):
@@ -1351,7 +1351,7 @@ class TestContinuationRuns:
 
         df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
-        sim1.run()
+        sim1.run(end_date=df_forcing.index[-1])
 
         # Save output in Parquet format
         paths = sim1.save(str(tmp_path), format="parquet")
@@ -1369,7 +1369,7 @@ class TestContinuationRuns:
             TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2
         ]  # Second day
         sim2.update_forcing(df_forcing_2)
-        sim2.run()
+        sim2.run(start_date=df_forcing_2.index[0], end_date=df_forcing_2.index[-1])
         assert sim2.is_complete() is True
 
     def test_from_state_dataframe(self):
@@ -1382,7 +1382,7 @@ class TestContinuationRuns:
 
         df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]
         sim1.update_forcing(df_forcing)
-        sim1.run()
+        sim1.run(end_date=df_forcing.index[-1])
 
         # Get state DataFrame directly
         df_state_final = sim1.state_final
@@ -1396,7 +1396,7 @@ class TestContinuationRuns:
         # Continue simulation
         df_forcing_2 = df_forcing_full.iloc[TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2]
         sim2.update_forcing(df_forcing_2)
-        sim2.run()
+        sim2.run(start_date=df_forcing_2.index[0], end_date=df_forcing_2.index[-1])
         assert sim2.is_complete() is True
 
     def test_from_state_version_warning(self, tmp_path):

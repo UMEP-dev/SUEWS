@@ -51,7 +51,8 @@ df_forcing = sim_baseline.forcing["2012-06":"2012-08"].iloc[1:]
 sim_baseline.update_forcing(df_forcing)
 
 # Run baseline simulation
-df_output_baseline = sim_baseline.run()
+# Run only the loaded Jun-Aug window of the year the config requests.
+df_output_baseline = sim_baseline.run(clip_to_forcing=True)
 
 print(f"Simulation period: {df_forcing.index[0]} to {df_forcing.index[-1]}")
 print(f"Number of timesteps: {len(df_forcing)}")
@@ -182,7 +183,7 @@ for name in surface_types:
 # Run Greened Scenario
 # ~~~~~~~~~~~~~~~~~~~~
 
-df_output_green = sim_green.run()
+df_output_green = sim_green.run(clip_to_forcing=True)
 
 print("Both scenarios simulated successfully")
 

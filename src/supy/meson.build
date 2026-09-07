@@ -8,6 +8,7 @@ py.install_sources(
         '_misc.py',
         '_post.py',
         '_run.py',
+        '_run_period.py',
         '_run_rust.py',
         '_run_output.py',
         '_save.py',

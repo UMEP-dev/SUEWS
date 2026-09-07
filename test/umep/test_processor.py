@@ -103,9 +103,11 @@ class TestSUEWSProcessorAPI(TestCase):
 
         simulation = sp.SUEWSSimulation(self.sample_config)
 
-        # Use short forcing for test speed (one day of 5-min data)
-        simulation.update_forcing(simulation.forcing.df.iloc[:TIMESTEPS_PER_DAY])
-        output = simulation.run(chunk_day=1)
+        # Use short forcing for test speed (one day of 5-min data); the
+        # sample config requests the full year, so bound the run explicitly.
+        df_forcing_day = simulation.forcing.df.iloc[:TIMESTEPS_PER_DAY]
+        simulation.update_forcing(df_forcing_day)
+        output = simulation.run(chunk_day=1, end_date=df_forcing_day.index[-1])
 
         # Verify output structure
         self.assertIsInstance(output.df, pd.DataFrame)
@@ -118,8 +120,9 @@ class TestSUEWSProcessorAPI(TestCase):
             self.skipTest("Sample config not available")
 
         simulation = sp.SUEWSSimulation(self.sample_config)
-        simulation.update_forcing(simulation.forcing.df.iloc[:TIMESTEPS_PER_DAY])
-        output = simulation.run()
+        df_forcing_day = simulation.forcing.df.iloc[:TIMESTEPS_PER_DAY]
+        simulation.update_forcing(df_forcing_day)
+        output = simulation.run(end_date=df_forcing_day.index[-1])
 
         with tempfile.TemporaryDirectory() as temp_dir:
             output.save(temp_dir)

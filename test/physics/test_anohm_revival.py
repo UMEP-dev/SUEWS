@@ -49,6 +49,16 @@ def _make_simulation(method: int = ANOHM_METHOD) -> sp.SUEWSSimulation:
     return sim
 
 
+def _run_loaded(sim: sp.SUEWSSimulation, **kwargs):
+    """Run exactly the forcing loaded on ``sim``.
+
+    The sample YAML requests the whole of 2012; the slices used here are
+    days long and may start mid-day, so bound the run to them explicitly.
+    """
+    index = sim.forcing.index
+    return sim.run(start_date=index[0], end_date=index[-1], **kwargs)
+
+
 def _forcing_slice(
     sim: sp.SUEWSSimulation, days: int, start_hour: int = 0
 ) -> pd.DataFrame:
@@ -71,7 +81,7 @@ def _run_storage_method(
     """Run the sample site and return both simulation and typed output."""
     sim = _make_simulation(method)
     sim.update_forcing(_forcing_slice(sim, days, start_hour))
-    output = sim.run(chunk_day=chunk_day, n_jobs=1)
+    output = _run_loaded(sim, chunk_day=chunk_day, n_jobs=1)
     return sim, output
 
 
@@ -86,7 +96,7 @@ def _run_shifted_anohm_qs(
     forcing["Tair"] += temperature_offset
     forcing["U"] *= wind_scale
     sim.update_forcing(forcing)
-    output = sim.run(chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1)
+    output = _run_loaded(sim, chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1)
     return output.df["SUEWS", "QS"].to_numpy(copy=True)
 
 
@@ -203,11 +213,11 @@ def test_anohm_external_restart_matches_uninterrupted_state_path_and_output():
 
     sim_full = _make_simulation()
     sim_full.update_forcing(forcing)
-    output_full = sim_full.run(chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1)
+    output_full = _run_loaded(sim_full, chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1)
 
     sim_first = _make_simulation()
     sim_first.update_forcing(forcing.iloc[:split_pos])
-    sim_first.run(chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1)
+    _run_loaded(sim_first, chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1)
     partial_payload, partial_state = _ohm_checkpoint_state(sim_first)
 
     assert (
@@ -224,7 +234,9 @@ def test_anohm_external_restart_matches_uninterrupted_state_path_and_output():
         sim_first.config, sim_first.checkpoint
     )
     sim_second.update_forcing(forcing.iloc[split_pos:])
-    output_second = sim_second.run(chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1)
+    output_second = _run_loaded(
+        sim_second, chunk_day=UNINTERRUPTED_CHUNK_DAYS, n_jobs=1
+    )
 
     expected_second = output_full.df.loc[output_second.df.index]
     pd.testing.assert_frame_equal(

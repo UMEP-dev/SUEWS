@@ -58,6 +58,9 @@ EXAMPLES:
 
 - [change][experimental] Checkpoint continuation now requires the forcing to start one model timestep after the checkpoint's `last_timestamp`; overlapping or gapped forcing, a missing `last_timestamp`, and a repeated `run()` on the same instance raise a `ValueError` instead of running silently from the evolved state (#1735)
   - `SUEWSSimulation.from_checkpoint(...)` and `continue_from(...)` accept `check_continuity=False` for deliberate re-runs such as spin-up cycling; the opt-out applies to the next `run()` only
+- [change][experimental] `SUEWSSimulation.run()` now rejects a requested period the loaded forcing does not cover instead of silently running on the overlap; `run(clip_to_forcing=True)` opts in to running the overlap and logs the requested versus actual periods (#1268)
+  - Date-only `start_date`/`end_date` (and `model.control.start_time`/`end_time`) now follow interval-end stamping: a start day begins with the first row after its midnight and an end day runs through the row stamped at the following midnight, so `end_time: "2012-12-31"` no longer drops the last interval of the year; bounds with a time component remain inclusive row timestamps
+  - The packaged sample configuration now requests 2012-01-01 to 2012-12-31, the period its 2012 forcing file actually covers, instead of 2011-01-01 to 2013-12-31
 
 ### 1 Sep 2026
 

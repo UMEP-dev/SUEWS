@@ -442,8 +442,11 @@ def completed_sample_sim(sample_yaml_path):
     it does not retain the 105,408-row sample output for the whole session.
     """
     sim = supy.SUEWSSimulation(str(sample_yaml_path))
-    sim.update_forcing(sim.forcing.df.iloc[:SHORT_RUN_STEPS].copy())
-    sim.run()
+    df_forcing_short = sim.forcing.df.iloc[:SHORT_RUN_STEPS].copy()
+    sim.update_forcing(df_forcing_short)
+    # The YAML requests the full sample year; bound the run explicitly so the
+    # truncated forcing is a covered request rather than a silent clip.
+    sim.run(end_date=df_forcing_short.index[-1])
     return sim
 
 

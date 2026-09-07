@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from ._check import check_forcing
 from ._env import logger_supy
 from ._filename import safe_filename_component
+from ._run_period import resolve_run_period, slice_forcing_to_period
 from ._run_rust import _check_rust_available, run_suews_rust_chunked
 
 # Import SuPy components directly
@@ -97,6 +98,7 @@ class SUEWSSimulation:
         self._df_state_final = None
         self._checkpoint = None
         self._check_continuity = True
+        self._run_period = None
         self._run_completed = False
 
         if config is not None:
@@ -632,6 +634,7 @@ class SUEWSSimulation:
         end_date=None,
         chunk_day: int = 3660,
         n_jobs: int = -1,
+        clip_to_forcing: bool = False,
         **run_kwargs,
     ) -> SUEWSOutput:
         """
@@ -639,10 +642,25 @@ class SUEWSSimulation:
 
         Parameters
         ----------
-        start_date : str, optional
-            Start date for simulation (inclusive).
-        end_date : str, optional
-            End date for simulation (inclusive).
+        start_date : str, date or Timestamp, optional
+            Start of the simulation period. Defaults to
+            ``model.control.start_time``, then to the first forcing row.
+            A date-only value (``"2012-01-01"``) names a calendar day:
+            forcing rows are stamped at the end of each interval, so the run
+            starts with the first row after that day's midnight. A value with
+            a time component is an exact row timestamp and is inclusive.
+        end_date : str, date or Timestamp, optional
+            End of the simulation period. Defaults to
+            ``model.control.end_time``, then to the last forcing row.
+            A date-only value (``"2012-12-31"``) runs through the end of that
+            day, i.e. up to and including the row stamped at the following
+            midnight. A value with a time component is inclusive.
+        clip_to_forcing : bool, optional
+            The loaded forcing must cover the requested period; otherwise
+            ``run()`` raises ``ValueError`` rather than running on whatever
+            overlap exists. Pass ``True`` to run on the overlap only; the
+            requested and actual periods are then logged as a warning. A
+            request with no overlap at all always raises.
         chunk_day : int, optional
             Chunk size in days for splitting long simulations, by default 3660
             (~10 years). Smaller values reduce peak memory at a small overhead
@@ -663,6 +681,10 @@ class SUEWSSimulation:
         ------
         RuntimeError
             If configuration or forcing data is missing.
+        ValueError
+            If the forcing does not cover the requested period and
+            ``clip_to_forcing`` is False, or if the request and the forcing
+            do not overlap at all.
 
         Examples
         --------
@@ -726,8 +748,13 @@ class SUEWSSimulation:
             ):
                 end_date = self._config.model.control.end_time
 
-        # Slice forcing data
-        df_forcing_slice = self._df_forcing.loc[start_date:end_date]
+        # Resolve the requested period under interval-end semantics and
+        # reject forcing that does not cover it (gh#1268). This runs
+        # regardless of _validate_forcing so no public path can skip it.
+        period = resolve_run_period(start_date, end_date, self._df_forcing.index)
+        df_forcing_slice, self._run_period = slice_forcing_to_period(
+            self._df_forcing, period, clip_to_forcing=clip_to_forcing
+        )
 
         # A checkpoint continuation must pick up exactly one timestep after
         # the checkpointed period; this runs regardless of _validate_forcing.
@@ -992,6 +1019,7 @@ class SUEWSSimulation:
         self._df_state_final = None
         self._checkpoint = None
         self._check_continuity = True
+        self._run_period = None
         self._run_completed = False
         return self
 

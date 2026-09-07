@@ -61,6 +61,11 @@ EXAMPLES:
   - `make docs-setup`, `docs/README.md` and the developer building/onboarding guides now state the `requires-python` floor from `pyproject.toml` instead of Python 3.9+
   - Tests in `test/cmd/test_suews_cli.py` check that `suews run --help` and the README teach resolvable canonical commands and that the onboarding files do not understate the runtime floor
 
+- [bugfix] Corrected the `suews diagnose` energy-balance check and made it inspect every output partition (#1734)
+  - The closure residual now follows the model identity `QN + QF + QMRain = QH + QE + QS + QM + QMFreeze`; QF had been placed among the sinks, so balanced runs were flagged and unbalanced ones passed.
+  - All files of the highest-priority output format, and every grid within a multi-grid file, are checked and each partition is judged on its own, so a healthy partition cannot mask a broken one; `-999` sentinels and non-finite rows are treated as missing and counted, and a partition with too few evaluable rows is reported; an absent optional column no longer raises.
+  - `suews summarise` and `suews compare` keep their existing single-file loader.
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

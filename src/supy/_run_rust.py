@@ -210,7 +210,11 @@ class KernelWarningLog:
         )
 
     def summary_lines(self) -> list[str]:
-        """Deduplicated, human-readable lines: one per (grid, location, message)."""
+        """Deduplicated, human-readable lines: one per (grid, location, message).
+
+        Each line reports the number of recorded occurrences and the number of
+        distinct timesteps they fall on, with the first and last timestep.
+        """
         lines: list[str] = []
         if not self._records and not any(self._totals.values()):
             return lines
@@ -230,9 +234,13 @@ class KernelWarningLog:
                     f"from {times.min():%Y-%m-%d %H:%M} to {times.max():%Y-%m-%d %H:%M}"
                 )
             label = f"{location}: {message}" if location else message
+            # Rows are occurrences, not timesteps: iterative physics can raise
+            # the same warning several times within one timestep, so count the
+            # distinct stamped timesteps separately.
+            n_steps = times.nunique()
             lines.append(
                 f"Kernel warning (grid {grid_id}): {label} "
-                f"[{len(group)} timestep(s), {span}]"
+                f"[{len(group)} occurrence(s) over {n_steps} timestep(s), {span}]"
             )
         for grid_id in sorted(self._totals):
             total = self._totals[grid_id]

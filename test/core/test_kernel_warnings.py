@@ -121,9 +121,12 @@ def test_kernel_warning_log_frame_and_summary_dedup_per_grid():
     assert len(lines) == 3, lines
     spartacus = next(line for line in lines if "SPARTACUS" in line)
     assert "(grid 1)" in spartacus
-    assert "[2 timestep(s), from 2012-01-01 00:05 to 2012-01-01 00:10]" in spartacus
+    assert (
+        "[2 occurrence(s) over 2 timestep(s), from 2012-01-01 00:05 to 2012-01-01 00:10]"
+        in spartacus
+    )
     ehc = next(line for line in lines if "EHC" in line)
-    assert "[1 timestep(s), at 2012-01-01 01:00]" in ehc
+    assert "[1 occurrence(s) over 1 timestep(s), at 2012-01-01 01:00]" in ehc
     assert any("(grid 2)" in line and "interp_z" in line for line in lines)
     # No cap line: every raised warning was recorded
     assert not any("raised in total" in line for line in lines)
@@ -169,6 +172,39 @@ def test_kernel_warning_log_accumulates_across_chunks_and_unstamped_entries():
     lines = first.summary_lines()
     assert any("timestep unknown" in line for line in lines), lines
     assert any("3 raised in total, 2 recorded" in line for line in lines), lines
+
+
+def test_summary_counts_repeated_warnings_within_one_timestep_as_occurrences():
+    """Iterative physics can raise the same warning several times in one
+    timestep; the summary must not report those as separate timesteps."""
+    log = KernelWarningLog()
+    same = _entry(
+        2012, 1, 0, 5, "NewtonPolynomial", "did not converge, returning initial guess"
+    )
+    later = _entry(
+        2012, 1, 0, 10, "NewtonPolynomial", "did not converge, returning initial guess"
+    )
+    log.add(1, (5, [same, same, same, later, later]))
+
+    lines = log.summary_lines()
+    assert len(lines) == 1, lines
+    assert (
+        "[5 occurrence(s) over 2 timestep(s), from 2012-01-01 00:05 to 2012-01-01 00:10]"
+        in lines[0]
+    )
+    assert log.totals == {1: 5}
+    assert len(log.to_frame()) == 5
+
+    # Unstamped repeats count as occurrences with no timestep information
+    unstamped = KernelWarningLog()
+    entry = _entry(
+        0, 0, 0, 0, "gen_building", "unrecognised rcmethod value, defaulting to 0.5"
+    )
+    unstamped.add(2, (2, [entry, entry]))
+    assert (
+        "[2 occurrence(s) over 0 timestep(s), timestep unknown]"
+        in unstamped.summary_lines()[0]
+    )
 
 
 def test_kernel_warning_log_empty_is_falsy_and_silent():
@@ -233,7 +269,10 @@ def test_stubbed_site_warning_reaches_user_with_grid_and_timestep(
     assert len(summary) == 1, summary
     assert "(grid 1)" in summary[0]
     assert "cal_tsfc_dyohm" in summary[0]
-    assert f"[{STEPS_PER_HOUR} timestep(s)" in summary[0]
+    assert (
+        f"[{STEPS_PER_HOUR} occurrence(s) over {STEPS_PER_HOUR} timestep(s)"
+        in summary[0]
+    )
 
 
 def test_clean_sample_run_has_no_kernel_warnings(sample_yaml_path):

@@ -63,8 +63,8 @@ contains
       real(kind(1D0)), dimension(nvegsurf), intent(out) :: lai_id_next !LAI for each veg surface [m2 m-2]
       
       real(kind(1D0)) :: delta_gdd !Switches and checks for GDD
-      real(kind(1D0)) :: delta_sdd !Switches and checks for GDD
-      real(kind(1D0)) :: ind_help !Switches and checks for GDD
+      real(kind(1D0)) :: delta_sdd !Switches and checks for GDD 
+
       real(kind(1D0)), dimension(3) :: gdd_id_prev ! GDD of previous day
       real(kind(1D0)), dimension(3) :: sdd_id_prev ! SDD of previous day
       
@@ -140,10 +140,8 @@ contains
          ! Now calculate LAI itself
          call reset_degree_days( &
             id=id, &
-            sdd_reset_day=sdd_reset_day, &
             summer_reset_day=summer_day, &
             winter_reset_day=winter_day, &
-            southern_hemisphere=southern_hemisphere, &
             gdd_base=gdd_full(iv), &
             sdd_base=sdd_full(iv), &
             growth_state=growth_state(iv), &
@@ -172,8 +170,6 @@ contains
                gdd_base=gdd_full(iv), &
                sdd_base=sdd_full(iv), &
                lai_type=lai_type(iv), &
-               growth_state=growth_state(iv), &
-               senescence_state=senescence_state(iv), &
                lai_power=lai_power(:, iv), &
                lai_max=lai_max(iv), &
                lai_min=lai_min(iv), &
@@ -348,7 +344,6 @@ contains
             senescence_mode, &
             delta_gdd, delta_sdd, gdd_id, sdd_id, &
             gdd_base, sdd_base, lai_power, lai_type, &
-            growth_state, senescence_state, &
             len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
@@ -365,9 +360,6 @@ contains
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
 
          integer, intent(in) :: lai_type
-
-         integer, intent(in) :: growth_state
-         integer, intent(in) :: senescence_state
 
          real(kind(1D0)), intent(in) :: len_day_id_prev
          real(kind(1D0)), intent(in) :: lai_id_prev
@@ -469,30 +461,30 @@ contains
       end subroutine reset_degree_day_states
 
       subroutine reset_degree_days( &
-         id, sdd_reset_day, &
+         id, &
          sdd_base, gdd_base, &
          summer_reset_day, winter_reset_day, &
-         southern_hemisphere, &
          growth_state, senescence_state, &
          sdd, gdd)
 
          implicit none
 
          integer, intent(in) :: id
-         integer, intent(in) :: sdd_reset_day
          integer, intent(in) :: summer_reset_day
          integer, intent(in) :: winter_reset_day
-         logical, intent(in) :: southern_hemisphere
          
-         real(kind(1D0)), intent(in) :: sdd_base
          real(kind(1D0)), intent(in) :: gdd_base
+         real(kind(1D0)), intent(in) :: sdd_base
          
          integer, intent(inout) :: growth_state
          integer, intent(inout) :: senescence_state
 
-         real(kind(1D0)), intent(inout) :: sdd
          real(kind(1D0)), intent(inout) :: gdd
+         real(kind(1D0)), intent(inout) :: sdd
 
+         if (gdd >= gdd_base) then
+            growth_state = 2
+         end if
          if (sdd <= sdd_base) then
             senescence_state = 2
          end if

@@ -7,12 +7,19 @@ checks individually testable and the aggregator trivial.
 
 Phase-1 checks (intentionally minimal):
 
-- ``check_provenance_present`` — ``provenance.json`` sidecar exists.
-- ``check_output_files_present`` — at least one ``df_output*.csv`` or
-  ``*.parquet`` produced by ``suews run`` is present.
-- ``check_nan_proportion`` — NaN fraction in QH/QE/QN below 5%.
-- ``check_energy_balance_closure`` — mean
-  ``|QN - (QH + QE + QS + QF)| / |QN| < 0.10``.
+- ``check_provenance_present`` -- ``provenance.json`` sidecar exists.
+- ``check_output_files_present`` -- at least one ``df_output*.csv``,
+  ``*.parquet`` or legacy ``*_SUEWS_*.txt`` produced by ``suews run`` is
+  present.
+- ``check_nan_proportion`` -- missing fraction in QH/QE/QN below 5% in
+  every output partition.
+- ``check_energy_balance_closure`` -- mean
+  ``|(QN + QF + QMRain) - (QH + QE + QS + QM + QMFreeze)| / |QN| < 0.10``.
+
+Every partition of the run output is inspected: all files of the
+highest-priority format present (parquet, then CSV, then legacy text) and
+every grid within a multi-grid file. Values equal to the legacy ``-999``
+sentinel are treated as missing.
 
 Severity ladder: ``pass`` (passed=True), ``warning`` (passed=False but
 non-fatal), ``fail`` (passed=False and the run is unusable).
@@ -25,9 +32,10 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
-from .._run_output import _list_run_output_files, _load_run_output_dataframe
+from .._run_output import _list_run_output_files, _load_run_output_partitions
 
 __all__ = [
     "CheckResult",
@@ -43,6 +51,17 @@ __all__ = [
 _NAN_THRESHOLD_FRACTION = 0.05
 _ENERGY_BALANCE_THRESHOLD = 0.10
 _FLUX_VARIABLES = ("QH", "QE", "QN")
+
+# Legacy SUEWS text output marks missing values with -999.
+_MISSING_SENTINEL = -999.0
+
+# Energy-balance identity used by the model driver (``qh_residual`` in
+# ``suews_ctrl_driver.f95``): QN + QF + QMRain = QH + QE + QS + QM + QMFreeze.
+# The snow terms and QF are absent from simple configurations and are
+# treated as zero when their column is missing.
+_CLOSURE_REQUIRED = ("QN", "QH", "QE", "QS")
+_CLOSURE_SOURCES_OPTIONAL = ("QF", "QMRain")
+_CLOSURE_SINKS_OPTIONAL = ("QM", "QMFreeze")
 
 
 @dataclass
@@ -81,24 +100,112 @@ class CheckResult:
 def _list_output_files(path_run_dir: Path) -> list[Path]:
     """Return all candidate output files under ``path_run_dir``.
 
-    Recognises CSV and parquet output produced by ``suews run`` /
-    ``SUEWSSimulation.save``. The current ``save`` implementation may write
-    files at the run-dir root or under a subdirectory keyed by site name —
-    we accept both.
+    Recognises CSV, parquet and legacy text output produced by
+    ``suews run`` / ``SUEWSSimulation.save``. The current ``save``
+    implementation may write files at the run-dir root or under a
+    subdirectory keyed by site name; we accept both.
     """
     return _list_run_output_files(path_run_dir)
 
 
-def _load_output_dataframe(path_run_dir: Path) -> pd.DataFrame | None:
-    """Best-effort load of run output into a single DataFrame.
+def _load_output_partitions(
+    path_run_dir: Path,
+) -> list[tuple[str, pd.DataFrame]] | None:
+    """Best-effort load of every run-output partition.
 
     Returns ``None`` when no recognisable output file is present. Errors
-    during read are deliberately propagated to the caller — the caller
-    decides whether to mark the check as ``fail`` or ``warning``.
+    during read are deliberately propagated to the caller, which decides
+    whether to mark the check as ``fail`` or ``warning``.
     """
     if not _list_output_files(path_run_dir):
         return None
-    return _load_run_output_dataframe(path_run_dir)
+    return _load_run_output_partitions(path_run_dir)
+
+
+def _numeric_series(df_output: pd.DataFrame, name: str) -> pd.Series:
+    """Return column ``name`` as floats with sentinels and infinities as NaN."""
+    column = df_output[name]
+    if isinstance(column, pd.DataFrame):  # duplicate labels: keep the first
+        column = column.iloc[:, 0]
+    ser = pd.to_numeric(column, errors="coerce").astype(float)
+    ser = ser.mask(ser == _MISSING_SENTINEL)
+    return ser.replace([np.inf, -np.inf], np.nan)
+
+
+def _closure_terms(df_output: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+    """Build the closure terms of one partition.
+
+    Returns the numeric frame of every closure term (absent optional
+    terms filled with zero) and the list of optional terms that were
+    absent from the output.
+    """
+    dict_terms: dict[str, pd.Series] = {}
+    for name in _CLOSURE_REQUIRED:
+        dict_terms[name] = _numeric_series(df_output, name)
+    list_missing: list[str] = []
+    for name in (*_CLOSURE_SOURCES_OPTIONAL, *_CLOSURE_SINKS_OPTIONAL):
+        if name in df_output.columns:
+            dict_terms[name] = _numeric_series(df_output, name)
+        else:
+            list_missing.append(name)
+            dict_terms[name] = pd.Series(0.0, index=df_output.index)
+    return pd.DataFrame(dict_terms), list_missing
+
+
+def _collect_closure_terms(
+    list_partitions: list[tuple[str, pd.DataFrame]],
+) -> tuple[pd.DataFrame, list[str]] | CheckResult:
+    """Concatenate the closure terms of every partition.
+
+    Returns the combined term frame and the sorted list of optional terms
+    absent from any partition, or a ``fail`` result naming the first
+    partition that lacks a required term.
+    """
+    list_frames: list[pd.DataFrame] = []
+    set_missing_optional: set[str] = set()
+    for label, df_output in list_partitions:
+        list_missing_required = [
+            name for name in _CLOSURE_REQUIRED if name not in df_output.columns
+        ]
+        if list_missing_required:
+            return CheckResult(
+                name="energy_balance_closure",
+                severity="fail",
+                passed=False,
+                message=(
+                    f"{', '.join(list_missing_required)} missing in {label}; "
+                    "cannot compute energy balance closure."
+                ),
+                details={
+                    "partition": label,
+                    "missing": list_missing_required,
+                    "available_columns": [str(c) for c in df_output.columns][:30],
+                },
+            )
+        df_terms, list_missing_optional = _closure_terms(df_output)
+        set_missing_optional.update(list_missing_optional)
+        list_frames.append(df_terms)
+    return pd.concat(list_frames, ignore_index=True), sorted(set_missing_optional)
+
+
+def _read_error(name: str, path_run_dir: Path, exc: Exception) -> CheckResult:
+    return CheckResult(
+        name=name,
+        severity="warning",
+        passed=False,
+        message=f"Could not read run output: {exc}",
+        details={"run_dir": str(path_run_dir)},
+    )
+
+
+def _no_output(name: str, path_run_dir: Path) -> CheckResult:
+    return CheckResult(
+        name=name,
+        severity="warning",
+        passed=False,
+        message="No output dataframe to inspect.",
+        details={"run_dir": str(path_run_dir)},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -149,154 +256,157 @@ def check_output_files_present(path_run_dir: Path) -> CheckResult:
 
 
 def check_nan_proportion(path_run_dir: Path) -> CheckResult:
-    """Check NaN proportion in QH / QE / QN flux columns.
+    """Check the missing-value proportion in QH / QE / QN per partition.
+
+    A value is missing when it is NaN, non-finite or equal to the legacy
+    ``-999`` sentinel. Every partition (file, and grid within a file) is
+    judged separately so one broken grid or year cannot hide behind the
+    others.
 
     Severity:
-    - ``pass`` when all three flux columns have NaN fraction below 5%.
-    - ``warning`` when any flux column exceeds the threshold.
+    - ``pass`` when every flux column in every partition is below 5%.
+    - ``warning`` when any flux column in any partition exceeds the threshold.
     - ``fail`` when none of the flux columns are present (cannot judge).
     """
     try:
-        df_output = _load_output_dataframe(path_run_dir)
+        list_partitions = _load_output_partitions(path_run_dir)
     except (OSError, ValueError, pd.errors.ParserError) as exc:
-        return CheckResult(
-            name="nan_proportion",
-            severity="warning",
-            passed=False,
-            message=f"Could not read run output to compute NaN proportions: {exc}",
-            details={"run_dir": str(path_run_dir)},
+        return _read_error("nan_proportion", path_run_dir, exc)
+
+    if list_partitions is None:
+        return _no_output("nan_proportion", path_run_dir)
+
+    dict_fractions: dict[str, dict[str, float]] = {}
+    list_offenders: list[str] = []
+    set_found: set[str] = set()
+    list_columns_seen: list[str] = []
+    for label, df_output in list_partitions:
+        list_columns_seen = [str(col) for col in df_output.columns]
+        dict_partition = {
+            var: float(_numeric_series(df_output, var).isna().mean())
+            for var in _FLUX_VARIABLES
+            if var in df_output.columns
+        }
+        set_found.update(dict_partition)
+        dict_fractions[label] = dict_partition
+        list_offenders.extend(
+            f"{label}:{var}={frac:.3%}"
+            for var, frac in dict_partition.items()
+            if frac > _NAN_THRESHOLD_FRACTION
         )
 
-    if df_output is None:
-        return CheckResult(
-            name="nan_proportion",
-            severity="warning",
-            passed=False,
-            message="No output dataframe to inspect.",
-            details={"run_dir": str(path_run_dir)},
-        )
-
-    # Tolerate MultiIndex columns from the canonical SUEWS output.
-    list_columns = [
-        col[0] if isinstance(col, tuple) else col for col in df_output.columns
-    ]
-    df_output = df_output.copy()
-    df_output.columns = list_columns
-
-    found = {var: var in df_output.columns for var in _FLUX_VARIABLES}
-    if not any(found.values()):
+    if not set_found:
         return CheckResult(
             name="nan_proportion",
             severity="fail",
             passed=False,
             message="None of QH / QE / QN present in output.",
-            details={"available_columns": list_columns[:30]},
+            details={"available_columns": list_columns_seen[:30]},
         )
 
-    dict_fractions = {
-        var: float(df_output[var].isna().mean())
-        for var in _FLUX_VARIABLES
-        if found[var]
+    details = {
+        "threshold_fraction": _NAN_THRESHOLD_FRACTION,
+        "n_partitions": len(list_partitions),
+        "fractions": dict_fractions,
     }
-    list_offenders = [
-        f"{var}={frac:.3%}"
-        for var, frac in dict_fractions.items()
-        if frac > _NAN_THRESHOLD_FRACTION
-    ]
     if list_offenders:
         return CheckResult(
             name="nan_proportion",
             severity="warning",
             passed=False,
             message=(
-                f"NaN fraction exceeds {_NAN_THRESHOLD_FRACTION * 100:.0f}% "
+                f"Missing fraction exceeds {_NAN_THRESHOLD_FRACTION * 100:.0f}% "
                 f"in: {', '.join(list_offenders)}"
             ),
-            details={
-                "threshold_fraction": _NAN_THRESHOLD_FRACTION,
-                "fractions": dict_fractions,
-            },
+            details=details,
         )
     return CheckResult(
         name="nan_proportion",
         severity="pass",
         passed=True,
-        message=f"NaN fractions within {_NAN_THRESHOLD_FRACTION * 100:.0f}% on QH/QE/QN.",
-        details={"fractions": dict_fractions},
+        message=(
+            f"Missing fractions within {_NAN_THRESHOLD_FRACTION * 100:.0f}% "
+            f"on QH/QE/QN across {len(list_partitions)} partition(s)."
+        ),
+        details=details,
     )
 
 
 def check_energy_balance_closure(path_run_dir: Path) -> CheckResult:
-    """Approximate energy balance closure check.
+    """Energy-balance consistency check over every output partition.
 
-    Computes ``mean(|QN - (QH + QE + QS + QF)| / |QN|)`` over rows where
-    ``QN`` is finite and non-zero, then flags the run when the ratio
-    exceeds 10%. ``QF`` and ``QS`` may be missing for very simple
-    configurations — the check treats them as zero in that case rather
-    than refusing to run.
+    Computes ``mean(|(QN + QF + QMRain) - (QH + QE + QS + QM + QMFreeze)| /
+    |QN|)`` over rows where every term is finite and ``|QN| > 1``, then
+    flags the run when the ratio exceeds 10%. QN, QH, QE and QS must be
+    present; QF and the snow terms are treated as zero when their column
+    is absent, and the absent terms are listed in ``details``.
+
+    SUEWS closes this identity by construction, so the check is a
+    consistency test of the saved output rather than evidence of
+    scientific skill. Legacy text output stores the snow group in a
+    separate file that is not read here, so snow terms read as absent in
+    that format.
     """
     try:
-        df_output = _load_output_dataframe(path_run_dir)
+        list_partitions = _load_output_partitions(path_run_dir)
     except (OSError, ValueError, pd.errors.ParserError) as exc:
-        return CheckResult(
-            name="energy_balance_closure",
-            severity="warning",
-            passed=False,
-            message=f"Could not read run output to compute energy balance: {exc}",
-            details={"run_dir": str(path_run_dir)},
-        )
+        return _read_error("energy_balance_closure", path_run_dir, exc)
 
-    if df_output is None:
-        return CheckResult(
-            name="energy_balance_closure",
-            severity="warning",
-            passed=False,
-            message="No output dataframe to inspect.",
-            details={"run_dir": str(path_run_dir)},
-        )
+    if list_partitions is None:
+        return _no_output("energy_balance_closure", path_run_dir)
 
-    list_columns = [
-        col[0] if isinstance(col, tuple) else col for col in df_output.columns
-    ]
-    df_output = df_output.copy()
-    df_output.columns = list_columns
+    collected = _collect_closure_terms(list_partitions)
+    if isinstance(collected, CheckResult):
+        return collected
+    df_all, list_missing_optional = collected
 
-    if "QN" not in df_output.columns:
-        return CheckResult(
-            name="energy_balance_closure",
-            severity="fail",
-            passed=False,
-            message="QN missing — cannot compute energy balance closure.",
-            details={"available_columns": list_columns[:30]},
-        )
+    ser_qn = df_all["QN"]
+    mask_nontrivial = ser_qn.notna() & (ser_qn.abs() > 1.0)
+    mask_finite = df_all.notna().all(axis=1)
+    mask_valid = mask_nontrivial & mask_finite
 
-    ser_qn = pd.to_numeric(df_output["QN"], errors="coerce")
-    ser_qh = pd.to_numeric(df_output.get("QH", 0.0), errors="coerce").fillna(0.0)
-    ser_qe = pd.to_numeric(df_output.get("QE", 0.0), errors="coerce").fillna(0.0)
-    ser_qs = pd.to_numeric(df_output.get("QS", 0.0), errors="coerce").fillna(0.0)
-    ser_qf = pd.to_numeric(df_output.get("QF", 0.0), errors="coerce").fillna(0.0)
+    details: dict[str, Any] = {
+        "n_partitions": len(list_partitions),
+        "n_rows": len(df_all),
+        "n_rows_evaluated": int(mask_valid.sum()),
+        "n_rows_skipped_nonfinite": int((mask_nontrivial & ~mask_finite).sum()),
+        "terms_missing": list_missing_optional,
+    }
 
-    mask_valid = ser_qn.notna() & (ser_qn.abs() > 1.0)
     if not mask_valid.any():
         return CheckResult(
             name="energy_balance_closure",
             severity="warning",
             passed=False,
-            message="QN has no finite, non-trivial values to evaluate closure.",
-            details={"n_rows": len(df_output)},
+            message=(
+                "No rows with finite closure terms and non-trivial QN to evaluate."
+            ),
+            details=details,
         )
 
-    ser_residual = (ser_qn - (ser_qh + ser_qe + ser_qs + ser_qf)).abs()
+    ser_sources = df_all["QN"] + df_all["QF"] + df_all["QMRain"]
+    ser_sinks = df_all["QH"] + df_all["QE"] + df_all["QS"]
+    ser_sinks += df_all["QM"] + df_all["QMFreeze"]
+    ser_residual = (ser_sources - ser_sinks).abs()
     ser_ratio = ser_residual[mask_valid] / ser_qn[mask_valid].abs()
     ratio_mean = float(ser_ratio.mean())
+    details["ratio_mean"] = ratio_mean
 
+    note_missing = (
+        f" (absent terms treated as zero: {', '.join(details['terms_missing'])})"
+        if details["terms_missing"]
+        else ""
+    )
     if ratio_mean < _ENERGY_BALANCE_THRESHOLD:
         return CheckResult(
             name="energy_balance_closure",
             severity="pass",
             passed=True,
-            message=f"Mean closure residual {ratio_mean:.3f} < {_ENERGY_BALANCE_THRESHOLD:.2f}.",
-            details={"ratio_mean": ratio_mean, "n_rows": int(mask_valid.sum())},
+            message=(
+                f"Mean closure residual {ratio_mean:.3f} < "
+                f"{_ENERGY_BALANCE_THRESHOLD:.2f}{note_missing}."
+            ),
+            details=details,
         )
     return CheckResult(
         name="energy_balance_closure",
@@ -304,9 +414,9 @@ def check_energy_balance_closure(path_run_dir: Path) -> CheckResult:
         passed=False,
         message=(
             f"Mean closure residual {ratio_mean:.3f} exceeds "
-            f"{_ENERGY_BALANCE_THRESHOLD:.2f}."
+            f"{_ENERGY_BALANCE_THRESHOLD:.2f}{note_missing}."
         ),
-        details={"ratio_mean": ratio_mean, "n_rows": int(mask_valid.sum())},
+        details=details,
     )
 
 

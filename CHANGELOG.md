@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 7 Sep 2026
+
+- [bugfix] Corrected the `suews diagnose` energy-balance check and made it inspect every output partition (#1734)
+  - The closure residual now follows the model identity `QN + QF + QMRain = QH + QE + QS + QM + QMFreeze`; QF had been placed among the sinks, so balanced runs were flagged and unbalanced ones passed.
+  - All files of the highest-priority output format, and every grid within a multi-grid file, are checked; `-999` sentinels and non-finite rows are treated as missing and counted; an absent optional column no longer raises.
+  - `suews summarise` and `suews compare` keep their existing single-file loader.
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

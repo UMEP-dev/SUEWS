@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
+- [bugfix] Overlapping forcing files no longer silently keep the first record: every multi-file loader (`SUEWSForcing.from_file`, YAML `forcing.file` lists and directories, wildcard `read_forcing`, `SUEWSSimulation.update_forcing`) now shares one merge that deduplicates identical records, fills values missing in one file from another, and rejects conflicting observations with a `ForcingConflictError` naming the files, timestamps and variables (#1747)
+  - Precedence by file order is an explicit opt-in (`on_conflict="first"` / `"last"`) that logs what it overrode; the YAML path always uses the strict default.
+
 - [bugfix] `SUEWSForcing.resample` no longer aggregates the `-999` missing sentinel as a number: an all-missing rain interval was reported as 0 mm, missing `Wuh` readings summed to -1998 mm and the mean of a valid and a missing radiation value came out as -449.5 W m-2 (#1748)
   - Sentinels and NaN are masked first; an output interval is missing unless it is fully covered by valid rows (sums and means) or its endpoint is valid (instantaneous values), temporal columns are rebuilt from the output index, per-surface extras follow the same rules, and finer or non-integer target frequencies are rejected rather than silently interpolated.
 

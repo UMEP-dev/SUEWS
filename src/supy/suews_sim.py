@@ -20,7 +20,9 @@ from ._filename import safe_filename_component
 from ._provenance import (
     PROVENANCE_FORMAT_VERSION,
     TIMESTAMP_CONVENTION,
+    dataframe_sha256,
     file_identity,
+    json_sha256,
     now_utc_iso,
     requested_bound_to_str,
     supy_build_identity,
@@ -862,6 +864,11 @@ class SUEWSSimulation:
                 self._df_state_init,
             )
 
+        # Snapshot the identity of the inputs as they are handed to the
+        # kernel, so a later update_config/update_forcing without a rerun
+        # cannot relabel this run's output at save time.
+        run_metadata["inputs"] = self._snapshot_input_identity(df_forcing_slice)
+
         # Run simulation via Rust bridge
         initial_state_json_by_grid = (
             self._checkpoint.grid_states if self._checkpoint is not None else None
@@ -1039,9 +1046,16 @@ class SUEWSSimulation:
             list_path_save.append(checkpoint_path)
 
         # Provenance sidecar: written last so it can list what was saved.
+        # Report the format that was actually written: the YAML
+        # ``output.format`` applies when no ``format`` kwarg is given.
+        written_format = (
+            "parquet"
+            if any(Path(p).suffix == ".parquet" for p in list_path_save)
+            else "txt"
+        )
         payload = self._build_provenance(
             list_path_save,
-            output_format=output_format or "txt",
+            output_format=written_format,
             freq_s=int(freq_s),
             forcing_timestamp_reference=forcing_timestamp_reference,
             output_config=output_config,
@@ -1117,19 +1131,14 @@ class SUEWSSimulation:
             "continued_from_checkpoint": self._checkpoint is not None,
         }
 
-    def _build_provenance(
-        self,
-        list_path_save: list,
-        *,
-        output_format: str,
-        freq_s: int,
-        forcing_timestamp_reference,
-        output_config,
-        command: Optional[str],
-    ) -> dict:
-        """Assemble the ``provenance.json`` payload for :meth:`save`."""
-        run_metadata = dict(self._run_metadata or {})
+    def _snapshot_input_identity(self, df_forcing_slice: pd.DataFrame) -> dict:
+        """Describe the configuration and forcing exactly as run.
 
+        Source files are identified by name, size and SHA-256 (captured when
+        they were loaded); ``effective_sha256`` hashes the in-memory
+        configuration and the model-ready forcing slice that the kernel
+        received, which is what a later reader should compare against.
+        """
         config_block: dict = {"source": "in-memory"}
         if self._config_identity is not None:
             config_block = {"source": "file", **self._config_identity}
@@ -1142,14 +1151,45 @@ class SUEWSSimulation:
                 str(getattr(site, "name", ""))
                 for site in getattr(self._config, "sites", [])
             ]
+            try:
+                config_block["effective_sha256"] = json_sha256(
+                    self._config.model_dump(mode="json")
+                )
+            except Exception:  # pragma: no cover - never let hashing fail a run
+                config_block["effective_sha256"] = None
         if self._df_state_init is not None:
+            index = self._df_state_init.index
             grid_level = (
-                self._df_state_init.index.get_level_values("grid")
-                if isinstance(self._df_state_init.index, pd.MultiIndex)
-                and "grid" in self._df_state_init.index.names
-                else self._df_state_init.index
+                index.get_level_values("grid")
+                if isinstance(index, pd.MultiIndex) and "grid" in index.names
+                else index
             )
             config_block["grids"] = [int(g) for g in grid_level]
+
+        forcing_block = dict(self._forcing_sources or {"source": "unknown"})
+        forcing_block["effective_sha256"] = dataframe_sha256(df_forcing_slice)
+        forcing_block["effective_n_rows"] = int(len(df_forcing_slice))
+        return {"config": config_block, "forcing": forcing_block}
+
+    def _build_provenance(
+        self,
+        list_path_save: list,
+        *,
+        output_format: str,
+        freq_s: int,
+        forcing_timestamp_reference,
+        output_config,
+        command: Optional[str],
+    ) -> dict:
+        """Assemble the ``provenance.json`` payload for :meth:`save`.
+
+        Input identities come from the snapshot taken by :meth:`run`, never
+        from the simulation's current attributes.
+        """
+        run_metadata = dict(self._run_metadata or {})
+        inputs = run_metadata.get("inputs") or {}
+        config_block = inputs.get("config") or {"source": "unknown"}
+        forcing_block = inputs.get("forcing") or {"source": "unknown"}
 
         output_reference = "follow"
         if output_config is not None:
@@ -1194,7 +1234,7 @@ class SUEWSSimulation:
             "created_at": now_utc_iso(),
             **supy_build_identity(),
             "config": config_block,
-            "forcing": self._forcing_sources or {"source": "unknown"},
+            "forcing": forcing_block,
             "period": period,
             "timestamps": {
                 "convention": TIMESTAMP_CONVENTION,

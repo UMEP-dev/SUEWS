@@ -76,6 +76,11 @@ def test_provenance_identifies_config_and_forcing(saved_run):
     forcing_file = config_path.parent / sim.config.model.control.forcing.file.value
     assert forcing["files"][0]["name"] == forcing_file.name
     assert forcing["files"][0]["sha256"] == _sha256(forcing_file)
+    # The frame handed to the kernel is resampled from the 60-min file, so
+    # its effective hash is a separate identity from the source file.
+    assert forcing["effective_sha256"] != forcing["files"][0]["sha256"]
+    assert forcing["effective_n_rows"] == SHORT_STEPS
+    assert prov["config"]["effective_sha256"]
 
 
 def test_provenance_records_requested_and_actual_period(saved_run):
@@ -181,13 +186,73 @@ def test_provenance_consumes_run_period_contract(tmp_path):
     assert period["policy"] == "clip"
 
 
+def test_output_format_follows_yaml_when_no_kwarg(tmp_path):
+    """A YAML ``output.format: parquet`` run must not be labelled txt."""
+    sim = SUEWSSimulation.from_sample_data()
+    sim.update_config({"model": {"control": {"output": {"format": "parquet"}}}})
+    sim.update_forcing(sim.forcing.df.iloc[:SHORT_STEPS].copy())
+    sim.run(n_jobs=1)
+    paths = sim.save(tmp_path)
+    assert any(Path(p).suffix == ".parquet" for p in paths)
+    prov = read_provenance(tmp_path)
+    assert prov["output"]["format"] == "parquet"
+    assert any(name.endswith(".parquet") for name in prov["output"]["files"])
+
+
+def test_inputs_replaced_after_run_do_not_relabel_output(tmp_path):
+    """Provenance describes the inputs that produced the output, not the
+    inputs attached to the object at save time."""
+    sim = SUEWSSimulation.from_sample_data()
+    sim.update_forcing(sim.forcing.df.iloc[:SHORT_STEPS].copy())
+    sim.run(n_jobs=1)
+    original_config_hash = sim._run_metadata["inputs"]["config"]["effective_sha256"]
+    original_forcing_hash = sim._run_metadata["inputs"]["forcing"]["effective_sha256"]
+
+    # Replace both inputs without rerunning: a different forcing slice from
+    # a file (so the source now reports files) and a config edit.
+    forcing_path = sim._config_path.parent / sim.config.model.control.forcing.file.value
+    sim.update_forcing(forcing_path)
+    sim.update_config({"model": {"control": {"tstep": 600}}})
+    assert sim._run_completed
+
+    sim.save(tmp_path)
+    prov = read_provenance(tmp_path)
+    assert prov["forcing"]["source"] == "in-memory"
+    assert "files" not in prov["forcing"]
+    assert prov["forcing"]["effective_sha256"] == original_forcing_hash
+    assert prov["forcing"]["effective_n_rows"] == SHORT_STEPS
+    assert prov["config"]["effective_sha256"] == original_config_hash
+    assert prov["period"]["tstep_s"] == 300
+    assert prov["period"]["actual"]["n_timesteps"] == SHORT_STEPS
+
+
+def test_edited_in_memory_config_changes_effective_hash(tmp_path):
+    sim_a = SUEWSSimulation.from_sample_data()
+    sim_a.update_forcing(sim_a.forcing.df.iloc[:SHORT_STEPS].copy())
+    sim_a.run(n_jobs=1)
+    sim_b = SUEWSSimulation.from_sample_data()
+    sim_b.update_config({"model": {"control": {"tstep": 600}}})
+    sim_b.update_forcing(sim_b.forcing.df.iloc[:SHORT_STEPS].copy())
+    sim_b.run(n_jobs=1)
+    hash_a = sim_a._run_metadata["inputs"]["config"]["effective_sha256"]
+    hash_b = sim_b._run_metadata["inputs"]["config"]["effective_sha256"]
+    assert hash_a != hash_b
+    # Same source file on both, so the file identity is unchanged.
+    assert (
+        sim_a._run_metadata["inputs"]["config"]["sha256"]
+        == sim_b._run_metadata["inputs"]["config"]["sha256"]
+    )
+
+
 def test_in_memory_forcing_is_reported_truthfully(tmp_path):
     sim = SUEWSSimulation.from_sample_data()
     sim.update_forcing(sim.forcing.df.iloc[:SHORT_STEPS].copy())
     sim.run(n_jobs=1)
     sim.save(tmp_path)
     prov = read_provenance(tmp_path)
-    assert prov["forcing"] == {"source": "in-memory"}
+    assert prov["forcing"]["source"] == "in-memory"
+    assert "files" not in prov["forcing"]
+    assert prov["forcing"]["effective_sha256"]
     assert prov["period"]["actual"]["n_timesteps"] == SHORT_STEPS
 
 

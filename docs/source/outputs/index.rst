@@ -67,7 +67,12 @@ without the original session:
   name, size and SHA-256 content hash, plus the configuration schema
   version, site names and grid IDs. Directories and absolute paths are never
   written, so the file can be shared as it is. In-memory inputs are recorded
-  as ``"source": "in-memory"``.
+  as ``"source": "in-memory"``. Each block also carries ``effective_sha256``,
+  a hash of the configuration and of the model-ready forcing frame exactly as
+  the kernel received them; it differs from the source-file hash whenever the
+  loader resampled or converted the file, or the inputs were edited in
+  memory. All identities are captured at ``run()`` time, so replacing inputs
+  afterwards without rerunning does not relabel the saved output.
 - ``supy_version`` and ``git_commit``: the SuPy build that ran.
 - ``period``: the requested start and end (explicit ``run()`` arguments or the
   configuration's ``start_time`` / ``end_time``), the period actually

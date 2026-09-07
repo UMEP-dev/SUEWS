@@ -65,6 +65,25 @@ def file_identity(path: Path) -> dict[str, Any]:
     }
 
 
+def dataframe_sha256(df: pd.DataFrame) -> str:
+    """Content hash of a model-ready frame: column names, index and values.
+
+    This is the identity of what was actually simulated, which differs from
+    the source file whenever the loader resampled, renamed or converted it,
+    or the user edited the frame in memory.
+    """
+    digest = hashlib.sha256()
+    digest.update("|".join(map(str, df.columns)).encode("utf-8"))
+    digest.update(pd.util.hash_pandas_object(df, index=True).values.tobytes())
+    return digest.hexdigest()
+
+
+def json_sha256(obj: Any) -> str:
+    """Content hash of a JSON-serialisable object with sorted keys."""
+    text = json.dumps(obj, sort_keys=True, ensure_ascii=True, default=str)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def timestamp_to_iso(value: Any) -> Optional[str]:
     """Render a pandas/datetime timestamp as ISO 8601, or ``None``."""
     if value is None:

@@ -67,7 +67,13 @@ def main(argv=None) -> int:
     index = json.loads(Path(args.index).read_text(encoding="utf-8"))
     thresholds = json.loads(Path(args.thresholds).read_text(encoding="utf-8"))
 
+    status = thresholds.get("status", "unspecified")
     if args.sweep:
+        print(
+            "[regression] mode=historical-sweep: consecutive pairs of RECORDED releases in the index; "
+            "this does not test the current commit's physics"
+        )
+        print(f"[regression] thresholds status: {status}")
         decisions = sweep(index, thresholds)
         if not decisions:
             print(
@@ -83,6 +89,10 @@ def main(argv=None) -> int:
                 file=sys.stderr,
             )
             return 2
+        print(
+            f"[regression] mode=candidate-gate: {args.candidate} vs {prev}; a pass means within the "
+            f"thresholds ({status}), not the absence of any scientific change"
+        )
         decisions = [decide(index, thresholds, prev, args.candidate)]
 
     for d in decisions:
@@ -116,7 +126,9 @@ def main(argv=None) -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"[regression] OK: {len(decisions)} release pair(s) within tolerance")
+    print(
+        f"[regression] OK: {len(decisions)} release pair(s) within tolerance ({status})"
+    )
     return 0
 
 

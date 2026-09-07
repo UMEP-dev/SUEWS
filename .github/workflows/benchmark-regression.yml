@@ -3,16 +3,18 @@
 # What a green run of this workflow certifies today:
 #   * supply-proof  - the secret -> restricted Zenodo -> benchmark-input path works,
 #                     exercised against a SANDBOX record holding SYNTHETIC data.
-#   * pinned-results-gate - the harness's unit tests pass, and the regression
-#                     decision (benchmark/check_regression.py with
+#   * harness-and-history - (a) harness validation: the benchmark's unit tests
+#                     pass; (b) historical sweep: the regression decision
+#                     (benchmark/check_regression.py with the DRAFT tolerances in
 #                     benchmark/regression_thresholds.json) holds across every
-#                     consecutive release pair in the COMMITTED results index
-#                     (derived statistics already recorded under benchmark/results/).
-# What it does NOT do yet: run the current model against the real restricted
-#   observations. That is the full-benchmark job below, disabled pending
-#   data-governance sign-off; until it is enabled the live comparison of a
-#   release candidate is the manual pre-deposit gate in the prep-release skill,
-#   which applies the same check_regression.py decision.
+#                     consecutive pair of RECORDED releases in the committed
+#                     results index. Neither touches the current commit's physics.
+# What it does NOT do yet: the candidate scientific gate - running the current
+#   model against the real restricted observations and judging it against the
+#   previous release. That is the full-benchmark job below, disabled pending
+#   data-governance sign-off; until it is enabled that gate is the manual
+#   pre-deposit step in the prep-release skill, which applies the same
+#   check_regression.py --candidate decision.
 name: Benchmark regression
 
 on:
@@ -69,11 +71,12 @@ jobs:
           name: benchmark-supply-summary
           path: benchmark_supply_out/
 
-  # Regression decision on the committed, pinned results. Needs no secrets and no
-  # model build, so it runs on every trigger (fork PRs included) and turns a
-  # daily green into a statement about the harness and the recorded history,
-  # not only about the data-supply path.
-  pinned-results-gate:
+  # Harness validation + historical sweep over the committed, pinned results.
+  # Needs no secrets and no model build, so it runs on every trigger (fork PRs
+  # included). A green here says the harness works and the recorded release
+  # history is within the draft tolerances; it says nothing about the current
+  # commit's physics (see the header).
+  harness-and-history:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -89,19 +92,19 @@ jobs:
       - name: Install harness test deps (no supy build)
         run: python -m pip install --no-input pandas packaging pyyaml pytest
 
-      - name: Harness unit tests
+      - name: Harness validation (unit tests)
         # test_legacy_yaml_roundtrip.py imports supy and is covered by the main
         # test suite's build; everything else under benchmark/tests is pure.
         run: python -m pytest benchmark/tests --ignore=benchmark/tests/test_legacy_yaml_roundtrip.py -q
 
-      - name: Regression decision across the recorded release history
+      - name: Historical sweep (recorded releases only, not the current commit)
         working-directory: benchmark
         run: python check_regression.py --sweep --report "${RUNNER_TEMP}/regression_report.json"
 
       - name: Upload regression report (derived statistics only)
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: benchmark-regression-report
+          name: benchmark-historical-sweep-report
           path: ${{ runner.temp }}/regression_report.json
 
   # Stage 2 — full regression of the CURRENT model against the REAL restricted
@@ -114,7 +117,7 @@ jobs:
   full-benchmark:
     if: false
     runs-on: ubuntu-latest
-    needs: [supply-proof, pinned-results-gate]
+    needs: [supply-proof, harness-and-history]
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -150,9 +153,10 @@ jobs:
             --freeze "$RUNNER_TEMP/freeze.txt" \
             --outdir "benchmark/results/$V"
           python benchmark/assemble_index.py
-      - name: Regression decision vs the previous release
-        # Same decision as the pinned-results gate and the release skill: fails on
-        # a material increase beyond benchmark/regression_thresholds.json.
+      - name: Candidate scientific gate (current release vs the previous release)
+        # The only step in this workflow that judges the current commit's physics.
+        # Same decision as the historical sweep and the release skill: fails on an
+        # increase beyond benchmark/regression_thresholds.json (draft tolerances).
         working-directory: benchmark
         run: |
           V="$(python -c 'import supy; print(supy.__version__)')"

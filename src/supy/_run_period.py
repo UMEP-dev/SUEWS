@@ -131,18 +131,30 @@ def resolve_run_period(
     )
 
 
-def _forcing_step(index: pd.DatetimeIndex) -> Optional[pd.Timedelta]:
+def _forcing_step(
+    index: pd.DatetimeIndex, tstep: Optional[int] = None
+) -> Optional[pd.Timedelta]:
+    """Return the forcing row spacing, or ``None`` if it cannot be known.
+
+    Uses the index ``freq`` when set, otherwise the observed spacing when
+    every gap between consecutive rows is the same positive interval (two
+    rows are enough), otherwise the model timestep ``tstep`` in seconds when
+    given. Irregular spacing with no ``tstep`` yields ``None``.
+    """
     freq = index.freq
-    if freq is None and len(index) >= 3:
-        inferred = pd.infer_freq(index)
-        if inferred is not None:
-            freq = pd.tseries.frequencies.to_offset(inferred)
-    if freq is None:
-        return None
-    try:
-        return pd.Timedelta(freq)
-    except (TypeError, ValueError):
-        return None
+    if freq is not None:
+        try:
+            return pd.Timedelta(freq)
+        except (TypeError, ValueError):
+            freq = None
+    if len(index) >= 2:
+        gaps = pd.Series(index[1:] - index[:-1])
+        first_gap = gaps.iloc[0]
+        if first_gap > pd.Timedelta(0) and (gaps == first_gap).all():
+            return first_gap
+    if tstep is not None and tstep > 0:
+        return pd.Timedelta(seconds=int(tstep))
+    return None
 
 
 def _snap_to_grid(
@@ -159,21 +171,31 @@ def _snap_to_grid(
 
 
 def required_rows(
-    period: RunPeriod, index: pd.DatetimeIndex
+    period: RunPeriod, index: pd.DatetimeIndex, tstep: Optional[int] = None
 ) -> tuple[Optional[pd.Timestamp], Optional[pd.Timestamp]]:
     """Return the first and last forcing timestamps the request needs.
 
-    ``None`` on a side means that side is unbounded. When the forcing index
-    has no regular step, explicit bounds are used as given and a date-only
-    start cannot be pinned to a row, so it is reported as ``None``.
+    ``None`` on a side means that side is unbounded. The row spacing comes
+    from the index, the observed gaps, or ``tstep`` (seconds); a date-only
+    start needs it to name its first row, so an unknown spacing raises
+    rather than leaving the start unchecked. Explicit bounds with unknown
+    spacing are used as given.
     """
-    step = _forcing_step(index)
+    step = _forcing_step(index, tstep)
     origin = index[0]
 
     first = None
     if period.start is not None:
         if period.start_is_date:
-            first = period.start + step if step is not None else None
+            if step is None:
+                raise ValueError(
+                    f"Cannot check that the forcing covers the date-only "
+                    f"start_date {period.start_raw!r}: the forcing rows have "
+                    "no regular spacing and no model timestep was given. "
+                    "Supply regularly spaced forcing, or give start_date as "
+                    "an explicit timestamp."
+                )
+            first = period.start + step
         elif step is not None:
             first = _snap_to_grid(period.start, origin, step, up=True)
         else:
@@ -224,10 +246,14 @@ def _select_rows(df_forcing: pd.DataFrame, period: RunPeriod) -> pd.DataFrame:
 
 
 def _check_coverage(
-    period: RunPeriod, index: pd.DatetimeIndex, *, clip_to_forcing: bool
+    period: RunPeriod,
+    index: pd.DatetimeIndex,
+    *,
+    clip_to_forcing: bool,
+    tstep: Optional[int] = None,
 ) -> bool:
     """Return True when the forcing covers ``period``; raise or warn otherwise."""
-    first, last = required_rows(period, index)
+    first, last = required_rows(period, index, tstep)
     available_start, available_end = index[0], index[-1]
     covered = (first is None or available_start <= first) and (
         last is None or available_end >= last
@@ -259,13 +285,15 @@ def slice_forcing_to_period(
     period: RunPeriod,
     *,
     clip_to_forcing: bool = False,
+    tstep: Optional[int] = None,
 ) -> tuple[pd.DataFrame, dict]:
     """Select the forcing rows for ``period`` and check coverage.
 
     Returns the sliced frame and a metadata dict with the requested and
     actual periods. Raises :class:`ValueError` when the request is not
     covered and ``clip_to_forcing`` is False, and always when the request
-    and the forcing do not overlap at all.
+    and the forcing do not overlap at all. ``tstep`` (model timestep in
+    seconds) is the fallback row spacing when the index carries none.
     """
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
@@ -286,7 +314,9 @@ def slice_forcing_to_period(
             "Supply forcing for the requested period or change "
             "start_date/end_date (model.control.start_time/end_time)."
         )
-    covered = _check_coverage(period, index, clip_to_forcing=clip_to_forcing)
+    covered = _check_coverage(
+        period, index, clip_to_forcing=clip_to_forcing, tstep=tstep
+    )
     return df_slice, _period_metadata(
         period, df_slice, clipped=not covered, clip_to_forcing=clip_to_forcing
     )

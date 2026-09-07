@@ -265,3 +265,80 @@ class TestRunIntegration:
         assert sim._run_period is not None
         sim.reset()
         assert sim._run_period is None
+
+
+class TestSpacingInference:
+    """A date-only start must never fail open when the index carries no freq."""
+
+    def test_two_row_index_without_freq_rejects_start_before_forcing(self):
+        index = pd.DatetimeIndex(["2012-01-01 12:00", "2012-01-01 12:05"])
+        assert index.freq is None
+        df = pd.DataFrame({"Tair": [1.0, 2.0]}, index=index)
+        with pytest.raises(ValueError, match="does not cover"):
+            slice_forcing_to_period(df, _period("2011-01-01", None, df))
+
+    def test_two_row_index_without_freq_rejects_start_of_day_gap(self):
+        index = pd.DatetimeIndex(["2012-01-01 12:00", "2012-01-01 12:05"])
+        df = pd.DataFrame({"Tair": [1.0, 2.0]}, index=index)
+        # The day starts at 00:05; the forcing only begins at noon.
+        with pytest.raises(ValueError, match="does not cover"):
+            slice_forcing_to_period(df, _period("2012-01-01", None, df))
+
+    def test_two_row_index_without_freq_covers_matching_day_start(self):
+        index = pd.DatetimeIndex(["2012-01-01 00:05", "2012-01-01 00:10"])
+        df = pd.DataFrame({"Tair": [1.0, 2.0]}, index=index)
+        first, last = required_rows(_period("2012-01-01", None, df), df.index)
+        assert first == pd.Timestamp("2012-01-01 00:05")
+        _, meta = slice_forcing_to_period(df, _period("2012-01-01", None, df))
+        assert meta["clipped"] is False
+
+    def test_single_row_uses_model_timestep(self):
+        df = pd.DataFrame({"Tair": [1.0]}, index=pd.DatetimeIndex(["2012-01-01 12:00"]))
+        with pytest.raises(ValueError, match="does not cover"):
+            slice_forcing_to_period(df, _period("2011-01-01", None, df), tstep=300)
+        _, meta = slice_forcing_to_period(
+            df, _period("2011-01-01", None, df), clip_to_forcing=True, tstep=300
+        )
+        assert meta["clipped"] is True
+
+    def test_unknown_spacing_without_timestep_raises_rather_than_failing_open(self):
+        df = pd.DataFrame({"Tair": [1.0]}, index=pd.DatetimeIndex(["2012-01-01 12:00"]))
+        with pytest.raises(ValueError, match="no regular spacing"):
+            slice_forcing_to_period(df, _period("2011-01-01", None, df))
+
+    def test_irregular_index_falls_back_to_model_timestep(self):
+        index = pd.DatetimeIndex([
+            "2012-01-01 00:05",
+            "2012-01-01 00:10",
+            "2012-01-01 00:30",
+        ])
+        df = pd.DataFrame({"Tair": [1.0, 2.0, 3.0]}, index=index)
+        first, _ = required_rows(_period("2012-01-01", None, df), df.index, tstep=300)
+        assert first == pd.Timestamp("2012-01-01 00:05")
+        with pytest.raises(ValueError, match="no regular spacing"):
+            required_rows(_period("2012-01-01", None, df), df.index)
+
+    def test_observed_spacing_wins_over_model_timestep(self):
+        index = pd.DatetimeIndex(["2012-01-01 01:00", "2012-01-01 02:00"])
+        df = pd.DataFrame({"Tair": [1.0, 2.0]}, index=index)
+        first, _ = required_rows(_period("2012-01-01", None, df), df.index, tstep=300)
+        assert first == pd.Timestamp("2012-01-01 01:00")
+
+    def test_explicit_start_with_unknown_spacing_is_still_checked(self):
+        df = pd.DataFrame({"Tair": [1.0]}, index=pd.DatetimeIndex(["2012-01-01 12:00"]))
+        with pytest.raises(ValueError, match="does not cover"):
+            slice_forcing_to_period(df, _period("2012-01-01 11:00", None, df))
+
+
+@pytest.mark.core
+@pytest.mark.rust
+def test_run_two_row_forcing_rejects_uncovered_date_only_start():
+    """The P1 reproduction through run(): two rows, no freq, start before forcing."""
+    sim = sp.SUEWSSimulation.from_sample_data()
+    df_two = sim.forcing.df.iloc[144:146].copy()
+    sim.update_forcing(df_two)
+    # Two rows: pandas cannot infer a freq, so the spacing must be observed.
+    assert len(sim.forcing) == 2
+    with pytest.raises(ValueError, match="does not cover"):
+        sim.run(start_date="2011-01-01", end_date=df_two.index[-1], n_jobs=1)
+    assert sim._run_period is None

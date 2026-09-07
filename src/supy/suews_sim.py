@@ -752,8 +752,13 @@ class SUEWSSimulation:
         # reject forcing that does not cover it (gh#1268). This runs
         # regardless of _validate_forcing so no public path can skip it.
         period = resolve_run_period(start_date, end_date, self._df_forcing.index)
+        tstep_cfg = self._config.model.control.tstep
+        tstep_cfg = int(getattr(tstep_cfg, "value", tstep_cfg))
         df_forcing_slice, self._run_period = slice_forcing_to_period(
-            self._df_forcing, period, clip_to_forcing=clip_to_forcing
+            self._df_forcing,
+            period,
+            clip_to_forcing=clip_to_forcing,
+            tstep=tstep_cfg,
         )
 
         # A checkpoint continuation must pick up exactly one timestep after

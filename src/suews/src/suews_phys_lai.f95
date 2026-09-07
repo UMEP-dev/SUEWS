@@ -61,13 +61,15 @@ contains
       real(kind(1D0)), dimension(3), intent(inout) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_id_prev ! LAI of previous day
       real(kind(1D0)), dimension(nvegsurf), intent(out) :: lai_id_next !LAI for each veg surface [m2 m-2]
-
+      
       real(kind(1D0)) :: delta_gdd !Switches and checks for GDD
       real(kind(1D0)) :: delta_sdd !Switches and checks for GDD
       real(kind(1D0)) :: ind_help !Switches and checks for GDD
       real(kind(1D0)), dimension(3) :: gdd_id_prev ! GDD of previous day
       real(kind(1D0)), dimension(3) :: sdd_id_prev ! SDD of previous day
-
+      
+      integer, dimension(nvegsurf) :: growth_state = 0 !State of growth (0: dormant, 1: growing, 2: senescing)
+      integer, dimension(nvegsurf) :: senescence_state = 0 !State of senescence (0: not senescing, 1: senescing)
       
       integer :: iv
 
@@ -93,8 +95,10 @@ contains
       ! TODO: Move outside timestep loop as timestep independent
       if (lat >= 0) then
          sdd_reset_day = 140
-         summer_day = 170
-         winter_day = 170
+         ! summer_day = 170
+         ! winter_day = 170
+         summer_day = 182
+         winter_day = 1
          southern_hemisphere = .false.
          senescence_mode = SEN_DAYLENGTH
       else !! N.B. not identical to N hemisphere - return to later
@@ -108,36 +112,54 @@ contains
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
 
-         call calc_delta_gdd_sdd( &
+         call calc_degree_days( &
+            growth_state=growth_state(iv), &
+            senescence_state=senescence_state(iv), &
             tmin_prev=t_min_id_prev, &
             tmax_prev=t_max_id_prev, &
             base_t_gdd=base_t_gdd(iv), &
             base_t_sdd=base_t_sdd(iv), &
+            gdd_id_prev=gdd_id_prev(iv), &
+            sdd_id_prev=sdd_id_prev(iv), &
+            lai_id_prev=lai_id_prev(iv), &
+            lai_max=lai_max(iv), &
+            lai_min=lai_min(iv), &
             delta_gdd=delta_gdd, &
-            delta_sdd=delta_sdd &
-         )
-
-         ! Calculate cumulative growing and senescence degree days
-         gdd_id(iv) = gdd_id_prev(iv) + delta_gdd
-         sdd_id(iv) = sdd_id_prev(iv) + delta_sdd
-
-         call limit_gdd_sdd( &
-            gdd_full=gdd_full(iv), &
-            sdd_full=sdd_full(iv), &
+            delta_sdd=delta_sdd, &
             gdd_id=gdd_id(iv), &
             sdd_id=sdd_id(iv) &
          )
 
+         ! call limit_degree_days( &
+         !    gdd_full=gdd_full(iv), &
+         !    sdd_full=sdd_full(iv), &
+         !    gdd_id=gdd_id(iv), &
+         !    sdd_id=sdd_id(iv) &
+         ! )
+
          ! Now calculate LAI itself
-         call reset_degree_day_states( &
+         call reset_degree_days( &
             id=id, &
             sdd_reset_day=sdd_reset_day, &
-            summer_day=summer_day, &
-            winter_day=winter_day, &
-            gdd_id=gdd_id(iv), &
-            sdd_id=sdd_id(iv), &
-            southern_hemisphere=southern_hemisphere &
+            summer_reset_day=summer_day, &
+            winter_reset_day=winter_day, &
+            southern_hemisphere=southern_hemisphere, &
+            gdd_base=gdd_full(iv), &
+            sdd_base=sdd_full(iv), &
+            growth_state=growth_state(iv), &
+            senescence_state=senescence_state(iv), &
+            sdd=sdd_id(iv), &
+            gdd=gdd_id(iv) &
          )
+         ! call reset_degree_day_states( &
+         !    id=id, &
+         !    sdd_reset_day=sdd_reset_day, &
+         !    summer_day=summer_day, &
+         !    winter_day=winter_day, &
+         !    gdd_id=gdd_id(iv), &
+         !    sdd_id=sdd_id(iv), &
+         !    southern_hemisphere=southern_hemisphere &
+         ! )
 
          if (lai_calc_yes /= 0) then
             call calculate_lai( &
@@ -150,6 +172,8 @@ contains
                gdd_base=gdd_full(iv), &
                sdd_base=sdd_full(iv), &
                lai_type=lai_type(iv), &
+               growth_state=growth_state(iv), &
+               senescence_state=senescence_state(iv), &
                lai_power=lai_power(:, iv), &
                lai_max=lai_max(iv), &
                lai_min=lai_min(iv), &
@@ -206,26 +230,50 @@ contains
 
       end subroutine observed_lai
 
-      subroutine calc_delta_gdd_sdd( &
+      subroutine calc_degree_days( &
+            growth_state, senescence_state, &
             tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
-            delta_gdd, delta_sdd)
+            gdd_id_prev, sdd_id_prev, &
+            lai_id_prev, lai_max, lai_min, &
+            delta_gdd, delta_sdd, &
+            gdd_id, sdd_id)
 
          implicit none
+
+         integer, intent(in) :: growth_state
+         integer, intent(in) :: senescence_state
 
          real(kind(1D0)), intent(in)  :: tmin_prev
          real(kind(1D0)), intent(in)  :: tmax_prev
          real(kind(1D0)), intent(in)  :: base_t_gdd
          real(kind(1D0)), intent(in)  :: base_t_sdd
+         real(kind(1D0)), intent(in)  :: gdd_id_prev
+         real(kind(1D0)), intent(in)  :: sdd_id_prev
+         
+         real(kind(1D0)), intent(in)  :: lai_id_prev
+         real(kind(1D0)), intent(in)  :: lai_max
+         real(kind(1D0)), intent(in)  :: lai_min
 
          real(kind(1D0)), intent(out) :: delta_gdd
          real(kind(1D0)), intent(out) :: delta_sdd
 
-         ! Calculate GDD and SDD
-         delta_gdd = calc_delta_degree_days( &
-            tmin_prev, tmax_prev, base_t_gdd)
+         real(kind(1D0)), intent(out) :: gdd_id
+         real(kind(1D0)), intent(out) :: sdd_id
 
-         delta_sdd = calc_delta_degree_days( &
-            tmin_prev, tmax_prev, base_t_sdd)
+         ! Calculate GDD and SDD
+         if ((lai_id_prev >= lai_max) .or. (growth_state == 0)) then
+            delta_gdd = 0.0D0
+         else
+            delta_gdd = calc_delta_degree_days( &
+               tmin_prev, tmax_prev, base_t_gdd)
+         end if
+
+         if ((lai_id_prev <= lai_min) .or. (senescence_state == 0)) then
+            delta_sdd = 0.0D0
+         else
+            delta_sdd = calc_delta_degree_days( &
+               tmin_prev, tmax_prev, base_t_sdd)
+         end if
 
          ! SDD cannot be positive
          if (delta_sdd > 0) delta_sdd = 0
@@ -235,7 +283,11 @@ contains
             delta_gdd = 0
          end if
 
-      end subroutine calc_delta_gdd_sdd
+         ! Calculate cumulative growing and senescence degree days
+         gdd_id = gdd_id_prev + delta_gdd
+         sdd_id = sdd_id_prev + delta_sdd
+
+      end subroutine calc_degree_days
 
       function calc_delta_degree_days(Tmin_prev, Tmax_prev, base_t) result(delta_dd)
 
@@ -251,38 +303,52 @@ contains
 
       end function calc_delta_degree_days
 
-      subroutine limit_gdd_sdd( &
-            gdd_full, sdd_full, gdd_id, sdd_id)
+      ! subroutine limit_gdd_sdd( &
+      !       gdd_full, sdd_full, gdd_id, sdd_id)
 
-         implicit none
+      !    implicit none
 
-         real(kind(1D0)), intent(in) :: gdd_full
-         real(kind(1D0)), intent(in) :: sdd_full
-         real(kind(1D0)), intent(inout) :: gdd_id
-         real(kind(1D0)), intent(inout) :: sdd_id
+      !    real(kind(1D0)), intent(in) :: gdd_full
+      !    real(kind(1D0)), intent(in) :: sdd_full
+      !    real(kind(1D0)), intent(inout) :: gdd_id
+      !    real(kind(1D0)), intent(inout) :: sdd_id
 
-         !Start senescence
-         if (gdd_id >= gdd_full) then
-            gdd_id = gdd_full !Leaves should not grow so delete yes from earlier
-            if (sdd_id < -CRIT_DAYS) gdd_id = 0
-         end if
+      !    !Start senescence
+      !    if (gdd_id >= gdd_full) then
+      !       gdd_id = gdd_full !Leaves should not grow so delete yes from earlier
+      !       if (sdd_id < -CRIT_DAYS) gdd_id = 0
+      !    end if
 
-         !After senescence now start growing leaves
-         if (sdd_id <= sdd_full) then
-            sdd_id = sdd_full !Leaves off so add back earlier
-            if (gdd_id > CRIT_DAYS) sdd_id = 0
-         end if
+      !    !After senescence now start growing leaves
+      !    if (sdd_id <= sdd_full) then
+      !       sdd_id = sdd_full !Leaves off so add back earlier
+      !       if (gdd_id > CRIT_DAYS) sdd_id = 0
+      !    end if
 
-         ! With these limits SDD, GDD is set to zero
-         if (sdd_id < -CRIT_DAYS .AND. sdd_id > sdd_full) gdd_id = 0
-         if (gdd_id > CRIT_DAYS .AND. gdd_id < gdd_full) sdd_id = 0
+      !    ! With these limits SDD, GDD is set to zero
+      !    if (sdd_id < -CRIT_DAYS .AND. sdd_id > sdd_full) gdd_id = 0
+      !    if (gdd_id > CRIT_DAYS .AND. gdd_id < gdd_full) sdd_id = 0
 
-      end subroutine limit_gdd_sdd
+      ! end subroutine limit_gdd_sdd
+
+      ! subroutine limit_degree_days(gdd_full, sdd_full, gdd_id, sdd_id)
+         
+      !    implicit none
+
+      !    real(kind(1D0)), intent(in) :: gdd_full
+      !    real(kind(1D0)), intent(in) :: sdd_full
+      !    real(kind(1D0)), intent(inout) :: gdd_id
+      !    real(kind(1D0)), intent(inout) :: sdd_id
+
+      !    ! Limit GDD and SDD to their full values
+
+      ! end subroutine limit_degree_days
 
       subroutine calculate_lai( &
             senescence_mode, &
             delta_gdd, delta_sdd, gdd_id, sdd_id, &
             gdd_base, sdd_base, lai_power, lai_type, &
+            growth_state, senescence_state, &
             len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
 
          implicit none
@@ -299,6 +365,9 @@ contains
          real(kind(1D0)), dimension(4), intent(in) :: lai_power
 
          integer, intent(in) :: lai_type
+
+         integer, intent(in) :: growth_state
+         integer, intent(in) :: senescence_state
 
          real(kind(1D0)), intent(in) :: len_day_id_prev
          real(kind(1D0)), intent(in) :: lai_id_prev
@@ -319,7 +388,13 @@ contains
             )
          
          else if (lai_type <= LAI_ORIGINAL) THEN !Original LAI type
-            if (sdd_id <= sdd_base) then !Start senescence
+            start_senescence = check_start_senescence( &
+               senescence_mode=senescence_mode, &
+               len_day_id_prev=len_day_id_prev, &
+               sdd_id=sdd_id, &
+               sdd_base=sdd_base &
+            )
+            if (start_senescence) then !Start senescence
                lai_id_next = calculate_sdd_type0( &
                   lai_id_prev=lai_id_prev, &
                   lai_power=lai_power, &
@@ -392,6 +467,49 @@ contains
          end if
 
       end subroutine reset_degree_day_states
+
+      subroutine reset_degree_days( &
+         id, sdd_reset_day, &
+         sdd_base, gdd_base, &
+         summer_reset_day, winter_reset_day, &
+         southern_hemisphere, &
+         growth_state, senescence_state, &
+         sdd, gdd)
+
+         implicit none
+
+         integer, intent(in) :: id
+         integer, intent(in) :: sdd_reset_day
+         integer, intent(in) :: summer_reset_day
+         integer, intent(in) :: winter_reset_day
+         logical, intent(in) :: southern_hemisphere
+         
+         real(kind(1D0)), intent(in) :: sdd_base
+         real(kind(1D0)), intent(in) :: gdd_base
+         
+         integer, intent(inout) :: growth_state
+         integer, intent(inout) :: senescence_state
+
+         real(kind(1D0)), intent(inout) :: sdd
+         real(kind(1D0)), intent(inout) :: gdd
+
+         if (sdd <= sdd_base) then
+            senescence_state = 2
+         end if
+
+         if (id == summer_reset_day) then
+            sdd = 0.0D0
+            gdd = 0.0D0
+            senescence_state = 1
+            growth_state = 0
+         else if (id == winter_reset_day) then
+            gdd = 0.0D0
+            sdd = 0.0D0
+            growth_state = 1
+            senescence_state = 0
+         end if
+
+      end subroutine reset_degree_days
 
       function check_start_senescence(senescence_mode, len_day_id_prev, sdd_id, sdd_base) result(start_senescence)
          

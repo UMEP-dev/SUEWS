@@ -1,9 +1,15 @@
 {
-  "status": "draft-review-configuration",
-  "status_note": "These tolerances are a maintainer-reviewable draft, not scientifically approved values. They define what benchmark/bench_regression.py treats as a material change; revise by PR.",
-  "rule": "A metric fails when its increase (candidate - previous; |MBE| for bias) exceeds max(floor, relative * previous). Only full-period statistics are gated; seasonal and window breakdowns stay descriptive (bench_drift.py).",
-  "provenance": "Calibrated on 2026-09-07 against the recorded release history under results/ (2025.7.6 .. 2026.6.5): energy-balance MAE moved by at most 0.03 W m^-2 between consecutive releases; the RSL 6.5 m air-temperature MAE moved by +0.12 K at 2026.1.28 -> 2026.4.3, which exceeds the RSL tolerance and is carried under 'accepted' with its reason. The 0.05 floors match the display band on the benchmark page.",
-  "rationale": "Passing the recorded history is a consistency requirement for the CI sweep, not evidence that these tolerances detect every scientifically meaningful regression. A candidate release is judged by check_regression.py --candidate against its predecessor; a pass under these values means 'within the draft tolerance', not 'no regression'.",
+  "status": "proposed",
+  "approved": false,
+  "approval": {
+    "by": null,
+    "on": null,
+    "reference": null
+  },
+  "status_note": "PROPOSED tolerances, not an approved scientific release policy. check_regression.py treats the evaluation as advisory until 'approved' is true and 'approval' names who approved it, when, and the issue or PR that records the decision. Until then the scientific release decision remains the maintainer review described in the prep-release skill.",
+  "rule": "A metric fails when its increase (candidate - previous; |MBE| for bias) exceeds max(floor, relative * previous). Only full-period statistics are evaluated; seasonal and window breakdowns stay descriptive (bench_drift.py). Every quantity the previous release carries must be present and finite in the candidate.",
+  "provenance": "Proposed on 2026-09-07 from the recorded release history under results/ (2025.7.6 .. 2026.6.5): energy-balance MAE moved by at most 0.03 W m^-2 between consecutive releases; the RSL 6.5 m air-temperature MAE moved by +0.12 K at 2026.1.28 -> 2026.4.3. The 0.05 floors reuse the display band on the benchmark page. None of this is a scientific justification of the values; it only makes the recorded history consistent with the proposal.",
+  "rationale": "The historical sweep in CI is a consistency diagnostic: it fails if the recorded history or these numbers change without the other being updated. It is not evidence that the tolerances detect every scientifically meaningful regression, and a candidate within them has not been shown to be free of regression.",
   "energy_balance": {
     "unit": "W m^-2",
     "relative": 0.05,
@@ -14,11 +20,18 @@
     "relative": 0.05,
     "floor": 0.05
   },
-  "accepted": [
+  "exceptions": [
     {
       "from": "2026.1.28",
       "to": "2026.4.3",
-      "reason": "RSL profile physics changed in this release cycle (c2m/c2h computed from HF08 RSL theory, PR #1116); the 6.5 m air-temperature MAE shift of +0.12 K shipped with 2026.4.3 and is recorded on the benchmark page."
+      "axis": "rsl",
+      "key": "6.5",
+      "metric": "MAE",
+      "max_delta": 0.12,
+      "basis": "recorded-history",
+      "review": "No scientific review decision on record; this entry only records the shift so the historical sweep stays consistent. It waives nothing else on this pair.",
+      "evidence": "https://github.com/UMEP-dev/SUEWS/pull/1116 (merged 2026-03-10, within this release cycle) changed the RSL profile physics; the shift is shown on the benchmark page.",
+      "reason": "6.5 m air-temperature MAE 0.42 -> 0.54 K (+0.12 K) coincides with the RSL profile change in PR #1116."
     }
   ]
 }

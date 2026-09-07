@@ -4,17 +4,19 @@
 #   * supply-proof  - the secret -> restricted Zenodo -> benchmark-input path works,
 #                     exercised against a SANDBOX record holding SYNTHETIC data.
 #   * harness-and-history - (a) harness validation: the benchmark's unit tests
-#                     pass; (b) historical sweep: the regression decision
-#                     (benchmark/check_regression.py with the DRAFT tolerances in
-#                     benchmark/regression_thresholds.json) holds across every
-#                     consecutive pair of RECORDED releases in the committed
-#                     results index. Neither touches the current commit's physics.
-# What it does NOT do yet: the candidate scientific gate - running the current
-#   model against the real restricted observations and judging it against the
-#   previous release. That is the full-benchmark job below, disabled pending
-#   data-governance sign-off; until it is enabled that gate is the manual
-#   pre-deposit step in the prep-release skill, which applies the same
-#   check_regression.py --candidate decision.
+#                     pass; (b) historical diagnostic sweep: every consecutive
+#                     pair of RECORDED releases in the committed results index
+#                     is within the PROPOSED tolerances in
+#                     benchmark/regression_thresholds.json with full metric
+#                     coverage (benchmark/check_regression.py --sweep). Neither
+#                     touches the current commit's physics, and the tolerances
+#                     are not an approved scientific release policy.
+# What it does NOT do yet: evaluate a candidate - running the current model
+#   against the real restricted observations and comparing it with the previous
+#   release. That is the full-benchmark job below, disabled pending
+#   data-governance sign-off. Until a tolerance policy is approved the scientific
+#   release decision stays with the maintainer review in the prep-release skill;
+#   check_regression.py --candidate reports advisory results and exit status 3.
 name: Benchmark regression
 
 on:
@@ -71,11 +73,11 @@ jobs:
           name: benchmark-supply-summary
           path: benchmark_supply_out/
 
-  # Harness validation + historical sweep over the committed, pinned results.
-  # Needs no secrets and no model build, so it runs on every trigger (fork PRs
-  # included). A green here says the harness works and the recorded release
-  # history is within the draft tolerances; it says nothing about the current
-  # commit's physics (see the header).
+  # Harness validation + historical diagnostic sweep over the committed, pinned
+  # results. Needs no secrets and no model build, so it runs on every trigger
+  # (fork PRs included). A green here says the harness works and the recorded
+  # release history is consistent with the proposed tolerances; it says nothing
+  # about the current commit's physics (see the header).
   harness-and-history:
     runs-on: ubuntu-latest
     steps:
@@ -97,7 +99,7 @@ jobs:
         # test suite's build; everything else under benchmark/tests is pure.
         run: python -m pytest benchmark/tests --ignore=benchmark/tests/test_legacy_yaml_roundtrip.py -q
 
-      - name: Historical sweep (recorded releases only, not the current commit)
+      - name: Historical diagnostic sweep (recorded releases vs proposed tolerances; not the current commit)
         working-directory: benchmark
         run: python check_regression.py --sweep --report "${RUNNER_TEMP}/regression_report.json"
 
@@ -153,10 +155,11 @@ jobs:
             --freeze "$RUNNER_TEMP/freeze.txt" \
             --outdir "benchmark/results/$V"
           python benchmark/assemble_index.py
-      - name: Candidate scientific gate (current release vs the previous release)
-        # The only step in this workflow that judges the current commit's physics.
-        # Same decision as the historical sweep and the release skill: fails on an
-        # increase beyond benchmark/regression_thresholds.json (draft tolerances).
+      - name: Candidate evaluation (current release vs the previous release)
+        # The only step in this workflow that looks at the current commit's physics.
+        # Exit 1 on a regression or lost metric coverage; exit 3 (advisory only)
+        # while benchmark/regression_thresholds.json records no approved policy,
+        # in which case the scientific release decision remains a maintainer review.
         working-directory: benchmark
         run: |
           V="$(python -c 'import supy; print(supy.__version__)')"

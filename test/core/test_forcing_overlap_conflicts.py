@@ -166,6 +166,47 @@ class TestMergeForcingFrames:
         with pytest.raises(ValueError, match="sources"):
             merge_forcing_frames([_frame([1.0])], ["a", "b"])
 
+    def test_many_conflicts_report_totals_but_cap_detail(self, caplog):
+        """Detail collection is capped even when every cell conflicts."""
+        n = 2000
+        a = _frame(np.arange(n, dtype=float), kdown=np.zeros(n))
+        b = _frame(np.arange(n, dtype=float) + 1000, kdown=np.ones(n))
+        with pytest.raises(ForcingConflictError) as excinfo:
+            merge_forcing_frames([a, b], ["a", "b"])
+        msg = str(excinfo.value)
+        assert f"{n} timestamp(s)" in msg
+        assert f"({2 * n} variable cell(s))" in msg
+        assert f"+{2 * n - 10} more" in msg
+        # 10 detail lines only, in timestamp order, both variables of a row
+        detail_lines = [ln for ln in msg.splitlines() if ln.startswith("  2012-")]
+        assert len(detail_lines) == 10
+        assert detail_lines[0].startswith(
+            "  2012-01-01 01:00:00: Tair = 0.0 (a) vs 1000.0 (b)"
+        )
+        assert detail_lines[1].startswith(
+            "  2012-01-01 01:00:00: kdown = 0.0 (a) vs 1.0 (b)"
+        )
+        # policies stay correct over the whole frame, not just the reported cells
+        with caplog.at_level(logging.WARNING, logger="SuPy"):
+            first = merge_forcing_frames([a, b], ["a", "b"], on_conflict="first")
+            last = merge_forcing_frames([a, b], ["a", "b"], on_conflict="last")
+        assert np.array_equal(first["Tair"].to_numpy(), np.arange(n, dtype=float))
+        assert np.array_equal(last["Tair"].to_numpy(), np.arange(n, dtype=float) + 1000)
+        assert (first["kdown"] == 0).all() and (last["kdown"] == 1).all()
+        assert len(first) == n and first.index.is_unique
+
+    def test_sources_per_cell_are_bounded(self):
+        frames = [_frame([float(i)]) for i in range(8)]
+        with pytest.raises(ForcingConflictError) as excinfo:
+            merge_forcing_frames(frames, [f"f{i}" for i in range(8)])
+        msg = str(excinfo.value)
+        detail = [ln for ln in msg.splitlines() if ln.startswith("  2012-")]
+        assert len(detail) == 1
+        assert "(f4)" in detail[0] and "(f5)" not in detail[0]
+        assert "+3 more source(s)" in detail[0]
+        assert "across 8 overlapping source(s)" in msg and "(+3 more)" in msg
+        assert "1 timestamp(s) (1 variable cell(s))" in msg
+
     def test_error_message_is_bounded(self):
         a = _frame(np.arange(50, dtype=float))
         b = _frame(np.arange(50, dtype=float) + 100)

@@ -825,21 +825,54 @@ class ForcingConflictError(ValueError):
     """
 
 
-def _forcing_conflict_message(conflicts, *, limit=10):
-    """Render a bounded, human-readable list of conflicting cells.
+_CONFLICT_DETAIL_CELLS = 10
+_CONFLICT_DETAIL_SOURCES = 5
 
-    ``conflicts`` is an iterable of ``(timestamp, column, [(value, source),
-    ...])`` tuples, already ordered.
+
+def _forcing_conflict_message(conflicts):
+    """Render the (already bounded) list of conflicting cells.
+
+    ``conflicts`` is an iterable of ``(timestamp, column, pairs, n_more)``
+    tuples where ``pairs`` holds at most ``_CONFLICT_DETAIL_SOURCES``
+    ``(value, source)`` entries and ``n_more`` counts the omitted ones.
     """
     lines = []
-    for n, (ts, col, pairs) in enumerate(conflicts):
-        if n >= limit:
-            break
+    for ts, col, pairs, n_more in conflicts:
         rendered = " vs ".join(
             f"{getattr(val, 'item', lambda: val)()!r} ({src})" for val, src in pairs
         )
+        if n_more:
+            rendered += f" vs ... (+{n_more} more source(s))"
         lines.append(f"  {ts}: {col} = {rendered}")
     return "\n".join(lines)
+
+
+def _collect_conflict_details(observed, dup_sources, conflict_cells):
+    """Gather detail for the first few conflicting cells only.
+
+    ``observed`` is the duplicated-timestamp block (sorted, so each
+    timestamp's rows are contiguous) with missing values masked to NaN;
+    ``conflict_cells`` is the per-timestamp boolean table from the
+    vectorised ``nunique`` pass. Work is proportional to the handful of
+    cells reported, never to the number of conflicts.
+    """
+    ts_values = observed.index.to_numpy()
+    starts = np.flatnonzero(np.r_[True, ts_values[1:] != ts_values[:-1]])
+    stops = np.r_[starts[1:], len(ts_values)]
+    cells = np.argwhere(conflict_cells.to_numpy())[:_CONFLICT_DETAIL_CELLS]
+    details = []
+    for row_i, col_j in cells:
+        lo, hi = starts[row_i], stops[row_i]
+        values = observed.iloc[lo:hi, col_j].to_numpy()
+        present = ~pd.isna(values)
+        pairs = list(zip(values[present], dup_sources[lo:hi][present]))
+        details.append((
+            observed.index[lo],
+            observed.columns[col_j],
+            pairs[:_CONFLICT_DETAIL_SOURCES],
+            max(0, len(pairs) - _CONFLICT_DETAIL_SOURCES),
+        ))
+    return details
 
 
 def merge_forcing_frames(frames, sources, *, on_conflict="error"):
@@ -914,29 +947,26 @@ def merge_forcing_frames(frames, sources, *, on_conflict="error"):
     n_distinct = grouped.nunique(dropna=True)
     conflict_cells = n_distinct > 1
 
-    if conflict_cells.to_numpy().any():
-        conflicts = []
-        ts_pos = {ts: i for i, ts in enumerate(n_distinct.index)}
-        for ts in n_distinct.index[conflict_cells.any(axis=1).to_numpy()]:
-            cols = conflict_cells.columns[conflict_cells.loc[ts].to_numpy()]
-            rows = observed.index == ts
-            for col in cols:
-                vals = observed.loc[rows, col].to_numpy()
-                srcs = dup_sources[rows]
-                pairs = [
-                    (v, s) for v, s in zip(vals, srcs) if not pd.isna(v)
-                ]
-                conflicts.append((ts, col, pairs))
-        n_cells = int(conflict_cells.to_numpy().sum())
-        n_ts = int(conflict_cells.any(axis=1).sum())
-        detail = _forcing_conflict_message(conflicts)
-        more = n_cells - min(n_cells, 10)
+    conflict_matrix = conflict_cells.to_numpy()
+    if conflict_matrix.any():
+        # Totals are vectorised; per-cell detail is collected for the
+        # first few cells only, so a pair of year-long files that
+        # disagree everywhere costs no more to report than a single row.
+        n_cells = int(conflict_matrix.sum())
+        n_ts = int(conflict_matrix.any(axis=1).sum())
+        detail = _forcing_conflict_message(
+            _collect_conflict_details(observed, dup_sources, conflict_cells)
+        )
+        more = n_cells - min(n_cells, _CONFLICT_DETAIL_CELLS)
         if more > 0:
             detail += f"\n  ... (+{more} more conflicting cell(s))"
+        shown = sources[:_CONFLICT_DETAIL_SOURCES]
+        if len(sources) > len(shown):
+            shown = shown + [f"... (+{len(sources) - len(shown)} more)"]
         header = (
             f"Conflicting forcing observations at {n_ts} timestamp(s) "
-            f"({n_cells} variable cell(s)) across overlapping sources "
-            f"{sources}:"
+            f"({n_cells} variable cell(s)) across {len(sources)} overlapping "
+            f"source(s) {shown}:"
         )
         if on_conflict == "error":
             raise ForcingConflictError(

@@ -147,6 +147,29 @@ class TestFrequencyContract:
         with pytest.raises(ValueError, match="fixed-length"):
             forcing.resample("ME")
 
+    def test_offset_phase_timestamps_are_rejected(self):
+        """Rows at 00:02 and 00:07 cannot tile (00:00, 00:10] and are not shifted."""
+        forcing = _forcing(
+            {"Tair": [10.0, 20.0], "rain": [1.0, 2.0]}, start="2024-01-01 00:02"
+        )
+        with pytest.raises(ValueError, match="source-step grid"):
+            forcing.resample("10min")
+
+    def test_aligned_phase_is_unchanged_by_the_grid_check(self):
+        forcing = _forcing(
+            {"Tair": [10.0, 20.0], "rain": [1.0, 2.0]}, start="2024-01-01 00:05"
+        )
+        out = forcing.resample("10min").df
+        assert np.isclose(out["Tair"].iloc[0], 20.0)
+        assert np.isclose(out["rain"].iloc[0], 3.0)
+
+    def test_bin_whose_last_row_misses_the_label_is_missing(self):
+        """Defence in depth inside the aggregation step, independent of the phase check."""
+        idx = pd.date_range("2024-01-01 00:02", periods=2, freq="5min")
+        masked = pd.DataFrame({"Tair": [10.0, 20.0], "rain": [1.0, 2.0]}, index=idx)
+        out = SUEWSForcing._aggregate_bins(masked, "10min", 2)
+        assert out.isna().all().all()
+
     def test_irregular_index_is_rejected(self):
         idx = pd.DatetimeIndex([
             "2024-01-01 00:05",

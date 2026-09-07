@@ -679,6 +679,29 @@ class SUEWSForcing:
         return int(target / source)
 
     @staticmethod
+    def _require_aligned_phase(
+        index: pd.DatetimeIndex, freq: str, source: pd.Timedelta
+    ) -> None:
+        """Reject timestamps whose source intervals cannot tile the target bins.
+
+        A row at ``t`` covers ``(t - source, t]``; the rows can only tile an
+        output interval ending on the target grid if the timestamps sit on
+        multiples of the source step (00:05, 00:10, ... for 5-minute data).
+        Rows at 00:02, 00:07, ... would otherwise be counted as full
+        coverage of ``(00:00, 00:10]`` and 00:07 reported as the 00:10
+        endpoint.
+        """
+        offset = pd.Timedelta(index[0].value % source.value)
+        if offset != pd.Timedelta(0):
+            raise ValueError(
+                "SUEWSForcing.resample requires timestamps on the source-step "
+                f"grid so that intervals tile the {freq!r} bins; the index "
+                f"starts at {index[0]}, which is {offset} past the nearest "
+                f"{source} boundary. Re-label the data rather than shifting "
+                "the observations."
+            )
+
+    @staticmethod
     def _aggregation_kind(column: str) -> str:
         """Map a forcing column to ``sum``, ``mean`` or ``inst`` semantics."""
         from ._load import _per_landcover_forcing_var
@@ -703,7 +726,11 @@ class SUEWSForcing:
         take the value at the interval end without NaN-skipping.
         """
         grouper = masked.resample(freq, closed="right", label="right")
-        complete = grouper.size() == rows_per_bin
+        # Complete means the bin holds every source row AND its last row ends
+        # exactly on the bin label, so the source intervals tile the bin.
+        last_stamp = pd.Series(masked.index, index=masked.index)
+        last_stamp = last_stamp.resample(freq, closed="right", label="right").last()
+        complete = (grouper.size() == rows_per_bin) & (last_stamp == last_stamp.index)
         all_valid = grouper.count().eq(rows_per_bin)
         sums = grouper.sum(min_count=1)
         means = grouper.mean()
@@ -775,6 +802,11 @@ class SUEWSForcing:
         are rebuilt from the output index. Per-landcover extension
         columns follow the same rules.
 
+        Timestamps must sit on the source-step grid (for example 00:05,
+        00:10 for 5-minute data) so that the source intervals tile the
+        output intervals exactly; offset timestamps such as 00:02, 00:07
+        are rejected rather than shifted.
+
         Only coarsening by an integer multiple of the source timestep is
         supported. Disaggregating to a finer timestep uses the
         physics-aware distribution in
@@ -797,9 +829,9 @@ class SUEWSForcing:
         Raises
         ------
         ValueError
-            If the index is irregular, ``freq`` is finer than the
-            current timestep, or ``freq`` is not an integer multiple of
-            it.
+            If the index is irregular or offset from the source-step
+            grid, ``freq`` is finer than the current timestep, or
+            ``freq`` is not an integer multiple of it.
         """
         from .util._missing import from_nan, to_nan
 
@@ -810,6 +842,7 @@ class SUEWSForcing:
             unchanged._extras = _normalise_extras(self.extras)
             return unchanged
         rows_per_bin = self._rows_per_bin(freq, source_step, target_step)
+        self._require_aligned_phase(self._data.index, freq, source_step)
 
         value_cols = [c for c in self._data.columns if c not in self._TIME_COLUMNS]
         frame = self._data[value_cols].astype(float)

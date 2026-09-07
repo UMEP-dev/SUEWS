@@ -189,7 +189,7 @@ Load forcing data from multiple files:
 
 .. code-block:: python
 
-    # List of forcing files (concatenated in order)
+    # List of forcing files (merged by timestamp)
     forcing_files = [
         'forcing_2023_jan.txt',
         'forcing_2023_feb.txt',
@@ -197,6 +197,13 @@ Load forcing data from multiple files:
     ]
     
     sim.update_forcing(forcing_files)
+
+Where files overlap, identical records are deduplicated and a value
+missing in one file is filled from the other. Records that disagree
+raise ``ForcingConflictError`` naming the files, timestamps and
+variables; pass ``on_conflict="first"`` or ``"last"`` to resolve such
+conflicts by list order explicitly (see
+:ref:`forcing_overlapping_files`).
 
 8. DataFrame Forcing
 ~~~~~~~~~~~~~~~~~~~~

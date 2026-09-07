@@ -148,7 +148,7 @@ CONTAINS
 
       ELSE
          CALL ErrorHint(21, 'SUEWS_AnOHM.f95: bad value for qn found during qs calculation.', qn1, NotUsed, notUsedI, modState)
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
       END IF
 
    END SUBROUTINE AnOHM

@@ -522,7 +522,7 @@ CONTAINS
             ' tstep=', tstep, &
             ' dt_since_start=', dt_since_start
          CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55, modState)
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
       END IF
 
       !write(*,*) qs
@@ -558,7 +558,7 @@ CONTAINS
 
          ELSE
             CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1(snow) found during qs calculation.', qn1_S, -55.55D0, -55, modState)
-            IF (supy_error_flag) RETURN
+            IF (supy_error_flag()) RETURN
          END IF
 
       END IF

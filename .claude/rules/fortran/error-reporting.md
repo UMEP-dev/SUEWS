@@ -61,8 +61,12 @@ Key points:
 - **Assign `-999.0D0` (or a type-appropriate sentinel) to `INTENT(OUT)`
   arguments** before `RETURN` — an unassigned intent-out is undefined
   behaviour under some compilers.
-- **`RETURN`** — do not continue. The driver checks `supy_error_flag`
+- **`RETURN`** — do not continue. The driver checks `supy_error_flag()`
   between grids/timesteps and surfaces the error to Python.
+- **Guard later work with `IF (supy_error_flag()) RETURN`** (a function call
+  since GH#1736, not a variable). The fatal store is thread-local: each grid
+  run on a Rayon worker sees only its own error, so never cache the flag in
+  module-level or implicitly `SAVE`d variables.
 - **Never** call `STOP`, `ERROR STOP`, `CALL abort`, or `WRITE(*,...)`.
 
 Working examples: `suews_phys_stebbs.f95:469`, `suews_phys_rslprof.f95:658`,

@@ -703,15 +703,15 @@ CONTAINS
             ! Error messages if aerodynamic parameters negative
             IF (z0m < 0) THEN
                CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI, modState)
-               IF (supy_error_flag) RETURN
+               IF (supy_error_flag()) RETURN
             END IF
             IF (zdm < 0) THEN
                CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI, modState)
-               IF (supy_error_flag) RETURN
+               IF (supy_error_flag()) RETURN
             END IF
             IF (zzd < 0) THEN
                CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI, modState)
-               IF (supy_error_flag) RETURN
+               IF (supy_error_flag()) RETURN
             END IF
 
          END ASSOCIATE

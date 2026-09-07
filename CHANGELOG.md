@@ -56,10 +56,14 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
+- [bugfix] `suews compare` now aligns on time, selects grids explicitly and reports finite paired samples (#1744)
+  - The native `Year`/`DOY`/`Hour`/`Min` clock of legacy text output is parsed into a time axis, so two files for different days no longer compare as a perfect match by row order; inputs with no recoverable time axis are rejected unless `--align positional` is given, and that mode is labelled in the output.
+  - An empty joint time axis, or a request for which no variable yields an evaluable metric, exits with a user error instead of a successful envelope with no numbers.
+  - `n` counts the finite paired samples the metrics actually use, with the legacy `-999` sentinel treated as missing; multi-grid inputs require `--grid`, the grid used on each side is reported, and differing grid identities are warned about. Yearly text files of one grid are concatenated.
 - [bugfix] Corrected the `suews diagnose` energy-balance check and made it inspect every output partition (#1734)
   - The closure residual now follows the model identity `QN + QF + QMRain = QH + QE + QS + QM + QMFreeze`; QF had been placed among the sinks, so balanced runs were flagged and unbalanced ones passed.
   - All files of the highest-priority output format, and every grid within a multi-grid file, are checked and each partition is judged on its own, so a healthy partition cannot mask a broken one; `-999` sentinels and non-finite rows are treated as missing and counted, and a partition with too few evaluable rows is reported; an absent optional column no longer raises.
-  - `suews summarise` and `suews compare` keep their existing single-file loader.
+  - `suews summarise` keeps its existing single-file loader; `suews compare` moved to the partition loader in #1744.
 
 ### 1 Sep 2026
 

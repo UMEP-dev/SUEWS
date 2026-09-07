@@ -225,3 +225,64 @@ def _load_run_output_dataframe(
         path = list_paths[0]
 
     return _flatten_output_columns(_read_output_file(path))
+
+
+_LEGACY_CLOCK_COLUMNS = ("Year", "DOY", "Hour", "Min")
+_DATETIME_COLUMN_CANDIDATES = ("datetime", "Datetime", "DateTime")
+
+
+def _has_legacy_clock(df_output: pd.DataFrame) -> bool:
+    """Return True when the frame carries the native SUEWS clock columns."""
+    return all(name in df_output.columns for name in _LEGACY_CLOCK_COLUMNS)
+
+
+def _recover_datetime_index(df_output: pd.DataFrame) -> pd.DataFrame:
+    """Return ``df_output`` indexed by time when a time axis is recoverable.
+
+    Three layouts are recognised, in this order:
+
+    1. an existing ``DatetimeIndex`` (canonical parquet after the grid level
+       has been removed) is kept as it is;
+    2. the native text layout written by ``SUEWSSimulation.save`` carries the
+       clock as ``Year`` / ``DOY`` / ``Hour`` / ``Min`` columns (plus a
+       derived ``Dectime``); these are combined into a ``DatetimeIndex`` and
+       dropped from the columns;
+    3. a ``datetime`` column (any capitalisation) is parsed and set as index.
+
+    Any other frame is returned unchanged, so callers can decide whether a
+    frame without a time axis is acceptable. ``ValueError`` is raised when
+    the clock columns are present but do not parse.
+    """
+    if isinstance(df_output.index, pd.DatetimeIndex):
+        return df_output
+
+    if _has_legacy_clock(df_output):
+        clock = df_output[list(_LEGACY_CLOCK_COLUMNS)].apply(
+            pd.to_numeric, errors="coerce"
+        )
+        if clock.isna().any().any():
+            raise ValueError(
+                "Legacy clock columns Year/DOY/Hour/Min contain non-numeric values"
+            )
+        year_start = pd.to_datetime(clock["Year"].astype(int).astype(str), format="%Y")
+        index = pd.DatetimeIndex(
+            year_start
+            + pd.to_timedelta(clock["DOY"].astype(int) - 1, unit="D")
+            + pd.to_timedelta(clock["Hour"].astype(int), unit="h")
+            + pd.to_timedelta(clock["Min"].astype(int), unit="min"),
+            name="datetime",
+        )
+        list_drop = [*_LEGACY_CLOCK_COLUMNS, "Dectime"]
+        df_output = df_output.drop(
+            columns=[name for name in list_drop if name in df_output.columns]
+        )
+        return df_output.set_index(index)
+
+    for cand in _DATETIME_COLUMN_CANDIDATES:
+        if cand in df_output.columns:
+            index = pd.DatetimeIndex(
+                pd.to_datetime(df_output[cand], format="mixed"), name="datetime"
+            )
+            return df_output.drop(columns=[cand]).set_index(index)
+
+    return df_output

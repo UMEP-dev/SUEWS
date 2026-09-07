@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "Regression tolerances for benchmark/bench_regression.py. A metric fails when",
+    "its increase (candidate - previous; |MBE| for bias) exceeds",
+    "max(floor, relative * previous). Only full-period statistics are gated;",
+    "seasonal and window breakdowns stay descriptive (bench_drift.py).",
+    "These are maintainer-reviewable defaults, not settled science. They were",
+    "calibrated so that the recorded release history under results/ passes:",
+    "energy-balance MAE moved by at most 0.03 W m^-2 between consecutive",
+    "releases; the RSL 6.5 m air-temperature MAE moved by +0.12 K at",
+    "2026.1.28 -> 2026.4.3, which exceeds the RSL tolerance and is listed under",
+    "'accepted' with its reason. The 0.05 floors match the display band used on",
+    "the benchmark page. Revise by PR; the CI sweep re-validates the history."
+  ],
+  "energy_balance": {
+    "unit": "W m^-2",
+    "relative": 0.05,
+    "floor": 0.05
+  },
+  "rsl": {
+    "unit": "K",
+    "relative": 0.05,
+    "floor": 0.05
+  },
+  "accepted": [
+    {
+      "from": "2026.1.28",
+      "to": "2026.4.3",
+      "reason": "RSL profile physics changed in this release cycle (c2m/c2h computed from HF08 RSL theory, PR #1116); the 6.5 m air-temperature MAE shift of +0.12 K shipped with 2026.4.3 and is recorded on the benchmark page."
+    }
+  ]
+}

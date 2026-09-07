@@ -22,7 +22,7 @@
 MODULE module_phys_anohm
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
    USE module_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
-   USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
+   USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
 
@@ -125,7 +125,8 @@ CONTAINS
                Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, &
                moist_surf, &
                alb, emis, cpAnOHM, kkAnOHM, chAnOHM, &
-               anohm_a1_surf(is), anohm_a2_surf(is), anohm_a3_surf(is))
+               anohm_a1_surf(is), anohm_a2_surf(is), anohm_a3_surf(is), &
+               modState)
          END DO
       END IF
 
@@ -165,12 +166,14 @@ CONTAINS
       Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, & !input
       moist, &
       alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
-      xa1, xa2, xa3) ! output
+      xa1, xa2, xa3, & ! output
+      modState) ! optional: per-grid warning log (GH#1737)
 
       IMPLICIT NONE
 
       ! input
       INTEGER, INTENT(in) :: sfc_typ !< surface type [-]
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState ! per-grid warning log (GH#1737)
 
       REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: Sd_series !< incoming solar radiation [W m-2]
       REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: Ta_series !< air temperature [degC]
@@ -238,7 +241,8 @@ CONTAINS
          ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & ! input: forcing
          xalb, xemis, xcp, xk, xch, xmoist, & ! input: sfc properties
          tSd, & ! input: peaking time of Sd in hour
-         xBo) ! output: Bowen ratio
+         xBo, & ! output: Bowen ratio
+         modState) ! optional: per-grid warning log (GH#1737)
 
       ! calculate AnOHM coefficients
       SELECT CASE (sfc_typ)
@@ -873,12 +877,14 @@ CONTAINS
       ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & ! input: forcing
       xalb, xemis, xcp, xk, xch, xSM, & ! input: sfc properties
       tSd, & ! input: peaking time of Sd in hour
-      xBo) ! output: Bowen ratio
+      xBo, & ! output: Bowen ratio
+      modState) ! optional: per-grid warning log (GH#1737)
 
       IMPLICIT NONE
 
       ! input:
       INTEGER, INTENT(in) :: sfc_typ ! unknown Bowen ratio
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState ! per-grid warning log (GH#1737)
 
       ! input: daytime series
       REAL(kind=8), INTENT(in), DIMENSION(:) :: Sd !< incoming solar radiation [W m-2]
@@ -1001,8 +1007,9 @@ CONTAINS
       IF (info == 0) THEN
          ! cap reached without convergence: keep the last iterate but make it
          ! visible to SuPy (non-fatal; AnOHM is an internal/experimental scheme)
-         CALL add_supy_warning( &
-            'AnOHM_Bo_cal: Bowen-ratio fixed point did not converge within the iteration cap; using the last iterate')
+         IF (PRESENT(modState)) CALL modState%errorState%report( &
+            message='Bowen-ratio fixed point did not converge within the iteration cap; using the last iterate', &
+            location='AnOHM_Bo_cal', is_fatal=.FALSE.)
       END IF
 
       IF (ALLOCATED(x)) DEALLOCATE (x, stat=err)

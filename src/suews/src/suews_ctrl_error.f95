@@ -15,7 +15,8 @@
 ! Thread Safety:
 !   Fatal errors use module-level SAVE variables (supy_error_flag/code/message).
 !   These are acceptable because a fatal error terminates the simulation.
-!   Non-fatal warnings are routed through modState%errorstate (thread-safe).
+!   Non-fatal warnings are routed through modState%errorstate (thread-safe);
+!   the per-grid log persists for the whole run and is surfaced to SuPy (GH#1737).
 !   For multi-grid parallelism, use process-based isolation or ensure each
 !   thread has its own Fortran address space.
 !==================================================================================================
@@ -47,15 +48,6 @@ CONTAINS
       msg_len = MIN(LEN_TRIM(message), 512)
       supy_error_message = message(1:msg_len)
    END SUBROUTINE set_supy_error
-
-   SUBROUTINE add_supy_warning(message)
-      !> No-op stub: warnings should use modState%errorstate%report() instead.
-      !> Retained for backward compatibility with call sites that do not yet
-      !> have modState in scope. These warnings are silently dropped.
-      !> TODO: Thread modState through remaining callers and remove this stub.
-      CHARACTER(LEN=*), INTENT(IN) :: message
-      ! Intentionally empty — no module-level SAVE state for thread safety.
-   END SUBROUTINE add_supy_warning
 
 END MODULE module_ctrl_error_state
 

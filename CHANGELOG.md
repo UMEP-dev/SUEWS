@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 7 Sep 2026
+
+- [bugfix] Overlapping forcing files no longer silently keep the first record: every multi-file loader (`SUEWSForcing.from_file`, YAML `forcing.file` lists and directories, wildcard `read_forcing`, `SUEWSSimulation.update_forcing`) now shares one merge that deduplicates identical records, fills values missing in one file from another, and rejects conflicting observations with a `ForcingConflictError` naming the files, timestamps and variables (#1747)
+  - Precedence by file order is an explicit opt-in (`on_conflict="first"` / `"last"`) that logs what it overrode; the YAML path always uses the strict default.
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

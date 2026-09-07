@@ -808,8 +808,181 @@ def load_SUEWS_Forcing_met_df_raw(
     return df_forcing_met
 
 
+# ---------------------------------------------------------------------------
+# Multi-file forcing merge (gh#1747)
+# ---------------------------------------------------------------------------
+
+FORCING_CONFLICT_POLICIES = ("error", "first", "last")
+
+
+class ForcingConflictError(ValueError):
+    """Overlapping forcing records disagree at the same timestamp.
+
+    Raised by :func:`merge_forcing_frames` (and therefore by every
+    multi-file forcing loader) when two records for the same timestamp
+    carry different non-missing values for the same variable and the
+    caller did not opt into a precedence policy.
+    """
+
+
+def _forcing_conflict_message(conflicts, *, limit=10):
+    """Render a bounded, human-readable list of conflicting cells.
+
+    ``conflicts`` is an iterable of ``(timestamp, column, [(value, source),
+    ...])`` tuples, already ordered.
+    """
+    lines = []
+    for n, (ts, col, pairs) in enumerate(conflicts):
+        if n >= limit:
+            break
+        rendered = " vs ".join(
+            f"{getattr(val, 'item', lambda: val)()!r} ({src})" for val, src in pairs
+        )
+        lines.append(f"  {ts}: {col} = {rendered}")
+    return "\n".join(lines)
+
+
+def merge_forcing_frames(frames, sources, *, on_conflict="error"):
+    """Merge datetime-indexed forcing frames whose periods may overlap.
+
+    Records that share a timestamp are compared variable by variable.
+    Missing values (``NaN`` or the ``-999`` sentinel) never conflict with
+    an observation: the surviving record takes the non-missing value, so
+    an optional or extension column present in only one file is filled
+    rather than dropped. Two different non-missing values for the same
+    timestamp and variable are a conflict.
+
+    Parameters
+    ----------
+    frames : sequence of pd.DataFrame
+        Datetime-indexed forcing frames, one per source, in caller order.
+    sources : sequence of str
+        Label for each frame (normally the file path), used in messages.
+    on_conflict : {"error", "first", "last"}, optional
+        ``"error"`` (default) raises :class:`ForcingConflictError`
+        naming every conflicting timestamp, variable and source (bounded).
+        ``"first"`` / ``"last"`` resolve conflicts by source order, keeping
+        the earlier / later source in ``frames``, and log a warning with
+        the number of overridden cells. Identical observations are
+        deduplicated under every policy without any message.
+
+    Returns
+    -------
+    pd.DataFrame
+        Sorted frame with a unique DatetimeIndex.
+
+    Raises
+    ------
+    ForcingConflictError
+        Conflicting observations found and ``on_conflict="error"``.
+    ValueError
+        Unknown ``on_conflict`` policy, or mismatched ``frames``/``sources``.
+    """
+    if on_conflict not in FORCING_CONFLICT_POLICIES:
+        raise ValueError(
+            f"on_conflict must be one of {FORCING_CONFLICT_POLICIES}; "
+            f"got {on_conflict!r}"
+        )
+    frames = list(frames)
+    sources = [str(s) for s in sources]
+    if len(frames) != len(sources):
+        raise ValueError(
+            f"merge_forcing_frames: {len(frames)} frames but {len(sources)} sources"
+        )
+    if not frames:
+        raise ValueError("merge_forcing_frames: no forcing frames to merge")
+
+    combined = pd.concat(frames, axis=0)
+    source_of_row = np.concatenate(
+        [np.repeat(src, len(frame)) for src, frame in zip(sources, frames)]
+    )
+    # Stable sort keeps caller order among records sharing a timestamp,
+    # which is what gives "first"/"last" their meaning.
+    order = np.argsort(combined.index.to_numpy(), kind="stable")
+    combined = combined.iloc[order]
+    source_of_row = source_of_row[order]
+
+    dup_mask = combined.index.duplicated(keep=False)
+    if not dup_mask.any():
+        return _with_inferred_freq(combined)
+
+    dup = combined[dup_mask]
+    dup_sources = source_of_row[dup_mask]
+    missing = dup.isna() | (dup == FORCING_OPTIONAL_FILL)
+    observed = dup.mask(missing)
+    grouped = observed.groupby(level=0, sort=False)
+    n_distinct = grouped.nunique(dropna=True)
+    conflict_cells = n_distinct > 1
+
+    if conflict_cells.to_numpy().any():
+        conflicts = []
+        ts_pos = {ts: i for i, ts in enumerate(n_distinct.index)}
+        for ts in n_distinct.index[conflict_cells.any(axis=1).to_numpy()]:
+            cols = conflict_cells.columns[conflict_cells.loc[ts].to_numpy()]
+            rows = observed.index == ts
+            for col in cols:
+                vals = observed.loc[rows, col].to_numpy()
+                srcs = dup_sources[rows]
+                pairs = [
+                    (v, s) for v, s in zip(vals, srcs) if not pd.isna(v)
+                ]
+                conflicts.append((ts, col, pairs))
+        n_cells = int(conflict_cells.to_numpy().sum())
+        n_ts = int(conflict_cells.any(axis=1).sum())
+        detail = _forcing_conflict_message(conflicts)
+        more = n_cells - min(n_cells, 10)
+        if more > 0:
+            detail += f"\n  ... (+{more} more conflicting cell(s))"
+        header = (
+            f"Conflicting forcing observations at {n_ts} timestamp(s) "
+            f"({n_cells} variable cell(s)) across overlapping sources "
+            f"{sources}:"
+        )
+        if on_conflict == "error":
+            raise ForcingConflictError(
+                f"{header}\n{detail}\n"
+                "Identical overlapping records are deduplicated automatically. "
+                "To resolve genuine conflicts by source order, pass "
+                "on_conflict='first' or on_conflict='last' explicitly."
+            )
+        logger_supy.warning(
+            f"{header}\n{detail}\n"
+            f"Resolved by on_conflict={on_conflict!r}: keeping the "
+            f"{on_conflict} source in the supplied order."
+        )
+
+    # Surviving record per timestamp: first/last NON-MISSING value per
+    # column, so missingness in one source is filled from another. Cells
+    # missing in every source fall back to the original first/last raw
+    # value (NaN or the -999 sentinel, whichever that source carried).
+    picker = "first" if on_conflict in ("error", "first") else "last"
+    resolved = getattr(grouped, picker)()
+    raw_fallback = getattr(dup.groupby(level=0, sort=False), picker)()
+    resolved = resolved.where(resolved.notna(), raw_fallback)
+    # `mask`/groupby may have upcast integer columns; restore dtypes.
+    for col, dtype in combined.dtypes.items():
+        if resolved[col].dtype != dtype:
+            try:
+                resolved[col] = resolved[col].astype(dtype)
+            except (TypeError, ValueError):
+                pass
+
+    merged = pd.concat([combined[~dup_mask], resolved], axis=0).sort_index()
+    merged.index.name = combined.index.name
+    return _with_inferred_freq(merged)
+
+
+def _with_inferred_freq(df):
+    """Restore a regular ``freq`` that ``concat``/masking discards."""
+    if len(df.index) >= 3 and df.index.freq is None:
+        try:
+            df.index.freq = pd.infer_freq(df.index)
+        except (TypeError, ValueError):
+            pass
+    return df
+
 # caching loaded met df for better performance in initialisation
-def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
+def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="error"):
     """Load and concatenate SUEWS forcing files by *column name*.
 
     Header row is required and is read by name. Baseline-required columns
@@ -824,12 +997,22 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
         Path to SUEWS input folder, where met forcing files are placed.
     file_pattern : str
         Glob pattern to locate forcing files within ``path_input``.
+    on_conflict : {"error", "first", "last"}, optional
+        Policy for overlapping timestamps whose observations disagree; see
+        :func:`merge_forcing_frames`. Identical overlapping records are
+        always deduplicated; the default rejects genuine conflicts.
 
     Returns
     -------
     pd.DataFrame
         Datetime-indexed DataFrame with the canonical 24-column set
         (canonical case) plus any whitelisted per-landcover columns.
+
+    Raises
+    ------
+    ForcingConflictError
+        Two files carry different observations for the same timestamp and
+        variable and ``on_conflict="error"``.
     """
     from pathlib import Path
 
@@ -860,11 +1043,17 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
         )
         for fn in list_file_MetForcing
     ]
-    df_combined = pd.concat(canonical_per_file)
-    # Datetime-index dedup: same timestamp appearing in two files
-    # collapses to the first occurrence.
-    df_combined = df_combined[~df_combined.index.duplicated(keep="first")]
-    return df_combined
+    if not canonical_per_file:
+        raise FileNotFoundError(
+            f"No forcing files match pattern {file_pattern!r} in {path_input}"
+        )
+    # Overlapping timestamps: identical records collapse, conflicting
+    # observations are rejected unless a precedence policy is requested.
+    return merge_forcing_frames(
+        canonical_per_file,
+        [fn.name for fn in list_file_MetForcing],
+        on_conflict=on_conflict,
+    )
 
 
 def _validate_integer_timestamp_columns(
@@ -985,7 +1174,15 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     return df_canonical
 
 
-def load_SUEWS_Forcing_met_df_yaml(path_forcing):
+def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error"):
+    """Load forcing for a YAML ``forcing.file`` entry (file, directory or list).
+
+    Files are canonicalised individually and merged with
+    :func:`merge_forcing_frames`: identical overlapping records are
+    deduplicated, conflicting observations raise
+    :class:`ForcingConflictError` unless ``on_conflict`` selects a
+    precedence (``"first"`` or ``"last"`` in list order).
+    """
     from pathlib import Path
 
     # Resolve to a flat list of files. Single str/Path may point at a
@@ -1013,9 +1210,13 @@ def load_SUEWS_Forcing_met_df_yaml(path_forcing):
         )
         for fn in file_list
     ]
-    df_combined = pd.concat(canonical_per_file)
-    df_combined = df_combined[~df_combined.index.duplicated(keep="first")]
-    return df_combined
+    if not canonical_per_file:
+        raise FileNotFoundError(f"No forcing files found for {path_forcing}")
+    return merge_forcing_frames(
+        canonical_per_file,
+        [str(fn) for fn in file_list],
+        on_conflict=on_conflict,
+    )
 
 
 # TODO: add support for loading multi-grid forcing datasets

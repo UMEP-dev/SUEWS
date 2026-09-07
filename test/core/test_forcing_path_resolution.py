@@ -104,7 +104,10 @@ sites:
     with temp_config_setup(config, "subdir") as (config_path, _):
         sim = SUEWSSimulation(str(config_path))
         assert sim._df_forcing is not None
-        assert len(sim._df_forcing) > 200000  # Two files concatenated
+        # Both files are copies of the same year, so the overlap merge (#1747)
+        # deduplicates identical records: one year at 5-min steps, unique index.
+        assert sim._df_forcing.index.is_unique
+        assert 100000 < len(sim._df_forcing) < 110000
 
 
 def test_absolute_path():

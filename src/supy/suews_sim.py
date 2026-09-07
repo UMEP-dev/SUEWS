@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from ._check import check_forcing
 from ._env import logger_supy
 from ._filename import safe_filename_component
+from ._load import merge_forcing_frames
 from ._run_rust import _check_rust_available, run_suews_rust_chunked
 
 # Import SuPy components directly
@@ -392,7 +393,10 @@ class SUEWSSimulation:
         return base
 
     def update_forcing(
-        self, forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing]
+        self,
+        forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing],
+        *,
+        on_conflict: str = "error",
     ) -> "SUEWSSimulation":
         """
         Update meteorological forcing data.
@@ -402,10 +406,18 @@ class SUEWSSimulation:
         forcing_data : str, Path, list of paths, pandas.DataFrame, or SUEWSForcing
             Forcing data source:
             - Path to a single forcing file
-            - List of paths to forcing files (concatenated in order)
+            - List of paths to forcing files (merged by timestamp)
             - Path to directory containing forcing files (deprecated)
             - DataFrame with forcing data
             - SUEWSForcing object
+        on_conflict : {"error", "first", "last"}, optional
+            Applies when several files are merged. Overlapping records that
+            agree are deduplicated; records that disagree for the same
+            timestamp and variable raise
+            :class:`~supy.suews_forcing.ForcingConflictError` by default.
+            ``"first"`` / ``"last"`` resolve them by list order (earlier /
+            later file wins) and log a warning. Ignored for DataFrame and
+            SUEWSForcing inputs.
 
         Returns
         -------
@@ -460,14 +472,14 @@ class SUEWSSimulation:
         elif isinstance(forcing_data, list):
             # Handle list of files
             self._df_forcing = SUEWSSimulation._load_forcing_from_list(
-                forcing_data, tstep_mod=tstep_mod
+                forcing_data, tstep_mod=tstep_mod, on_conflict=on_conflict
             )
         elif isinstance(forcing_data, (str, Path)):
             forcing_path = Path(forcing_data).expanduser().resolve()
             if not forcing_path.exists():
                 raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
             self._df_forcing = SUEWSSimulation._load_forcing_file(
-                forcing_path, tstep_mod=tstep_mod
+                forcing_path, tstep_mod=tstep_mod, on_conflict=on_conflict
             )
         else:
             raise ValueError(f"Unsupported forcing data type: {type(forcing_data)}")
@@ -568,13 +580,22 @@ class SUEWSSimulation:
 
     @staticmethod
     def _load_forcing_from_list(
-        forcing_list: list[Union[str, Path]], tstep_mod: int = 300
+        forcing_list: list[Union[str, Path]],
+        tstep_mod: int = 300,
+        on_conflict: str = "error",
     ) -> pd.DataFrame:
-        """Load and concatenate forcing data from a list of files."""
+        """Load and merge forcing data from a list of files.
+
+        Overlapping timestamps are reconciled by
+        :func:`supy._load.merge_forcing_frames`: identical records are
+        deduplicated, conflicting observations raise unless ``on_conflict``
+        selects a precedence.
+        """
         if not forcing_list:
             raise ValueError("Empty forcing file list provided")
 
         dfs = []
+        sources = []
         for item in forcing_list:
             path = Path(item).expanduser().resolve()
 
@@ -587,15 +608,18 @@ class SUEWSSimulation:
                     "Directories are not allowed in lists."
                 )
 
-            df = read_forcing(str(path), tstep_mod=tstep_mod)
+            df = read_forcing(str(path), tstep_mod=tstep_mod, on_conflict=on_conflict)
             dfs.append(df)
+            sources.append(str(path))
 
-        result = pd.concat(dfs, axis=0).sort_index()
+        result = merge_forcing_frames(dfs, sources, on_conflict=on_conflict)
         result.index.freq = pd.infer_freq(result.index)
         return result
 
     @staticmethod
-    def _load_forcing_file(forcing_path: Path, tstep_mod: int = 300) -> pd.DataFrame:
+    def _load_forcing_file(
+        forcing_path: Path, tstep_mod: int = 300, on_conflict: str = "error"
+    ) -> pd.DataFrame:
         """Load forcing data from file or directory."""
         if forcing_path.is_dir():
             # Issue deprecation warning for directory usage
@@ -616,14 +640,18 @@ class SUEWSSimulation:
                     f"No forcing files found in directory: {forcing_path}"
                 )
 
-            # Concatenate all files
-            dfs = []
-            for file in forcing_files:
-                dfs.append(read_forcing(str(file), tstep_mod=tstep_mod))
-
-            return pd.concat(dfs, axis=0).sort_index()
+            # Merge all files, reconciling overlapping timestamps
+            dfs = [
+                read_forcing(str(file), tstep_mod=tstep_mod, on_conflict=on_conflict)
+                for file in forcing_files
+            ]
+            return merge_forcing_frames(
+                dfs, [str(f) for f in forcing_files], on_conflict=on_conflict
+            )
         else:
-            return read_forcing(str(forcing_path), tstep_mod=tstep_mod)
+            return read_forcing(
+                str(forcing_path), tstep_mod=tstep_mod, on_conflict=on_conflict
+            )
 
     def run(
         self,

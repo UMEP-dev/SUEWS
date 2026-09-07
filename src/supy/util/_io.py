@@ -48,7 +48,7 @@ def read_suews(path_suews_file: str) -> pd.DataFrame:
     return df_suews
 
 
-def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
+def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error") -> pd.DataFrame:
     """Read in SUEWS forcing files as DataFrame ready for SuPy simulation.
 
     Parameters
@@ -61,6 +61,11 @@ def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
     tstep_mod: int or None, optional
         time step [s] for resampling, by default 300.
         If `None`, resampling will be skipped.
+    on_conflict : {"error", "first", "last"}, optional
+        Policy for overlapping timestamps whose observations disagree when
+        the pattern matches several files; see
+        :func:`supy._load.merge_forcing_frames`. The default rejects
+        conflicts with :class:`supy._load.ForcingConflictError`.
 
     Returns
     -------
@@ -75,7 +80,9 @@ def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
     path_input = path_suews_file.parent
     str_pattern = path_suews_file.name
 
-    df_forcing_raw = load_SUEWS_Forcing_met_df_pattern(path_input, str_pattern)
+    df_forcing_raw = load_SUEWS_Forcing_met_df_pattern(
+        path_input, str_pattern, on_conflict=on_conflict
+    )
     return resample_forcing_df(df_forcing_raw, tstep_mod=tstep_mod)
 
 

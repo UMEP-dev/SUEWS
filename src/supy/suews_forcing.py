@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from ._load import ForcingConflictError  # noqa: F401  (public re-export)
 from .data_model.forcing import FORCING_REGISTRY
 
 # Compatibility projections retained for downstream users of these module
@@ -178,7 +179,11 @@ class SUEWSForcing:
 
     @classmethod
     def from_file(
-        cls, path: Union[str, Path, List[Union[str, Path]]], tstep_mod: int = 300
+        cls,
+        path: Union[str, Path, List[Union[str, Path]]],
+        tstep_mod: int = 300,
+        *,
+        on_conflict: str = "error",
     ) -> "SUEWSForcing":
         """
         Load forcing from file(s).
@@ -186,14 +191,29 @@ class SUEWSForcing:
         Parameters
         ----------
         path : str, Path, or list of str/Path
-            Path to forcing file, or list of paths to concatenate
+            Path to forcing file, or list of paths to merge
         tstep_mod : int, optional
             Model timestep in seconds (default 300s = 5 min)
+        on_conflict : {"error", "first", "last"}, optional
+            What to do when two files carry *different* observations for
+            the same timestamp and variable. ``"error"`` (default) raises
+            :class:`ForcingConflictError` naming the files, timestamps and
+            variables. ``"first"`` / ``"last"`` keep the value from the
+            earlier / later file in ``path`` order and log a warning.
+            Overlapping records that agree are deduplicated silently under
+            every policy, and a value missing in one file (``NaN`` or
+            ``-999``) is filled from the other rather than treated as a
+            conflict.
 
         Returns
         -------
         SUEWSForcing
             Loaded forcing data
+
+        Raises
+        ------
+        ForcingConflictError
+            Overlapping files disagree and ``on_conflict="error"``.
 
         Examples
         --------
@@ -201,10 +221,14 @@ class SUEWSForcing:
 
         >>> forcing = SUEWSForcing.from_file("forcing_2023.txt")
 
-        Multiple files:
+        Multiple files (overlaps must agree, or be resolved explicitly):
 
         >>> forcing = SUEWSForcing.from_file(["2023.txt", "2024.txt"])
+        >>> forcing = SUEWSForcing.from_file(
+        ...     ["gapfilled.txt", "raw.txt"], on_conflict="first"
+        ... )
         """
+        from ._load import merge_forcing_frames
         from .util._io import read_forcing
 
         # Handle list of paths
@@ -213,16 +237,18 @@ class SUEWSForcing:
                 raise ValueError("Empty forcing file list provided")
 
             dfs = []
+            sources = []
             for p in path:
                 file_path = Path(p).expanduser().resolve()
                 if not file_path.exists():
                     raise FileNotFoundError(f"Forcing file not found: {file_path}")
-                df = read_forcing(str(file_path), tstep_mod=tstep_mod)
+                df = read_forcing(
+                    str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict
+                )
                 dfs.append(df)
+                sources.append(str(file_path))
 
-            combined = pd.concat(dfs, axis=0).sort_index()
-            # Remove any duplicates
-            combined = combined[~combined.index.duplicated(keep="first")]
+            combined = merge_forcing_frames(dfs, sources, on_conflict=on_conflict)
             df_main, extras = cls._split_per_landcover_columns(combined)
             instance = cls(df_main, source=f"[{len(path)} files]")
             instance._extras = extras
@@ -233,7 +259,7 @@ class SUEWSForcing:
         if not file_path.exists():
             raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
-        df = read_forcing(str(file_path), tstep_mod=tstep_mod)
+        df = read_forcing(str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict)
         df_main, extras = cls._split_per_landcover_columns(df)
         instance = cls(df_main, source=str(file_path))
         instance._extras = extras

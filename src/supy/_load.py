@@ -890,7 +890,7 @@ def merge_forcing_frames(frames, sources, *, on_conflict="error"):
             f"merge_forcing_frames: {len(frames)} frames but {len(sources)} sources"
         )
     if not frames:
-        raise ValueError("merge_forcing_frames: no forcing frames to merge")
+        raise ValueError("No objects to concatenate: no forcing frames to merge")
 
     combined = pd.concat(frames, axis=0)
     source_of_row = np.concatenate(
@@ -1043,10 +1043,6 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="err
         )
         for fn in list_file_MetForcing
     ]
-    if not canonical_per_file:
-        raise FileNotFoundError(
-            f"No forcing files match pattern {file_pattern!r} in {path_input}"
-        )
     # Overlapping timestamps: identical records collapse, conflicting
     # observations are rejected unless a precedence policy is requested.
     return merge_forcing_frames(
@@ -1210,8 +1206,6 @@ def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error"):
         )
         for fn in file_list
     ]
-    if not canonical_per_file:
-        raise FileNotFoundError(f"No forcing files found for {path_forcing}")
     return merge_forcing_frames(
         canonical_per_file,
         [str(fn) for fn in file_list],

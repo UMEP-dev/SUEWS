@@ -47,6 +47,7 @@ __all__ = [
     "SUEWSOutput",
     # Exceptions
     "SUEWSKernelError",
+    "ForcingConflictError",
     # Logging (opt-in file logging)
     "enable_file_logging",
     "disable_file_logging",
@@ -221,6 +222,13 @@ def __getattr__(name):
                 super().__init__(f"SUEWS kernel error (code={code}): {self.message}")
 
         _lazy_cache[name] = SUEWSKernelError
+        return _lazy_cache[name]
+
+    # Overlapping forcing files that disagree (gh#1747)
+    if name == "ForcingConflictError":
+        from ._load import ForcingConflictError
+
+        _lazy_cache[name] = ForcingConflictError
         return _lazy_cache[name]
 
     raise AttributeError(f"module 'supy' has no attribute {name!r}")

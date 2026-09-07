@@ -3,6 +3,7 @@
 import os
 import tempfile
 from pathlib import Path
+import pandas as pd
 import pytest
 from contextlib import contextmanager
 
@@ -39,8 +40,23 @@ def temp_config_setup(config_content, forcing_location="next_to_config"):
             data_dir = config_dir / "data"
             data_dir.mkdir()
             forcing_path = data_dir / "forcing_0.txt"
-            # Create second file for list tests
-            (data_dir / "forcing_1.txt").write_bytes(sample_forcing.read_bytes())
+            # Second file for list tests: the second half of the sample year,
+            # so the two files are distinct and non-overlapping (#1747).
+            lines = sample_forcing.read_text(encoding="utf-8").splitlines(keepends=True)
+            header, body = lines[0], lines[1:]
+            half = len(body) // 2
+            (data_dir / "forcing_1.txt").write_text(
+                header + "".join(body[half:]), encoding="utf-8"
+            )
+            forcing_path.write_text(header + "".join(body[:half]), encoding="utf-8")
+            # Change to tmpdir and yield paths
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                yield config_path, forcing_path
+            finally:
+                os.chdir(original_cwd)
+            return
         else:
             forcing_path = tmpdir / forcing_location
 
@@ -104,10 +120,13 @@ sites:
     with temp_config_setup(config, "subdir") as (config_path, _):
         sim = SUEWSSimulation(str(config_path))
         assert sim._df_forcing is not None
-        # Both files are copies of the same year, so the overlap merge (#1747)
-        # deduplicates identical records: one year at 5-min steps, unique index.
-        assert sim._df_forcing.index.is_unique
-        assert 100000 < len(sim._df_forcing) < 110000
+        # The two files hold the two halves of the sample year (#1747): the
+        # merge must span both, once each, on a unique 5-min index.
+        df = sim._df_forcing
+        assert df.index.is_unique
+        assert df.index[0] == pd.Timestamp("2012-01-01 00:05")
+        assert df.index[-1] == pd.Timestamp("2013-01-01 00:00")
+        assert len(df) == 366 * 24 * 12
 
 
 def test_absolute_path():

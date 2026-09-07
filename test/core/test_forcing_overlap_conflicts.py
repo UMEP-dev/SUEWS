@@ -7,6 +7,7 @@ list order was reversed, with no warning.
 """
 
 import logging
+from importlib.resources import files
 from pathlib import Path
 
 import numpy as np
@@ -25,9 +26,7 @@ from supy.util._io import read_forcing
 
 pytestmark = pytest.mark.api
 
-SAMPLE = (
-    Path(__file__).resolve().parents[2] / "src/supy/sample_data/Kc_2012_data_60.txt"
-)
+SAMPLE = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
 
 
 # ---------------------------------------------------------------------------
@@ -36,7 +35,8 @@ SAMPLE = (
 
 
 def _write_variant(tmp_path: Path, name: str, tair: float, n_rows: int = 4) -> Path:
-    raw = pd.read_csv(SAMPLE, sep=r"\s+").iloc[:n_rows].copy()
+    with SAMPLE.open("r", encoding="utf-8") as fh:
+        raw = pd.read_csv(fh, sep=r"\s+").iloc[:n_rows].copy()
     raw["Tair"] = tair
     path = tmp_path / name
     raw.to_csv(path, sep="\t", index=False, encoding="utf-8")

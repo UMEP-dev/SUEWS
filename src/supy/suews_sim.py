@@ -612,9 +612,7 @@ class SUEWSSimulation:
             dfs.append(df)
             sources.append(str(path))
 
-        result = merge_forcing_frames(dfs, sources, on_conflict=on_conflict)
-        result.index.freq = pd.infer_freq(result.index)
-        return result
+        return merge_forcing_frames(dfs, sources, on_conflict=on_conflict)
 
     @staticmethod
     def _load_forcing_file(

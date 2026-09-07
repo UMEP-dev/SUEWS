@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 7 Sep 2026
+
+- [bugfix] `SUEWSForcing.resample` no longer aggregates the `-999` missing sentinel as a number: an all-missing rain interval was reported as 0 mm, missing `Wuh` readings summed to -1998 mm and the mean of a valid and a missing radiation value came out as -449.5 W m-2 (#1748)
+  - Sentinels and NaN are masked first; an output interval is missing unless it is fully covered by valid rows (sums and means) or its endpoint is valid (instantaneous values), temporal columns are rebuilt from the output index, per-surface extras follow the same rules, and finer or non-integer target frequencies are rejected rather than silently interpolated.
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

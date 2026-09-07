@@ -418,8 +418,12 @@ def test_legacy_text_output_partitions(tmp_path: Path) -> None:
     rows_bad = "\n".join(
         f"2012 1 {h} 0 1.0 200.0 20.0 40.0 -999.0 -999.0" for h in range(4)
     )
-    (run_dir / "Site1_2012_SUEWS_60.txt").write_text(f"{header}\n{rows_ok}\n")
-    (run_dir / "Site2_2012_SUEWS_60.txt").write_text(f"{header}\n{rows_bad}\n")
+    (run_dir / "Site1_2012_SUEWS_60.txt").write_text(
+        f"{header}\n{rows_ok}\n", encoding="utf-8"
+    )
+    (run_dir / "Site2_2012_SUEWS_60.txt").write_text(
+        f"{header}\n{rows_bad}\n", encoding="utf-8"
+    )
 
     res_nan = check_nan_proportion(run_dir)
     assert not res_nan.passed

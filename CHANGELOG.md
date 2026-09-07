@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
+- [bugfix] `SUEWSForcing.save(format="suews")` now writes a native forcing file that `from_file` loads back losslessly: temporal columns are derived from the datetime index (no leading index column, no internal `isec`), pressure is converted back from hPa to the file's kPa using the forcing registry's `runtime_scale` with sentinels left untouched, columns follow the registry's canonical order, and per-landcover extension columns (`lai_<surface>`, `wuh_<surface>`) are written after them. Timestamps not aligned to whole minutes are rejected with a clear error, since the native format has no seconds field. Previously a saved file reloaded with pressure inflated tenfold and every extension column dropped. `format="csv"` now includes the extension columns too. (#1751)
+
 - [bugfix] `suews compare` now aligns on time, selects grids explicitly and reports finite paired samples (#1744)
   - The native `Year`/`DOY`/`Hour`/`Min` clock of legacy text output is parsed into a time axis, so two files for different days no longer compare as a perfect match by row order; inputs with no recoverable time axis are rejected unless `--align positional` is given, and that mode is labelled in the output.
   - An empty joint time axis, or a request for which no variable yields an evaluable metric, exits with a user error instead of a successful envelope with no numbers.

@@ -14,6 +14,7 @@ import copy
 from importlib import import_module
 import json
 
+import numpy as np
 import pytest
 
 import supy as sp
@@ -62,6 +63,32 @@ def _run_multi(inputs: dict, failing_flags: list[bool], max_workers: int):
     return inputs["rust"].run_suews_multi(
         configs, inputs["forcing_flat"], inputs["len_sim"], max_workers
     )
+
+
+def _describe_mismatch(label: str, left: bytes, right: bytes) -> str | None:
+    """Constant-size explanation of how two byte blocks differ, or None.
+
+    pytest's default explanation for ``assert left == right`` runs
+    ``difflib.ndiff`` over the reprs of both operands, which is quadratic in
+    the number of differing lines; on the multi-megabyte output blocks
+    compared below it stalled the Windows API lane for the whole per-test
+    budget (#1762). Reporting the first differing byte keeps a failing
+    comparison, expected while gh#1741 is open, cheap to explain.
+    """
+    if left == right:
+        return None
+    if len(left) != len(right):
+        return f"{label} differ in length: {len(left)} vs {len(right)} bytes"
+    diff = np.frombuffer(left, dtype=np.uint8) != np.frombuffer(right, dtype=np.uint8)
+    positions = np.flatnonzero(diff)
+    return (
+        f"{label} differ at byte {int(positions[0])} of {len(left)} "
+        f"({int(positions.size)} bytes differ)"
+    )
+
+
+def _as_bytes(value) -> bytes:
+    return value.encode() if isinstance(value, str) else bytes(value)
 
 
 def _assert_names_grid(exc_info, grid_index: int) -> None:
@@ -128,8 +155,12 @@ def test_parallel_output_matches_serial(bridge_inputs):
         idx_s, out_s, state_s, len_s, _warnings_s = serial_result
         assert idx_p == idx_s
         assert len_p == len_s
-        assert bytes(out_p) == bytes(out_s)
-        assert state_p == state_s
+        mismatch = _describe_mismatch("output blocks", bytes(out_p), bytes(out_s))
+        assert mismatch is None, mismatch
+        mismatch = _describe_mismatch(
+            "state strings", _as_bytes(state_p), _as_bytes(state_s)
+        )
+        assert mismatch is None, mismatch
 
 
 def test_public_multi_grid_run_names_the_failing_grid():

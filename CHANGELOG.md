@@ -57,6 +57,7 @@ EXAMPLES:
 ### 8 Sep 2026
 
 - [maintenance] Scheduled runs now report their outcome: a `report_scheduled_run` job opens or updates one tracking issue when any nightly build, test or publish job fails or is cancelled, and closes it on the next green run (#1764)
+- [maintenance] `test_parallel_output_matches_serial` reports a byte mismatch by position instead of letting pytest diff two multi-megabyte reprs; the expected gh#1741 failure had stalled the Windows API lane for its whole per-test budget (#1762)
 
 ### 7 Sep 2026
 

@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 8 Sep 2026
+
+- [maintenance] The Fortran build profile is an explicit option: `SUEWS_BUILD_PROFILE=checked|release` (read by `run_make.py`, the Makefile and `build.rs`, and a `build_profile` input on the wheel workflow); `checked` (`-O0 -fcheck=all`, what every wheel has shipped since 2023) stays the default until the release profile is validated on every platform (#1766)
+
 ### 7 Sep 2026
 
 - [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)

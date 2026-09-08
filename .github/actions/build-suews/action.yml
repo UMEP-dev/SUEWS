@@ -228,7 +228,7 @@ runs:
           python "{package}/scripts/suews/ci_phase_metrics.py" start install
         # Pin the scheduler stack so distribution behaviour cannot drift between
         # CI runs. Re-benchmark the fixed-worker candidates before updating.
-        CIBW_TEST_REQUIRES: pytest==9.1.1 pytest-xdist==3.8.0
+        CIBW_TEST_REQUIRES: pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0
         # Test tiers: choose subset based on path detection and trigger.
         # gh#1300: physics tests are binary-determined, so one run per
         # (OS, arch) on the build Python is sufficient. API tests (Python

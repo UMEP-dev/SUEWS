@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-09-08T06:37:47+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.9.8.dev3 documentation</title>
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.9.8.dev7 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=224da448"></script>
+    <script src="../_static/documentation_options.js?v=a02ca6ff"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="6. Python API Reference" href="../api.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.8.dev3" />
+  <meta name="docsearch:version" content="2026.9.8.dev7" />
     <meta name="docbuild:last-update" content="2026-09-08"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.8.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52c41b60907649aa008ed90c1054a830e2dc60fa" style="color: #31708f;">52c41b6</a>).
+        (2026.9.8.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dc92c4b47b39bf2bff529ae353ea9d65bbd71e76" style="color: #31708f;">dc92c4b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev3 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev3 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev7 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev7 documentation - Home"/>
   
   
 </a></div>
@@ -1187,13 +1187,27 @@ If None and variable is in multiple groups, raises ValueError.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_day</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3660</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">run_kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">SUEWSOutput</span></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.run" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_day</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3660</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clip_to_forcing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">run_kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">SUEWSOutput</span></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.run" title="Link to this definition">#</a></dt>
 <dd><p>Run SUEWS simulation using the Rust bridge backend.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>start_date</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Start date for simulation (inclusive).</p></li>
-<li><p><strong>end_date</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – End date for simulation (inclusive).</p></li>
+<li><p><strong>start_date</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>date</em><em> or </em><em>Timestamp</em><em>, </em><em>optional</em>) – Start of the simulation period. Defaults to
+<code class="docutils literal notranslate"><span class="pre">model.control.start_time</span></code>, then to the first forcing row.
+A date-only value (<code class="docutils literal notranslate"><span class="pre">&quot;2012-01-01&quot;</span></code>) names a calendar day:
+forcing rows are stamped at the end of each interval, so the run
+starts with the first row after that day’s midnight. A value with
+a time component is an exact row timestamp and is inclusive.</p></li>
+<li><p><strong>end_date</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>date</em><em> or </em><em>Timestamp</em><em>, </em><em>optional</em>) – End of the simulation period. Defaults to
+<code class="docutils literal notranslate"><span class="pre">model.control.end_time</span></code>, then to the last forcing row.
+A date-only value (<code class="docutils literal notranslate"><span class="pre">&quot;2012-12-31&quot;</span></code>) runs through the end of that
+day, i.e. up to and including the row stamped at the following
+midnight. A value with a time component is inclusive.</p></li>
+<li><p><strong>clip_to_forcing</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – The loaded forcing must cover the requested period; otherwise
+<code class="docutils literal notranslate"><span class="pre">run()</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> rather than running on whatever
+overlap exists. Pass <code class="docutils literal notranslate"><span class="pre">True</span></code> to run on the overlap only; the
+requested and actual periods are then logged as a warning. A
+request with no overlap at all always raises.</p></li>
 <li><p><strong>chunk_day</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size in days for splitting long simulations, by default 3660
 (~10 years). Smaller values reduce peak memory at a small overhead
 cost.</p></li>
@@ -1211,7 +1225,12 @@ and plotting convenience methods. Access raw DataFrame via
 <dd class="field-odd"><p>SUEWSOutput</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If configuration or forcing data is missing.</p>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If configuration or forcing data is missing.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If the forcing does not cover the requested period and
+    <code class="docutils literal notranslate"><span class="pre">clip_to_forcing</span></code> is False, or if the request and the forcing
+    do not overlap at all.</p></li>
+</ul>
 </dd>
 </dl>
 <p class="rubric">Examples</p>
@@ -1789,8 +1808,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.8.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52c41b60907649aa008ed90c1054a830e2dc60fa">52c41b6</a> |
+  <p>Version: 2026.9.8.dev7 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dc92c4b47b39bf2bff529ae353ea9d65bbd71e76">dc92c4b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

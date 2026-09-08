@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.9.8.dev3 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.9.8.dev7 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=224da448"></script>
+    <script src="../../_static/documentation_options.js?v=a02ca6ff"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.8.dev3" />
+  <meta name="docsearch:version" content="2026.9.8.dev7" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.8.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52c41b60907649aa008ed90c1054a830e2dc60fa" style="color: #31708f;">52c41b6</a>).
+        (2026.9.8.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dc92c4b47b39bf2bff529ae353ea9d65bbd71e76" style="color: #31708f;">dc92c4b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -193,8 +193,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev3 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev3 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev7 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev7 documentation - Home"/>
   
   
 </a></div>
@@ -624,6 +624,7 @@
     <span class="n">timestamp_to_iso</span><span class="p">,</span>
     <span class="n">write_provenance</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._run_period</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_run_period</span><span class="p">,</span> <span class="n">slice_forcing_to_period</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._run_rust</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">KernelWarningLog</span><span class="p">,</span>
     <span class="n">_check_rust_available</span><span class="p">,</span>
@@ -711,6 +712,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_kernel_warnings</span> <span class="o">=</span> <span class="n">KernelWarningLog</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_period</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="c1"># Provenance bookkeeping (see ``_provenance.py``); private, best effort.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_config_identity</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1335,6 +1337,7 @@
         <span class="n">end_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">chunk_day</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3660</span><span class="p">,</span>
         <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">clip_to_forcing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">run_kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SUEWSOutput</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -1342,10 +1345,25 @@
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        start_date : str, optional</span>
-<span class="sd">            Start date for simulation (inclusive).</span>
-<span class="sd">        end_date : str, optional</span>
-<span class="sd">            End date for simulation (inclusive).</span>
+<span class="sd">        start_date : str, date or Timestamp, optional</span>
+<span class="sd">            Start of the simulation period. Defaults to</span>
+<span class="sd">            ``model.control.start_time``, then to the first forcing row.</span>
+<span class="sd">            A date-only value (``"2012-01-01"``) names a calendar day:</span>
+<span class="sd">            forcing rows are stamped at the end of each interval, so the run</span>
+<span class="sd">            starts with the first row after that day's midnight. A value with</span>
+<span class="sd">            a time component is an exact row timestamp and is inclusive.</span>
+<span class="sd">        end_date : str, date or Timestamp, optional</span>
+<span class="sd">            End of the simulation period. Defaults to</span>
+<span class="sd">            ``model.control.end_time``, then to the last forcing row.</span>
+<span class="sd">            A date-only value (``"2012-12-31"``) runs through the end of that</span>
+<span class="sd">            day, i.e. up to and including the row stamped at the following</span>
+<span class="sd">            midnight. A value with a time component is inclusive.</span>
+<span class="sd">        clip_to_forcing : bool, optional</span>
+<span class="sd">            The loaded forcing must cover the requested period; otherwise</span>
+<span class="sd">            ``run()`` raises ``ValueError`` rather than running on whatever</span>
+<span class="sd">            overlap exists. Pass ``True`` to run on the overlap only; the</span>
+<span class="sd">            requested and actual periods are then logged as a warning. A</span>
+<span class="sd">            request with no overlap at all always raises.</span>
 <span class="sd">        chunk_day : int, optional</span>
 <span class="sd">            Chunk size in days for splitting long simulations, by default 3660</span>
 <span class="sd">            (~10 years). Smaller values reduce peak memory at a small overhead</span>
@@ -1366,6 +1384,10 @@
 <span class="sd">        ------</span>
 <span class="sd">        RuntimeError</span>
 <span class="sd">            If configuration or forcing data is missing.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the forcing does not cover the requested period and</span>
+<span class="sd">            ``clip_to_forcing`` is False, or if the request and the forcing</span>
+<span class="sd">            do not overlap at all.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -1429,8 +1451,18 @@
             <span class="p">):</span>
                 <span class="n">end_date</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">end_time</span>
 
-        <span class="c1"># Slice forcing data</span>
-        <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_date</span><span class="p">:</span><span class="n">end_date</span><span class="p">]</span>
+        <span class="c1"># Resolve the requested period under interval-end semantics and</span>
+        <span class="c1"># reject forcing that does not cover it (gh#1268). This runs</span>
+        <span class="c1"># regardless of _validate_forcing so no public path can skip it.</span>
+        <span class="n">period</span> <span class="o">=</span> <span class="n">resolve_run_period</span><span class="p">(</span><span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="n">tstep_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">tstep</span>
+        <span class="n">tstep_cfg</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">tstep_cfg</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">,</span> <span class="n">tstep_cfg</span><span class="p">))</span>
+        <span class="n">df_forcing_slice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_period</span> <span class="o">=</span> <span class="n">slice_forcing_to_period</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="p">,</span>
+            <span class="n">period</span><span class="p">,</span>
+            <span class="n">clip_to_forcing</span><span class="o">=</span><span class="n">clip_to_forcing</span><span class="p">,</span>
+            <span class="n">tstep</span><span class="o">=</span><span class="n">tstep_cfg</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="n">run_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_run_metadata</span><span class="p">(</span>
             <span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">,</span> <span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">,</span> <span class="n">chunk_day</span>
         <span class="p">)</span>
@@ -1923,6 +1955,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_kernel_warnings</span> <span class="o">=</span> <span class="n">KernelWarningLog</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_period</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_metadata</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="bp">self</span></div>
@@ -2750,8 +2783,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.8.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52c41b60907649aa008ed90c1054a830e2dc60fa">52c41b6</a> |
+  <p>Version: 2026.9.8.dev7 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dc92c4b47b39bf2bff529ae353ea9d65bbd71e76">dc92c4b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

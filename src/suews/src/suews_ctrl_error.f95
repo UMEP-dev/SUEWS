@@ -18,12 +18,13 @@
 !   that the Rust bridge schedules on a Rayon worker, owns a private copy, so a
 !   fatal error in one grid can neither leak into nor be reset by another grid.
 !   Non-fatal warnings are routed through modState%errorstate (per-grid state).
+!   The per-grid warning log persists for the run and is surfaced to SuPy (GH#1737).
 !==================================================================================================
 MODULE module_ctrl_error_state
    USE, INTRINSIC :: ISO_C_BINDING, ONLY: c_int, c_char
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: reset_supy_error, set_supy_error, add_supy_warning
+   PUBLIC :: reset_supy_error, set_supy_error
    PUBLIC :: supy_error_flag, get_supy_error
    PUBLIC :: SUPY_ERROR_MESSAGE_LEN
 
@@ -99,15 +100,6 @@ CONTAINS
       END DO
    END SUBROUTINE get_supy_error
 
-   SUBROUTINE add_supy_warning(message)
-      !> No-op stub: warnings should use modState%errorstate%report() instead.
-      !> Retained for backward compatibility with call sites that do not yet
-      !> have modState in scope. These warnings are silently dropped.
-      !> TODO: Thread modState through remaining callers and remove this stub.
-      CHARACTER(LEN=*), INTENT(IN) :: message
-      ! Intentionally empty — no module-level SAVE state for thread safety.
-   END SUBROUTINE add_supy_warning
-
 END MODULE module_ctrl_error_state
 
 !==================================================================================================
@@ -139,7 +131,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
    ! Thread Safety:
    !   Warnings are logged to modState%errorstate when provided (thread-safe).
    !   If modState is absent, warnings are silently dropped (no module-level state).
-   !   Fatal errors still use module-level set_supy_error (acceptable: run terminates).
+   !   Fatal errors use the thread-local store through set_supy_error.
 
    USE module_ctrl_const_datain
    USE module_ctrl_error_state, ONLY: set_supy_error

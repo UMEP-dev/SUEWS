@@ -56,6 +56,11 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
+- [bugfix] Fortran kernel warnings now reach the user: the per-grid warning log survives the whole run, each entry is stamped with its timestep, the log crosses the Rust bridge, and SuPy logs a deduplicated summary and exposes `SUEWSSimulation.kernel_warnings` / `SUEWSOutput.kernel_warnings` (#1743; issue #1737)
+  - The 20 physics fallbacks that reported through the no-op `add_supy_warning` stub (SPARTACUS flat-tile substitution, EHC leaving QS at zero, STEBBS, RSL, ESTM, AnOHM, Kdown split, DyOHM stability) now report through the per-grid state; the stub is removed.
+  - The kernel counts every report separately from the 512-entry log cap, so long runs report the true occurrence count instead of silently truncating.
+  - Internal: `run_suews*` bridge functions return a fourth element `(total, [(iy, id, it, imin, location, message), ...])`; the Python runner accepts both the old three-element and the new four-element tuples.
+
 - [bugfix] Fatal error state is now thread-local, so grids running in parallel through the Rust bridge no longer see, reset or inherit each other's fatal errors; `run_suews_multi` errors name the failing grid index (#1736)
   - The store lives in a small C11 `_Thread_local` shim (`suews_ctrl_error_tls.c`) compiled into the SUEWS libraries; `supy_error_flag` is now a function (`IF (supy_error_flag()) RETURN`) and `get_supy_error` reads the code and message back.
   - Regression tests cover mixed valid/failing grids under Rayon, serial/parallel attribution, more grids than workers, and a valid batch after a failed one.

@@ -40,6 +40,12 @@ unsafe extern "C" {
         sim_err_code: *mut c_int,
         sim_err_message: *mut c_char,
         sim_err_message_len: c_int,
+        warn_total: *mut c_int,
+        warn_stored: *mut c_int,
+        warn_max: c_int,
+        warn_timer: *mut c_int,
+        warn_text: *mut c_char,
+        warn_text_len: c_int,
         err: *mut c_int,
     );
 

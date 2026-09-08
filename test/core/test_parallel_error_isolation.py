@@ -4,8 +4,8 @@ The Rust bridge runs one grid per Rayon worker thread. The Fortran fatal
 error store used to be a single process-global ``SAVE`` block, so a fatal
 error raised by one grid was visible to, and could be reset by, every other
 grid running at the same time. These tests pin the per-thread behaviour:
-the failing grid is named deterministically, valid grids are untouched, and
-a valid batch run after a failed one matches serial execution.
+the failing grid is named deterministically, and a valid batch run after a
+failed one completes with the expected grid ids and lengths.
 """
 
 from __future__ import annotations
@@ -115,6 +115,7 @@ def test_valid_batch_after_failure_runs_clean(bridge_inputs):
 @pytest.mark.xfail(
     reason="gh#1741: implicitly saved Fortran locals make parallel output "
     "differ from serial; promote to a regular test once fixed",
+    raises=AssertionError,
     strict=False,
 )
 def test_parallel_output_matches_serial(bridge_inputs):
@@ -122,9 +123,9 @@ def test_parallel_output_matches_serial(bridge_inputs):
     parallel execution."""
     parallel = sorted(_run_multi(bridge_inputs, [False] * 4, max_workers=4))
     serial = sorted(_run_multi(bridge_inputs, [False] * 4, max_workers=1))
-    for (idx_p, out_p, state_p, len_p), (idx_s, out_s, state_s, len_s) in zip(
-        parallel, serial, strict=True
-    ):
+    for parallel_result, serial_result in zip(parallel, serial, strict=True):
+        idx_p, out_p, state_p, len_p, _warnings_p = parallel_result
+        idx_s, out_s, state_s, len_s, _warnings_s = serial_result
         assert idx_p == idx_s
         assert len_p == len_s
         assert bytes(out_p) == bytes(out_s)

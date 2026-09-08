@@ -731,7 +731,11 @@ class TestRun:
             captured["serial_mode"] = serial_mode
             captured["max_workers"] = max_workers
             captured["initial_state_json_by_grid"] = initial_state_json_by_grid
-            return pd.DataFrame(index=df_forcing.index), None
+            return (
+                pd.DataFrame(index=df_forcing.index),
+                None,
+                run_rust_module.KernelWarningLog(),
+            )
 
         monkeypatch.setattr(
             suews_sim_module, "_check_rust_available", fake_check_rust_available
@@ -817,7 +821,11 @@ class TestRun:
                 run_rust_module._normalise_grid_id(site.gridiv): "state"
                 for site in config.sites
             }
-            return self._fake_output_for_config(config, df_forcing), dict_state_json
+            return (
+                self._fake_output_for_config(config, df_forcing),
+                dict_state_json,
+                run_rust_module.KernelWarningLog(),
+            )
 
         def fake_run_suews_rust_multi_with_state(
             config,
@@ -831,6 +839,7 @@ class TestRun:
             return (
                 self._fake_output_for_config(config, df_forcing),
                 dict_state_json_by_grid,
+                run_rust_module.KernelWarningLog(),
             )
 
         monkeypatch.setattr(
@@ -879,6 +888,7 @@ class TestRun:
             return (
                 self._fake_output_for_config(config, df_forcing),
                 dict_state_json_by_grid,
+                run_rust_module.KernelWarningLog(),
             )
 
         monkeypatch.setattr(
@@ -948,7 +958,7 @@ class TestRun:
             run_rust_module, "_parse_output_block", fake_parse_output_block
         )
 
-        _, dict_state_json = run_rust_module.run_suews_rust_multi_with_state(
+        _, dict_state_json, _ = run_rust_module.run_suews_rust_multi_with_state(
             config=config,
             df_forcing=df_forcing,
             dict_state_json_by_grid={1: "state-1", 2: "state-2"},

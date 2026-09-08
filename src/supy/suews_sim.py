@@ -18,7 +18,11 @@ from ._check import check_forcing
 from ._env import logger_supy
 from ._filename import safe_filename_component
 from ._load import merge_forcing_frames
-from ._run_rust import _check_rust_available, run_suews_rust_chunked
+from ._run_rust import (
+    KernelWarningLog,
+    _check_rust_available,
+    run_suews_rust_chunked,
+)
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
@@ -97,6 +101,7 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._checkpoint = None
+        self._kernel_warnings = KernelWarningLog()
         self._check_continuity = True
         self._run_completed = False
 
@@ -829,7 +834,7 @@ class SUEWSSimulation:
         initial_state_json_by_grid = (
             self._checkpoint.grid_states if self._checkpoint is not None else None
         )
-        df_output, dict_state_json = run_suews_rust_chunked(
+        df_output, dict_state_json, kernel_warnings = run_suews_rust_chunked(
             config=self._config,
             df_forcing=df_forcing_slice,
             chunk_day=chunk_day,
@@ -838,6 +843,10 @@ class SUEWSSimulation:
             initial_state_json_by_grid=initial_state_json_by_grid,
         )
         self._df_output = df_output
+        # Surface non-fatal kernel warnings (physics fallbacks) that were
+        # previously discarded inside the Fortran layer (GH#1737).
+        self._kernel_warnings = kernel_warnings
+        kernel_warnings.log(logger_supy)
         self._checkpoint = (
             SUEWSCheckpoint.from_grid_states(
                 dict_state_json,
@@ -865,6 +874,7 @@ class SUEWSSimulation:
             df_state_final=self._df_state_final,
             config=self._config,
             checkpoint=self._checkpoint,
+            kernel_warnings=self._kernel_warnings.to_frame(),
         )
 
     def save(
@@ -1017,6 +1027,7 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._checkpoint = None
+        self._kernel_warnings = KernelWarningLog()
         self._check_continuity = True
         self._run_completed = False
         return self
@@ -1178,6 +1189,7 @@ class SUEWSSimulation:
         self._check_continuity = bool(check_continuity)
         self._df_output = None
         self._df_state_final = None
+        self._kernel_warnings = KernelWarningLog()
         self._run_completed = False
         return self
 
@@ -1689,6 +1701,7 @@ class SUEWSSimulation:
             df_state_final=self._df_state_final,
             config=self._config,
             checkpoint=self._checkpoint,
+            kernel_warnings=self._kernel_warnings.to_frame(),
         )
 
     @property
@@ -1748,6 +1761,17 @@ class SUEWSSimulation:
     def checkpoint(self) -> Optional[SUEWSCheckpoint]:
         """Typed checkpoint produced by the most recent run."""
         return self._checkpoint
+
+    @property
+    def kernel_warnings(self) -> pd.DataFrame:
+        """Non-fatal warnings raised by the Fortran kernel in the last run.
+
+        One row per recorded warning with columns ``grid``, ``datetime``,
+        ``location`` and ``message``. Empty when the run was clean. These
+        mark physics fallbacks (for example SPARTACUS flat-tile substitution
+        or EHC leaving QS at zero) that used to be silent (GH#1737).
+        """
+        return self._kernel_warnings.to_frame()
 
     @property
     def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:

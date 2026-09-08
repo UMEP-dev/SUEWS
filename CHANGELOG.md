@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 8 Sep 2026
+
+- [maintenance] `test_parallel_output_matches_serial` reports a byte mismatch by position instead of letting pytest diff two multi-megabyte reprs; the expected gh#1741 failure had stalled the Windows API lane for its whole per-test budget (#1762)
+
 ### 7 Sep 2026
 
 - [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)

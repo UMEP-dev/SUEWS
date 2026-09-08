@@ -26,6 +26,11 @@ on:
         required: false
         type: string
         default: 'false'
+      build_profile:
+        description: 'Fortran build profile: checked (runtime checks, the current default) or release (optimised, no checks)'
+        required: false
+        type: string
+        default: 'checked'
 
 permissions:
   contents: read
@@ -75,4 +80,5 @@ jobs:
           python: ${{ matrix.python }}
           test_tier: ${{ inputs.test_tier }}
           is_testpypi_build: ${{ inputs.is_testpypi_build }}
+          build_profile: ${{ inputs.build_profile }}
           metrics_host_dir: ${{ runner.temp }}/suews-ci-metrics

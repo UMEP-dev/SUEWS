@@ -18,6 +18,10 @@ inputs:
     description: 'Test tier: smoke, core, cfg, standard, physics-full, or all'
     required: false
     default: 'standard'
+  build_profile:
+    description: 'Fortran build profile: checked (runtime checks, the current default) or release (optimised, no checks). Read by src/supy/run_make.py and src/suews_bridge/build.rs.'
+    required: false
+    default: 'checked'
   is_testpypi_build:
     description: 'Whether this is a TestPyPI build (adds notice to README)'
     required: false
@@ -129,6 +133,7 @@ runs:
           PIP_CACHE_DIR=${{ github.workspace }}/.pip-cache
           CARGO_HOME=${{ github.workspace }}/.cargo-cache
           CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
+          SUEWS_BUILD_PROFILE=${{ inputs.build_profile }}
           SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
           SUEWS_CI_PHASES='${{ inputs.metrics_host_dir }}/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json'
           SUEWS_CI_METRICS_DIR='${{ inputs.metrics_host_dir }}'
@@ -144,6 +149,7 @@ runs:
           PIP_CACHE_DIR=/pip-cache
           CARGO_HOME=/cargo-cache
           CARGO_TARGET_DIR=/rust-target-cache
+          SUEWS_BUILD_PROFILE=${{ inputs.build_profile }}
           SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
           SUEWS_CI_PHASES=/ci-metrics/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json
           SUEWS_CI_METRICS_DIR=/ci-metrics
@@ -188,6 +194,7 @@ runs:
           PIP_CACHE_DIR='${{ github.workspace }}/.pip-cache'
           CARGO_HOME='${{ github.workspace }}/.cargo-cache'
           CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'
+          SUEWS_BUILD_PROFILE='${{ inputs.build_profile }}'
           SUEWS_KNOWLEDGE_GIT_SHA='${{ github.sha }}'
           SUEWS_CI_PHASES='${{ inputs.metrics_host_dir }}\physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json'
           SUEWS_CI_METRICS_DIR='${{ inputs.metrics_host_dir }}'

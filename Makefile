@@ -131,9 +131,8 @@ docs-setup:
 		echo ""; \
 		exit 1; \
 	fi
-	@$(PYTHON) -c "import sys; sys.exit(sys.version_info < (3, 11))" || { \
-		echo "ERROR: Documentation tooling requires Python 3.11 or newer."; \
-		echo "Runtime support remains Python 3.9+."; \
+	@$(PYTHON) -c "import sys; sys.exit(sys.version_info < (3, 12))" || { \
+		echo "ERROR: SUEWS requires Python 3.12 or newer (requires-python in pyproject.toml)."; \
 		exit 1; \
 	}
 	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-docs.XXXXXX" 2>/dev/null || mktemp -t suews-docs); \

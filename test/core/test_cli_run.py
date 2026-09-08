@@ -1,4 +1,4 @@
-"""Tests for suews-run CLI command.
+"""Tests for the ``suews run`` CLI command.
 
 Tests YAML and namelist format support, auto-detection,
 backward compatibility, and deprecation warnings.
@@ -23,7 +23,7 @@ from conftest import CliResultAdapter, run_cli_command
 
 
 class TestCLIRun:
-    """Test suews-run CLI command functionality."""
+    """Test ``suews run`` CLI command functionality."""
 
     @pytest.fixture
     def test_data_dir(self):
@@ -141,7 +141,7 @@ sites:
         # Should show namelist deprecation warning (may be in stdout with CliRunner)
         combined = result.stderr + result.stdout
         assert "DEPRECATION WARNING" in combined
-        assert "suews-convert" in combined
+        assert "suews convert -i" in combined
         # Should show SUEWS version banner
         assert "SUEWS version" in result.stdout
 
@@ -248,5 +248,5 @@ sites:
 
         # Should show migration instructions (may be in stdout with CliRunner)
         combined = result.stderr + result.stdout
-        assert "suews-convert" in combined
+        assert "suews convert -i" in combined
         assert "config.yml" in combined

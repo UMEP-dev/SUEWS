@@ -15,8 +15,11 @@ def read_provenance(run_dir: Path) -> dict[str, Any]:
     path = Path(run_dir) / "provenance.json"
     if not path.exists():
         raise FileNotFoundError(
-            f"provenance.json not found in {run_dir} — "
-            "was this run produced with `suews run --format json`?"
+            f"provenance.json not found in {run_dir}. "
+            "The sidecar is written by `suews run <config.yml>` and by "
+            "`SUEWSSimulation.save()`; older runs and copies that kept only "
+            "the data files have none. Re-run with `suews run <config.yml>` "
+            "(`run` has no `--format` option) or save the run again."
         )
     return json.loads(path.read_text(encoding="utf-8"))
 

@@ -1459,7 +1459,7 @@ CONTAINS
       READ (99, *, iostat=ios) ilat, G
       IF (ios /= 0) THEN
          CALL ErrorHint(11, 'reading Smith1966.grd (ios).', notUsed, notUsed, ios, modState)
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
       END IF
       CLOSE (99)
    END FUNCTION SmithLambda

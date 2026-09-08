@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from ._check import check_forcing
 from ._env import logger_supy
 from ._filename import safe_filename_component
+from ._load import merge_forcing_frames
 from ._provenance import (
     PROVENANCE_FORMAT_VERSION,
     TIMESTAMP_CONVENTION,
@@ -29,7 +30,11 @@ from ._provenance import (
     timestamp_to_iso,
     write_provenance,
 )
-from ._run_rust import _check_rust_available, run_suews_rust_chunked
+from ._run_rust import (
+    KernelWarningLog,
+    _check_rust_available,
+    run_suews_rust_chunked,
+)
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
@@ -108,6 +113,8 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._checkpoint = None
+        self._kernel_warnings = KernelWarningLog()
+        self._check_continuity = True
         self._run_completed = False
         # Provenance bookkeeping (see ``_provenance.py``); private, best effort.
         self._config_identity = None
@@ -410,7 +417,10 @@ class SUEWSSimulation:
         return base
 
     def update_forcing(
-        self, forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing]
+        self,
+        forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing],
+        *,
+        on_conflict: str = "error",
     ) -> "SUEWSSimulation":
         """
         Update meteorological forcing data.
@@ -420,10 +430,18 @@ class SUEWSSimulation:
         forcing_data : str, Path, list of paths, pandas.DataFrame, or SUEWSForcing
             Forcing data source:
             - Path to a single forcing file
-            - List of paths to forcing files (concatenated in order)
+            - List of paths to forcing files (merged by timestamp)
             - Path to directory containing forcing files (deprecated)
             - DataFrame with forcing data
             - SUEWSForcing object
+        on_conflict : {"error", "first", "last"}, optional
+            Applies when several files are merged. Overlapping records that
+            agree are deduplicated; records that disagree for the same
+            timestamp and variable raise
+            :class:`~supy.suews_forcing.ForcingConflictError` by default.
+            ``"first"`` / ``"last"`` resolve them by list order (earlier /
+            later file wins) and log a warning. Ignored for DataFrame and
+            SUEWSForcing inputs.
 
         Returns
         -------
@@ -482,7 +500,7 @@ class SUEWSSimulation:
         elif isinstance(forcing_data, list):
             # Handle list of files
             self._df_forcing = SUEWSSimulation._load_forcing_from_list(
-                forcing_data, tstep_mod=tstep_mod
+                forcing_data, tstep_mod=tstep_mod, on_conflict=on_conflict
             )
             self._forcing_sources = self._describe_forcing_sources(
                 "files",
@@ -493,7 +511,7 @@ class SUEWSSimulation:
             if not forcing_path.exists():
                 raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
             self._df_forcing = SUEWSSimulation._load_forcing_file(
-                forcing_path, tstep_mod=tstep_mod
+                forcing_path, tstep_mod=tstep_mod, on_conflict=on_conflict
             )
             if forcing_path.is_dir():
                 dir_files = []
@@ -636,13 +654,22 @@ class SUEWSSimulation:
 
     @staticmethod
     def _load_forcing_from_list(
-        forcing_list: list[Union[str, Path]], tstep_mod: int = 300
+        forcing_list: list[Union[str, Path]],
+        tstep_mod: int = 300,
+        on_conflict: str = "error",
     ) -> pd.DataFrame:
-        """Load and concatenate forcing data from a list of files."""
+        """Load and merge forcing data from a list of files.
+
+        Overlapping timestamps are reconciled by
+        :func:`supy._load.merge_forcing_frames`: identical records are
+        deduplicated, conflicting observations raise unless ``on_conflict``
+        selects a precedence.
+        """
         if not forcing_list:
             raise ValueError("Empty forcing file list provided")
 
         dfs = []
+        sources = []
         for item in forcing_list:
             path = Path(item).expanduser().resolve()
 
@@ -655,15 +682,16 @@ class SUEWSSimulation:
                     "Directories are not allowed in lists."
                 )
 
-            df = read_forcing(str(path), tstep_mod=tstep_mod)
+            df = read_forcing(str(path), tstep_mod=tstep_mod, on_conflict=on_conflict)
             dfs.append(df)
+            sources.append(str(path))
 
-        result = pd.concat(dfs, axis=0).sort_index()
-        result.index.freq = pd.infer_freq(result.index)
-        return result
+        return merge_forcing_frames(dfs, sources, on_conflict=on_conflict)
 
     @staticmethod
-    def _load_forcing_file(forcing_path: Path, tstep_mod: int = 300) -> pd.DataFrame:
+    def _load_forcing_file(
+        forcing_path: Path, tstep_mod: int = 300, on_conflict: str = "error"
+    ) -> pd.DataFrame:
         """Load forcing data from file or directory."""
         if forcing_path.is_dir():
             # Issue deprecation warning for directory usage
@@ -684,14 +712,18 @@ class SUEWSSimulation:
                     f"No forcing files found in directory: {forcing_path}"
                 )
 
-            # Concatenate all files
-            dfs = []
-            for file in forcing_files:
-                dfs.append(read_forcing(str(file), tstep_mod=tstep_mod))
-
-            return pd.concat(dfs, axis=0).sort_index()
+            # Merge all files, reconciling overlapping timestamps
+            dfs = [
+                read_forcing(str(file), tstep_mod=tstep_mod, on_conflict=on_conflict)
+                for file in forcing_files
+            ]
+            return merge_forcing_frames(
+                dfs, [str(f) for f in forcing_files], on_conflict=on_conflict
+            )
         else:
-            return read_forcing(str(forcing_path), tstep_mod=tstep_mod)
+            return read_forcing(
+                str(forcing_path), tstep_mod=tstep_mod, on_conflict=on_conflict
+            )
 
     def run(
         self,
@@ -799,6 +831,11 @@ class SUEWSSimulation:
             start_date, end_date, df_forcing_slice, n_jobs, chunk_day
         )
 
+        # A checkpoint continuation must pick up exactly one timestep after
+        # the checkpointed period; this runs regardless of _validate_forcing.
+        if self._checkpoint is not None:
+            self._validate_continuation_forcing(df_forcing_slice)
+
         if validate_forcing:
             # Validate forcing data, including physics-specific forcing requirements
             # (e.g. laimethod=0 requires populated effective observed-LAI sources).
@@ -873,7 +910,7 @@ class SUEWSSimulation:
         initial_state_json_by_grid = (
             self._checkpoint.grid_states if self._checkpoint is not None else None
         )
-        df_output, dict_state_json = run_suews_rust_chunked(
+        df_output, dict_state_json, kernel_warnings = run_suews_rust_chunked(
             config=self._config,
             df_forcing=df_forcing_slice,
             chunk_day=chunk_day,
@@ -882,6 +919,10 @@ class SUEWSSimulation:
             initial_state_json_by_grid=initial_state_json_by_grid,
         )
         self._df_output = df_output
+        # Surface non-fatal kernel warnings (physics fallbacks) that were
+        # previously discarded inside the Fortran layer (GH#1737).
+        self._kernel_warnings = kernel_warnings
+        kernel_warnings.log(logger_supy)
         self._checkpoint = (
             SUEWSCheckpoint.from_grid_states(
                 dict_state_json,
@@ -890,6 +931,9 @@ class SUEWSSimulation:
             if dict_state_json
             else None
         )
+        # The checkpoint now belongs to this run, so a further run() on the
+        # same instance is an implicit continuation and is always checked.
+        self._check_continuity = True
 
         # Keep a legacy DFState-shaped final state for compatibility only.
         from ._version import __version__
@@ -908,6 +952,7 @@ class SUEWSSimulation:
             df_state_final=self._df_state_final,
             config=self._config,
             checkpoint=self._checkpoint,
+            kernel_warnings=self._kernel_warnings.to_frame(),
         )
 
     def save(
@@ -1266,9 +1311,69 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._checkpoint = None
+        self._kernel_warnings = KernelWarningLog()
+        self._check_continuity = True
         self._run_completed = False
         self._run_metadata = None
         return self
+
+    def _validate_continuation_forcing(self, df_forcing: pd.DataFrame) -> None:
+        """Require continuation forcing to start one timestep after the checkpoint.
+
+        Forcing timestamps mark the end of each interval, so the first row of
+        a continuation must sit exactly one model timestep after the
+        checkpoint's ``last_timestamp``. Overlaps and gaps are rejected with
+        distinct messages; ``check_continuity=False`` on ``from_checkpoint``
+        or ``continue_from`` skips the check for the next run only.
+        """
+        if not self._check_continuity or df_forcing.empty:
+            return
+        if not isinstance(df_forcing.index, pd.DatetimeIndex):
+            # check_forcing reports a non-datetime index with its own message.
+            return
+
+        checkpoint = self._checkpoint
+        if checkpoint.last_timestamp is None:
+            raise ValueError(
+                "Checkpoint has no last_timestamp metadata, so the continuation "
+                "forcing cannot be checked for continuity. Use a checkpoint "
+                "produced by SUEWSSimulation.run() or save(), or pass "
+                "check_continuity=False to from_checkpoint()/continue_from() "
+                "to skip the check."
+            )
+
+        tstep_val = self._config.model.control.tstep
+        tstep = int(tstep_val.value if hasattr(tstep_val, "value") else tstep_val)
+        last = pd.Timestamp(checkpoint.last_timestamp)
+        first = df_forcing.index[0]
+        if (last.tzinfo is None) != (first.tzinfo is None):
+            raise ValueError(
+                f"Checkpoint last_timestamp {last} and continuation forcing "
+                f"start {first} differ in timezone awareness; supply forcing "
+                "on the same clock as the checkpointed run."
+            )
+
+        expected = last + pd.Timedelta(seconds=tstep)
+        if first == expected:
+            return
+        remedy = (
+            f"Expected the first forcing timestamp to be {expected} "
+            f"(checkpoint last_timestamp {last} + tstep {tstep} s)."
+        )
+        if first <= last:
+            raise ValueError(
+                f"Continuation forcing starts at {first}, which overlaps the "
+                f"checkpointed period ending at {last}. {remedy} Call reset() "
+                "to run from the initial state again, or pass "
+                "check_continuity=False to from_checkpoint()/continue_from() "
+                "to deliberately re-run a period from the checkpointed state."
+            )
+        raise ValueError(
+            f"Continuation forcing starts at {first}, leaving a gap after the "
+            f"checkpointed period ending at {last}. {remedy} Supply forcing "
+            f"that starts at {expected}, or pass check_continuity=False to "
+            "from_checkpoint()/continue_from() to skip the check."
+        )
 
     @classmethod
     def from_sample_data(cls):
@@ -1316,8 +1421,23 @@ class SUEWSSimulation:
         cls,
         config: Union[str, Path, dict, SUEWSConfig],
         checkpoint: Union[str, Path, SUEWSCheckpoint],
+        check_continuity: bool = True,
     ) -> "SUEWSSimulation":
-        """Create a continuation simulation from YAML config and checkpoint."""
+        """Create a continuation simulation from YAML config and checkpoint.
+
+        Parameters
+        ----------
+        config : str, Path, dict or SUEWSConfig
+            Configuration used for the checkpointed run.
+        checkpoint : str, Path or SUEWSCheckpoint
+            Typed checkpoint, or the path of a checkpoint JSON file.
+        check_continuity : bool, optional
+            When ``True`` (default) the next ``run()`` requires the forcing to
+            start exactly one model timestep after the checkpoint's
+            ``last_timestamp`` and rejects overlaps and gaps. Set ``False`` to
+            deliberately re-run a period from the checkpointed state, for
+            example when cycling the same forcing for spin-up.
+        """
         if config is None:
             raise ValueError(
                 "Checkpoint continuation requires a YAML/SUEWSConfig "
@@ -1328,12 +1448,19 @@ class SUEWSSimulation:
         if not isinstance(config, (str, Path, dict)):
             config = copy.deepcopy(config)
         sim.update_config(config, auto_load_forcing=False)
-        return sim.continue_from(checkpoint)
+        return sim.continue_from(checkpoint, check_continuity=check_continuity)
 
     def continue_from(
-        self, checkpoint: Union[str, Path, SUEWSCheckpoint]
+        self,
+        checkpoint: Union[str, Path, SUEWSCheckpoint],
+        check_continuity: bool = True,
     ) -> "SUEWSSimulation":
-        """Use a typed checkpoint as the initial runtime state."""
+        """Use a typed checkpoint as the initial runtime state.
+
+        ``check_continuity`` has the same meaning as in ``from_checkpoint``:
+        it governs whether the next ``run()`` requires the forcing to start
+        one model timestep after the checkpoint's ``last_timestamp``.
+        """
         if self._config is None:
             raise RuntimeError(
                 "Checkpoint continuation requires a loaded configuration. "
@@ -1344,8 +1471,10 @@ class SUEWSSimulation:
         checkpoint_value = self._coerce_checkpoint(checkpoint)
         checkpoint_value.validate_for_continuation()
         self._checkpoint = checkpoint_value
+        self._check_continuity = bool(check_continuity)
         self._df_output = None
         self._df_state_final = None
+        self._kernel_warnings = KernelWarningLog()
         self._run_completed = False
         return self
 
@@ -1857,6 +1986,7 @@ class SUEWSSimulation:
             df_state_final=self._df_state_final,
             config=self._config,
             checkpoint=self._checkpoint,
+            kernel_warnings=self._kernel_warnings.to_frame(),
         )
 
     @property
@@ -1916,6 +2046,17 @@ class SUEWSSimulation:
     def checkpoint(self) -> Optional[SUEWSCheckpoint]:
         """Typed checkpoint produced by the most recent run."""
         return self._checkpoint
+
+    @property
+    def kernel_warnings(self) -> pd.DataFrame:
+        """Non-fatal warnings raised by the Fortran kernel in the last run.
+
+        One row per recorded warning with columns ``grid``, ``datetime``,
+        ``location`` and ``message``. Empty when the run was clean. These
+        mark physics fallbacks (for example SPARTACUS flat-tile substitution
+        or EHC leaving QS at zero) that used to be silent (GH#1737).
+        """
+        return self._kernel_warnings.to_frame()
 
     @property
     def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:

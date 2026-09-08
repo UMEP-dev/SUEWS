@@ -292,6 +292,44 @@ order):
            - "forcing/Kc_2021_data_60.txt"
            - "forcing/Kc_2022_data_60.txt"
 
+.. _forcing_overlapping_files:
+
+Overlapping files
+~~~~~~~~~~~~~~~~~
+
+Files in a list (and files matched by a wildcard pattern or found in a
+directory) are merged by timestamp, so their periods may touch or
+overlap. The merge follows three rules, applied per timestamp and per
+variable:
+
+* Records that **agree** are deduplicated silently, so a boundary hour
+  present in two adjacent yearly files is harmless.
+* A value that is **missing** in one file (``NaN`` or the ``-999``
+  sentinel) and observed in another is taken from the observation. This
+  also covers optional and per-land-cover extension columns that appear
+  in only one of the files.
+* Records that **disagree** on a non-missing value are rejected with a
+  ``ForcingConflictError`` that lists the files, timestamps and
+  variables involved. The default never resolves a conflict by file
+  order.
+
+To resolve genuine conflicts by precedence, opt in explicitly from
+Python. ``on_conflict="first"`` keeps the earlier file in the list and
+``on_conflict="last"`` the later one; either choice logs a warning that
+counts the overridden values:
+
+.. code-block:: python
+
+   from supy import SUEWSForcing
+
+   forcing = SUEWSForcing.from_file(
+       ["gapfilled_2020.txt", "raw_2020.txt"], on_conflict="first"
+   )
+   sim.update_forcing(["a.txt", "b.txt"], on_conflict="last")
+
+Forcing loaded through the YAML ``forcing.file`` list always uses the
+strict default; reconcile overlapping files before listing them there.
+
 Choosing Conditional and Additional Variables
 ---------------------------------------------
 

@@ -12,7 +12,7 @@ Before starting development, ensure you have:
    - Git installed and configured
    - GitHub account with repository access
    - `gfortran` compiler installed (platform-specific installation)
-   - Python 3.9+ installed
+   - Python 3.12 or newer installed
    - Text editor or IDE of choice
 
 2. **Recommended Tools**:

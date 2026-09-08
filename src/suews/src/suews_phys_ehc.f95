@@ -428,17 +428,19 @@ CONTAINS
       temp_out_roof, QS_roof, & !output
       temp_out_wall, QS_wall, & !output
       temp_out_surf, temp_fast_surf, temp_slow_surf, QS_surf, & !output
-      QS) !output
+      QS, & !output
+      errorState) ! inout: per-grid warning log (GH#1737)
       USE module_ctrl_const_allocate, ONLY: &
          nsurf, ndepth, &
          PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
-      USE module_ctrl_error_state, ONLY: add_supy_warning
+      USE module_ctrl_type, ONLY: error_state
       USE module_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_gstep, heatcond1d_CN, heatcond1d_CN_dense
 
       IMPLICIT NONE
       INTEGER, INTENT(in) :: tstep
       INTEGER, INTENT(in) :: nlayer ! number of vertical levels in urban canopy
       LOGICAL, INTENT(in) :: use_lumped_slab
+      TYPE(error_state), INTENT(INOUT) :: errorState ! per-grid warning log (GH#1737)
 
       ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: QG_surf ! ground heat flux
       ! extended for ESTM_ehc
@@ -698,7 +700,9 @@ CONTAINS
             END IF
          END DO
          IF (surface_weight <= 1.0D-12) THEN
-            CALL add_supy_warning('EHC lumped slab: no valid positive-fraction surface thermal layers; QS remains zero')
+            CALL errorState%report( &
+               message='lumped slab: no valid positive-fraction surface thermal layers; QS remains zero', &
+               location='EHC', is_fatal=.FALSE.)
             RETURN
          END IF
 
@@ -728,7 +732,9 @@ CONTAINS
             END IF
          END DO
          IF (.NOT. valid_lumped) THEN
-            CALL add_supy_warning('EHC lumped slab: invalid aggregated heat capacity; QS remains zero')
+            CALL errorState%report( &
+               message='lumped slab: invalid aggregated heat capacity; QS remains zero', &
+               location='EHC', is_fatal=.FALSE.)
             RETURN
          END IF
 
@@ -752,11 +758,15 @@ CONTAINS
                   END DO
 
                   IF (ANY(g_branch(1:ndepth) <= 1.0D-12)) THEN
-                     CALL add_supy_warning('EHC parallel slab: invalid internal conductance; surface QS remains zero')
+                     CALL errorState%report( &
+                        message='parallel slab: invalid internal conductance; surface QS remains zero', &
+                        location='EHC', is_fatal=.FALSE.)
                      CYCLE
                   END IF
                   IF ((.NOT. use_zero_flux_bottom) .AND. g_branch(ndepth + 1) <= 1.0D-12) THEN
-                     CALL add_supy_warning('EHC parallel slab: invalid lower-boundary conductance; surface QS remains zero')
+                     CALL errorState%report( &
+                        message='parallel slab: invalid lower-boundary conductance; surface QS remains zero', &
+                        location='EHC', is_fatal=.FALSE.)
                      CYCLE
                   END IF
 
@@ -796,11 +806,15 @@ CONTAINS
             END IF
          END DO
          IF (ANY(g_lumped(1:ndepth) <= 1.0D-12)) THEN
-            CALL add_supy_warning('EHC lumped slab: invalid aggregated internal conductance; QS remains zero')
+            CALL errorState%report( &
+               message='lumped slab: invalid aggregated internal conductance; QS remains zero', &
+               location='EHC', is_fatal=.FALSE.)
             RETURN
          END IF
          IF ((.NOT. use_zero_flux_bottom) .AND. g_lumped(ndepth + 1) <= 1.0D-12) THEN
-            CALL add_supy_warning('EHC lumped slab: invalid aggregated lower-boundary conductance; QS remains zero')
+            CALL errorState%report( &
+               message='lumped slab: invalid aggregated lower-boundary conductance; QS remains zero', &
+               location='EHC', is_fatal=.FALSE.)
             RETURN
          END IF
 

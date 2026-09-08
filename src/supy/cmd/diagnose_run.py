@@ -57,8 +57,10 @@ def _build_recommendations(list_results: list[Any]) -> list[str]:
             )
         elif res.name == "energy_balance_closure":
             list_recommendations.append(
-                "Review storage_heat / emissions physics options and check "
-                "land-cover fractions sum to 1.0."
+                "SUEWS closes QN + QF = QH + QE + QS (plus snow terms) by "
+                "construction; a residual means the saved output is "
+                "internally inconsistent. Check for truncated or mixed "
+                "output files and rows flagged missing before trusting the run."
             )
     return list_recommendations
 

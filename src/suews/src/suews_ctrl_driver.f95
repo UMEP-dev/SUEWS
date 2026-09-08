@@ -14,7 +14,7 @@ MODULE SUEWS_Driver
    ! only the following immutable objects are imported:
    ! 1. functions/subroutines
    ! 2. constant variables
-   USE module_ctrl_type, ONLY: SUEWS_CONFIG, SURF_STORE_PRM, WATER_DIST_PRM, bioCO2_PRM, CONDUCTANCE_PRM, &
+   USE module_ctrl_type, ONLY: SUEWS_CONFIG, SURF_STORE_PRM, WATER_DIST_PRM, bioCO2_PRM, CONDUCTANCE_PRM, error_state, &
                             LAI_PRM, OHM_COEF_LC, OHM_PRM, SOIL_PRM, anthroHEAT_PRM, IRRIG_daywater, &
                             IRRIGATION_PRM, anthroEMIS_PRM, SNOW_PRM, SPARTACUS_PRM, SPARTACUS_LAYER_PRM, &
                             SUEWS_SITE, LUMPS_PRM, EHC_PRM, LC_PAVED_PRM, LC_BLDG_PRM, LC_DECTR_PRM, LC_EVETR_PRM, &
@@ -66,15 +66,15 @@ MODULE SUEWS_Driver
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, SUEWS_cal_weekday, &
                           SUEWS_cal_DLS, SUEWS_cal_timer_reference
-   ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
-   USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
-                                       reset_supy_error, set_supy_error, add_supy_warning
+   ! Re-export error state accessors from module_ctrl_error_state
+   USE module_ctrl_error_state, ONLY: supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN, &
+                                       reset_supy_error, set_supy_error
    USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 
-   ! Make error state variables public for Python/f90wrap access
-   PUBLIC :: supy_error_flag, supy_error_code, supy_error_message
+   ! Make error state accessors public for the C-ABI driver
+   PUBLIC :: supy_error_flag, get_supy_error
    PUBLIC :: reset_supy_error, set_supy_error
    PRIVATE :: SUEWS_cal_Main_impl
 
@@ -175,7 +175,7 @@ CONTAINS
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
       CALL validate_outputline_layout(outputLine)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
 
       max_iter = max_iter_default
       ehc_restore_best_mode = 0
@@ -682,7 +682,7 @@ CONTAINS
 
             ! Sync module-level error state to modState for thread-safe access
             ! This enables Python to read errors from modState%errorState
-            CALL sync_error_to_state(modState)
+            CALL sync_error_to_state(modState, timer)
 
          END ASSOCIATE
       END ASSOCIATE
@@ -1258,7 +1258,8 @@ CONTAINS
                   K       = k_surf(i_surf, 1), &
                   C       = cp_surf(i_surf, 1), &
                   z       = z, nz = nz, &
-                  T_bottom = T_bottom, dt = timestep )
+                  T_bottom = T_bottom, dt = timestep, &
+                  errorState = modState%errorState )
 
                heatState%temp_surf_dyohm(i_surf, :) = next_profile
                !save the surface temperature
@@ -1425,7 +1426,7 @@ CONTAINS
 
                ELSE
                   CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod, modState)
-                  IF (supy_error_flag) RETURN
+                  IF (supy_error_flag()) RETURN
                END IF
 
                IF (EmissionsMethod >= 1) qf = QF_SAHP
@@ -1918,8 +1919,9 @@ CONTAINS
                               kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
                               sw_dn_direct_frac, kdown_direct)
                            kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
-                           CALL add_supy_warning( &
-                              'SUEWS: invalid kdir/kdiff forcing; using EPW Kdown split')
+                           CALL modState%errorState%report( &
+                              message='invalid kdir/kdiff forcing; using EPW Kdown split', &
+                              location='SUEWS_cal_Qn', is_fatal=.FALSE.)
                         END IF
                      CASE (2) ! constant direct-horizontal fraction
                         kdown_direct = MAX(0.0D0, kdown) &
@@ -1953,7 +1955,8 @@ CONTAINS
                         qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
                         roof_in_sw_spc, roof_in_lw_spc, &
                         wall_in_sw_spc, wall_in_lw_spc, &
-                        dataOutLineSPARTACUS)
+                        dataOutLineSPARTACUS, &
+                        modState%errorState)
                      IF (qn /= qn .OR. qn <= -999D0) THEN
                         WRITE (*, *) 'QN_DEBUG invalid qn after SPARTACUS:', &
                            ' netrad=', NetRadiationMethod, &
@@ -2470,7 +2473,8 @@ CONTAINS
                      avkdn, avu1, temp_c, zenith_deg, avrh, press_hpa, ldown, &
                      bldgh, Ts5mindata_ir, &
                      Tair_av, &
-                     dataOutLineESTM, QS) !output
+                     dataOutLineESTM, QS, & !output
+                     modState)
                   !    CALL ESTM(QSestm,Gridiv,ir)  ! iMB corrected to Gridiv, TS 09 Jun 2016
                   !    QS=QSestm   ! Use ESTM qs
                ELSEIF (StorageHeatMethod == 5) THEN
@@ -2494,7 +2498,8 @@ CONTAINS
                      heatState%temp_roof, QS_roof, & !output
                      heatState%temp_wall, QS_wall, & !output
                      heatState%temp_surf, heatState%temp_surf_ehc_fast, heatState%temp_surf_ehc_slow, QS_surf, & !output
-                     QS) !output
+                     QS, & !output
+                     modState%errorState)
 
                   ! TODO: add deltaQi to output for snow heat storage
 
@@ -4237,7 +4242,7 @@ CONTAINS
             CALL push_vec(qn_surf)
             CALL push_vec(qs_surf)
             CALL check_packed_size()
-            IF (supy_error_flag) RETURN
+            IF (supy_error_flag()) RETURN
             ! set invalid values to NAN
             ! dataOutLineSUEWS = set_nan(dataOutLineSUEWS)
 
@@ -4250,7 +4255,7 @@ CONTAINS
          IMPLICIT NONE
          REAL(KIND(1D0)), INTENT(IN) :: val
 
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
          IF (out_idx > SIZE(dataOutLineSUEWS)) THEN
             CALL raise_pack_overflow(1)
             RETURN
@@ -4264,7 +4269,7 @@ CONTAINS
          REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: vals
          INTEGER :: nvals
 
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
          nvals = SIZE(vals)
          IF (out_idx + nvals - 1 > SIZE(dataOutLineSUEWS)) THEN
             CALL raise_pack_overflow(nvals)
@@ -4278,7 +4283,7 @@ CONTAINS
          IMPLICIT NONE
          CHARACTER(LEN=512) :: msg
 
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
          IF (out_idx - 1 /= SIZE(dataOutLineSUEWS)) THEN
             WRITE (msg, '(A,I0,A,I0,A)') &
                'SUEWS output packing size mismatch in SUEWS_update_outputLine: packed=', &
@@ -4293,7 +4298,7 @@ CONTAINS
          INTEGER, INTENT(IN) :: nvals
          CHARACTER(LEN=512) :: msg
 
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
          WRITE (msg, '(A,I0,A,I0,A,I0,A)') &
             'SUEWS output packing overflow in SUEWS_update_outputLine: next_index=', &
             out_idx, ', adding=', nvals, ', capacity=', SIZE(dataOutLineSUEWS), &
@@ -4578,25 +4583,25 @@ CONTAINS
       CHARACTER(LEN=512) :: msg
 
       CALL check_size('outputLine%dataOutLineSUEWS', SIZE(outputLine%dataOutLineSUEWS), ncolumnsDataOutSUEWS)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineSnow', SIZE(outputLine%dataOutLineSnow), ncolumnsDataOutSnow)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineESTM', SIZE(outputLine%dataOutLineESTM), ncolumnsDataOutESTM)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineEHC', SIZE(outputLine%dataOutLineEHC), ncolumnsDataOutEHC)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineRSL', SIZE(outputLine%dataOutLineRSL), ncolumnsDataOutRSL)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineBEERS', SIZE(outputLine%dataOutLineBEERS), ncolumnsDataOutBEERS)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineDebug', SIZE(outputLine%dataOutLineDebug), ncolumnsDataOutDebug)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineSPARTACUS', SIZE(outputLine%dataOutLineSPARTACUS), ncolumnsDataOutSPARTACUS)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineDailyState', SIZE(outputLine%dataOutLineDailyState), ncolumnsDataOutDailyState)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineSTEBBS', SIZE(outputLine%dataOutLineSTEBBS), ncolumnsDataOutSTEBBS)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineNHood', SIZE(outputLine%dataOutLineNHood), ncolumnsDataOutNHood)
 
    CONTAINS
@@ -6180,7 +6185,7 @@ CONTAINS
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN
-         CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, config, mod_state%stebbsState%buildings(1), nlayer)
+         CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, config, mod_state%stebbsState%buildings(1), nlayer, mod_state%errorState)
          mod_state%flagState%stebbs_bldg_init = 1
       END IF
 
@@ -6554,7 +6559,7 @@ CONTAINS
       state_iter%temp_surf_ehc_slow = state_stepstart%temp_surf_ehc_slow
    END SUBROUTINE reset_ehc_heat_state_for_tsurf_iteration
 
-FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
+FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt, errorState) RESULT(Temp_out)
     !--------------------------------------------------------------------
     ! Updates the soil temperature profile for one timestep using an
     ! explicit finite-difference scheme under prescribed surface heat flux
@@ -6581,6 +6586,7 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     INTEGER, INTENT(IN) :: nz, dt
     REAL(KIND(1D0)), INTENT(IN) :: Temp_in(nz)
     REAL(KIND(1D0)), INTENT(IN) :: K, C, z(nz), Qs, T_bottom
+    TYPE(error_state), INTENT(INOUT), OPTIONAL :: errorState ! per-grid warning log (GH#1737)
     REAL(KIND(1D0)) :: Temp_out(nz)
     REAL(KIND(1D0)) :: alpha, dz_up, dz_down, dz_tot, dz_surface, dz_min, d2Tdz2
     INTEGER :: i
@@ -6595,7 +6601,9 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     !----------------------------------------------------------
     dz_min = MINVAL(z(2:nz) - z(1:nz-1))
     IF (alpha * dt / (dz_min**2) > 0.5D0) THEN
-       CALL add_supy_warning('cal_tsfc_dyohm: time step may be too large for stability')
+       IF (PRESENT(errorState)) CALL errorState%report( &
+          message='time step may be too large for stability', &
+          location='cal_tsfc_dyohm', is_fatal=.FALSE.)
     END IF
 
     ! Initialize output
@@ -6682,23 +6690,33 @@ END FUNCTION cal_tsfc_dyohm
    END SUBROUTINE restore_state
 
    !==============================================================================
-   ! Synchronise module-level error state to modState%errorState
-   ! This enables thread-safe error handling by copying the global error state
-   ! (set by ErrorHint and set_supy_error) to the per-grid-cell state.
+   ! Synchronise the thread-local fatal error state to modState%errorState
+   ! The fatal store is per OS thread (suews_ctrl_error_tls.c, GH#1736), and a
+   ! grid run stays on one thread, so this copy is per grid: concurrent grids
+   ! cannot see or reset each other's fatal errors.
    ! Future: direct use of modState%errorState will eliminate need for sync.
    !==============================================================================
-   SUBROUTINE sync_error_to_state(modState)
-      USE module_ctrl_type, ONLY: SUEWS_STATE
+   SUBROUTINE sync_error_to_state(modState, timer)
+      USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
 
       IMPLICIT NONE
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      INTEGER :: err_code
+      CHARACTER(LEN=SUPY_ERROR_MESSAGE_LEN) :: err_message
 
-      ! Copy module-level error state to modState%errorState
-      IF (supy_error_flag) THEN
-         CALL modState%errorState%set(supy_error_code, TRIM(supy_error_message))
+      ! Copy the calling thread's fatal error state to modState%errorState
+      IF (supy_error_flag()) THEN
+         CALL get_supy_error(err_code, err_message)
+         CALL modState%errorState%set(err_code, TRIM(err_message))
       ELSE
-         CALL modState%errorState%reset()
+         ! Clear only the fatal fields: the warning log must survive the whole
+         ! run so it can be surfaced to the user (GH#1737).
+         CALL modState%errorState%clear_fatal()
       END IF
+
+      ! Give every warning raised during this timestep its timestamp
+      CALL modState%errorState%stamp_pending(timer)
 
    END SUBROUTINE sync_error_to_state
 

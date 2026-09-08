@@ -272,6 +272,8 @@ foreach f : src_f95_all
   src_f95_files += join_paths(dir_src_suews, f)
 endforeach
 src_f95_files = files(src_f95_files)
+# C helpers compiled into the same archives (thread-local error store, gh#1736)
+src_c_files = files(dir_src_suews / 'suews_ctrl_error_tls.c')
 
 makefile_deps = files(dir_suews / 'Makefile')
 
@@ -284,7 +286,7 @@ build_suews = custom_target(
     '@OUTPUT@',
   ],
   build_by_default: true,
-  depend_files: [src_f95_files, makefile_deps],
+  depend_files: [src_f95_files, src_c_files, makefile_deps],
   output: 'suews_objects',
 )
 

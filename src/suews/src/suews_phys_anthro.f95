@@ -311,7 +311,7 @@ CONTAINS
 
          ELSE ! If TrafficUnits doesn't match possible units
             CALL ErrorHint(75, 'Check TrafficUnits', TrafficUnits, -999D0, INT(TrafficUnits), modState)
-            IF (supy_error_flag) RETURN
+            IF (supy_error_flag()) RETURN
 
          END IF
 

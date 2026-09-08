@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-08-12T09:09:21+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.9.7.dev7 documentation</title>
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.9.7.dev8 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=d5ae1fc0"></script>
+    <script src="../_static/documentation_options.js?v=9f089e3e"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="6. Python API Reference" href="../api.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.7.dev7" />
+  <meta name="docsearch:version" content="2026.9.7.dev8" />
     <meta name="docbuild:last-update" content="2026-08-12"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.7.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/19d775426be86ffb09cad5e8d3f1277cfafe5262" style="color: #31708f;">19d7754</a>).
+        (2026.9.7.dev8, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b570e4ea139403698ba86c13b3000df91ebaae0" style="color: #31708f;">5b570e4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.7.dev7 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.7.dev7 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.7.dev8 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.7.dev8 documentation - Home"/>
   
   
 </a></div>
@@ -886,8 +886,21 @@ legacy/developer DataFrame view.</p>
 </div>
 <dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.from_checkpoint">
-<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">SUEWSConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSSimulation" title="supy.suews_sim.SUEWSSimulation"><span class="pre">SUEWSSimulation</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.from_checkpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.from_checkpoint" title="Link to this definition">#</a></dt>
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">SUEWSConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_continuity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSSimulation" title="supy.suews_sim.SUEWSSimulation"><span class="pre">SUEWSSimulation</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.from_checkpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.from_checkpoint" title="Link to this definition">#</a></dt>
 <dd><p>Create a continuation simulation from YAML config and checkpoint.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Path</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> or </em><em>SUEWSConfig</em>) – Configuration used for the checkpointed run.</p></li>
+<li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Path</em><em> or </em><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.SUEWSCheckpoint"><em>SUEWSCheckpoint</em></a>) – Typed checkpoint, or the path of a checkpoint JSON file.</p></li>
+<li><p><strong>check_continuity</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – When <code class="docutils literal notranslate"><span class="pre">True</span></code> (default) the next <code class="docutils literal notranslate"><span class="pre">run()</span></code> requires the forcing to
+start exactly one model timestep after the checkpoint’s
+<code class="docutils literal notranslate"><span class="pre">last_timestamp</span></code> and rejects overlaps and gaps. Set <code class="docutils literal notranslate"><span class="pre">False</span></code> to
+deliberately re-run a period from the checkpointed state, for
+example when cycling the same forcing for spin-up.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -1038,8 +1051,11 @@ a warning is issued about potential compatibility issues.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.continue_from">
-<span class="sig-name descname"><span class="pre">continue_from</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSSimulation" title="supy.suews_sim.SUEWSSimulation"><span class="pre">SUEWSSimulation</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.continue_from"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.continue_from" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">continue_from</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_continuity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSSimulation" title="supy.suews_sim.SUEWSSimulation"><span class="pre">SUEWSSimulation</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.continue_from"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.continue_from" title="Link to this definition">#</a></dt>
 <dd><p>Use a typed checkpoint as the initial runtime state.</p>
+<p><code class="docutils literal notranslate"><span class="pre">check_continuity</span></code> has the same meaning as in <code class="docutils literal notranslate"><span class="pre">from_checkpoint</span></code>:
+it governs whether the next <code class="docutils literal notranslate"><span class="pre">run()</span></code> requires the forcing to start
+one model timestep after the checkpoint’s <code class="docutils literal notranslate"><span class="pre">last_timestamp</span></code>.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1749,8 +1765,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.7.dev7 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/19d775426be86ffb09cad5e8d3f1277cfafe5262">19d7754</a> |
+  <p>Version: 2026.9.7.dev8 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b570e4ea139403698ba86c13b3000df91ebaae0">5b570e4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

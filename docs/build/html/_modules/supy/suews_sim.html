@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.9.7.dev7 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.9.7.dev8 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=d5ae1fc0"></script>
+    <script src="../../_static/documentation_options.js?v=9f089e3e"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.7.dev7" />
+  <meta name="docsearch:version" content="2026.9.7.dev8" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.7.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/19d775426be86ffb09cad5e8d3f1277cfafe5262" style="color: #31708f;">19d7754</a>).
+        (2026.9.7.dev8, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b570e4ea139403698ba86c13b3000df91ebaae0" style="color: #31708f;">5b570e4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -193,8 +193,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.7.dev7 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.7.dev7 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.7.dev8 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.7.dev8 documentation - Home"/>
   
   
 </a></div>
@@ -693,6 +693,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1358,6 +1359,11 @@
         <span class="c1"># Slice forcing data</span>
         <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_date</span><span class="p">:</span><span class="n">end_date</span><span class="p">]</span>
 
+        <span class="c1"># A checkpoint continuation must pick up exactly one timestep after</span>
+        <span class="c1"># the checkpointed period; this runs regardless of _validate_forcing.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validate_continuation_forcing</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">validate_forcing</span><span class="p">:</span>
             <span class="c1"># Validate forcing data, including physics-specific forcing requirements</span>
             <span class="c1"># (e.g. laimethod=0 requires populated effective observed-LAI sources).</span>
@@ -1444,6 +1450,9 @@
             <span class="k">if</span> <span class="n">dict_state_json</span>
             <span class="k">else</span> <span class="kc">None</span>
         <span class="p">)</span>
+        <span class="c1"># The checkpoint now belongs to this run, so a further run() on the</span>
+        <span class="c1"># same instance is an implicit continuation and is always checked.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="c1"># Keep a legacy DFState-shaped final state for compatibility only.</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">._version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
@@ -1618,9 +1627,68 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_continuation_forcing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df_forcing</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Require continuation forcing to start one timestep after the checkpoint.</span>
+
+<span class="sd">        Forcing timestamps mark the end of each interval, so the first row of</span>
+<span class="sd">        a continuation must sit exactly one model timestep after the</span>
+<span class="sd">        checkpoint's ``last_timestamp``. Overlaps and gaps are rejected with</span>
+<span class="sd">        distinct messages; ``check_continuity=False`` on ``from_checkpoint``</span>
+<span class="sd">        or ``continue_from`` skips the check for the next run only.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="ow">or</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">):</span>
+            <span class="c1"># check_forcing reports a non-datetime index with its own message.</span>
+            <span class="k">return</span>
+
+        <span class="n">checkpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span>
+        <span class="k">if</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">last_timestamp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">"Checkpoint has no last_timestamp metadata, so the continuation "</span>
+                <span class="s2">"forcing cannot be checked for continuity. Use a checkpoint "</span>
+                <span class="s2">"produced by SUEWSSimulation.run() or save(), or pass "</span>
+                <span class="s2">"check_continuity=False to from_checkpoint()/continue_from() "</span>
+                <span class="s2">"to skip the check."</span>
+            <span class="p">)</span>
+
+        <span class="n">tstep_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">tstep</span>
+        <span class="n">tstep</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">tstep_val</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">tstep_val</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">)</span> <span class="k">else</span> <span class="n">tstep_val</span><span class="p">)</span>
+        <span class="n">last</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">last_timestamp</span><span class="p">)</span>
+        <span class="n">first</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">last</span><span class="o">.</span><span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="n">first</span><span class="o">.</span><span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Checkpoint last_timestamp </span><span class="si">{</span><span class="n">last</span><span class="si">}</span><span class="s2"> and continuation forcing "</span>
+                <span class="sa">f</span><span class="s2">"start </span><span class="si">{</span><span class="n">first</span><span class="si">}</span><span class="s2"> differ in timezone awareness; supply forcing "</span>
+                <span class="s2">"on the same clock as the checkpointed run."</span>
+            <span class="p">)</span>
+
+        <span class="n">expected</span> <span class="o">=</span> <span class="n">last</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">tstep</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">first</span> <span class="o">==</span> <span class="n">expected</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">remedy</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Expected the first forcing timestamp to be </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2"> "</span>
+            <span class="sa">f</span><span class="s2">"(checkpoint last_timestamp </span><span class="si">{</span><span class="n">last</span><span class="si">}</span><span class="s2"> + tstep </span><span class="si">{</span><span class="n">tstep</span><span class="si">}</span><span class="s2"> s)."</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">first</span> <span class="o">&lt;=</span> <span class="n">last</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Continuation forcing starts at </span><span class="si">{</span><span class="n">first</span><span class="si">}</span><span class="s2">, which overlaps the "</span>
+                <span class="sa">f</span><span class="s2">"checkpointed period ending at </span><span class="si">{</span><span class="n">last</span><span class="si">}</span><span class="s2">. </span><span class="si">{</span><span class="n">remedy</span><span class="si">}</span><span class="s2"> Call reset() "</span>
+                <span class="s2">"to run from the initial state again, or pass "</span>
+                <span class="s2">"check_continuity=False to from_checkpoint()/continue_from() "</span>
+                <span class="s2">"to deliberately re-run a period from the checkpointed state."</span>
+            <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Continuation forcing starts at </span><span class="si">{</span><span class="n">first</span><span class="si">}</span><span class="s2">, leaving a gap after the "</span>
+            <span class="sa">f</span><span class="s2">"checkpointed period ending at </span><span class="si">{</span><span class="n">last</span><span class="si">}</span><span class="s2">. </span><span class="si">{</span><span class="n">remedy</span><span class="si">}</span><span class="s2"> Supply forcing "</span>
+            <span class="sa">f</span><span class="s2">"that starts at </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">, or pass check_continuity=False to "</span>
+            <span class="s2">"from_checkpoint()/continue_from() to skip the check."</span>
+        <span class="p">)</span>
 
 <div class="viewcode-block" id="SUEWSSimulation.from_sample_data">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_sample_data">[docs]</a>
@@ -1673,8 +1741,23 @@
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">SUEWSConfig</span><span class="p">],</span>
         <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">],</span>
+        <span class="n">check_continuity</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Create a continuation simulation from YAML config and checkpoint."""</span>
+<span class="w">        </span><span class="sd">"""Create a continuation simulation from YAML config and checkpoint.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        config : str, Path, dict or SUEWSConfig</span>
+<span class="sd">            Configuration used for the checkpointed run.</span>
+<span class="sd">        checkpoint : str, Path or SUEWSCheckpoint</span>
+<span class="sd">            Typed checkpoint, or the path of a checkpoint JSON file.</span>
+<span class="sd">        check_continuity : bool, optional</span>
+<span class="sd">            When ``True`` (default) the next ``run()`` requires the forcing to</span>
+<span class="sd">            start exactly one model timestep after the checkpoint's</span>
+<span class="sd">            ``last_timestamp`` and rejects overlaps and gaps. Set ``False`` to</span>
+<span class="sd">            deliberately re-run a period from the checkpointed state, for</span>
+<span class="sd">            example when cycling the same forcing for spin-up.</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="s2">"Checkpoint continuation requires a YAML/SUEWSConfig "</span>
@@ -1685,15 +1768,22 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)):</span>
             <span class="n">config</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
         <span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">auto_load_forcing</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">sim</span><span class="o">.</span><span class="n">continue_from</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">sim</span><span class="o">.</span><span class="n">continue_from</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="n">check_continuity</span><span class="o">=</span><span class="n">check_continuity</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="SUEWSSimulation.continue_from">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.continue_from">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">continue_from</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">]</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">],</span>
+        <span class="n">check_continuity</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Use a typed checkpoint as the initial runtime state."""</span>
+<span class="w">        </span><span class="sd">"""Use a typed checkpoint as the initial runtime state.</span>
+
+<span class="sd">        ``check_continuity`` has the same meaning as in ``from_checkpoint``:</span>
+<span class="sd">        it governs whether the next ``run()`` requires the forcing to start</span>
+<span class="sd">        one model timestep after the checkpoint's ``last_timestamp``.</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                 <span class="s2">"Checkpoint continuation requires a loaded configuration. "</span>
@@ -1704,6 +1794,7 @@
         <span class="n">checkpoint_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coerce_checkpoint</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
         <span class="n">checkpoint_value</span><span class="o">.</span><span class="n">validate_for_continuation</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="n">checkpoint_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">check_continuity</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
@@ -2350,8 +2441,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.7.dev7 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/19d775426be86ffb09cad5e8d3f1277cfafe5262">19d7754</a> |
+  <p>Version: 2026.9.7.dev8 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5b570e4ea139403698ba86c13b3000df91ebaae0">5b570e4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

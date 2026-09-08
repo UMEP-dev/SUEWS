@@ -97,6 +97,7 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._checkpoint = None
+        self._check_continuity = True
         self._run_completed = False
 
         if config is not None:
@@ -754,6 +755,11 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
+        # A checkpoint continuation must pick up exactly one timestep after
+        # the checkpointed period; this runs regardless of _validate_forcing.
+        if self._checkpoint is not None:
+            self._validate_continuation_forcing(df_forcing_slice)
+
         if validate_forcing:
             # Validate forcing data, including physics-specific forcing requirements
             # (e.g. laimethod=0 requires populated effective observed-LAI sources).
@@ -840,6 +846,9 @@ class SUEWSSimulation:
             if dict_state_json
             else None
         )
+        # The checkpoint now belongs to this run, so a further run() on the
+        # same instance is an implicit continuation and is always checked.
+        self._check_continuity = True
 
         # Keep a legacy DFState-shaped final state for compatibility only.
         from ._version import __version__
@@ -1008,8 +1017,67 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._checkpoint = None
+        self._check_continuity = True
         self._run_completed = False
         return self
+
+    def _validate_continuation_forcing(self, df_forcing: pd.DataFrame) -> None:
+        """Require continuation forcing to start one timestep after the checkpoint.
+
+        Forcing timestamps mark the end of each interval, so the first row of
+        a continuation must sit exactly one model timestep after the
+        checkpoint's ``last_timestamp``. Overlaps and gaps are rejected with
+        distinct messages; ``check_continuity=False`` on ``from_checkpoint``
+        or ``continue_from`` skips the check for the next run only.
+        """
+        if not self._check_continuity or df_forcing.empty:
+            return
+        if not isinstance(df_forcing.index, pd.DatetimeIndex):
+            # check_forcing reports a non-datetime index with its own message.
+            return
+
+        checkpoint = self._checkpoint
+        if checkpoint.last_timestamp is None:
+            raise ValueError(
+                "Checkpoint has no last_timestamp metadata, so the continuation "
+                "forcing cannot be checked for continuity. Use a checkpoint "
+                "produced by SUEWSSimulation.run() or save(), or pass "
+                "check_continuity=False to from_checkpoint()/continue_from() "
+                "to skip the check."
+            )
+
+        tstep_val = self._config.model.control.tstep
+        tstep = int(tstep_val.value if hasattr(tstep_val, "value") else tstep_val)
+        last = pd.Timestamp(checkpoint.last_timestamp)
+        first = df_forcing.index[0]
+        if (last.tzinfo is None) != (first.tzinfo is None):
+            raise ValueError(
+                f"Checkpoint last_timestamp {last} and continuation forcing "
+                f"start {first} differ in timezone awareness; supply forcing "
+                "on the same clock as the checkpointed run."
+            )
+
+        expected = last + pd.Timedelta(seconds=tstep)
+        if first == expected:
+            return
+        remedy = (
+            f"Expected the first forcing timestamp to be {expected} "
+            f"(checkpoint last_timestamp {last} + tstep {tstep} s)."
+        )
+        if first <= last:
+            raise ValueError(
+                f"Continuation forcing starts at {first}, which overlaps the "
+                f"checkpointed period ending at {last}. {remedy} Call reset() "
+                "to run from the initial state again, or pass "
+                "check_continuity=False to from_checkpoint()/continue_from() "
+                "to deliberately re-run a period from the checkpointed state."
+            )
+        raise ValueError(
+            f"Continuation forcing starts at {first}, leaving a gap after the "
+            f"checkpointed period ending at {last}. {remedy} Supply forcing "
+            f"that starts at {expected}, or pass check_continuity=False to "
+            "from_checkpoint()/continue_from() to skip the check."
+        )
 
     @classmethod
     def from_sample_data(cls):
@@ -1057,8 +1125,23 @@ class SUEWSSimulation:
         cls,
         config: Union[str, Path, dict, SUEWSConfig],
         checkpoint: Union[str, Path, SUEWSCheckpoint],
+        check_continuity: bool = True,
     ) -> "SUEWSSimulation":
-        """Create a continuation simulation from YAML config and checkpoint."""
+        """Create a continuation simulation from YAML config and checkpoint.
+
+        Parameters
+        ----------
+        config : str, Path, dict or SUEWSConfig
+            Configuration used for the checkpointed run.
+        checkpoint : str, Path or SUEWSCheckpoint
+            Typed checkpoint, or the path of a checkpoint JSON file.
+        check_continuity : bool, optional
+            When ``True`` (default) the next ``run()`` requires the forcing to
+            start exactly one model timestep after the checkpoint's
+            ``last_timestamp`` and rejects overlaps and gaps. Set ``False`` to
+            deliberately re-run a period from the checkpointed state, for
+            example when cycling the same forcing for spin-up.
+        """
         if config is None:
             raise ValueError(
                 "Checkpoint continuation requires a YAML/SUEWSConfig "
@@ -1069,12 +1152,19 @@ class SUEWSSimulation:
         if not isinstance(config, (str, Path, dict)):
             config = copy.deepcopy(config)
         sim.update_config(config, auto_load_forcing=False)
-        return sim.continue_from(checkpoint)
+        return sim.continue_from(checkpoint, check_continuity=check_continuity)
 
     def continue_from(
-        self, checkpoint: Union[str, Path, SUEWSCheckpoint]
+        self,
+        checkpoint: Union[str, Path, SUEWSCheckpoint],
+        check_continuity: bool = True,
     ) -> "SUEWSSimulation":
-        """Use a typed checkpoint as the initial runtime state."""
+        """Use a typed checkpoint as the initial runtime state.
+
+        ``check_continuity`` has the same meaning as in ``from_checkpoint``:
+        it governs whether the next ``run()`` requires the forcing to start
+        one model timestep after the checkpoint's ``last_timestamp``.
+        """
         if self._config is None:
             raise RuntimeError(
                 "Checkpoint continuation requires a loaded configuration. "
@@ -1085,6 +1175,7 @@ class SUEWSSimulation:
         checkpoint_value = self._coerce_checkpoint(checkpoint)
         checkpoint_value.validate_for_continuation()
         self._checkpoint = checkpoint_value
+        self._check_continuity = bool(check_continuity)
         self._df_output = None
         self._df_state_final = None
         self._run_completed = False

@@ -18,8 +18,24 @@ from ._check import check_forcing
 from ._env import logger_supy
 from ._filename import safe_filename_component
 from ._load import merge_forcing_frames
+from ._provenance import (
+    PROVENANCE_FORMAT_VERSION,
+    TIMESTAMP_CONVENTION,
+    dataframe_sha256,
+    file_identity,
+    json_sha256,
+    now_utc_iso,
+    requested_bound_to_str,
+    supy_build_identity,
+    timestamp_to_iso,
+    write_provenance,
+)
 from ._run_period import resolve_run_period, slice_forcing_to_period
-from ._run_rust import _check_rust_available, run_suews_rust_chunked
+from ._run_rust import (
+    KernelWarningLog,
+    _check_rust_available,
+    run_suews_rust_chunked,
+)
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
@@ -98,9 +114,14 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._checkpoint = None
+        self._kernel_warnings = KernelWarningLog()
         self._check_continuity = True
         self._run_period = None
         self._run_completed = False
+        # Provenance bookkeeping (see ``_provenance.py``); private, best effort.
+        self._config_identity = None
+        self._forcing_sources = None
+        self._run_metadata = None
 
         if config is not None:
             self.update_config(config)
@@ -161,6 +182,7 @@ class SUEWSSimulation:
             # Load YAML
             self._config = SUEWSConfig.from_yaml(str(config_path))
             self._config_path = config_path
+            self._config_identity = file_identity(config_path)
 
             # Convert to initial state DataFrame
             self._df_state_init = self._config.to_df_state()
@@ -210,6 +232,7 @@ class SUEWSSimulation:
         else:
             # Assume it's a SUEWSConfig object
             self._config = config
+            self._config_identity = None
             self._df_state_init = self._config.to_df_state()
 
         return self
@@ -468,14 +491,22 @@ class SUEWSSimulation:
             self._df_forcing = prepare_dataframe_forcing(
                 forcing_data.to_dataframe(include_extras=True), tstep_mod=tstep_mod
             )
+            self._forcing_sources = self._describe_forcing_sources(
+                "in-memory", description=forcing_data._source
+            )
         elif isinstance(forcing_data, pd.DataFrame):
             self._df_forcing = prepare_dataframe_forcing(
                 forcing_data, tstep_mod=tstep_mod
             )
+            self._forcing_sources = self._describe_forcing_sources("in-memory")
         elif isinstance(forcing_data, list):
             # Handle list of files
             self._df_forcing = SUEWSSimulation._load_forcing_from_list(
                 forcing_data, tstep_mod=tstep_mod, on_conflict=on_conflict
+            )
+            self._forcing_sources = self._describe_forcing_sources(
+                "files",
+                files=[Path(item).expanduser().resolve() for item in forcing_data],
             )
         elif isinstance(forcing_data, (str, Path)):
             forcing_path = Path(forcing_data).expanduser().resolve()
@@ -484,10 +515,52 @@ class SUEWSSimulation:
             self._df_forcing = SUEWSSimulation._load_forcing_file(
                 forcing_path, tstep_mod=tstep_mod, on_conflict=on_conflict
             )
+            if forcing_path.is_dir():
+                dir_files = []
+                for pattern in DEFAULT_FORCING_FILE_PATTERNS:
+                    dir_files.extend(sorted(forcing_path.glob(pattern)))
+                self._forcing_sources = self._describe_forcing_sources(
+                    "directory", files=dir_files, description=forcing_path.name
+                )
+            else:
+                self._forcing_sources = self._describe_forcing_sources(
+                    "files", files=[forcing_path]
+                )
         else:
             raise ValueError(f"Unsupported forcing data type: {type(forcing_data)}")
 
         return self
+
+    @staticmethod
+    def _describe_forcing_sources(
+        kind: str,
+        files: Optional[list[Path]] = None,
+        description: Optional[str] = None,
+    ) -> dict:
+        """Build the ``forcing`` block of the provenance sidecar.
+
+        Files are identified by name, size and SHA-256 only; directories are
+        not recorded, so the sidecar stays free of machine-specific paths.
+        """
+        record: dict = {"source": kind}
+        if files:
+            identities = []
+            for item in files:
+                try:
+                    identities.append(file_identity(item))
+                except OSError:
+                    identities.append({"name": Path(item).name})
+            record["files"] = identities
+        if description:
+            # A ``SUEWSForcing`` built from a file carries its path as the
+            # source description; keep the file name only.
+            candidate = Path(description)
+            if candidate.is_file():
+                record["files"] = [file_identity(candidate)]
+                record["source"] = "files"
+            else:
+                record["description"] = description
+        return record
 
     def _try_load_forcing_from_config(self):
         """Try to load forcing data from configuration if not explicitly provided."""
@@ -786,6 +859,9 @@ class SUEWSSimulation:
             clip_to_forcing=clip_to_forcing,
             tstep=tstep_cfg,
         )
+        run_metadata = self._start_run_metadata(
+            start_date, end_date, df_forcing_slice, n_jobs, chunk_day
+        )
 
         # A checkpoint continuation must pick up exactly one timestep after
         # the checkpointed period; this runs regardless of _validate_forcing.
@@ -857,11 +933,16 @@ class SUEWSSimulation:
                 self._df_state_init,
             )
 
+        # Snapshot the identity of the inputs as they are handed to the
+        # kernel, so a later update_config/update_forcing without a rerun
+        # cannot relabel this run's output at save time.
+        run_metadata["inputs"] = self._snapshot_input_identity(df_forcing_slice)
+
         # Run simulation via Rust bridge
         initial_state_json_by_grid = (
             self._checkpoint.grid_states if self._checkpoint is not None else None
         )
-        df_output, dict_state_json = run_suews_rust_chunked(
+        df_output, dict_state_json, kernel_warnings = run_suews_rust_chunked(
             config=self._config,
             df_forcing=df_forcing_slice,
             chunk_day=chunk_day,
@@ -870,6 +951,10 @@ class SUEWSSimulation:
             initial_state_json_by_grid=initial_state_json_by_grid,
         )
         self._df_output = df_output
+        # Surface non-fatal kernel warnings (physics fallbacks) that were
+        # previously discarded inside the Fortran layer (GH#1737).
+        self._kernel_warnings = kernel_warnings
+        kernel_warnings.log(logger_supy)
         self._checkpoint = (
             SUEWSCheckpoint.from_grid_states(
                 dict_state_json,
@@ -889,6 +974,8 @@ class SUEWSSimulation:
         df_state_final[("version", "0")] = __version__
         self._df_state_final = df_state_final
 
+        run_metadata["ended_at"] = now_utc_iso()
+        self._run_metadata = run_metadata
         self._run_completed = True
 
         # Wrap results in SUEWSOutput
@@ -897,6 +984,7 @@ class SUEWSSimulation:
             df_state_final=self._df_state_final,
             config=self._config,
             checkpoint=self._checkpoint,
+            kernel_warnings=self._kernel_warnings.to_frame(),
         )
 
     def save(
@@ -917,6 +1005,9 @@ class SUEWSSimulation:
             - **format** : str
                 Output format: 'txt' (default) or 'parquet'.
                 Note: This overrides config file settings.
+            - **command** : str
+                Command line that produced the run (recorded in the
+                ``provenance.json`` sidecar; set by ``suews run``).
 
             **Not currently supported** (due to internal constraints):
 
@@ -1031,7 +1122,210 @@ class SUEWSSimulation:
             checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
             list_path_save.append(checkpoint_path)
 
+        # Provenance sidecar: written last so it can list what was saved.
+        # Report the format that was actually written: the YAML
+        # ``output.format`` applies when no ``format`` kwarg is given.
+        written_format = (
+            "parquet"
+            if any(Path(p).suffix == ".parquet" for p in list_path_save)
+            else "txt"
+        )
+        payload = self._build_provenance(
+            list_path_save,
+            output_format=written_format,
+            freq_s=int(freq_s),
+            forcing_timestamp_reference=forcing_timestamp_reference,
+            output_config=output_config,
+            command=save_kwargs.get("command"),
+        )
+        list_path_save.append(write_provenance(output_path, payload))
+
         return list_path_save
+
+    def _start_run_metadata(
+        self, start_date, end_date, df_forcing_slice: pd.DataFrame, n_jobs, chunk_day
+    ) -> dict:
+        """Record the requested and actual period plus run options.
+
+        ``requested`` is what ``run()`` was asked for (explicit arguments or
+        the configuration's ``start_time`` / ``end_time``); ``actual`` is the
+        forcing slice that was simulated. Both are kept so a reader can see
+        when a request was clipped to the available forcing.
+
+        When the period-coverage check has already published its result as
+        ``self._run_period`` (keys ``requested_start``, ``requested_end``,
+        ``requested_start_raw``, ``requested_end_raw``, ``actual_start``,
+        ``actual_end``, ``clipped``, ``policy``), that record is the single
+        source of truth and is consumed as is; this method never writes it.
+        """
+        index = df_forcing_slice.index
+        tstep_s = None
+        if self._config is not None:
+            try:
+                tstep_val = self._config.model.control.tstep
+                tstep_s = int(getattr(tstep_val, "value", tstep_val))
+            except (AttributeError, TypeError, ValueError):
+                tstep_s = None
+
+        run_period = getattr(self, "_run_period", None)
+        if isinstance(run_period, dict) and run_period:
+            requested = {
+                "start": requested_bound_to_str(run_period.get("requested_start")),
+                "end": requested_bound_to_str(run_period.get("requested_end")),
+                "start_raw": requested_bound_to_str(
+                    run_period.get("requested_start_raw")
+                ),
+                "end_raw": requested_bound_to_str(run_period.get("requested_end_raw")),
+            }
+            actual_start = run_period.get("actual_start")
+            actual_end = run_period.get("actual_end")
+            clipped = run_period.get("clipped")
+            policy = run_period.get("policy")
+        else:
+            requested = {
+                "start": requested_bound_to_str(start_date),
+                "end": requested_bound_to_str(end_date),
+            }
+            actual_start = index.min() if len(index) else None
+            actual_end = index.max() if len(index) else None
+            clipped = None
+            policy = None
+
+        return {
+            "started_at": now_utc_iso(),
+            "ended_at": None,
+            "requested": requested,
+            "actual": {
+                "start": timestamp_to_iso(actual_start),
+                "end": timestamp_to_iso(actual_end),
+                "n_timesteps": int(len(index)),
+            },
+            "clipped": clipped,
+            "policy": policy,
+            "tstep_s": tstep_s,
+            "n_jobs": int(n_jobs),
+            "chunk_day": int(chunk_day),
+            "continued_from_checkpoint": self._checkpoint is not None,
+        }
+
+    def _snapshot_input_identity(self, df_forcing_slice: pd.DataFrame) -> dict:
+        """Describe the configuration and forcing exactly as run.
+
+        Source files are identified by name, size and SHA-256 (captured when
+        they were loaded); ``effective_sha256`` hashes the in-memory
+        configuration and the model-ready forcing slice that the kernel
+        received, which is what a later reader should compare against.
+        """
+        config_block: dict = {"source": "in-memory"}
+        if self._config_identity is not None:
+            config_block = {"source": "file", **self._config_identity}
+        if self._config is not None:
+            schema_version = getattr(self._config, "schema_version", None)
+            config_block["schema_version"] = (
+                str(schema_version) if schema_version is not None else None
+            )
+            config_block["sites"] = [
+                str(getattr(site, "name", ""))
+                for site in getattr(self._config, "sites", [])
+            ]
+            try:
+                config_block["effective_sha256"] = json_sha256(
+                    self._config.model_dump(mode="json")
+                )
+            except Exception:  # pragma: no cover - never let hashing fail a run
+                config_block["effective_sha256"] = None
+        if self._df_state_init is not None:
+            index = self._df_state_init.index
+            grid_level = (
+                index.get_level_values("grid")
+                if isinstance(index, pd.MultiIndex) and "grid" in index.names
+                else index
+            )
+            config_block["grids"] = [int(g) for g in grid_level]
+
+        forcing_block = dict(self._forcing_sources or {"source": "unknown"})
+        forcing_block["effective_sha256"] = dataframe_sha256(df_forcing_slice)
+        forcing_block["effective_n_rows"] = int(len(df_forcing_slice))
+        return {"config": config_block, "forcing": forcing_block}
+
+    def _build_provenance(
+        self,
+        list_path_save: list,
+        *,
+        output_format: str,
+        freq_s: int,
+        forcing_timestamp_reference,
+        output_config,
+        command: Optional[str],
+    ) -> dict:
+        """Assemble the ``provenance.json`` payload for :meth:`save`.
+
+        Input identities come from the snapshot taken by :meth:`run`, never
+        from the simulation's current attributes.
+        """
+        run_metadata = dict(self._run_metadata or {})
+        inputs = run_metadata.get("inputs") or {}
+        config_block = inputs.get("config") or {"source": "unknown"}
+        forcing_block = inputs.get("forcing") or {"source": "unknown"}
+
+        output_reference = "follow"
+        if output_config is not None:
+            ref = getattr(output_config, "timestamp_reference", None)
+            if ref is not None:
+                output_reference = str(getattr(ref, "value", ref))
+        forcing_reference = str(
+            getattr(forcing_timestamp_reference, "value", forcing_timestamp_reference)
+        )
+
+        checkpoint_names = [
+            Path(p).name
+            for p in list_path_save
+            if Path(p).name.endswith("_checkpoint.json")
+            or Path(p).name == "SUEWS_checkpoint.json"
+        ]
+        output_names = [
+            Path(p).name for p in list_path_save if Path(p).name not in checkpoint_names
+        ]
+
+        period = {
+            "requested": run_metadata.get("requested"),
+            "actual": run_metadata.get("actual"),
+            "clipped": run_metadata.get("clipped"),
+            "policy": run_metadata.get("policy"),
+            "tstep_s": run_metadata.get("tstep_s"),
+        }
+        run_block = {
+            "interface": "cli" if command else "python",
+            "command": command,
+            "started_at": run_metadata.get("started_at"),
+            "ended_at": run_metadata.get("ended_at"),
+            "n_jobs": run_metadata.get("n_jobs"),
+            "chunk_day": run_metadata.get("chunk_day"),
+            "continued_from_checkpoint": run_metadata.get(
+                "continued_from_checkpoint", False
+            ),
+        }
+        return {
+            "format_version": PROVENANCE_FORMAT_VERSION,
+            "generator": "supy.SUEWSSimulation.save",
+            "created_at": now_utc_iso(),
+            **supy_build_identity(),
+            "config": config_block,
+            "forcing": forcing_block,
+            "period": period,
+            "timestamps": {
+                "convention": TIMESTAMP_CONVENTION,
+                "forcing_reference": forcing_reference,
+                "output_reference": output_reference,
+            },
+            "run": run_block,
+            "output": {
+                "format": output_format,
+                "frequency_s": freq_s,
+                "files": output_names,
+                "checkpoint": checkpoint_names[0] if checkpoint_names else None,
+            },
+        }
 
     def reset(self) -> "SUEWSSimulation":
         """Reset simulation to initial state, clearing results.
@@ -1049,9 +1343,11 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._checkpoint = None
+        self._kernel_warnings = KernelWarningLog()
         self._check_continuity = True
         self._run_period = None
         self._run_completed = False
+        self._run_metadata = None
         return self
 
     def _validate_continuation_forcing(self, df_forcing: pd.DataFrame) -> None:
@@ -1211,6 +1507,7 @@ class SUEWSSimulation:
         self._check_continuity = bool(check_continuity)
         self._df_output = None
         self._df_state_final = None
+        self._kernel_warnings = KernelWarningLog()
         self._run_completed = False
         return self
 
@@ -1722,6 +2019,7 @@ class SUEWSSimulation:
             df_state_final=self._df_state_final,
             config=self._config,
             checkpoint=self._checkpoint,
+            kernel_warnings=self._kernel_warnings.to_frame(),
         )
 
     @property
@@ -1781,6 +2079,17 @@ class SUEWSSimulation:
     def checkpoint(self) -> Optional[SUEWSCheckpoint]:
         """Typed checkpoint produced by the most recent run."""
         return self._checkpoint
+
+    @property
+    def kernel_warnings(self) -> pd.DataFrame:
+        """Non-fatal warnings raised by the Fortran kernel in the last run.
+
+        One row per recorded warning with columns ``grid``, ``datetime``,
+        ``location`` and ``message``. Empty when the run was clean. These
+        mark physics fallbacks (for example SPARTACUS flat-tile substitution
+        or EHC leaving QS at zero) that used to be silent (GH#1737).
+        """
+        return self._kernel_warnings.to_frame()
 
     @property
     def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:

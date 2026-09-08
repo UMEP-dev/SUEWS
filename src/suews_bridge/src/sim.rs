@@ -177,6 +177,71 @@ pub struct SimulationOutput {
     pub timer: SuewsTimer,
     pub state: SuewsState,
     pub output_block: Vec<f64>,
+    pub warnings: KernelWarnings,
+}
+
+/// Maximum number of per-grid warning records fetched from one kernel call.
+/// Matches `MAX_WARNING_LOG` in the Fortran `error_state` type.
+pub const KERNEL_WARNING_MAX: usize = 512;
+/// Fixed record width for one `location: message` warning text (bytes,
+/// including the NUL terminator). Fortran stores 64 + 256 characters.
+pub const KERNEL_WARNING_TEXT_LEN: usize = 384;
+
+/// One non-fatal warning raised inside the Fortran kernel (GH#1737).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KernelWarning {
+    pub iy: i32,
+    pub id: i32,
+    pub it: i32,
+    pub imin: i32,
+    pub location: String,
+    pub message: String,
+}
+
+/// All warnings raised during one kernel call for one grid.
+///
+/// `total` counts every report the kernel received, including those beyond
+/// the in-kernel log cap, so `total > entries.len()` signals a capped log.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct KernelWarnings {
+    pub total: usize,
+    pub entries: Vec<KernelWarning>,
+}
+
+fn decode_kernel_warnings(
+    total: i32,
+    stored: i32,
+    timer: &[i32],
+    text: &[c_char],
+    text_len: usize,
+) -> KernelWarnings {
+    let stored = usize::try_from(stored).unwrap_or(0);
+    let n = stored
+        .min(timer.len() / 4)
+        .min(text.len().checked_div(text_len).unwrap_or(0));
+    let mut entries = Vec::with_capacity(n);
+    for i in 0..n {
+        let record = &text[i * text_len..(i + 1) * text_len];
+        let bytes: Vec<u8> = record.iter().map(|&ch| ch as u8).collect();
+        let nul = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+        let joined = String::from_utf8_lossy(&bytes[..nul]).trim().to_string();
+        let (location, message) = match joined.split_once(": ") {
+            Some((loc, msg)) => (loc.trim().to_string(), msg.trim().to_string()),
+            None => (String::new(), joined),
+        };
+        entries.push(KernelWarning {
+            iy: timer[4 * i],
+            id: timer[4 * i + 1],
+            it: timer[4 * i + 2],
+            imin: timer[4 * i + 3],
+            location,
+            message,
+        });
+    }
+    KernelWarnings {
+        total: usize::try_from(total).unwrap_or(0).max(entries.len()),
+        entries,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -656,7 +721,7 @@ pub fn run_from_config_str_and_forcing(
     config_yaml: &str,
     forcing_block: Vec<f64>,
     len_sim: usize,
-) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize), BridgeError> {
+) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize, KernelWarnings), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -754,7 +819,13 @@ pub fn run_from_config_str_and_forcing(
         ndepth: run_cfg.ndepth,
     })?;
 
-    Ok((sim_out.output_block, sim_out.state, sim_out.timer, len_sim))
+    Ok((
+        sim_out.output_block,
+        sim_out.state,
+        sim_out.timer,
+        len_sim,
+        sim_out.warnings,
+    ))
 }
 
 /// Like [`run_from_config_str_and_forcing`] but replaces the config-derived
@@ -764,7 +835,7 @@ pub fn run_from_config_str_and_forcing_with_state(
     forcing_block: Vec<f64>,
     len_sim: usize,
     state_json: &str,
-) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize), BridgeError> {
+) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize, KernelWarnings), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -862,7 +933,13 @@ pub fn run_from_config_str_and_forcing_with_state(
         ndepth: run_cfg.ndepth,
     })?;
 
-    Ok((sim_out.output_block, sim_out.state, sim_out.timer, len_sim))
+    Ok((
+        sim_out.output_block,
+        sim_out.state,
+        sim_out.timer,
+        len_sim,
+        sim_out.warnings,
+    ))
 }
 
 pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, BridgeError> {
@@ -929,6 +1006,10 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
 
     let mut sim_err_code = 0_i32;
     let mut sim_err_message = vec![0 as c_char; 1024];
+    let mut warn_total = 0_i32;
+    let mut warn_stored = 0_i32;
+    let mut warn_timer = vec![0_i32; 4 * KERNEL_WARNING_MAX];
+    let mut warn_text = vec![0 as c_char; KERNEL_WARNING_MAX * KERNEL_WARNING_TEXT_LEN];
     let mut err = -1_i32;
 
     let timer_len_i32 = i32_len(timer_in.len(), "timer length")?;
@@ -945,6 +1026,8 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
     let state_out_len_i32 = i32_len(state_out.len(), "state output length")?;
     let output_len_i32 = i32_len(output_block.len(), "output length")?;
     let sim_err_message_len_i32 = i32_len(sim_err_message.len(), "error message length")?;
+    let warn_max_i32 = i32_len(KERNEL_WARNING_MAX, "warning record count")?;
+    let warn_text_len_i32 = i32_len(KERNEL_WARNING_TEXT_LEN, "warning text length")?;
 
     unsafe {
         ffi::suews_cal_multitsteps_c(
@@ -978,6 +1061,12 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
             &mut sim_err_code as *mut i32,
             sim_err_message.as_mut_ptr(),
             sim_err_message_len_i32,
+            &mut warn_total as *mut i32,
+            &mut warn_stored as *mut i32,
+            warn_max_i32,
+            warn_timer.as_mut_ptr(),
+            warn_text.as_mut_ptr(),
+            warn_text_len_i32,
             &mut err as *mut i32,
         );
     }
@@ -1006,10 +1095,19 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         input.ndepth as usize,
     )?;
 
+    let warnings = decode_kernel_warnings(
+        warn_total,
+        warn_stored,
+        &warn_timer,
+        &warn_text,
+        KERNEL_WARNING_TEXT_LEN,
+    );
+
     Ok(SimulationOutput {
         timer,
         state,
         output_block,
+        warnings,
     })
 }
 
@@ -1196,5 +1294,54 @@ mod tests {
                 "Rust constant for group '{group_name}' drifted from compiled Fortran metadata"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod kernel_warning_tests {
+    use super::*;
+
+    fn record(text: &str, len: usize) -> Vec<c_char> {
+        let mut buf = vec![0 as c_char; len];
+        for (dst, src) in buf.iter_mut().zip(text.bytes()) {
+            *dst = src as c_char;
+        }
+        buf
+    }
+
+    #[test]
+    fn decodes_records_with_timer_and_split_location() {
+        let text_len = 32;
+        let mut text = record("SPARTACUS: LW full NaN", text_len);
+        text.extend(record("no separator here", text_len));
+        let timer = vec![2012, 15, 13, 5, 2012, 16, 0, 0];
+        let decoded = decode_kernel_warnings(7, 2, &timer, &text, text_len);
+        assert_eq!(decoded.total, 7);
+        assert_eq!(decoded.entries.len(), 2);
+        assert_eq!(
+            decoded.entries[0],
+            KernelWarning {
+                iy: 2012,
+                id: 15,
+                it: 13,
+                imin: 5,
+                location: "SPARTACUS".to_string(),
+                message: "LW full NaN".to_string(),
+            }
+        );
+        assert_eq!(decoded.entries[1].location, "");
+        assert_eq!(decoded.entries[1].message, "no separator here");
+        assert_eq!((decoded.entries[1].iy, decoded.entries[1].imin), (2012, 0));
+    }
+
+    #[test]
+    fn clamps_stored_to_buffer_capacity_and_total_to_stored() {
+        let text = record("A: b", 8);
+        let timer = vec![1, 2, 3, 4];
+        let decoded = decode_kernel_warnings(-3, 5, &timer, &text, 8);
+        assert_eq!(decoded.entries.len(), 1);
+        assert_eq!(decoded.total, 1);
+        let empty = decode_kernel_warnings(0, 0, &timer, &text, 8);
+        assert_eq!(empty, KernelWarnings::default());
     }
 }

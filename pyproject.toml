@@ -112,6 +112,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
+    "pytest-timeout",
 
     # Code formatting
     "ruff",
@@ -155,6 +156,23 @@ suews-inspect = "supy.cmd.suews_cli:inspect_alias"
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
+# Per-test wall-clock budget (pytest-timeout). A hung test must fail with its
+# name and the stacks of every thread in the log, not disappear behind a
+# job-level cancellation: the nightly Windows API lane was cancelled at the
+# 45-minute job cap every night from 20 August to 7 September 2026 because two
+# tests hung after the last reported node, leaving no trace of where.
+# The thread method is the only one that works on every platform (the signal
+# method is Unix-only). On timeout it dumps all thread stacks and ends the
+# pytest process, so a serial lane stops at the culprit and an xdist lane
+# loses only that worker. 600 s is four times the slowest CI test (148 s,
+# the STEBBS reference comparison on Windows); tests that legitimately need
+# more carry an explicit @pytest.mark.timeout.
+# faulthandler_timeout (pytest built-in) dumps the same stacks earlier
+# without ending the test, so a slow-but-alive test is visible in the log
+# before the hard budget hits.
+timeout = 600
+timeout_method = "thread"
+faulthandler_timeout = 300
 # Test markers.
 # Three orthogonal properties (gh#1300, gh#1680):
 #   nature:     physics | api       -- what the test actually exercises

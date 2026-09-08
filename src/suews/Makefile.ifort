@@ -24,12 +24,13 @@ suffix_code = .f90
 	-ln -sf $*.f95 $*.f90
 
 ifeq ($(OS),Windows_NT)
-	C_MODULE = $(SUEWS_DIR_SRC)strptime.o # this is needed by datetime_module: mingw lacks `strptime`
+	# strptime.o is needed by datetime_module: mingw lacks `strptime`
+	C_MODULE = $(SUEWS_DIR_SRC)suews_ctrl_error_tls.o $(SUEWS_DIR_SRC)strptime.o
 	STATIC = -static -mcmodel=medium# mingw
 	STATICLIB =
 	SUEWS_build_dir = $(addprefix $(SUEWS_build_base), Win10x64)
 else
-	C_MODULE =
+	C_MODULE = $(SUEWS_DIR_SRC)suews_ctrl_error_tls.o
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Linux) # Linux
 		STATIC = -static

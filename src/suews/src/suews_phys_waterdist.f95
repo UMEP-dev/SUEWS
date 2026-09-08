@@ -324,7 +324,7 @@ CONTAINS
             soilstore(is) = SoilStoreCap(is)
          ELSEIF (soilstore(is) < 0) THEN !! QUESTION: But where does this lack of water go? !!Can this really happen here?
             CALL ErrorHint(62, 'SUEWS_store: soilstore_id(is) < 0 ', soilstore(is), NotUsed, is, modState)
-            IF (supy_error_flag) RETURN
+            IF (supy_error_flag()) RETURN
             ! Code this properly - soilstore_id(is) < 0 shouldn't happen given the above loops
             !soilstore_id(is)=0   !Groundwater / deeper soil should kick in
          END IF
@@ -940,10 +940,10 @@ CONTAINS
             SoilState = SoilState + (soilstore_surf(is)*sfr_surf(is)/NonWaterFraction)
             IF (SoilState < 0) THEN
                CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState < 0 (just added surface is) ', SoilState, NotUsed, is, modState)
-               IF (supy_error_flag) RETURN
+               IF (supy_error_flag()) RETURN
             ELSEIF (SoilState > SoilMoistCap) THEN
                CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState > capacity (just added surface is) ', SoilState, NotUsed, is, modState)
-               IF (supy_error_flag) RETURN
+               IF (supy_error_flag()) RETURN
                !SoilMoist_state=SoilMoistCap !What is this LJ 10/2010 - QUESTION: SM exceeds capacity, but where does extra go?HCW 11/2014
             END IF
          END DO !end loop over surfaces

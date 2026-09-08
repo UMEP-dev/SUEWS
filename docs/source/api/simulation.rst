@@ -55,6 +55,7 @@ For spin-up runs, state continuation, and deep model inspection.
     ~SUEWSSimulation.state_final
     ~SUEWSSimulation.checkpoint
     ~SUEWSSimulation.state_checkpoint
+    ~SUEWSSimulation.kernel_warnings
 
 .. _sim_setup_methods:
 
@@ -112,6 +113,7 @@ legacy/developer DataFrame view.
     ~SUEWSOutput.checkpoint
     ~SUEWSOutput.state_checkpoint
     ~SUEWSOutput.state_final
+    ~SUEWSOutput.kernel_warnings
 
 
 Full Class Reference

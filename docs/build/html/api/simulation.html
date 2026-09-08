@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-12T09:09:21+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.9.8.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-09-08T06:37:47+00:00" />
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.9.8.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=8ec5a633"></script>
+    <script src="../_static/documentation_options.js?v=99b12655"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="6. Python API Reference" href="../api.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.8.dev1" />
-    <meta name="docbuild:last-update" content="2026-08-12"/>
+  <meta name="docsearch:version" content="2026.9.8.dev2" />
+    <meta name="docbuild:last-update" content="2026-09-08"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.8.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/84c82b7c084946490a5a9d6aaa9485243e409621" style="color: #31708f;">84c82b7</a>).
+        (2026.9.8.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d58930818b9cf5c34c2b989624fcd9ec2b7344e3" style="color: #31708f;">d589308</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -687,6 +687,7 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.checkpoint</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.config"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.config</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.forcing</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.kernel_warnings"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.kernel_warnings</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.output"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.output</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.results"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.results</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_checkpoint</span></code></a></li>
@@ -777,6 +778,9 @@
 <tr class="row-even"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.state_checkpoint" title="supy.SUEWSSimulation.state_checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_checkpoint</span></code></a></p></td>
 <td><p>Alias for <code class="docutils literal notranslate"><span class="pre">checkpoint</span></code>.</p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.kernel_warnings" title="supy.SUEWSSimulation.kernel_warnings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">kernel_warnings</span></code></a></p></td>
+<td><p>Non-fatal warnings raised by the Fortran kernel in the last run.</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -853,6 +857,9 @@ legacy/developer DataFrame view.</p>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_final</span></code></p></td>
 <td><p>Legacy final model state DataFrame.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">kernel_warnings</span></code></p></td>
+<td><p>Non-fatal warnings raised by the Fortran kernel during this run.</p></td>
 </tr>
 </tbody>
 </table>
@@ -1429,6 +1436,16 @@ validation and analysis methods. None if no forcing loaded.</p>
 </dd></dl>
 
 <dl class="py property">
+<dt class="sig sig-object py" id="supy.SUEWSSimulation.kernel_warnings">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">kernel_warnings</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)"><span class="pre">DataFrame</span></a></em><a class="headerlink" href="#supy.SUEWSSimulation.kernel_warnings" title="Link to this definition">#</a></dt>
+<dd><p>Non-fatal warnings raised by the Fortran kernel in the last run.</p>
+<p>One row per recorded warning with columns <code class="docutils literal notranslate"><span class="pre">grid</span></code>, <code class="docutils literal notranslate"><span class="pre">datetime</span></code>,
+<code class="docutils literal notranslate"><span class="pre">location</span></code> and <code class="docutils literal notranslate"><span class="pre">message</span></code>. Empty when the run was clean. These
+mark physics fallbacks (for example SPARTACUS flat-tile substitution
+or EHC leaving QS at zero) that used to be silent (GH#1737).</p>
+</dd></dl>
+
+<dl class="py property">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.output">
 <em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">SUEWSOutput</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#supy.SUEWSSimulation.output" title="Link to this definition">#</a></dt>
 <dd><p>Access to simulation results as SUEWSOutput object.</p>
@@ -1711,6 +1728,7 @@ Use the <code class="docutils literal notranslate"><span class="pre">get_variabl
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.checkpoint</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.config"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.config</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.forcing</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.kernel_warnings"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.kernel_warnings</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.output"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.output</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.results"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.results</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_checkpoint</span></code></a></li>
@@ -1757,7 +1775,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-12.
+  Last updated on 2026-09-08.
   <br/>
 </p>
   </div>
@@ -1765,8 +1783,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.8.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/84c82b7c084946490a5a9d6aaa9485243e409621">84c82b7</a> |
+  <p>Version: 2026.9.8.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d58930818b9cf5c34c2b989624fcd9ec2b7344e3">d589308</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

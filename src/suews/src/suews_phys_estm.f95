@@ -208,12 +208,12 @@ MODULE module_phys_estm_solver
    !     Copyright (c) 2001 MyCompany. All rights reserved.
 
    USE module_ctrl_const_physconst, ONLY: eps_fp
-   USE module_ctrl_error_state, ONLY: add_supy_warning
+   USE module_ctrl_type, ONLY: error_state
    IMPLICIT NONE
 
 CONTAINS
 
-   FUNCTION NewtonPolynomial(x0, Pcoeff, conv, maxiter) RESULT(x)
+   FUNCTION NewtonPolynomial(x0, Pcoeff, conv, maxiter, errorState) RESULT(x)
       !Solves Newton's Method for a polynomial of the form
       !f(x)=Pcoeff(1)*x^n+Pcoeff(2)*x^n-1+...+Pcoeff(n+1)
       !                f(x(i))
@@ -228,6 +228,7 @@ CONTAINS
       REAL(KIND(1D0)) :: e, xprev
       REAL(KIND(1D0)) :: f, fp
       INTEGER :: maxiter
+      TYPE(error_state), INTENT(INOUT), OPTIONAL :: errorState ! per-grid warning log (GH#1737)
       INTEGER :: niter
       LOGICAL :: converged = .FALSE.
       INTEGER :: n, i, j
@@ -254,7 +255,9 @@ CONTAINS
       END DO
       niter = i - 1
       IF (.NOT. converged) THEN
-         CALL add_supy_warning('NewtonPolynomial did not converge, returning initial guess')
+         IF (PRESENT(errorState)) CALL errorState%report( &
+            message='did not converge, returning initial guess', &
+            location='NewtonPolynomial', is_fatal=.FALSE.)
          x = x0
       END IF
    END FUNCTION NewtonPolynomial
@@ -509,7 +512,7 @@ MODULE module_phys_estm
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
-   USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
+   USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
    IMPLICIT NONE
@@ -1360,7 +1363,9 @@ CONTAINS
           (ivf_wi + ivf_ww + ivf_wr + ivf_wf < 0.9999) .OR. &
           (ivf_ri + ivf_rw + ivf_rf < 0.9999) .OR. &
           (ivf_fi + ivf_fw + ivf_fr < 0.9999)) THEN
-         CALL add_supy_warning('ESTM: At least one internal view factor <> 1. Check ivf in ESTMinput.nml')
+         ! ESTM_translate has no caller and no per-grid state; the legacy
+         ! 'internal view factor <> 1' warning is dropped here (GH#1737).
+         CONTINUE
       END IF
 
       !=======Initial setting==============================================
@@ -1475,7 +1480,8 @@ CONTAINS
       avkdn, avu1, temp_c, zenith_deg, avrh, press_hpa, ldown, &
       bldgh, Ts5mindata_ir, &
       Tair_av, &
-      dataOutLineESTM, QS) !output
+      dataOutLineESTM, QS, & !output
+      modState) ! inout: per-grid warning log (GH#1737)
       ! NB: HCW Questions:
       !                - should TFloor be set in namelist instead of hard-coded here?
       !                - zref used for radiation calculation and fair is set to 2*BldgH here. For compatibility with the rest of the
@@ -1636,6 +1642,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: NAN = -999
 
       INTEGER, INTENT(in) :: Gridiv
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState ! per-grid warning log (GH#1737)
       INTEGER, INTENT(in) :: tstep
       ! INTEGER,INTENT(in)::iy !Year
       ! INTEGER,INTENT(in)::id !Day of year
@@ -1923,7 +1930,7 @@ CONTAINS
       kdz = 2*kibld(1)/zibld(1)
       Pcoeff = (/em_ibld*SBConst*(1 - ivf_ii*em_ibld), 0.0D0, 0.0D0, kdz + shc_airbld*CH_ibld, &
                  -kdz*Tibld(1) - shc_airbld*CH_ibld*Tievolve - Rs_ibld - Rl_ibld/)
-      T0_ibld = NewtonPolynomial(T0_ibld, Pcoeff, conv, maxiter)
+      T0_ibld = NewtonPolynomial(T0_ibld, Pcoeff, conv, maxiter, modState%errorState)
 
       !!FO!! this leads to Tibld(1) = Tibld(3) , i.e. ...
       bc(1) = T0_ibld
@@ -1943,7 +1950,7 @@ CONTAINS
       kdz = 2*kwall(Ndepth_wall)/zwall(Ndepth_wall)
       Pcoeff = (/em_ibld*SBConst*(1 - ivf_ww*em_ibld), 0.0D0, 0.0D0, kdz + shc_airbld*CH_iwall, &
                  -kdz*Twall(Ndepth_wall) - shc_airbld*CH_iwall*Tievolve - Rs_iwall - Rl_iwall/)
-      TN_wall = NewtonPolynomial(TN_wall, Pcoeff, conv, maxiter)
+      TN_wall = NewtonPolynomial(TN_wall, Pcoeff, conv, maxiter, modState%errorState)
       bc(2) = TN_wall !!FO!! boundary condition #2 = inner surface Twall, originally from lodz_parms_ltm.txt or finaltemp.txt
 
       IF (TsurfChoice < 2 .OR. radforce) THEN
@@ -1951,7 +1958,7 @@ CONTAINS
             kdz = 2*kwall(1)/zwall(1)
             Pcoeff = (/em_wall_fix*SBConst*(1 - zvf_wall*em_wall_fix), 0.0D0, 0.0D0, kdz + shc_air*chair_wall*WS, &
                        -kdz*Twall(1) - shc_air*chair_wall*WS*Tair1 - Rs_wall - Rl_wall/)
-            T0_wall = NewtonPolynomial(T0_wall, Pcoeff, conv, maxiter)
+            T0_wall = NewtonPolynomial(T0_wall, Pcoeff, conv, maxiter, modState%errorState)
             bc(1) = T0_wall !!FO!! boundary condition #1 = outer surface Twall, originally from lodz_parms_ltm.txt or finaltemp.txt
          ELSEIF (TsurfChoice == 0) THEN
             bc(1) = Tsurf_all + C2K; T0_wall = bc(1)
@@ -1980,14 +1987,14 @@ CONTAINS
       kdz = 2*kroof(Ndepth_roof)/zroof(Ndepth_roof)
       Pcoeff = (/em_ibld*SBConst, 0.0D0, 0.0D0, kdz + shc_airbld*CH_iroof, &
                  -kdz*Troof(Ndepth_roof) - shc_airbld*CH_iroof*Tievolve - Rs_iroof - Rl_iroof/)
-      TN_roof = NewtonPolynomial(TN_roof, Pcoeff, conv, maxiter)
+      TN_roof = NewtonPolynomial(TN_roof, Pcoeff, conv, maxiter, modState%errorState)
       bc(2) = TN_roof
 
       IF (radforce) THEN
          kdz = 2*kroof(1)/zroof(1)
          Pcoeff = (/em_roof_estm*SBConst, 0.0D0, 0.0D0, kdz + shc_air*chair*WS, &
                     -kdz*Troof(1) - shc_air*chair*WS*Tair1 - Rs_roof - Rl_roof/)
-         T0_roof = NewtonPolynomial(T0_roof, Pcoeff, conv, maxiter)
+         T0_roof = NewtonPolynomial(T0_roof, Pcoeff, conv, maxiter, modState%errorState)
          bc(1) = T0_roof
       ELSEIF (TsurfChoice == 0) THEN
          bc(1) = Tsurf_all + C2K; T0_roof = bc(1)
@@ -2005,7 +2012,7 @@ CONTAINS
       IF (radforce .OR. groundradforce) THEN
          Pcoeff = (/em_ground_estm*SBConst, 0.0D0, 0.0D0, kdz + shc_air*chair_ground*WS, &
                     -kdz*Tground(1) - shc_air*chair_ground*WS*Tair1 - Rs_ground - Rl_ground/)
-         T0_ground = NewtonPolynomial(T0_ground, Pcoeff, conv, maxiter)
+         T0_ground = NewtonPolynomial(T0_ground, Pcoeff, conv, maxiter, modState%errorState)
          bc(1) = T0_ground
       ELSEIF (TsurfChoice == 0) THEN
          bc(1) = Tsurf_all + C2K; T0_ground = bc(1)

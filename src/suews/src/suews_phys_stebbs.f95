@@ -827,7 +827,7 @@ CONTAINS
             sout%ntstep = 1
             resolution = 1
             IF (stebbs_bldg_init == 0 .OR. dt_start <= timestep) THEN
-               CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer)
+               CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer, modState%errorState)
                stebbs_bldg_init = 1
             END IF
 
@@ -882,10 +882,10 @@ CONTAINS
                Tair_hbh = stebbsState%outdoor_air_start_temperature ! unit degree
             ELSE
                ! air temperature and wind speed at building/half building height from RSL
-               ws_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineURSL)
-               ws_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineURSL)
-               Tair_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineTRSL)
-               Tair_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineTRSL)
+               ws_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineURSL, modState%errorState)
+               ws_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineURSL, modState%errorState)
+               Tair_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineTRSL, modState%errorState)
+               Tair_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineTRSL, modState%errorState)
             END IF
             sout%Tair_exch_bh = Tair_bh
             sout%Tair_exch_hbh = Tair_hbh
@@ -2415,14 +2415,14 @@ END SUBROUTINE tstep
 SUBROUTINE reinitialiseTemperatures
 END SUBROUTINE reinitialiseTemperatures
 
-SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer)
+SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer, errorState)
 
-   USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG
+   USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG, error_state
    USE module_phys_stebbs_func, ONLY: calculate_x1
-   USE module_ctrl_error_state, ONLY: add_supy_warning
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self
+   TYPE(error_state), INTENT(INOUT) :: errorState ! per-grid warning log (GH#1737)
    TYPE(SUEWS_CONFIG), INTENT(IN) :: config
    TYPE(STEBBS_STATE), INTENT(IN) :: stebbsState
    TYPE(BUILDING_ARCHETYPE_PRM), INTENT(IN) :: building_archtype
@@ -2644,14 +2644,20 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
                                              self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
       IF (self%weighting_factor_heatcapacity_wall > 1) THEN
-         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
+         CALL errorState%report( &
+            message='Wall_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer', &
+            location='gen_building', is_fatal=.FALSE.)
       END IF
       IF (self%weighting_factor_heatcapacity_roof > 1) THEN
-         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
+         CALL errorState%report( &
+            message='Roof_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer', &
+            location='gen_building', is_fatal=.FALSE.)
       END IF
 
    ELSE
-      CALL add_supy_warning('STEBBS: unrecognised rcmethod value, defaulting to 0.5')
+      CALL errorState%report( &
+         message='unrecognised rcmethod value, defaulting to 0.5', &
+         location='gen_building', is_fatal=.FALSE.)
       self%weighting_factor_heatcapacity_wall = 0.5
       self%weighting_factor_heatcapacity_roof = 0.5
    END IF

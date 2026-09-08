@@ -128,6 +128,7 @@ subroutine suews_cal_multitsteps_c( &
    state_out_flat, state_out_len, &
    output_flat, output_len, &
    sim_err_code, sim_err_message, sim_err_message_len, &
+   warn_total, warn_stored, warn_max, warn_timer, warn_text, warn_text_len, &
    err) bind(C, name='suews_cal_multitsteps_c')
 
    implicit none
@@ -167,6 +168,18 @@ subroutine suews_cal_multitsteps_c( &
    integer(c_int), intent(out) :: sim_err_code
    character(c_char), intent(out) :: sim_err_message(*)
    integer(c_int), value, intent(in) :: sim_err_message_len
+
+   ! Non-fatal kernel warnings (GH#1737): warn_total counts every report
+   ! received (including those beyond the in-kernel log cap); warn_stored is
+   ! the number of records written, at most warn_max. warn_timer holds
+   ! (iy, id, it, imin) per record; warn_text holds one NUL-terminated
+   ! "location: message" record of warn_text_len characters per entry.
+   integer(c_int), intent(out) :: warn_total
+   integer(c_int), intent(out) :: warn_stored
+   integer(c_int), value, intent(in) :: warn_max
+   integer(c_int), intent(out) :: warn_timer(*)
+   character(c_char), intent(out) :: warn_text(*)
+   integer(c_int), value, intent(in) :: warn_text_len
    integer(c_int), intent(out) :: err
 
    type(SUEWS_TIMER) :: timer_local
@@ -189,6 +202,8 @@ subroutine suews_cal_multitsteps_c( &
 
    sim_err_code = 0_c_int
    call copy_to_c_buffer('', sim_err_message, sim_err_message_len)
+   warn_total = 0_c_int
+   warn_stored = 0_c_int
    err = SUEWS_CAPI_OK
    call reset_supy_error()
 
@@ -324,6 +339,9 @@ subroutine suews_cal_multitsteps_c( &
       call copy_to_c_buffer(state_local%errorState%message, sim_err_message, sim_err_message_len)
    end if
 
+   call pack_kernel_warnings( &
+      state_local, warn_total, warn_stored, warn_max, warn_timer, warn_text, warn_text_len)
+
    call pack_state_to_output( &
       state_local, nlayer_i, ndepth_i, &
       state_out_flat, state_out_len, &
@@ -336,6 +354,42 @@ subroutine suews_cal_multitsteps_c( &
    err = SUEWS_CAPI_OK
 
 end subroutine suews_cal_multitsteps_c
+
+subroutine pack_kernel_warnings(state, warn_total, warn_stored, warn_max, warn_timer, warn_text, warn_text_len)
+   ! Copy the per-grid warning log into caller-owned buffers (GH#1737).
+   implicit none
+
+   type(SUEWS_STATE), intent(in) :: state
+   integer(c_int), intent(out) :: warn_total
+   integer(c_int), intent(out) :: warn_stored
+   integer(c_int), intent(in) :: warn_max
+   integer(c_int), intent(out) :: warn_timer(*)
+   character(c_char), intent(out) :: warn_text(*)
+   integer(c_int), intent(in) :: warn_text_len
+
+   integer :: i
+   integer :: n_copy
+   integer :: base
+
+   warn_total = int(state%errorState%n_total, c_int)
+   warn_stored = 0_c_int
+   if (warn_max <= 0_c_int .or. warn_text_len <= 0_c_int) return
+   if (.not. allocated(state%errorState%log)) return
+
+   n_copy = min(state%errorState%count, int(warn_max))
+   do i = 1, n_copy
+      base = 4*(i - 1)
+      warn_timer(base + 1) = int(state%errorState%log(i)%timer%iy, c_int)
+      warn_timer(base + 2) = int(state%errorState%log(i)%timer%id, c_int)
+      warn_timer(base + 3) = int(state%errorState%log(i)%timer%it, c_int)
+      warn_timer(base + 4) = int(state%errorState%log(i)%timer%imin, c_int)
+      call copy_to_c_buffer( &
+         trim(state%errorState%log(i)%location)//': '//trim(state%errorState%log(i)%message), &
+         warn_text(int(warn_text_len)*(i - 1) + 1), warn_text_len)
+   end do
+   warn_stored = int(n_copy, c_int)
+
+end subroutine pack_kernel_warnings
 
 subroutine validate_member_toc(flat_len, toc, toc_len, member_count, err)
    implicit none

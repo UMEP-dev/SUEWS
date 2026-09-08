@@ -57,6 +57,7 @@ EXAMPLES:
 ### 8 Sep 2026
 
 - [maintenance] `make test` runs on up to `TEST_JOBS` (default 4) pytest-xdist workers with work stealing; measured 625 s serial to 124 s on the same selection, same results (#1765)
+- [maintenance] `test_parallel_output_matches_serial` reports a byte mismatch by position instead of letting pytest diff two multi-megabyte reprs; the expected gh#1741 failure had stalled the Windows API lane for its whole per-test budget (#1762)
 
 ### 7 Sep 2026
 

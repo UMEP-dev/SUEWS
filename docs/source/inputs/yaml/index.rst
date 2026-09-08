@@ -93,6 +93,17 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
            grass: 0.2
            dectr: 0.1
 
+.. note::
+
+   ``start_time`` and ``end_time`` are calendar dates and both days are
+   included in full. Forcing rows are stamped at the end of each interval, so
+   a run from ``2020-01-01`` to ``2020-12-31`` uses the rows from
+   ``2020-01-01 01:00`` at the hourly timestep shown (``00:05`` at a
+   5-minute one) up to and including ``2021-01-01 00:00``. The forcing file must cover the whole requested
+   period: ``SUEWSSimulation.run()`` raises ``ValueError`` otherwise, and
+   ``run(clip_to_forcing=True)`` runs on the overlap only. Leave both fields
+   unset to run over the whole forcing file.
+
 .. important::
 
    This is a **minimal example** showing the basic structure. A complete configuration requires many additional parameters for:

@@ -115,7 +115,9 @@ for site, (paved, bldgs, grass) in zip(sim.config.sites, land_cover_mix):
 # from the Fortran kernel stay isolated. Use ``n_jobs=1`` for a serial run, or
 # a positive value such as ``n_jobs=4`` to cap the Rayon worker count.
 
-output = sim.run(n_jobs=-1)
+# ``clip_to_forcing=True``: run the loaded January window rather than the
+# full year the sample configuration requests.
+output = sim.run(n_jobs=-1, clip_to_forcing=True)
 
 print(f"Output grids: {output.grids}")
 print(
@@ -175,7 +177,7 @@ def time_run(n_sites: int, n_steps: int = 576, n_jobs: int = -1) -> float:
     sim_n.update_forcing(forcing_short)
 
     t0 = time.perf_counter()
-    sim_n.run(n_jobs=n_jobs)
+    sim_n.run(n_jobs=n_jobs, clip_to_forcing=True)
     return time.perf_counter() - t0
 
 

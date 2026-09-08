@@ -251,7 +251,7 @@ class TestSaveSuPy:
             model=SimpleNamespace(control=SimpleNamespace(output=output_control)),
             sites=[SimpleNamespace(name="grid no: 0")],
         )
-        simulation = SUEWSSimulation.__new__(SUEWSSimulation)
+        simulation = SUEWSSimulation()
         simulation._run_completed = True
         simulation._df_output = df_output
         simulation._df_state_final = df_state_final

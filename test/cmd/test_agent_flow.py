@@ -73,7 +73,7 @@ def _make_run_dir(
     df = pd.DataFrame({"QN": qn, "QH": qh, "QE": qe, "QS": qs, "QF": qf}, index=idx)
     df.to_parquet(run_dir / "df_output.parquet")
     (run_dir / "provenance.json").write_text(
-        json.dumps({"command": "suews run --format json"}), encoding="utf-8"
+        json.dumps({"command": "suews run config.yml"}), encoding="utf-8"
     )
     return run_dir
 

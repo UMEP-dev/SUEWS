@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
+- [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)
+  - `suews diagnose` and the MCP `suews://runs/{run_id}/provenance` resource now succeed on ordinary runs; their missing-sidecar guidance names an executable path instead of the non-existent `suews run --format json`.
+
 - [bugfix] Fortran kernel warnings now reach the user: the per-grid warning log survives the whole run, each entry is stamped with its timestep, the log crosses the Rust bridge, and SuPy logs a deduplicated summary and exposes `SUEWSSimulation.kernel_warnings` / `SUEWSOutput.kernel_warnings` (#1743; issue #1737)
   - The 20 physics fallbacks that reported through the no-op `add_supy_warning` stub (SPARTACUS flat-tile substitution, EHC leaving QS at zero, STEBBS, RSL, ESTM, AnOHM, Kdown split, DyOHM stability) now report through the per-grid state; the stub is removed.
   - The kernel counts every report separately from the 512-entry log cap, so long runs report the true occurrence count instead of silently truncating.

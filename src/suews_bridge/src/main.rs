@@ -766,9 +766,23 @@ fn run_physics_command(config_path: &str) -> Result<(), String> {
     let raw_forcing = read_forcing_block(&run_cfg.forcing_path)?;
     let forcing = interpolate_forcing(&raw_forcing, run_cfg.timer.tstep)?;
 
-    let (output_block, _state, _timer, len_sim) =
+    let (output_block, _state, _timer, len_sim, warnings) =
         run_from_config_str_and_forcing(&config_yaml, forcing.block, forcing.len_sim)
             .map_err(|e| e.to_string())?;
+
+    for warning in &warnings.entries {
+        eprintln!(
+            "warning: [{:04}-{:03} {:02}:{:02}] {}: {}",
+            warning.iy, warning.id, warning.it, warning.imin, warning.location, warning.message
+        );
+    }
+    if warnings.total > warnings.entries.len() {
+        eprintln!(
+            "warning: {} kernel warnings raised, {} recorded (log cap)",
+            warnings.total,
+            warnings.entries.len()
+        );
+    }
 
     let output_path = write_output_arrow(&run_cfg.output_dir, &output_block, len_sim)?;
 

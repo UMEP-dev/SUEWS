@@ -61,6 +61,18 @@ EXAMPLES:
   - Public-path SPARTACUS tests now load the example directly; new contract tests pin the example to the default sample plus its documented delta.
   - Documented the SPARTACUS vegetation-layer constraint in the layer-conventions page.
 
+- [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)
+  - `suews diagnose` and the MCP `suews://runs/{run_id}/provenance` resource now succeed on ordinary runs; their missing-sidecar guidance names an executable path instead of the non-existent `suews run --format json`.
+
+- [bugfix] Fortran kernel warnings now reach the user: the per-grid warning log survives the whole run, each entry is stamped with its timestep, the log crosses the Rust bridge, and SuPy logs a deduplicated summary and exposes `SUEWSSimulation.kernel_warnings` / `SUEWSOutput.kernel_warnings` (#1743; issue #1737)
+  - The 20 physics fallbacks that reported through the no-op `add_supy_warning` stub (SPARTACUS flat-tile substitution, EHC leaving QS at zero, STEBBS, RSL, ESTM, AnOHM, Kdown split, DyOHM stability) now report through the per-grid state; the stub is removed.
+  - The kernel counts every report separately from the 512-entry log cap, so long runs report the true occurrence count instead of silently truncating.
+  - Internal: `run_suews*` bridge functions return a fourth element `(total, [(iy, id, it, imin, location, message), ...])`; the Python runner accepts both the old three-element and the new four-element tuples.
+
+- [bugfix] Fatal error state is now thread-local, so grids running in parallel through the Rust bridge no longer see, reset or inherit each other's fatal errors; `run_suews_multi` errors name the failing grid index (#1736)
+  - The store lives in a small C11 `_Thread_local` shim (`suews_ctrl_error_tls.c`) compiled into the SUEWS libraries; `supy_error_flag` is now a function (`IF (supy_error_flag()) RETURN`) and `get_supy_error` reads the code and message back.
+  - Regression tests cover mixed valid/failing grids under Rayon, serial/parallel attribution, more grids than workers, and a valid batch after a failed one.
+
 - [change][experimental] Checkpoint continuation now requires the forcing to start one model timestep after the checkpoint's `last_timestamp`; overlapping or gapped forcing, a missing `last_timestamp`, and a repeated `run()` on the same instance raise a `ValueError` instead of running silently from the evolved state (#1735)
   - `SUEWSSimulation.from_checkpoint(...)` and `continue_from(...)` accept `check_continuity=False` for deliberate re-runs such as spin-up cycling; the opt-out applies to the next `run()` only
 

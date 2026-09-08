@@ -39,9 +39,11 @@ def _run(rust_module, config, forcing, state_json=None):
         _prepare_forcing_block(forcing).ravel(order="C").tolist(),
         len(forcing),
     )
+    # The bridge appends a kernel-warning payload as a fourth element
+    # (GH#1737); these tests only need (output, state_json, len_sim).
     if state_json is None:
-        return rust_module.run_suews(*args)
-    return rust_module.run_suews_with_state(*args, state_json)
+        return rust_module.run_suews(*args)[:3]
+    return rust_module.run_suews_with_state(*args, state_json)[:3]
 
 
 def _output_datetimes(output, length):
@@ -172,7 +174,7 @@ def test_utc_multi_site_outputs_share_the_forcing_clock():
     )
 
     assert [result[0] for result in results] == [0, 1]
-    for _, output, _, length in results:
+    for _, output, _, length, *_warnings in results:
         pd.testing.assert_index_equal(
             pd.DatetimeIndex(_output_datetimes(output, length)),
             forcing.index,

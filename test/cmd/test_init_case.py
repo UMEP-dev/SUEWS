@@ -187,5 +187,8 @@ def test_init_run_output_path_resolves_under_case_dir(
     sim._df_output = object()
     sim._df_state_final = object()
 
-    assert sim.save() == []
-    assert Path(captured["path_dir_save"]) == (out_dir / "Output").resolve()
+    expected_output_dir = (out_dir / "Output").resolve()
+    saved_paths = sim.save()
+    assert Path(captured["path_dir_save"]) == expected_output_dir
+    assert saved_paths == [expected_output_dir / "provenance.json"]
+    assert saved_paths[0].is_file()

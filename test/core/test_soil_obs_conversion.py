@@ -438,7 +438,9 @@ class TestObservedSoilMoistureIntegration:
             return df_forcing_in
 
         def fake_run_suews_rust_chunked(config, df_forcing, *args, **kwargs):
-            return pd.DataFrame(index=df_forcing.index), {}
+            from supy._run_rust import KernelWarningLog
+
+            return pd.DataFrame(index=df_forcing.index), {}, KernelWarningLog()
 
         monkeypatch.setattr(
             forcing_module,

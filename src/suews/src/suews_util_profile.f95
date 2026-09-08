@@ -126,5 +126,5 @@ SUBROUTINE SkipHeader(lfn, skip, modState)
 
 201 reall = REAL(skip)
    CALL ErrorHint(20, 'In SkipHeader subroutine.', reall, notUsed, ios_out, modState)
-   IF (supy_error_flag) RETURN
+   IF (supy_error_flag()) RETURN
 END SUBROUTINE SkipHeader

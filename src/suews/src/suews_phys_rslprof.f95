@@ -5,7 +5,8 @@ MODULE module_phys_rslprof
    USE module_ctrl_const_allocate, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
    USE module_ctrl_const_physconst, ONLY: eps_fp
-   USE module_ctrl_error_state, ONLY: set_supy_error, add_supy_warning
+   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_type, ONLY: error_state
    USE module_ctrl_error, ONLY: ErrorHint
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
    IMPLICIT NONE
@@ -618,14 +619,14 @@ CONTAINS
             !
             IF (flag_RSL) THEN
                ! RSL approach: diagnostics within canopy, heights are above ground level
-               T2_C = interp_z(2D0, zarray, dataoutLineTRSL)
-               q2_gkg = interp_z(2D0, zarray, dataoutLineqRSL)
-               U10_ms = interp_z(10D0, zarray, dataoutLineURSL)
+               T2_C = interp_z(2D0, zarray, dataoutLineTRSL, modState%errorState)
+               q2_gkg = interp_z(2D0, zarray, dataoutLineqRSL, modState%errorState)
+               U10_ms = interp_z(10D0, zarray, dataoutLineURSL, modState%errorState)
             ELSE
                ! MOST approach: diagnostics at heights above zdm+z0m to avoid insane values
-               T2_C = interp_z(2D0 + zd_rsl + z0_rsl, zarray, dataoutLineTRSL)
-               q2_gkg = interp_z(2D0 + zd_rsl + z0_rsl, zarray, dataoutLineqRSL)
-               U10_ms = interp_z(10D0 + zd_rsl + z0_rsl, zarray, dataoutLineURSL)
+               T2_C = interp_z(2D0 + zd_rsl + z0_rsl, zarray, dataoutLineTRSL, modState%errorState)
+               q2_gkg = interp_z(2D0 + zd_rsl + z0_rsl, zarray, dataoutLineqRSL, modState%errorState)
+               U10_ms = interp_z(10D0 + zd_rsl + z0_rsl, zarray, dataoutLineURSL, modState%errorState)
             END IF
             ! get relative humidity:
             RH2 = qa2RH(q2_gkg, press_hPa, T2_C)
@@ -638,11 +639,12 @@ CONTAINS
 
    END SUBROUTINE RSLProfile
 
-   FUNCTION interp_z(z_x, z, v) RESULT(v_x)
+   FUNCTION interp_z(z_x, z, v, errorState) RESULT(v_x)
 
       REAL(KIND(1D0)), INTENT(in) :: z_x ! height to interpolate at
       REAL(KIND(1D0)), DIMENSION(nz), INTENT(in) :: z ! heights
       REAL(KIND(1D0)), DIMENSION(nz), INTENT(in) :: v ! values associated with heights
+      TYPE(error_state), INTENT(INOUT), OPTIONAL :: errorState ! per-grid warning log (GH#1737)
 
       ! output
       REAL(KIND(1D0)) :: v_x ! zd used in RSL
@@ -681,11 +683,15 @@ CONTAINS
          v_x = v(idx_x)
       ELSE IF (idx_low == 0 .AND. idx_high > 0) THEN
          ! z_x is below array minimum - use boundary value with warning
-         CALL add_supy_warning('interp_z: z_x below array minimum, using boundary value')
+         IF (PRESENT(errorState)) CALL errorState%report( &
+            message='z_x below array minimum, using boundary value', &
+            location='interp_z', is_fatal=.FALSE.)
          v_x = v(1)
       ELSE IF (idx_high == 0 .AND. idx_low > 0) THEN
          ! z_x is above array maximum - use boundary value with warning
-         CALL add_supy_warning('interp_z: z_x above array maximum, using boundary value')
+         IF (PRESENT(errorState)) CALL errorState%report( &
+            message='z_x above array maximum, using boundary value', &
+            location='interp_z', is_fatal=.FALSE.)
          v_x = v(nz)
       ELSE IF (idx_low == 0 .AND. idx_high == 0) THEN
          ! Invalid state - should not happen with valid input

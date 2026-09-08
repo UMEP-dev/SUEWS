@@ -32,7 +32,7 @@ def _build_minimal_run_dir(tmp_path: Path) -> Path:
     df.to_csv(run_dir / "df_output.csv", index=False)
 
     (run_dir / "provenance.json").write_text(
-        json.dumps({"command": "suews run --format json"}, indent=2),
+        json.dumps({"command": "suews run config.yml"}, indent=2),
         encoding="utf-8",
     )
     return run_dir
@@ -130,3 +130,7 @@ def test_diagnose_missing_provenance_recommendation_is_supported(
     recommendations = envelope["data"]["recommendations"]
     assert any("provenance.json sidecar" in rec for rec in recommendations)
     assert not any("--format json --output" in rec for rec in recommendations)
+    # The remedy must name a command that exists: ``suews run`` has no
+    # ``--format`` option.
+    assert any("suews run" in rec for rec in recommendations)
+    assert not any("suews run --format" in rec for rec in recommendations)

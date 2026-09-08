@@ -568,7 +568,7 @@ CONTAINS
             IF (tstep_estm /= tstep_real .AND. ESTMArray(2) == iday_prev) THEN
                CALL ErrorHint(39, 'TSTEP in RunControl does not match TSTEP of ESTM data (DOY).', &
                               REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)), modState)
-               IF (supy_error_flag) RETURN
+               IF (supy_error_flag()) RETURN
             END IF
          END IF
       END DO

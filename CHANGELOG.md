@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
+- [bugfix] Fatal error state is now thread-local, so grids running in parallel through the Rust bridge no longer see, reset or inherit each other's fatal errors; `run_suews_multi` errors name the failing grid index (#1736)
+  - The store lives in a small C11 `_Thread_local` shim (`suews_ctrl_error_tls.c`) compiled into the SUEWS libraries; `supy_error_flag` is now a function (`IF (supy_error_flag()) RETURN`) and `get_supy_error` reads the code and message back.
+  - Regression tests cover mixed valid/failing grids under Rayon, serial/parallel attribution, more grids than workers, and a valid batch after a failed one.
+
 - [change][experimental] Checkpoint continuation now requires the forcing to start one model timestep after the checkpoint's `last_timestamp`; overlapping or gapped forcing, a missing `last_timestamp`, and a repeated `run()` on the same instance raise a `ValueError` instead of running silently from the evolved state (#1735)
   - `SUEWSSimulation.from_checkpoint(...)` and `continue_from(...)` accept `check_continuity=False` for deliberate re-runs such as spin-up cycling; the opt-out applies to the next `run()` only
 

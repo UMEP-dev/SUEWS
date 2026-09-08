@@ -53,12 +53,13 @@ suffix_code = .f95
 
 # system specific settings
 ifeq ($(OS),Windows_NT)
-	C_MODULE = strptime.o # this is needed by datetime_module: mingw lacks `strptime`
+	# strptime.o is needed by datetime_module: mingw lacks `strptime`
+	C_MODULE = suews_ctrl_error_tls.o strptime.o
 	STATIC = -static -mcmodel=medium# mingw
 	STATICLIB =
 	SUEWS_build_dir = $(addprefix $(SUEWS_build_base), win64)
 else
-	C_MODULE =
+	C_MODULE = suews_ctrl_error_tls.o
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Linux) # Linux
 		STATIC = -fPIC -static

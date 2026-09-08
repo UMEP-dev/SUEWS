@@ -122,6 +122,9 @@ endif
 export SUEWS_VER = $(GIT_COMMIT)
 export FC
 export FC_VER := `$(FC) --version | head -n 1`
+# Flags for the C helper objects listed in C_MODULE. -fPIC is required
+# because the archives end up inside the Python extension module.
+export CFLAGS_C = -O2 -fPIC -Wall
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) \
 	$(STATIC)	\
 	$(OPTFLAGS) $(DEBUGFLAGS)
@@ -371,9 +374,9 @@ clean-ext:
 
 
 
-$(C_MODULE): $(subst .o,.c, $(C_MODULE))
-	$(info $^)
-	$(CC) -c $^ -o $@
+# C helpers (thread-local error store; strptime shim on Windows)
+%.o: %.c
+	$(CC) $(CFLAGS_C) -c $< -o $@
 
 
 

@@ -4177,9 +4177,9 @@ mod python_bindings {
                     let forcing_copy = forcing_block.clone();
                     let (output_block, state, timer, actual_len) =
                         run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
-                            .map_err(|e| e.to_string())?;
-                    let state_json =
-                        suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
+                            .map_err(|e| format!("grid {idx}: {e}"))?;
+                    let state_json = suews_checkpoint_to_json(&state, &timer)
+                        .map_err(|e| format!("grid {idx}: {e}"))?;
                     Ok((idx, output_block, state_json, actual_len))
                 })
                 .collect()
@@ -4258,9 +4258,9 @@ mod python_bindings {
                             len_sim,
                             state_json_in,
                         )
-                        .map_err(|e| e.to_string())?;
-                    let state_json =
-                        suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
+                        .map_err(|e| format!("grid {idx}: {e}"))?;
+                    let state_json = suews_checkpoint_to_json(&state, &timer)
+                        .map_err(|e| format!("grid {idx}: {e}"))?;
                     Ok((idx, output_block, state_json, actual_len))
                 })
                 .collect()

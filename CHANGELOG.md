@@ -61,6 +61,36 @@ EXAMPLES:
   - The kernel counts every report separately from the 512-entry log cap, so long runs report the true occurrence count instead of silently truncating.
   - Internal: `run_suews*` bridge functions return a fourth element `(total, [(iy, id, it, imin, location, message), ...])`; the Python runner accepts both the old three-element and the new four-element tuples.
 
+- [bugfix] Fatal error state is now thread-local, so grids running in parallel through the Rust bridge no longer see, reset or inherit each other's fatal errors; `run_suews_multi` errors name the failing grid index (#1736)
+  - The store lives in a small C11 `_Thread_local` shim (`suews_ctrl_error_tls.c`) compiled into the SUEWS libraries; `supy_error_flag` is now a function (`IF (supy_error_flag()) RETURN`) and `get_supy_error` reads the code and message back.
+  - Regression tests cover mixed valid/failing grids under Rayon, serial/parallel attribution, more grids than workers, and a valid batch after a failed one.
+
+- [change][experimental] Checkpoint continuation now requires the forcing to start one model timestep after the checkpoint's `last_timestamp`; overlapping or gapped forcing, a missing `last_timestamp`, and a repeated `run()` on the same instance raise a `ValueError` instead of running silently from the evolved state (#1735)
+  - `SUEWSSimulation.from_checkpoint(...)` and `continue_from(...)` accept `check_continuity=False` for deliberate re-runs such as spin-up cycling; the opt-out applies to the next `run()` only
+
+- [bugfix] Overlapping forcing files no longer silently keep the first record: every multi-file loader (`SUEWSForcing.from_file`, YAML `forcing.file` lists and directories, wildcard `read_forcing`, `SUEWSSimulation.update_forcing`) now shares one merge that deduplicates identical records, fills values missing in one file from another, and rejects conflicting observations with a `ForcingConflictError` naming the files, timestamps and variables (#1747)
+  - Precedence by file order is an explicit opt-in (`on_conflict="first"` / `"last"`) that logs what it overrode; the YAML path always uses the strict default.
+
+- [bugfix] `SUEWSForcing.resample` no longer aggregates the `-999` missing sentinel as a number: an all-missing rain interval was reported as 0 mm, missing `Wuh` readings summed to -1998 mm and the mean of a valid and a missing radiation value came out as -449.5 W m-2 (#1748)
+  - Sentinels and NaN are masked first; an output interval is missing unless it is fully covered by valid rows (sums and means) or its endpoint is valid (instantaneous values), temporal columns are rebuilt from the output index, per-surface extras follow the same rules, and finer or non-integer target frequencies are rejected rather than silently interpolated.
+
+- [bugfix] `SUEWSForcing.save(format="suews")` now writes a native forcing file that `from_file` loads back losslessly: temporal columns are derived from the datetime index (no leading index column, no internal `isec`), pressure is converted back from hPa to the file's kPa using the forcing registry's `runtime_scale` with sentinels left untouched, columns follow the registry's canonical order, and per-landcover extension columns (`lai_<surface>`, `wuh_<surface>`) are written after them. Timestamps not aligned to whole minutes are rejected with a clear error, since the native format has no seconds field. Previously a saved file reloaded with pressure inflated tenfold and every extension column dropped. `format="csv"` now includes the extension columns too. (#1751)
+
+- [bugfix] `suews compare` now aligns on time, selects grids explicitly and reports finite paired samples (#1744)
+  - The native `Year`/`DOY`/`Hour`/`Min` clock of legacy text output is parsed into a time axis, so two files for different days no longer compare as a perfect match by row order; inputs with no recoverable time axis are rejected unless `--align positional` is given, and that mode is labelled in the output.
+  - An empty joint time axis, or a request for which no variable yields an evaluable metric, exits with a user error instead of a successful envelope with no numbers.
+  - `n` counts the finite paired samples the metrics actually use, with the legacy `-999` sentinel treated as missing; multi-grid inputs require `--grid`, the grid used on each side is reported, and differing grid identities are warned about. Yearly text files of one grid are concatenated.
+
+- [doc] Aligned the onboarding text with the canonical `suews run` / `suews validate` / `suews convert` / `suews schema` commands and the Python 3.12+ runtime floor (#1745)
+  - README quick start, `suews run --help` and its namelist deprecation messages no longer recommend the deprecated hyphenated aliases
+  - `make docs-setup`, `docs/README.md` and the developer building/onboarding guides now state the `requires-python` floor from `pyproject.toml` instead of Python 3.9+
+  - Tests in `test/cmd/test_suews_cli.py` check that `suews run --help` and the README teach resolvable canonical commands and that the onboarding files do not understate the runtime floor
+
+- [bugfix] Corrected the `suews diagnose` energy-balance check and made it inspect every output partition (#1734)
+  - The closure residual now follows the model identity `QN + QF + QMRain = QH + QE + QS + QM + QMFreeze`; QF had been placed among the sinks, so balanced runs were flagged and unbalanced ones passed.
+  - All files of the highest-priority output format, and every grid within a multi-grid file, are checked and each partition is judged on its own, so a healthy partition cannot mask a broken one; `-999` sentinels and non-finite rows are treated as missing and counted, and a partition with too few evaluable rows is reported; an absent optional column no longer raises.
+  - `suews summarise` keeps its existing single-file loader; `suews compare` moved to the partition loader in #1744.
+
 ### 1 Sep 2026
 
 - [maintenance] CI: adopted GitHub's self-repository `uses: $/...` syntax for same-repository actions and reusable workflows, and pinned `zizmor` to 1.30.0 so a new release cannot silently move the advisory audit baseline (#1728)

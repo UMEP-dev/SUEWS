@@ -13,29 +13,59 @@
 !   105: DailyState - laimethod=0 requires non-missing lai >= 0 at every timestep (GH#1296)
 !
 ! Thread Safety:
-!   Fatal errors use module-level SAVE variables (supy_error_flag/code/message).
-!   These are acceptable because a fatal error terminates the simulation.
-!   Non-fatal warnings are routed through modState%errorstate (thread-safe);
-!   the per-grid log persists for the whole run and is surfaced to SuPy (GH#1737).
-!   For multi-grid parallelism, use process-based isolation or ensure each
-!   thread has its own Fortran address space.
+!   Fatal errors live in thread-local storage provided by suews_ctrl_error_tls.c
+!   (C11 _Thread_local, GH#1736). Every OS thread, and therefore every grid run
+!   that the Rust bridge schedules on a Rayon worker, owns a private copy, so a
+!   fatal error in one grid can neither leak into nor be reset by another grid.
+!   Non-fatal warnings are routed through modState%errorstate (per-grid state).
+!   The per-grid warning log persists for the run and is surfaced to SuPy (GH#1737).
 !==================================================================================================
 MODULE module_ctrl_error_state
+   USE, INTRINSIC :: ISO_C_BINDING, ONLY: c_int, c_char
    IMPLICIT NONE
+   PRIVATE
+   PUBLIC :: reset_supy_error, set_supy_error
+   PUBLIC :: supy_error_flag, get_supy_error
+   PUBLIC :: SUPY_ERROR_MESSAGE_LEN
 
-   ! Error state variables for fatal errors — exposed to Python via Rust bridge.
-   ! These use SAVE because fatal errors terminate the run; concurrent writes
-   ! are not a concern in practice (only one fatal error matters).
-   LOGICAL, SAVE :: supy_error_flag = .FALSE.
-   INTEGER, SAVE :: supy_error_code = 0
-   CHARACTER(LEN=512), SAVE :: supy_error_message = ''
+   ! Maximum stored length of a fatal error message; mirrors the C shim.
+   INTEGER, PARAMETER :: SUPY_ERROR_MESSAGE_LEN = 512
+
+   ! Thread-local fatal error store implemented in suews_ctrl_error_tls.c.
+   ! Fortran code never reads the storage directly: it goes through the
+   ! wrappers below so that the thread-local semantics cannot be bypassed.
+   INTERFACE
+      SUBROUTINE suews_tls_error_reset() BIND(C, name='suews_tls_error_reset')
+      END SUBROUTINE suews_tls_error_reset
+
+      SUBROUTINE suews_tls_error_set(code, message, msg_len) BIND(C, name='suews_tls_error_set')
+         IMPORT :: c_int, c_char
+         INTEGER(c_int), VALUE, INTENT(IN) :: code
+         CHARACTER(KIND=c_char), DIMENSION(*), INTENT(IN) :: message
+         INTEGER(c_int), VALUE, INTENT(IN) :: msg_len
+      END SUBROUTINE suews_tls_error_set
+
+      FUNCTION suews_tls_error_flag() BIND(C, name='suews_tls_error_flag') RESULT(flag)
+         IMPORT :: c_int
+         INTEGER(c_int) :: flag
+      END FUNCTION suews_tls_error_flag
+
+      FUNCTION suews_tls_error_code() BIND(C, name='suews_tls_error_code') RESULT(code)
+         IMPORT :: c_int
+         INTEGER(c_int) :: code
+      END FUNCTION suews_tls_error_code
+
+      SUBROUTINE suews_tls_error_message(buffer, buf_len) BIND(C, name='suews_tls_error_message')
+         IMPORT :: c_int, c_char
+         CHARACTER(KIND=c_char), DIMENSION(*), INTENT(OUT) :: buffer
+         INTEGER(c_int), VALUE, INTENT(IN) :: buf_len
+      END SUBROUTINE suews_tls_error_message
+   END INTERFACE
 
 CONTAINS
 
    SUBROUTINE reset_supy_error()
-      supy_error_flag = .FALSE.
-      supy_error_code = 0
-      supy_error_message = ''
+      CALL suews_tls_error_reset()
    END SUBROUTINE reset_supy_error
 
    SUBROUTINE set_supy_error(code, message)
@@ -43,11 +73,32 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN) :: message
       INTEGER :: msg_len
 
-      supy_error_flag = .TRUE.
-      supy_error_code = code
-      msg_len = MIN(LEN_TRIM(message), 512)
-      supy_error_message = message(1:msg_len)
+      msg_len = MIN(LEN_TRIM(message), SUPY_ERROR_MESSAGE_LEN)
+      CALL suews_tls_error_set(INT(code, c_int), message, INT(msg_len, c_int))
    END SUBROUTINE set_supy_error
+
+   !> .TRUE. when a fatal error has been recorded on the calling thread.
+   !> Replaces the former module variable of the same name; callers use
+   !> IF (supy_error_flag()) RETURN.
+   LOGICAL FUNCTION supy_error_flag()
+      supy_error_flag = suews_tls_error_flag() /= 0_c_int
+   END FUNCTION supy_error_flag
+
+   !> Read back the calling thread's fatal error code and message.
+   SUBROUTINE get_supy_error(code, message)
+      INTEGER, INTENT(OUT) :: code
+      CHARACTER(LEN=*), INTENT(OUT) :: message
+      CHARACTER(KIND=c_char), DIMENSION(SUPY_ERROR_MESSAGE_LEN) :: buffer
+      INTEGER :: i, ncopy
+
+      code = INT(suews_tls_error_code())
+      CALL suews_tls_error_message(buffer, INT(SUPY_ERROR_MESSAGE_LEN, c_int))
+      message = ''
+      ncopy = MIN(LEN(message), SUPY_ERROR_MESSAGE_LEN)
+      DO i = 1, ncopy
+         message(i:i) = buffer(i)
+      END DO
+   END SUBROUTINE get_supy_error
 
 END MODULE module_ctrl_error_state
 
@@ -80,7 +131,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
    ! Thread Safety:
    !   Warnings are logged to modState%errorstate when provided (thread-safe).
    !   If modState is absent, warnings are silently dropped (no module-level state).
-   !   Fatal errors still use module-level set_supy_error (acceptable: run terminates).
+   !   Fatal errors use the thread-local store through set_supy_error.
 
    USE module_ctrl_const_datain
    USE module_ctrl_error_state, ONLY: set_supy_error

@@ -66,15 +66,15 @@ MODULE SUEWS_Driver
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, SUEWS_cal_weekday, &
                           SUEWS_cal_DLS, SUEWS_cal_timer_reference
-   ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
-   USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
+   ! Re-export error state accessors from module_ctrl_error_state
+   USE module_ctrl_error_state, ONLY: supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN, &
                                        reset_supy_error, set_supy_error
    USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 
-   ! Make error state variables public for Python/f90wrap access
-   PUBLIC :: supy_error_flag, supy_error_code, supy_error_message
+   ! Make error state accessors public for the C-ABI driver
+   PUBLIC :: supy_error_flag, get_supy_error
    PUBLIC :: reset_supy_error, set_supy_error
    PRIVATE :: SUEWS_cal_Main_impl
 
@@ -175,7 +175,7 @@ CONTAINS
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
       CALL validate_outputline_layout(outputLine)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
 
       max_iter = max_iter_default
       ehc_restore_best_mode = 0
@@ -1426,7 +1426,7 @@ CONTAINS
 
                ELSE
                   CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod, modState)
-                  IF (supy_error_flag) RETURN
+                  IF (supy_error_flag()) RETURN
                END IF
 
                IF (EmissionsMethod >= 1) qf = QF_SAHP
@@ -4242,7 +4242,7 @@ CONTAINS
             CALL push_vec(qn_surf)
             CALL push_vec(qs_surf)
             CALL check_packed_size()
-            IF (supy_error_flag) RETURN
+            IF (supy_error_flag()) RETURN
             ! set invalid values to NAN
             ! dataOutLineSUEWS = set_nan(dataOutLineSUEWS)
 
@@ -4255,7 +4255,7 @@ CONTAINS
          IMPLICIT NONE
          REAL(KIND(1D0)), INTENT(IN) :: val
 
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
          IF (out_idx > SIZE(dataOutLineSUEWS)) THEN
             CALL raise_pack_overflow(1)
             RETURN
@@ -4269,7 +4269,7 @@ CONTAINS
          REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: vals
          INTEGER :: nvals
 
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
          nvals = SIZE(vals)
          IF (out_idx + nvals - 1 > SIZE(dataOutLineSUEWS)) THEN
             CALL raise_pack_overflow(nvals)
@@ -4283,7 +4283,7 @@ CONTAINS
          IMPLICIT NONE
          CHARACTER(LEN=512) :: msg
 
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
          IF (out_idx - 1 /= SIZE(dataOutLineSUEWS)) THEN
             WRITE (msg, '(A,I0,A,I0,A)') &
                'SUEWS output packing size mismatch in SUEWS_update_outputLine: packed=', &
@@ -4298,7 +4298,7 @@ CONTAINS
          INTEGER, INTENT(IN) :: nvals
          CHARACTER(LEN=512) :: msg
 
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
          WRITE (msg, '(A,I0,A,I0,A,I0,A)') &
             'SUEWS output packing overflow in SUEWS_update_outputLine: next_index=', &
             out_idx, ', adding=', nvals, ', capacity=', SIZE(dataOutLineSUEWS), &
@@ -4583,25 +4583,25 @@ CONTAINS
       CHARACTER(LEN=512) :: msg
 
       CALL check_size('outputLine%dataOutLineSUEWS', SIZE(outputLine%dataOutLineSUEWS), ncolumnsDataOutSUEWS)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineSnow', SIZE(outputLine%dataOutLineSnow), ncolumnsDataOutSnow)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineESTM', SIZE(outputLine%dataOutLineESTM), ncolumnsDataOutESTM)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineEHC', SIZE(outputLine%dataOutLineEHC), ncolumnsDataOutEHC)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineRSL', SIZE(outputLine%dataOutLineRSL), ncolumnsDataOutRSL)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineBEERS', SIZE(outputLine%dataOutLineBEERS), ncolumnsDataOutBEERS)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineDebug', SIZE(outputLine%dataOutLineDebug), ncolumnsDataOutDebug)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineSPARTACUS', SIZE(outputLine%dataOutLineSPARTACUS), ncolumnsDataOutSPARTACUS)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineDailyState', SIZE(outputLine%dataOutLineDailyState), ncolumnsDataOutDailyState)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineSTEBBS', SIZE(outputLine%dataOutLineSTEBBS), ncolumnsDataOutSTEBBS)
-      IF (supy_error_flag) RETURN
+      IF (supy_error_flag()) RETURN
       CALL check_size('outputLine%dataOutLineNHood', SIZE(outputLine%dataOutLineNHood), ncolumnsDataOutNHood)
 
    CONTAINS
@@ -6690,9 +6690,10 @@ END FUNCTION cal_tsfc_dyohm
    END SUBROUTINE restore_state
 
    !==============================================================================
-   ! Synchronise module-level error state to modState%errorState
-   ! This enables thread-safe error handling by copying the global error state
-   ! (set by ErrorHint and set_supy_error) to the per-grid-cell state.
+   ! Synchronise the thread-local fatal error state to modState%errorState
+   ! The fatal store is per OS thread (suews_ctrl_error_tls.c, GH#1736), and a
+   ! grid run stays on one thread, so this copy is per grid: concurrent grids
+   ! cannot see or reset each other's fatal errors.
    ! Future: direct use of modState%errorState will eliminate need for sync.
    !==============================================================================
    SUBROUTINE sync_error_to_state(modState, timer)
@@ -6701,10 +6702,13 @@ END FUNCTION cal_tsfc_dyohm
       IMPLICIT NONE
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      INTEGER :: err_code
+      CHARACTER(LEN=SUPY_ERROR_MESSAGE_LEN) :: err_message
 
-      ! Copy module-level error state to modState%errorState
-      IF (supy_error_flag) THEN
-         CALL modState%errorState%set(supy_error_code, TRIM(supy_error_message))
+      ! Copy the calling thread's fatal error state to modState%errorState
+      IF (supy_error_flag()) THEN
+         CALL get_supy_error(err_code, err_message)
+         CALL modState%errorState%set(err_code, TRIM(err_message))
       ELSE
          ! Clear only the fatal fields: the warning log must survive the whole
          ! run so it can be surfaced to the user (GH#1737).

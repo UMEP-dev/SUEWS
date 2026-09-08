@@ -4183,7 +4183,7 @@ mod python_bindings {
     ///
     /// Each element of `config_jsons` is a JSON config string for one grid.
     /// `forcing_block` and `len_sim` are shared across all grids.
-    /// Returns a list of `(grid_index, output_block, state_json, len_sim)`.
+    /// Returns a list of `(grid_index, output_block, state_json, len_sim, warnings)`.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_multi")]
     #[pyo3(signature = (config_jsons, forcing_block, len_sim, max_workers=None))]
@@ -4211,9 +4211,9 @@ mod python_bindings {
                     let forcing_copy = forcing_block.clone();
                     let (output_block, state, timer, actual_len, warnings) =
                         run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
-                            .map_err(|e| e.to_string())?;
-                    let state_json =
-                        suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
+                            .map_err(|e| format!("grid {idx}: {e}"))?;
+                    let state_json = suews_checkpoint_to_json(&state, &timer)
+                        .map_err(|e| format!("grid {idx}: {e}"))?;
                     Ok((idx, output_block, state_json, actual_len, warnings))
                 })
                 .collect()
@@ -4253,7 +4253,7 @@ mod python_bindings {
     /// Run multiple grid cells in parallel using injected previous states.
     ///
     /// Each element of `state_jsons` must match the config at the same index.
-    /// Returns a list of `(grid_index, output_block, state_json, len_sim)`.
+    /// Returns a list of `(grid_index, output_block, state_json, len_sim, warnings)`.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_multi_with_state")]
     #[pyo3(signature = (config_jsons, forcing_block, len_sim, state_jsons, max_workers=None))]
@@ -4293,9 +4293,9 @@ mod python_bindings {
                             len_sim,
                             state_json_in,
                         )
-                        .map_err(|e| e.to_string())?;
-                    let state_json =
-                        suews_checkpoint_to_json(&state, &timer).map_err(|e| e.to_string())?;
+                        .map_err(|e| format!("grid {idx}: {e}"))?;
+                    let state_json = suews_checkpoint_to_json(&state, &timer)
+                        .map_err(|e| format!("grid {idx}: {e}"))?;
                     Ok((idx, output_block, state_json, actual_len, warnings))
                 })
                 .collect()

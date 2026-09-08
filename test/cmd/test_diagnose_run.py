@@ -23,11 +23,11 @@ def _build_minimal_run_dir(tmp_path: Path) -> Path:
     n = 96  # one synthetic day at 15-min steps
     rng = np.random.default_rng(seed=2026)
     qn = rng.normal(loc=200.0, scale=50.0, size=n)
-    # Construct fluxes that close the energy balance to within ~5%.
-    qh = 0.4 * qn + rng.normal(scale=2.0, size=n)
-    qe = 0.3 * qn + rng.normal(scale=2.0, size=n)
-    qs = 0.2 * qn + rng.normal(scale=2.0, size=n)
+    # Construct fluxes that close QN + QF = QH + QE + QS to within ~5%.
     qf = 0.1 * qn + rng.normal(scale=2.0, size=n)
+    qh = 0.5 * qn + rng.normal(scale=2.0, size=n)
+    qe = 0.4 * qn + rng.normal(scale=2.0, size=n)
+    qs = 0.2 * qn + rng.normal(scale=2.0, size=n)
     df = pd.DataFrame({"QN": qn, "QH": qh, "QE": qe, "QS": qs, "QF": qf})
     df.to_csv(run_dir / "df_output.csv", index=False)
 

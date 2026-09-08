@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 8 Sep 2026
+
+- [maintenance] `test_parallel_output_matches_serial` reports a byte mismatch by position instead of letting pytest diff two multi-megabyte reprs; the expected gh#1741 failure had stalled the Windows API lane for its whole per-test budget (#1762)
+
 ### 7 Sep 2026
 
 - [feature][experimental] Added a dedicated SPARTACUS-Surface example, `sample_data/sample_config_spartacus.yml`, and shipped it as the `suews init --template spartacus` template (#1699)

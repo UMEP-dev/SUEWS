@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 8 Sep 2026
+
+- [maintenance] Scheduled runs now report their outcome: a `report_scheduled_run` job opens or updates one tracking issue when any nightly build, test or publish job fails or is cancelled, and closes it on the next green run (#1764)
+
 ### 7 Sep 2026
 
 - [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)

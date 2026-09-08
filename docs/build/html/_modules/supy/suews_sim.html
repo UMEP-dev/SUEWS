@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.9.8.dev2 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.9.8.dev3 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=99b12655"></script>
+    <script src="../../_static/documentation_options.js?v=224da448"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.8.dev2" />
+  <meta name="docsearch:version" content="2026.9.8.dev3" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.8.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d58930818b9cf5c34c2b989624fcd9ec2b7344e3" style="color: #31708f;">d589308</a>).
+        (2026.9.8.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52c41b60907649aa008ed90c1054a830e2dc60fa" style="color: #31708f;">52c41b6</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -193,8 +193,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev2 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev3 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -612,6 +612,18 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._filename</span><span class="w"> </span><span class="kn">import</span> <span class="n">safe_filename_component</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._load</span><span class="w"> </span><span class="kn">import</span> <span class="n">merge_forcing_frames</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._provenance</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PROVENANCE_FORMAT_VERSION</span><span class="p">,</span>
+    <span class="n">TIMESTAMP_CONVENTION</span><span class="p">,</span>
+    <span class="n">dataframe_sha256</span><span class="p">,</span>
+    <span class="n">file_identity</span><span class="p">,</span>
+    <span class="n">json_sha256</span><span class="p">,</span>
+    <span class="n">now_utc_iso</span><span class="p">,</span>
+    <span class="n">requested_bound_to_str</span><span class="p">,</span>
+    <span class="n">supy_build_identity</span><span class="p">,</span>
+    <span class="n">timestamp_to_iso</span><span class="p">,</span>
+    <span class="n">write_provenance</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._run_rust</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">KernelWarningLog</span><span class="p">,</span>
     <span class="n">_check_rust_available</span><span class="p">,</span>
@@ -700,6 +712,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_kernel_warnings</span> <span class="o">=</span> <span class="n">KernelWarningLog</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># Provenance bookkeeping (see ``_provenance.py``); private, best effort.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config_identity</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_forcing_sources</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_metadata</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">update_config</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
@@ -762,6 +778,7 @@
             <span class="c1"># Load YAML</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">config_path</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span> <span class="o">=</span> <span class="n">config_path</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config_identity</span> <span class="o">=</span> <span class="n">file_identity</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
 
             <span class="c1"># Convert to initial state DataFrame</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">to_df_state</span><span class="p">()</span>
@@ -811,6 +828,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Assume it's a SUEWSConfig object</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config_identity</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">to_df_state</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="bp">self</span></div>
@@ -1072,14 +1090,22 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">prepare_dataframe_forcing</span><span class="p">(</span>
                 <span class="n">forcing_data</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="n">include_extras</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span>
             <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_forcing_sources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_describe_forcing_sources</span><span class="p">(</span>
+                <span class="s2">"in-memory"</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">forcing_data</span><span class="o">.</span><span class="n">_source</span>
+            <span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">prepare_dataframe_forcing</span><span class="p">(</span>
                 <span class="n">forcing_data</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span>
             <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_forcing_sources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_describe_forcing_sources</span><span class="p">(</span><span class="s2">"in-memory"</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="c1"># Handle list of files</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">_load_forcing_from_list</span><span class="p">(</span>
                 <span class="n">forcing_data</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">,</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_forcing_sources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_describe_forcing_sources</span><span class="p">(</span>
+                <span class="s2">"files"</span><span class="p">,</span>
+                <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">forcing_data</span><span class="p">],</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
             <span class="n">forcing_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
@@ -1088,11 +1114,53 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">_load_forcing_file</span><span class="p">(</span>
                 <span class="n">forcing_path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">,</span> <span class="n">on_conflict</span><span class="o">=</span><span class="n">on_conflict</span>
             <span class="p">)</span>
+            <span class="k">if</span> <span class="n">forcing_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+                <span class="n">dir_files</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">DEFAULT_FORCING_FILE_PATTERNS</span><span class="p">:</span>
+                    <span class="n">dir_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">forcing_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">pattern</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_forcing_sources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_describe_forcing_sources</span><span class="p">(</span>
+                    <span class="s2">"directory"</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">dir_files</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">forcing_path</span><span class="o">.</span><span class="n">name</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_forcing_sources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_describe_forcing_sources</span><span class="p">(</span>
+                    <span class="s2">"files"</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="n">forcing_path</span><span class="p">]</span>
+                <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported forcing data type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span></div>
 
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_describe_forcing_sources</span><span class="p">(</span>
+        <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">files</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Build the ``forcing`` block of the provenance sidecar.</span>
+
+<span class="sd">        Files are identified by name, size and SHA-256 only; directories are</span>
+<span class="sd">        not recorded, so the sidecar stays free of machine-specific paths.</span>
+<span class="sd">        """</span>
+        <span class="n">record</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"source"</span><span class="p">:</span> <span class="n">kind</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">files</span><span class="p">:</span>
+            <span class="n">identities</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">identities</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_identity</span><span class="p">(</span><span class="n">item</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                    <span class="n">identities</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">Path</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="p">})</span>
+            <span class="n">record</span><span class="p">[</span><span class="s2">"files"</span><span class="p">]</span> <span class="o">=</span> <span class="n">identities</span>
+        <span class="k">if</span> <span class="n">description</span><span class="p">:</span>
+            <span class="c1"># A ``SUEWSForcing`` built from a file carries its path as the</span>
+            <span class="c1"># source description; keep the file name only.</span>
+            <span class="n">candidate</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">description</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+                <span class="n">record</span><span class="p">[</span><span class="s2">"files"</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">file_identity</span><span class="p">(</span><span class="n">candidate</span><span class="p">)]</span>
+                <span class="n">record</span><span class="p">[</span><span class="s2">"source"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"files"</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">record</span><span class="p">[</span><span class="s2">"description"</span><span class="p">]</span> <span class="o">=</span> <span class="n">description</span>
+        <span class="k">return</span> <span class="n">record</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_try_load_forcing_from_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Try to load forcing data from configuration if not explicitly provided."""</span>
@@ -1363,6 +1431,9 @@
 
         <span class="c1"># Slice forcing data</span>
         <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_date</span><span class="p">:</span><span class="n">end_date</span><span class="p">]</span>
+        <span class="n">run_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_run_metadata</span><span class="p">(</span>
+            <span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">,</span> <span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">,</span> <span class="n">chunk_day</span>
+        <span class="p">)</span>
 
         <span class="c1"># A checkpoint continuation must pick up exactly one timestep after</span>
         <span class="c1"># the checkpointed period; this runs regardless of _validate_forcing.</span>
@@ -1434,6 +1505,11 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">,</span>
             <span class="p">)</span>
 
+        <span class="c1"># Snapshot the identity of the inputs as they are handed to the</span>
+        <span class="c1"># kernel, so a later update_config/update_forcing without a rerun</span>
+        <span class="c1"># cannot relabel this run's output at save time.</span>
+        <span class="n">run_metadata</span><span class="p">[</span><span class="s2">"inputs"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_input_identity</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">)</span>
+
         <span class="c1"># Run simulation via Rust bridge</span>
         <span class="n">initial_state_json_by_grid</span> <span class="o">=</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">grid_states</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
@@ -1470,6 +1546,8 @@
         <span class="n">df_state_final</span><span class="p">[(</span><span class="s2">"version"</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">)]</span> <span class="o">=</span> <span class="n">__version__</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="n">df_state_final</span>
 
+        <span class="n">run_metadata</span><span class="p">[</span><span class="s2">"ended_at"</span><span class="p">]</span> <span class="o">=</span> <span class="n">now_utc_iso</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_metadata</span> <span class="o">=</span> <span class="n">run_metadata</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="c1"># Wrap results in SUEWSOutput</span>
@@ -1502,6 +1580,9 @@
 <span class="sd">            - **format** : str</span>
 <span class="sd">                Output format: 'txt' (default) or 'parquet'.</span>
 <span class="sd">                Note: This overrides config file settings.</span>
+<span class="sd">            - **command** : str</span>
+<span class="sd">                Command line that produced the run (recorded in the</span>
+<span class="sd">                ``provenance.json`` sidecar; set by ``suews run``).</span>
 
 <span class="sd">            **Not currently supported** (due to internal constraints):</span>
 
@@ -1616,8 +1697,211 @@
             <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">output_path</span> <span class="o">/</span> <span class="n">checkpoint_name</span><span class="p">)</span>
             <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
 
+        <span class="c1"># Provenance sidecar: written last so it can list what was saved.</span>
+        <span class="c1"># Report the format that was actually written: the YAML</span>
+        <span class="c1"># ``output.format`` applies when no ``format`` kwarg is given.</span>
+        <span class="n">written_format</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">"parquet"</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">".parquet"</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">list_path_save</span><span class="p">)</span>
+            <span class="k">else</span> <span class="s2">"txt"</span>
+        <span class="p">)</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_provenance</span><span class="p">(</span>
+            <span class="n">list_path_save</span><span class="p">,</span>
+            <span class="n">output_format</span><span class="o">=</span><span class="n">written_format</span><span class="p">,</span>
+            <span class="n">freq_s</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">freq_s</span><span class="p">),</span>
+            <span class="n">forcing_timestamp_reference</span><span class="o">=</span><span class="n">forcing_timestamp_reference</span><span class="p">,</span>
+            <span class="n">output_config</span><span class="o">=</span><span class="n">output_config</span><span class="p">,</span>
+            <span class="n">command</span><span class="o">=</span><span class="n">save_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"command"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">write_provenance</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">payload</span><span class="p">))</span>
+
         <span class="k">return</span> <span class="n">list_path_save</span></div>
 
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_start_run_metadata</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">,</span> <span class="n">df_forcing_slice</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">,</span> <span class="n">chunk_day</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Record the requested and actual period plus run options.</span>
+
+<span class="sd">        ``requested`` is what ``run()`` was asked for (explicit arguments or</span>
+<span class="sd">        the configuration's ``start_time`` / ``end_time``); ``actual`` is the</span>
+<span class="sd">        forcing slice that was simulated. Both are kept so a reader can see</span>
+<span class="sd">        when a request was clipped to the available forcing.</span>
+
+<span class="sd">        When the period-coverage check has already published its result as</span>
+<span class="sd">        ``self._run_period`` (keys ``requested_start``, ``requested_end``,</span>
+<span class="sd">        ``requested_start_raw``, ``requested_end_raw``, ``actual_start``,</span>
+<span class="sd">        ``actual_end``, ``clipped``, ``policy``), that record is the single</span>
+<span class="sd">        source of truth and is consumed as is; this method never writes it.</span>
+<span class="sd">        """</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">df_forcing_slice</span><span class="o">.</span><span class="n">index</span>
+        <span class="n">tstep_s</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">tstep_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">tstep</span>
+                <span class="n">tstep_s</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">tstep_val</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">,</span> <span class="n">tstep_val</span><span class="p">))</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+                <span class="n">tstep_s</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">run_period</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_run_period"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">run_period</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">run_period</span><span class="p">:</span>
+            <span class="n">requested</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">"start"</span><span class="p">:</span> <span class="n">requested_bound_to_str</span><span class="p">(</span><span class="n">run_period</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requested_start"</span><span class="p">)),</span>
+                <span class="s2">"end"</span><span class="p">:</span> <span class="n">requested_bound_to_str</span><span class="p">(</span><span class="n">run_period</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requested_end"</span><span class="p">)),</span>
+                <span class="s2">"start_raw"</span><span class="p">:</span> <span class="n">requested_bound_to_str</span><span class="p">(</span>
+                    <span class="n">run_period</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requested_start_raw"</span><span class="p">)</span>
+                <span class="p">),</span>
+                <span class="s2">"end_raw"</span><span class="p">:</span> <span class="n">requested_bound_to_str</span><span class="p">(</span><span class="n">run_period</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requested_end_raw"</span><span class="p">)),</span>
+            <span class="p">}</span>
+            <span class="n">actual_start</span> <span class="o">=</span> <span class="n">run_period</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"actual_start"</span><span class="p">)</span>
+            <span class="n">actual_end</span> <span class="o">=</span> <span class="n">run_period</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"actual_end"</span><span class="p">)</span>
+            <span class="n">clipped</span> <span class="o">=</span> <span class="n">run_period</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"clipped"</span><span class="p">)</span>
+            <span class="n">policy</span> <span class="o">=</span> <span class="n">run_period</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"policy"</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">requested</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">"start"</span><span class="p">:</span> <span class="n">requested_bound_to_str</span><span class="p">(</span><span class="n">start_date</span><span class="p">),</span>
+                <span class="s2">"end"</span><span class="p">:</span> <span class="n">requested_bound_to_str</span><span class="p">(</span><span class="n">end_date</span><span class="p">),</span>
+            <span class="p">}</span>
+            <span class="n">actual_start</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">actual_end</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">clipped</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">policy</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"started_at"</span><span class="p">:</span> <span class="n">now_utc_iso</span><span class="p">(),</span>
+            <span class="s2">"ended_at"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"requested"</span><span class="p">:</span> <span class="n">requested</span><span class="p">,</span>
+            <span class="s2">"actual"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"start"</span><span class="p">:</span> <span class="n">timestamp_to_iso</span><span class="p">(</span><span class="n">actual_start</span><span class="p">),</span>
+                <span class="s2">"end"</span><span class="p">:</span> <span class="n">timestamp_to_iso</span><span class="p">(</span><span class="n">actual_end</span><span class="p">),</span>
+                <span class="s2">"n_timesteps"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">index</span><span class="p">)),</span>
+            <span class="p">},</span>
+            <span class="s2">"clipped"</span><span class="p">:</span> <span class="n">clipped</span><span class="p">,</span>
+            <span class="s2">"policy"</span><span class="p">:</span> <span class="n">policy</span><span class="p">,</span>
+            <span class="s2">"tstep_s"</span><span class="p">:</span> <span class="n">tstep_s</span><span class="p">,</span>
+            <span class="s2">"n_jobs"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">),</span>
+            <span class="s2">"chunk_day"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">chunk_day</span><span class="p">),</span>
+            <span class="s2">"continued_from_checkpoint"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_snapshot_input_identity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df_forcing_slice</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Describe the configuration and forcing exactly as run.</span>
+
+<span class="sd">        Source files are identified by name, size and SHA-256 (captured when</span>
+<span class="sd">        they were loaded); ``effective_sha256`` hashes the in-memory</span>
+<span class="sd">        configuration and the model-ready forcing slice that the kernel</span>
+<span class="sd">        received, which is what a later reader should compare against.</span>
+<span class="sd">        """</span>
+        <span class="n">config_block</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"source"</span><span class="p">:</span> <span class="s2">"in-memory"</span><span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config_identity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">config_block</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"source"</span><span class="p">:</span> <span class="s2">"file"</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_config_identity</span><span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">schema_version</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"schema_version"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">config_block</span><span class="p">[</span><span class="s2">"schema_version"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">schema_version</span><span class="p">)</span> <span class="k">if</span> <span class="n">schema_version</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="p">)</span>
+            <span class="n">config_block</span><span class="p">[</span><span class="s2">"sites"</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"sites"</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">config_block</span><span class="p">[</span><span class="s2">"effective_sha256"</span><span class="p">]</span> <span class="o">=</span> <span class="n">json_sha256</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">"json"</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># pragma: no cover - never let hashing fail a run</span>
+                <span class="n">config_block</span><span class="p">[</span><span class="s2">"effective_sha256"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="o">.</span><span class="n">index</span>
+            <span class="n">grid_level</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"grid"</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">"grid"</span> <span class="ow">in</span> <span class="n">index</span><span class="o">.</span><span class="n">names</span>
+                <span class="k">else</span> <span class="n">index</span>
+            <span class="p">)</span>
+            <span class="n">config_block</span><span class="p">[</span><span class="s2">"grids"</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grid_level</span><span class="p">]</span>
+
+        <span class="n">forcing_block</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_forcing_sources</span> <span class="ow">or</span> <span class="p">{</span><span class="s2">"source"</span><span class="p">:</span> <span class="s2">"unknown"</span><span class="p">})</span>
+        <span class="n">forcing_block</span><span class="p">[</span><span class="s2">"effective_sha256"</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataframe_sha256</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">)</span>
+        <span class="n">forcing_block</span><span class="p">[</span><span class="s2">"effective_n_rows"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"config"</span><span class="p">:</span> <span class="n">config_block</span><span class="p">,</span> <span class="s2">"forcing"</span><span class="p">:</span> <span class="n">forcing_block</span><span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_provenance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">list_path_save</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">output_format</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">freq_s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">forcing_timestamp_reference</span><span class="p">,</span>
+        <span class="n">output_config</span><span class="p">,</span>
+        <span class="n">command</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Assemble the ``provenance.json`` payload for :meth:`save`.</span>
+
+<span class="sd">        Input identities come from the snapshot taken by :meth:`run`, never</span>
+<span class="sd">        from the simulation's current attributes.</span>
+<span class="sd">        """</span>
+        <span class="n">run_metadata</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_run_metadata</span> <span class="ow">or</span> <span class="p">{})</span>
+        <span class="n">inputs</span> <span class="o">=</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"inputs"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">config_block</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"config"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{</span><span class="s2">"source"</span><span class="p">:</span> <span class="s2">"unknown"</span><span class="p">}</span>
+        <span class="n">forcing_block</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"forcing"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{</span><span class="s2">"source"</span><span class="p">:</span> <span class="s2">"unknown"</span><span class="p">}</span>
+
+        <span class="n">output_reference</span> <span class="o">=</span> <span class="s2">"follow"</span>
+        <span class="k">if</span> <span class="n">output_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ref</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">output_config</span><span class="p">,</span> <span class="s2">"timestamp_reference"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ref</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">output_reference</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">,</span> <span class="n">ref</span><span class="p">))</span>
+        <span class="n">forcing_reference</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">forcing_timestamp_reference</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">,</span> <span class="n">forcing_timestamp_reference</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">checkpoint_names</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">Path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">list_path_save</span>
+            <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"_checkpoint.json"</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">Path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">"SUEWS_checkpoint.json"</span>
+        <span class="p">]</span>
+        <span class="n">output_names</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">Path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">list_path_save</span> <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">checkpoint_names</span>
+        <span class="p">]</span>
+
+        <span class="n">period</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"requested"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requested"</span><span class="p">),</span>
+            <span class="s2">"actual"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"actual"</span><span class="p">),</span>
+            <span class="s2">"clipped"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"clipped"</span><span class="p">),</span>
+            <span class="s2">"policy"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"policy"</span><span class="p">),</span>
+            <span class="s2">"tstep_s"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"tstep_s"</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="n">run_block</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"interface"</span><span class="p">:</span> <span class="s2">"cli"</span> <span class="k">if</span> <span class="n">command</span> <span class="k">else</span> <span class="s2">"python"</span><span class="p">,</span>
+            <span class="s2">"command"</span><span class="p">:</span> <span class="n">command</span><span class="p">,</span>
+            <span class="s2">"started_at"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"started_at"</span><span class="p">),</span>
+            <span class="s2">"ended_at"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"ended_at"</span><span class="p">),</span>
+            <span class="s2">"n_jobs"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"n_jobs"</span><span class="p">),</span>
+            <span class="s2">"chunk_day"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"chunk_day"</span><span class="p">),</span>
+            <span class="s2">"continued_from_checkpoint"</span><span class="p">:</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">"continued_from_checkpoint"</span><span class="p">,</span> <span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"format_version"</span><span class="p">:</span> <span class="n">PROVENANCE_FORMAT_VERSION</span><span class="p">,</span>
+            <span class="s2">"generator"</span><span class="p">:</span> <span class="s2">"supy.SUEWSSimulation.save"</span><span class="p">,</span>
+            <span class="s2">"created_at"</span><span class="p">:</span> <span class="n">now_utc_iso</span><span class="p">(),</span>
+            <span class="o">**</span><span class="n">supy_build_identity</span><span class="p">(),</span>
+            <span class="s2">"config"</span><span class="p">:</span> <span class="n">config_block</span><span class="p">,</span>
+            <span class="s2">"forcing"</span><span class="p">:</span> <span class="n">forcing_block</span><span class="p">,</span>
+            <span class="s2">"period"</span><span class="p">:</span> <span class="n">period</span><span class="p">,</span>
+            <span class="s2">"timestamps"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"convention"</span><span class="p">:</span> <span class="n">TIMESTAMP_CONVENTION</span><span class="p">,</span>
+                <span class="s2">"forcing_reference"</span><span class="p">:</span> <span class="n">forcing_reference</span><span class="p">,</span>
+                <span class="s2">"output_reference"</span><span class="p">:</span> <span class="n">output_reference</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s2">"run"</span><span class="p">:</span> <span class="n">run_block</span><span class="p">,</span>
+            <span class="s2">"output"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"format"</span><span class="p">:</span> <span class="n">output_format</span><span class="p">,</span>
+                <span class="s2">"frequency_s"</span><span class="p">:</span> <span class="n">freq_s</span><span class="p">,</span>
+                <span class="s2">"files"</span><span class="p">:</span> <span class="n">output_names</span><span class="p">,</span>
+                <span class="s2">"checkpoint"</span><span class="p">:</span> <span class="n">checkpoint_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">checkpoint_names</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
 
 <div class="viewcode-block" id="SUEWSSimulation.reset">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.reset">[docs]</a>
@@ -1640,6 +1924,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_kernel_warnings</span> <span class="o">=</span> <span class="n">KernelWarningLog</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_metadata</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
 
@@ -2465,8 +2750,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.8.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d58930818b9cf5c34c2b989624fcd9ec2b7344e3">d589308</a> |
+  <p>Version: 2026.9.8.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52c41b60907649aa008ed90c1054a830e2dc60fa">52c41b6</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

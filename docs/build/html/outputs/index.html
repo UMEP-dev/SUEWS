@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-13T22:32:16+00:00" />
-    <title>5. Output Files &#8212; SUEWS 2026.9.8.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-09-08T09:49:00+00:00" />
+    <title>5. Output Files &#8212; SUEWS 2026.9.8.dev3 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=99b12655"></script>
+    <script src="../_static/documentation_options.js?v=224da448"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.9.3.4.5. Snow related parameters" href="../inputs/tables/Initial_Conditions/Snow_related_parameters.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.8.dev2" />
-    <meta name="docbuild:last-update" content="2026-08-13"/>
+  <meta name="docsearch:version" content="2026.9.8.dev3" />
+    <meta name="docbuild:last-update" content="2026-09-08"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.8.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d58930818b9cf5c34c2b989624fcd9ec2b7344e3" style="color: #31708f;">d589308</a>).
+        (2026.9.8.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52c41b60907649aa008ed90c1054a830e2dc60fa" style="color: #31708f;">52c41b6</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev2 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.8.dev3 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.8.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -665,8 +665,12 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#site-suews-checkpoint-json">5.6.1. {site}_SUEWS_checkpoint.json</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.7. Temporal Information</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#saved-timestamp-reference">5.8. Saved Timestamp Reference</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-provenance">5.7. Run Provenance</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#provenance-json">5.7.1. provenance.json</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.8. Temporal Information</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#saved-timestamp-reference">5.9. Saved Timestamp Reference</a></li>
 </ul>
             </nav>
         </div>
@@ -730,8 +734,48 @@ backwards compatibility and developer inspection, but they are not the preferred
 restart artefact for new object-oriented workflows.</p>
 </section>
 </section>
+<section id="run-provenance">
+<h2><span class="section-number">5.7. </span>Run Provenance<a class="headerlink" href="#run-provenance" title="Link to this heading">#</a></h2>
+<section id="provenance-json">
+<h3><span class="section-number">5.7.1. </span>provenance.json<a class="headerlink" href="#provenance-json" title="Link to this heading">#</a></h3>
+<p>Every save (<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span> <span class="pre">&lt;config.yml&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.save()</span></code>) writes a
+small <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> next to the output files. It records what a saved
+run directory was produced from, so the run can be audited or compared later
+without the original session:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">config</span></code> and <code class="docutils literal notranslate"><span class="pre">forcing</span></code>: the configuration and forcing files by file
+name, size and SHA-256 content hash, plus the configuration schema
+version, site names and grid IDs. Directories and absolute paths are never
+written, so the file can be shared as it is. In-memory inputs are recorded
+as <code class="docutils literal notranslate"><span class="pre">&quot;source&quot;:</span> <span class="pre">&quot;in-memory&quot;</span></code>. Each block also carries <code class="docutils literal notranslate"><span class="pre">effective_sha256</span></code>,
+a hash of the configuration and of the model-ready forcing frame exactly as
+the kernel received them; it differs from the source-file hash whenever the
+loader resampled or converted the file, or the inputs were edited in
+memory. All identities are captured at <code class="docutils literal notranslate"><span class="pre">run()</span></code> time, so replacing inputs
+afterwards without rerunning does not relabel the saved output.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">supy_version</span></code> and <code class="docutils literal notranslate"><span class="pre">git_commit</span></code>: the SuPy build that ran.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">period</span></code>: the requested start and end (explicit <code class="docutils literal notranslate"><span class="pre">run()</span></code> arguments or the
+configuration’s <code class="docutils literal notranslate"><span class="pre">start_time</span></code> / <code class="docutils literal notranslate"><span class="pre">end_time</span></code>), the period actually
+simulated with its number of timesteps, and the model timestep in seconds.
+Comparing <code class="docutils literal notranslate"><span class="pre">requested</span></code> with <code class="docutils literal notranslate"><span class="pre">actual</span></code> shows whether a request was clipped
+to the available forcing; <code class="docutils literal notranslate"><span class="pre">clipped</span></code> and <code class="docutils literal notranslate"><span class="pre">policy</span></code> carry the verdict of
+the period-coverage check when it ran, and are <code class="docutils literal notranslate"><span class="pre">null</span></code> otherwise.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">timestamps</span></code>: the labelling convention (<code class="docutils literal notranslate"><span class="pre">interval_end</span></code>; timestamps mark
+the end of each interval) and the forcing and output <code class="docutils literal notranslate"><span class="pre">timestamp_reference</span></code>
+settings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">run</span></code>: interface (<code class="docutils literal notranslate"><span class="pre">cli</span></code> or <code class="docutils literal notranslate"><span class="pre">python</span></code>), the <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code> command line
+when applicable, wall-clock start and end, <code class="docutils literal notranslate"><span class="pre">n_jobs</span></code>, <code class="docutils literal notranslate"><span class="pre">chunk_day</span></code> and
+whether the run continued from a checkpoint.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">output</span></code>: format, output frequency, the files written and the checkpoint
+file name.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">diagnose</span></code> checks for this file (<code class="docutils literal notranslate"><span class="pre">provenance_present</span></code>), and the MCP
+resource <code class="docutils literal notranslate"><span class="pre">suews://runs/{run_id}/provenance</span></code> returns its content. A
+top-level <code class="docutils literal notranslate"><span class="pre">format_version</span></code> (currently <code class="docutils literal notranslate"><span class="pre">1</span></code>) identifies the layout.</p>
+</section>
+</section>
 <section id="temporal-information">
-<h2><span class="section-number">5.7. </span>Temporal Information<a class="headerlink" href="#temporal-information" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.8. </span>Temporal Information<a class="headerlink" href="#temporal-information" title="Link to this heading">#</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Temporal information in output files (<code class="docutils literal notranslate"><span class="pre">iy</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">it</span></code>, <code class="docutils literal notranslate"><span class="pre">imin</span></code>)
@@ -746,7 +790,7 @@ for readability. See <a class="reference internal" href="text_format.html#output
 </div>
 </section>
 <section id="saved-timestamp-reference">
-<h2><span class="section-number">5.8. </span>Saved Timestamp Reference<a class="headerlink" href="#saved-timestamp-reference" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.9. </span>Saved Timestamp Reference<a class="headerlink" href="#saved-timestamp-reference" title="Link to this heading">#</a></h2>
 <p>Saved output follows the configured forcing clock by default. To relabel the
 saved timestamps without changing simulated values, set
 <code class="docutils literal notranslate"><span class="pre">model.control.output.timestamp_reference</span></code>:</p>
@@ -826,8 +870,12 @@ output filenames. <code class="docutils literal notranslate"><span class="pre">f
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#site-suews-checkpoint-json">5.6.1. {site}_SUEWS_checkpoint.json</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.7. Temporal Information</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#saved-timestamp-reference">5.8. Saved Timestamp Reference</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-provenance">5.7. Run Provenance</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#provenance-json">5.7.1. provenance.json</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.8. Temporal Information</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#saved-timestamp-reference">5.9. Saved Timestamp Reference</a></li>
 </ul>
   </nav></div>
 
@@ -861,7 +909,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-13.
+  Last updated on 2026-09-08.
   <br/>
 </p>
   </div>
@@ -869,8 +917,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.8.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d58930818b9cf5c34c2b989624fcd9ec2b7344e3">d589308</a> |
+  <p>Version: 2026.9.8.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52c41b60907649aa008ed90c1054a830e2dc60fa">52c41b6</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

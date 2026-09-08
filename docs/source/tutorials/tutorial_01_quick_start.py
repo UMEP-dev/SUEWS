@@ -142,7 +142,10 @@ print(sim.state_init.loc[:, "sfr_surf"])
 # With forcing data and initial conditions ready, run the SUEWS simulation.
 # The ``run()`` method returns a ``SUEWSOutput`` object for convenient access.
 
-output = sim.run()
+# The sample configuration requests the whole of 2012 but we loaded only
+# January to March. ``run()`` refuses a period the forcing does not cover,
+# so say explicitly that the loaded window is what we want to run.
+output = sim.run(clip_to_forcing=True)
 
 print(f"Simulation complete: {len(output.times)} timesteps")
 print(f"Output groups: {output.groups}")

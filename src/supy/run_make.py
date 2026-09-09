@@ -11,16 +11,16 @@ import subprocess
 import sys
 
 BUILD_PROFILES = ("release", "checked")
-DEFAULT_BUILD_PROFILE = "checked"
+DEFAULT_BUILD_PROFILE = "release"
 BUILD_PROFILE_ENV = "SUEWS_BUILD_PROFILE"
 
 
 def build_profile_from_env(environ: Mapping[str, str] | None = None) -> str:
     """Return the Fortran build profile selected by ``SUEWS_BUILD_PROFILE``.
 
-    ``checked`` (the current default) compiles the physics library with
-    ``-O0 -fcheck=all``; ``release`` compiles with ``-O3`` and no runtime
-    checks. Both keep ``-finit-real=zero`` and neither arms FPE traps; the
+    ``release`` (the default) compiles the physics library with ``-O3`` and
+    no runtime checks; ``checked`` compiles with ``-O0 -fcheck=all`` and is
+    what the nightly physics tier runs alongside the release wheels. Both keep ``-finit-real=zero`` and neither arms FPE traps; the
     flag sets live in ``src/suews/Makefile.gfortran``. The Rust bridge reads
     the same variable in ``src/suews_bridge/build.rs``.
     """

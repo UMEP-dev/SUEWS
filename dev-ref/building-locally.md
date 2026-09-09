@@ -105,21 +105,23 @@ environment variable at build time (`src/supy/run_make.py` passes it to the
 SUEWS Makefile as `DEBUG=1` or `DEBUG=`; `src/suews_bridge/build.rs` reads the
 same variable):
 
-- `checked` (the current default): `-O0 -fcheck=all -finit-real=zero`.
-  Out-of-bounds and uninitialised reads surface as Fortran runtime errors
-  rather than silent numbers. Measured against `release` on the same commit:
-  about 1.7x slower on the sample configuration and 5x on SPARTACUS-heavy
-  configurations.
-- `release`: `-O3 -finit-real=zero`, no runtime checks. Neither profile arms
-  floating-point exception traps; `src/suews/Makefile.gfortran` explains why.
+- `release` (the default): `-O3 -finit-real=zero`, no runtime checks. This
+  is what the published wheels are built with.
+- `checked`: `-O0 -fcheck=all -finit-real=zero`. Out-of-bounds and
+  uninitialised reads surface as Fortran runtime errors rather than silent
+  numbers. Measured against `release` on the same commit: about 1.7x slower
+  on the sample configuration and 5x on SPARTACUS-heavy configurations. The
+  nightly workflow builds this profile on every platform and runs the full
+  physics tier on it, alongside the release wheels it publishes.
+
+Neither profile arms floating-point exception traps; `src/suews/Makefile.gfortran`
+explains why.
 
 ```bash
-SUEWS_BUILD_PROFILE=release make dev     # optimised local build
-SUEWS_BUILD_PROFILE=checked make dev     # the default, spelled out
+make dev                                 # release, the default
+SUEWS_BUILD_PROFILE=checked make dev     # runtime checks, for debugging physics
 ```
 
 The variable is read when the Fortran objects are compiled, so change it with
 a clean build (`make clean && make dev`). In CI the profile is an input of the
-`build-suews` action and a `workflow_dispatch` choice on the wheel workflow;
-the default stays `checked` until the release profile has been validated on
-every platform.
+`build-suews` action and a `workflow_dispatch` choice on the wheel workflow.

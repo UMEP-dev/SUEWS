@@ -45,10 +45,11 @@ endif
 #            Measured cost against release: about 1.7x on the sample model and
 #            5x on SPARTACUS-heavy configurations.
 #   release: -O3 -finit-real=zero, no runtime checks, no FPE traps.
-# The checked profile stays the default here until the release profile has
-# been validated on every CI platform; a bare `make` therefore builds checked,
-# and `make DEBUG=` builds release.
-DEBUG ?= 1
+# Release is the default since the release profile was validated on every CI
+# platform (Windows first, then the nightly): a bare `make` builds release,
+# `make DEBUG=1` builds checked. The nightly physics tier builds the checked
+# profile alongside the release wheels so runtime checks keep running.
+DEBUG ?=
 
 LIBUTILS = $(addprefix $(DIR_LIB_SUEWS),libsuewsutil.a)
 LIBPHYS = $(addprefix $(DIR_LIB_SUEWS),libsuewsphys.a)

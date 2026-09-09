@@ -157,15 +157,15 @@ fn main() {
     }
 
     // Build profile, shared with src/supy/run_make.py through the same
-    // environment variable: "checked" (the current default) adds gfortran
-    // runtime checks to the bridge's own Fortran sources, "release" omits
-    // them. The physics library follows the same variable through the SUEWS
+    // environment variable: "release" (the default) compiles the bridge's
+    // own Fortran sources without runtime checks, "checked" adds
+    // -fcheck=all (the nightly physics tier builds it alongside release). The physics library follows the same variable through the SUEWS
     // Makefile, so a wheel is either wholly checked or wholly release.
     println!("cargo:rerun-if-env-changed=SUEWS_BUILD_PROFILE");
-    let build_profile = env::var("SUEWS_BUILD_PROFILE").unwrap_or_else(|_| "checked".to_string());
+    let build_profile = env::var("SUEWS_BUILD_PROFILE").unwrap_or_else(|_| "release".to_string());
     let runtime_checks = match build_profile.trim().to_ascii_lowercase().as_str() {
-        "" | "checked" => true,
-        "release" => false,
+        "" | "release" => false,
+        "checked" => true,
         other => panic!("SUEWS_BUILD_PROFILE must be \"release\" or \"checked\", got {other:?}"),
     };
 

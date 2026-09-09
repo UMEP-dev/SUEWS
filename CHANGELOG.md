@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 9 Sep 2026
 
+- [maintenance] Test lanes emit about 950 warnings instead of about 13000: the `from_df_state` reconstructors now build their models with current field names instead of deprecated ones, the test fixtures and documented YAML examples moved off deprecated field names, and a supy `DeprecationWarning` is an error under `filterwarnings` so a new deprecation regression fails a test rather than joining the noise (#1777).
 - [maintenance] The two MCP concurrency tests cap each client request at 120 s, so a server that never answers fails the test naming the request instead of running the lane into its job timeout (#1768, #1772)
 - [bugfix] Fixed the MCP server hanging on its first `query_knowledge` call on Windows by loading supy's field-rename registry at server start rather than on a worker thread (#1762, #1771).
 - [change][stable] Wheels are built with the `release` Fortran profile (`-O3`, no runtime checks) instead of the checked profile every wheel had carried since 2023; the nightly workflow now also builds the `checked` profile on every platform and runs the full physics tier on it, so runtime checks keep running where they are cheap (#1770)

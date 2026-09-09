@@ -26,29 +26,51 @@ from scripts.lint import check_cost_markers as checker  # noqa: E402
 pytestmark = pytest.mark.api
 
 MEDIUM = 10.0
-SLOW = 60.0
+SLOW = 30.0
+BAND = 1.5
 
 
-def _record(node_id: str, *, call: float, setup: float = 0.0, markers: tuple[str, ...] = ()) -> dict[str, Any]:
+def _record(
+    node_id: str,
+    *,
+    call: float,
+    setup: float = 0.0,
+    markers: tuple[str, ...] = (),
+    outcome: str = "passed",
+    reasons: dict[str, str] | None = None,
+) -> dict[str, Any]:
     phases = {"setup": setup, "call": call, "teardown": 0.0, "total": setup + call}
     return {
         "cpu_method": "os.times",
         "cpu_seconds": phases,
+        "marker_reasons": reasons or {},
         "markers": sorted(markers),
         "node_id": node_id,
-        "outcome": "passed",
+        "outcome": outcome,
         "wall_seconds": {key: value * 1.5 for key, value in phases.items()},
     }
 
 
-def _artefact(path: Path, records: list[dict[str, Any]], *, schema_version: int = 2) -> Path:
-    payload = {"schema_version": schema_version, "tests": records}
-    path.write_text(json.dumps(payload), encoding="utf-8")
+def _artefact(path: Path, records: list[dict[str, Any]]) -> Path:
+    path.write_text(json.dumps({"schema_version": 2, "tests": records}), encoding="utf-8")
     return path
 
 
-def _cost(node_id: str, cpu: float, *markers: str) -> checker.TestCost:
-    return checker.TestCost(node_id, tuple(sorted(markers)), cpu, cpu * 1.5, "synthetic.json")
+def _cost(
+    node_id: str,
+    cpu: float,
+    *markers: str,
+    outcome: str = "passed",
+    slow_reason: str | None = None,
+) -> checker.TestCost:
+    reasons = (("slow", slow_reason),) if slow_reason else ()
+    return checker.TestCost(
+        node_id, tuple(sorted(markers)), cpu, cpu * 1.5, "synthetic.json", outcome, reasons
+    )
+
+
+def _check(tests: list[checker.TestCost]) -> checker.Report:
+    return checker.check_costs(tests, medium_seconds=MEDIUM, slow_seconds=SLOW, band=BAND)
 
 
 # Marked smoke as well as core: a tests-only PR runs the smoke tier, and the
@@ -60,15 +82,16 @@ def test_each_disagreement_is_flagged_with_its_class_and_wanted_marker() -> None
     tests = [
         _cost("t/a.py::test_fast_unmarked", 1.0),
         _cost("t/a.py::test_medium_unmarked", 12.0),
-        _cost("t/a.py::test_slow_unmarked", 75.0),
+        _cost("t/a.py::test_slow_unmarked", 45.0),
         _cost("t/a.py::test_medium_ok", 20.0, "medium"),
         _cost("t/a.py::test_medium_is_slow", 90.0, "medium"),
         _cost("t/a.py::test_medium_is_fast", 2.0, "medium", "core"),
         _cost("t/a.py::test_slow_ok", 120.0, "slow"),
-        _cost("t/a.py::test_slow_is_fast", 0.5, "slow"),
+        _cost("t/a.py::test_bare_slow_is_fast", 0.5, "slow"),
+        _cost("t/a.py::test_bare_slow_is_medium", 15.0, "slow"),
     ]
 
-    report = checker.check_costs(tests, medium_seconds=MEDIUM, slow_seconds=SLOW)
+    report = _check(tests)
 
     assert not report.ok
     flagged = {
@@ -79,26 +102,51 @@ def test_each_disagreement_is_flagged_with_its_class_and_wanted_marker() -> None
         "t/a.py::test_slow_unmarked": ("unmarked-over-medium", "slow"),
         "t/a.py::test_medium_is_slow": ("medium-over-slow", "slow"),
         "t/a.py::test_medium_is_fast": ("medium-under-medium", "no cost marker"),
-        "t/a.py::test_slow_is_fast": ("slow-under-medium", "no cost marker"),
+        "t/a.py::test_bare_slow_is_fast": ("slow-without-reason", "no cost marker"),
+        "t/a.py::test_bare_slow_is_medium": ("slow-without-reason", "medium"),
     }
     message = report.message()
-    assert "[X] 5 marker(s)" in message
+    assert "[X] 6 marker(s)" in message
     for node_id in flagged:
         assert node_id in message
     assert "t/a.py::test_fast_unmarked" not in message
+    assert "t/a.py::test_medium_ok" not in message
     assert "patterns.md" in message
+    assert "pytest.mark.slow(reason=...)" in message
 
 
-def test_slow_marker_on_a_medium_cost_test_is_not_drift() -> None:
-    """`slow` also means unsuitable for routine PR runs, so it may exceed the CPU reading."""
-    report = checker.check_costs(
-        [_cost("t/a.py::test_slow_for_other_reasons", 25.0, "slow")],
-        medium_seconds=MEDIUM,
-        slow_seconds=SLOW,
-    )
+def test_slow_marker_with_a_stated_reason_is_accepted_at_any_cost() -> None:
+    """`slow(reason=...)` states a non-CPU cause; the check does not second-guess it."""
+    report = _check([
+        _cost("t/a.py::test_needs_network", 0.2, "slow", slow_reason="downloads from the CDS API"),
+        _cost("t/a.py::test_policy", 3.0, "slow", slow_reason="non-anchor version"),
+    ])
 
     assert report.ok
     assert "[OK]" in report.message()
+
+
+def test_medium_marker_inside_the_band_is_not_questioned() -> None:
+    """A medium mark just under the threshold stays quiet; well under, it is flagged."""
+    inside = _check([_cost("t/a.py::test_near", MEDIUM / BAND, "medium")])
+    below = _check([_cost("t/a.py::test_far", MEDIUM / BAND - 0.1, "medium")])
+
+    assert inside.ok
+    assert [finding.kind for finding in below.findings] == ["medium-under-medium"]
+
+
+def test_nodes_without_a_call_phase_are_not_judged() -> None:
+    """Skipped and xfailed nodes carry no measurement; they are counted, not flagged."""
+    report = _check([
+        _cost("t/a.py::test_skipped_slow", 0.0, "slow", outcome="skipped"),
+        _cost("t/a.py::test_xfailed_medium", 0.0, "medium", outcome="xfailed"),
+        _cost("t/a.py::test_ran", 1.0),
+    ])
+
+    assert report.ok
+    assert report.unmeasured == 2
+    assert [test.node_id for test in report.tests] == ["t/a.py::test_ran"]
+    assert "2 skipped or xfailed not judged" in report.message()
 
 
 def test_node_seen_in_two_artefacts_is_judged_on_its_largest_cost() -> None:
@@ -108,16 +156,18 @@ def test_node_seen_in_two_artefacts_is_judged_on_its_largest_cost() -> None:
         checker.TestCost("t/a.py::test_shared", ("api", "physics"), 14.0, 20.0, "physics.json"),
     ]
 
-    report = checker.check_costs(tests, medium_seconds=MEDIUM, slow_seconds=SLOW)
+    report = _check(tests)
 
     assert len(report.tests) == 1
     assert report.tests[0].source == "physics.json"
     assert [finding.kind for finding in report.findings] == ["unmarked-over-medium"]
 
 
-def test_thresholds_must_be_ordered() -> None:
+def test_thresholds_and_band_are_validated() -> None:
     with pytest.raises(ValueError, match="medium threshold must be below"):
         checker.check_costs([], medium_seconds=60.0, slow_seconds=10.0)
+    with pytest.raises(ValueError, match="band must be at least 1"):
+        checker.check_costs([], medium_seconds=10.0, slow_seconds=30.0, band=0.5)
 
 
 def test_loader_reads_api_and_physics_artefacts_and_skips_the_rest(tmp_path: Path) -> None:
@@ -128,7 +178,14 @@ def test_loader_reads_api_and_physics_artefacts_and_skips_the_rest(tmp_path: Pat
     physics_dir.mkdir()
     _artefact(
         api_dir / "api-cp312-manylinux-x86_64.json",
-        [_record("t/api.py::test_api", call=0.2, markers=("api",))],
+        [
+            _record(
+                "t/api.py::test_api",
+                call=0.2,
+                markers=("api", "slow"),
+                reasons={"slow": "needs credentials"},
+            )
+        ],
     )
     pytest_payload = _artefact(
         physics_dir / "physics-cp312-manylinux-x86_64-pytest.json",
@@ -148,7 +205,6 @@ def test_loader_reads_api_and_physics_artefacts_and_skips_the_rest(tmp_path: Pat
         json.dumps({"schema_version": 1, "phases": {}}), encoding="utf-8"
     )
     # A schema-2 artefact from before per-test records were added.
-    _artefact(tmp_path / "old.json", [], schema_version=2)
     (tmp_path / "old.json").write_text(
         json.dumps({"schema_version": 2, "inventory": {"node_count": 0}}), encoding="utf-8"
     )
@@ -161,6 +217,7 @@ def test_loader_reads_api_and_physics_artefacts_and_skips_the_rest(tmp_path: Pat
         "physics-cp312-manylinux-x86_64-pytest.json",
     ]
     assert [test.node_id for test in tests] == ["t/api.py::test_api", "t/phys.py::test_phys"]
+    assert tests[0].slow_reason == "needs credentials"
     assert {Path(path).name for path in skipped} == {
         "old.json",
         "physics-cp312-manylinux-x86_64-phases.json",
@@ -172,7 +229,9 @@ def test_loader_reads_api_and_physics_artefacts_and_skips_the_rest(tmp_path: Pat
     assert total_tests[1].cpu_seconds == 43.0
 
 
-def test_cli_exit_codes_and_markdown_summary(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_exit_codes_and_markdown_summary(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Exit 1 on drift, 0 when clean, 2 with nothing to read; Markdown appended when asked."""
     clean = _artefact(
         tmp_path / "clean.json",
@@ -186,29 +245,21 @@ def test_cli_exit_codes_and_markdown_summary(tmp_path: Path, capsys: pytest.Capt
         [_record("t/a.py::test_heavy_unmarked", call=42.0)],
     )
     summary = tmp_path / "summary.md"
+    thresholds = ["--medium-seconds", "10", "--slow-seconds", "30"]
 
-    assert checker.main([str(clean), "--medium-seconds", "10", "--slow-seconds", "60"]) == 0
+    assert checker.main([str(clean), *thresholds]) == 0
     assert "[OK]" in capsys.readouterr().out
 
     assert (
-        checker.main([
-            str(drift),
-            "--medium-seconds",
-            "10",
-            "--slow-seconds",
-            "60",
-            "--markdown",
-            str(summary),
-            "--histogram",
-        ])
+        checker.main([str(drift), *thresholds, "--markdown", str(summary), "--histogram"])
         == 1
     )
     out = capsys.readouterr().out
-    assert "t/a.py::test_heavy_unmarked: 42.0 CPU-s (no cost marker -> medium" in out
+    assert "t/a.py::test_heavy_unmarked: 42.0 CPU-s (no cost marker -> slow" in out
     assert "| CPU-s | tests | cumulative |" in out
     written = summary.read_text(encoding="utf-8")
     assert "## Cost-marker drift" in written
-    assert "| `t/a.py::test_heavy_unmarked` | 42.0 | - | medium | unmarked-over-medium |" in written
+    assert "| `t/a.py::test_heavy_unmarked` | 42.0 | - | slow | unmarked-over-medium |" in written
     assert "### Distribution" in written
 
     (tmp_path / "phases.json").write_text(json.dumps({"schema_version": 1}), encoding="utf-8")

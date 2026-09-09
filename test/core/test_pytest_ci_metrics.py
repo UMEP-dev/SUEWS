@@ -40,7 +40,7 @@ def test_warn():
     warnings.warn("group me", UserWarning)
 
 
-@pytest.mark.slow
+@pytest.mark.slow(reason="probe the recorded reason")
 def test_burn():
     # Enough arithmetic to register on the 10 ms os.times() clock.
     assert sum(range(10_000_000)) > 0
@@ -155,6 +155,7 @@ def _assert_per_test_records(records: list[dict[str, Any]], node_ids: list[str])
 
     burn = by_node["test_sample.py::test_burn"]
     assert burn["markers"] == ["slow"]
+    assert burn["marker_reasons"] == {"slow": "probe the recorded reason"}
     assert burn["outcome"] == "passed"
     # The busy loop runs in the test body, so the call phase carries the CPU
     # and dominates the setup and teardown of a fixture-free test.
@@ -163,6 +164,7 @@ def _assert_per_test_records(records: list[dict[str, Any]], node_ids: list[str])
     assert burn["wall_seconds"]["call"] > 0
 
     assert by_node["test_sample.py::test_pass"]["markers"] == []
+    assert by_node["test_sample.py::test_pass"]["marker_reasons"] == {}
     assert by_node["test_sample.py::test_pass"]["outcome"] == "passed"
 
     skipped = by_node["test_sample.py::test_skipped"]

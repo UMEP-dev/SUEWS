@@ -46,6 +46,9 @@ CPU_METHOD = "os.times"
 # from the executing process to the controller.
 REPORT_CPU_ATTR = "suews_cpu_seconds"
 REPORT_MARKERS_ATTR = "suews_markers"
+REPORT_MARKER_REASONS_ATTR = "suews_marker_reasons"
+# Cost markers whose `reason=` keyword is recorded beside the marker name.
+COST_MARKERS = ("medium", "slow")
 DEFAULT_SAMPLE_INTERVAL_SECONDS = 0.25
 _ADDRESS_RE = re.compile(r"0x[0-9a-fA-F]+")
 _UUID_RE = re.compile(
@@ -68,6 +71,7 @@ class _TestMetrics:
     """Per-phase measurements for one collected test, gathered from its reports."""
 
     markers: list[str] = field(default_factory=list)
+    marker_reasons: dict[str, str] = field(default_factory=dict)
     wall_seconds: dict[str, float] = field(default_factory=dict)
     cpu_seconds: dict[str, float] = field(default_factory=dict)
 
@@ -423,6 +427,7 @@ def _test_records() -> list[dict[str, Any]]:
         records.append({
             "cpu_method": CPU_METHOD,
             "cpu_seconds": _phase_seconds(test.cpu_seconds),
+            "marker_reasons": dict(sorted(test.marker_reasons.items())),
             "markers": sorted(test.markers),
             "node_id": node_id,
             "outcome": _STATE.node_outcomes.get(node_id),
@@ -636,6 +641,21 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
             REPORT_MARKERS_ATTR,
             sorted({marker.name for marker in item.iter_markers()}),
         )
+        setattr(report, REPORT_MARKER_REASONS_ATTR, _marker_reasons(item))
+
+
+def _marker_reasons(item: pytest.Item) -> dict[str, str]:
+    """Collect ``reason=`` keyword arguments from the cost markers on an item.
+
+    ``pytest.mark.slow(reason="...")`` is how a test states that it stays out
+    of routine PR runs for a cause other than CPU cost; the cost-marker check
+    reads the reason from the artefact instead of the source.
+    """
+    reasons: dict[str, str] = {}
+    for marker in item.iter_markers():
+        if marker.name in COST_MARKERS and "reason" in marker.kwargs:
+            reasons.setdefault(marker.name, str(marker.kwargs["reason"]))
+    return reasons
 
 
 def _record_test(report: pytest.TestReport) -> None:
@@ -648,6 +668,9 @@ def _record_test(report: pytest.TestReport) -> None:
     markers = getattr(report, REPORT_MARKERS_ATTR, None)
     if markers:
         test.markers = [str(marker) for marker in markers]
+    reasons = getattr(report, REPORT_MARKER_REASONS_ATTR, None)
+    if reasons:
+        test.marker_reasons = {str(name): str(text) for name, text in dict(reasons).items()}
 
 
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:

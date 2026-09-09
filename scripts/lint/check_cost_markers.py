@@ -5,9 +5,9 @@ The cost markers select tests into CI tiers (`.claude/rules/tests/patterns.md`,
 "Importance and cost"). They used to be assigned by wall-clock feel, and wall
 time on a hosted runner sits on a 2x noise floor: the same 166-test physics tier
 took 169 s and 343 s on the same runner class on the same day. The markers are
-therefore defined by process CPU seconds on the Linux reference runner
-(`ubuntu-latest`, cp312), which the metrics plugin
-(`scripts/suews/pytest_ci_metrics.py`) records per test in the
+therefore defined by process CPU seconds of the test body (the `call` phase)
+on the Linux reference runner (`ubuntu-latest`, cp312), which the metrics
+plugin (`scripts/suews/pytest_ci_metrics.py`) records per test in the
 `ci-metrics-api-cp312-manylinux-x86_64` and
 `ci-metrics-physics-cp312-manylinux-x86_64` artefacts of every nightly run.
 
@@ -15,17 +15,30 @@ This script reads one or more of those artefacts (files, or directories as
 `gh run download` leaves them) and reports every test whose marker disagrees
 with its measured cost:
 
-- no cost marker, but at or above the `medium` threshold (mark it `medium`,
-  or `slow` when it also clears the `slow` threshold);
-- marked `medium`, but at or above the `slow` threshold (mark it `slow`);
-- marked `slow`, but under the `medium` threshold (drop the mark);
-- marked `medium`, but under the `medium` threshold (drop the mark).
+- `unmarked-over-medium`: no cost marker, but at or above the `medium`
+  threshold (mark it `medium`, or `slow` when it also clears `slow`);
+- `medium-over-slow`: marked `medium`, but at or above the `slow` threshold;
+- `medium-under-medium`: marked `medium`, but under the `medium` threshold by
+  more than the hysteresis band (see below);
+- `slow-without-reason`: marked `slow` with a bare marker, but under the `slow`
+  threshold. `slow` also means "unsuitable for routine PR runs" for a cause
+  other than CPU (network, credentials, a run-count policy, a platform that is
+  far slower than the reference); such a test states the cause as
+  `pytest.mark.slow(reason="...")`, the plugin records it, and this check
+  accepts it. A bare `slow` is a CPU claim and is checked as one.
+
+The hysteresis band keeps a test near a threshold from flapping between two
+nights' readings: a `medium` mark is only questioned when the test measures
+under `medium / band`. Under-marking has no band, so one flap over the
+threshold is answered by adding the marker, after which the test sits inside
+the band and stays quiet.
 
 A node that appears in several artefacts (a file marked both `physics` and
-`api` runs in both lanes) is judged on its largest measurement. The exit code
-is 1 when any test is flagged, so a local run is useful on its own; the nightly
-step that runs it carries `continue-on-error`, so drift is reported and never
-reddens the run.
+`api` runs in both lanes) is judged on its largest measurement. Nodes that did
+not run their body (skipped, xfailed) carry no measurement and are not judged.
+The exit code is 1 when any test is flagged, so a local run is useful on its
+own; the nightly step that runs it carries `continue-on-error`, so drift is
+reported and never reddens the run.
 
 Usage::
 
@@ -43,20 +56,31 @@ from pathlib import Path
 import sys
 from typing import Any
 
-# Thresholds in process CPU seconds on the Linux reference runner. The
-# reasoning and the distribution they were read from live in
-# `.claude/rules/tests/patterns.md` ("Importance and cost").
+# Thresholds in process CPU seconds of the test body on the Linux reference
+# runner. The distribution they were read from and the reasoning live in
+# `.claude/rules/tests/patterns.md` ("Cost thresholds").
 MEDIUM_CPU_SECONDS = 10.0
-SLOW_CPU_SECONDS = 60.0
+SLOW_CPU_SECONDS = 30.0
+# A `medium` mark is questioned only under MEDIUM_CPU_SECONDS / BAND.
+BAND = 1.5
 # The phase whose CPU seconds define a test's cost. `call` is the test body;
 # `total` adds fixture setup and teardown, which under xdist charges a shared
 # session fixture to whichever test reaches it first on each worker.
 DEFAULT_PHASE = "call"
 PHASES = ("setup", "call", "teardown", "total")
 COST_MARKERS = ("medium", "slow")
+# Outcomes whose call phase ran and so carry a measurement.
+MEASURED_OUTCOMES = frozenset({"passed", "failed", "xpassed"})
 METRICS_SCHEMA_VERSION = 2
 # Log-spaced bin edges for the histogram, in CPU seconds.
 HISTOGRAM_EDGES = (0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0, 300.0)
+
+FINDING_KINDS = {
+    "unmarked-over-medium": "Unmarked tests at or above the medium threshold",
+    "medium-over-slow": "Tests marked medium at or above the slow threshold",
+    "medium-under-medium": "Tests marked medium under the medium threshold (beyond the band)",
+    "slow-without-reason": "Tests marked slow under the slow threshold without a stated reason",
+}
 
 
 @dataclass(frozen=True)
@@ -68,6 +92,8 @@ class TestCost:
     cpu_seconds: float
     wall_seconds: float
     source: str
+    outcome: str = "passed"
+    marker_reasons: tuple[tuple[str, str], ...] = ()
 
     @property
     def cost_marker(self) -> str | None:
@@ -77,6 +103,14 @@ class TestCost:
         if "medium" in self.markers:
             return "medium"
         return None
+
+    @property
+    def slow_reason(self) -> str | None:
+        return dict(self.marker_reasons).get("slow")
+
+    @property
+    def measured(self) -> bool:
+        return self.outcome in MEASURED_OUTCOMES
 
 
 @dataclass(frozen=True)
@@ -101,10 +135,12 @@ class Report:
 
     medium_seconds: float
     slow_seconds: float
+    band: float
     phase: str
     tests: list[TestCost] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
+    unmeasured: int = 0
 
     @property
     def ok(self) -> bool:
@@ -116,13 +152,17 @@ class Report:
             grouped[finding.kind].append(finding)
         return grouped
 
+    def _scope(self) -> str:
+        return (
+            f"{len(self.tests)} measured tests ({self.unmeasured} skipped or xfailed "
+            f"not judged) from {len(self.sources)} artefact(s); cost = {self.phase}-phase "
+            f"CPU seconds; medium >= {self.medium_seconds:g} s, slow >= "
+            f"{self.slow_seconds:g} s, band {self.band:g}."
+        )
+
     def message(self) -> str:
         """Plain-text report: header, then each finding class with its nodes."""
-        lines = [
-            f"Cost markers against {self.phase}-phase CPU seconds "
-            f"(medium >= {self.medium_seconds:g} s, slow >= {self.slow_seconds:g} s); "
-            f"{len(self.tests)} tests from {len(self.sources)} artefact(s).",
-        ]
+        lines = [f"Cost markers against measured CPU seconds: {self._scope()}"]
         if self.ok:
             lines.append("[OK] every medium and slow marker agrees with its measured cost.")
             return "\n".join(lines)
@@ -134,20 +174,14 @@ class Report:
             lines.extend(finding.line() for finding in findings)
         lines.append(
             "Fix the marker, not the threshold: thresholds and their reasoning are in "
-            ".claude/rules/tests/patterns.md."
+            ".claude/rules/tests/patterns.md. A slow test that is slow for a reason "
+            "other than CPU states it as pytest.mark.slow(reason=...)."
         )
         return "\n".join(lines)
 
     def markdown(self) -> str:
         """Markdown for a GitHub step summary."""
-        lines = [
-            "## Cost-marker drift",
-            "",
-            f"{len(self.tests)} tests from {len(self.sources)} artefact(s); "
-            f"cost = {self.phase}-phase CPU seconds; "
-            f"`medium` >= {self.medium_seconds:g} s, `slow` >= {self.slow_seconds:g} s.",
-            "",
-        ]
+        lines = ["## Cost-marker drift", "", self._scope(), ""]
         if self.ok:
             lines.append("No drift: every `medium` and `slow` marker agrees with its measured cost.")
         else:
@@ -166,14 +200,6 @@ class Report:
                 )
         lines.extend(["", "### Distribution", "", *histogram_lines(self.tests), ""])
         return "\n".join(lines)
-
-
-FINDING_KINDS = {
-    "unmarked-over-medium": "Unmarked tests at or above the medium threshold",
-    "medium-over-slow": "Tests marked medium at or above the slow threshold",
-    "slow-under-medium": "Tests marked slow under the medium threshold",
-    "medium-under-medium": "Tests marked medium under the medium threshold",
-}
 
 
 def iter_artefact_paths(paths: Iterable[Path]) -> Iterator[Path]:
@@ -230,6 +256,7 @@ def load_tests(
             continue
         sources.append(path.name)
         for record in metrics["tests"]:
+            reasons = record.get("marker_reasons") or {}
             tests.append(
                 TestCost(
                     node_id=str(record["node_id"]),
@@ -237,6 +264,8 @@ def load_tests(
                     cpu_seconds=float(record["cpu_seconds"][phase]),
                     wall_seconds=float(record["wall_seconds"][phase]),
                     source=path.name,
+                    outcome=str(record.get("outcome")),
+                    marker_reasons=tuple(sorted((str(k), str(v)) for k, v in reasons.items())),
                 )
             )
     return tests, sources
@@ -261,38 +290,56 @@ def wanted_marker(cpu_seconds: float, medium_seconds: float, slow_seconds: float
     return None
 
 
+def classify(
+    test: TestCost,
+    *,
+    medium_seconds: float,
+    slow_seconds: float,
+    band: float,
+) -> Finding | None:
+    """Return the finding for one measured test, or None when its marker holds."""
+    wanted = wanted_marker(test.cpu_seconds, medium_seconds, slow_seconds)
+    current = test.cost_marker
+    if current is None:
+        if wanted is None:
+            return None
+        return Finding("unmarked-over-medium", test, wanted)
+    if current == "medium":
+        if wanted == "slow":
+            return Finding("medium-over-slow", test, "slow")
+        if test.cpu_seconds < medium_seconds / band:
+            return Finding("medium-under-medium", test, "no cost marker")
+        return None
+    # current == "slow"
+    if wanted == "slow" or test.slow_reason:
+        return None
+    return Finding("slow-without-reason", test, wanted or "no cost marker")
+
+
 def check_costs(
     tests: Iterable[TestCost],
     *,
     medium_seconds: float = MEDIUM_CPU_SECONDS,
     slow_seconds: float = SLOW_CPU_SECONDS,
+    band: float = BAND,
     phase: str = DEFAULT_PHASE,
     sources: Iterable[str] = (),
 ) -> Report:
-    """Compare every test's cost marker with the marker its cost calls for."""
+    """Compare every measured test's cost marker with the marker its cost calls for."""
     if not medium_seconds < slow_seconds:
         raise ValueError("the medium threshold must be below the slow threshold")
-    report = Report(medium_seconds, slow_seconds, phase, sources=list(sources))
-    report.tests = largest_per_node(tests)
+    if band < 1.0:
+        raise ValueError("the band must be at least 1")
+    report = Report(medium_seconds, slow_seconds, band, phase, sources=list(sources))
+    all_tests = largest_per_node(tests)
+    report.tests = [test for test in all_tests if test.measured]
+    report.unmeasured = len(all_tests) - len(report.tests)
     for test in report.tests:
-        wanted = wanted_marker(test.cpu_seconds, medium_seconds, slow_seconds)
-        current = test.cost_marker
-        if current == wanted:
-            continue
-        if current is None:
-            kind = "unmarked-over-medium"
-        elif current == "medium" and wanted == "slow":
-            kind = "medium-over-slow"
-        elif current == "slow":
-            # A slow mark over a medium-cost test is left alone: `slow` is also
-            # the honest marker for a test unsuitable for routine PR runs for a
-            # reason other than CPU (external data, a full-year run's memory).
-            if wanted == "medium":
-                continue
-            kind = "slow-under-medium"
-        else:
-            kind = "medium-under-medium"
-        report.findings.append(Finding(kind, test, wanted or "no cost marker"))
+        finding = classify(
+            test, medium_seconds=medium_seconds, slow_seconds=slow_seconds, band=band
+        )
+        if finding is not None:
+            report.findings.append(finding)
     return report
 
 
@@ -338,6 +385,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help=f"CPU seconds from which a test is slow (default {SLOW_CPU_SECONDS:g})",
     )
     parser.add_argument(
+        "--band",
+        type=float,
+        default=BAND,
+        help=f"a medium mark is questioned only under medium / band (default {BAND:g})",
+    )
+    parser.add_argument(
         "--phase",
         choices=PHASES,
         default=DEFAULT_PHASE,
@@ -369,6 +422,7 @@ def main(argv: list[str] | None = None) -> int:
         tests,
         medium_seconds=args.medium_seconds,
         slow_seconds=args.slow_seconds,
+        band=args.band,
         phase=args.phase,
         sources=sources,
     )

@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 9 Sep 2026
 
+- [maintenance] The sample-output reference is written at seven significant figures (`float_format="%.7g"`, at most 5e-7 relative error against a tightest test tolerance of 0.002), halving it from 151 MiB to 77 MiB and its parse time from 3.3 s to 1.7 s; it is now parsed once per pytest session via a `sample_reference` fixture, and carries a `provenance.json` sidecar recording the build, compiler, platform and per-shard hashes that a new test asserts against the shards on disk (#1776)
 - [maintenance] The two MCP concurrency tests cap each client request at 120 s, so a server that never answers fails the test naming the request instead of running the lane into its job timeout (#1768, #1772)
 - [bugfix] Fixed the MCP server hanging on its first `query_knowledge` call on Windows by loading supy's field-rename registry at server start rather than on a worker thread (#1762, #1771).
 - [change][stable] Wheels are built with the `release` Fortran profile (`-O3`, no runtime checks) instead of the checked profile every wheel had carried since 2023; the nightly workflow now also builds the `checked` profile on every platform and runs the full physics tier on it, so runtime checks keep running where they are cheap (#1770)

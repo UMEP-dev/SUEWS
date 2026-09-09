@@ -18,7 +18,7 @@ BASICFLAGS = -J./mod -fconvert=big-endian -ffree-line-length-none -frecursive
 OMPFLAG = -fopenmp
 
 ifndef DEBUG
-# --RELEASE CONFIGURATION-- (SUEWS_BUILD_PROFILE=release, see ../supy/run_make.py)
+# --RELEASE CONFIGURATION-- (SUEWS_BUILD_PROFILE=release, the default; see ../supy/run_make.py)
 
 # Optimization flags
 OPTFLAGS = -O3
@@ -39,7 +39,7 @@ WARNFLAGS = -Wall -Wno-unused-label -Wno-unused-dummy-argument -Wno-unused-varia
 DEBUGFLAGS = -g -finit-real=zero
 
 else
-# --CHECKED CONFIGURATION-- (SUEWS_BUILD_PROFILE=checked, the current default)
+# --CHECKED CONFIGURATION-- (SUEWS_BUILD_PROFILE=checked; the nightly physics tier, or `make DEBUG=1`)
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
 # When the physics library is loaded as a shared library from Python/Rust:

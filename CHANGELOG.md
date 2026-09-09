@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 9 Sep 2026
 
+- [change][stable] Wheels are built with the `release` Fortran profile (`-O3`, no runtime checks) instead of the checked profile every wheel had carried since 2023; the nightly workflow now also builds the `checked` profile on every platform and runs the full physics tier on it, so runtime checks keep running where they are cheap (#1770)
 - [maintenance] Added targeted SPARTACUS regressions for vegetation above the tree canopy and a short run using explicit changes to the existing sample configuration (#1699).
 
 ### 8 Sep 2026

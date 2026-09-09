@@ -94,10 +94,11 @@ recipes and the installation docs.
 
 - `FCFLAGS` env var is NOT forwarded through `make dev` -> meson-python pipeline
   - Fortran compiler flags live in `src/suews/Makefile.gfortran`, selected by
-    the build profile: `SUEWS_BUILD_PROFILE=checked` (runtime checks, the
-    current default) or `release` (`-O3`, no checks). `src/supy/run_make.py`
-    and `src/suews_bridge/build.rs` read the same variable
-  - Release build locally: `SUEWS_BUILD_PROFILE=release make dev`
+    the build profile: `SUEWS_BUILD_PROFILE=release` (`-O3`, no checks, the
+    default) or `checked` (runtime checks; the nightly physics tier builds it
+    too). `src/supy/run_make.py` and `src/suews_bridge/build.rs` read the
+    same variable
+  - Checked build locally, for debugging physics: `SUEWS_BUILD_PROFILE=checked make dev`
 - `make clean` removes `build/` but meson-python may cache compiled extensions elsewhere
   - For a truly clean rebuild: `make clean && pip cache purge && make dev`
 

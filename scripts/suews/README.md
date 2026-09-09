@@ -63,12 +63,12 @@ diagnosis, and the grouped representation is in `normalised_message`. Other
 numbers and paths are preserved so scientifically different warnings do not
 collapse together.
 
-The total across `warnings[].count` is a tracked number. It fell from about
-13000 to about 1100 per everyday lane on 9 September 2026 when the
-`from_df_state` reconstructors stopped passing deprecated field names to their
-own constructors and the test fixtures moved to current names; a supy
-`DeprecationWarning` is now an error under `filterwarnings` in
-`pyproject.toml`. Expect the deprecation share to stay near zero. When the
+The total across `warnings[].count` is a tracked number. On 9 September 2026 it
+fell from 9261 to 690 in the cp312 API lane, of which the `DeprecationWarning`
+share fell from 8754 to 684, when the `from_df_state` reconstructors stopped
+passing deprecated field names to their own constructors and the test fixtures
+moved to current names; a supy `DeprecationWarning` is now an error under
+`filterwarnings` in `pyproject.toml`. Expect the deprecation share to stay near zero. When the
 total rises, read the new fingerprints rather than the total: a fixture or an
 internal caller has regressed to a deprecated spelling (fix the caller, do not
 add a filter), or a dependency has started warning (pin or adapt). Widening the
@@ -125,6 +125,52 @@ manifest. The median measured test-phase overhead must be no more than 2%.
 This manual same-job result is the acceptance evidence. Ordinary PR runs and
 unrelated historical runs cannot establish the overhead bound because GitHub
 host load is uncontrolled.
+
+## Tolerance spread of the sample comparison
+
+**Script**: `tolerance_spread.py`
+
+`test/core/test_sample_output.py` accepts each output variable of the
+full-year sample run within a tolerance, and every tolerance there is a bare
+number: nothing records the cross-platform and cross-CPython spread the numbers
+are meant to absorb. This script records that spread so the tolerances can be
+derived from it.
+
+```bash
+# Run the full-year sample comparison with every tolerance set to zero
+python scripts/suews/tolerance_spread.py measure \
+  --output tolerance-spread/tolerance-spread-manylinux-x86_64-cp312.json
+
+# Print the spread across a set of artefacts beside the current tolerance
+python scripts/suews/tolerance_spread.py summarise artefacts/ [--markdown]
+```
+
+`measure` reuses the test module's loader, variable list, run helpers and
+deviation arithmetic (`deviation_arrays`), so the numbers are exactly what the
+comparator sees. Per variable it records the maximum absolute and maximum
+relative deviation, the timestamp and grid where each occurs, the actual and
+expected values there, the count of exactly equal points, and the tolerance the
+test currently resolves on that platform and CPython. The header carries the
+platform key, CPython version, supy version, git SHA (`--git-sha`, else
+`GITHUB_SHA`, else `git rev-parse HEAD`) and Fortran build profile
+(`--build-profile`, else `SUEWS_BUILD_PROFILE`, else `unknown`; the wheel does
+not expose it). The exit code is 0 however large the spread is. When
+`GITHUB_STEP_SUMMARY` is set, the same table is appended as Markdown.
+
+The `tolerance_spread` job in `build-publish_to_pypi.yml` runs `measure` on
+every scheduled run, on each built platform for the two CPython bookends, and
+uploads one artefact per cell named
+`tolerance-spread-<platform>-<arch>-<cpXY>` (retained 30 days). The same job
+runs on `workflow_dispatch` when the `tolerance_spread` input is set. It never
+fails the nightly: it feeds neither `report_scheduled_run` nor the PR gate.
+
+`summarise` accepts artefact files or directories (the layout `gh run download
+<id> --pattern 'tolerance-spread-*'` produces), lists the artefacts with their
+SHA, supy version and build profile, warns when they span more than one SHA,
+and prints per variable the largest absolute and relative deviation across all
+of them, which artefact and timestamp produced each, and the range of current
+tolerances. Deriving a tolerance from the spread is deliberately left to the
+reader of that table.
 
 ## Hosted pytest scheduler comparison
 

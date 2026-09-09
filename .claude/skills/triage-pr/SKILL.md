@@ -130,8 +130,9 @@ last substantive activity predates the previous audit timestamp.
 Independent of the disposition label, apply `0-physics:change` (if it exists in
 the repo) when the PR diff touches physics source (`suews_phys_*.f95`, the Rust
 physics backend), moves a reference fixture
-(`test/fixtures/data_test/sample_output.csv.gz`,
-`.../stebbs_test/sample_output_stebbs.csv`, `test/fixtures/benchmark1/*.pkl`), or
+(`test/fixtures/data_test/sample_output_2012-*.csv` and its `provenance.json`
+sidecar, `.../stebbs_test/sample_output_stebbs.csv`,
+`test/fixtures/benchmark1/*.pkl`), or
 changes a physics-affecting data-model default. It is additive (not part of the
 mutually-exclusive `0-pr:*` family) and activates the evidence requirements in
 `.claude/rules/physics-change-evidence.md`: a `## Scientific evidence` PR-body

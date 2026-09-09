@@ -5,7 +5,14 @@ Rules for numerical comparisons, test validation, and diagnostic investigations.
 ## Before comparing outputs
 
 1. **Read the existing test code first.** Find how the test loads, parses, and aligns data. Use the same method — do not guess file formats, index structures, or column mappings.
-   - `sample_output.csv.gz` must be loaded with `index_col=[0, 1], parse_dates=[1]`
+   - the sample-output reference is twelve monthly CSV shards; read it through
+     `sample_output_io.load_sample_output` (in tests, via the session-scoped
+     `sample_reference` fixture in `test/conftest.py`) rather than rolling your
+     own glob-and-concatenate. A diagnostic script cannot take a pytest
+     fixture, so call the loader directly; it globs `sample_output_2012-*.csv`,
+     sorts by name, and reads each shard with `index_col=[0, 1]`,
+     `parse_dates=[1]`, `float_precision="round_trip"`, then checks the
+     concatenated frame for a unique index and the expected 105,408 rows
    - Never assume CSV structure — check the test that uses it
 
 2. **Run the existing test before writing custom scripts.** If a test exists for the comparison you need, run it (`pytest path::Class::method -v`). Only write custom code if no test covers the question.

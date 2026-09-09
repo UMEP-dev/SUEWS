@@ -1,0 +1,93 @@
+{
+  "build": {
+    "compilers": {
+      "c": {
+        "full_version": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+        "id": "clang",
+        "version": "21.0.0"
+      },
+      "fortran": {
+        "full_version": "GNU Fortran (Homebrew GCC 15.2.0_1) 15.2.0",
+        "id": "gcc",
+        "version": "15.2.0"
+      }
+    },
+    "fortran_build_profile": "release",
+    "git_commit": "ce29700498",
+    "supy_version": "2026.9.9.dev5"
+  },
+  "column_names_sha256": "1f6b28f98506b531b5c6531dd353feb033ee62d67e879e6dd941b7a63b26bc31",
+  "columns": 113,
+  "float_format": "%.7g",
+  "format_version": 1,
+  "generated_utc": "2026-09-09T17:11:16Z",
+  "platform": {
+    "machine": "arm64",
+    "pandas": "3.0.5",
+    "python": "3.13.0",
+    "system": "Darwin"
+  },
+  "rows": 105408,
+  "shards": [
+    {
+      "name": "sample_output_2012-01.csv",
+      "sha256": "c00ff39e37a0f53b649624357bcf3a893b276faca058d909904aae9643abc2a7",
+      "size_bytes": 6843329
+    },
+    {
+      "name": "sample_output_2012-02.csv",
+      "sha256": "7e7c183f8e30a149d283b556155613493ce197295df9eaade4bfbf216251b46c",
+      "size_bytes": 6368356
+    },
+    {
+      "name": "sample_output_2012-03.csv",
+      "sha256": "5aae18759df458774b2afd3548eba32a2e97c7daaf36d63f7c8adcdfcb48b755",
+      "size_bytes": 6727620
+    },
+    {
+      "name": "sample_output_2012-04.csv",
+      "sha256": "80217e1a0dd3f6734ded775f45f34558872e02011714d2c4c682ec4e2c6e6a08",
+      "size_bytes": 6750391
+    },
+    {
+      "name": "sample_output_2012-05.csv",
+      "sha256": "eb072a41c9956f7f1b24e79020f3dbb0e7ee6605ff58aad53d1fe373b8595c4a",
+      "size_bytes": 6738865
+    },
+    {
+      "name": "sample_output_2012-06.csv",
+      "sha256": "09c7a2b84df5c23ddc423e616b09abc770421df61a9de4080433ee1cce0f032a",
+      "size_bytes": 6618603
+    },
+    {
+      "name": "sample_output_2012-07.csv",
+      "sha256": "5e864d930d23292aaf53d61dafc5790dcf94d4bbe55946efb04a1667e79e6b40",
+      "size_bytes": 6846115
+    },
+    {
+      "name": "sample_output_2012-08.csv",
+      "sha256": "8ee34977bf718b06425ef24c78f66c969d30da6641b6dc173310f1135d0db4df",
+      "size_bytes": 6697113
+    },
+    {
+      "name": "sample_output_2012-09.csv",
+      "sha256": "f668fdf608dfba79dc13a2efe59aee301b2f57399e2658b41b021a3fac58e9f8",
+      "size_bytes": 6497047
+    },
+    {
+      "name": "sample_output_2012-10.csv",
+      "sha256": "b687d2edcf9589956c08aefcb42abbb1b1c2ba3628644dd6ffb42dac46ed190f",
+      "size_bytes": 6944876
+    },
+    {
+      "name": "sample_output_2012-11.csv",
+      "sha256": "592b48e9cce516b5a18a560382aef0c04a96912be044ab7d19867b2de4f9e782",
+      "size_bytes": 6708049
+    },
+    {
+      "name": "sample_output_2012-12.csv",
+      "sha256": "e71fe81b34c53fc1033e66935f2fc1e0fb823f70563b9cf27aa92fa78f71c4c8",
+      "size_bytes": 6956233
+    }
+  ]
+}

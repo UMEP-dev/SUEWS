@@ -19,9 +19,13 @@ inputs:
     required: false
     default: 'standard'
   build_profile:
-    description: 'Fortran build profile: checked (runtime checks, the current default) or release (optimised, no checks). Read by src/supy/run_make.py and src/suews_bridge/build.rs.'
+    description: 'Fortran build profile: release (optimised, no checks, the default) or checked (runtime checks; the nightly physics tier). Read by src/supy/run_make.py and src/suews_bridge/build.rs.'
     required: false
-    default: 'checked'
+    default: 'release'
+  artifact_prefix:
+    description: 'Prefix for the wheel and metrics artefact names, so a second build of the same platform (the checked nightly build) does not collide with the release wheels that publish.'
+    required: false
+    default: ''
   is_testpypi_build:
     description: 'Whether this is a TestPyPI build (adds notice to README)'
     required: false
@@ -279,7 +283,7 @@ runs:
       if: always()
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
-        name: ci-metrics-physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+        name: ${{ inputs.artifact_prefix }}ci-metrics-physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
         path: ${{ inputs.metrics_host_dir }}/*.json
         if-no-files-found: error
         retention-days: 14
@@ -291,5 +295,5 @@ runs:
     - name: Upload wheels
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
-        name: ${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+        name: ${{ inputs.artifact_prefix }}${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
         path: ./wheelhouse/*.whl

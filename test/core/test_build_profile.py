@@ -31,9 +31,9 @@ def run_make():
     return _load_run_make()
 
 
-def test_default_profile_is_checked(run_make):
-    assert run_make.build_profile_from_env({}) == "checked"
-    assert run_make.build_profile_from_env({"SUEWS_BUILD_PROFILE": ""}) == "checked"
+def test_default_profile_is_release(run_make):
+    assert run_make.build_profile_from_env({}) == "release"
+    assert run_make.build_profile_from_env({"SUEWS_BUILD_PROFILE": ""}) == "release"
 
 
 @pytest.mark.parametrize(

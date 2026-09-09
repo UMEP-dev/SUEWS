@@ -397,6 +397,34 @@ def get_tolerance_for_variable(
     return tolerance
 
 
+def deviation_arrays(actual, expected):
+    """Return (abs_diff, rel_diff, valid_mask, nan_mismatch) for two equal-shape arrays.
+
+    This is the arithmetic the comparator applies before any tolerance is
+    consulted, factored out so scripts/suews/tolerance_spread.py can record the
+    raw cross-platform deviation with exactly the comparator's definitions: the
+    relative deviation divides by ``|expected| + eps``, and ``valid_mask`` is
+    False only where both arrays are NaN.
+    """
+    actual = np.asarray(actual)
+    expected = np.asarray(expected)
+    if actual.shape != expected.shape:
+        raise ValueError(f"Shape mismatch: {actual.shape} vs {expected.shape}")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        abs_diff = np.abs(actual - expected)
+        # Use expected value for relative difference calculation
+        # Add small epsilon to avoid division by zero
+        rel_diff = abs_diff / (np.abs(expected) + np.finfo(float).eps)
+
+    actual_nan = np.isnan(actual)
+    expected_nan = np.isnan(expected)
+    nan_mismatch = actual_nan != expected_nan
+    # Ignore positions where both are NaN
+    valid_mask = ~(actual_nan & expected_nan)
+    return abs_diff, rel_diff, valid_mask, nan_mismatch
+
+
 def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
     """
     Compare arrays using same logic as numpy.allclose but with detailed reporting.
@@ -438,25 +466,15 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
         )
 
     # Calculate differences
-    with np.errstate(divide="ignore", invalid="ignore"):
-        abs_diff = np.abs(actual - expected)
-        # Use expected value for relative difference calculation
-        # Add small epsilon to avoid division by zero
-        rel_diff = abs_diff / (np.abs(expected) + np.finfo(float).eps)
+    abs_diff, rel_diff, valid_mask, nan_mismatch = deviation_arrays(actual, expected)
 
     # Check tolerance using same logic as numpy.allclose
     within_tol = (abs_diff <= atol) | (rel_diff <= rtol)
 
     # Handle NaN values
-    actual_nan = np.isnan(actual)
-    expected_nan = np.isnan(expected)
-    nan_mismatch = actual_nan != expected_nan
-
     if np.any(nan_mismatch):
         return False, f"NaN mismatch for {var_name}: NaN positions differ"
 
-    # Ignore positions where both are NaN
-    valid_mask = ~(actual_nan & expected_nan)
     within_tol = within_tol | ~valid_mask
 
     # Generate report

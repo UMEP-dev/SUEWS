@@ -2,7 +2,7 @@
 # Determine the cibuildwheel build matrix based on trigger type and change detection.
 #
 # Called from build-publish_to_pypi.yml determine_matrix job.
-# Writes buildplat, api_buildplat, python, api_python, test_tier to GITHUB_OUTPUT.
+# Writes buildplat, api_buildplat, python, api_python, bookend_python, test_tier to GITHUB_OUTPUT.
 #
 # "python" is the cibuildwheel build matrix (the abi3 floor derived from
 # pyproject's requires-python — emits one abi3 wheel per platform). Physics
@@ -252,3 +252,9 @@ fi
 # installed into each Python version and exercised with
 # `-m "api and <tier>"` by test-api-cross-python-reusable.yml.
 echo "api_python=$API_PYTHON" >> "$GITHUB_OUTPUT"
+
+# The two CPython bookends (floor and newest after the requires-python clamp),
+# independent of the trigger. The nightly tolerance-spread job runs on exactly
+# these two so its artefacts stay comparable night to night, whereas
+# api_python widens to ALL on schedule.
+echo "bookend_python=$BOOKEND_PYTHON" >> "$GITHUB_OUTPUT"

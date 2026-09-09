@@ -38,6 +38,19 @@ def test_example():
 
 **Why 0.8% tolerance?** Conservative, well within measurement uncertainty. Eddy covariance has 5-10% uncertainty; energy balance closure rarely better than 70-90%.
 
+**Where the measured spread lives.** The table above is the measurement-uncertainty
+floor. The actual cross-platform and cross-CPython spread of the full-year sample
+comparison is recorded, not assumed: the nightly `tolerance_spread` job in
+`build-publish_to_pypi.yml` runs `scripts/suews/tolerance_spread.py measure` with
+every tolerance set to zero on each built platform for the two CPython bookends and
+uploads one `tolerance-spread-<platform>-<arch>-<cpXY>` artefact per cell (also on
+`workflow_dispatch` with the `tolerance_spread` input). `tolerance_spread.py
+summarise` prints the spread across a set of those artefacts beside the current
+tolerance. Tolerances in `test/core/test_sample_output.py` are to be derived from
+that spread (a documented multiple of it, floored by the table above) and must cite
+the artefacts they came from; a tolerance loosened without a spread artefact behind
+it is a bare number and should be flagged in review.
+
 ---
 
 ## Assertions

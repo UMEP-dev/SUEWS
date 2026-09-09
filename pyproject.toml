@@ -162,6 +162,9 @@ filterwarnings = [
     # Tests that exist to exercise the deprecated surface itself opt out with
     # an explicit @pytest.mark.filterwarnings, named one by one rather than
     # waived wholesale. See scripts/suews/README.md for the tracked count.
+    # The gate covers warnings whose resolved frame is inside supy (the rename
+    # shim warns with stacklevel=4): a test constructing a model with a legacy
+    # keyword directly is attributed to the test, not to supy, and passes.
     "error::DeprecationWarning:supy",
     # Third-party deprecations reached through supy are outside the gate
     # above: adapting to them is a separate change with its own behaviour

@@ -30,6 +30,14 @@ Thus, a roof in a vertical layer is still a horizontal surface, and a wall in
 a vertical layer is still a vertical surface. The vertical-layer index only
 identifies the facet's position between the ground and maximum building height.
 
+For SPARTACUS-Surface radiation, ``veg_frac`` and ``veg_scale`` must both
+be zero in layers starting at or above the tallest tree crown.
+The default NARP sample is not a SPARTACUS reference configuration:
+changing the radiation selector alone fails this vegetation-layer check.
+The targeted regression tests apply explicit, test-local geometry changes
+to exercise validation and a short simulation; those changes do not establish
+observational validity for the resulting configuration.
+
 **Material layers** (``thermal_layers`` in YAML) are five layers ordered from
 the exposed surface inward. The same index in ``dz``, ``k``, and ``rho_cp``
 describes the same material layer:

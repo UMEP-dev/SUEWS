@@ -763,6 +763,20 @@ class TestSampleOutput(TestCase):
 # ============================================================================
 
 
+def test_shard_identity_ignores_line_endings(tmp_path):
+    """A CRLF checkout of a shard (git autocrlf on Windows) has the same
+    identity as the LF original, so the sidecar assertion holds everywhere."""
+    lf = tmp_path / "lf"
+    crlf = tmp_path / "crlf"
+    lf.mkdir()
+    crlf.mkdir()
+    body = "a,b\n1,2\n3,4\n"
+    (lf / "sample_output_2012-01.csv").write_bytes(body.encode())
+    (crlf / "sample_output_2012-01.csv").write_bytes(body.replace("\n", "\r\n").encode())
+    assert shard_identities(lf) == shard_identities(crlf)
+    assert shard_identities(lf)[0]["size_bytes"] == len(body)
+
+
 @pytest.mark.core
 @pytest.mark.smoke
 def test_reference_provenance_matches_shards(sample_reference, sample_reference_dir):

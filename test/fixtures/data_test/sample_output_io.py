@@ -142,37 +142,55 @@ def load_sample_output(data_dir: Path) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 #
 # The sidecar records the identity of the run the shards came from. It is
-# deliberately hashed over the shard BYTES rather than over an in-memory frame:
-# file bytes are bit-identical on every platform and every pandas version, so
-# the assertion in the tests can only fail because the reference or the sidecar
-# actually moved -- never because a hashing implementation changed underneath
-# it.
+# deliberately hashed over the shard BYTES rather than over an in-memory frame,
+# with one normalisation: CRLF line endings are folded to LF before hashing.
+# A Windows checkout with git's autocrlf rewrites the CSV line endings, and the
+# merge-queue run of #1776 failed on exactly that, so the digest must not
+# depend on how git checked the file out. With that folded away the bytes are
+# identical on every platform and every pandas version, so the assertion in
+# the tests can only fail because the reference or the sidecar actually moved
+# -- never because a hashing implementation changed underneath it.
 
 
-def _file_digest(path: Path) -> str:
-    """SHA-256 of a file's bytes."""
+def _file_digest(path: Path) -> tuple[str, int]:
+    """SHA-256 and byte count of a file with CRLF folded to LF."""
     digest = hashlib.sha256()
+    size = 0
     with Path(path).open("rb") as handle:
+        pending_cr = False
         for chunk in iter(lambda: handle.read(1 << 20), b""):
+            if pending_cr:
+                chunk = b"\r" + chunk
+                pending_cr = False
+            if chunk.endswith(b"\r"):
+                chunk = chunk[:-1]
+                pending_cr = True
+            chunk = chunk.replace(b"\r\n", b"\n")
             digest.update(chunk)
-    return digest.hexdigest()
+            size += len(chunk)
+        if pending_cr:
+            digest.update(b"\r")
+            size += 1
+    return digest.hexdigest(), size
 
 
 def shard_identities(data_dir: Path) -> list[dict[str, Any]]:
     """Describe every shard under ``data_dir`` by name, size and SHA-256.
 
     Only file names are recorded, never directories, so the sidecar can be read
-    on any checkout without carrying the producing machine's layout.
+    on any checkout without carrying the producing machine's layout; sizes and
+    digests are taken with CRLF folded to LF, so a Windows checkout matches.
     """
     data_dir = Path(data_dir)
-    return [
-        {
+    identities = []
+    for path in sorted(data_dir.glob(SHARD_GLOB)):
+        sha256, size_bytes = _file_digest(path)
+        identities.append({
             "name": path.name,
-            "size_bytes": path.stat().st_size,
-            "sha256": _file_digest(path),
-        }
-        for path in sorted(data_dir.glob(SHARD_GLOB))
-    ]
+            "size_bytes": size_bytes,
+            "sha256": sha256,
+        })
+    return identities
 
 
 def column_names_sha256(df: pd.DataFrame) -> str:

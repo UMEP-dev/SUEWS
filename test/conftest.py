@@ -18,6 +18,7 @@ if _MCP_SRC.is_dir() and str(_MCP_SRC) not in sys.path:
     sys.path.insert(0, str(_MCP_SRC))
 
 from click.testing import CliRunner
+import pandas as pd
 import pytest
 
 import supy
@@ -457,6 +458,38 @@ def sample_run_output(completed_sample_sim):
     Same READ-ONLY contract as ``completed_sample_sim``.
     """
     return completed_sample_sim.output
+
+
+@pytest.fixture(scope="session")
+def sample_reference() -> pd.DataFrame:
+    """The one-year sample-output reference frame, parsed once per session.
+
+    Reconstructed from the twelve monthly plain-CSV shards under
+    ``test/fixtures/data_test/`` by ``sample_output_io.load_sample_output``.
+    Parsing them costs a few seconds of pure CSV work, and every reader wants
+    the same immutable frame, so it is session-scoped rather than paid per
+    test.
+
+    READ-ONLY, shared across the whole session: consumers must not mutate the
+    frame in place. Slice it (``.iloc[...]``) or ``.copy()`` before changing
+    anything.
+    """
+    import sys
+
+    data_dir = Path(__file__).parent / "fixtures" / "data_test"
+    # Same path insertion the fixture's own readers use: the module lives
+    # beside the shards so the split/combine convention has one home.
+    if str(data_dir) not in sys.path:
+        sys.path.insert(0, str(data_dir))
+    from sample_output_io import load_sample_output
+
+    return load_sample_output(data_dir)
+
+
+@pytest.fixture(scope="session")
+def sample_reference_dir() -> Path:
+    """Directory holding the sample-output shards and their provenance sidecar."""
+    return Path(__file__).parent / "fixtures" / "data_test"
 
 
 @pytest.fixture(scope="session")

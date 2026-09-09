@@ -42,11 +42,19 @@ pytestmark = pytest.mark.physics
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
-# The reference output is stored as twelve monthly plain-CSV shards;
-# load_sample_output reconstructs the full-year frame. See the split/combine
-# convention in fixtures/data_test/sample_output_io.py.
+# The reference output is stored as twelve monthly plain-CSV shards written at
+# seven significant figures, plus a provenance.json sidecar. The shards are
+# parsed once per session by the `sample_reference` fixture in test/conftest.py,
+# not per test: the full-year frame costs a few seconds of CSV parsing and
+# every reader wants the same immutable copy. See the split/combine convention
+# and the precision justification in fixtures/data_test/sample_output_io.py.
 sys.path.insert(0, str(test_data_dir))
-from sample_output_io import load_sample_output  # noqa: E402
+from sample_output_io import (  # noqa: E402
+    REFERENCE_FLOAT_FORMAT,
+    column_names_sha256,
+    read_reference_provenance,
+    shard_identities,
+)
 
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
 # Default the smoke path to one model day. Set SUEWS_FAIL_FAST_STEPS to a larger
@@ -514,6 +522,14 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
 class TestSampleOutput(TestCase):
     """Dedicated test class for validating SUEWS outputs against reference data."""
 
+    # A TestCase method cannot take a fixture as an argument, so the
+    # session-scoped reference is bound onto the instance by an autouse
+    # fixture. This is what keeps the twelve shards parsed once per pytest
+    # invocation rather than once per test method.
+    @pytest.fixture(autouse=True)
+    def _bind_sample_reference(self, sample_reference):
+        self.df_ref = sample_reference
+
     def setUp(self):
         """Set up test environment."""
         # Clear any cached data from previous tests
@@ -563,7 +579,7 @@ class TestSampleOutput(TestCase):
         )
         df_output = output.df
 
-        df_ref = load_sample_output(test_data_dir)
+        df_ref = self.df_ref
 
         variables_to_test = list(TOLERANCE_CONFIG.keys())
         failed_variables = []
@@ -661,7 +677,7 @@ class TestSampleOutput(TestCase):
         sample_config = sample_dir / "sample_config.yml"
         assert sample_config.is_file(), f"Sample config not found: {sample_config}"
 
-        df_ref = load_sample_output(test_data_dir)
+        df_ref = self.df_ref
         print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
 
         validation_steps = (
@@ -722,6 +738,63 @@ class TestSampleOutput(TestCase):
             f"Engine vs reference failed for: {', '.join(failed)}\n"
             + "\n".join(report),
         )
+
+
+# ============================================================================
+# REFERENCE PROVENANCE
+# ============================================================================
+
+
+@pytest.mark.core
+@pytest.mark.smoke
+def test_reference_provenance_matches_shards(sample_reference, sample_reference_dir):
+    """The provenance sidecar describes the reference actually on disk.
+
+    The sidecar records which SuPy build, compiler and platform produced the
+    reference, so a later refresh can be told apart from a drifted checkout.
+    That is only worth anything if the sidecar and the shards cannot fall out
+    of step, which is what this asserts: the shard set, each shard's bytes, the
+    row and column counts and the column names must all match what the
+    generator recorded.
+
+    The check is on file bytes rather than on a hash of the loaded frame, so it
+    cannot fail because a pandas hashing implementation changed underneath it.
+    A sidecar that is stale, missing a shard, or absent altogether fails here
+    rather than being noticed the next time somebody wonders where the numbers
+    came from.
+    """
+    provenance = read_reference_provenance(sample_reference_dir)
+
+    assert provenance["float_format"] == REFERENCE_FLOAT_FORMAT, (
+        "sidecar records a different write precision than the fixture module "
+        f"defines: {provenance['float_format']!r} vs {REFERENCE_FLOAT_FORMAT!r}"
+    )
+    assert provenance["rows"] == len(sample_reference)
+    assert provenance["columns"] == sample_reference.shape[1]
+    assert provenance["column_names_sha256"] == column_names_sha256(sample_reference), (
+        "reference columns differ from the set the sidecar was written for"
+    )
+
+    recorded = {shard["name"]: shard for shard in provenance["shards"]}
+    on_disk = {shard["name"]: shard for shard in shard_identities(sample_reference_dir)}
+    assert recorded.keys() == on_disk.keys(), (
+        "shard set differs from the sidecar: "
+        f"only on disk {sorted(on_disk.keys() - recorded.keys())}, "
+        f"only in sidecar {sorted(recorded.keys() - on_disk.keys())}"
+    )
+    mismatched = [
+        name
+        for name in sorted(on_disk)
+        if on_disk[name]["sha256"] != recorded[name]["sha256"]
+    ]
+    assert not mismatched, (
+        f"shard contents differ from the sidecar: {', '.join(mismatched)} -- "
+        "regenerate the reference with scripts/suews/gen_sample_output.py so "
+        "the sidecar travels with the numbers"
+    )
+
+    build = provenance["build"]
+    assert build["supy_version"], "sidecar records no SuPy version"
 
 
 if __name__ == "__main__":

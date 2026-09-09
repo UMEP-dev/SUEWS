@@ -192,7 +192,8 @@ def collect_delta_nodes(repo_root: Path) -> list[str]:
     # expected state today, not an error.
     if result.returncode not in {0, 5}:
         raise RuntimeError(
-            f"pytest collection failed (exit {result.returncode}):\n{result.stderr}"
+            f"pytest collection failed (exit {result.returncode}); this is a "
+            f"suite-wide collection error, not a tier-delta finding:\n{result.stderr}"
         )
     return [line for line in result.stdout.splitlines() if "::" in line]
 

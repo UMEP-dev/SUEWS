@@ -11,15 +11,20 @@ prove the check trips.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 
-from scripts.lint import check_physics_tier_delta as checker
+REPO_ROOT = Path(__file__).resolve().parents[2]
+# scripts/ is not a package on sys.path under a bare `pytest` invocation
+# (only `python -m pytest` puts the repository root there), so add it.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.lint import check_physics_tier_delta as checker  # noqa: E402
 
 pytestmark = pytest.mark.api
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
 
 UNRECORDED_NODE = "test/physics/test_synthetic.py::test_slow_without_core"
 

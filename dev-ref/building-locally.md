@@ -96,3 +96,30 @@ SUEWS/
 
 For a more comprehensive developer overview (workflow, testing strategy, best practices), see the [Onboarding Guide](onboarding-guide.md).
 
+
+## Build profiles
+
+The Fortran physics library and the Rust bridge's own Fortran sources are
+compiled under one of two profiles, selected by the `SUEWS_BUILD_PROFILE`
+environment variable at build time (`src/supy/run_make.py` passes it to the
+SUEWS Makefile as `DEBUG=1` or `DEBUG=`; `src/suews_bridge/build.rs` reads the
+same variable):
+
+- `checked` (the current default): `-O0 -fcheck=all -finit-real=zero`.
+  Out-of-bounds and uninitialised reads surface as Fortran runtime errors
+  rather than silent numbers. Measured against `release` on the same commit:
+  about 1.7x slower on the sample configuration and 5x on SPARTACUS-heavy
+  configurations.
+- `release`: `-O3 -finit-real=zero`, no runtime checks. Neither profile arms
+  floating-point exception traps; `src/suews/Makefile.gfortran` explains why.
+
+```bash
+SUEWS_BUILD_PROFILE=release make dev     # optimised local build
+SUEWS_BUILD_PROFILE=checked make dev     # the default, spelled out
+```
+
+The variable is read when the Fortran objects are compiled, so change it with
+a clean build (`make clean && make dev`). In CI the profile is an input of the
+`build-suews` action and a `workflow_dispatch` choice on the wheel workflow;
+the default stays `checked` until the release profile has been validated on
+every platform.

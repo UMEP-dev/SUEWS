@@ -156,6 +156,19 @@ fn main() {
         println!("cargo:rerun-if-changed={}", src.display());
     }
 
+    // Build profile, shared with src/supy/run_make.py through the same
+    // environment variable: "checked" (the current default) adds gfortran
+    // runtime checks to the bridge's own Fortran sources, "release" omits
+    // them. The physics library follows the same variable through the SUEWS
+    // Makefile, so a wheel is either wholly checked or wholly release.
+    println!("cargo:rerun-if-env-changed=SUEWS_BUILD_PROFILE");
+    let build_profile = env::var("SUEWS_BUILD_PROFILE").unwrap_or_else(|_| "checked".to_string());
+    let runtime_checks = match build_profile.trim().to_ascii_lowercase().as_str() {
+        "" | "checked" => true,
+        "release" => false,
+        other => panic!("SUEWS_BUILD_PROFILE must be \"release\" or \"checked\", got {other:?}"),
+    };
+
     let mut object_files = Vec::new();
     for src in &fortran_sources {
         let stem = src
@@ -180,12 +193,15 @@ fn main() {
             "-finit-real=zero",
             "-finit-integer=0",
             "-finit-logical=false",
-            // Runtime checks: bounds, pointer, memory – catch UB as
-            // Fortran runtime error instead of bare SIGSEGV.
-            "-fcheck=all",
             "-I",
             out_dir.to_string_lossy().as_ref(),
         ]);
+
+        if runtime_checks {
+            // Runtime checks: bounds, pointer, memory – catch UB as
+            // Fortran runtime error instead of bare SIGSEGV.
+            gfortran_cmd.arg("-fcheck=all");
+        }
 
         if physics_enabled {
             let suews_mod_dir = manifest_dir.join("../suews/mod");

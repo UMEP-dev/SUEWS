@@ -9,6 +9,7 @@ each piece of evidence comes from.
 
 from __future__ import annotations
 
+import functools
 import re
 from typing import Any, Optional
 
@@ -80,24 +81,69 @@ def _classify_audience(repo_path: Optional[str]) -> str:
     return "developer_doc"
 
 
+# Rename registry, loaded once (gh#1762).
+#
+# ``_legacy_names_in_text`` needs ``ALL_FIELD_RENAMES`` from supy's
+# data-model layer. Importing it pulls in the whole data model and,
+# with it, numpy - roughly 630 modules and several compiled
+# extensions. That import used to happen lazily inside the function
+# body, which the FastMCP server dispatches on an anyio worker thread
+# (``_async_offload``, gh#1412). On Windows the first such import
+# never completed: loading a compiled extension holds the OS loader
+# lock for the whole of ``LoadLibraryExW``, and the load then waits on
+# initialisation work that cannot proceed while that lock is held, so
+# the tool call never returned and the MCP session stalled for good.
+# The same import on the process's main thread completes in about a
+# second on the same machine and interpreter.
+#
+# The registry is therefore loaded eagerly, on whichever thread calls
+# :func:`preload_field_renames`; the server calls it at start-up,
+# before FastMCP builds its event loop and worker-thread pool. Tool
+# bodies then only read the cached mapping. Callers that never
+# preload (unit tests importing the tool functions directly, an older
+# supy without the registry) still work: the first annotated match
+# loads it in place, and a failed import degrades to no annotation
+# rather than an error, exactly as before.
+@functools.lru_cache(maxsize=1)
+def _field_renames() -> dict[str, str]:
+    """Return supy's legacy-to-current field-name map, or ``{}``.
+
+    Cached for the life of the process. An older supy without the
+    registry yields ``{}``, which degrades the annotation rather than
+    failing the tool call.
+    """
+    try:
+        from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
+    except Exception:
+        return {}
+    return dict(ALL_FIELD_RENAMES)
+
+
+def preload_field_renames() -> None:
+    """Load the field-rename registry now, on the calling thread (gh#1762).
+
+    Idempotent, and never raises. The server calls it during start-up,
+    on the main thread, so no worker thread ever has to.
+    """
+    _field_renames()
+
+
 def _legacy_names_in_text(text: Optional[str]) -> list[dict[str, str]]:
     """Return ``[{legacy: ..., current: ...}]`` for legacy field names
     that appear as whole tokens in ``text`` (gh#1402).
 
     Backed by ``ALL_FIELD_RENAMES`` in supy's data-model layer. When
-    the function cannot import the rename registry (older supy install)
-    it returns an empty list — the audience tag alone is still
-    actionable.
+    the registry is unavailable (older supy install) it returns an
+    empty list - the audience tag alone is still actionable.
     """
     if not text:
         return []
-    try:
-        from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
-    except Exception:
+    renames = _field_renames()
+    if not renames:
         return []
     hits: list[dict[str, str]] = []
     seen: set[str] = set()
-    for legacy, current in ALL_FIELD_RENAMES.items():
+    for legacy, current in renames.items():
         if legacy in seen:
             continue
         # Whole-word match so partial substrings (e.g. ``method`` inside

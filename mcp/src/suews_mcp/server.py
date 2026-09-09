@@ -322,6 +322,22 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         if warning:
             sys.stderr.write(warning + "\n")
 
+        # Load supy's field-rename registry here, on the main thread,
+        # before the event loop and its worker-thread pool exist
+        # (gh#1762). `query_knowledge` annotates each match with the
+        # legacy field names it mentions, which needs the data model
+        # and therefore numpy. Left to load lazily inside the tool
+        # body, that import runs on an anyio worker thread, and on
+        # Windows the first one never returns: the compiled-extension
+        # load holds the OS loader lock and waits on work that lock
+        # blocks, so the session hangs on its first `query_knowledge`
+        # call and never recovers. Doing it here costs about a second
+        # of start-up and takes the import off the worker threads
+        # entirely. See `suews_mcp.tools.knowledge` for the detail.
+        from .tools.knowledge import preload_field_renames
+
+        preload_field_renames()
+
         server = _build_server()
         server.run()
     finally:

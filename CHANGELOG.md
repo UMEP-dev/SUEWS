@@ -57,10 +57,12 @@ EXAMPLES:
 ### 9 Sep 2026
 
 - [bugfix] Fixed the MCP server hanging on its first `query_knowledge` call on Windows by loading supy's field-rename registry at server start rather than on a worker thread (#1762, #1771).
+- [change][stable] Wheels are built with the `release` Fortran profile (`-O3`, no runtime checks) instead of the checked profile every wheel had carried since 2023; the nightly workflow now also builds the `checked` profile on every platform and runs the full physics tier on it, so runtime checks keep running where they are cheap (#1770)
 - [maintenance] Added targeted SPARTACUS regressions for vegetation above the tree canopy and a short run using explicit changes to the existing sample configuration (#1699).
 
 ### 8 Sep 2026
 
+- [maintenance] The Fortran build profile is an explicit option: `SUEWS_BUILD_PROFILE=checked|release` (read by `run_make.py`, the Makefile and `build.rs`, and a `build_profile` input on the wheel workflow); `checked` (`-O0 -fcheck=all`, what every wheel has shipped since 2023) stays the default until the release profile is validated on every platform (#1766)
 - [maintenance] `make test` runs on up to `TEST_JOBS` (default 4) pytest-xdist workers with work stealing; measured 625 s serial to 124 s on the same selection, same results (#1765)
 - [maintenance] Scheduled runs now report their outcome: a `report_scheduled_run` job opens or updates one tracking issue when any nightly build, test or publish job fails or is cancelled, and closes it on the next green run (#1764)
 - [maintenance] Tests carry a per-test wall-clock budget: `pytest-timeout` (thread method, 600 s) and `faulthandler_timeout` (300 s) are configured in `pyproject.toml` and installed in every CI pytest lane, so a hung test fails with the stacks of all threads in the log instead of the lane being cancelled at the job cap (#1763)

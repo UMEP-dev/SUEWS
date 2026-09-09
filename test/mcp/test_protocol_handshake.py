@@ -289,10 +289,21 @@ async def _run_baseline_then_concurrent(
 
     from mcp import ClientSession
 
+    import tempfile
+
+    # DIAGNOSTIC (gh#1762): the SDK forwards only its allow-listed variables,
+    # so the capture switches must travel in this dictionary.
+    diag_dir = tempfile.mkdtemp(prefix="suews-mcp-diag-")
     server_params = StdioServerParameters(
         command="suews-mcp",
-        env={"SUEWS_MCP_PROJECT_ROOT": str(REPO_ROOT)},
+        env={
+            "SUEWS_MCP_PROJECT_ROOT": str(REPO_ROOT),
+            "SUEWS_MCP_DIAG_DUMP_AFTER": "60",
+            "SUEWS_MCP_DIAG_DIR": diag_dir,
+            "SUEWS_MCP_TIMEOUT_SECONDS": "240",
+        },
     )
+    print(f"diag dir: {diag_dir}")
 
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -303,8 +314,14 @@ async def _run_baseline_then_concurrent(
             # concurrent gather below measures steady-state behaviour.
             baseline_name, baseline_args = baseline_call
             t_b = time.monotonic()
-            await session.call_tool(baseline_name, arguments=baseline_args)
+            baseline_result = await session.call_tool(
+                baseline_name, arguments=baseline_args
+            )
             baseline_seconds = time.monotonic() - t_b
+            print(
+                f"baseline {baseline_seconds:.2f}s: "
+                f"{str(baseline_result.content[0].text)[:600] if baseline_result.content else baseline_result!r}"
+            )
             # Floor the baseline to avoid pathological tiny values producing
             # a sub-second `per_task_timeout` that would itself flake. 1 s is
             # well below any realistic CLI cost on this surface.

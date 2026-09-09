@@ -11,7 +11,7 @@ import argparse
 import functools
 import json
 import os
-import sys  # noqa: F401  (kept for future use; FastMCP.run() handles streams)
+import sys
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
 
@@ -270,6 +270,110 @@ def _check_knowledge_pack_freshness() -> Optional[str]:
     )
 
 
+def _start_diag_watchdog() -> None:
+    """DIAGNOSTIC (gh#1762): opt-in periodic capture of every thread's stack.
+
+    Enabled by ``SUEWS_MCP_DIAG_DUMP_AFTER=<seconds>``. Every interval the
+    C-level faulthandler watchdog writes all thread stacks to stderr, and a
+    helper thread appends a process listing plus any files found under
+    ``SUEWS_MCP_DIAG_DIR`` (written by instrumented ``suews`` children).
+    Off by default; nothing here runs unless the variable is set.
+    """
+    raw = os.environ.get("SUEWS_MCP_DIAG_DUMP_AFTER")
+    if not raw:
+        return
+    try:
+        interval = float(raw)
+    except ValueError:
+        return
+    if interval <= 0:
+        return
+
+    import faulthandler
+    import subprocess
+    import threading
+    import time
+
+    def _log(text: str) -> None:
+        sys.stderr.write(text if text.endswith("\n") else text + "\n")
+        sys.stderr.flush()
+
+    _log(
+        f"[suews-mcp diag] pid={os.getpid()} platform={sys.platform} "
+        f"python={sys.version.split()[0]} executable={sys.executable} "
+        f"cwd={os.getcwd()} dumping all thread stacks every {interval:g}s"
+    )
+    faulthandler.dump_traceback_later(
+        interval, repeat=True, file=sys.stderr, exit=False
+    )
+    diag_dir = os.environ.get("SUEWS_MCP_DIAG_DIR")
+
+    def _process_listing() -> str:
+        if sys.platform == "win32":
+            cmd = [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                "Get-CimInstance Win32_Process | Where-Object { "
+                "$_.Name -match 'python|suews|pytest|powershell|conhost' } | "
+                "Select-Object ProcessId,ParentProcessId,CreationDate,"
+                "KernelModeTime,UserModeTime,Name,CommandLine | "
+                "Format-List | Out-String -Width 400",
+            ]
+        else:
+            cmd = ["ps", "-axo", "pid,ppid,stat,etime,time,command"]
+        try:
+            done = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=90, check=False
+            )
+        except Exception as exc:  # pragma: no cover - diagnostic only
+            return f"process listing failed: {exc!r}"
+        text = done.stdout + (done.stderr or "")
+        if sys.platform != "win32":
+            keep = ("python", "suews", "pytest", "PID")
+            text = "\n".join(
+                line for line in text.splitlines() if any(k in line for k in keep)
+            )
+        return text
+
+    def _child_logs() -> str:
+        if not diag_dir or not os.path.isdir(diag_dir):
+            return f"no diag dir ({diag_dir!r})"
+        parts = []
+        for name in sorted(os.listdir(diag_dir)):
+            path = os.path.join(diag_dir, name)
+            try:
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    lines = fh.read().splitlines()
+            except OSError as exc:
+                parts.append(f"--- {name}: unreadable ({exc!r})")
+                continue
+            tail = lines[-160:]
+            parts.append(
+                f"--- {name} ({len(lines)} lines, showing last {len(tail)})"
+            )
+            parts.extend(tail)
+        return "\n".join(parts) if parts else "diag dir empty"
+
+    def _reporter() -> None:
+        tick = 0
+        while True:
+            time.sleep(interval)
+            tick += 1
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            threads = ", ".join(
+                f"{t.name}#{t.ident}{'*' if t.daemon else ''}"
+                for t in threading.enumerate()
+            )
+            _log(f"[suews-mcp diag] tick {tick} at {stamp} threads: {threads}")
+            _log("[suews-mcp diag] process listing:\n" + _process_listing())
+            _log("[suews-mcp diag] child logs:\n" + _child_logs())
+
+    threading.Thread(
+        target=_reporter, name="suews-mcp-diag-reporter", daemon=True
+    ).start()
+
+
 def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI args for the ``suews-mcp`` console script (gh#1405).
 
@@ -305,6 +409,7 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 def main(argv: Optional[Sequence[str]] = None) -> None:
     """Console-script entry point: ``suews-mcp``."""
     args = _parse_args(argv)
+    _start_diag_watchdog()
     previous_root = os.environ.get(ENV_PROJECT_ROOT)
     root_overridden = args.root is not None
     if args.root is not None:

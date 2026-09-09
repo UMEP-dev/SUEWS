@@ -20,6 +20,7 @@ lands in Wave 4 (#1364).
 
 from __future__ import annotations
 
+import os
 import sys
 
 import click
@@ -125,8 +126,52 @@ def inspect_alias() -> None:
     _inspect_cmd()
 
 
+_DIAG_FILE = None
+
+
+def _maybe_start_diag() -> None:
+    """DIAGNOSTIC (gh#1762): opt-in per-process stack log for the CLI.
+
+    When ``SUEWS_MCP_DIAG_DIR`` is set, append start/exit records and a
+    periodic all-thread stack dump to ``<dir>/suews-cli-<pid>.log``.
+    """
+    global _DIAG_FILE
+    diag_dir = os.environ.get("SUEWS_MCP_DIAG_DIR")
+    if not diag_dir:
+        return
+    import atexit
+    import faulthandler
+    import time
+
+    try:
+        os.makedirs(diag_dir, exist_ok=True)
+        path = os.path.join(diag_dir, f"suews-cli-{os.getpid()}.log")
+        _DIAG_FILE = open(path, "a", encoding="utf-8", buffering=1)
+    except OSError:
+        return
+    fh = _DIAG_FILE
+    fh.write(
+        f"start {time.strftime('%Y-%m-%d %H:%M:%S')} pid={os.getpid()} "
+        f"ppid={os.getppid()} argv={sys.argv!r} cwd={os.getcwd()} "
+        f"stdout_isatty={sys.stdout.isatty()} stdout_encoding={sys.stdout.encoding} "
+        f"stderr_encoding={sys.stderr.encoding}\n"
+    )
+    fh.flush()
+    faulthandler.dump_traceback_later(10, repeat=True, file=fh, exit=False)
+
+    def _at_exit() -> None:
+        try:
+            fh.write(f"exit {time.strftime('%Y-%m-%d %H:%M:%S')} pid={os.getpid()}\n")
+            fh.flush()
+        except Exception:
+            pass
+
+    atexit.register(_at_exit)
+
+
 def main() -> None:
     """Console-script entry point for ``suews``."""
+    _maybe_start_diag()
     cli()
 
 

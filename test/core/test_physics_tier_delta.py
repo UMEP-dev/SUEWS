@@ -52,10 +52,12 @@ def test_unrecorded_physics_slow_test_trips_the_check() -> None:
     assert checker.RULE_BEGIN in message
 
 
-# Collects the whole suite in a subprocess (about 30 s locally; CI Windows is
-# usually about twice that), so it is `medium` and stays out of `smoke`.
+# Collects the whole suite in a subprocess: about 4 s against an installed
+# wheel on the Linux runner, about 30 s against a local editable build (the
+# subprocess re-imports the editable supy). Not `smoke`: it belongs to the
+# `standard` and fuller tiers, where the slow physics tests it reasons about
+# are themselves selected.
 @pytest.mark.core
-@pytest.mark.medium
 def test_physics_full_tier_adds_exactly_what_the_rule_records() -> None:
     """Live check: the collected `physics and slow and not core` set matches the rule.
 

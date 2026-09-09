@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 9 Sep 2026
 
+- [maintenance] The nightly wheel workflow records the zero-tolerance spread of the full-year sample comparison on every platform for the two CPython bookends (`scripts/suews/tolerance_spread.py`, one `tolerance-spread-<platform>-<arch>-<cpXY>` artefact per cell, also on `workflow_dispatch`), and a `summarise` mode prints the spread across a set of artefacts beside the current tolerance, so the bare-number tolerances in `test_sample_output.py` can be derived from measured spread; no tolerance changes (#1774)
 - [maintenance] The two MCP concurrency tests cap each client request at 120 s, so a server that never answers fails the test naming the request instead of running the lane into its job timeout (#1768, #1772)
 - [bugfix] Fixed the MCP server hanging on its first `query_knowledge` call on Windows by loading supy's field-rename registry at server start rather than on a worker thread (#1762, #1771).
 - [change][stable] Wheels are built with the `release` Fortran profile (`-O3`, no runtime checks) instead of the checked profile every wheel had carried since 2023; the nightly workflow now also builds the `checked` profile on every platform and runs the full physics tier on it, so runtime checks keep running where they are cheap (#1770)

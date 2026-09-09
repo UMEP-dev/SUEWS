@@ -117,6 +117,10 @@ on:
         options:
           - checked
           - release
+      tolerance_spread:
+        description: 'Also record the zero-tolerance spread of the full-year sample comparison on every built platform for the two CPython bookends (what the nightly does; uploads tolerance-spread-* artefacts)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -286,6 +290,7 @@ jobs:
       api_buildplat: ${{ steps.set-matrix.outputs.api_buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
       api_python: ${{ steps.set-matrix.outputs.api_python }}
+      bookend_python: ${{ steps.set-matrix.outputs.bookend_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -523,6 +528,80 @@ jobs:
       api_python_json: >-
         ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+
+  # Nightly and on demand: record the zero-tolerance spread of the full-year
+  # sample comparison (scripts/suews/tolerance_spread.py) on every built
+  # platform for the two CPython bookends, one JSON artefact per cell. The
+  # tolerances in test/core/test_sample_output.py are to be derived from a week
+  # of these artefacts, so this job records and never gates: the script exits 0
+  # however large the spread, continue-on-error keeps a runner or install
+  # failure here from turning the nightly red, and the job feeds neither
+  # report_scheduled_run nor pr-gate. It installs the release wheel the run
+  # built (or the profile a dispatch chose), so it measures what ships.
+  tolerance_spread:
+    name: Tolerance spread ${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    needs: [determine_matrix, build_wheels]
+    if: |
+      always() &&
+      needs.build_wheels.result == 'success' &&
+      (
+        github.event_name == 'schedule' ||
+        (github.event_name == 'workflow_dispatch' && inputs.tolerance_spread == true)
+      )
+    runs-on: ${{ matrix.buildplat[0] }}
+    continue-on-error: true
+    # The full-year engine run is under a minute on a laptop; the cap only
+    # bounds a hung install or runner, matching the api lane's guardrail.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
+        python_version: ${{ fromJson(needs.determine_matrix.outputs.bookend_python) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve Python version (cp312 -> 3.12)
+        id: pyver
+        shell: bash
+        env:
+          PV: ${{ matrix.python_version }}
+        run: |
+          echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: ${{ steps.pyver.outputs.spec }}
+
+      - name: Download wheel for this platform
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: wheelhouse/
+
+      - name: Install wheel and measure the spread
+        shell: bash
+        env:
+          SUEWS_BUILD_PROFILE: ${{ inputs.build_profile || 'release' }}
+          OUTPUT: tolerance-spread/tolerance-spread-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-${{ matrix.python_version }}.json
+        run: |
+          python -m pip install --upgrade pip
+          # The script reuses the sample-output test module, which imports
+          # pytest and the test conftest; the wheel alone does not bring pytest.
+          python -m pip install pytest==9.1.1
+          python -m pip install wheelhouse/*.whl
+          python scripts/suews/tolerance_spread.py measure --output "$OUTPUT"
+
+      - name: Upload tolerance-spread artefact
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: tolerance-spread-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-${{ matrix.python_version }}
+          path: tolerance-spread/*.json
+          if-no-files-found: error
+          retention-days: 30
 
   # Standalone static lints over the test tree. Both use AST-based scripts
   # that never import supy, so CI can run them without building — that is

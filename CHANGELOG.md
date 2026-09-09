@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] The bundled sample is parsed at most once per test session (`_parse_sample_frames` behind `load_sample_frames` and the new `sample_forcing_parsed` fixture), and a committed one-month carve of it (`test/fixtures/sample_short/`, behind `short_sample_yaml_path` and `short_sample_sim`) replaces the full-year construction in the wrapper lifecycle tests that only needed a working simulation; `test/core/test_suews_simulation.py` plus `test/core/test_checkpoint.py` drop from 131 s to 110 s with assertions unchanged (#PRNUM)
+
 ### 9 Sep 2026
 
 - [maintenance] Added a collection check (`test/core/test_physics_tier_delta.py`, logic in `scripts/lint/check_physics_tier_delta.py`) that fails when the `physics-full` test tier would run physics tests that `standard` does not (`physics and slow and not core`) without the physics-change rule recording them, or when the rule records tests that no longer exist; the rule now states that the tier currently adds nothing over `standard` (#1775)

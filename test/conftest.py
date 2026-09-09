@@ -1,6 +1,7 @@
 """pytest configuration for SUEWS test suite."""
 
 from collections.abc import Iterator
+from functools import lru_cache
 from importlib.resources import as_file
 from pathlib import Path
 import subprocess
@@ -242,10 +243,32 @@ def run_cli_command(runner, command, args, *, check=False):
     return result
 
 
-def load_sample_frames():
-    """Return copies of the bundled sample state and forcing frames."""
+@lru_cache(maxsize=1)
+def _parse_sample_frames():
+    """Parse the bundled sample once per process and cache the frames.
+
+    Constructing a ``SUEWSSimulation`` from the shipped sample YAML reads
+    8784 hourly forcing rows and disaggregates them to 105408 five-minute
+    rows. That parse is identical every time and dominates the wall clock of
+    the wrapper test files, so it is memoised for the process (which for
+    pytest means the session, matching the session-scoped fixtures below).
+
+    PRIVATE and READ-ONLY: the frames returned here are the shared cache
+    itself. Go through ``load_sample_frames`` or ``sample_forcing_parsed``,
+    both of which copy on hand-out.
+    """
     simulation = supy.SUEWSSimulation.from_sample_data()
-    return simulation.state_init.copy(), simulation.forcing.df.copy()
+    return simulation.state_init, simulation.forcing.df
+
+
+def load_sample_frames():
+    """Return copies of the bundled sample state and forcing frames.
+
+    Copy-on-return, so callers may mutate freely. The underlying parse is
+    shared across the session via ``_parse_sample_frames``.
+    """
+    df_state_init, df_forcing = _parse_sample_frames()
+    return df_state_init.copy(), df_forcing.copy()
 
 
 def run_simulation(
@@ -377,9 +400,14 @@ def pytest_collection_finish(session):
 # memoising by forcing window rather than always the full
 # range - see its own docstring for the copy contract.
 #
-# All six fixtures are lazy (nothing runs at import or collection time) and
-# session-scoped, so each underlying sample run happens at most once per
-# `pytest` invocation, however many tests request it.
+# `sample_forcing_parsed` shares the same parse copy-on-hand-out, for tests
+# that need to mutate the frames; `short_sample_yaml_path` and
+# `short_sample_sim` sidestep the full-year parse altogether, for tests that
+# need a working simulation rather than a year of climate.
+#
+# Every fixture here is lazy (nothing runs at import or collection time) and
+# session-scoped, so each underlying sample parse or run happens at most once
+# per `pytest` invocation, however many tests request it.
 
 
 @pytest.fixture(scope="session")
@@ -421,9 +449,94 @@ def sample_data_loaded():
     Loading alone (no physics run) is cheap, but sharing it still avoids
     repeated file I/O and parsing across every test that only needs to read
     the sample state or forcing.
+
+    Backed by the same process-wide parse as ``load_sample_frames`` and
+    ``sample_forcing_parsed``, so the sample is parsed at most once however a
+    test reaches for it.
     """
-    simulation = supy.SUEWSSimulation.from_sample_data()
-    return simulation.state_init, simulation.forcing.df
+    return _parse_sample_frames()
+
+
+@pytest.fixture(scope="session")
+def sample_forcing_parsed():
+    """Factory handing out private copies of the parsed sample frames.
+
+    Returns a callable ``_frames(n_steps=None)`` yielding
+    ``(df_state_init, df_forcing)`` copies -- the whole 105408-row forcing
+    when ``n_steps`` is ``None``, otherwise its first ``n_steps`` rows. The
+    underlying parse happens at most once per session; each call copies, so a
+    consumer may mutate what it gets back and cannot poison the cache. This is
+    the copy-on-hand-out counterpart to ``sample_data_loaded``, which shares
+    the frames read-only.
+
+    Use it to build a simulation without re-parsing the sample file::
+
+        df_state, df_forcing = sample_forcing_parsed(TIMESTEPS_PER_DAY)
+        sim = SUEWSSimulation.from_state(df_state)
+        sim.update_forcing(df_forcing)
+
+    ``from_state`` gives no config, so ``run()`` has no configured period and
+    runs exactly the forcing loaded. A test that needs a real config as well
+    wants ``short_sample_yaml_path`` instead, whose config asks only for the
+    month its forcing covers.
+    """
+
+    def _frames(n_steps=None):
+        df_state_init, df_forcing = _parse_sample_frames()
+        window = df_forcing if n_steps is None else df_forcing.iloc[:n_steps]
+        return df_state_init.copy(), window.copy()
+
+    return _frames
+
+
+@pytest.fixture(scope="session")
+def short_sample_yaml_path() -> Path:
+    """Path to the one-month (January 2012) short sample configuration.
+
+    A committed fixture under ``test/fixtures/sample_short/``: the shipped
+    sample config with only its name, description, ``end_time`` and forcing
+    file changed, pointing at a 744-row hourly forcing file carved from the
+    shipped year. Constructing a ``SUEWSSimulation`` from it costs roughly a
+    twelfth of the full sample, so lifecycle tests that need a working
+    simulation -- config, forcing, a runnable period -- do not pay for a year
+    of climate they never look at.
+
+    Because the config's ``end_time`` matches its forcing, a test that asks
+    for a period beyond January fails loudly at ``run()``
+    (``supy._run_period._check_coverage`` raises unless
+    ``clip_to_forcing=True``) rather than silently running on less data.
+
+    Both artefacts are regenerated by
+    ``test/fixtures/sample_short/make_sample_short.py``; the parity test in
+    ``test/core/test_sample_short_fixture.py`` fails if they drift from the
+    shipped sample.
+    """
+    return (
+        Path(__file__).parent / "fixtures" / "sample_short" / "sample_config_short.yml"
+    )
+
+
+@pytest.fixture(scope="session")
+def short_sample_sim(short_sample_yaml_path):
+    """Factory building a fresh simulation from the one-month short sample.
+
+    Returns a callable ``_sim()`` handing back a brand-new, un-run
+    ``SUEWSSimulation`` with the short sample's config and its 8928
+    five-minute forcing rows loaded. Each call constructs a separate
+    instance, so unlike ``completed_sample_sim`` the result may be mutated,
+    reset, re-run and continued from freely -- which is what the lifecycle
+    tests need.
+
+    Use it wherever a test previously called
+    ``SUEWSSimulation.from_sample_data()`` only to get *a working
+    simulation*. Keep the full sample where the loader itself is the
+    contract under test.
+    """
+
+    def _sim():
+        return supy.SUEWSSimulation(str(short_sample_yaml_path))
+
+    return _sim
 
 
 @pytest.fixture(scope="session")

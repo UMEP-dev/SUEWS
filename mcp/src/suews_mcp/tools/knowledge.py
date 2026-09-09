@@ -87,12 +87,13 @@ def _classify_audience(repo_path: Optional[str]) -> str:
 # data-model layer. Importing it pulls in the whole data model and,
 # with it, numpy - roughly 630 modules and several compiled
 # extensions. That import used to happen lazily inside the function
-# body, which the FastMCP server dispatches on an anyio worker thread
-# (``_async_offload``, gh#1412). On Windows the first such import
-# never completed: loading a compiled extension holds the OS loader
-# lock for the whole of ``LoadLibraryExW``, and the load then waits on
-# initialisation work that cannot proceed while that lock is held, so
-# the tool call never returned and the MCP session stalled for good.
+# body, which this server's ``_async_offload`` wrapper runs on an
+# anyio worker thread (gh#1439). On Windows the first such import
+# never completed: the stack capture on gh#1762 shows the worker
+# thread blocked inside ``create_module`` for numpy's
+# ``_multiarray_umath`` (the ``LoadLibraryExW`` call, which holds the
+# OS loader lock) with the main thread idle, so the tool call never
+# returned and the MCP session stalled for good.
 # The same import on the process's main thread completes in about a
 # second on the same machine and interpreter.
 #
@@ -114,9 +115,10 @@ def _field_renames() -> dict[str, str]:
     """
     try:
         from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
+
+        return dict(ALL_FIELD_RENAMES)
     except Exception:
         return {}
-    return dict(ALL_FIELD_RENAMES)
 
 
 def preload_field_renames() -> None:

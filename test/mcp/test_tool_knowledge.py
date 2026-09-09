@@ -500,14 +500,30 @@ def test_annotation_performs_no_import_once_preloaded(
         "text": "netradiationmethod is the legacy spelling",
     })
     assert annotated["audience"] == "user_yaml"
+    # Proves the registry was actually loaded, rather than the
+    # annotation path having returned early on an empty registry.
+    assert "legacy_name_for" in annotated
 
 
 def test_server_preloads_field_renames_before_running(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`suews-mcp` loads the registry during start-up, before FastMCP
-    builds its event loop and worker-thread pool (gh#1762)."""
-    from types import SimpleNamespace
+    builds its event loop and worker-thread pool (gh#1762).
+
+    The preload now lives in `_build_server` itself (so every caller
+    gets it, not only `main`), so this leaves `_build_server` real and
+    patches only `FastMCP.run` - the point is that the preload must
+    have already happened by the time `run()` is entered.
+    """
+    pytest.importorskip(
+        "mcp.server.fastmcp",
+        reason=(
+            "The optional 'mcp' SDK FastMCP server is not installed in the "
+            "standard supy wheel matrix."
+        ),
+    )
+    from mcp.server.fastmcp import FastMCP
 
     from suews_mcp import server
     from suews_mcp.tools import knowledge
@@ -517,10 +533,10 @@ def test_server_preloads_field_renames_before_running(
 
     observed: dict = {}
 
-    def _run() -> None:
+    def _run(self) -> None:
         observed["cached"] = knowledge._field_renames.cache_info().currsize
 
-    monkeypatch.setattr(server, "_build_server", lambda: SimpleNamespace(run=_run))
+    monkeypatch.setattr(FastMCP, "run", _run)
     server.main([])
 
     assert observed["cached"] == 1

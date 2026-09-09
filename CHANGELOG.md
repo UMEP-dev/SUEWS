@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 9 Sep 2026
 
-- [bugfix] Fixed the MCP server hanging on its first `query_knowledge` call on Windows by loading supy's field-rename registry at server start rather than on a worker thread (#1771).
+- [bugfix] Fixed the MCP server hanging on its first `query_knowledge` call on Windows by loading supy's field-rename registry at server start rather than on a worker thread (#1762, #1771).
 - [maintenance] Added targeted SPARTACUS regressions for vegetation above the tree canopy and a short run using explicit changes to the existing sample configuration (#1699).
 
 ### 8 Sep 2026

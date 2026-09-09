@@ -64,6 +64,15 @@ def _build_server() -> Any:
     in environments where the SDK is unavailable (CI for the tools/resources
     layer, for example).
     """
+    # Load supy's field-rename registry on the calling thread, before
+    # FastMCP builds its event loop and worker-thread pool (gh#1762):
+    # importing it pulls in numpy, and on Windows that import can hang
+    # forever if it happens lazily on a worker thread instead. See
+    # ``suews_mcp.tools.knowledge`` for the detail.
+    from .tools.knowledge import preload_field_renames
+
+    preload_field_renames()
+
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:  # pragma: no cover - exercised manually

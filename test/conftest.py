@@ -473,6 +473,16 @@ def sample_reference() -> pd.DataFrame:
     READ-ONLY, shared across the whole session: consumers must not mutate the
     frame in place. Slice it (``.iloc[...]``) or ``.copy()`` before changing
     anything.
+
+    Under pandas copy-on-write the frame is largely protected by construction:
+    the column arrays it hands out are read-only
+    (``df[col].values.flags.writeable`` is ``False``), so an in-place write
+    through a column raises rather than corrupting the shared frame. What is
+    still not protected is column assignment on the frame itself
+    (``df[col] = ...``, ``df.drop(..., inplace=True)``), which would leak to
+    every later consumer -- hence the contract above. No per-test copy is made
+    deliberately: copying 105,408 rows x 113 columns per test would cost what
+    the session-scoped parse saves.
     """
     import sys
 

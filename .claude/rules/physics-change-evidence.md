@@ -2,6 +2,7 @@
 paths:
   - src/suews/src/suews_phys_*.f95
   - test/fixtures/data_test/sample_output_2012-*.csv
+  - test/fixtures/data_test/provenance.json
   - test/fixtures/data_test/stebbs_test/**
   - test/fixtures/benchmark1/**
 ---

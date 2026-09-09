@@ -81,6 +81,16 @@ class SnowRun:
         cfg.model.physics.snow_use = SnowUse.ENABLED
         # Per-timestep output so budgets can be checked step by step.
         cfg.model.control.output.freq = int(TSTEP_H * 3600)
+        # The scenario runs for N_DAYS, not the sample config's full year. Declare
+        # that period explicitly: since gh#1268 a requested period the forcing does
+        # not cover is rejected rather than silently run on the overlap.
+        scenario_index = sim.forcing.df.index[: TIMESTEPS_PER_DAY * N_DAYS]
+        cfg.model.control.start_time = scenario_index[0].strftime("%Y-%m-%d")
+        # Interval-end stamping: the final row is stamped at the midnight closing
+        # the last day, so step back one timestep to name that day.
+        cfg.model.control.end_time = (
+            scenario_index[-1] - pd.Timedelta(hours=TSTEP_H)
+        ).strftime("%Y-%m-%d")
         sim._df_state_init = cfg.to_df_state()
 
         snow_prm = cfg.sites[0].properties.snow

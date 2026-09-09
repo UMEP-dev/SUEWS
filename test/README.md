@@ -80,8 +80,13 @@ Test data and resources:
 
 ```bash
 # Everyday development default: core, data_model, physics, io_tests
-# (excludes slow tests and the peripheral surfaces cmd/mcp/docs/knowledge/umep)
+# (excludes slow tests and the peripheral surfaces cmd/mcp/docs/knowledge/umep);
+# runs on up to 4 xdist workers, raise the cap on a machine with memory to spare
 make test
+make test TEST_JOBS=8
+
+# Re-run only what failed last time
+pytest --lf test/core test/data_model test/physics test/io_tests
 
 # Everything, including slow tests and peripheral surfaces
 make test-all
@@ -213,4 +218,4 @@ When adding new tests:
 5. Add docstrings to explain complex test logic
 6. Update this README if adding a new test category
 
-For detailed testing approach, see docstrings in test files or `docs/source/contributing/testing_guide.rst`.
+For detailed testing approach, see docstrings in test files or `dev-ref/testing/TESTING_GUIDELINES.md`.

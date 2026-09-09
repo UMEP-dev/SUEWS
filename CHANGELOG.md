@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 9 Sep 2026
 
+- [maintenance] Added a collection check (`test/core/test_physics_tier_delta.py`, logic in `scripts/lint/check_physics_tier_delta.py`) that fails when the `physics-full` test tier would run physics tests that `standard` does not (`physics and slow and not core`) without the physics-change rule recording them, or when the rule records tests that no longer exist; the rule now states that the tier currently adds nothing over `standard` (#1775)
 - [bugfix] Fixed the MCP server hanging on its first `query_knowledge` call on Windows by loading supy's field-rename registry at server start rather than on a worker thread (#1762, #1771).
 - [change][stable] Wheels are built with the `release` Fortran profile (`-O3`, no runtime checks) instead of the checked profile every wheel had carried since 2023; the nightly workflow now also builds the `checked` profile on every platform and runs the full physics tier on it, so runtime checks keep running where they are cheap (#1770)
 - [maintenance] Added targeted SPARTACUS regressions for vegetation above the tree canopy and a short run using explicit changes to the existing sample configuration (#1699).

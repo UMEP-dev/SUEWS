@@ -121,6 +121,7 @@ def test_warn():
     assert "| Max worker peak RSS | none |" in summary
 
 
+@pytest.mark.smoke
 def test_process_peak_rss_reports_this_process_on_every_platform() -> None:
     """The per-process peak works without procfs and is at least a few MiB."""
     measurement = process_peak_rss_bytes()
@@ -139,9 +140,9 @@ PER_PROCESS_PEAK_METHODS = {"getrusage-ru-maxrss", "win32-peak-working-set"}
 def _assert_per_process_peak(measurement: dict[str, Any]) -> None:
     """Per-process peak RSS is available on Linux, macOS and Windows alike."""
     assert measurement["unit"] == "bytes"
-    assert measurement["available"] is True
-    assert measurement["status"] == "sampled"
-    assert measurement["reason"] is None
+    assert measurement["available"] is True, measurement
+    assert measurement["status"] == "sampled", measurement
+    assert measurement["reason"] is None, measurement
     assert measurement["method"] in PER_PROCESS_PEAK_METHODS
     assert isinstance(measurement["value"], int)
     assert measurement["value"] > 0

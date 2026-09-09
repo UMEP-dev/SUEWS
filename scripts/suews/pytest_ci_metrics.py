@@ -316,40 +316,68 @@ def process_peak_rss_bytes() -> dict[str, Any]:
     return _available("bytes", int(max_rss) * scale, method="getrusage-ru-maxrss")
 
 
+class _ProcessMemoryCounters(ctypes.Structure):
+    """PROCESS_MEMORY_COUNTERS from psapi.h (SIZE_T fields are pointer-sized)."""
+
+    _fields_ = [
+        ("cb", wintypes.DWORD),
+        ("PageFaultCount", wintypes.DWORD),
+        ("PeakWorkingSetSize", ctypes.c_size_t),
+        ("WorkingSetSize", ctypes.c_size_t),
+        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+        ("PagefileUsage", ctypes.c_size_t),
+        ("PeakPagefileUsage", ctypes.c_size_t),
+    ]
+
+
+def _windows_memory_info_prototype() -> tuple[Any, Any]:
+    """Bind GetCurrentProcess and GetProcessMemoryInfo with declared prototypes.
+
+    The prototypes must be declared: without ``restype`` and ``argtypes``
+    ctypes passes the pseudo-handle from ``GetCurrentProcess`` (``(HANDLE)-1``)
+    as a 32-bit int, and on 64-bit Windows ``GetProcessMemoryInfo`` rejects the
+    truncated handle with ERROR_INVALID_HANDLE (6).
+    """
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    get_current_process = kernel32.GetCurrentProcess
+    get_current_process.argtypes = []
+    get_current_process.restype = wintypes.HANDLE
+    get_process_memory_info = psapi.GetProcessMemoryInfo
+    get_process_memory_info.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_ProcessMemoryCounters),
+        wintypes.DWORD,
+    ]
+    get_process_memory_info.restype = wintypes.BOOL
+    return get_current_process, get_process_memory_info
+
+
 def _windows_peak_working_set_bytes() -> dict[str, Any]:
-    """Read PeakWorkingSetSize for the current process through psapi."""
+    """Read PeakWorkingSetSize for the current process through psapi.
 
-    class ProcessMemoryCounters(ctypes.Structure):
-        _fields_ = [
-            ("cb", wintypes.DWORD),
-            ("PageFaultCount", wintypes.DWORD),
-            ("PeakWorkingSetSize", ctypes.c_size_t),
-            ("WorkingSetSize", ctypes.c_size_t),
-            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-            ("PagefileUsage", ctypes.c_size_t),
-            ("PeakPagefileUsage", ctypes.c_size_t),
-        ]
-
-    counters = ProcessMemoryCounters()
+    Any failure is reported as an explicit ``error`` measurement, never raised.
+    """
+    counters = _ProcessMemoryCounters()
     counters.cb = ctypes.sizeof(counters)
     try:
-        psapi = ctypes.WinDLL("psapi", use_last_error=True)
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        handle = kernel32.GetCurrentProcess()
-        succeeded = psapi.GetProcessMemoryInfo(
-            handle, ctypes.byref(counters), counters.cb
+        get_current_process, get_process_memory_info = _windows_memory_info_prototype()
+        succeeded = get_process_memory_info(
+            get_current_process(), ctypes.byref(counters), counters.cb
         )
     except (OSError, AttributeError) as error:
         return _unavailable(
             "bytes", f"GetProcessMemoryInfo unavailable: {error}", status="error"
         )
     if not succeeded:
+        code = ctypes.get_last_error()
         return _unavailable(
             "bytes",
-            f"GetProcessMemoryInfo failed with error {ctypes.get_last_error()}",
+            f"GetProcessMemoryInfo failed with error {code}: "
+            f"{ctypes.FormatError(code).strip()}",
             status="error",
         )
     return _available(

@@ -144,7 +144,10 @@ sim.update_forcing(path_forcing)
 
 # Slice to the analysis period. This is a separate call because
 # update_forcing() first loads the full file, then we select the time window.
-sim.update_forcing(sim.forcing["2010-01":"2010-03"])
+# Forcing rows are stamped at the end of each interval, so the last row of
+# 31 March is 2010-04-01 00:00; include it so the forcing covers the
+# ``end_time`` of 2010-03-31 set in the configuration below.
+sim.update_forcing(sim.forcing["2010-01-01":"2010-04-01 00:00"])
 
 # %%
 # .. note::

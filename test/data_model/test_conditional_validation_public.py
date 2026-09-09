@@ -6,34 +6,33 @@ import pytest
 import yaml
 
 from supy.data_model.core import SUEWSConfig
-from supy.data_model.core.model import StorageHeatMethod
+from supy.data_model.core.model import NetRadiationMethod, StorageHeatMethod
 
 pytestmark = pytest.mark.api
 
 
-def _packaged_config(name):
-    """Load a fresh mutable copy of a packaged sample configuration."""
-    return yaml.safe_load(
-        files("supy").joinpath("sample_data", name).read_text(encoding="utf-8")
-    )
-
-
 def _sample_config():
-    """The default NARP sample."""
-    return _packaged_config("sample_config.yml")
-
-
-def _spartacus_config():
-    """The reviewed SPARTACUS-Surface example (gh#1699), loaded as shipped.
-
-    Its layer geometry already satisfies the SPARTACUS vegetation check, so no
-    test-side data repair is needed before exercising SPARTACUS rules.
-    """
-    return _packaged_config("sample_config_spartacus.yml")
+    """Load a fresh mutable copy of the packaged sample configuration."""
+    return yaml.safe_load(
+        files("supy")
+        .joinpath("sample_data/sample_config.yml")
+        .read_text(encoding="utf-8")
+    )
 
 
 def _site_properties(data):
     return data["sites"][0]["properties"]
+
+
+def _enable_spartacus(data):
+    """Enable SPARTACUS while working around the sample-data issue in #1699."""
+    data["model"]["physics"]["net_radiation"] = {
+        "value": NetRadiationMethod.LDOWN_SS_OBSERVED.value
+    }
+    vertical_layers = _site_properties(data)["vertical_layers"]
+    for key in ("veg_frac", "veg_scale"):
+        values = vertical_layers[key]["value"]
+        values[2] = 0.0
 
 
 def _assert_public_rejection(data, *expected_fragments):
@@ -65,8 +64,9 @@ def test_stebbs_storage_heat_requires_spartacus_radiation():
 
 
 def test_stebbs_storage_heat_loads_with_spartacus_radiation():
-    data = _spartacus_config()
+    data = _sample_config()
     data["model"]["physics"]["storage_heat"] = {"value": StorageHeatMethod.STEBBS.value}
+    _enable_spartacus(data)
 
     SUEWSConfig.from_dict(data)
 
@@ -185,7 +185,8 @@ def test_same_surface_requires_archetype_match(
 
 
 def test_spartacus_rejects_archetype_above_domain():
-    data = _spartacus_config()
+    data = _sample_config()
+    _enable_spartacus(data)
     data["model"]["physics"]["stebbs"] = {
         "enabled": True,
         "parameter_source": "default",
@@ -196,14 +197,16 @@ def test_spartacus_rejects_archetype_above_domain():
 
 
 def test_spartacus_rejects_building_above_domain():
-    data = _spartacus_config()
+    data = _sample_config()
+    _enable_spartacus(data)
     _site_properties(data)["land_cover"]["bldgs"]["bldgh"] = {"value": 999.0}
 
     _assert_public_rejection(data, "bldgh=999.0", "exceeding SPARTACUS domain top")
 
 
 def test_spartacus_allows_archetype_above_domain_when_stebbs_is_disabled():
-    data = _spartacus_config()
+    data = _sample_config()
+    _enable_spartacus(data)
     _site_properties(data)["building_archetype"]["archetype_height"] = {
         "value": 999.0
     }
@@ -212,7 +215,8 @@ def test_spartacus_allows_archetype_above_domain_when_stebbs_is_disabled():
 
 
 def test_spartacus_rejects_invalid_layer_geometry():
-    data = _spartacus_config()
+    data = _sample_config()
+    _enable_spartacus(data)
     vertical_layers = _site_properties(data)["vertical_layers"]
     vertical_layers["building_frac"] = {"value": [0.43, 0.9, 0.9]}
     vertical_layers["veg_frac"] = {"value": [0.3, 0.3, 0.0]}
@@ -224,7 +228,8 @@ def test_spartacus_rejects_invalid_layer_geometry():
 
 
 def test_spartacus_rejects_tree_above_all_layers():
-    data = _spartacus_config()
+    data = _sample_config()
+    _enable_spartacus(data)
     _site_properties(data)["land_cover"]["dectr"]["height_deciduous_tree"] = {
         "value": 500.0
     }
@@ -233,6 +238,19 @@ def test_spartacus_rejects_tree_above_all_layers():
 
 
 def test_consistent_spartacus_configuration_loads():
-    data = _spartacus_config()
+    data = _sample_config()
+    _enable_spartacus(data)
 
     SUEWSConfig.from_dict(data)
+
+
+@pytest.mark.parametrize("field", ["veg_frac", "veg_scale"])
+def test_spartacus_rejects_nonzero_vegetation_above_tree_canopy(field):
+    """Each top-layer field is independently required to be zero (gh#1699)."""
+    data = _sample_config()
+    original = _site_properties(data)["vertical_layers"][field]["value"][2]
+    assert original > 0
+    _enable_spartacus(data)
+    _site_properties(data)["vertical_layers"][field]["value"][2] = original
+
+    _assert_public_rejection(data, f"{field}[2] should be zero")

@@ -299,8 +299,10 @@ class TestSuPy(TestCase):
             # Load forcing for continuation (using remaining timesteps)
             sim2.update_forcing(sim1.forcing.iloc[12:24])  # Next 12 timesteps
 
-            # Run continuation
-            results2 = sim2.run()
+            # Run continuation, bounded to the loaded window
+            results2 = sim2.run(
+                start_date=sim2.forcing.index[0], end_date=sim2.forcing.index[-1]
+            )
 
             # Verify continuation completed successfully
             self.assertIsNotNone(results2)

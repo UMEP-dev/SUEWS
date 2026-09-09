@@ -54,16 +54,17 @@ EXAMPLES:
 
 ## 2026
 
+### 9 Sep 2026
+
+- [maintenance] Added targeted SPARTACUS regressions for vegetation above the tree canopy and a short run using explicit changes to the existing sample configuration (#1699).
+
 ### 8 Sep 2026
 
+- [maintenance] Scheduled runs now report their outcome: a `report_scheduled_run` job opens or updates one tracking issue when any nightly build, test or publish job fails or is cancelled, and closes it on the next green run (#1764)
+- [maintenance] Tests carry a per-test wall-clock budget: `pytest-timeout` (thread method, 600 s) and `faulthandler_timeout` (300 s) are configured in `pyproject.toml` and installed in every CI pytest lane, so a hung test fails with the stacks of all threads in the log instead of the lane being cancelled at the job cap (#1763)
 - [maintenance] `test_parallel_output_matches_serial` reports a byte mismatch by position instead of letting pytest diff two multi-megabyte reprs; the expected gh#1741 failure had stalled the Windows API lane for its whole per-test budget (#1762)
 
 ### 7 Sep 2026
-
-- [feature][experimental] Added a dedicated SPARTACUS-Surface example, `sample_data/sample_config_spartacus.yml`, and shipped it as the `suews init --template spartacus` template (#1699)
-  - Same KCL site as the default sample with `net_radiation: spartacus/ldown: air` and a vegetation-free 15-22 m layer, so it passes the SPARTACUS vegetation-layer check without test-side repair; the default NARP sample and the validators are unchanged.
-  - Public-path SPARTACUS tests now load the example directly; new contract tests pin the example to the default sample plus its documented delta.
-  - Documented the SPARTACUS vegetation-layer constraint in the layer-conventions page.
 
 - [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)
   - `suews diagnose` and the MCP `suews://runs/{run_id}/provenance` resource now succeed on ordinary runs; their missing-sidecar guidance names an executable path instead of the non-existent `suews run --format json`.
@@ -79,6 +80,9 @@ EXAMPLES:
 
 - [change][experimental] Checkpoint continuation now requires the forcing to start one model timestep after the checkpoint's `last_timestamp`; overlapping or gapped forcing, a missing `last_timestamp`, and a repeated `run()` on the same instance raise a `ValueError` instead of running silently from the evolved state (#1735)
   - `SUEWSSimulation.from_checkpoint(...)` and `continue_from(...)` accept `check_continuity=False` for deliberate re-runs such as spin-up cycling; the opt-out applies to the next `run()` only
+- [change][experimental] `SUEWSSimulation.run()` now rejects a requested period the loaded forcing does not cover instead of silently running on the overlap; `run(clip_to_forcing=True)` opts in to running the overlap and logs the requested versus actual periods (#1268)
+  - Date-only `start_date`/`end_date` (and `model.control.start_time`/`end_time`) now follow interval-end stamping: a start day begins with the first row after its midnight and an end day runs through the row stamped at the following midnight, so `end_time: "2012-12-31"` no longer drops the last interval of the year; bounds with a time component remain inclusive row timestamps
+  - The packaged sample configuration now requests 2012-01-01 to 2012-12-31, the period its 2012 forcing file actually covers, instead of 2011-01-01 to 2013-12-31
 
 - [bugfix] Overlapping forcing files no longer silently keep the first record: every multi-file loader (`SUEWSForcing.from_file`, YAML `forcing.file` lists and directories, wildcard `read_forcing`, `SUEWSSimulation.update_forcing`) now shares one merge that deduplicates identical records, fills values missing in one file from another, and rejects conflicting observations with a `ForcingConflictError` naming the files, timestamps and variables (#1747)
   - Precedence by file order is an explicit opt-in (`on_conflict="first"` / `"last"`) that logs what it overrode; the YAML path always uses the strict default.

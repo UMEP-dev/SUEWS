@@ -1530,11 +1530,22 @@ class ModelControl(BaseModel):
     )
     start_time: Optional[str] = Field(
         default=None,
-        description="Start time of model run. If None use forcing data bounds.",
+        description=(
+            "Start of the model run as a calendar date (YYYY-MM-DD). Forcing "
+            "rows are stamped at the end of each interval, so the run starts "
+            "with the first row after that day's midnight. The forcing must "
+            "cover the requested period; see SUEWSSimulation.run. If None use "
+            "forcing data bounds."
+        ),
     )
     end_time: Optional[str] = Field(
         default=None,
-        description="End time of model run. If None use forcing data bounds.",
+        description=(
+            "End of the model run as a calendar date (YYYY-MM-DD), inclusive "
+            "of the whole day, i.e. up to and including the row stamped at "
+            "the following midnight. The forcing must cover the requested "
+            "period; see SUEWSSimulation.run. If None use forcing data bounds."
+        ),
     )
 
     ref: Optional[Reference] = None

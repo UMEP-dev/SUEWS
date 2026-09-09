@@ -9,6 +9,7 @@ py.install_sources(
         '_post.py',
         '_provenance.py',
         '_run.py',
+        '_run_period.py',
         '_run_rust.py',
         '_run_output.py',
         '_save.py',
@@ -98,7 +99,6 @@ py.install_sources(
         ],
         [
             'sample_data/sample_config.yml',
-            'sample_data/sample_config_spartacus.yml',
             'sample_data/Kc_2012_data_60.txt'
         ],
         [

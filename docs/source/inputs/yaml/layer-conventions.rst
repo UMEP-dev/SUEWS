@@ -30,36 +30,13 @@ Thus, a roof in a vertical layer is still a horizontal surface, and a wall in
 a vertical layer is still a vertical surface. The vertical-layer index only
 identifies the facet's position between the ground and maximum building height.
 
-Vegetation in SPARTACUS vertical layers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``veg_frac[i]`` and ``veg_scale[i]`` describe tree crowns inside layer ``i``.
-When a SPARTACUS-Surface ``net_radiation`` method (``1001``, ``1002`` or
-``1003``) is selected, the validator requires both arrays to be zero in every
-layer that starts at or above the tallest tree, taken as the larger of
-``height_deciduous_tree`` and ``height_evergreen_tree``. A tree cannot occupy a
-layer it does not reach, and SPARTACUS-Surface skips the crown-perimeter
-calculation for a layer with zero vegetation fraction, so a zero
-``veg_scale`` there is safe. The check is not applied under NARP, which does
-not use the vertical layers.
-
-The packaged ``sample_config.yml`` is a NARP configuration and does not meet
-this constraint as shipped: its 15-22 m layer carries vegetation although its
-trees are 13.1 m tall. Do not switch it to SPARTACUS by editing
-``net_radiation`` alone. Use the dedicated SPARTACUS example instead, which is
-the same KCL site with SPARTACUS-Surface net radiation (``ldown`` derived from
-air temperature, because the sample forcing has no observed ``ldown``) and a
-vegetation-free top layer:
-
-.. code-block:: bash
-
-   suews init my_case --template spartacus
-   suews validate my_case/sample_config_spartacus.yml
-   suews run my_case/sample_config_spartacus.yml
-
-The example demonstrates a consistent SPARTACUS configuration and runs out of
-the box. Its layer fractions and scales are the benchmark estimates carried
-over from the default sample; they are not observationally validated.
+For SPARTACUS-Surface radiation, ``veg_frac`` and ``veg_scale`` must both
+be zero in layers starting at or above the tallest tree crown.
+The default NARP sample is not a SPARTACUS reference configuration:
+changing the radiation selector alone fails this vegetation-layer check.
+The targeted regression tests apply explicit, test-local geometry changes
+to exercise validation and a short simulation; those changes do not establish
+observational validity for the resulting configuration.
 
 **Material layers** (``thermal_layers`` in YAML) are five layers ordered from
 the exposed surface inward. The same index in ``dz``, ``k``, and ``rho_cp``

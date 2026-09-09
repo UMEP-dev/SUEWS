@@ -450,3 +450,48 @@ def test_query_knowledge_does_not_attach_legacy_for_clean_text(
 
     result = query_knowledge("anything", mode="full")
     assert "legacy_name_for" not in result["data"]["matches"][0]
+
+
+def test_load_field_renames_is_cached_and_backs_legacy_annotations() -> None:
+    """The rename registry is imported once, cached, and drives the
+    ``legacy_name_for`` annotation (gh#1768)."""
+    from suews_mcp.tools import knowledge
+
+    knowledge.load_field_renames.cache_clear()
+    try:
+        first = knowledge.load_field_renames()
+        assert first, "supy in the test environment carries ALL_FIELD_RENAMES"
+        assert knowledge.load_field_renames() is first
+
+        hits = knowledge._legacy_names_in_text("set netradiationmethod to 3")
+        assert {
+            "legacy": "netradiationmethod",
+            "current": first["netradiationmethod"],
+        } in hits
+    finally:
+        knowledge.load_field_renames.cache_clear()
+
+
+def test_load_field_renames_tolerates_missing_registry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An older supy without the registry degrades to no legacy annotations
+    rather than an import error."""
+    import builtins
+
+    from suews_mcp.tools import knowledge
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name.startswith("supy.data_model"):
+            raise ImportError(name)
+        return real_import(name, *args, **kwargs)
+
+    knowledge.load_field_renames.cache_clear()
+    try:
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        assert knowledge.load_field_renames() == {}
+        assert knowledge._legacy_names_in_text("netradiationmethod") == []
+    finally:
+        knowledge.load_field_renames.cache_clear()

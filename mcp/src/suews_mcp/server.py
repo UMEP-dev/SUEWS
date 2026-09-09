@@ -104,6 +104,15 @@ def _build_server() -> Any:
         parameter_importance,
     )
 
+    # Load supy's field-rename registry on this (main) thread before the
+    # event loop starts. `query_knowledge` needs it on every call, and
+    # importing it lazily from an anyio worker thread deadlocks on Windows
+    # inside numpy's extension-module load (gh#1768). Warming it here makes
+    # the worker-side lookup a dictionary access.
+    from .tools.knowledge import load_field_renames
+
+    load_field_renames()
+
     server = FastMCP("suews-mcp", instructions=SERVER_INSTRUCTIONS)
 
     # Plumb the package version into the MCP `initialize` handshake so

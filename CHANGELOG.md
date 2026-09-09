@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 9 Sep 2026
+
+- [bugfix] The MCP server now loads supy's field-rename registry on its main thread at startup; importing it lazily inside a `query_knowledge` worker thread deadlocked on Windows in numpy's extension-module load, which hung the scheduled Windows API lane in `test_concurrent_query_knowledge_does_not_block_event_loop` every night from 20 August and left the nightly publish jobs skipped (#1768)
+  - The concurrency tests in `test/mcp/test_protocol_handshake.py` now set a 120 s per-request read timeout, so a server that never answers fails with an `McpError` naming the request instead of running the lane into its job timeout.
+
 ### 8 Sep 2026
 
 - [maintenance] Scheduled runs now report their outcome: a `report_scheduled_run` job opens or updates one tracking issue when any nightly build, test or publish job fails or is cancelled, and closes it on the next green run (#1764)

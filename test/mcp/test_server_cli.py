@@ -158,3 +158,19 @@ def test_main_without_root_does_not_override_env(
 
     # Env var preserved unchanged.
     assert captured["env_value"] == str(tmp_path)
+
+
+def test_build_server_loads_field_renames_before_serving() -> None:
+    """``_build_server()`` warms supy's field-rename registry on the calling
+    (main) thread so no tool call imports it from a worker thread, where the
+    numpy extension load deadlocks on Windows (gh#1768)."""
+    pytest.importorskip("mcp")
+    from suews_mcp import server as server_mod
+    from suews_mcp.tools import knowledge
+
+    knowledge.load_field_renames.cache_clear()
+    try:
+        server_mod._build_server()
+        assert knowledge.load_field_renames.cache_info().currsize == 1
+    finally:
+        knowledge.load_field_renames.cache_clear()

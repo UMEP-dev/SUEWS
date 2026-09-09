@@ -9,6 +9,7 @@ each piece of evidence comes from.
 
 from __future__ import annotations
 
+import functools
 import re
 from typing import Any, Optional
 
@@ -80,24 +81,55 @@ def _classify_audience(repo_path: Optional[str]) -> str:
     return "developer_doc"
 
 
+@functools.lru_cache(maxsize=1)
+def load_field_renames() -> dict[str, str]:
+    """Return supy's legacy-to-current field rename registry, loaded once.
+
+    ``_legacy_names_in_text`` needs ``ALL_FIELD_RENAMES`` on every
+    ``query_knowledge`` call. The registry lives in ``supy.data_model``,
+    whose first import also loads numpy, pandas and pyarrow. That import
+    must not happen lazily inside a tool call: the tools run on ``anyio``
+    worker threads of the live server, and on Windows the numpy
+    extension-module load from such a thread deadlocks, which hung the
+    scheduled Windows API lane every night from 20 August 2026
+    (gh#1768). ``server._build_server`` therefore calls this on the main
+    thread before the event loop starts, so the worker-side lookup is a
+    dictionary access.
+
+    The warm-up also covers the other tools that import from supy inside
+    their bodies (``examples``, ``validate``, ``readiness``, the docs
+    resource): once ``supy.data_model`` is loaded, those imports add only
+    pure-Python modules, so no worker thread performs an extension load.
+    A caller that imports a tool function directly, without
+    ``_build_server``, still takes the lazy path on first use.
+
+    An older supy without the registry yields an empty mapping; the
+    audience tag alone still annotates the match.
+    """
+    try:
+        from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
+    except Exception:
+        return {}
+    return dict(ALL_FIELD_RENAMES)
+
+
 def _legacy_names_in_text(text: Optional[str]) -> list[dict[str, str]]:
     """Return ``[{legacy: ..., current: ...}]`` for legacy field names
     that appear as whole tokens in ``text`` (gh#1402).
 
-    Backed by ``ALL_FIELD_RENAMES`` in supy's data-model layer. When
-    the function cannot import the rename registry (older supy install)
-    it returns an empty list — the audience tag alone is still
-    actionable.
+    Backed by ``ALL_FIELD_RENAMES`` in supy's data-model layer via
+    :func:`load_field_renames`. When the registry is unavailable (older
+    supy install) it returns an empty list — the audience tag alone is
+    still actionable.
     """
     if not text:
         return []
-    try:
-        from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
-    except Exception:
+    renames = load_field_renames()
+    if not renames:
         return []
     hits: list[dict[str, str]] = []
     seen: set[str] = set()
-    for legacy, current in ALL_FIELD_RENAMES.items():
+    for legacy, current in renames.items():
         if legacy in seen:
             continue
         # Whole-word match so partial substrings (e.g. ``method`` inside

@@ -450,3 +450,93 @@ def test_query_knowledge_does_not_attach_legacy_for_clean_text(
 
     result = query_knowledge("anything", mode="full")
     assert "legacy_name_for" not in result["data"]["matches"][0]
+
+
+# Field-rename registry preload - gh#1762
+#
+# `_legacy_names_in_text` used to import supy's data-model layer, and
+# with it numpy, the first time a match was annotated. The FastMCP
+# server runs tool bodies on an anyio worker thread, and on Windows
+# that first compiled-extension load never returned: the loader lock
+# is held for the whole of `LoadLibraryExW` and the load waits on work
+# that lock blocks, so the MCP session hung on its first
+# `query_knowledge` call. The registry is now loaded once, eagerly, by
+# `preload_field_renames`, which the server calls at start-up on the
+# main thread.
+
+
+def test_preload_field_renames_is_idempotent() -> None:
+    from suews_mcp.tools import knowledge
+
+    knowledge.preload_field_renames()
+    first = knowledge._field_renames()
+    knowledge.preload_field_renames()
+    assert knowledge._field_renames() is first
+
+
+def test_annotation_performs_no_import_once_preloaded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After the preload, annotating a match must not execute a single
+    import statement (gh#1762).
+
+    The guard is deliberately blunt: any `import` reached from the
+    annotation path fails the test, because on the server that path
+    runs on a worker thread where a compiled-extension import can
+    deadlock on Windows.
+    """
+    import builtins
+
+    from suews_mcp.tools import knowledge
+
+    knowledge.preload_field_renames()
+
+    def _no_imports(name, *args, **kwargs):
+        raise AssertionError(f"annotation path imported {name!r}")
+
+    monkeypatch.setattr(builtins, "__import__", _no_imports)
+    annotated = knowledge._annotate_match({
+        "repo_path": "src/supy/data_model/core/model.py",
+        "text": "netradiationmethod is the legacy spelling",
+    })
+    assert annotated["audience"] == "user_yaml"
+    # Proves the registry was actually loaded, rather than the
+    # annotation path having returned early on an empty registry.
+    assert "legacy_name_for" in annotated
+
+
+def test_server_preloads_field_renames_before_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`suews-mcp` loads the registry during start-up, before FastMCP
+    builds its event loop and worker-thread pool (gh#1762).
+
+    The preload now lives in `_build_server` itself (so every caller
+    gets it, not only `main`), so this leaves `_build_server` real and
+    patches only `FastMCP.run` - the point is that the preload must
+    have already happened by the time `run()` is entered.
+    """
+    pytest.importorskip(
+        "mcp.server.fastmcp",
+        reason=(
+            "The optional 'mcp' SDK FastMCP server is not installed in the "
+            "standard supy wheel matrix."
+        ),
+    )
+    from mcp.server.fastmcp import FastMCP
+
+    from suews_mcp import server
+    from suews_mcp.tools import knowledge
+
+    knowledge._field_renames.cache_clear()
+    monkeypatch.setattr(server, "_check_knowledge_pack_freshness", lambda: None)
+
+    observed: dict = {}
+
+    def _run(self) -> None:
+        observed["cached"] = knowledge._field_renames.cache_info().currsize
+
+    monkeypatch.setattr(FastMCP, "run", _run)
+    server.main([])
+
+    assert observed["cached"] == 1

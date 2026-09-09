@@ -637,8 +637,9 @@ Migration Process
    # Test migrated configuration
    sim = SUEWSSimulation("migrated_config.yml")
 
-   # Short validation run (24 hours)
-   sim.run(end_date="2012-01-02")
+   # Short validation run: the whole of the first day (a date-only bound
+   # runs through the end of that day)
+   sim.run(end_date="2012-01-01")
 
    # Check energy balance using get_variable()
    print("✅ Migration validation:")

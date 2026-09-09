@@ -246,7 +246,7 @@ def test_stubbed_site_warning_reaches_user_with_grid_and_timestep(
     sim = _dyohm_sim_with_unstable_paved_layer(sample_yaml_path, STEPS_PER_HOUR)
 
     with caplog.at_level(logging.WARNING, logger="SuPy"):
-        output = sim.run()
+        output = sim.run(end_date=sim.forcing.index[-1])
 
     df = sim.kernel_warnings
     assert not df.empty, "DyOHM stability warning was not surfaced"
@@ -278,27 +278,29 @@ def test_stubbed_site_warning_reaches_user_with_grid_and_timestep(
 def test_clean_sample_run_has_no_kernel_warnings(sample_yaml_path):
     sim = SUEWSSimulation(str(sample_yaml_path))
     sim.update_forcing(sim.forcing.df.iloc[:STEPS_PER_HOUR])
-    output = sim.run()
+    output = sim.run(end_date=sim.forcing.index[-1])
     assert sim.kernel_warnings.empty
     assert output.kernel_warnings.empty
 
 
 def test_reset_and_checkpoint_continuation_start_new_warning_log(sample_yaml_path):
     sim = _dyohm_sim_with_unstable_paved_layer(sample_yaml_path, STEPS_PER_HOUR)
-    first_output = sim.run()
+    # The sample YAML requests the whole year; bound each run to the window.
+    end_date = sim.forcing.index[-1]
+    first_output = sim.run(end_date=end_date)
     checkpoint = sim.checkpoint
     first_warnings = first_output.kernel_warnings.copy(deep=True)
     assert len(first_warnings) == STEPS_PER_HOUR
 
     sim.reset()
     assert sim.kernel_warnings.empty
-    repeated_output = sim.run()
+    repeated_output = sim.run(end_date=end_date)
     assert len(repeated_output.kernel_warnings) == STEPS_PER_HOUR
 
     # Deliberately repeat the forcing as in an explicit spin-up cycle.
     sim.continue_from(checkpoint, check_continuity=False)
     assert sim.kernel_warnings.empty
-    continued_output = sim.run()
+    continued_output = sim.run(end_date=end_date)
     assert len(continued_output.kernel_warnings) == STEPS_PER_HOUR
     pd.testing.assert_frame_equal(first_output.kernel_warnings, first_warnings)
 
@@ -307,7 +309,7 @@ def test_kernel_log_cap_is_reported_not_silent(sample_yaml_path):
     # Two days of 5-minute steps raise 576 warnings; the kernel keeps 512
     n_steps = 2 * 24 * STEPS_PER_HOUR
     sim = _dyohm_sim_with_unstable_paved_layer(sample_yaml_path, n_steps)
-    sim.run()
+    sim.run(end_date=sim.forcing.index[-1])
     df = sim.kernel_warnings
     assert len(df) == 512
     assert sim._kernel_warnings.totals == {1: n_steps}

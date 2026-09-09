@@ -4,8 +4,8 @@ description: Sample configuration built from benchmark 1a (Ward et al. 2016) mod
 model:
   control:
     tstep: 300
-    start_time: "2011-01-01"
-    end_time: "2013-12-31"
+    start_time: "2012-01-01"
+    end_time: "2012-12-31"
     forcing:
       file:
         value: Kc_2012_data_60.txt

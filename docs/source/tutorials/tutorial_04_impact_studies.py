@@ -101,7 +101,8 @@ for alb_val in list_albedo:
 
     # Update forcing and run
     sim_alb.update_forcing(forcing_sliced)
-    output = sim_alb.run(logging_level=90)
+    # Run only the loaded Jan-Mar window of the year the config requests.
+    output = sim_alb.run(logging_level=90, clip_to_forcing=True)
     dict_outputs[alb_val] = output
 
 print(f"Completed {n_albedo} albedo simulations")
@@ -206,7 +207,7 @@ for temp_offset in list_temp_offset:
     # Run simulation using OOP interface
     sim_climate = SUEWSSimulation.from_sample_data()
     sim_climate.update_forcing(df_forcing_modified)
-    output = sim_climate.run(logging_level=90)
+    output = sim_climate.run(logging_level=90, clip_to_forcing=True)
 
     # Store results with scenario label
     list_outputs.append((temp_offset, output))

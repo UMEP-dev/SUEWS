@@ -155,6 +155,22 @@ suews-inspect = "supy.cmd.suews_cli:inspect_alias"
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
+    # A supy DeprecationWarning is a defect signal, not background noise.
+    # Every fixture and sample config the tests load is on current field
+    # names, so a warning raised from inside supy means either a config has
+    # regressed to a deprecated spelling or an internal caller is passing one.
+    # Tests that exist to exercise the deprecated surface itself opt out with
+    # an explicit @pytest.mark.filterwarnings, named one by one rather than
+    # waived wholesale. See scripts/suews/README.md for the tracked count.
+    "error::DeprecationWarning:supy",
+    # Third-party deprecations reached through supy are outside the gate
+    # above: adapting to them is a separate change with its own behaviour
+    # risk. Each is named individually so a new one still surfaces.
+    # pandas 3 will stop sorting a concatenated DatetimeIndex by default
+    # (supy/_post.py::_resample_output). Passing sort=True keeps today's
+    # ordering but drops the index freq, which the resample regressions
+    # assert on, so the adaptation needs its own PR.
+    "ignore:Sorting by default when concatenating all DatetimeIndex:DeprecationWarning:supy",
 ]
 # Per-test wall-clock budget (pytest-timeout). A hung test must fail with its
 # name and the stacks of every thread in the log, not disappear behind a

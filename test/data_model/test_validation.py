@@ -4350,26 +4350,28 @@ model:
       freq: 3600
       dir: ./out
   physics:
-    netradiationmethod: {value: 3}
-    emissionsmethod: {value: 2}
-    storageheatmethod: {value: 1}
-    ohmincqf: {value: 0}
-    roughlenmommethod: {value: 1}
-    roughlenheatmethod: {value: 2}
-    stabilitymethod: {value: 3}
-    smdmethod: {value: 0}
-    waterusemethod: {value: 0}
-    rslmethod: {value: 1}
-    rsllevel: {value: 1}
-    gsmodel: {value: 2}
-    snowuse: {value: 0}
-    stebbsmethod: {value: 0}
-    rcmethod: {value: 0}
-    setpointmethod: {value: 0}
-    same_albedo_wall: {value: 0}
-    same_albedo_roof: {value: 0}
-    same_emissivity_wall: {value: 0}
-    same_emissivity_roof: {value: 0}
+    net_radiation: {value: 3}
+    emissions: {value: 2}
+    storage_heat: {value: 1}
+    ohm_inc_qf: {value: 0}
+    roughness_length_momentum: {value: 1}
+    roughness_length_heat: {value: 2}
+    stability: {value: 3}
+    soil_moisture_deficit: {value: 0}
+    water_use: {value: 0}
+    roughness_sublayer: {value: 1}
+    roughness_sublayer_level: {value: 1}
+    surface_conductance: {value: 2}
+    snow_use: {value: 0}
+    stebbs:
+      enabled: {value: false}
+      parameters: {value: 1}
+      capacitance: {value: 0}
+      setpoint: {value: 0}
+      same_albedo_wall: {value: 0}
+      same_albedo_roof: {value: 0}
+      same_emissivity_wall: {value: 0}
+      same_emissivity_roof: {value: 0}
 sites:
   - name: site
     gridiv: 1
@@ -4382,15 +4384,15 @@ sites:
       land_cover:
         paved:
           sfr: {value: 0.5}
-          soildepth: {value: 350.0}
-          soilstorecap: {value: 150.0}
-          statelimit: {value: 0.48}
+          soil_depth: {value: 350.0}
+          soil_store_capacity: {value: 150.0}
+          state_limit: {value: 0.48}
           alb: {value: 0.08}
         bldgs:
           sfr: {value: 0.5}
-          soildepth: {value: 350.0}
-          soilstorecap: {value: 150.0}
-          statelimit: {value: 0.25}
+          soil_depth: {value: 350.0}
+          soil_store_capacity: {value: 150.0}
+          state_limit: {value: 0.25}
           alb: {value: 0.15}
           bldgh: {value: 3.5}
           faibldg: {value: 0.3}
@@ -4423,27 +4425,29 @@ model:
       freq: 3600
       dir: ./out
   physics:
-    netradiationmethod: {value: 3}
-    emissionsmethod: {value: 2}
-    storageheatmethod: {value: 1}
-    ohmincqf: {value: 0}
-    roughlenmommethod: {value: 1}
-    roughlenheatmethod: {value: 2}
-    stabilitymethod: {value: 3}
-    smdmethod: {value: 0}
-    waterusemethod: {value: 0}
-    rslmethod: {value: 1}
-    faimethod: {value: 1}
-    rsllevel: {value: 1}
-    gsmodel: {value: 2}
-    snowuse: {value: 0}
-    stebbsmethod: {value: 0}
-    rcmethod: {value: 0}
-    setpointmethod: {value: 0}
-    same_albedo_wall: {value: 0}
-    same_albedo_roof: {value: 0}
-    same_emissivity_wall: {value: 0}
-    same_emissivity_roof: {value: 0}
+    net_radiation: {value: 3}
+    emissions: {value: 2}
+    storage_heat: {value: 1}
+    ohm_inc_qf: {value: 0}
+    roughness_length_momentum: {value: 1}
+    roughness_length_heat: {value: 2}
+    stability: {value: 3}
+    soil_moisture_deficit: {value: 0}
+    water_use: {value: 0}
+    roughness_sublayer: {value: 1}
+    frontal_area_index: {value: 1}
+    roughness_sublayer_level: {value: 1}
+    surface_conductance: {value: 2}
+    snow_use: {value: 0}
+    stebbs:
+      enabled: {value: false}
+      parameters: {value: 1}
+      capacitance: {value: 0}
+      setpoint: {value: 0}
+      same_albedo_wall: {value: 0}
+      same_albedo_roof: {value: 0}
+      same_emissivity_wall: {value: 0}
+      same_emissivity_roof: {value: 0}
 sites:
   - name: site
     gridiv: 1
@@ -4456,15 +4460,15 @@ sites:
       land_cover:
         paved:
           sfr: {value: 0.5}
-          soildepth: {value: 350.0}
-          soilstorecap: {value: 150.0}
-          statelimit: {value: 0.48}
+          soil_depth: {value: 350.0}
+          soil_store_capacity: {value: 150.0}
+          state_limit: {value: 0.48}
           alb: {value: 0.08}
         bldgs:
           sfr: {value: 0.5}
-          soildepth: {value: 350.0}
-          soilstorecap: {value: 150.0}
-          statelimit: {value: 0.25}
+          soil_depth: {value: 350.0}
+          soil_store_capacity: {value: 150.0}
+          state_limit: {value: 0.25}
           alb: {value: 0.15}
           bldgh: {value: 3.5}
         dectr:
@@ -4507,28 +4511,30 @@ model:
       freq: 3600
       dir: ./out
   physics:
-    netradiationmethod: {value: 3}
-    emissionsmethod: {value: 2}
-    storageheatmethod: {value: 1}
-    ohmincqf: {value: 0}
-    roughlenmommethod: {value: 1}
-    roughlenheatmethod: {value: 2}
-    stabilitymethod: {value: 3}
-    smdmethod: {value: 0}
-    waterusemethod: {value: 0}
-    rslmethod: {value: 1}
-    faimethod: {value: 1}
-    rsllevel: {value: 1}
-    gsmodel: {value: 2}
+    net_radiation: {value: 3}
+    emissions: {value: 2}
+    storage_heat: {value: 1}
+    ohm_inc_qf: {value: 0}
+    roughness_length_momentum: {value: 1}
+    roughness_length_heat: {value: 2}
+    stability: {value: 3}
+    soil_moisture_deficit: {value: 0}
+    water_use: {value: 0}
+    roughness_sublayer: {value: 1}
+    frontal_area_index: {value: 1}
+    roughness_sublayer_level: {value: 1}
+    surface_conductance: {value: 2}
     laimethod: {value: 0}
-    snowuse: {value: 0}
-    stebbsmethod: {value: 0}
-    rcmethod: {value: 0}
-    setpointmethod: {value: 0}
-    same_albedo_wall: {value: 0}
-    same_albedo_roof: {value: 0}
-    same_emissivity_wall: {value: 0}
-    same_emissivity_roof: {value: 0}
+    snow_use: {value: 0}
+    stebbs:
+      enabled: {value: false}
+      parameters: {value: 1}
+      capacitance: {value: 0}
+      setpoint: {value: 0}
+      same_albedo_wall: {value: 0}
+      same_albedo_roof: {value: 0}
+      same_emissivity_wall: {value: 0}
+      same_emissivity_roof: {value: 0}
 sites:
   - name: site
     gridiv: 1

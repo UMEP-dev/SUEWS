@@ -63,6 +63,18 @@ diagnosis, and the grouped representation is in `normalised_message`. Other
 numbers and paths are preserved so scientifically different warnings do not
 collapse together.
 
+The total across `warnings[].count` is a tracked number. It fell from about
+13000 to about 1100 per everyday lane on 9 September 2026 when the
+`from_df_state` reconstructors stopped passing deprecated field names to their
+own constructors and the test fixtures moved to current names; a supy
+`DeprecationWarning` is now an error under `filterwarnings` in
+`pyproject.toml`. Expect the deprecation share to stay near zero. When the
+total rises, read the new fingerprints rather than the total: a fixture or an
+internal caller has regressed to a deprecated spelling (fix the caller, do not
+add a filter), or a dependency has started warning (pin or adapt). Widening the
+`filterwarnings` opt-out list is the last resort, and only for a test whose
+subject is the deprecated surface itself.
+
 ### Wheel-job phase evidence
 
 Physics wheel jobs publish three files under one

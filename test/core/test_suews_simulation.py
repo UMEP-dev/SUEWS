@@ -529,6 +529,8 @@ class TestConfigFromDict:
         tstep = sim.config.model.control.tstep
         assert int(tstep.value if hasattr(tstep, "value") else tstep) == 600
 
+    # Subject is the legacy field name itself, so the deprecation is expected.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_update_config_legacy_field_name_renamed(self, sim_from_yaml):
         """Legacy field names must work in partial updates as in full input.
 
@@ -542,6 +544,8 @@ class TestConfigFromDict:
         inner = st.value if hasattr(st, "value") else st
         assert int(inner) == 3
 
+    # Subject is the deprecated `model.control.output_file` key itself.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_update_config_legacy_output_file(self, sim_from_yaml):
         """The deprecated output_file dict form must lift under output."""
         sim_from_yaml.update_config({

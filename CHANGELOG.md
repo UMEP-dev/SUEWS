@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] `test_benchmark_config` loads the short-window benchmark configuration (`benchmark1_short.yml`, seven days) rather than `benchmark1.yml`, whose `forcing/` directory made it the slowest test in the API lane at 86.7 s on Windows; assertions unchanged, and the `gh846` fixture drops the 7.31 MB of meteorological forcing that `convert_table` never globs (#1778)
+
 ### 9 Sep 2026
 
 - [maintenance] Added a collection check (`test/core/test_physics_tier_delta.py`, logic in `scripts/lint/check_physics_tier_delta.py`) that fails when the `physics-full` test tier would run physics tests that `standard` does not (`physics and slow and not core`) without the physics-change rule recording them, or when the rule records tests that no longer exist; the rule now states that the tier currently adds nothing over `standard` (#1775)

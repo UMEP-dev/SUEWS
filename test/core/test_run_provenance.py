@@ -92,7 +92,12 @@ def test_provenance_records_requested_and_actual_period(saved_run):
     assert pd.Timestamp(period["requested"]["end"]) == pd.Timestamp(
         saved_run["end_date"]
     )
-    assert period["requested"]["start"] == requested_bound_to_str(
+    # The raw value is the config string; ``start`` is the resolved instant
+    # (a date-only start is that day's midnight).
+    assert period["requested"]["start_raw"] == requested_bound_to_str(
+        sim.config.model.control.start_time
+    )
+    assert pd.Timestamp(period["requested"]["start"]) == pd.Timestamp(
         sim.config.model.control.start_time
     )
 
@@ -105,10 +110,10 @@ def test_provenance_records_requested_and_actual_period(saved_run):
     assert actual_end == times.max()
     assert period["actual"]["n_timesteps"] == SHORT_STEPS
     assert period["tstep_s"] == 300
-    # Without a coverage check publishing ``_run_period`` the sidecar does
-    # not guess whether the request was clipped.
-    assert period["clipped"] is None
-    assert period["policy"] is None
+    # ``run()`` published ``_run_period``: the explicit end was covered, so
+    # nothing was clipped under the default strict policy.
+    assert period["clipped"] is False
+    assert period["policy"] == "strict"
 
     assert prov["timestamps"]["convention"] == "interval_end"
     assert prov["timestamps"]["forcing_reference"] == "local_standard_time"
@@ -160,26 +165,20 @@ def test_diagnose_sees_provenance_from_real_run(saved_run):
 
 
 def test_provenance_consumes_run_period_contract(tmp_path):
-    """A published ``_run_period`` record is the single source of truth."""
+    """The ``_run_period`` record written by ``run()`` is the single source of truth."""
     sim = SUEWSSimulation.from_sample_data()
     sim.update_forcing(sim.forcing.df.iloc[:SHORT_STEPS].copy())
     index = sim.forcing.df.index
-    sim._run_period = {
-        "requested_start": pd.Timestamp("2011-01-01"),
-        "requested_end": pd.Timestamp("2013-12-31"),
-        "requested_start_raw": "2011-01-01",
-        "requested_end_raw": "2013-12-31",
-        "actual_start": index[0],
-        "actual_end": index[-1],
-        "clipped": True,
-        "policy": "clip",
-    }
-    sim.run(n_jobs=1)
+    # The config requests the whole sample year; clip to the loaded window so
+    # the record carries a genuine requested-versus-actual difference.
+    sim.run(n_jobs=1, clip_to_forcing=True)
+    assert sim._run_period["clipped"] is True
     sim.save(tmp_path)
     period = read_provenance(tmp_path)["period"]
-    assert period["requested"]["start"] == "2011-01-01T00:00:00"
-    assert period["requested"]["start_raw"] == "2011-01-01"
-    assert period["requested"]["end_raw"] == "2013-12-31"
+    assert period["requested"]["start"] == "2012-01-01T00:00:00"
+    assert period["requested"]["start_raw"] == "2012-01-01"
+    assert period["requested"]["end_raw"] == "2012-12-31"
+    assert pd.Timestamp(period["requested"]["end"]) == pd.Timestamp("2013-01-01")
     assert pd.Timestamp(period["actual"]["start"]) == index[0]
     assert pd.Timestamp(period["actual"]["end"]) == index[-1]
     assert period["clipped"] is True
@@ -191,7 +190,7 @@ def test_output_format_follows_yaml_when_no_kwarg(tmp_path):
     sim = SUEWSSimulation.from_sample_data()
     sim.update_config({"model": {"control": {"output": {"format": "parquet"}}}})
     sim.update_forcing(sim.forcing.df.iloc[:SHORT_STEPS].copy())
-    sim.run(n_jobs=1)
+    sim.run(end_date=sim.forcing.index[-1], n_jobs=1)
     paths = sim.save(tmp_path)
     assert any(Path(p).suffix == ".parquet" for p in paths)
     prov = read_provenance(tmp_path)
@@ -204,7 +203,7 @@ def test_inputs_replaced_after_run_do_not_relabel_output(tmp_path):
     inputs attached to the object at save time."""
     sim = SUEWSSimulation.from_sample_data()
     sim.update_forcing(sim.forcing.df.iloc[:SHORT_STEPS].copy())
-    sim.run(n_jobs=1)
+    sim.run(end_date=sim.forcing.index[-1], n_jobs=1)
     original_config_hash = sim._run_metadata["inputs"]["config"]["effective_sha256"]
     original_forcing_hash = sim._run_metadata["inputs"]["forcing"]["effective_sha256"]
 
@@ -229,11 +228,11 @@ def test_inputs_replaced_after_run_do_not_relabel_output(tmp_path):
 def test_edited_in_memory_config_changes_effective_hash(tmp_path):
     sim_a = SUEWSSimulation.from_sample_data()
     sim_a.update_forcing(sim_a.forcing.df.iloc[:SHORT_STEPS].copy())
-    sim_a.run(n_jobs=1)
+    sim_a.run(end_date=sim_a.forcing.index[-1], n_jobs=1)
     sim_b = SUEWSSimulation.from_sample_data()
     sim_b.update_config({"model": {"control": {"tstep": 600}}})
     sim_b.update_forcing(sim_b.forcing.df.iloc[:SHORT_STEPS].copy())
-    sim_b.run(n_jobs=1)
+    sim_b.run(end_date=sim_b.forcing.index[-1], n_jobs=1)
     hash_a = sim_a._run_metadata["inputs"]["config"]["effective_sha256"]
     hash_b = sim_b._run_metadata["inputs"]["config"]["effective_sha256"]
     assert hash_a != hash_b
@@ -247,7 +246,7 @@ def test_edited_in_memory_config_changes_effective_hash(tmp_path):
 def test_in_memory_forcing_is_reported_truthfully(tmp_path):
     sim = SUEWSSimulation.from_sample_data()
     sim.update_forcing(sim.forcing.df.iloc[:SHORT_STEPS].copy())
-    sim.run(n_jobs=1)
+    sim.run(end_date=sim.forcing.index[-1], n_jobs=1)
     sim.save(tmp_path)
     prov = read_provenance(tmp_path)
     assert prov["forcing"]["source"] == "in-memory"
@@ -270,6 +269,9 @@ def test_cli_run_records_command(tmp_path):
     (tmp_path / forcing_name).write_text(
         "".join(lines[: SHORT_STEPS + 1]), encoding="utf-8"
     )
+    # The shortened file covers one day, so request one day.
+    assert 'end_time: "2012-12-31"' in cfg_text
+    cfg_text = cfg_text.replace('end_time: "2012-12-31"', 'end_time: "2012-01-01"')
     cfg_path = tmp_path / "case.yml"
     cfg_path.write_text(cfg_text, encoding="utf-8")
 

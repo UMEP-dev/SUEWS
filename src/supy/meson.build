@@ -9,6 +9,7 @@ py.install_sources(
         '_post.py',
         '_provenance.py',
         '_run.py',
+        '_run_period.py',
         '_run_rust.py',
         '_run_output.py',
         '_save.py',

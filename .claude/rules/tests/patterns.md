@@ -121,8 +121,8 @@ not bypass.
 ```python
 @pytest.mark.smoke   # Critical, fast tests (~60s total)
 @pytest.mark.core    # Essential physics/logic contract
-@pytest.mark.medium  # Roughly 30-60s on the slowest normal CI platform
-@pytest.mark.slow    # Over 60s, or unsuitable for routine PR runs
+@pytest.mark.medium  # Test body 10-30 CPU-s on the Linux reference runner
+@pytest.mark.slow    # 30 CPU-s or more, or slow(reason="...") for a non-CPU cause
 @pytest.mark.util    # Utility function tests (non-critical)
 @pytest.mark.cfg     # Config/schema validation tests
 ```
@@ -141,16 +141,98 @@ subset per matrix cell.
   an essential expensive regression is honestly marked `core` + `slow`.
 - `standard`: all non-slow tests plus essential `core` tests for the relevant
   nature axis.
-- `medium`: roughly 30-60 seconds on the slowest normal CI platform. These stay
-  eligible for `standard` and for any importance tier they also carry.
-- `slow`: over 60 seconds individually, or otherwise unsuitable for routine PR
-  runs. A slow test runs before merge only when it also carries `core`; other
-  slow tests belong in `make test-all`, scheduled/release builds, or explicit
-  manual validation.
+- `medium`: a test body of 10 to 30 CPU seconds on the Linux reference runner
+  (see "Cost thresholds" below). These stay eligible for `standard` and for any
+  importance tier they also carry.
+- `slow`: a test body of 30 CPU seconds or more on that runner, or otherwise
+  unsuitable for routine PR runs for a reason other than CPU, which the marker
+  states: `pytest.mark.slow(reason="...")`. A slow test runs before merge only
+  when it also carries `core`; other slow tests belong in `make test-all`,
+  scheduled/release builds, or explicit manual validation.
 - `qgis`: UMEP/QGIS tests only. These target Windows + Python 3.12, which
   matches the current Windows runtime line for both QGIS 3 LTR and QGIS 4.
   They should stay out of local `make test` and normal PR/CR tiers unless
   selected explicitly.
+
+### Cost thresholds
+
+The cost markers are defined by **process CPU seconds of the test body (the
+`call` phase) on the Linux reference runner** (`ubuntu-latest`, cp312), not by
+wall time and not by the slowest platform. Wall time on a hosted runner sits on
+a 2x noise floor (the same 166-test physics tier took 169 s and 343 s on the
+same runner class on the same day), so a marker assigned by wall-clock feel
+drifts with the runner; CPU seconds of one test on one platform are what the
+test itself costs. Windows wall time runs at roughly four times the Linux CPU
+figure (the STEBBS full-year comparison: 34 CPU-s on Linux, 148 s of wall on
+Windows), so the old wording "30-60 s on the slowest platform" maps onto the
+same tests.
+
+| Marker | Test body CPU seconds (Linux cp312) |
+|---|---|
+| none (fast) | under 10 |
+| `medium` | 10 to 30 |
+| `slow` | 30 or more, or `slow(reason="...")` for a non-CPU cause |
+
+Where the numbers come from. The metrics plugin
+(`scripts/suews/pytest_ci_metrics.py`) records wall and CPU seconds per test
+and phase in the `ci-metrics-api-cp312-manylinux-x86_64` and
+`ci-metrics-physics-cp312-manylinux-x86_64` artefacts of every nightly run. The
+thresholds were read from the first such measurement (dispatch run 34415925967
+on PR #1779, 9 September 2026, release wheel; 181 physics and 2122 api tests
+ran their body, and the 37 skipped or xfailed nodes carry no measurement):
+
+| Test body CPU-s | physics tests | api tests |
+|---|---:|---:|
+| 0 - 0.1 | 78 | 1699 |
+| 0.1 - 0.3 | 6 | 79 |
+| 0.3 - 1 | 12 | 128 |
+| 1 - 3 | 11 | 157 |
+| 3 - 10 | 47 | 58 |
+| 10 - 30 | 25 | 1 |
+| 30 - 60 | 2 | 0 |
+| 60 or more | 0 | 0 |
+
+Ten seconds sits in the gap between the short sample runs (a few model days,
+5 to 10 CPU-s: the OHM blending, irrigation, LAI-method and dyohm tests) and
+the long ones (ten or more model days or repeated runs, 11.6 CPU-s and up: the
+EHC regressions, the AnOHM restart and chunking checks, the DailyState
+phenology tests). Thirty seconds separates the two full-year sample-output
+comparisons (33.5 and 35.2 CPU-s) from everything else (27.9 CPU-s and under),
+and is 3x the medium threshold. Nothing in the suite reaches 60 CPU-s.
+
+Why the `call` phase. Under xdist the physics lane runs four workers and each
+worker instantiates a session fixture once, so `setup` charges a shared fixture
+to whichever test reaches it first on each worker; that cost belongs to the
+fixture, not the test, and would make the flagged set differ between two runs
+of the same tree. Setup and teardown are recorded beside `call` in the artefact
+for anyone who needs them.
+
+How it is checked. `scripts/lint/check_cost_markers.py` reads those artefacts
+and names every test whose marker disagrees with its measurement: unmarked at
+or above 10 CPU-s, `medium` at or above 30, `medium` under 10 / 1.5 (a
+hysteresis band, so a test near the threshold does not flap between two
+nights' readings: one flap over the threshold is answered by adding the
+marker, after which the test sits inside the band and stays quiet), and a bare
+`slow` under 30. A `slow` mark under 30 CPU-s must carry its reason
+(`pytest.mark.slow(reason="...")`: network or credentials, a run-count policy
+such as the non-anchor legacy-table versions, a spawned server with wall-clock
+assertions, a full-year run that is 148 s of wall on Windows); the plugin
+records the reason and the check accepts it. Skipped and xfailed nodes carry no
+measurement and are not judged. The nightly `cost_markers` job in
+`build-publish_to_pypi.yml` runs the check after the two Linux cp312 lanes
+(also on `workflow_dispatch` with the `cost_markers` input) with
+`continue-on-error`, so drift is reported in the step summary and never
+reddens the run. Run it locally on downloaded artefacts:
+
+```bash
+gh run download <run-id> -n ci-metrics-api-cp312-manylinux-x86_64 -D ci-metrics/api
+gh run download <run-id> -n ci-metrics-physics-cp312-manylinux-x86_64 -D ci-metrics/physics
+python scripts/lint/check_cost_markers.py ci-metrics --histogram
+```
+
+Fix the marker, not the threshold. A threshold moves only with a new
+distribution table in this section and a matching change to the constants at
+the top of the lint.
 
 ---
 

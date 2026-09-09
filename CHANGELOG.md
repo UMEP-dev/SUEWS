@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 8 Sep 2026
 
+- [maintenance] `make test` runs on up to `TEST_JOBS` (default 4) pytest-xdist workers with work stealing; measured 625 s serial to 124 s on the same selection, same results (#1765)
 - [maintenance] Scheduled runs now report their outcome: a `report_scheduled_run` job opens or updates one tracking issue when any nightly build, test or publish job fails or is cancelled, and closes it on the next green run (#1764)
 - [maintenance] Tests carry a per-test wall-clock budget: `pytest-timeout` (thread method, 600 s) and `faulthandler_timeout` (300 s) are configured in `pyproject.toml` and installed in every CI pytest lane, so a hung test fails with the stacks of all threads in the log instead of the lane being cancelled at the job cap (#1763)
 - [maintenance] `test_parallel_output_matches_serial` reports a byte mismatch by position instead of letting pytest diff two multi-megabyte reprs; the expected gh#1741 failure had stalled the Windows API lane for its whole per-test budget (#1762)

@@ -230,7 +230,7 @@ class TestERA5FileCleanup:
         )
 
 
-@pytest.mark.slow
+@pytest.mark.slow(reason="downloads from the CDS API; needs credentials and network")
 @pytest.mark.skipif(
     not has_cds_credentials(), reason="Requires CDS API credentials (~/.cdsapirc)"
 )

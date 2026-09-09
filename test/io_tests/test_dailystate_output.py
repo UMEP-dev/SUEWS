@@ -139,6 +139,7 @@ class TestDailyStateOutput:
             assert (df_saved[data_cols] != -999).any().any()
 
 
+    @pytest.mark.medium
     def test_dailystate_lai_responds_to_phenology(
         self, sample_run_cached, sample_data_loaded
     ):
@@ -336,6 +337,7 @@ class TestDailyStateOutput:
         )
 
 
+    @pytest.mark.medium
     def test_dailystate_lai_northern_lai_type_0_sdd_senescence(
         self, sample_data_loaded, sample_config_loaded, sample_yaml_path
     ):
@@ -419,6 +421,7 @@ class TestDailyStateOutput:
             "when SDD < 0 and SDD > SDDFull"
         )
 
+    @pytest.mark.medium
     def test_dailystate_lai_northern_lai_type_1_daylength_senescence(
         self, sample_data_loaded, sample_yaml_path
     ):

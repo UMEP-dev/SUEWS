@@ -49,8 +49,12 @@ _FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "legacy_table
 
 # Every version with vendored fixtures. The two anchors run in the normal CI
 # tier; the rest carry the ``slow`` marker (full matrix runs in the ``all``
-# tier and locally).
+# tier and locally). Each of these tests is a few CPU seconds, so the marker
+# states its reason: it is a run-count policy, not a per-test cost.
 _ANCHOR_VERSIONS = ["2016a", "2018b"]
+_NON_ANCHOR_SLOW = pytest.mark.slow(
+    reason="non-anchor legacy version: the anchors cover routine tiers, the full matrix runs in the all tier"
+)
 _ALL_VERSIONS = [
     "2016a",
     "2017a",
@@ -63,7 +67,7 @@ _ALL_VERSIONS = [
     "2020a",
 ]
 _MATRIX = [
-    ver if ver in _ANCHOR_VERSIONS else pytest.param(ver, marks=pytest.mark.slow)
+    ver if ver in _ANCHOR_VERSIONS else pytest.param(ver, marks=_NON_ANCHOR_SLOW)
     for ver in _ALL_VERSIONS
 ]
 

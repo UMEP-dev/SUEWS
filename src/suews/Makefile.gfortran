@@ -18,7 +18,7 @@ BASICFLAGS = -J./mod -fconvert=big-endian -ffree-line-length-none -frecursive
 OMPFLAG = -fopenmp
 
 ifndef DEBUG
-# --NORMAL CONFIGURATION--
+# --RELEASE CONFIGURATION-- (SUEWS_BUILD_PROFILE=release, see ../supy/run_make.py)
 
 # Optimization flags
 OPTFLAGS = -O3
@@ -27,12 +27,19 @@ OPTFLAGS = -O3
 WARNFLAGS = -Wall -Wno-unused-label -Wno-unused-dummy-argument -Wno-unused-variable
 # WARNFLAGS = -Wall -Wno-unused-label -Wno-unused-dummy-argument -Wno-unused-variable -Wimplicit-interface
 
-# Debugging flags, such as "-g" to store debugging symbols, and
-# instructions to abort if certain floating-point exceptions occur
-DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow
+# -g keeps symbols for backtraces at no run-time cost.
+# -finit-real=zero is kept in both profiles: the library is loaded from Python
+#   through the Rust bridge, and gfortran 14+ segfaults on uninitialised
+#   derived-type descriptors without it (see ../suews_bridge/build.rs).
+# No -ffpe-trap in either profile: on Windows MSYS2 the gfortran runtime arms
+#   hardware FPE traps on library load, and legitimate divisions by zero in
+#   SPARTACUS night-time paths would raise SIGFPE and kill the Python
+#   interpreter, while macOS and Linux leave the traps disabled. IEEE Inf/NaN
+#   propagation is the behaviour every platform shares.
+DEBUGFLAGS = -g -finit-real=zero
 
 else
-# --DEBUGGING CONFIGURATION--
+# --CHECKED CONFIGURATION-- (SUEWS_BUILD_PROFILE=checked, the current default)
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
 # When the physics library is loaded as a shared library from Python/Rust:

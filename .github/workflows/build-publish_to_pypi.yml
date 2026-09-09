@@ -109,6 +109,14 @@ on:
           - core
           - cfg
           - smoke
+      build_profile:
+        description: 'Fortran build profile for this dispatch only (checked = runtime checks, the default; release = optimised, no checks). The default changes only after the release profile is validated on every platform.'
+        required: false
+        default: 'checked'
+        type: choice
+        options:
+          - checked
+          - release
 
 permissions:
   contents: read
@@ -432,6 +440,7 @@ jobs:
       python_json: ${{ needs.determine_matrix.outputs.python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
       is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
+      build_profile: ${{ inputs.build_profile || 'checked' }}
 
   build_mcp:
     name: Build MCP package

@@ -37,9 +37,18 @@ else
 	endif
 endif
 
-# Enable debug build: bounds checking and sNaN init protect against
-# uninitialised variables and array-bounds violations.
-DEBUG=1
+# Build profile (Makefile.gfortran reads DEBUG to pick the flag set).
+# run_make.py maps SUEWS_BUILD_PROFILE=checked|release to DEBUG=1|DEBUG= on
+# the make command line; a command-line value overrides the default below.
+#   checked: -O0 -fcheck=all -finit-real=zero. Out-of-bounds and uninitialised
+#            reads surface as Fortran runtime errors instead of silent numbers.
+#            Measured cost against release: about 1.7x on the sample model and
+#            5x on SPARTACUS-heavy configurations.
+#   release: -O3 -finit-real=zero, no runtime checks, no FPE traps.
+# The checked profile stays the default here until the release profile has
+# been validated on every CI platform; a bare `make` therefore builds checked,
+# and `make DEBUG=` builds release.
+DEBUG ?= 1
 
 LIBUTILS = $(addprefix $(DIR_LIB_SUEWS),libsuewsutil.a)
 LIBPHYS = $(addprefix $(DIR_LIB_SUEWS),libsuewsphys.a)

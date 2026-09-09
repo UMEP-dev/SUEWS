@@ -372,7 +372,7 @@ class TestDailyStateOutput:
         df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
 
         sim.update_forcing(df_forcing)
-        sim.run()
+        sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
 
         df_output = sim.output
         df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
@@ -452,7 +452,7 @@ class TestDailyStateOutput:
         df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
 
         sim.update_forcing(df_forcing)
-        sim.run()
+        sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
 
         df_output = sim.output
         df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
@@ -543,7 +543,7 @@ class TestDailyStateOutput:
         ]
 
         sim.update_forcing(df_forcing)
-        sim.run()
+        sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
 
         df_dailystate = (
             sim.output.loc[:, "DailyState"]
@@ -622,7 +622,7 @@ class TestDailyStateOutput:
         ]
 
         sim.update_forcing(df_forcing)
-        sim.run()
+        sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
 
         df_dailystate = (
             sim.output.loc[:, "DailyState"]

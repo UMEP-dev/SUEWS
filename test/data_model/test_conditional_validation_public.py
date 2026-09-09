@@ -242,3 +242,15 @@ def test_consistent_spartacus_configuration_loads():
     _enable_spartacus(data)
 
     SUEWSConfig.from_dict(data)
+
+
+@pytest.mark.parametrize("field", ["veg_frac", "veg_scale"])
+def test_spartacus_rejects_nonzero_vegetation_above_tree_canopy(field):
+    """Each top-layer field is independently required to be zero (gh#1699)."""
+    data = _sample_config()
+    original = _site_properties(data)["vertical_layers"][field]["value"][2]
+    assert original > 0
+    _enable_spartacus(data)
+    _site_properties(data)["vertical_layers"][field]["value"][2] = original
+
+    _assert_public_rejection(data, f"{field}[2] should be zero")

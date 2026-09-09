@@ -241,7 +241,7 @@ CONTAINS
          CALL ErrorHint(32, &
                         'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
                         Zzd, zdm, notUsedI, modState)
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
       END IF
 
       UStar = KUZ/LOG(Zzd/z0m) ! Initial guess for UStar assuming neutral conditions — used only to seed the iteration
@@ -264,7 +264,7 @@ CONTAINS
       IF (LOG(zzd/z0m) < 0.001000) THEN
          ! PRINT*, 1/(z0m-z0m)
          CALL ErrorHint(17, 'In stability subroutine, (z-zd) < z0.', zzd, z0m, notUsedI, modState)
-         IF (supy_error_flag) RETURN
+         IF (supy_error_flag()) RETURN
       END IF
       i = 1
       LOLD = -999.

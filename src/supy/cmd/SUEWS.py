@@ -136,7 +136,7 @@ def _run_with_yaml(config_path):
 
         # Save results
         click.echo("\nSaving results ...")
-        output_files = sim.save()
+        output_files = sim.save(command=f"suews run {config_path.name}")
 
         # Show output files
         click.echo("\nThe following files have been written out:")
@@ -176,8 +176,8 @@ def _run_with_namelist(path_runcontrol):
         "=" * 60 + "\n"
         "DEPRECATION WARNING: Namelist format is deprecated.\n"
         "Please migrate to YAML configuration:\n\n"
-        f"  1. Convert: suews-convert -i {path_runcontrol.name} -o config.yml\n"
-        "  2. Run:     suews-run config.yml\n\n"
+        f"  1. Convert: suews convert -i {path_runcontrol.name} -o config.yml\n"
+        "  2. Run:     suews run config.yml\n\n"
         "For more information, see: https://docs.suews.io/\n"
         "=" * 60 + "\n",
         err=True,
@@ -282,15 +282,15 @@ Run SUEWS simulation using YAML (recommended) or namelist configuration.
 
 YAML Configuration (Recommended):
 
-    $ suews-run config.yml
+    $ suews run config.yml
 
-    $ suews-run /path/to/config.yml
+    $ suews run /path/to/config.yml
 
 Namelist Configuration (Deprecated):
 
-    $ suews-run -p RunControl.nml
+    $ suews run -p RunControl.nml
 
-    $ suews-run -p /path/to/RunControl.nml
+    $ suews run -p /path/to/RunControl.nml
 
 The format is auto-detected based on file extension:
 - .yml, .yaml: YAML format (modern, recommended)
@@ -298,8 +298,8 @@ The format is auto-detected based on file extension:
 
 To migrate from namelist to YAML:
 
-    $ suews-convert -i RunControl.nml -o config.yml
-    $ suews-run config.yml
+    $ suews convert -i RunControl.nml -o config.yml
+    $ suews run config.yml
 
 For more information, see: https://docs.suews.io/
 """,
@@ -334,7 +334,7 @@ Website: https://suews.io/
         click.echo(
             "\nDEPRECATION: The '-p/--path_runcontrol' option is deprecated. "
             "Use positional argument instead:\n"
-            f"  suews-run {Path(path_runcontrol).name}\n",
+            f"  suews run {Path(path_runcontrol).name}\n",
             err=True,
         )
         config_file = path_runcontrol

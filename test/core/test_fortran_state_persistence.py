@@ -41,7 +41,7 @@ for case_name in payload["sequence"]:
         payload["config_json_by_case"][case_name],
         payload["forcing_flat"],
         payload["len_sim"],
-    )
+    )[:3]
     results.append(
         {{
             "actual_len": actual_len,

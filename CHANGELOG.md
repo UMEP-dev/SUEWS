@@ -54,11 +54,66 @@ EXAMPLES:
 
 ## 2026
 
+### 9 Sep 2026
+
+- [bugfix] Fixed the MCP server hanging on its first `query_knowledge` call on Windows by loading supy's field-rename registry at server start rather than on a worker thread (#1762, #1771).
+- [change][stable] Wheels are built with the `release` Fortran profile (`-O3`, no runtime checks) instead of the checked profile every wheel had carried since 2023; the nightly workflow now also builds the `checked` profile on every platform and runs the full physics tier on it, so runtime checks keep running where they are cheap (#1770)
+- [maintenance] Added targeted SPARTACUS regressions for vegetation above the tree canopy and a short run using explicit changes to the existing sample configuration (#1699).
+
+### 8 Sep 2026
+
+- [maintenance] The Fortran build profile is an explicit option: `SUEWS_BUILD_PROFILE=checked|release` (read by `run_make.py`, the Makefile and `build.rs`, and a `build_profile` input on the wheel workflow); `checked` (`-O0 -fcheck=all`, what every wheel has shipped since 2023) stays the default until the release profile is validated on every platform (#1766)
+- [maintenance] `make test` runs on up to `TEST_JOBS` (default 4) pytest-xdist workers with work stealing; measured 625 s serial to 124 s on the same selection, same results (#1765)
+- [maintenance] Scheduled runs now report their outcome: a `report_scheduled_run` job opens or updates one tracking issue when any nightly build, test or publish job fails or is cancelled, and closes it on the next green run (#1764)
+- [maintenance] Tests carry a per-test wall-clock budget: `pytest-timeout` (thread method, 600 s) and `faulthandler_timeout` (300 s) are configured in `pyproject.toml` and installed in every CI pytest lane, so a hung test fails with the stacks of all threads in the log instead of the lane being cancelled at the job cap (#1763)
+- [maintenance] `test_parallel_output_matches_serial` reports a byte mismatch by position instead of letting pytest diff two multi-megabyte reprs; the expected gh#1741 failure had stalled the Windows API lane for its whole per-test budget (#1762)
+
 ### 7 Sep 2026
 
 - [bugfix] Corrected the grass albedo LAI relationship in the daily-state update (#1134)
   - `update_Veg` applied the tree formula to grass, so grass albedo rose with LAI through the growing season; grass has the reversed relationship (a denser canopy is less reflective than the bright soil/litter it replaces), so increasing LAI must lower albedo
   - Brings the Fortran daily-state update in line with the phenology albedo auto-initialisation (#1133) and the `alb_min`/`alb_max` field definitions, which already encode the reversed grass convention
+
+- [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)
+  - `suews diagnose` and the MCP `suews://runs/{run_id}/provenance` resource now succeed on ordinary runs; their missing-sidecar guidance names an executable path instead of the non-existent `suews run --format json`.
+
+- [bugfix] Fortran kernel warnings now reach the user: the per-grid warning log survives the whole run, each entry is stamped with its timestep, the log crosses the Rust bridge, and SuPy logs a deduplicated summary and exposes `SUEWSSimulation.kernel_warnings` / `SUEWSOutput.kernel_warnings` (#1743; issue #1737)
+  - The 20 physics fallbacks that reported through the no-op `add_supy_warning` stub (SPARTACUS flat-tile substitution, EHC leaving QS at zero, STEBBS, RSL, ESTM, AnOHM, Kdown split, DyOHM stability) now report through the per-grid state; the stub is removed.
+  - The kernel counts every report separately from the 512-entry log cap, so long runs report the true occurrence count instead of silently truncating.
+  - Internal: `run_suews*` bridge functions return a fourth element `(total, [(iy, id, it, imin, location, message), ...])`; the Python runner accepts both the old three-element and the new four-element tuples.
+
+- [bugfix] Fatal error state is now thread-local, so grids running in parallel through the Rust bridge no longer see, reset or inherit each other's fatal errors; `run_suews_multi` errors name the failing grid index (#1736)
+  - The store lives in a small C11 `_Thread_local` shim (`suews_ctrl_error_tls.c`) compiled into the SUEWS libraries; `supy_error_flag` is now a function (`IF (supy_error_flag()) RETURN`) and `get_supy_error` reads the code and message back.
+  - Regression tests cover mixed valid/failing grids under Rayon, serial/parallel attribution, more grids than workers, and a valid batch after a failed one.
+
+- [change][experimental] Checkpoint continuation now requires the forcing to start one model timestep after the checkpoint's `last_timestamp`; overlapping or gapped forcing, a missing `last_timestamp`, and a repeated `run()` on the same instance raise a `ValueError` instead of running silently from the evolved state (#1735)
+  - `SUEWSSimulation.from_checkpoint(...)` and `continue_from(...)` accept `check_continuity=False` for deliberate re-runs such as spin-up cycling; the opt-out applies to the next `run()` only
+- [change][experimental] `SUEWSSimulation.run()` now rejects a requested period the loaded forcing does not cover instead of silently running on the overlap; `run(clip_to_forcing=True)` opts in to running the overlap and logs the requested versus actual periods (#1268)
+  - Date-only `start_date`/`end_date` (and `model.control.start_time`/`end_time`) now follow interval-end stamping: a start day begins with the first row after its midnight and an end day runs through the row stamped at the following midnight, so `end_time: "2012-12-31"` no longer drops the last interval of the year; bounds with a time component remain inclusive row timestamps
+  - The packaged sample configuration now requests 2012-01-01 to 2012-12-31, the period its 2012 forcing file actually covers, instead of 2011-01-01 to 2013-12-31
+
+- [bugfix] Overlapping forcing files no longer silently keep the first record: every multi-file loader (`SUEWSForcing.from_file`, YAML `forcing.file` lists and directories, wildcard `read_forcing`, `SUEWSSimulation.update_forcing`) now shares one merge that deduplicates identical records, fills values missing in one file from another, and rejects conflicting observations with a `ForcingConflictError` naming the files, timestamps and variables (#1747)
+  - Precedence by file order is an explicit opt-in (`on_conflict="first"` / `"last"`) that logs what it overrode; the YAML path always uses the strict default.
+
+- [bugfix] `SUEWSForcing.resample` no longer aggregates the `-999` missing sentinel as a number: an all-missing rain interval was reported as 0 mm, missing `Wuh` readings summed to -1998 mm and the mean of a valid and a missing radiation value came out as -449.5 W m-2 (#1748)
+  - Sentinels and NaN are masked first; an output interval is missing unless it is fully covered by valid rows (sums and means) or its endpoint is valid (instantaneous values), temporal columns are rebuilt from the output index, per-surface extras follow the same rules, and finer or non-integer target frequencies are rejected rather than silently interpolated.
+
+- [bugfix] `SUEWSForcing.save(format="suews")` now writes a native forcing file that `from_file` loads back losslessly: temporal columns are derived from the datetime index (no leading index column, no internal `isec`), pressure is converted back from hPa to the file's kPa using the forcing registry's `runtime_scale` with sentinels left untouched, columns follow the registry's canonical order, and per-landcover extension columns (`lai_<surface>`, `wuh_<surface>`) are written after them. Timestamps not aligned to whole minutes are rejected with a clear error, since the native format has no seconds field. Previously a saved file reloaded with pressure inflated tenfold and every extension column dropped. `format="csv"` now includes the extension columns too. (#1751)
+
+- [bugfix] `suews compare` now aligns on time, selects grids explicitly and reports finite paired samples (#1744)
+  - The native `Year`/`DOY`/`Hour`/`Min` clock of legacy text output is parsed into a time axis, so two files for different days no longer compare as a perfect match by row order; inputs with no recoverable time axis are rejected unless `--align positional` is given, and that mode is labelled in the output.
+  - An empty joint time axis, or a request for which no variable yields an evaluable metric, exits with a user error instead of a successful envelope with no numbers.
+  - `n` counts the finite paired samples the metrics actually use, with the legacy `-999` sentinel treated as missing; multi-grid inputs require `--grid`, the grid used on each side is reported, and differing grid identities are warned about. Yearly text files of one grid are concatenated.
+
+- [doc] Aligned the onboarding text with the canonical `suews run` / `suews validate` / `suews convert` / `suews schema` commands and the Python 3.12+ runtime floor (#1745)
+  - README quick start, `suews run --help` and its namelist deprecation messages no longer recommend the deprecated hyphenated aliases
+  - `make docs-setup`, `docs/README.md` and the developer building/onboarding guides now state the `requires-python` floor from `pyproject.toml` instead of Python 3.9+
+  - Tests in `test/cmd/test_suews_cli.py` check that `suews run --help` and the README teach resolvable canonical commands and that the onboarding files do not understate the runtime floor
+
+- [bugfix] Corrected the `suews diagnose` energy-balance check and made it inspect every output partition (#1734)
+  - The closure residual now follows the model identity `QN + QF + QMRain = QH + QE + QS + QM + QMFreeze`; QF had been placed among the sinks, so balanced runs were flagged and unbalanced ones passed.
+  - All files of the highest-priority output format, and every grid within a multi-grid file, are checked and each partition is judged on its own, so a healthy partition cannot mask a broken one; `-999` sentinels and non-finite rows are treated as missing and counted, and a partition with too few evaluable rows is reported; an absent optional column no longer raises.
+  - `suews summarise` keeps its existing single-file loader; `suews compare` moved to the partition loader in #1744.
 
 ### 1 Sep 2026
 

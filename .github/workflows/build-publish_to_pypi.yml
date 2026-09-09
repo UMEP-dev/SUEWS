@@ -109,6 +109,14 @@ on:
           - core
           - cfg
           - smoke
+      build_profile:
+        description: 'Fortran build profile for this dispatch (release = optimised, no checks, the default; checked = runtime checks, what the nightly physics tier also builds)'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - checked
+          - release
 
 permissions:
   contents: read
@@ -432,6 +440,30 @@ jobs:
       python_json: ${{ needs.determine_matrix.outputs.python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
       is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
+      build_profile: ${{ inputs.build_profile || 'release' }}
+
+  # Nightly only: build the checked profile (-O0 -fcheck=all) on every platform
+  # and run the full physics tier on it, so out-of-bounds and uninitialised
+  # reads keep surfacing as Fortran runtime errors now that the published
+  # wheels are release builds. Its artefacts carry the "checked-" prefix, so
+  # the TestPyPI and API-test jobs, which select by the unprefixed names,
+  # never see them.
+  build_wheels_checked:
+    name: Build checked wheels (nightly physics tier)
+    needs: [determine_matrix, create_nightly_tag]
+    if: |
+      always() &&
+      github.event_name == 'schedule' &&
+      needs.determine_matrix.result == 'success' &&
+      needs.create_nightly_tag.result == 'success'
+    uses: $/.github/workflows/build-wheels-reusable.yml
+    with:
+      buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
+      python_json: ${{ needs.determine_matrix.outputs.python }}
+      test_tier: all
+      is_testpypi_build: 'false'
+      build_profile: checked
+      artifact_prefix: checked-
 
   build_mcp:
     name: Build MCP package
@@ -604,6 +636,74 @@ jobs:
           path: ci-metrics-workflow/*.json
           if-no-files-found: error
           retention-days: 14
+
+  # A scheduled run that fails or is cancelled must reach a person. The
+  # nightly full-tier run was cancelled every night from 20 August to
+  # 7 September 2026 (Windows API jobs at the 45-minute cap) and nothing
+  # reported it: ci_observability runs only on pull_request and merge_group,
+  # and a cancelled run never reaches deploy_testpypi. This job runs on every
+  # scheduled run, opens or updates one tracking issue while the nightly is
+  # red, and closes it on the next green run.
+  report_scheduled_run:
+    name: Report scheduled run outcome
+    runs-on: ubuntu-latest
+    needs: [create_nightly_tag, build_wheels, build_wheels_checked, build_mcp, test_api_cross_python, check_test_markers, deploy_testpypi]
+    if: always() && github.event_name == 'schedule'
+    permissions:
+      issues: write
+    steps:
+      - name: Open, update or close the nightly tracking issue
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const needs = JSON.parse(process.env.NEEDS_JSON);
+            const bad = Object.entries(needs)
+              .filter(([, v]) => v.result === 'failure' || v.result === 'cancelled')
+              .map(([k, v]) => `${k}: ${v.result}`);
+            const title = 'Nightly scheduled run is failing';
+            const marker = '<!-- nightly-run-tracker -->';
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: '2-infra:ci', per_page: 100,
+            });
+            const tracker = open.find(i => i.title === title && (i.body || '').includes(marker));
+            const today = new Date().toISOString().slice(0, 10);
+            if (bad.length === 0) {
+              if (tracker) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: tracker.number,
+                  body: `Green again on ${today}: ${process.env.RUN_URL}. Closing.`,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: tracker.number, state: 'closed',
+                });
+              }
+              return;
+            }
+            const line = `${today}: ${process.env.RUN_URL} (${bad.join(', ')})`;
+            if (tracker) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number: tracker.number,
+                body: `Still failing. ${line}`,
+              });
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title,
+              labels: ['2-infra:ci'],
+              body: [
+                marker,
+                'Opened automatically by the `report_scheduled_run` job in `build-publish_to_pypi.yml`.',
+                'The scheduled full-tier run did not complete successfully. Each further failing night adds a comment; the first green night closes this issue.',
+                '',
+                `First failure: ${line}`,
+              ].join('\n'),
+            });
 
   deploy_testpypi:
     name: Publish to TestPyPI

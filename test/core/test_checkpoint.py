@@ -28,6 +28,17 @@ TIMER_SENSITIVE_OUTPUTS = {
 }
 
 
+def _run_loaded(sim, **kwargs):
+    """Run exactly the forcing loaded on ``sim``.
+
+    The sample YAML requests the whole of 2012 and these tests load short
+    windows of it, so bound the run to the window explicitly instead of
+    relying on a silent clip, which ``run()`` now rejects.
+    """
+    index = sim.forcing.index
+    return sim.run(start_date=index[0], end_date=index[-1], **kwargs)
+
+
 def _checkpoint_payload(state_schema_version=1):
     """Build the smallest version-2 envelope needed by API validation tests."""
     return {
@@ -65,12 +76,12 @@ def test_checkpoint_json_roundtrip(tmp_path):
 
 
 def test_run_stores_non_empty_checkpoint():
-    """SUEWSSimulation.run() exposes Rust state_json as a checkpoint."""
+    """_run_loaded(SUEWSSimulation) exposes Rust state_json as a checkpoint."""
     sim = SUEWSSimulation.from_sample_data()
     forcing = sim.forcing.df.iloc[:12]
     sim.update_forcing(forcing)
 
-    output = sim.run()
+    output = _run_loaded(sim)
 
     assert isinstance(sim.checkpoint, SUEWSCheckpoint)
     assert output.checkpoint == sim.checkpoint
@@ -92,7 +103,7 @@ def test_checkpoint_continuation_calls_rust_state_path(monkeypatch):
     sim1 = SUEWSSimulation.from_sample_data()
     forcing = sim1.forcing.df.iloc[:24]
     sim1.update_forcing(forcing.iloc[:12])
-    sim1.run()
+    _run_loaded(sim1)
 
     calls = {"count": 0}
     bridge_module = rust_module._check_rust_available()
@@ -110,7 +121,7 @@ def test_checkpoint_continuation_calls_rust_state_path(monkeypatch):
 
     sim2 = SUEWSSimulation.from_checkpoint(sim1.config, sim1.checkpoint)
     sim2.update_forcing(forcing.iloc[12:24])
-    sim2.run()
+    _run_loaded(sim2)
 
     assert calls["count"] >= 1
 
@@ -120,7 +131,7 @@ def test_checkpoint_continuation_restores_legacy_null_marker():
     sim_first = SUEWSSimulation.from_sample_data()
     forcing = sim_first.forcing.df.iloc[:24]
     sim_first.update_forcing(forcing.iloc[:12])
-    sim_first.run()
+    _run_loaded(sim_first)
 
     dict_grid_states = {
         grid_id: json.loads(state_json)
@@ -138,7 +149,7 @@ def test_checkpoint_continuation_restores_legacy_null_marker():
     sim_second = SUEWSSimulation.from_checkpoint(sim_first.config, checkpoint)
     sim_second.update_forcing(forcing.iloc[12:24])
 
-    output = sim_second.run()
+    output = _run_loaded(sim_second)
 
     assert not output.df.empty
 
@@ -148,7 +159,7 @@ def test_checkpoint_continuation_reports_invalid_value_path():
     sim_first = SUEWSSimulation.from_sample_data()
     forcing = sim_first.forcing.df.iloc[:24]
     sim_first.update_forcing(forcing.iloc[:12])
-    sim_first.run()
+    _run_loaded(sim_first)
 
     dict_grid_states = {
         grid_id: json.loads(state_json)
@@ -173,7 +184,7 @@ def test_checkpoint_continuation_reports_invalid_value_path():
             r"expected a JSON number or null NaN marker, found string"
         ),
     ):
-        sim_second.run()
+        _run_loaded(sim_second)
 
 
 def test_external_checkpoint_matches_continuous_run_across_day_boundary():
@@ -181,18 +192,18 @@ def test_external_checkpoint_matches_continuous_run_across_day_boundary():
     sim_full = SUEWSSimulation.from_sample_data()
     forcing = sim_full.forcing.df.iloc[:300]
     sim_full.update_forcing(forcing)
-    output_full = sim_full.run()
+    output_full = _run_loaded(sim_full)
 
     sim_first = SUEWSSimulation.from_sample_data()
     sim_first.update_forcing(forcing.iloc[:TIMESTEPS_PER_DAY])
-    sim_first.run()
+    _run_loaded(sim_first)
 
     sim_second = SUEWSSimulation.from_checkpoint(
         sim_first.config,
         sim_first.checkpoint,
     )
     sim_second.update_forcing(forcing.iloc[TIMESTEPS_PER_DAY:])
-    output_second = sim_second.run()
+    output_second = _run_loaded(sim_second)
 
     expected_second = output_full.df.loc[output_second.df.index]
     assert TIMER_SENSITIVE_OUTPUTS.issubset(output_second.df.columns)
@@ -210,11 +221,11 @@ def test_chunked_run_matches_uninterrupted_run_across_day_boundary():
     sim_full = SUEWSSimulation.from_sample_data()
     forcing = sim_full.forcing.df.iloc[:300]
     sim_full.update_forcing(forcing)
-    output_full = sim_full.run(chunk_day=3660, n_jobs=1)
+    output_full = _run_loaded(sim_full, chunk_day=3660, n_jobs=1)
 
     sim_chunked = SUEWSSimulation.from_sample_data()
     sim_chunked.update_forcing(forcing)
-    output_chunked = sim_chunked.run(chunk_day=1, n_jobs=1)
+    output_chunked = _run_loaded(sim_chunked, chunk_day=1, n_jobs=1)
 
     assert TIMER_SENSITIVE_OUTPUTS.issubset(output_chunked.df.columns)
     pd.testing.assert_frame_equal(
@@ -245,11 +256,14 @@ def test_checkpoint_grid_ids_must_match_config():
     sim = SUEWSSimulation(str(config_path))
     forcing = sim.forcing.df.iloc[:12]
     sim.update_forcing(forcing)
-    checkpoint = SUEWSCheckpoint.from_grid_states({2: _checkpoint_payload()})
+    checkpoint = SUEWSCheckpoint.from_grid_states(
+        {2: _checkpoint_payload()},
+        last_timestamp=forcing.index[0] - pd.Timedelta(seconds=300),
+    )
     sim.continue_from(checkpoint)
 
     with pytest.raises(ValueError, match=r"missing checkpoint states.*unexpected"):
-        sim.run()
+        _run_loaded(sim)
 
 
 def test_legacy_checkpoint_requires_timer_metadata():
@@ -268,7 +282,7 @@ def test_checkpoint_timestep_must_match_config():
     sim_first = SUEWSSimulation.from_sample_data()
     forcing = sim_first.forcing.df.iloc[:24]
     sim_first.update_forcing(forcing.iloc[:12])
-    sim_first.run()
+    _run_loaded(sim_first)
 
     grid_states = {
         grid_id: json.loads(state_json)
@@ -284,7 +298,7 @@ def test_checkpoint_timestep_must_match_config():
     sim_second.update_forcing(forcing.iloc[12:])
 
     with pytest.raises(RuntimeError, match="does not match configuration timestep"):
-        sim_second.run()
+        _run_loaded(sim_second)
 
 
 def test_checkpoint_file_continuation_roundtrip(tmp_path):
@@ -293,13 +307,129 @@ def test_checkpoint_file_continuation_roundtrip(tmp_path):
     sim1 = SUEWSSimulation(str(config_path))
     forcing = sim1.forcing.df.iloc[:24]
     sim1.update_forcing(forcing.iloc[:12])
-    sim1.run()
+    _run_loaded(sim1)
 
     checkpoint_path = sim1.checkpoint.to_file(tmp_path / "Kc_SUEWS_checkpoint.json")
     sim2 = SUEWSSimulation.from_checkpoint(config_path, checkpoint_path)
     sim2.update_forcing(forcing.iloc[12:24])
-    output = sim2.run()
+    output = _run_loaded(sim2)
 
     assert output.checkpoint is not None
     assert not output.df.empty
     assert Path(checkpoint_path).exists()
+
+
+def _first_hour_checkpoint():
+    """Run the first 12 sample rows and return (sim, checkpoint, first 48 rows)."""
+    sim = SUEWSSimulation.from_sample_data()
+    forcing = sim.forcing.df.iloc[:48]
+    sim.update_forcing(forcing.iloc[:12])
+    _run_loaded(sim, n_jobs=1)
+    return sim, sim.checkpoint, forcing
+
+
+def test_continuation_rejects_overlapping_forcing():
+    """Forcing that restarts inside the checkpointed period is refused."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, checkpoint)
+    sim_next.update_forcing(forcing.iloc[:12])
+
+    with pytest.raises(
+        ValueError, match=r"overlaps the checkpointed period.*reset\(\)"
+    ):
+        _run_loaded(sim_next, n_jobs=1)
+
+
+def test_continuation_rejects_gapped_forcing():
+    """Forcing that skips timesteps after the checkpoint is refused."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, checkpoint)
+    sim_next.update_forcing(forcing.iloc[24:36])
+
+    with pytest.raises(ValueError, match="leaving a gap after the checkpointed period"):
+        _run_loaded(sim_next, n_jobs=1)
+
+
+def test_continuation_check_ignores_validate_forcing_switch():
+    """The continuity check is not part of the optional forcing validation."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, checkpoint)
+    sim_next.update_forcing(forcing.iloc[24:36])
+
+    with pytest.raises(ValueError, match="leaving a gap"):
+        _run_loaded(sim_next, n_jobs=1, _validate_forcing=False)
+
+
+def test_continuation_requires_last_timestamp_metadata():
+    """A checkpoint without last_timestamp cannot be checked and is refused."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    bare = SUEWSCheckpoint.from_grid_states(checkpoint.grid_states)
+    assert bare.last_timestamp is None
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, bare)
+    sim_next.update_forcing(forcing.iloc[12:24])
+
+    with pytest.raises(ValueError, match="no last_timestamp metadata"):
+        _run_loaded(sim_next, n_jobs=1)
+
+
+def test_continuation_opt_out_allows_recycled_forcing():
+    """check_continuity=False permits deliberate re-runs from the checkpoint."""
+    sim, checkpoint, forcing = _first_hour_checkpoint()
+    sim_next = SUEWSSimulation.from_checkpoint(
+        sim.config, checkpoint, check_continuity=False
+    )
+    sim_next.update_forcing(forcing.iloc[:12])
+    output = _run_loaded(sim_next, n_jobs=1)
+
+    assert len(output.df) == 12
+    # The opt-out applies to one run only: the new checkpoint is checked again.
+    with pytest.raises(ValueError, match="overlaps the checkpointed period"):
+        _run_loaded(sim_next, n_jobs=1)
+
+
+def test_same_instance_repeated_run_is_rejected():
+    """run() twice on one instance is an overlapping continuation."""
+    sim = SUEWSSimulation.from_sample_data()
+    sim.update_forcing(sim.forcing.df.iloc[:12])
+    _run_loaded(sim, n_jobs=1)
+
+    with pytest.raises(ValueError, match=r"overlaps.*reset\(\)"):
+        _run_loaded(sim, n_jobs=1)
+
+    assert _run_loaded(sim.reset(), n_jobs=1).df.shape[0] == 12
+
+
+def test_same_instance_date_sliced_continuation_is_accepted():
+    """Contiguous start_date/end_date slices continue on one instance."""
+    sim = SUEWSSimulation.from_sample_data()
+    forcing = sim.forcing.df.iloc[:24]
+    sim.update_forcing(forcing)
+    sim.run(end_date=forcing.index[11], n_jobs=1)
+    output = sim.run(start_date=forcing.index[12], end_date=forcing.index[-1], n_jobs=1)
+
+    assert output.df.index.get_level_values("datetime")[0] == forcing.index[12]
+    assert len(output.df) == 12
+
+
+def test_chunked_continuation_from_checkpoint_matches_uninterrupted_run():
+    """A contiguous from_checkpoint run with internal chunking is not refused."""
+    sim_full = SUEWSSimulation.from_sample_data()
+    forcing = sim_full.forcing.df.iloc[:600]
+    sim_full.update_forcing(forcing)
+    output_full = _run_loaded(sim_full, n_jobs=1)
+
+    sim_first = SUEWSSimulation.from_sample_data()
+    sim_first.update_forcing(forcing.iloc[:12])
+    _run_loaded(sim_first, n_jobs=1)
+
+    sim_second = SUEWSSimulation.from_checkpoint(sim_first.config, sim_first.checkpoint)
+    sim_second.update_forcing(forcing.iloc[12:])
+    output_second = _run_loaded(sim_second, chunk_day=1, n_jobs=1)
+
+    pd.testing.assert_frame_equal(
+        output_second.df,
+        output_full.df.loc[output_second.df.index],
+        check_exact=False,
+        rtol=CHECKPOINT_RTOL,
+        atol=CHECKPOINT_ATOL,
+    )

@@ -341,7 +341,7 @@ CONTAINS
                         LAI_id_prev, &
                         GDD_id, SDD_id, & !inout
                         LAI_id) !output
-                     IF (supy_error_flag) RETURN
+                     IF (supy_error_flag()) RETURN
 
                      CALL update_Veg( &
                         LAImax, LAIMin, & !input

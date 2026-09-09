@@ -24,5 +24,8 @@ sites:
 
 # Notes:
 # - Files must have consistent column structure
-# - Files will be concatenated based on their timestamps
-# - Ensure no gaps or overlaps in time periods between files
+# - Files are merged by timestamp: identical overlapping records are
+#   deduplicated, a value missing in one file is filled from another,
+#   and records that disagree at the same timestamp are rejected with
+#   ForcingConflictError (the YAML path never resolves conflicts by order)
+# - Ensure there are no gaps in time between files

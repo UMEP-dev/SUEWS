@@ -131,9 +131,8 @@ docs-setup:
 		echo ""; \
 		exit 1; \
 	fi
-	@$(PYTHON) -c "import sys; sys.exit(sys.version_info < (3, 11))" || { \
-		echo "ERROR: Documentation tooling requires Python 3.11 or newer."; \
-		echo "Runtime support remains Python 3.9+."; \
+	@$(PYTHON) -c "import sys; sys.exit(sys.version_info < (3, 12))" || { \
+		echo "ERROR: SUEWS requires Python 3.12 or newer (requires-python in pyproject.toml)."; \
 		exit 1; \
 	}
 	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-docs.XXXXXX" 2>/dev/null || mktemp -t suews-docs); \
@@ -207,13 +206,22 @@ rebuild-meson:
 # one of those, run its directory directly (`pytest test/cmd`) or `make
 # test-all`. CI selects by markers and is unaffected by this default.
 TEST_DEFAULT_PATHS := test/test_api_surface.py test/core test/data_model test/physics test/io_tests
+# Worker cap for the everyday run. pytest-xdist distributes the selection
+# across up to TEST_JOBS processes with work stealing, the same scheduler CI
+# uses; the measured local wall time drops from about 10 minutes serial to
+# about 2 minutes. The cap exists because every worker that draws one of the
+# full-year DailyState tests materialises its own year of output (about 1 GB);
+# raise it on a machine with memory to spare: make test TEST_JOBS=8
+TEST_JOBS ?= 4
 test:
 	@echo "Running everyday development tests (core, data model, physics, I/O)..."
 	@echo "NOTE: slow regressions and peripheral surfaces (cmd, mcp, docs,"
 	@echo "      knowledge, umep) are excluded - run 'make test-all' or the"
 	@echo "      relevant directory (e.g. 'pytest test/cmd') when touched."
+	@echo "      Runs on up to $(TEST_JOBS) workers (make test TEST_JOBS=N);"
+	@echo "      re-run only the last failures with 'pytest --lf'."
 	@echo ""
-	$(PYTHON) -m pytest $(TEST_DEFAULT_PATHS) -m "not slow and not qgis" -v --tb=short --durations=10
+	$(PYTHON) -m pytest $(TEST_DEFAULT_PATHS) -m "not slow and not qgis" -n auto --maxprocesses=$(TEST_JOBS) --dist worksteal -v --tb=short --durations=10
 
 # Smoke tests - fast critical path tests for CI
 test-smoke:

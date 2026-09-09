@@ -61,11 +61,16 @@ Key points:
 - **Assign `-999.0D0` (or a type-appropriate sentinel) to `INTENT(OUT)`
   arguments** before `RETURN` — an unassigned intent-out is undefined
   behaviour under some compilers.
-- **`RETURN`** — do not continue. The driver checks `supy_error_flag`
+- **`RETURN`** — do not continue. The driver checks `supy_error_flag()`
   between grids/timesteps and surfaces the error to Python.
+- **Guard later work with `IF (supy_error_flag()) RETURN`** (a function call
+  since GH#1736, not a variable). The fatal store is thread-local: each grid
+  run on a Rayon worker sees only its own error, so never cache the flag in
+  module-level or implicitly `SAVE`d variables.
 - **Never** call `STOP`, `ERROR STOP`, `CALL abort`, or `WRITE(*,...)`.
 
-Working examples: `suews_phys_stebbs.f95:469`, `suews_phys_rslprof.f95:658`,
+Working examples: `suews_phys_stebbs.f95` (STEBBS thermal-parameter guard),
+`suews_phys_rslprof.f95` (`interp_z` NaN guards),
 `suews_phys_dailystate.f95` (observed-LAI guard, GH#1296).
 
 ---
@@ -84,8 +89,23 @@ CALL ErrorHint(15, 'In compute_bar, input at lower bound', value, value2, notUse
   thread-safe per-grid warning channel introduced in GH#1042).
 - Codes 1–99 map to hard-coded text in `ErrorHint` (`suews_ctrl_error.f95`).
   Add a new code only with an accompanying change in that file.
-- For non-fatal warnings without a numbered code, use
-  `add_supy_warning(message)` from the same module.
+- For non-fatal warnings without a numbered code, report through the
+  per-grid state so the message survives the timestep and reaches the user
+  (GH#1737):
+
+  ```fortran
+  CALL modState%errorstate%report( &
+     message='compute_bar: input at lower bound, clamped', &
+     location='compute_bar', is_fatal=.FALSE.)
+  ```
+
+  If the routine does not receive `modState`, add
+  `TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState` (or an OPTIONAL
+  `TYPE(error_state)` argument for leaf helpers) and pass it from the caller,
+  guarding the call with `IF (PRESENT(modState))`. The driver stamps each
+  entry with the current timestep, and SuPy surfaces the log as
+  `SUEWSSimulation.kernel_warnings`. Do not add a module-level warning
+  buffer: it is shared between parallel grid workers.
 
 ---
 

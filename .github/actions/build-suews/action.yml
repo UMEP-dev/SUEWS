@@ -18,6 +18,14 @@ inputs:
     description: 'Test tier: smoke, core, cfg, standard, physics-full, or all'
     required: false
     default: 'standard'
+  build_profile:
+    description: 'Fortran build profile: release (optimised, no checks, the default) or checked (runtime checks; the nightly physics tier). Read by src/supy/run_make.py and src/suews_bridge/build.rs.'
+    required: false
+    default: 'release'
+  artifact_prefix:
+    description: 'Prefix for the wheel and metrics artefact names, so a second build of the same platform (the checked nightly build) does not collide with the release wheels that publish.'
+    required: false
+    default: ''
   is_testpypi_build:
     description: 'Whether this is a TestPyPI build (adds notice to README)'
     required: false
@@ -129,6 +137,7 @@ runs:
           PIP_CACHE_DIR=${{ github.workspace }}/.pip-cache
           CARGO_HOME=${{ github.workspace }}/.cargo-cache
           CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
+          SUEWS_BUILD_PROFILE=${{ inputs.build_profile }}
           SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
           SUEWS_CI_PHASES='${{ inputs.metrics_host_dir }}/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json'
           SUEWS_CI_METRICS_DIR='${{ inputs.metrics_host_dir }}'
@@ -144,6 +153,7 @@ runs:
           PIP_CACHE_DIR=/pip-cache
           CARGO_HOME=/cargo-cache
           CARGO_TARGET_DIR=/rust-target-cache
+          SUEWS_BUILD_PROFILE=${{ inputs.build_profile }}
           SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
           SUEWS_CI_PHASES=/ci-metrics/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json
           SUEWS_CI_METRICS_DIR=/ci-metrics
@@ -188,6 +198,7 @@ runs:
           PIP_CACHE_DIR='${{ github.workspace }}/.pip-cache'
           CARGO_HOME='${{ github.workspace }}/.cargo-cache'
           CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'
+          SUEWS_BUILD_PROFILE='${{ inputs.build_profile }}'
           SUEWS_KNOWLEDGE_GIT_SHA='${{ github.sha }}'
           SUEWS_CI_PHASES='${{ inputs.metrics_host_dir }}\physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json'
           SUEWS_CI_METRICS_DIR='${{ inputs.metrics_host_dir }}'
@@ -228,7 +239,7 @@ runs:
           python "{package}/scripts/suews/ci_phase_metrics.py" start install
         # Pin the scheduler stack so distribution behaviour cannot drift between
         # CI runs. Re-benchmark the fixed-worker candidates before updating.
-        CIBW_TEST_REQUIRES: pytest==9.1.1 pytest-xdist==3.8.0
+        CIBW_TEST_REQUIRES: pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0
         # Test tiers: choose subset based on path detection and trigger.
         # gh#1300: physics tests are binary-determined, so one run per
         # (OS, arch) on the build Python is sufficient. API tests (Python
@@ -272,7 +283,7 @@ runs:
       if: always()
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
-        name: ci-metrics-physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+        name: ${{ inputs.artifact_prefix }}ci-metrics-physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
         path: ${{ inputs.metrics_host_dir }}/*.json
         if-no-files-found: error
         retention-days: 14
@@ -284,5 +295,5 @@ runs:
     - name: Upload wheels
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
-        name: ${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+        name: ${{ inputs.artifact_prefix }}${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
         path: ./wheelhouse/*.whl

@@ -125,7 +125,8 @@ CONTAINS
       qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
       roof_in_sw_spc, roof_in_lw_spc, &
       wall_in_sw_spc, wall_in_lw_spc, &
-      dataOutLineSPARTACUS)
+      dataOutLineSPARTACUS, &
+      errorState) ! inout: per-grid warning log (GH#1737)
       USE parkind1, ONLY: jpim, jprb
       USE radsurf_interface, ONLY: radsurf
       USE radsurf_config, ONLY: config_type
@@ -138,7 +139,7 @@ CONTAINS
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
       ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
-      USE module_ctrl_error_state, ONLY: add_supy_warning
+      USE module_ctrl_type, ONLY: error_state
 
       IMPLICIT NONE
 
@@ -148,6 +149,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: zenith_deg
       INTEGER, INTENT(IN) :: DiagQN
       INTEGER, INTENT(IN) :: nlayer
+      TYPE(error_state), INTENT(INOUT) :: errorState ! per-grid warning log (GH#1737)
 
       ! TODO: tsurf_0 and temp_C need to be made vertically distributed
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: tsfc_roof, tsfc_wall
@@ -772,7 +774,9 @@ CONTAINS
             ! Full NaN from solver source-term singularity: replace all
             ! LW outputs with flat-tile approximation (net = absorbed
             ! incoming minus emitted upward).
-            CALL add_supy_warning('SPARTACUS: LW full NaN detected -- using flat-tile fallback')
+            CALL errorState%report( &
+               message='LW full NaN detected -- using flat-tile fallback', &
+               location='SPARTACUS', is_fatal=.FALSE.)
             CALL lw_flux%zero_all()
             lw_flux%top_net(nspec, ncol) = lw_flat_net_spc
             lw_flux%top_dn(nspec, ncol) = ldown
@@ -789,7 +793,9 @@ CONTAINS
                ! NOTE: zeroing per-layer absorption is non-conservative
                ! (surface energy budget not closed) but acceptable as a
                ! crash guard; the top-level net fluxes driving qn are kept.
-               CALL add_supy_warning('SPARTACUS: LW partial NaN detected -- zeroing per-layer fields')
+               CALL errorState%report( &
+                  message='LW partial NaN detected -- zeroing per-layer fields', &
+                  location='SPARTACUS', is_fatal=.FALSE.)
                lw_flux%clear_air_abs(nspec, :nlayer) = 0.0D0
                lw_flux%wall_net(nspec, :nlayer) = 0.0D0
                lw_flux%wall_in(nspec, :nlayer) = 0.0D0
@@ -807,7 +813,9 @@ CONTAINS
          qn_spc = lw_flux%top_net(nspec, ncol)
       END IF
       IF (invalid_real(qn_spc)) THEN
-         CALL add_supy_warning('SPARTACUS: all-wave NaN detected -- using flat-tile fallback')
+         CALL errorState%report( &
+            message='all-wave NaN detected -- using flat-tile fallback', &
+            location='SPARTACUS', is_fatal=.FALSE.)
          CALL sw_flux%zero_all()
          sw_flux%top_dn(nspec, ncol) = MAX(kdown, 0.0D0)
          sw_flux%top_dn_dir(nspec, ncol) = MAX(top_flux_dn_direct_sw(nspec, ncol), 0.0D0)
@@ -1142,7 +1150,9 @@ CONTAINS
       END IF
 
       IF (ANY(invalid_real(qn_surf))) THEN
-         CALL add_supy_warning('SPARTACUS: surface radiation NaN detected -- using bulk fallback')
+         CALL errorState%report( &
+            message='surface radiation NaN detected -- using bulk fallback', &
+            location='SPARTACUS', is_fatal=.FALSE.)
          qn_surf = qn
       END IF
 

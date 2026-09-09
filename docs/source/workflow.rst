@@ -364,6 +364,12 @@ The checkpoint is intentionally only the typed runtime state. To continue a
 run, load the same YAML configuration, attach the next forcing period, and run
 from ``SUEWSSimulation.from_checkpoint(...)``. Checkpoints are keyed by grid ID,
 so checkpoint/configuration grid mismatches are rejected by the runtime.
+The next forcing period must start exactly one model timestep after the
+checkpoint's ``last_timestamp``; forcing that overlaps the checkpointed period
+or leaves a gap after it is rejected before the run starts. To re-run the same
+period from the checkpointed state on purpose (for example when cycling one
+year of forcing for spin-up), pass ``check_continuity=False`` to
+``from_checkpoint(...)``.
 
 For detailed examples, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
 
@@ -631,8 +637,9 @@ Migration Process
    # Test migrated configuration
    sim = SUEWSSimulation("migrated_config.yml")
 
-   # Short validation run (24 hours)
-   sim.run(end_date="2012-01-02")
+   # Short validation run: the whole of the first day (a date-only bound
+   # runs through the end of that day)
+   sim.run(end_date="2012-01-01")
 
    # Check energy balance using get_variable()
    print("✅ Migration validation:")

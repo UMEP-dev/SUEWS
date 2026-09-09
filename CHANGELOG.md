@@ -70,6 +70,10 @@ EXAMPLES:
 
 ### 7 Sep 2026
 
+- [bugfix] Corrected the grass albedo LAI relationship in the daily-state update (#1134)
+  - `update_Veg` applied the tree formula to grass, so grass albedo rose with LAI through the growing season; grass has the reversed relationship (a denser canopy is less reflective than the bright soil/litter it replaces), so increasing LAI must lower albedo
+  - Brings the Fortran daily-state update in line with the phenology albedo auto-initialisation (#1133) and the `alb_min`/`alb_max` field definitions, which already encode the reversed grass convention
+
 - [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)
   - `suews diagnose` and the MCP `suews://runs/{run_id}/provenance` resource now succeed on ordinary runs; their missing-sidecar guidance names an executable path instead of the non-existent `suews run --format json`.
 

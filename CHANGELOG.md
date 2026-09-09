@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 9 Sep 2026
+
+- [maintenance] Added targeted SPARTACUS regressions for vegetation above the tree canopy and a short run using explicit changes to the existing sample configuration (#1699).
+
 ### 8 Sep 2026
 
 - [maintenance] `make test` runs on up to `TEST_JOBS` (default 4) pytest-xdist workers with work stealing; measured 625 s serial to 124 s on the same selection, same results (#1765)

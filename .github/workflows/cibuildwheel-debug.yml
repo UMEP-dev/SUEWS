@@ -164,7 +164,7 @@ jobs:
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
 
       # Test configuration
-      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_REQUIRES: pytest hypothesis==6.168.0
       CIBW_TEST_COMMAND_MACOS: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_LINUX: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"

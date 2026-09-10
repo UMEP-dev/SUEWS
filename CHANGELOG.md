@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] `test_benchmark_config` loads the short-window benchmark configuration (`benchmark1_short.yml`, seven days) rather than `benchmark1.yml`, whose `forcing/` directory made it the slowest test in the API lane at 86.7 s on Windows; assertions unchanged, and the `gh846` fixture drops the 7.31 MB of meteorological forcing that `convert_table` never globs (#1778)
+
 ### 9 Sep 2026
 
 - [maintenance] The sample-output reference is written at seven significant figures (`float_format="%.7g"`, at most 5e-7 relative error against a tightest test tolerance of 0.002), halving it from 151 MiB to 77 MiB and its parse time from 3.3 s to 1.7 s; it is now parsed once per pytest session via a `sample_reference` fixture, and carries a `provenance.json` sidecar recording the build, compiler, platform and per-shard hashes that a new test asserts against the shards on disk (#1776)

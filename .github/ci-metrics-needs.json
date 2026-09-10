@@ -1,18 +1,34 @@
 {
-  "API cross-CPython tests / *": [
+  "Build and test (manylinux x86_64) / API cross-CPython tests / *": [
+    "Build and test (manylinux x86_64) / cp*",
     "Build MCP package",
+    "Determine build matrix"
+  ],
+  "Build and test (macosx arm64) / API cross-CPython tests / *": [
+    "Build and test (macosx arm64) / cp*",
+    "Build MCP package",
+    "Determine build matrix"
+  ],
+  "Build and test (macosx x86_64) / API cross-CPython tests / *": [
+    "Build and test (macosx x86_64) / cp*",
+    "Build MCP package",
+    "Determine build matrix"
+  ],
+  "Build and test (win AMD64) / API cross-CPython tests / *": [
+    "Build and test (win AMD64) / cp*",
+    "Build MCP package",
+    "Determine build matrix"
+  ],
+  "Build and test (*) / cp*": [
+    "Build MCP package",
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
     "Determine build matrix",
-    "Build standard wheels / *"
+    "Verify tag is on master"
   ],
   "Build MCP package": [
     "Create nightly tag for scheduled builds",
     "Detect code changes",
-    "Verify tag is on master"
-  ],
-  "Build standard wheels / *": [
-    "Create nightly tag for scheduled builds",
-    "Detect code changes",
-    "Determine build matrix",
     "Verify tag is on master"
   ],
   "Determine build matrix": [
@@ -23,14 +39,13 @@
     "Determine build matrix"
   ],
   "PR build validation": [
-    "API cross-CPython tests / *",
+    "Build and test (*) / *",
     "Build MCP package",
-    "Build standard wheels / *",
     "Check pytest marker axis",
     "Detect code changes"
   ],
   "Tolerance spread / *": [
     "Determine build matrix",
-    "Build standard wheels / *"
+    "Build and test (*) / cp*"
   ]
 }

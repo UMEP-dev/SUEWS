@@ -70,7 +70,9 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
 **Test tier routing:**
 - Wheel-build jobs run `physics` tests once per selected platform/architecture.
 - API cross-CPython jobs install the built wheel and run `api` tests across the
-  selected Python versions.
+  selected Python versions. Each platform's api lane is chained behind that
+  platform's wheel build (one `build-wheels-reusable.yml` call per platform),
+  so it starts as soon as its own wheel exists.
 - The nightly `Tolerance spread` group (`tolerance-spread-reusable.yml`, also on
   dispatch with the `tolerance_spread` input) installs the built wheel on the
   two CPython bookends per platform and records the zero-tolerance spread of

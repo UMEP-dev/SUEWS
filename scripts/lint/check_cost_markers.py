@@ -217,22 +217,35 @@ def iter_artefact_paths(paths: Iterable[Path]) -> Iterator[Path]:
             yield path
 
 
-def _pytest_payload(payload: Any) -> dict[str, Any] | None:
+class UnsupportedMetricsSchema(ValueError):
+    """An artefact carries per-test records under a schema this lint does not read."""
+
+
+def _pytest_payload(payload: Any, path: Path) -> dict[str, Any] | None:
     """Return the pytest metrics inside an artefact, or None if it is not one.
 
     The api lane uploads the plugin's JSON directly; the physics lane uploads
     it beside a `-phases.json` state file and embedded in `-wheel-job.json`
     under `pytest_metrics`. The embedded copy is skipped so a directory is not
     counted twice.
+
+    An artefact that carries per-test records under another schema version is
+    an error, not a skip: silently skipping it would judge the remaining lanes
+    and report them clean, so a schema bump could read as no drift.
     """
     if not isinstance(payload, dict):
         return None
     if payload.get("kind") == "wheel-job-ci-metrics":
         return None
-    if payload.get("schema_version") != METRICS_SCHEMA_VERSION:
-        return None
     if not isinstance(payload.get("tests"), list):
         return None
+    version = payload.get("schema_version")
+    if version != METRICS_SCHEMA_VERSION:
+        raise UnsupportedMetricsSchema(
+            f"{path.as_posix()}: metrics schema {version!r} not supported by this lint "
+            f"(expects {METRICS_SCHEMA_VERSION}); update METRICS_SCHEMA_VERSION and the "
+            "record reader together"
+        )
     return payload
 
 
@@ -245,8 +258,10 @@ def load_tests(
     """Read per-test costs from every metrics artefact under `paths`.
 
     Returns the costs and the list of artefacts they came from. Files that are
-    not schema-2 metrics with per-test records are listed in `skipped` when
-    given, so a directory of mixed artefacts can be passed whole.
+    not metrics artefacts with per-test records are listed in `skipped` when
+    given, so a directory of mixed artefacts can be passed whole. An artefact
+    with per-test records under a schema version other than
+    `METRICS_SCHEMA_VERSION` raises `UnsupportedMetricsSchema`.
     """
     tests: list[TestCost] = []
     sources: list[str] = []
@@ -255,7 +270,7 @@ def load_tests(
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             payload = None
-        metrics = _pytest_payload(payload)
+        metrics = _pytest_payload(payload, path)
         if metrics is None:
             if skipped is not None:
                 skipped.append(path.as_posix())
@@ -425,7 +440,11 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     skipped: list[str] = []
-    tests, sources = load_tests(args.paths, phase=args.phase, skipped=skipped)
+    try:
+        tests, sources = load_tests(args.paths, phase=args.phase, skipped=skipped)
+    except UnsupportedMetricsSchema as exc:
+        print(f"[X] {exc}")
+        return 2
     for path in skipped:
         print(f"[skip] {path}: not a metrics artefact with per-test records")
     if not tests:

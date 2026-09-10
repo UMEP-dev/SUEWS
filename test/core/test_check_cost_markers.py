@@ -244,6 +244,33 @@ def test_loader_reads_api_and_physics_artefacts_and_skips_the_rest(tmp_path: Pat
     assert total_tests[1].cpu_seconds == 43.0
 
 
+def test_unsupported_metrics_schema_is_an_error_not_a_skip(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A per-test artefact under another schema version stops the check.
+
+    Skipping it would judge the other lane alone and print [OK], so a schema
+    bump could read as no drift.
+    """
+    _artefact(tmp_path / "api.json", [_record("t/a.py::test_fast", call=0.1)])
+    (tmp_path / "physics-pytest.json").write_text(
+        json.dumps({
+            "schema_version": 3,
+            "tests": [json.loads(json.dumps(_record("t/p.py::test_heavy", call=99.0)))],
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(checker.UnsupportedMetricsSchema, match="schema 3 not supported"):
+        checker.load_tests([tmp_path])
+
+    assert checker.main([str(tmp_path)]) == 2
+    out = capsys.readouterr().out
+    assert "[X]" in out
+    assert "metrics schema 3 not supported by this lint (expects 2)" in out
+    assert "[OK]" not in out
+
+
 def test_cli_exit_codes_and_markdown_summary(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

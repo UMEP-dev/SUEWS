@@ -40,7 +40,7 @@ between two nights' readings.
 
 A node that appears in several artefacts (a file marked both `physics` and
 `api` runs in both lanes) is judged on its largest measurement. Nodes that did
-not run their body (skipped, xfailed) carry no measurement and are not judged.
+not run their body (skipped, xfailed) are excluded by outcome and not judged.
 The exit code is 1 when any test is flagged, so a local run is useful on its
 own; the nightly step that runs it carries `continue-on-error`, so drift is
 reported and never reddens the run.

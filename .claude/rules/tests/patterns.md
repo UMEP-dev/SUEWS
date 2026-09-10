@@ -255,8 +255,8 @@ A `slow` mark under 30 CPU-s must carry its reason
 (`pytest.mark.slow(reason="...")`: network or credentials, a run-count policy
 such as the non-anchor legacy-table versions, a spawned server with wall-clock
 assertions, a full-year run that is 148 s of wall on Windows); the plugin
-records the reason and the check accepts it. Skipped and xfailed nodes carry no
-measurement and are not judged. An artefact whose per-test records carry a
+records the reason and the check accepts it. Skipped and xfailed nodes are
+excluded by outcome and not judged. An artefact whose per-test records carry a
 schema version this lint does not read stops the check with an error rather
 than being skipped, so a schema bump cannot read as no drift. The nightly
 `cost_markers` job in `build-publish_to_pypi.yml` runs the check after the two

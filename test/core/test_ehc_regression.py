@@ -446,7 +446,6 @@ def test_ehc_restore_best_iteration_path_runs(monkeypatch):
 
 
 @pytest.mark.core
-@pytest.mark.medium
 def test_ehc_spartacus_facet_storage_is_sensitive_to_building_rho_cp():
     low_cp_qs = _run_short_spartacus_ehc_with_building_cp(1.0e6)
     high_cp_qs = _run_short_spartacus_ehc_with_building_cp(4.0e6)

@@ -81,7 +81,7 @@ def test_each_disagreement_is_flagged_with_its_class_and_wanted_marker() -> None
     """The four drift classes are named; agreeing markers are silent."""
     tests = [
         _cost("t/a.py::test_fast_unmarked", 1.0),
-        _cost("t/a.py::test_medium_unmarked", 12.0),
+        _cost("t/a.py::test_medium_unmarked", 16.0),
         _cost("t/a.py::test_slow_unmarked", 45.0),
         _cost("t/a.py::test_medium_ok", 20.0, "medium"),
         _cost("t/a.py::test_medium_is_slow", 90.0, "medium"),
@@ -126,13 +126,28 @@ def test_slow_marker_with_a_stated_reason_is_accepted_at_any_cost() -> None:
     assert "[OK]" in report.message()
 
 
-def test_medium_marker_inside_the_band_is_not_questioned() -> None:
-    """A medium mark just under the threshold stays quiet; well under, it is flagged."""
-    inside = _check([_cost("t/a.py::test_near", MEDIUM / BAND, "medium")])
-    below = _check([_cost("t/a.py::test_far", MEDIUM / BAND - 0.1, "medium")])
+def test_readings_inside_a_band_accept_either_marking() -> None:
+    """Between threshold / band and threshold * band, marked and unmarked both hold."""
+    inside = _check([
+        _cost("t/a.py::test_medium_just_under", MEDIUM / BAND, "medium"),
+        _cost("t/a.py::test_unmarked_just_over", MEDIUM * BAND - 0.1),
+        _cost("t/a.py::test_medium_near_slow", SLOW * BAND - 0.1, "medium"),
+        _cost("t/a.py::test_bare_slow_just_under", SLOW / BAND, "slow"),
+    ])
+    beyond = _check([
+        _cost("t/a.py::test_medium_far_under", MEDIUM / BAND - 0.1, "medium"),
+        _cost("t/a.py::test_unmarked_far_over", MEDIUM * BAND),
+        _cost("t/a.py::test_medium_far_over_slow", SLOW * BAND, "medium"),
+        _cost("t/a.py::test_bare_slow_far_under", SLOW / BAND - 0.1, "slow"),
+    ])
 
     assert inside.ok
-    assert [finding.kind for finding in below.findings] == ["medium-under-medium"]
+    assert {finding.test.node_id: finding.kind for finding in beyond.findings} == {
+        "t/a.py::test_medium_far_under": "medium-under-medium",
+        "t/a.py::test_unmarked_far_over": "unmarked-over-medium",
+        "t/a.py::test_medium_far_over_slow": "medium-over-slow",
+        "t/a.py::test_bare_slow_far_under": "slow-without-reason",
+    }
 
 
 def test_nodes_without_a_call_phase_are_not_judged() -> None:
@@ -153,7 +168,7 @@ def test_node_seen_in_two_artefacts_is_judged_on_its_largest_cost() -> None:
     """A physics-and-api file runs in both lanes; the larger reading decides."""
     tests = [
         checker.TestCost("t/a.py::test_shared", ("api", "physics"), 4.0, 6.0, "api.json"),
-        checker.TestCost("t/a.py::test_shared", ("api", "physics"), 14.0, 20.0, "physics.json"),
+        checker.TestCost("t/a.py::test_shared", ("api", "physics"), 16.0, 20.0, "physics.json"),
     ]
 
     report = _check(tests)
@@ -255,11 +270,12 @@ def test_cli_exit_codes_and_markdown_summary(
         == 1
     )
     out = capsys.readouterr().out
-    assert "t/a.py::test_heavy_unmarked: 42.0 CPU-s (no cost marker -> slow" in out
+    # 42 is over the slow threshold but inside its band (30 * 1.5), so medium is asked for.
+    assert "t/a.py::test_heavy_unmarked: 42.0 CPU-s (no cost marker -> medium" in out
     assert "| CPU-s | tests | cumulative |" in out
     written = summary.read_text(encoding="utf-8")
     assert "## Cost-marker drift" in written
-    assert "| `t/a.py::test_heavy_unmarked` | 42.0 | - | slow | unmarked-over-medium |" in written
+    assert "| `t/a.py::test_heavy_unmarked` | 42.0 | - | medium | unmarked-over-medium |" in written
     assert "### Distribution" in written
 
     (tmp_path / "phases.json").write_text(json.dumps({"schema_version": 1}), encoding="utf-8")

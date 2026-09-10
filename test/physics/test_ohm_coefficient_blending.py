@@ -141,7 +141,6 @@ def test_temperature_threshold_is_continuous():
     np.testing.assert_allclose(above, below, rtol=0.0, atol=1.0e-7)
 
 
-@pytest.mark.medium
 def test_temperature_blending_recovers_far_regimes():
     """Temperatures outside the transition zone retain legacy coefficients."""
     winter_below, winter_edge, summer_edge, summer_above = _run_ohm_cases([

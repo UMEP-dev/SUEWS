@@ -15,23 +15,27 @@ This script reads one or more of those artefacts (files, or directories as
 `gh run download` leaves them) and reports every test whose marker disagrees
 with its measured cost:
 
-- `unmarked-over-medium`: no cost marker, but at or above the `medium`
-  threshold (mark it `medium`, or `slow` when it also clears `slow`);
-- `medium-over-slow`: marked `medium`, but at or above the `slow` threshold;
-- `medium-under-medium`: marked `medium`, but under the `medium` threshold by
-  more than the hysteresis band (see below);
-- `slow-without-reason`: marked `slow` with a bare marker, but under the `slow`
-  threshold. `slow` also means "unsuitable for routine PR runs" for a cause
-  other than CPU (network, credentials, a run-count policy, a platform that is
-  far slower than the reference); such a test states the cause as
+- `unmarked-over-medium`: no cost marker, but clearly at or above the `medium`
+  threshold (mark it `medium`, or `slow` when it also clearly clears `slow`);
+- `medium-over-slow`: marked `medium`, but clearly at or above the `slow`
+  threshold;
+- `medium-under-medium`: marked `medium`, but clearly under the `medium`
+  threshold;
+- `slow-without-reason`: marked `slow` with a bare marker, but clearly under the
+  `slow` threshold. `slow` also means "unsuitable for routine PR runs" for a
+  cause other than CPU (network, credentials, a run-count policy, a platform
+  that is far slower than the reference); such a test states the cause as
   `pytest.mark.slow(reason="...")`, the plugin records it, and this check
   accepts it. A bare `slow` is a CPU claim and is checked as one.
 
-The hysteresis band keeps a test near a threshold from flapping between two
-nights' readings: a `medium` mark is only questioned when the test measures
-under `medium / band`. Under-marking has no band, so one flap over the
-threshold is answered by adding the marker, after which the test sits inside
-the band and stays quiet.
+"Clearly" is the hysteresis band. Per-test CPU seconds on hosted runners vary
+by up to about 1.5x between dispatches of the same code (the runners are not
+one hardware generation, and a change elsewhere in the tree can move a whole
+lane), so a marker is questioned only when the reading is on the wrong side
+of a threshold by more than the band factor: unmarked from `medium * band`,
+`medium` under `medium / band` or from `slow * band`, bare `slow` under
+`slow / band`. Inside a band either marking is accepted, so a test near a
+threshold does not flap between two nights' readings.
 
 A node that appears in several artefacts (a file marked both `physics` and
 `api` runs in both lanes) is judged on its largest measurement. Nodes that did
@@ -61,7 +65,8 @@ from typing import Any
 # `.claude/rules/tests/patterns.md` ("Cost thresholds").
 MEDIUM_CPU_SECONDS = 10.0
 SLOW_CPU_SECONDS = 30.0
-# A `medium` mark is questioned only under MEDIUM_CPU_SECONDS / BAND.
+# Hysteresis: a marker is questioned only when the reading is on the wrong side
+# of a threshold by more than this factor (see the module docstring).
 BAND = 1.5
 # The phase whose CPU seconds define a test's cost. `call` is the test body;
 # `total` adds fixture setup and teardown, which under xdist charges a shared
@@ -76,10 +81,10 @@ METRICS_SCHEMA_VERSION = 2
 HISTOGRAM_EDGES = (0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0, 300.0)
 
 FINDING_KINDS = {
-    "unmarked-over-medium": "Unmarked tests at or above the medium threshold",
-    "medium-over-slow": "Tests marked medium at or above the slow threshold",
-    "medium-under-medium": "Tests marked medium under the medium threshold (beyond the band)",
-    "slow-without-reason": "Tests marked slow under the slow threshold without a stated reason",
+    "unmarked-over-medium": "Unmarked tests clearly at or above the medium threshold",
+    "medium-over-slow": "Tests marked medium clearly at or above the slow threshold",
+    "medium-under-medium": "Tests marked medium clearly under the medium threshold",
+    "slow-without-reason": "Tests marked slow clearly under the slow threshold without a stated reason",
 }
 
 
@@ -282,7 +287,7 @@ def largest_per_node(tests: Iterable[TestCost]) -> list[TestCost]:
 
 
 def wanted_marker(cpu_seconds: float, medium_seconds: float, slow_seconds: float) -> str | None:
-    """The cost marker a measurement calls for."""
+    """The cost marker a measurement calls for, with the thresholds as given."""
     if cpu_seconds >= slow_seconds:
         return "slow"
     if cpu_seconds >= medium_seconds:
@@ -297,22 +302,29 @@ def classify(
     slow_seconds: float,
     band: float,
 ) -> Finding | None:
-    """Return the finding for one measured test, or None when its marker holds."""
-    wanted = wanted_marker(test.cpu_seconds, medium_seconds, slow_seconds)
+    """Return the finding for one measured test, or None when its marker holds.
+
+    A marker is questioned only when the reading is on the wrong side of a
+    threshold by more than `band`; inside a band either marking is accepted.
+    """
+    cpu = test.cpu_seconds
     current = test.cost_marker
     if current is None:
+        # Under-marked: judge against the thresholds raised by the band.
+        wanted = wanted_marker(cpu, medium_seconds * band, slow_seconds * band)
         if wanted is None:
             return None
         return Finding("unmarked-over-medium", test, wanted)
     if current == "medium":
-        if wanted == "slow":
+        if cpu >= slow_seconds * band:
             return Finding("medium-over-slow", test, "slow")
-        if test.cpu_seconds < medium_seconds / band:
+        if cpu < medium_seconds / band:
             return Finding("medium-under-medium", test, "no cost marker")
         return None
     # current == "slow"
-    if wanted == "slow" or test.slow_reason:
+    if cpu >= slow_seconds / band or test.slow_reason:
         return None
+    wanted = wanted_marker(cpu, medium_seconds, slow_seconds)
     return Finding("slow-without-reason", test, wanted or "no cost marker")
 
 
@@ -388,7 +400,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--band",
         type=float,
         default=BAND,
-        help=f"a medium mark is questioned only under medium / band (default {BAND:g})",
+        help=f"hysteresis factor: a marker is questioned only beyond threshold * or / band (default {BAND:g})",
     )
     parser.add_argument(
         "--phase",

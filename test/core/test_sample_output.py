@@ -581,7 +581,6 @@ class TestSampleOutput(TestCase):
         not _rust_library_available(),
         reason="Rust library backend not available (install src/suews_bridge with physics feature)",
     )
-    @pytest.mark.medium
     def test_library_cli_parity(self):
         """Quick parity check: Python library bridge vs CLI reference.
 

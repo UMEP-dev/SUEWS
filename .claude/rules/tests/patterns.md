@@ -208,12 +208,17 @@ of the same tree. Setup and teardown are recorded beside `call` in the artefact
 for anyone who needs them.
 
 How it is checked. `scripts/lint/check_cost_markers.py` reads those artefacts
-and names every test whose marker disagrees with its measurement: unmarked at
-or above 10 CPU-s, `medium` at or above 30, `medium` under 10 / 1.5 (a
-hysteresis band, so a test near the threshold does not flap between two
-nights' readings: one flap over the threshold is answered by adding the
-marker, after which the test sits inside the band and stays quiet), and a bare
-`slow` under 30. A `slow` mark under 30 CPU-s must carry its reason
+and names every test whose marker clearly disagrees with its measurement.
+"Clearly" is a hysteresis band of 1.5: per-test CPU seconds vary by up to
+about that factor between dispatches of the same code (hosted runners are not
+one hardware generation, and a change elsewhere in the tree can move a whole
+lane: three dispatches of this rule's own PR read the same EHC test at 14.7,
+15.1 and 9.4 CPU-s, and the api lane's total at 742, 776 and 913 CPU-s), so a
+marker is questioned only when the reading is on the wrong side of a threshold
+by more than the band: unmarked from 15 CPU-s (`medium`) or 45 (`slow`),
+`medium` under 6.7 or from 45, bare `slow` under 20. Inside a band either
+marking is accepted, so a test near a threshold does not flap between two
+nights' readings. A `slow` mark under 30 CPU-s must carry its reason
 (`pytest.mark.slow(reason="...")`: network or credentials, a run-count policy
 such as the non-anchor legacy-table versions, a spawned server with wall-clock
 assertions, a full-year run that is 148 s of wall on Windows); the plugin

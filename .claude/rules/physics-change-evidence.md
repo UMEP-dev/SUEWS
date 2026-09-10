@@ -1,7 +1,8 @@
 ---
 paths:
   - src/suews/src/suews_phys_*.f95
-  - test/fixtures/data_test/sample_output.csv.gz
+  - test/fixtures/data_test/sample_output_2012-*.csv
+  - test/fixtures/data_test/provenance.json
   - test/fixtures/data_test/stebbs_test/**
   - test/fixtures/benchmark1/**
 ---
@@ -44,7 +45,8 @@ A PR is physics-changing -- and MUST be labelled `0-physics:change` (see below)
   physics backend under `src/suews_bridge/` behind the `physics` feature.
 - **Moves a reference output.** Any change that alters a vendored reference
   fixture:
-  - `test/fixtures/data_test/sample_output.csv.gz` (main SuPy reference run),
+  - `test/fixtures/data_test/sample_output_2012-*.csv` (main SuPy reference
+    run, twelve monthly shards),
   - `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` (STEBBS
     reference run),
   - `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs).
@@ -119,6 +121,17 @@ Any reference fixture the change moves must be refreshed in the **same PR** (or 
 PR explicitly linked from it). A physics change and its fixture update must not
 drift across separate, unlinked PRs -- that is the exact failure #1575 had to
 repair after the fact.
+
+A refresh of the main SuPy reference must also carry the regenerated
+`test/fixtures/data_test/provenance.json` sidecar, which records the SuPy build,
+git commit, compiler and platform that produced the numbers, and the SHA-256 of
+each shard. Run `scripts/suews/gen_sample_output.py`, which writes both; do not
+hand-edit the shards. The shards are written at seven significant figures
+(`float_format="%.7g"`), the precision justified against the tightest test
+tolerance in `test/fixtures/data_test/sample_output_io.py`, so a refresh
+produced any other way will not match the committed reference's shape.
+`test_reference_provenance_matches_shards` fails when the sidecar and the shards
+disagree, so a refresh without it does not merge.
 
 ### 4. The full `-m physics` tier runs before merge
 

@@ -121,6 +121,11 @@ on:
         description: 'Also record the zero-tolerance spread of the full-year sample comparison on every built platform for the two CPython bookends (what the nightly does; uploads tolerance-spread-* artefacts)'
         type: boolean
         default: false
+      api_serial_platforms:
+        description: 'Comma-separated platforms (manylinux, macosx, win) whose api lane runs in one process instead of on its xdist workers; the SUEWS_API_SERIAL_PLATFORMS repository variable does the same on every event where this input is empty'
+        required: false
+        type: string
+        default: ''
       cost_markers:
         description: 'Also check the medium/slow cost markers against the per-test CPU seconds of the Linux cp312 api and physics lanes (what the nightly does; needs test_tier all and Linux + py312 in the matrix)'
         type: boolean
@@ -481,6 +486,11 @@ jobs:
       # trusted determine-matrix script is still read from the base branch.
       api_python_json: >-
         ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
+      # Escape hatch (#1786 measured the worker counts): a dispatch input for
+      # one run, or the SUEWS_API_SERIAL_PLATFORMS repository variable for
+      # every event, serialises the named platforms without a workflow edit.
+      # The reusable workflow forwards this to the api lane it chains.
+      serial_platforms: ${{ inputs.api_serial_platforms || vars.SUEWS_API_SERIAL_PLATFORMS || '' }}
 
   # Nightly only: build the checked profile (-O0 -fcheck=all) on every platform
   # and run the full physics tier on it, so out-of-bounds and uninitialised

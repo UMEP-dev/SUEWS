@@ -389,7 +389,8 @@ def test_tolerance_spread_group_is_one_reusable_call() -> None:
     dependencies = declared_needs[patterns[0]]
     assert "Determine build matrix" in dependencies
     assert any(
-        fnmatchcase("Build standard wheels / cp312-win AMD64", d) for d in dependencies
+        fnmatchcase("Build and test (win AMD64) / cp312-win AMD64", d)
+        for d in dependencies
     )
 
 

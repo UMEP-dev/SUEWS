@@ -1,5 +1,13 @@
-# Matched hosted comparison for gh#1626. This is intentionally manual: normal
-# pull requests must not pay for four full physics runs.
+# Matched hosted comparisons, run in A/B/B/A order on one runner so the two
+# candidates share the same wheel, source and machine. Two lanes:
+#   physics-scheduler (gh#1626): loadscope vs worksteal on the standard
+#     physics selection, one Linux runner with four workers.
+#   api-workers: the standard api selection serially vs on xdist workers,
+#     on Linux (-n 4), Windows (-n 4) and macOS (-n 2; 7 GB runners, where
+#     gh#1608 recorded four workers swap-crawling this lane). Records wall
+#     time, peak RSS per worker and process tree, and worker finish skew.
+# This is intentionally manual: normal pull requests must not pay for four
+# full runs of either selection.
 name: Hosted pytest scheduler ABBA
 
 on:
@@ -13,6 +21,17 @@ on:
         description: Exact 40-character source SHA built by source_run_id
         required: true
         type: string
+      lane:
+        description: >-
+          physics-scheduler = loadscope vs worksteal on the physics selection
+          (one Linux runner); api-workers = serial vs xdist workers on the
+          standard api selection (Linux -n 4, Windows -n 4, macOS -n 2)
+        required: true
+        default: physics-scheduler
+        type: choice
+        options:
+          - physics-scheduler
+          - api-workers
 
 permissions:
   contents: read
@@ -23,10 +42,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  compare:
-    name: One-runner loadscope/worksteal ABBA
+  source:
+    name: Verify successful source run and SHA
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
     steps:
       - name: Verify successful source run and SHA
         id: source
@@ -67,10 +88,17 @@ jobs:
               output.write(f"sha={expected_sha}\n")
           PY
 
+  compare:
+    name: One-runner loadscope/worksteal ABBA
+    if: inputs.lane == 'physics-scheduler'
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
       - name: Checkout the exact built source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          ref: ${{ steps.source.outputs.sha }}
+          ref: ${{ needs.source.outputs.sha }}
           submodules: recursive
           persist-credentials: false
 
@@ -180,7 +208,7 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           RUNNER_MEMORY_BYTES: ${{ steps.memory.outputs.bytes }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
-          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
           WHEEL_PATH: ${{ steps.wheel.outputs.path }}
         run: >-
           python scripts/suews/compare_scheduler_runs.py
@@ -205,5 +233,138 @@ jobs:
         with:
           name: hosted-pytest-scheduler-abba-${{ github.run_id }}
           path: scheduler-abba/
+          if-no-files-found: error
+          retention-days: 30
+
+  api_workers:
+    name: API serial/xdist ABBA ${{ matrix.platform }} ${{ matrix.arch }} -n ${{ matrix.workers }}
+    if: inputs.lane == 'api-workers'
+    needs: source
+    runs-on: ${{ matrix.runner }}
+    # Two serial standard-tier api runs (8-16 min each in the merge queue) plus
+    # two parallel ones; the cap bounds a hung or swap-crawling trial.
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: manylinux
+            arch: x86_64
+            workers: 4
+          - runner: windows-2025
+            platform: win
+            arch: AMD64
+            workers: 4
+          - runner: macos-15
+            platform: macosx
+            arch: arm64
+            workers: 2
+    env:
+      # The ready-PR and merge-queue api selection (test_tier standard).
+      MARKER_EXPR: api and (core or not slow) and not qgis
+    steps:
+      - name: Checkout the exact built source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Download the exact wheel for this platform
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-${{ matrix.platform }}-${{ matrix.arch }}
+          path: wheelhouse
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id }}
+
+      - name: Download the MCP distribution built by the same run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: suews-mcp-dist
+          path: mcp-dist
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id }}
+
+      - name: Install the wheels and pinned scheduler stack
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0
+          python -m pip install wheelhouse/*.whl mcp-dist/*.whl
+
+      - name: S1 - serial
+        continue-on-error: true
+        shell: bash
+        env:
+          SUEWS_CI_METRICS: api-abba/serial-a.json
+        run: >-
+          python -m pytest -p scripts.suews.pytest_ci_metrics test
+          -m "$MARKER_EXPR" -v --tb=short --durations=10
+          -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-serial-a"
+
+      - name: P1 - xdist worksteal
+        continue-on-error: true
+        shell: bash
+        env:
+          SUEWS_CI_METRICS: api-abba/parallel-a.json
+          WORKERS: ${{ matrix.workers }}
+        run: >-
+          python -m pytest -p scripts.suews.pytest_ci_metrics test
+          -m "$MARKER_EXPR" -v --tb=short --durations=10
+          -n "$WORKERS" --dist worksteal
+          -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-parallel-a"
+
+      - name: P2 - xdist worksteal
+        continue-on-error: true
+        shell: bash
+        env:
+          SUEWS_CI_METRICS: api-abba/parallel-b.json
+          WORKERS: ${{ matrix.workers }}
+        run: >-
+          python -m pytest -p scripts.suews.pytest_ci_metrics test
+          -m "$MARKER_EXPR" -v --tb=short --durations=10
+          -n "$WORKERS" --dist worksteal
+          -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-parallel-b"
+
+      - name: S2 - serial
+        continue-on-error: true
+        shell: bash
+        env:
+          SUEWS_CI_METRICS: api-abba/serial-b.json
+        run: >-
+          python -m pytest -p scripts.suews.pytest_ci_metrics test
+          -m "$MARKER_EXPR" -v --tb=short --durations=10
+          -p no:cacheprovider --basetemp="$RUNNER_TEMP/pytest-serial-b"
+
+      - name: Tabulate the four trials
+        if: always()
+        shell: bash
+        env:
+          TITLE: API lane ABBA ${{ matrix.platform }} ${{ matrix.arch }} (-n ${{ matrix.workers }}) at ${{ needs.source.outputs.sha }}
+          WORKERS: ${{ matrix.workers }}
+        run: >-
+          python scripts/suews/summarise_abba_trials.py
+          --trial "S1 serial=api-abba/serial-a.json"
+          --trial "P1 -n $WORKERS=api-abba/parallel-a.json"
+          --trial "P2 -n $WORKERS=api-abba/parallel-b.json"
+          --trial "S2 serial=api-abba/serial-b.json"
+          --title "$TITLE"
+          --runner-memory-bytes auto
+          --output api-abba/summary.json
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload raw trials and table
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: hosted-api-workers-abba-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.run_id }}
+          path: api-abba/
           if-no-files-found: error
           retention-days: 30

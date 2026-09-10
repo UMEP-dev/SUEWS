@@ -319,12 +319,13 @@ async def _run_serial_then_concurrent(
     ``search_schema`` per-process cache) so both arms measure steady state.
 
     ``per_task_timeout_factor`` scales the serial-arm total into an
-    ``asyncio.wait_for`` deadline on each concurrent task. That deadline is a
-    hang guard sitting inside the 120 s request read-timeout, not the
-    detector: under a serialised dispatch the slowest concurrent task costs
-    about the serial total, so a factor above 1 keeps the deadline clear of
-    the bug shape and lets the contrast assertion, which names gh#1412 and
-    prints the numbers, be what reports a regression.
+    ``asyncio.wait_for`` deadline on each concurrent task (floored, and
+    capped at the request read-timeout). That deadline is a hang guard
+    sitting inside the 120 s request read-timeout, not the detector: it
+    sits well above both the bug shape (the slowest concurrent task costs
+    about the serial total) and every healthy completion measured on a
+    contended runner, so the contrast assertion, which names gh#1412 and
+    prints the numbers, is what reports a regression.
     """
     server_params = StdioServerParameters(
         command=_SUEWS_MCP_COMMAND,
@@ -352,9 +353,12 @@ async def _run_serial_then_concurrent(
             serial_each.append(seconds)
         serial_total = time.monotonic() - t_serial
 
-        per_task_timeout = max(
-            serial_total * per_task_timeout_factor,
-            _PER_TASK_TIMEOUT_FLOOR_SECONDS,
+        per_task_timeout = min(
+            max(
+                serial_total * per_task_timeout_factor,
+                _PER_TASK_TIMEOUT_FLOOR_SECONDS,
+            ),
+            _CONCURRENT_REQUEST_TIMEOUT.total_seconds(),
         )
 
         # Concurrent arm: the same calls in flight together. gather()
@@ -403,25 +407,30 @@ def _report_contrast(capsys, label: str, fields: dict[str, float]) -> None:
 # the offload disabled on a Linux machine, c1 = 10.79 s, c2 = 22.05 s
 # against serial calls of 10.87 s and 10.73 s). An offloaded dispatch starts
 # both at once and they complete together whether or not the machine has a
-# spare core for the second (measured 0.00 to 0.06 s of spread on eight CI
-# lanes, including one where the two calls shared a single core and each
-# took twice its solo time). 0.5 sits between the two. Total wall time
-# (C/S) is reported but not asserted: it separates the two dispatches only
-# when a spare core exists, and read 1.04 on that shared-core lane with the
-# offload working.
+# spare core for the second (measured 0.00 to 0.39 s of spread, at most 0.14
+# of a serial call, on sixteen CI lanes over two runs plus a Linux machine;
+# the 0.39 s came from a lane where the two calls shared a contended core
+# and each took three times its solo time). 0.5 sits between the two. Total
+# wall time (C/S) is reported but not asserted: it separates the two
+# dispatches only when a spare core exists, and read 1.04 and 1.60 on
+# that lane in the two runs with the offload working.
 _COMPLETION_SPREAD_RATIO = 0.5
 # Delay a fast, primed probe suffers when issued behind a slow call, as a
 # fraction of that slow call's concurrent-arm time. A blocked loop holds the
 # probe's request for the whole slow call (about 1.0); a free loop answers it
 # at once (about 0.0). 0.5 sits between the two.
 _PROBE_DELAY_RATIO = 0.5
-# Hang guard on each concurrent task, as a multiple of the serial-arm total.
-# Under a serialised dispatch the slowest task costs about the serial total,
-# so the deadline stays clear of the bug shape and the contrast assertion
-# does the reporting; it fires only for a server that stops answering, well
-# inside the 120 s request read-timeout.
-_PER_TASK_TIMEOUT_FACTOR = 2.0
-_PER_TASK_TIMEOUT_FLOOR_SECONDS = 10.0
+# Hang guard on each concurrent task, as a multiple of the serial-arm total
+# with a floor, capped at the request read-timeout. Its only job is to beat
+# the 120 s read-timeout on a server that stops answering, so it must sit
+# clearly above every healthy completion measured, not near it: under a
+# serialised dispatch the slowest task costs about the serial total, and on
+# a contended CI lane with the offload working a healthy call completed at
+# 9.02 s against a serial total of 5.63 s, which a 2 x S deadline (11.26 s)
+# nearly caught. 4 x S clears that by a wide margin and the contrast
+# assertion, not this deadline, is what reports gh#1412.
+_PER_TASK_TIMEOUT_FACTOR = 4.0
+_PER_TASK_TIMEOUT_FLOOR_SECONDS = 30.0
 
 
 @pytest.mark.slow

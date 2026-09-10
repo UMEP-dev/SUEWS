@@ -126,22 +126,51 @@ def test_new_ci_observability_surfaces_trigger_normal_ci() -> None:
 
 
 @pytest.mark.core
-def test_api_lane_installs_xdist_contract_without_parallelising_main_suite() -> None:
-    """The nested xdist contract has its plugin while API tests stay serial."""
+def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> None:
+    """The api lane runs -n 4/4/2 worksteal per platform unless serialised."""
+    root = Path(__file__).resolve().parents[2]
     workflow = (
-        Path(__file__).resolve().parents[2]
-        / ".github/workflows/test-api-cross-python-reusable.yml"
+        root / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
 
     assert "python -m pip install pytest==9.1.1 pytest-xdist==3.8.0" in workflow
     main_invocation = re.search(
         r"^[ \t]*python -m pytest -p scripts\.suews\.pytest_ci_metrics test \\\n"
-        r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25[ \t]*$",
+        r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25 \$XDIST_ARGS[ \t]*$",
         workflow,
         flags=re.MULTILINE,
     )
     assert main_invocation is not None
-    assert re.search(r"(?:^|\s)-n(?:\s|$)", main_invocation.group()) is None
+
+    # Measured in #1786: the worker counts are per platform, never -n auto.
+    workers = dict(
+        re.findall(
+            r"^\s+(manylinux|win|macosx)\)\s+WORKERS=(\d+)", workflow, re.MULTILINE
+        )
+    )
+    assert workers == {"manylinux": "4", "win": "4", "macosx": "2"}
+    assert "-n auto" not in workflow
+    assert 'echo "xdist_args=-n ${WORKERS} --dist worksteal"' in workflow
+
+    # The escape hatch is a workflow_call input, matched per platform name.
+    parsed = yaml.safe_load(workflow)
+    call_inputs = parsed[True]["workflow_call"]["inputs"]
+    assert "default" in call_inputs["serial_platforms"]
+    assert not call_inputs["serial_platforms"]["default"]
+    assert 'if [[ "$SERIAL_LIST" == *",${PLATFORM},"* ]]; then' in workflow
+
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    dispatch_inputs = caller[True]["workflow_dispatch"]["inputs"]
+    assert "default" in dispatch_inputs["api_serial_platforms"]
+    assert not dispatch_inputs["api_serial_platforms"]["default"]
+    api_with = caller["jobs"]["test_api_cross_python"]["with"]
+    assert api_with["serial_platforms"] == (
+        "${{ inputs.api_serial_platforms || vars.SUEWS_API_SERIAL_PLATFORMS || '' }}"
+    )
 
 
 @pytest.mark.smoke

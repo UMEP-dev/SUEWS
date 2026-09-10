@@ -29,6 +29,15 @@ on:
         description: 'Test tier (smoke|core|cfg|standard|all); composed with the `api` marker'
         required: true
         type: string
+      serial_platforms:
+        description: >-
+          Comma-separated platform names (manylinux, macosx, win) whose api
+          lane runs in one process instead of on xdist workers. The escape
+          hatch for a platform that starts swapping or failing only in
+          parallel; empty runs every platform on its measured worker count.
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -97,10 +106,42 @@ jobs:
           esac
           echo "expr=$EXPR" >> "$GITHUB_OUTPUT"
 
+      - name: Choose the xdist worker count for this platform
+        id: workers
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.buildplat[1] }}
+          SERIAL_PLATFORMS: ${{ inputs.serial_platforms }}
+        run: |
+          # Worker counts measured in ABBA order against the serial lane on
+          # the hosted runners (#1786): Linux -n 4 gives 2.04x with a
+          # process-tree peak of 2.5 GB on a 16 GB runner, Windows -n 4 gives
+          # 2.34x with worker peaks of 0.6 GB, macOS -n 2 gives 1.81x with
+          # worker peaks of 1.1 GB on a 7 GB runner. Four workers on macOS
+          # swap-crawled this lane (gh#1608), so its count stays at two.
+          case "$PLATFORM" in
+            manylinux) WORKERS=4 ;;
+            win)       WORKERS=4 ;;
+            macosx)    WORKERS=2 ;;
+            *)         WORKERS=1 ;;
+          esac
+          SERIAL_LIST=",${SERIAL_PLATFORMS// /},"
+          if [[ "$SERIAL_LIST" == *",${PLATFORM},"* ]]; then
+            echo "::notice::api lane on ${PLATFORM} serialised through serial_platforms"
+            WORKERS=1
+          fi
+          if [[ "$WORKERS" -gt 1 ]]; then
+            echo "xdist_args=-n ${WORKERS} --dist worksteal" >> "$GITHUB_OUTPUT"
+          else
+            echo "xdist_args=" >> "$GITHUB_OUTPUT"
+          fi
+          echo "count=${WORKERS}" >> "$GITHUB_OUTPUT"
+
       - name: Install wheel and run api tests
         shell: bash
         env:
           MARKER_EXPR: ${{ steps.marker.outputs.expr }}
+          XDIST_ARGS: ${{ steps.workers.outputs.xdist_args }}
           SUEWS_CI_METRICS: ci-metrics/api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
         run: |
           python -m pip install --upgrade pip
@@ -131,11 +172,14 @@ jobs:
           # protocol file fail with pytest's no-tests-collected exit code.
           python -m pytest --collect-only test/mcp/test_protocol_handshake.py \
             -m "$MARKER_EXPR" -q
-          # Run in one process. xdist duplicates every session fixture per
-          # worker; the API lane contains simulation outputs large enough to
-          # exhaust hosted-runner memory even with two workers.
+          # xdist duplicates every session fixture per worker, so the worker
+          # count is per platform and measured, never taken from the CPU count
+          # (see the step above); XDIST_ARGS is empty for a serialised
+          # platform. The metrics
+          # plugin records each worker's peak RSS beside the lane timings.
+          # shellcheck disable=SC2086
           python -m pytest -p scripts.suews.pytest_ci_metrics test \
-            -m "$MARKER_EXPR" -v --tb=short --durations=25
+            -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS
 
       - name: Upload API test metrics
         if: always()

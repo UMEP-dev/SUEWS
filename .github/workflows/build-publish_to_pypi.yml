@@ -121,6 +121,10 @@ on:
         description: 'Also record the zero-tolerance spread of the full-year sample comparison on every built platform for the two CPython bookends (what the nightly does; uploads tolerance-spread-* artefacts)'
         type: boolean
         default: false
+      cost_markers:
+        description: 'Also check the medium/slow cost markers against the per-test CPU seconds of the Linux cp312 api and physics lanes (what the nightly does; needs test_tier all and Linux + py312 in the matrix)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -561,6 +565,61 @@ jobs:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
       python_json: ${{ needs.determine_matrix.outputs.bookend_python }}
       build_profile: ${{ inputs.build_profile || 'release' }}
+
+  # Nightly and on demand: check the `medium` and `slow` cost markers against
+  # the CPU seconds the metrics plugin records per test on the Linux reference
+  # runner (scripts/lint/check_cost_markers.py; thresholds and reasoning in
+  # .claude/rules/tests/patterns.md). Wall time on a hosted runner sits on a 2x
+  # noise floor, so the markers are defined by process CPU seconds and this
+  # job is where drift shows. It reports and never gates: the lint exits 1 on
+  # drift so a local run is useful, continue-on-error keeps that (and any
+  # download failure) from turning the nightly red, and the job feeds neither
+  # report_scheduled_run nor pr-gate. It needs the two Linux cp312 metrics
+  # artefacts, which only a full-tier run with Linux and py312 in its matrix
+  # produces.
+  cost_markers:
+    name: Cost-marker drift (Linux cp312 CPU seconds)
+    needs: [build_wheels, test_api_cross_python]
+    if: |
+      always() &&
+      needs.build_wheels.result == 'success' &&
+      needs.test_api_cross_python.result == 'success' &&
+      (
+        github.event_name == 'schedule' ||
+        (github.event_name == 'workflow_dispatch' && inputs.cost_markers == true)
+      )
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: scripts/lint/check_cost_markers.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Download the Linux cp312 api metrics
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ci-metrics-api-cp312-manylinux-x86_64
+          path: ci-metrics/api
+
+      - name: Download the Linux cp312 physics metrics
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ci-metrics-physics-cp312-manylinux-x86_64
+          path: ci-metrics/physics
+
+      - name: Check cost markers against measured CPU seconds
+        shell: bash
+        run: >-
+          python scripts/lint/check_cost_markers.py ci-metrics
+          --histogram
+          --markdown "$GITHUB_STEP_SUMMARY"
 
   # Standalone static lints over the test tree. Both use AST-based scripts
   # that never import supy, so CI can run them without building — that is

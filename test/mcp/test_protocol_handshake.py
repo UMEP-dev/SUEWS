@@ -427,8 +427,10 @@ _PROBE_DELAY_RATIO = 0.5
 # serialised dispatch the slowest task costs about the serial total, and on
 # a contended CI lane with the offload working a healthy call completed at
 # 9.02 s against a serial total of 5.63 s, which a 2 x S deadline (11.26 s)
-# nearly caught. 4 x S clears that by a wide margin and the contrast
-# assertion, not this deadline, is what reports gh#1412.
+# nearly caught. 4 x S clears that by a wide margin; on CI lanes S is
+# under 6 s, so the 30 s floor below is the constraint that binds there,
+# and the factor binds only on slow machines. The contrast assertion, not
+# this deadline, is what reports gh#1412.
 _PER_TASK_TIMEOUT_FACTOR = 4.0
 _PER_TASK_TIMEOUT_FLOOR_SECONDS = 30.0
 
@@ -503,7 +505,7 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
     )
     assert len(result.envelopes) == 2, (
         "Expected two envelopes from the concurrent gather; got "
-        f"{len(result.envelopes)}. If a task timed out, gh#1412 has regressed."
+        f"{len(result.envelopes)}."
     )
     for idx, envelope in enumerate(result.envelopes):
         assert envelope.content, (

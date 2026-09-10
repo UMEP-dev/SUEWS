@@ -16,8 +16,8 @@ model:
       # The 'groups' parameter is ignored for Parquet output
       
   physics:
-    netradiationmethod: 3
-    emissionsmethod: 2
+    net_radiation: 3
+    emissions: 2
 
 sites:
   - name: "Urban_Site"

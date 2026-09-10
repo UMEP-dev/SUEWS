@@ -2216,11 +2216,11 @@ sites:
         value: 0.1
       water_holding_capacity_min:
         value: 0.03
-      narp_emis_snow:
+      narp_emissivity_snow:
         value: 0.99
-      precip_limit:
+      temperature_rain_snow_threshold:
         value: 2.2
-      precip_limit_albedo:
+      precipitation_threshold_albedo_reset:
         value: 2.0
       snow_albedo_max:
         value: 0.8
@@ -2230,11 +2230,11 @@ sites:
         value: 100.0
       snow_density_max:
         value: 450.0
-      snow_limit_building:
+      snow_depth_limit_building:
         value: -999.0
-      snow_limit_paved:
+      snow_depth_limit_paved:
         value: -999.0
-      snowprof_24hr:
+      snow_profile_24hr:
         working_day:
           '1': -999.0
           '2': -999.0
@@ -2285,15 +2285,15 @@ sites:
           '22': -999.0
           '23': -999.0
           '24': -999.0
-      tau_a:
+      tau_cold_snow:
         value: 0.01
-      tau_f:
+      tau_melting_snow:
         value: 0.1
-      tau_r:
+      tau_refreezing_snow:
         value: 0.02
-      temp_melt_factor:
+      temperature_melt_factor:
         value: 0.14
-      rad_melt_factor:
+      radiation_melt_factor:
         value: 0.001
     land_cover:
       paved:

@@ -82,6 +82,8 @@ ci:
   - '.github/workflows/build-wheels-reusable.yml'
   - '.github/workflows/cibuildwheel-debug.yml'
   - '.github/workflows/ci-metrics-overhead.yml'
+  - '.github/workflows/test-api-cross-python-reusable.yml'
+  - '.github/workflows/tolerance-spread-reusable.yml'
   - '.github/actions/build-suews/**'
   - '.github/scripts/**'
   - 'Makefile'

@@ -71,6 +71,10 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
 - Wheel-build jobs run `physics` tests once per selected platform/architecture.
 - API cross-CPython jobs install the built wheel and run `api` tests across the
   selected Python versions.
+- The nightly `Tolerance spread` group (`tolerance-spread-reusable.yml`, also on
+  dispatch with the `tolerance_spread` input) installs the built wheel on the
+  two CPython bookends per platform and records the zero-tolerance spread of
+  the sample comparison; it records and never gates.
 - `smoke` excludes both `medium` and `slow`; `core` and `cfg` exclude `slow`.
   `standard` includes non-slow tests plus essential `core` regressions even
   when they are slow. All normal tiers exclude `qgis`; `all` is reserved for

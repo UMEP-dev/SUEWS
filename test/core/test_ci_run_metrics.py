@@ -122,6 +122,8 @@ def test_new_ci_observability_surfaces_trigger_normal_ci() -> None:
 
     assert "- '.github/workflows/ci-metrics-overhead.yml'" in path_filters
     assert "- '.github/workflows/build-wheels-reusable.yml'" in path_filters
+    assert "- '.github/workflows/test-api-cross-python-reusable.yml'" in path_filters
+    assert "- '.github/workflows/tolerance-spread-reusable.yml'" in path_filters
     assert "- '.github/ci-metrics-needs.json'" in path_filters
 
 
@@ -194,6 +196,132 @@ def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
     )
     assert "pytestmark = [pytest.mark.api, pytest.mark.smoke]" in protocol_test
     assert '_ACTIVE_BIN_DIR = Path(sysconfig.get_path("scripts"))' in protocol_test
+
+
+@pytest.mark.smoke
+def test_caller_matrix_jobs_are_reusable_workflow_calls() -> None:
+    """A matrix of test or report jobs is one reusable call, never N top-level jobs.
+
+    GitHub nests the jobs of a called workflow under the caller's name, so a
+    matrix inside a reusable workflow renders as one group in the checks list
+    while a bare ``strategy.matrix`` job in the caller scatters its cells
+    across the top level (``.claude/rules/ci/conventions.md``, "Matrix jobs
+    render as one group"). Every job in the build workflow that carries a
+    matrix must therefore be a ``uses:`` call, and a call whose name does not
+    fan out over the matrix must be static.
+    """
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    bare_matrix_jobs = [
+        job_id
+        for job_id, job in caller["jobs"].items()
+        if "matrix" in (job.get("strategy") or {}) and "uses" not in job
+    ]
+    assert bare_matrix_jobs == []
+
+    for job_id, job in caller["jobs"].items():
+        if "uses" not in job:
+            continue
+        assert "runs-on" not in job, job_id
+        assert "steps" not in job, job_id
+        # GitHub rejects these keys on a caller job; they belong on the inner job.
+        assert "continue-on-error" not in job, job_id
+        assert "timeout-minutes" not in job, job_id
+        if "matrix" not in (job.get("strategy") or {}):
+            assert "matrix." not in job["name"], job_id
+
+
+@pytest.mark.smoke
+def test_tolerance_spread_group_is_one_reusable_call() -> None:
+    """The spread matrix lives in its reusable workflow behind one static name."""
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    group = caller["jobs"]["tolerance_spread"]
+    assert group["name"] == "Tolerance spread"
+    assert group["uses"].endswith("/tolerance-spread-reusable.yml")
+    assert "strategy" not in group
+    assert {"determine_matrix", "build_wheels"} <= set(group["needs"])
+    # The trigger decision stays on the caller: `inputs.*` inside the reusable
+    # workflow is the workflow_call input, not the dispatch input.
+    assert "github.event_name == 'schedule'" in group["if"]
+    assert "inputs.tolerance_spread == true" in group["if"]
+    assert group["with"]["buildplat_json"] == (
+        "${{ needs.determine_matrix.outputs.buildplat }}"
+    )
+    assert group["with"]["python_json"] == (
+        "${{ needs.determine_matrix.outputs.bookend_python }}"
+    )
+    # Recording only: the group feeds neither the nightly report nor the gate.
+    assert "tolerance_spread" not in caller["jobs"]["report_scheduled_run"]["needs"]
+    assert "tolerance_spread" not in caller["jobs"]["pr-gate"]["needs"]
+
+    reusable = yaml.safe_load(
+        (root / ".github/workflows/tolerance-spread-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    triggers = reusable[True] if True in reusable else reusable["on"]
+    assert set(triggers) == {"workflow_call"}
+    assert set(triggers["workflow_call"]["inputs"]) == {
+        "buildplat_json",
+        "python_json",
+        "build_profile",
+    }
+    (cell,) = reusable["jobs"].values()
+    assert cell["name"] == (
+        "${{ matrix.python_version }}-${{ matrix.buildplat[1] }} "
+        "${{ matrix.buildplat[2] }}"
+    )
+    assert cell["continue-on-error"] is True
+    assert cell["timeout-minutes"] == 45
+    assert cell["strategy"]["fail-fast"] is False
+    assert cell["strategy"]["matrix"] == {
+        "buildplat": "${{ fromJson(inputs.buildplat_json) }}",
+        "python_version": "${{ fromJson(inputs.python_json) }}",
+    }
+
+    download = next(
+        step
+        for step in cell["steps"]
+        if str(step.get("uses", "")).startswith("actions/download-artifact@")
+    )
+    assert download["with"]["name"] == (
+        "cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}"
+    )
+    upload = cell["steps"][-1]
+    assert upload["if"] == "always()"
+    assert upload["with"]["name"] == (
+        "tolerance-spread-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}"
+        "-${{ matrix.python_version }}"
+    )
+    assert upload["with"]["if-no-files-found"] == "error"
+    measure = next(
+        step
+        for step in cell["steps"]
+        if "tolerance_spread.py" in str(step.get("run", ""))
+    )
+    assert measure["env"]["SUEWS_BUILD_PROFILE"] == "${{ inputs.build_profile }}"
+
+    declared_needs = json.loads(
+        (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
+    )
+    child = "Tolerance spread / cp312-win AMD64"
+    patterns = [k for k in declared_needs if fnmatchcase(child, k)]
+    assert patterns == ["Tolerance spread / *"]
+    dependencies = declared_needs[patterns[0]]
+    assert "Determine build matrix" in dependencies
+    assert any(
+        fnmatchcase("Build standard wheels / cp312-win AMD64", d) for d in dependencies
+    )
 
 
 @pytest.mark.core

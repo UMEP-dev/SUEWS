@@ -41,7 +41,9 @@ def test_example():
 **Where the measured spread lives.** The table above is the measurement-uncertainty
 floor. The actual cross-platform and cross-CPython spread of the full-year sample
 comparison is recorded, not assumed: the nightly `tolerance_spread` job in
-`build-publish_to_pypi.yml` runs `scripts/suews/tolerance_spread.py measure` with
+`build-publish_to_pypi.yml` (one call of `tolerance-spread-reusable.yml`, shown
+as the `Tolerance spread` group in the checks list) runs
+`scripts/suews/tolerance_spread.py measure` with
 every tolerance set to zero on each built platform for the two CPython bookends and
 uploads one `tolerance-spread-<platform>-<arch>-<cpXY>` artefact per cell (also on
 `workflow_dispatch` with the `tolerance_spread` input). `tolerance_spread.py

@@ -28,5 +28,9 @@
     "Build standard wheels / *",
     "Check pytest marker axis",
     "Detect code changes"
+  ],
+  "Tolerance spread / *": [
+    "Determine build matrix",
+    "Build standard wheels / *"
   ]
 }

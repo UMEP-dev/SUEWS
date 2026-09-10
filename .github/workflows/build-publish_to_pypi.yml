@@ -534,12 +534,20 @@ jobs:
   # platform for the two CPython bookends, one JSON artefact per cell. The
   # tolerances in test/core/test_sample_output.py are to be derived from a week
   # of these artefacts, so this job records and never gates: the script exits 0
-  # however large the spread, continue-on-error keeps a runner or install
+  # however large the spread, continue-on-error on the measuring job (inside
+  # the reusable workflow, where GitHub accepts it) keeps a runner or install
   # failure here from turning the nightly red, and the job feeds neither
   # report_scheduled_run nor pr-gate. It installs the release wheel the run
   # built (or the profile a dispatch chose), so it measures what ships.
+  #
+  # The (platform x CPython) matrix lives in tolerance-spread-reusable.yml and
+  # this job carries a static name, so the checks list shows one "Tolerance
+  # spread" group with a "cpXYZ-<platform> <arch>" child per cell instead of
+  # one top-level entry per cell (.claude/rules/ci/conventions.md, "Matrix
+  # jobs render as one group"). On PR and merge-queue runs the false `if`
+  # renders as one skipped "Tolerance spread" entry.
   tolerance_spread:
-    name: Tolerance spread ${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    name: Tolerance spread
     needs: [determine_matrix, build_wheels]
     if: |
       always() &&
@@ -548,60 +556,11 @@ jobs:
         github.event_name == 'schedule' ||
         (github.event_name == 'workflow_dispatch' && inputs.tolerance_spread == true)
       )
-    runs-on: ${{ matrix.buildplat[0] }}
-    continue-on-error: true
-    # The full-year engine run is under a minute on a laptop; the cap only
-    # bounds a hung install or runner, matching the api lane's guardrail.
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
-        python_version: ${{ fromJson(needs.determine_matrix.outputs.bookend_python) }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-
-      - name: Resolve Python version (cp312 -> 3.12)
-        id: pyver
-        shell: bash
-        env:
-          PV: ${{ matrix.python_version }}
-        run: |
-          echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version: ${{ steps.pyver.outputs.spec }}
-
-      - name: Download wheel for this platform
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
-          path: wheelhouse/
-
-      - name: Install wheel and measure the spread
-        shell: bash
-        env:
-          SUEWS_BUILD_PROFILE: ${{ inputs.build_profile || 'release' }}
-          OUTPUT: tolerance-spread/tolerance-spread-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-${{ matrix.python_version }}.json
-        run: |
-          python -m pip install --upgrade pip
-          # The script reuses the sample-output test module, which imports
-          # pytest and the test conftest; the wheel alone does not bring pytest.
-          python -m pip install pytest==9.1.1
-          python -m pip install wheelhouse/*.whl
-          python scripts/suews/tolerance_spread.py measure --output "$OUTPUT"
-
-      - name: Upload tolerance-spread artefact
-        if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: tolerance-spread-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-${{ matrix.python_version }}
-          path: tolerance-spread/*.json
-          if-no-files-found: error
-          retention-days: 30
+    uses: ./.github/workflows/tolerance-spread-reusable.yml
+    with:
+      buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
+      python_json: ${{ needs.determine_matrix.outputs.bookend_python }}
+      build_profile: ${{ inputs.build_profile || 'release' }}
 
   # Standalone static lints over the test tree. Both use AST-based scripts
   # that never import supy, so CI can run them without building — that is

@@ -168,12 +168,15 @@ platform key, CPython version, supy version, git SHA (`--git-sha`, else
 not expose it). The exit code is 0 however large the spread is. When
 `GITHUB_STEP_SUMMARY` is set, the same table is appended as Markdown.
 
-The `tolerance_spread` job in `build-publish_to_pypi.yml` runs `measure` on
-every scheduled run, on each built platform for the two CPython bookends, and
-uploads one artefact per cell named
-`tolerance-spread-<platform>-<arch>-<cpXY>` (retained 30 days). The same job
-runs on `workflow_dispatch` when the `tolerance_spread` input is set. It never
-fails the nightly: it feeds neither `report_scheduled_run` nor the PR gate.
+The `tolerance_spread` job in `build-publish_to_pypi.yml` calls
+`tolerance-spread-reusable.yml`, which runs `measure` on every scheduled run,
+on each built platform for the two CPython bookends, and uploads one artefact
+per cell named `tolerance-spread-<platform>-<arch>-<cpXY>` (retained 30
+days). The matrix lives in the reusable workflow so the checks list shows one
+`Tolerance spread` group with a `cpXYZ-<platform> <arch>` child per cell. The
+same job runs on `workflow_dispatch` when the `tolerance_spread` input is set.
+It never fails the nightly: it feeds neither `report_scheduled_run` nor the PR
+gate.
 
 `summarise` accepts artefact files or directories (the layout `gh run download
 <id> --pattern 'tolerance-spread-*'` produces), lists the artefacts with their

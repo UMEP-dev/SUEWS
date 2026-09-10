@@ -139,6 +139,11 @@ use `packaging.version.Version` for the comparison.
      handler registry — step 3 is what makes older schemas compatible.)
 2. Update `src/supy/sample_data/sample_config.yml` so its
    `schema_version` field matches the new `CURRENT_SCHEMA_VERSION`.
+   Then regenerate the one-month test sample carved from it,
+   `python test/fixtures/sample_short/make_sample_short.py`, and commit the
+   result: `test_sample_short_fixture.py` compares the committed fixture
+   byte for byte with a fresh regeneration, so a bump that skips this step
+   fails that test.
 3. Add a migration handler in
    `src/supy/util/converter/yaml_upgrade.py`:
    - Key the handler by `(old_schema, new_schema)` in `_HANDLERS`.

@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 10 Sep 2026
 
+- [maintenance] The legacy-table round-trip tests resolve the vendored fixture set without copying it and forward-convert each legacy version once per pytest session (`legacy_tables` and `forward_converted` fixtures) instead of rebuilding both per parametrised case; the file was the only one in the API lane whose Windows cost exceeded the platform-wide 1.35x Windows-to-Linux ratio, at 1.66x, and it drops from 71.9 s to 66.8 s on a Linux machine with assertions unchanged (#1791)
 - [maintenance] `test_benchmark_config` loads the short-window benchmark configuration (`benchmark1_short.yml`, seven days) rather than `benchmark1.yml`, whose `forcing/` directory made it the slowest test in the API lane at 86.7 s on Windows; assertions unchanged, and the `gh846` fixture drops the 7.31 MB of meteorological forcing that `convert_table` never globs (#1778)
 - [maintenance] The bundled sample is parsed at most once per test session (`_parse_sample_frames` behind `load_sample_frames` and the new `sample_forcing_parsed` fixture), and a committed one-month carve of it (`test/fixtures/sample_short/`, behind `short_sample_yaml_path` and `short_sample_sim`) replaces the full-year construction in the wrapper lifecycle tests that only needed a working simulation; `test/core/test_suews_simulation.py` plus `test/core/test_checkpoint.py` drop from 131 s to 110 s with assertions unchanged (#1780)
 

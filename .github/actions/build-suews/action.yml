@@ -74,15 +74,76 @@ runs:
         METRICS_HOST_DIR: ${{ inputs.metrics_host_dir }}
       run: mkdir -p .cargo-cache .rust-target-cache .pip-cache "$METRICS_HOST_DIR"
 
-    - name: Cache Rust/Cargo dependencies
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+    - name: Resolve the Rust toolchain version
+      id: rust-toolchain
+      shell: bash
+      run: |
+        # The host rustc builds the macOS and Windows wheels directly, and the
+        # Linux container installs this same version (CIBW_BEFORE_ALL_LINUX),
+        # so the cache key below names the compiler that produced the cached
+        # objects. Cargo fingerprints every artefact with the compiler that
+        # built it, so a cache from another rustc is restored but never reused.
+        version=$(rustc -V | awk '{print $2}')
+        echo "rustc $version"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Compute the Rust build cache key
+      id: rust-cache-key
+      shell: bash
+      env:
+        KEY_PREFIX: rust-target-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.build_profile }}
+        RUSTC_VERSION: ${{ steps.rust-toolchain.outputs.version }}
+        SOURCE_HASH: ${{ hashFiles('src/suews_bridge/Cargo.lock', 'src/suews_bridge/Cargo.toml', 'src/suews_bridge/build.rs', 'src/suews_bridge/src/**', 'src/suews_bridge/c_api/**') }}
+      run: |
+        # Content-addressed key (see .claude/rules/ci/conventions.md, "Build
+        # caches"): platform, build profile, compiler version and a hash of the
+        # bridge inputs. Never a branch name, a date or a manual epoch. A
+        # primary-key hit is never re-saved, so everything that can change the
+        # cached objects has to be in the key.
+        echo "prefix=$KEY_PREFIX" >> "$GITHUB_OUTPUT"
+        echo "toolchain-prefix=$KEY_PREFIX-rustc$RUSTC_VERSION-" >> "$GITHUB_OUTPUT"
+        echo "key=$KEY_PREFIX-rustc$RUSTC_VERSION-$SOURCE_HASH" >> "$GITHUB_OUTPUT"
+
+    - name: Restore the Rust build cache
+      # Not on the scheduled nightly: it always builds cold, so one
+      # from-scratch build per day exists on every platform. It still saves
+      # (below), because the nightly is the only event that writes the
+      # master-scope entries pull requests and the merge queue read.
+      if: github.event_name != 'schedule'
+      id: rust-cache
+      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
       with:
         path: |
           .cargo-cache
           .rust-target-cache
-        key: cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-${{ hashFiles('src/suews_bridge/Cargo.lock') }}
+        key: ${{ steps.rust-cache-key.outputs.key }}
+        # The only fallback stays within the same platform, profile and
+        # compiler (bridge inputs changed). No any-compiler fallback: cargo
+        # ignores objects from another compiler rather than deleting them, so
+        # such a fallback would be saved back and grow the entry every time.
         restore-keys: |
-          cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-
+          ${{ steps.rust-cache-key.outputs.toolchain-prefix }}
+
+    - name: Report the Rust build cache lookup
+      shell: bash
+      env:
+        PRIMARY_KEY: ${{ steps.rust-cache-key.outputs.key }}
+        CACHE_HIT: ${{ steps.rust-cache.outputs.cache-hit }}
+        MATCHED_KEY: ${{ steps.rust-cache.outputs.cache-matched-key }}
+        RESTORE_SKIPPED: ${{ github.event_name == 'schedule' }}
+      run: |
+        {
+          echo "Rust build cache primary key: $PRIMARY_KEY"
+          if [ "$RESTORE_SKIPPED" = "true" ]; then
+            echo "Rust build cache restore: skipped (scheduled run builds cold)"
+          elif [ "$CACHE_HIT" = "true" ]; then
+            echo "Rust build cache restore: exact hit"
+          elif [ -n "$MATCHED_KEY" ]; then
+            echo "Rust build cache restore: fallback to $MATCHED_KEY"
+          else
+            echo "Rust build cache restore: miss (no fallback found)"
+          fi
+        } | tee -a "$GITHUB_STEP_SUMMARY"
 
     - name: Cache pip downloads
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
@@ -109,6 +170,9 @@ runs:
       uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2
       env:
         IS_32_BIT: ${{ inputs.buildplat_arch == 'x86' }}
+        # Passed into the Linux container so rustup installs the host's rustc
+        # version, the one named in the Rust build cache key above.
+        SUEWS_RUST_TOOLCHAIN: ${{ steps.rust-toolchain.outputs.version }}
         CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
         # Mount host cache directories into the Linux Docker container so that
@@ -123,7 +187,7 @@ runs:
           --volume ${{ github.workspace }}/.pip-cache:/pip-cache
           --volume ${{ inputs.metrics_host_dir }}:/ci-metrics
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
-        CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS RUNNER_ARCH GITHUB_JOB
+        CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS RUNNER_ARCH GITHUB_JOB SUEWS_RUST_TOOLCHAIN
         # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.12 (older Linux compatibility)
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
@@ -161,7 +225,7 @@ runs:
           PATH="/cargo-cache/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
           python "{package}/scripts/suews/ci_phase_metrics.py" start toolchain_setup &&
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$SUEWS_RUST_TOOLCHAIN" &&
           pip install --upgrade pip setuptools wheel &&
           python "{package}/scripts/suews/ci_phase_metrics.py" stop toolchain_setup
         CIBW_BEFORE_ALL_MACOS: >
@@ -263,6 +327,22 @@ runs:
               inputs.test_tier == 'all' && '-m physics' ||
               '-m physics' }}
         MACOSX_DEPLOYMENT_TARGET: '15.0'
+
+    - name: Save the Rust build cache
+      # Only a miss is worth saving: an existing primary-key entry cannot be
+      # overwritten. A merge-queue ref is deleted with its queue entry and a
+      # tag ref is never restored from, so nothing could read a cache saved
+      # there. Only the release profile is saved: the checked profile is built
+      # by the nightly alone, whose restore is skipped, so its entries would
+      # never be read. On the scheduled nightly the restore step is skipped
+      # and this step saves the cold release build under the master scope.
+      if: github.event_name != 'merge_group' && github.ref_type != 'tag' && inputs.build_profile != 'checked' && steps.rust-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+      with:
+        path: |
+          .cargo-cache
+          .rust-target-cache
+        key: ${{ steps.rust-cache-key.outputs.key }}
 
     - name: Finalise wheel CI metrics
       if: always()

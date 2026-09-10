@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] The bundled sample is parsed at most once per test session (`_parse_sample_frames` behind `load_sample_frames` and the new `sample_forcing_parsed` fixture), and a committed one-month carve of it (`test/fixtures/sample_short/`, behind `short_sample_yaml_path` and `short_sample_sim`) replaces the full-year construction in the wrapper lifecycle tests that only needed a working simulation; `test/core/test_suews_simulation.py` plus `test/core/test_checkpoint.py` drop from 131 s to 110 s with assertions unchanged (#1780)
+
 ### 9 Sep 2026
 
 - [maintenance] Test lanes emit about 950 warnings instead of about 13000: the `from_df_state` reconstructors now build their models with current field names instead of deprecated ones, the test fixtures and documented YAML examples moved off deprecated field names, and a supy `DeprecationWarning` is an error under `filterwarnings` so a new deprecation regression fails a test rather than joining the noise (#1777).

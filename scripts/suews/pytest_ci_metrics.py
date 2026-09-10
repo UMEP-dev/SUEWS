@@ -3,12 +3,17 @@
 Load this module as a pytest plugin and set ``SUEWS_CI_METRICS`` to the output
 path. The plugin performs no additional collection or test execution: it only
 records timestamps and data already exposed by pytest hooks. On Linux, a small
-background sampler reads procfs for process-tree CPU time and peak RSS.
+background sampler reads procfs for process-tree CPU time and peak RSS. On
+every platform each xdist worker also reports its own peak resident set size
+(``getrusage`` on POSIX, ``GetProcessMemoryInfo`` on Windows) so per-worker
+memory can be compared where procfs is unavailable.
 """
 
 from __future__ import annotations
 
 from collections import Counter
+import ctypes
+from ctypes import wintypes
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 import hashlib
@@ -26,6 +31,11 @@ from typing import Any
 import warnings
 
 import pytest
+
+try:
+    import resource
+except ImportError:  # Windows has no resource module.
+    resource = None
 
 SCHEMA_VERSION = 2
 SUMMARY_WARNING_LIMIT = 10
@@ -45,6 +55,7 @@ class _WorkerMetrics:
     node_ids: set[str] = field(default_factory=set)
     busy_duration_seconds: float = 0.0
     finished_at_seconds: float | None = None
+    peak_rss: dict[str, Any] | None = None
 
 
 @dataclass
@@ -249,11 +260,16 @@ def read_proc_process(
     return start_time, cpu_seconds, rss_bytes
 
 
-def _available(unit: str, value: Any) -> dict[str, Any]:
+def _available(
+    unit: str,
+    value: Any,
+    *,
+    method: str = "linux-procfs-sampling",
+) -> dict[str, Any]:
     """Build a populated resource measurement."""
     return {
         "available": True,
-        "method": "linux-procfs-sampling",
+        "method": method,
         "reason": None,
         "status": "sampled",
         "unit": unit,
@@ -276,6 +292,97 @@ def _unavailable(
         "unit": unit,
         "value": None,
     }
+
+
+WORKER_OUTPUT_PEAK_RSS_KEY = "suews_ci_metrics_peak_rss_bytes"
+WORKER_PEAK_RSS_MISSING_REASON = "Worker exited without reporting its peak RSS."
+
+
+def process_peak_rss_bytes() -> dict[str, Any]:
+    """Return the calling process's own peak resident set size in bytes.
+
+    Unlike the procfs sampler this covers one process, not its children, and
+    works on Linux, macOS and Windows. Each xdist worker reports this value to
+    the controller; in a serial run the controller's own value is the test
+    process's peak.
+    """
+    if sys.platform.startswith("win"):
+        return _windows_peak_working_set_bytes()
+    if resource is None:  # pragma: no cover - POSIX always ships resource
+        return _unavailable("bytes", "The resource module is unavailable.")
+    max_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # ru_maxrss is bytes on macOS and kibibytes on Linux and the BSDs.
+    scale = 1 if sys.platform == "darwin" else 1024
+    return _available("bytes", int(max_rss) * scale, method="getrusage-ru-maxrss")
+
+
+class _ProcessMemoryCounters(ctypes.Structure):
+    """PROCESS_MEMORY_COUNTERS from psapi.h (SIZE_T fields are pointer-sized)."""
+
+    _fields_ = [
+        ("cb", wintypes.DWORD),
+        ("PageFaultCount", wintypes.DWORD),
+        ("PeakWorkingSetSize", ctypes.c_size_t),
+        ("WorkingSetSize", ctypes.c_size_t),
+        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+        ("PagefileUsage", ctypes.c_size_t),
+        ("PeakPagefileUsage", ctypes.c_size_t),
+    ]
+
+
+def _windows_memory_info_prototype() -> tuple[Any, Any]:
+    """Bind GetCurrentProcess and GetProcessMemoryInfo with declared prototypes.
+
+    The prototypes must be declared: without ``restype`` and ``argtypes``
+    ctypes passes the pseudo-handle from ``GetCurrentProcess`` (``(HANDLE)-1``)
+    as a 32-bit int, and on 64-bit Windows ``GetProcessMemoryInfo`` rejects the
+    truncated handle with ERROR_INVALID_HANDLE (6).
+    """
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    get_current_process = kernel32.GetCurrentProcess
+    get_current_process.argtypes = []
+    get_current_process.restype = wintypes.HANDLE
+    get_process_memory_info = psapi.GetProcessMemoryInfo
+    get_process_memory_info.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_ProcessMemoryCounters),
+        wintypes.DWORD,
+    ]
+    get_process_memory_info.restype = wintypes.BOOL
+    return get_current_process, get_process_memory_info
+
+
+def _windows_peak_working_set_bytes() -> dict[str, Any]:
+    """Read PeakWorkingSetSize for the current process through psapi.
+
+    Any failure is reported as an explicit ``error`` measurement, never raised.
+    """
+    counters = _ProcessMemoryCounters()
+    counters.cb = ctypes.sizeof(counters)
+    try:
+        get_current_process, get_process_memory_info = _windows_memory_info_prototype()
+        succeeded = get_process_memory_info(
+            get_current_process(), ctypes.byref(counters), counters.cb
+        )
+    except (OSError, AttributeError) as error:
+        return _unavailable(
+            "bytes", f"GetProcessMemoryInfo unavailable: {error}", status="error"
+        )
+    if not succeeded:
+        code = ctypes.get_last_error()
+        return _unavailable(
+            "bytes",
+            f"GetProcessMemoryInfo failed with error {code}: "
+            f"{ctypes.FormatError(code).strip()}",
+            status="error",
+        )
+    return _available(
+        "bytes", int(counters.PeakWorkingSetSize), method="win32-peak-working-set"
+    )
 
 
 _STATE = _MetricsState()
@@ -369,6 +476,8 @@ def _worker_records() -> tuple[list[dict[str, Any]], float, float]:
             "finished_at_seconds": finish,
             **inventory,
             "node_ids": node_ids,
+            "peak_rss_bytes": worker.peak_rss
+            or _unavailable("bytes", WORKER_PEAK_RSS_MISSING_REASON),
             "worker_id": worker_id,
         })
     if len(finishes) < 2:
@@ -412,7 +521,10 @@ def _metrics(exit_code: int, session_seconds: float) -> dict[str, Any]:
             "workers": workers,
             "xdist": _STATE.uses_xdist,
         },
-        "resources": sampler.measurements(),
+        "resources": {
+            **sampler.measurements(),
+            "controller_peak_rss_bytes": process_peak_rss_bytes(),
+        },
         "warnings": _warning_records(),
     }
 
@@ -428,6 +540,13 @@ def _write_json(path: Path, metrics: dict[str, Any]) -> None:
     temporary_path.replace(path)
 
 
+def _format_bytes(measurement: dict[str, Any]) -> str:
+    """Render a byte measurement as MiB, or its status when unavailable."""
+    if not measurement["available"]:
+        return measurement["status"]
+    return f"{measurement['value'] / (1024 * 1024):.1f} MiB"
+
+
 def _append_step_summary(path: Path, metrics: dict[str, Any]) -> None:
     """Append a compact human view to the GitHub Actions step summary."""
     phases = metrics["phases"]
@@ -438,8 +557,15 @@ def _append_step_summary(path: Path, metrics: dict[str, Any]) -> None:
     cpu = resources["process_tree_cpu_seconds"]
     rss = resources["process_tree_peak_rss_bytes"]
     cpu_value = f"{cpu['value']:.3f} s" if cpu["available"] else cpu["status"]
-    rss_value = (
-        f"{rss['value'] / (1024 * 1024):.1f} MiB" if rss["available"] else rss["status"]
+    rss_value = _format_bytes(rss)
+    controller_value = _format_bytes(resources["controller_peak_rss_bytes"])
+    worker_peaks = [
+        worker["peak_rss_bytes"]["value"]
+        for worker in execution["workers"]
+        if worker["peak_rss_bytes"]["available"]
+    ]
+    worker_value = (
+        f"{max(worker_peaks) / (1024 * 1024):.1f} MiB" if worker_peaks else "none"
     )
     lines = [
         "## Pytest CI metrics",
@@ -454,6 +580,8 @@ def _append_step_summary(path: Path, metrics: dict[str, Any]) -> None:
         f"| Worker finish skew | {execution['worker_finish_skew_seconds']:.3f} s |",
         f"| Process-tree CPU | {cpu_value} |",
         f"| Process-tree peak RSS | {rss_value} |",
+        f"| Controller peak RSS | {controller_value} |",
+        f"| Max worker peak RSS | {worker_value} |",
         "",
         f"Coverage fingerprint: `{inventory['node_id_sha256']}`",
         "",
@@ -512,6 +640,22 @@ def pytest_xdist_setupnodes(config: pytest.Config, specs: list[Any]) -> None:
     _STATE.effective_worker_count = len(specs)
     for spec in specs:
         _STATE.workers.setdefault(str(spec.id), _WorkerMetrics())
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_testnodedown(node: Any, error: object | None) -> None:
+    """Keep the peak RSS each worker reported in its final output."""
+    worker = _STATE.workers.setdefault(str(node.gateway.id), _WorkerMetrics())
+    output = getattr(node, "workeroutput", None)
+    reported = (
+        output.get(WORKER_OUTPUT_PEAK_RSS_KEY) if isinstance(output, dict) else None
+    )
+    if isinstance(reported, dict):
+        worker.peak_rss = reported
+    elif error is not None:
+        worker.peak_rss = _unavailable(
+            "bytes", f"Worker went down with an error: {error}", status="error"
+        )
 
 
 @pytest.hookimpl(optionalhook=True)
@@ -589,6 +733,10 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     if sampler is not None:
         sampler.stop()
     if hasattr(session.config, "workerinput"):
+        # xdist sends config.workeroutput to the controller after this hook.
+        output = getattr(session.config, "workeroutput", None)
+        if isinstance(output, dict):
+            output[WORKER_OUTPUT_PEAK_RSS_KEY] = process_peak_rss_bytes()
         return
     output = os.environ.get("SUEWS_CI_METRICS")
     if not output:

@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] Added an api-workers lane to the hosted pytest scheduler benchmark (serial vs xdist workers in ABBA order on Linux, Windows and macOS), per-worker peak RSS in the CI metrics plugin on every platform, and a summariser that tabulates the trials (#1786)
+
 ### 9 Sep 2026
 
 - [maintenance] Added a collection check (`test/core/test_physics_tier_delta.py`, logic in `scripts/lint/check_physics_tier_delta.py`) that fails when the `physics-full` test tier would run physics tests that `standard` does not (`physics and slow and not core`) without the physics-change rule recording them, or when the rule records tests that no longer exist; the rule now states that the tier currently adds nothing over `standard` (#1775)

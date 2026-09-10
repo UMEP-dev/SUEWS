@@ -11,12 +11,63 @@
 //   NEEDS_BUILD, TEST_TIER
 //   BUILDPLAT_JSON, PYTHON_JSON
 //   COMMIT_SHA
+//
+// The "Build Configuration" table is derived from the determine_matrix job's
+// outputs (TEST_TIER, BUILDPLAT_JSON, PYTHON_JSON) so the comment always
+// describes the matrix that actually runs. The draft/ready flag from the event
+// payload is shown for context only; it does not drive the matrix description.
+//
+// Testable pieces (describeTier, describeMatrix, buildBody) are attached to the
+// exported function; see post-ci-summary.test.js (run: node --test .github/scripts/post-ci-summary.test.js).
 
-module.exports = async ({ github, context }) => {
-  const env = process.env;
-  const prNumber = context.issue.number;
-  const isDraft = context.payload.pull_request?.draft || false;
+// Keep in sync with the test_tier values emitted by determine-matrix.sh and
+// the tier -> pytest expression map in build-wheels-reusable.yml.
+const TIER_DESC = {
+  'smoke': 'smoke (critical tests only)',
+  'cfg': 'cfg (configuration + smoke)',
+  'core': 'core (physics + smoke)',
+  'standard': 'standard (non-slow + core physics regressions)',
+  'physics-full': 'physics-full (full physics tier incl. slow; 0-physics:change label)',
+  'all': 'all (full suite)',
+};
 
+const PLATFORM_NAMES = { 'manylinux': 'Linux', 'macosx': 'macOS', 'win': 'Windows' };
+const ARCH_NAMES = { 'x86_64': 'x86_64', 'arm64': 'ARM64', 'AMD64': 'x64' };
+
+function describeTier(testTier) {
+  return TIER_DESC[testTier] || testTier;
+}
+
+// Classify the buildplat matrix by its content, mirroring the presets in
+// determine-matrix.sh: MINIMAL (Linux only), PR (Linux + macOS ARM + Windows)
+// and FULL (PR plus macOS Intel). Custom dispatch matrices fall through to the
+// same three buckets by shape.
+function describeMatrix(buildplat) {
+  const n = buildplat.length;
+  const hasMacIntel = buildplat.some(p => p[1] === 'macosx' && p[2] === 'x86_64');
+  let preset;
+  if (n === 0) {
+    preset = 'none';
+  } else if (n === 1) {
+    preset = 'minimal';
+  } else if (hasMacIntel) {
+    preset = 'full';
+  } else {
+    preset = 'reduced';
+  }
+  return `${preset} (${n} platform${n !== 1 ? 's' : ''})`;
+}
+
+function platformLabels(buildplat) {
+  return buildplat.map(p => {
+    const os = PLATFORM_NAMES[p[1]] || p[1];
+    const arch = ARCH_NAMES[p[2]] || p[2];
+    return `${os} ${arch}`;
+  });
+}
+
+// Pure composition of the comment body from the workflow-provided environment.
+function buildBody(env, { isDraft, owner, repo }) {
   // Collect category flags and file lists
   const categories = [
     { name: 'fortran',   label: 'Fortran source',  changed: env.FORTRAN_CHANGED,  files: JSON.parse(env.FORTRAN_FILES   || '[]') },
@@ -53,29 +104,14 @@ module.exports = async ({ github, context }) => {
     }
   }
 
-  // Build the "Build Configuration" section
+  // Build the "Build Configuration" section from the determine_matrix outputs
   const needsBuild = env.NEEDS_BUILD === 'true';
   const testTier = env.TEST_TIER;
-
   const buildplat = JSON.parse(env.BUILDPLAT_JSON || '[]');
-  const platformNames = { 'manylinux': 'Linux', 'macosx': 'macOS', 'win': 'Windows' };
-  const archNames = { 'x86_64': 'x86_64', 'arm64': 'ARM64', 'AMD64': 'x64' };
-  const platforms = buildplat.map(p => {
-    const os = platformNames[p[1]] || p[1];
-    const arch = archNames[p[2]] || p[2];
-    return `${os} ${arch}`;
-  });
+  const platforms = platformLabels(buildplat);
 
   const pythonVersions = JSON.parse(env.PYTHON_JSON || '[]');
   const pyDisplay = pythonVersions.map(v => v.replace('cp3', '3.')).join(', ');
-
-  const tierDesc = {
-    'smoke': 'smoke (critical tests only)',
-    'cfg': 'cfg (configuration + smoke)',
-    'core': 'core (physics + smoke)',
-    'standard': 'standard (non-slow + core physics regressions)',
-    'all': 'all (full suite)'
-  };
 
   let configSection = '';
   if (!needsBuild) {
@@ -83,10 +119,11 @@ module.exports = async ({ github, context }) => {
   } else {
     configSection += `| | Configuration |\n`;
     configSection += `|---|---|\n`;
+    configSection += `| **Matrix** | ${describeMatrix(buildplat)} |\n`;
     configSection += `| **Platforms** | ${platforms.join(', ')} |\n`;
     configSection += `| **Python** | ${pyDisplay} |\n`;
-    configSection += `| **Test tier** | ${tierDesc[testTier] || testTier} |\n`;
-    configSection += `| **PR status** | ${isDraft ? 'Draft (reduced matrix)' : 'Ready (standard matrix)'} |\n`;
+    configSection += `| **Test tier** | ${describeTier(testTier)} |\n`;
+    configSection += `| **PR status** | ${isDraft ? 'Draft' : 'Ready for review'} |\n`;
   }
 
   // Build rationale
@@ -106,13 +143,14 @@ module.exports = async ({ github, context }) => {
   if (utilChanged) rationale.push('Utility modules changed -> single-platform build');
   if (ciChanged) rationale.push('CI/workflow files changed -> validation build');
   if (testsChanged) rationale.push('Test files changed -> validation build');
+  if (testTier === 'physics-full') rationale.push('0-physics:change label -> full physics tier (incl. slow) required before merge');
   if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
 
   const rationaleSection = rationale.map(r => `- ${r}`).join('\n');
 
   // Compose the comment
   const marker = '<!-- ci-build-plan -->';
-  const body = [
+  return [
     marker,
     '## CI Build Plan',
     '',
@@ -127,8 +165,22 @@ module.exports = async ({ github, context }) => {
     rationaleSection,
     '',
     '---',
-    `<sub>Updated by CI on each push. See <a href="https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${env.COMMIT_SHA}/.github/path-filters.yml">path-filters.yml</a> for category definitions.</sub>`,
+    `<sub>Updated by CI on each push. See <a href="https://github.com/${owner}/${repo}/blob/${env.COMMIT_SHA}/.github/path-filters.yml">path-filters.yml</a> for category definitions.</sub>`,
   ].join('\n');
+}
+
+const MARKER = '<!-- ci-build-plan -->';
+
+module.exports = async ({ github, context }) => {
+  const env = process.env;
+  const prNumber = context.issue.number;
+  const isDraft = context.payload.pull_request?.draft || false;
+
+  const body = buildBody(env, {
+    isDraft,
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+  });
 
   // Post or update sticky comment
   const { data: comments } = await github.rest.issues.listComments({
@@ -138,7 +190,7 @@ module.exports = async ({ github, context }) => {
   });
 
   const existing = comments.find(c =>
-    c.user.type === 'Bot' && c.body.includes(marker)
+    c.user.type === 'Bot' && c.body.includes(MARKER)
   );
 
   if (existing) {
@@ -157,3 +209,8 @@ module.exports = async ({ github, context }) => {
     });
   }
 };
+
+module.exports.buildBody = buildBody;
+module.exports.describeTier = describeTier;
+module.exports.describeMatrix = describeMatrix;
+module.exports.TIER_DESC = TIER_DESC;

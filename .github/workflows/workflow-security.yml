@@ -6,12 +6,16 @@ on:
       - '.github/workflows/**'
       - '.github/actions/**'
       - '.github/scripts/check_action_pins.py'
+      - '.github/scripts/post-ci-summary*'
+      - '.github/scripts/package.json'
   push:
     branches: [master]
     paths:
       - '.github/workflows/**'
       - '.github/actions/**'
       - '.github/scripts/check_action_pins.py'
+      - '.github/scripts/post-ci-summary*'
+      - '.github/scripts/package.json'
   schedule:
     - cron: '15 6 * * 1'
   workflow_dispatch:
@@ -30,6 +34,20 @@ jobs:
 
       - name: Check action pins
         run: python3 .github/scripts/check_action_pins.py
+
+  ci-summary-script:
+    name: Test CI summary comment script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      # post-ci-summary.js renders the "CI Build Plan" PR comment from the
+      # determine_matrix outputs; the test pins the tier labels and matrix
+      # descriptor to what determine-matrix.sh actually emits.
+      - name: Run post-ci-summary unit tests
+        run: node --test .github/scripts/post-ci-summary.test.js
 
   zizmor:
     name: Advisory workflow audit

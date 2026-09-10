@@ -636,6 +636,58 @@ Before approving workflow changes that include shell commands:
 
 **Use `fail-fast: false` for independent matrix jobs** to get complete feedback about which platforms succeed or fail, rather than stopping at the first failure.
 
+### Matrix jobs render as one group
+
+A matrix of test or report jobs is one reusable-workflow call named for the
+group, never N top-level jobs. GitHub lists every job of a run as one entry in
+the checks list and on the run page, and it nests the jobs of a called
+workflow under the calling job's name (`<caller name> / <inner job name>`),
+so a bare `strategy.matrix` job in `build-publish_to_pypi.yml` scatters its
+cells across the top level while the same matrix inside a reusable workflow
+folds into one line. Today's nightly (run 34428109328, 10 Sep 2026) showed
+eight top-level `Tolerance spread cpXYZ-<platform> <arch>` entries beside one
+`Build standard wheels` group of four; this is the convention that keeps every
+future test group on the second shape.
+
+- **In the caller, a job with `strategy.matrix` is a `uses:` call**, never a
+  `runs-on:` job. The matrix lives in the reusable workflow
+  (`build-wheels-reusable.yml`, `test-api-cross-python-reusable.yml`,
+  `tolerance-spread-reusable.yml` are the pattern); the caller passes the
+  matrix axes as JSON-string inputs and carries a **static `name:`** that is
+  the group's name (`Tolerance spread`, `Build checked wheels (nightly
+  physics tier)`). The inner job's `name:` is the cell
+  (`${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}`).
+- **Fan-out at the caller is for chaining only.** When a caller has to run
+  one call per platform so a downstream lane can start as soon as its own
+  input exists (the per-platform wheel-then-api chain #1792 introduces),
+  each call is still a `uses:` job and its name carries the group and the
+  platform (`Build and test (<platform> <arch>)`); the cells inside stay
+  nested.
+- **`continue-on-error` and `timeout-minutes` go on the inner job.** GitHub
+  does not accept them on a caller job that `uses:` a reusable workflow (the
+  allowed keys there are `name`, `uses`, `with`, `secrets`, `needs`, `if`,
+  `permissions`, `strategy`, `concurrency`). A `continue-on-error: true`
+  inner job still keeps the calling run green, so a recording job that must
+  never redden the nightly loses nothing by moving.
+- **Trigger and dispatch conditions stay on the caller.** `inputs.<name>`
+  inside a reusable workflow is the `workflow_call` input, not the dispatch
+  input, so `github.event_name` and `inputs.tolerance_spread` checks belong
+  in the caller's `if:`; a false `if` renders as one skipped group entry.
+- **Artefact names do not change when a job moves**, so the scripts that read
+  them (`scripts/suews/tolerance_spread.py summarise`,
+  `scripts/lint/check_cost_markers.py`, the publish jobs' `cp[0-9][0-9][0-9]-*`
+  download pattern) keep working; check the reader before renaming.
+- **Bookkeeping that follows a move**: the reusable file goes into the `ci`
+  filter in `.github/path-filters.yml` (a PR touching only it must still
+  build), `.github/ci-metrics-needs.json` gains a `<Group> / *` pattern with
+  the group's dependencies so `analyse_ci_run.py` resolves the children, and
+  `test/core/test_ci_run_metrics.py` asserts the shape
+  (`test_caller_matrix_jobs_are_reusable_workflow_calls` fails on any new
+  bare matrix job in the caller).
+
+A single job that is not a matrix (`Build MCP package`, the cost-marker drift
+check) renders as one entry already and needs no reusable workflow.
+
 ---
 
 ## Project-Specific Workflow Details

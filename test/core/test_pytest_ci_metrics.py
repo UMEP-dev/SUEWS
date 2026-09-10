@@ -354,7 +354,10 @@ import pytest
 
 @pytest.mark.parametrize("case", range(8))
 def test_parallel(case):
-    time.sleep(0.01)
+    # Long enough that the CPU clock's tick (15.6 ms on Windows) is small
+    # against it, so the sleeping-burns-no-CPU assertion below is about the
+    # measurement and not about clock granularity.
+    time.sleep(0.2)
     assert case >= 0
 """,
         encoding="utf-8",
@@ -435,10 +438,13 @@ def test_parallel(case):
     assert all("parametrize" in record["markers"] for record in records)
     assert all(record["cpu_seconds"]["total"] >= 0 for record in records)
     # time.sleep holds wall time without burning CPU: the wall column records
-    # it and the CPU column does not.
-    assert all(record["wall_seconds"]["call"] >= 0.01 for record in records)
+    # it and the CPU column does not. `os.times()` quantises to the platform's
+    # CPU-clock tick, 15.6 ms on Windows, so the sleep is long enough for one
+    # tick to be a small fraction of it rather than larger than the whole
+    # measurement.
+    assert all(record["wall_seconds"]["call"] >= 0.2 for record in records)
     assert all(
-        record["cpu_seconds"]["call"] <= record["wall_seconds"]["call"]
+        record["cpu_seconds"]["call"] < record["wall_seconds"]["call"] / 2
         for record in records
     )
 

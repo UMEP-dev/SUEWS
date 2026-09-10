@@ -163,7 +163,7 @@ a 2x noise floor (the same 166-test physics tier took 169 s and 343 s on the
 same runner class on the same day), so a marker assigned by wall-clock feel
 drifts with the runner; CPU seconds of one test on one platform are what the
 test itself costs. Windows wall time runs at several times the Linux CPU
-figure (the STEBBS full-year comparison: 21 to 34 CPU-s on Linux across six
+figure (the STEBBS full-year comparison: 21 to 34 CPU-s on Linux across seven
 dispatches, 148 s of wall on Windows), so the old wording "30-60 s on the
 slowest platform" maps onto the same tests.
 
@@ -215,13 +215,15 @@ reference run) and at the bottom of the long ones (ten or more model days or
 repeated runs: the EHC regressions, the AnOHM restart and chunking checks, the
 DailyState senescence tests, 10.1 CPU-s and up). That gap, 7.8 to 10.1, is
 narrow, and the band below is what keeps tests on either side of it from
-flapping. Thirty seconds separates nothing on the merged tree: the suite
-maximum is 26.2 CPU-s (the two full-year sample-output comparisons, 24.8 and
-26.2 on the reference run, 17 to 36 across the six dispatches of PR #1779), so
-the CPU limb of `slow` currently distinguishes no test from `medium`, and every
-`slow` mark in the suite stands on its stated `reason=`, not on its cost. The
-threshold stays as the class boundary, at 3x the medium threshold, for a test
-that grows past it. Nothing in the suite reaches 60 CPU-s.
+flapping. Thirty seconds separates nothing cleanly on the merged tree: the
+suite maximum was 26.2 CPU-s on the reference run and 30.1 on the dispatch
+after it (the two full-year sample-output comparisons read 24.8 and 26.2, then
+24.7 and 30.1; 17 to 36 and 21 to 34 across the seven dispatches of PR #1779),
+so the CPU limb of `slow` currently distinguishes at most one test from
+`medium`, and that one only on some readings; every `slow` mark in the suite
+stands on its stated `reason=`, not on its cost. The threshold stays as the
+class boundary, at 3x the medium threshold, for a test that grows past it.
+Nothing in the suite reaches 60 CPU-s.
 
 Why the `call` phase. Under xdist the physics lane runs four workers and each
 worker instantiates a session fixture once, so `setup` charges a shared fixture
@@ -235,16 +237,17 @@ and names every test whose marker clearly disagrees with its measurement.
 "Clearly" is a hysteresis band of 2: per-test CPU seconds vary by up to about
 2x between dispatches, so the band is the observed spread, not a margin on it.
 Hosted runners are not one hardware generation (the serial api lane of PR
-#1779 totalled 742, 776, 913, 675, 586 and 830 CPU-s over six dispatches of
-the same tests, and individual tests moved by up to 1.97x between two
-consecutive dispatches), and on the four-worker physics lane a change elsewhere in the tree
-moves what the workers contend for and with it every test's CPU time (the same
+#1779 totalled 742, 776, 913, 675, 586, 830 and 813 CPU-s over seven
+dispatches of the same tests, and individual tests moved by up to 1.97x
+between two consecutive dispatches), and on the four-worker physics lane a
+change elsewhere in the tree moves what the workers contend for and with it
+every test's CPU time (the same
 lane totalled 955 and 981 CPU-s before #1776 halved the sample-output
-reference, then 626, 542, 540 and 644 after it; one EHC regression read 14.6,
-14.6, 9.3, 7.7, 7.6 and 6.8 CPU-s). So a marker is questioned only when the
-reading is on the wrong side of a threshold by more than the band: unmarked
-from 20 CPU-s (`medium`) or 60 (`slow`), `medium` under 5 or from 60, bare
-`slow` under 15. Inside a band either marking is accepted, so a test near a
+reference, then 626, 542, 540, 644 and 647 after it; one EHC regression read
+14.6, 14.6, 9.3, 7.7, 7.6, 6.8 and 6.8 CPU-s). So a marker is questioned only
+when the reading is on the wrong side of a threshold by more than the band:
+unmarked from 20 CPU-s (`medium`) or 60 (`slow`), `medium` under 5 or from 60,
+bare `slow` under 15. Inside a band either marking is accepted, so a test near a
 threshold does not flap between two nights' readings, and the check is for
 tests that are clearly in the wrong class: a heavy test added without a
 marker, a `medium` that has grown into `slow`, a bare `slow` on a cheap test.

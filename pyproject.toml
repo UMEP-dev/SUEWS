@@ -113,6 +113,11 @@ dev = [
     "pytest-cov",
     "pytest-xdist",
     "pytest-timeout",
+    # Property-based tests for the pure-Python numerics
+    # (test/physics/test_numerics_properties.py). Pinned so a shrinking or
+    # strategy-generation change cannot alter which inputs a property test
+    # sees between runs; the CI test environments pin the same version.
+    "hypothesis==6.168.0",
 
     # Code formatting
     "ruff",

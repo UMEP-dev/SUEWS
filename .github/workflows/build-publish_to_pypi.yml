@@ -634,11 +634,12 @@ jobs:
   # produces.
   cost_markers:
     name: Cost-marker drift (Linux cp312 CPU seconds)
-    needs: [build_wheels, test_api_cross_python]
+    # build_wheels chains each platform's API lane behind its wheel, so its
+    # result covers the api metrics artefact this job downloads as well.
+    needs: [build_wheels]
     if: |
       always() &&
       needs.build_wheels.result == 'success' &&
-      needs.test_api_cross_python.result == 'success' &&
       (
         github.event_name == 'schedule' ||
         (github.event_name == 'workflow_dispatch' && inputs.cost_markers == true)

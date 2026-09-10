@@ -300,7 +300,8 @@ def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
         ],
         axis=1,
     )
-    dt_delta = idx_dt - idx_dt.to_period("d").to_timestamp()
+    # "D" not "d": pandas 3 deprecates the lowercase day alias.
+    dt_delta = idx_dt - idx_dt.to_period("D").to_timestamp()
     df_datetime["Dectime"] = ser_DOY - 1 + dt_delta.total_seconds() / (24 * 60 * 60)
     df_save = pd.concat([df_datetime, df_grid_group], axis=1)
     return df_save

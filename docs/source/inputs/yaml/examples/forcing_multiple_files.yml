@@ -11,8 +11,8 @@ model:
         - "forcing_2021.txt"
         - "forcing_2022.txt"
   physics:
-    netradiationmethod: 3
-    emissionsmethod: 2
+    net_radiation: 3
+    emissions: 2
 
 sites:
   - name: "London_KCL"

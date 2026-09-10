@@ -269,9 +269,9 @@ Urban Site Configuration
        start_time: "2020-01-01"
        end_time: "2020-12-31"
      physics:
-       netradiationmethod: 3
-       emissionsmethod: 2
-       storageheatmethod: 1
+       net_radiation: 3
+       emissions: 2
+       storage_heat: 1
 
    sites:
      - name: "CentralLondon"

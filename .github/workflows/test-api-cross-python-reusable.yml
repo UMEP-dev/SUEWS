@@ -135,7 +135,7 @@ jobs:
           # worker; the API lane contains simulation outputs large enough to
           # exhaust hosted-runner memory even with two workers.
           python -m pytest -p scripts.suews.pytest_ci_metrics test \
-            -m "$MARKER_EXPR" -v --tb=short --durations=25
+            -m "$MARKER_EXPR" -v --tb=short --durations=0 --durations-min=0
 
       - name: Upload API test metrics
         if: always()

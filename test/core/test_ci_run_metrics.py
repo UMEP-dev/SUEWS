@@ -153,9 +153,21 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
             encoding="utf-8"
         )
     )
-    api_job = caller["jobs"]["test_api_cross_python"]
-    assert {"determine_matrix", "build_wheels", "build_mcp"} <= set(api_job["needs"])
-    assert "needs.build_mcp.result == 'success'" in api_job["if"]
+    chain_job = caller["jobs"]["build_wheels"]
+    assert {"determine_matrix", "build_mcp"} <= set(chain_job["needs"])
+    assert chain_job["with"]["run_api_tests"].startswith(
+        "${{ needs.build_mcp.result == 'success' && "
+    )
+
+    wheels_workflow = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    api_job = wheels_workflow["jobs"]["api_cross_python"]
+    assert api_job["needs"] == "build"
+    assert api_job["if"] == "inputs.run_api_tests"
+    assert api_job["uses"].endswith("/test-api-cross-python-reusable.yml")
 
     api_workflow = (
         root / ".github/workflows/test-api-cross-python-reusable.yml"
@@ -167,7 +179,64 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     declared_needs = json.loads(
         (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
-    assert "Build MCP package" in declared_needs["API cross-CPython tests / *"]
+    api_patterns = [
+        pattern
+        for pattern in declared_needs
+        if "/ API cross-CPython tests / " in pattern
+    ]
+    assert api_patterns
+    for pattern in api_patterns:
+        assert "Build MCP package" in declared_needs[pattern]
+
+
+@pytest.mark.smoke
+def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
+    """Each platform's api lane is chained behind that platform's wheel build.
+
+    The caller runs one reusable-workflow call per platform, so the api lane
+    inside it depends on one wheel, and the declared-needs graph read by
+    analyse_ci_run.py says the same per platform.
+    """
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    chain_job = caller["jobs"]["build_wheels"]
+    assert chain_job["strategy"]["matrix"]["buildplat"] == (
+        "${{ fromJson(needs.determine_matrix.outputs.buildplat) }}"
+    )
+    assert chain_job["strategy"]["fail-fast"] is False
+    assert "matrix.buildplat[1]" in chain_job["name"]
+    assert chain_job["with"]["buildplat_json"].startswith("${{ format('[[")
+    assert "test_api_cross_python" not in caller["jobs"]
+
+    declared_needs = json.loads(
+        (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
+    )
+    wheel_jobs = [
+        f"Build and test ({platform}) / cp312-{platform}"
+        for platform in ("manylinux x86_64", "macosx arm64", "win AMD64")
+    ]
+    for platform in ("manylinux x86_64", "macosx arm64", "win AMD64"):
+        api_job = f"Build and test ({platform}) / API cross-CPython tests / cp312-x"
+        patterns = [k for k in declared_needs if fnmatchcase(api_job, k)]
+        dependencies = {d for k in patterns for d in declared_needs[k]}
+        wheels_waited_for = [
+            wheel
+            for wheel in wheel_jobs
+            if any(fnmatchcase(wheel, d) for d in dependencies)
+        ]
+        assert wheels_waited_for == [f"Build and test ({platform}) / cp312-{platform}"]
+    gate = declared_needs["PR build validation"]
+    assert any(fnmatchcase(wheel_jobs[0], d) for d in gate)
+    assert any(
+        fnmatchcase(
+            "Build and test (win AMD64) / API cross-CPython tests / cp312-win AMD64", d
+        )
+        for d in gate
+    )
 
 
 @pytest.mark.smoke

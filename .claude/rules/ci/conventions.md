@@ -277,9 +277,11 @@ Always: FULL_PLATFORMS (4), ALL_PYTHON (3, clamped to the `>=3.12` floor --
 cp312/cp313/cp314), test tier **all**.
 
 **Nightly-only api-test platform trim (run 28990965739, 9 Jul 2026):** the
-nightly `api cross-CPython` job (`test_api_cross_python`) uses a separate
-platform matrix output, `api_buildplat`, distinct from the wheel-build job's
-`buildplat`. On the nightly schedule `api_buildplat` = `NIGHTLY_API_PLATFORMS`
+nightly `api cross-CPython` lane uses a separate platform matrix output,
+`api_buildplat`, distinct from the wheel-build job's `buildplat`. (The lane
+is chained behind each platform's wheel build inside
+`build-wheels-reusable.yml`; the caller passes `run_api_tests` per platform
+by checking that platform's runner label against `api_buildplat`.) On the nightly schedule `api_buildplat` = `NIGHTLY_API_PLATFORMS`
 = FULL_PLATFORMS minus `macos-15-intel`; every other trigger (PR, merge queue,
 tag push, workflow_dispatch) sets `api_buildplat` equal to `buildplat`. This
 closes a runner-scarcity gap: in run 28990965739 the

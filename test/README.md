@@ -140,8 +140,9 @@ difference is outside this repository's direct test surface.
 - `smoke` — minimal wheel validation (~6 tests, ~60s).
 - `smoke_bridge` — legacy marker for the bridge-loading subset; still
   registered, but CI no longer selects on it directly. Post-gh#1300,
-  cross-CPython coverage is driven by `-m "api and <tier>"` in the
-  `test_api_cross_python` job.
+  cross-CPython coverage is driven by `-m "api and <tier>"` in each
+  platform's `API cross-CPython tests` lane (chained behind that platform's
+  wheel build inside `build-wheels-reusable.yml`).
 - `core` — essential physics and logic contracts (Fortran, driver), independent
   of cost.
 - `rust` — Rust bridge backend tests (requires `suews_bridge` with the

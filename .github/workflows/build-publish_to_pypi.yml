@@ -76,7 +76,7 @@ on:
       # Python toggles drive the cross-CPython api-test matrix (gh#1300).
       # The build is always cp312-abi3 (one wheel covers all supported CPythons),
       # so these toggles only affect which interpreters install the wheel and
-      # run `-m "api and <tier>"` in test_api_cross_python.
+      # run `-m "api and <tier>"` in each platform's api cross-CPython lane.
       py312:
         description: '[custom] Test on Python 3.12 (build is always cp312-abi3)'
         type: boolean
@@ -430,22 +430,53 @@ jobs:
             const script = require('./.github/scripts/post-ci-summary.js');
             await script({ github, context });
 
+  # One reusable-workflow call per platform, so each platform's api
+  # cross-CPython lane (chained inside build-wheels-reusable.yml) starts as
+  # soon as that platform's wheel exists rather than when the slowest build
+  # has finished. The job id stays `build_wheels`: its result aggregates every
+  # platform's wheel build and api lane, and is what pr-gate, the publish jobs
+  # and the nightly report read. build_mcp is a dependency because the api
+  # lane installs the suews-mcp-dist artefact and a job inside a reusable
+  # workflow cannot wait on a caller job itself; the wheel build still runs
+  # when build_mcp fails (run_api_tests is then false, as before).
   build_wheels:
-    name: Build standard wheels
-    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
+    name: Build and test (${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }})
+    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag, build_mcp]
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
     uses: $/.github/workflows/build-wheels-reusable.yml
     with:
-      buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
+      buildplat_json: ${{ format('[["{0}", "{1}", "{2}"]]', matrix.buildplat[0], matrix.buildplat[1], matrix.buildplat[2]) }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
       is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
       build_profile: ${{ inputs.build_profile || 'release' }}
+      # The api lane runs on this platform when it is in api_buildplat (the
+      # nightly drops macos-15-intel there; every other event sets it equal to
+      # buildplat) and the MCP distribution it installs was built. The quoted
+      # runner label is the containment key because the script writes the
+      # triples as `["<runner>", "<platform>", "<arch>"]`, and the closing
+      # quote keeps "macos-15" from matching "macos-15-intel". Fall back to
+      # the full buildplat when api_buildplat is empty: determine_matrix runs
+      # determine-matrix.sh from the BASE branch (trusted-script design), so a
+      # PR that introduces or extends the api_buildplat output would otherwise
+      # skip every api lane until the script change lands on master.
+      run_api_tests: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) }}
+      # A ready PR already validates both supported Python bookends. The merge
+      # queue revalidates the combined tree on the abi3 floor only, across all
+      # three supported OS families, instead of repeating the full suite twice.
+      # Use the build-Python output here as a compatibility bridge while the
+      # trusted determine-matrix script is still read from the base branch.
+      api_python_json: >-
+        ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
 
   # Nightly only: build the checked profile (-O0 -fcheck=all) on every platform
   # and run the full physics tier on it, so out-of-bounds and uninitialised
@@ -470,6 +501,9 @@ jobs:
       build_profile: checked
       artifact_prefix: checked-
 
+  # build_wheels waits for this job (its api lane installs the artefact), so
+  # it sits in front of every wheel build: the checkout is blob-less, which
+  # is all get_ver_git.py needs, and is what the wheel build itself does.
   build_mcp:
     name: Build MCP package
     runs-on: ubuntu-latest
@@ -482,6 +516,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          filter: blob:none
           fetch-depth: 0
           persist-credentials: false
 
@@ -505,30 +540,6 @@ jobs:
           name: suews-mcp-dist
           path: mcp/dist/*
 
-  test_api_cross_python:
-    name: API cross-CPython tests
-    needs: [determine_matrix, build_wheels, build_mcp]
-    if: >-
-      always() &&
-      needs.build_wheels.result == 'success' &&
-      needs.build_mcp.result == 'success'
-    uses: $/.github/workflows/test-api-cross-python-reusable.yml
-    with:
-      # Fall back to the full buildplat when api_buildplat is empty: the
-      # determine_matrix job runs determine-matrix.sh from the BASE branch
-      # (trusted-script design), so a PR that introduces or extends the
-      # api_buildplat output would otherwise hand this job an empty matrix
-      # until the script change lands on master.
-      buildplat_json: ${{ needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat }}
-      # A ready PR already validates both supported Python bookends. The merge
-      # queue revalidates the combined tree on the abi3 floor only, across all
-      # three supported OS families, instead of repeating the full suite twice.
-      # Use the build-Python output here as a compatibility bridge while the
-      # trusted determine-matrix script is still read from the base branch.
-      api_python_json: >-
-        ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
-      test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-
   # Nightly and on demand: record the zero-tolerance spread of the full-year
   # sample comparison (scripts/suews/tolerance_spread.py) on every built
   # platform for the two CPython bookends, one JSON artefact per cell. The
@@ -538,6 +549,9 @@ jobs:
   # failure here from turning the nightly red, and the job feeds neither
   # report_scheduled_run nor pr-gate. It installs the release wheel the run
   # built (or the profile a dispatch chose), so it measures what ships.
+  # build_wheels covers each platform's wheel build and api lane, so this job
+  # starts once the api lanes have finished too; it records, so the wait is
+  # harmless.
   tolerance_spread:
     name: Tolerance spread ${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     needs: [determine_matrix, build_wheels]
@@ -651,7 +665,7 @@ jobs:
     name: PR build validation
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, build_mcp, test_api_cross_python, check_test_markers, detect-changes]
+    needs: [build_wheels, build_mcp, check_test_markers, detect-changes]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -660,12 +674,17 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
+      # build_wheels is one node per run whose result aggregates every
+      # platform's wheel build and api lane (the lane is chained inside the
+      # reusable workflow), so the same result feeds both gate inputs; the
+      # run page shows which lane failed. The script runs from the base
+      # branch and its inputs are unchanged.
       - name: Check build results
         env:
           DETECT_CHANGES_RESULT: ${{ needs.detect-changes.result }}
           BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
           BUILD_MCP_RESULT: ${{ needs.build_mcp.result }}
-          TEST_BRIDGE_RESULT: ${{ needs.test_api_cross_python.result }}
+          TEST_BRIDGE_RESULT: ${{ needs.build_wheels.result }}
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
         run: bash .github/scripts/pr-gate.sh
@@ -726,7 +745,7 @@ jobs:
   report_scheduled_run:
     name: Report scheduled run outcome
     runs-on: ubuntu-latest
-    needs: [create_nightly_tag, build_wheels, build_wheels_checked, build_mcp, test_api_cross_python, check_test_markers, deploy_testpypi]
+    needs: [create_nightly_tag, build_wheels, build_wheels_checked, build_mcp, check_test_markers, deploy_testpypi]
     if: always() && github.event_name == 'schedule'
     permissions:
       issues: write
@@ -791,18 +810,18 @@ jobs:
       - determine_matrix
       - build_wheels
       - build_mcp
-      - test_api_cross_python
       - create_nightly_tag
       - verify-release-tag
     # Publish only when every platform wheel built AND the cross-CPython
-    # api tests passed on every matrix cell. A partial build (one leg
-    # fails) would leave test_api_cross_python skipped; allowing that
-    # would ship un-validated wheels, so both must be explicit successes.
+    # api tests passed on every matrix cell. build_wheels fails when any
+    # platform's wheel build or chained api lane fails. Its api lane is
+    # skipped (and the node still succeeds) only when build_mcp failed,
+    # which the explicit build_mcp check below catches, or on the nightly
+    # macOS Intel trim, where skipping is intended.
     if: |
       always() &&
       needs.build_wheels.result == 'success' &&
       needs.build_mcp.result == 'success' &&
-      needs.test_api_cross_python.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (
@@ -840,19 +859,19 @@ jobs:
       - determine_matrix
       - build_wheels
       - build_mcp
-      - test_api_cross_python
       - create_nightly_tag
       - verify-release-tag
     # Production tags only: all platform wheels must succeed AND the
     # cross-CPython api tests must pass (the only signal the cp312-abi3
-    # wheel imports on cp312..cp314 after the build matrix collapse).
+    # wheel imports on cp312..cp314 after the build matrix collapse); both
+    # are carried by build_wheels, whose per-platform chain runs the api
+    # lane after the wheel.
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
       needs.build_mcp.result == 'success' &&
-      needs.test_api_cross_python.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
 

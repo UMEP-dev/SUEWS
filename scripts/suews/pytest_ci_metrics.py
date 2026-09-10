@@ -7,6 +7,16 @@ background sampler reads procfs for process-tree CPU time and peak RSS. On
 every platform each xdist worker also reports its own peak resident set size
 (``getrusage`` on POSIX, ``GetProcessMemoryInfo`` on Windows) so per-worker
 memory can be compared where procfs is unavailable.
+
+Per-test records (the ``tests`` key) are additive to schema version 2: every
+consumer written against v2 reads only the keys it knows, so the version is
+unchanged. Each record carries the node id, its marker names, the outcome, and
+wall and CPU seconds per phase (setup, call, teardown). CPU is the delta of
+``os.times()`` (user + system for the process and its reaped children) taken
+around each phase in the process that runs the test, so an xdist worker
+measures its own tests and a CLI test that spawns a subprocess is charged for
+it. The values travel to the controller as attributes on the phase
+``TestReport``; xdist serialises the report's ``__dict__`` verbatim.
 """
 
 from __future__ import annotations
@@ -40,6 +50,15 @@ except ImportError:  # Windows has no resource module.
 SCHEMA_VERSION = 2
 SUMMARY_WARNING_LIMIT = 10
 OUTCOME_NAMES = ("passed", "failed", "skipped", "xfailed", "xpassed")
+TEST_PHASES = ("setup", "call", "teardown")
+CPU_METHOD = "os.times"
+# Attribute names on the phase TestReport that carry per-test measurements
+# from the executing process to the controller.
+REPORT_CPU_ATTR = "suews_cpu_seconds"
+REPORT_MARKERS_ATTR = "suews_markers"
+REPORT_MARKER_REASONS_ATTR = "suews_marker_reasons"
+# Cost markers whose `reason=` keyword is recorded beside the marker name.
+COST_MARKERS = ("medium", "slow")
 DEFAULT_SAMPLE_INTERVAL_SECONDS = 0.25
 _ADDRESS_RE = re.compile(r"0x[0-9a-fA-F]+")
 _UUID_RE = re.compile(
@@ -59,6 +78,16 @@ class _WorkerMetrics:
 
 
 @dataclass
+class _TestMetrics:
+    """Per-phase measurements for one collected test, gathered from its reports."""
+
+    markers: list[str] = field(default_factory=list)
+    marker_reasons: dict[str, str] = field(default_factory=dict)
+    wall_seconds: dict[str, float] = field(default_factory=dict)
+    cpu_seconds: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
 class _MetricsState:
     """Mutable measurements for one pytest controller process."""
 
@@ -70,6 +99,7 @@ class _MetricsState:
     warning_counts: Counter[tuple[str, str]] = field(default_factory=Counter)
     warning_samples: dict[tuple[str, str], str] = field(default_factory=dict)
     node_outcomes: dict[str, str] = field(default_factory=dict)
+    tests: dict[str, _TestMetrics] = field(default_factory=dict)
     workers: dict[str, _WorkerMetrics] = field(default_factory=dict)
     effective_worker_count: int = 1
     uses_xdist: bool = False
@@ -87,6 +117,7 @@ class _MetricsState:
         self.warning_counts.clear()
         self.warning_samples.clear()
         self.node_outcomes.clear()
+        self.tests.clear()
         self.workers.clear()
         self.effective_worker_count = 1
         self.uses_xdist = False
@@ -490,6 +521,30 @@ def _worker_records() -> tuple[list[dict[str, Any]], float, float]:
     )
 
 
+def _phase_seconds(values: dict[str, float]) -> dict[str, float]:
+    """Serialise per-phase seconds with an explicit total; a missing phase is 0."""
+    phases = {phase: round(values.get(phase, 0.0), 6) for phase in TEST_PHASES}
+    phases["total"] = round(sum(values.get(phase, 0.0) for phase in TEST_PHASES), 6)
+    return phases
+
+
+def _test_records() -> list[dict[str, Any]]:
+    """Serialise one record per collected test, sorted by node id."""
+    records = []
+    for node_id in sorted(set(_STATE.tests) | set(_STATE.node_outcomes)):
+        test = _STATE.tests.get(node_id, _TestMetrics())
+        records.append({
+            "cpu_method": CPU_METHOD,
+            "cpu_seconds": _phase_seconds(test.cpu_seconds),
+            "marker_reasons": dict(sorted(test.marker_reasons.items())),
+            "markers": sorted(test.markers),
+            "node_id": node_id,
+            "outcome": _STATE.node_outcomes.get(node_id),
+            "wall_seconds": _phase_seconds(test.wall_seconds),
+        })
+    return records
+
+
 def _metrics(exit_code: int, session_seconds: float) -> dict[str, Any]:
     """Serialise the current controller measurements."""
 
@@ -525,6 +580,7 @@ def _metrics(exit_code: int, session_seconds: float) -> dict[str, Any]:
             **sampler.measurements(),
             "controller_peak_rss_bytes": process_peak_rss_bytes(),
         },
+        "tests": _test_records(),
         "warnings": _warning_records(),
     }
 
@@ -674,9 +730,97 @@ def pytest_runtestloop(session: pytest.Session):
     _STATE.tests_seconds += time.perf_counter() - started
 
 
+def _cpu_clock() -> float:
+    """CPU seconds consumed so far by this process and its reaped children."""
+    times = os.times()
+    return times.user + times.system + times.children_user + times.children_system
+
+
+_CPU_STASH = pytest.StashKey[dict[str, float]]()
+
+
+def _measure_phase(item: pytest.Item, phase: str):
+    """Wrap one runtest phase and stash its CPU delta on the item."""
+    started = _cpu_clock()
+    yield
+    item.stash.setdefault(_CPU_STASH, {})[phase] = max(0.0, _cpu_clock() - started)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_setup(item: pytest.Item):
+    """Measure the CPU cost of fixture setup in the executing process."""
+    yield from _measure_phase(item, "setup")
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item: pytest.Item):
+    """Measure the CPU cost of the test body in the executing process."""
+    yield from _measure_phase(item, "call")
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None):
+    """Measure the CPU cost of fixture teardown in the executing process."""
+    del nextitem
+    yield from _measure_phase(item, "teardown")
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
+    """Attach the phase's CPU delta and the item's marker names to its report.
+
+    The phase hookwrapper above has already run to completion when pytest
+    builds the report, so the stash holds this phase's value. Plain attributes
+    survive xdist because it serialises the report's ``__dict__`` and rebuilds
+    it through ``TestReport(**kwargs)``.
+    """
+    outcome = yield
+    report = outcome.get_result()
+    cpu_by_phase = item.stash.get(_CPU_STASH, {})
+    if call.when in cpu_by_phase:
+        setattr(report, REPORT_CPU_ATTR, round(cpu_by_phase[call.when], 6))
+    if call.when == "setup":
+        setattr(
+            report,
+            REPORT_MARKERS_ATTR,
+            sorted({marker.name for marker in item.iter_markers()}),
+        )
+        setattr(report, REPORT_MARKER_REASONS_ATTR, _marker_reasons(item))
+
+
+def _marker_reasons(item: pytest.Item) -> dict[str, str]:
+    """Collect ``reason=`` keyword arguments from the cost markers on an item.
+
+    ``pytest.mark.slow(reason="...")`` is how a test states that it stays out
+    of routine PR runs for a cause other than CPU cost; the cost-marker check
+    reads the reason from the artefact instead of the source.
+    """
+    reasons: dict[str, str] = {}
+    for marker in item.iter_markers():
+        if marker.name in COST_MARKERS and "reason" in marker.kwargs:
+            reasons.setdefault(marker.name, str(marker.kwargs["reason"]))
+    return reasons
+
+
+def _record_test(report: pytest.TestReport) -> None:
+    """Fold one phase report into the per-test record."""
+    test = _STATE.tests.setdefault(report.nodeid, _TestMetrics())
+    test.wall_seconds[report.when] = max(0.0, float(report.duration))
+    cpu_seconds = getattr(report, REPORT_CPU_ATTR, None)
+    if cpu_seconds is not None:
+        test.cpu_seconds[report.when] = float(cpu_seconds)
+    markers = getattr(report, REPORT_MARKERS_ATTR, None)
+    if markers:
+        test.markers = [str(marker) for marker in markers]
+    reasons = getattr(report, REPORT_MARKER_REASONS_ATTR, None)
+    if reasons:
+        test.marker_reasons = {str(name): str(text) for name, text in dict(reasons).items()}
+
+
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
-    """Record outcomes and xdist assignments from existing reports."""
+    """Record outcomes, per-test measurements and xdist assignments."""
     _record_outcome(report)
+    _record_test(report)
     worker_id = getattr(report, "worker_id", None)
     if worker_id is None:
         return

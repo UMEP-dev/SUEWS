@@ -151,6 +151,7 @@ def test_anohm_runs_and_is_finite():
     assert np.nanmax(np.abs(qs)) < 1000.0
 
 
+@pytest.mark.medium
 @pytest.mark.core
 def test_anohm_path_is_engaged():
     """A settled AnOHM day diverges from the OHM spin-up fallback."""
@@ -172,6 +173,7 @@ def test_anohm_marked_internal():
     assert StorageHeatMethod.ANOHM._internal is True
 
 
+@pytest.mark.medium
 @pytest.mark.core
 def test_anohm_midday_start_preserves_partial_state_and_engages():
     """A midday start records real samples and later engages AnOHM."""
@@ -203,6 +205,7 @@ def test_anohm_midday_start_preserves_partial_state_and_engages():
     _assert_live_surface_coefficients(state)
 
 
+@pytest.mark.medium
 @pytest.mark.core
 def test_anohm_external_restart_matches_uninterrupted_state_path_and_output():
     """A restart inside buffer fill preserves later AnOHM engagement exactly."""
@@ -254,6 +257,7 @@ def test_anohm_external_restart_matches_uninterrupted_state_path_and_output():
     _assert_ohm_state_close(state_second, state_full)
 
 
+@pytest.mark.medium
 @pytest.mark.core
 def test_anohm_chunked_run_matches_uninterrupted_state_path_and_output():
     """One-day chunks preserve AnOHM state, path and output exactly."""

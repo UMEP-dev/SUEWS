@@ -167,8 +167,11 @@ declared in `pyproject.toml` (see
   - `util` -- utility function tests (non-critical)
   - `rust` -- Rust bridge backend tests (requires `suews_bridge` built with
     the `physics` feature)
-  - `medium` -- tests taking roughly 30-60s on the slowest normal CI platform
-  - `slow` -- tests taking over 60s individually, or unsuitable for routine PR runs
+  - `medium` -- test body of 10 to 30 CPU seconds on the Linux reference runner
+    (cp312), as recorded per test in the nightly `ci-metrics-*` artefacts
+  - `slow` -- test body of 30 CPU seconds or more on that runner, or unsuitable
+    for routine PR runs for a stated non-CPU reason (`slow(reason="...")`);
+    `scripts/lint/check_cost_markers.py` checks both markers nightly
   - `qgis` -- UMEP plugin integration tests in `test/umep/`, targeting
     Windows + Python 3.12 (current QGIS 3 LTR / QGIS 4 runtime); auto-applied
     by `test/umep/conftest.py`, stays out of normal PR/merge-queue tiers
@@ -188,8 +191,8 @@ markers = [
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     # Cost markers
-    "medium: Tests taking roughly 30-60s individually on the slowest normal CI platform",
-    "slow: Tests taking over 60s individually, or unsuitable for routine PR runs",
+    "medium: Test body of 10 to 30 CPU seconds on the Linux reference runner (cp312); excluded from the smoke tier only, included by core, cfg and standard",
+    "slow: Test body of 30 CPU seconds or more on the Linux reference runner, or unsuitable for routine PR runs for a stated reason (slow(reason=...)); excluded from standard unless core",
     "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 ```

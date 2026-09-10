@@ -285,6 +285,83 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
 
 
 @pytest.mark.smoke
+def test_api_platform_gate_finds_every_preset_runner_label() -> None:
+    """Every platform preset spells its runner label the way the gate looks it up.
+
+    The api lane now runs inside each platform's own reusable call, gated by
+    `run_api_tests`, which asks whether the api platform list contains that
+    platform's runner label wrapped in double quotes. The platform lists are
+    plain text built in determine-matrix.sh, so a preset written in any other
+    quoting shape makes the containment false: the lane is skipped, a skipped
+    inner job reports success, and the publish gate stays green over a run
+    that ran no api test at all. This pins the two shapes together, including
+    the closing quote that keeps `macos-15` from matching `macos-15-intel`.
+    """
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    run_api_tests = caller["jobs"]["build_wheels"]["with"]["run_api_tests"]
+
+    # The gate searches the api platform list (with the buildplat fallback for
+    # a PR that predates an api_buildplat change) for this rendering of the
+    # runner label.
+    assert "needs.determine_matrix.outputs.api_buildplat" in run_api_tests
+    assert "needs.determine_matrix.outputs.buildplat" in run_api_tests
+    key = re.search(r"format\('([^']*)', matrix\.buildplat\[0\]\)", run_api_tests)
+    assert key is not None, run_api_tests
+    template = key.group(1)
+    assert "{0}" in template
+
+    script = (root / ".github/scripts/determine-matrix.sh").read_text(
+        encoding="utf-8"
+    )
+    # Named presets, plus the triples the custom dispatch branch appends one
+    # at a time; both reach api_buildplat, so both are held to the same shape.
+    sources = dict(
+        re.findall(r"^([A-Z_]+PLATFORMS)='(\[.*\])'$", script, re.MULTILINE)
+    )
+    assert {"FULL_PLATFORMS", "PR_PLATFORMS", "NIGHTLY_API_PLATFORMS"} <= set(sources)
+    for index, triple in enumerate(
+        re.findall(r"PLATFORMS\+='(\[[^']*\]),'", script)
+    ):
+        sources[f"custom dispatch triple {index}"] = triple
+
+    runners: dict[str, set[str]] = {}
+    for name, literal in sources.items():
+        # fromJson consumes these, so JSON is itself part of the contract.
+        parsed = json.loads(literal)
+        triples = [parsed] if parsed and isinstance(parsed[0], str) else parsed
+        assert triples, name
+        runners[name] = {runner for runner, _platform, _arch in triples}
+        for runner in runners[name]:
+            assert template.replace("{0}", runner) in literal, (name, runner)
+
+    # The rendered key must identify one runner and not read as a prefix of
+    # another: `macos-15` sits inside `macos-15-intel`, so a key without the
+    # closing quote would match a list holding only the Intel runner and run
+    # a lane on the wrong platform list. The quotes are what rule that out.
+    every_runner = set().union(*runners.values())
+    for one in every_runner:
+        for other in every_runner - {one}:
+            assert template.replace("{0}", one) not in template.replace(
+                "{0}", other
+            ), (one, other)
+
+    # The nightly trim is the only case where the api list differs from the
+    # build list, so it is the only case where the lookup has to discriminate.
+    dropped = runners["FULL_PLATFORMS"] - runners["NIGHTLY_API_PLATFORMS"]
+    assert dropped == {"macos-15-intel"}
+    for runner in dropped:
+        assert (
+            template.replace("{0}", runner)
+            not in sources["NIGHTLY_API_PLATFORMS"]
+        )
+
+
+@pytest.mark.smoke
 def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
     """Missing SDK, executable or protocol nodes cannot silently pass CI."""
     root = Path(__file__).resolve().parents[2]

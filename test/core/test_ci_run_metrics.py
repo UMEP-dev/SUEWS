@@ -128,22 +128,67 @@ def test_new_ci_observability_surfaces_trigger_normal_ci() -> None:
 
 
 @pytest.mark.core
-def test_api_lane_installs_xdist_contract_without_parallelising_main_suite() -> None:
-    """The nested xdist contract has its plugin while API tests stay serial."""
+def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> None:
+    """The api lane runs -n 4/4/2 worksteal per platform unless serialised."""
+    root = Path(__file__).resolve().parents[2]
     workflow = (
-        Path(__file__).resolve().parents[2]
-        / ".github/workflows/test-api-cross-python-reusable.yml"
+        root / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
 
     assert "python -m pip install pytest==9.1.1 pytest-xdist==3.8.0" in workflow
     main_invocation = re.search(
         r"^[ \t]*python -m pytest -p scripts\.suews\.pytest_ci_metrics test \\\n"
-        r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25[ \t]*$",
+        r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25 \$XDIST_ARGS[ \t]*$",
         workflow,
         flags=re.MULTILINE,
     )
     assert main_invocation is not None
-    assert re.search(r"(?:^|\s)-n(?:\s|$)", main_invocation.group()) is None
+
+    # Measured in #1786: the worker counts are per platform, never -n auto.
+    workers = dict(
+        re.findall(
+            r"^\s+(manylinux|win|macosx)\)\s+WORKERS=(\d+)", workflow, re.MULTILINE
+        )
+    )
+    assert workers == {"manylinux": "4", "win": "4", "macosx": "2"}
+    assert "-n auto" not in workflow
+    assert 'echo "xdist_args=-n ${WORKERS} --dist worksteal"' in workflow
+
+    # The escape hatch is a workflow_call input, matched per platform name.
+    parsed = yaml.safe_load(workflow)
+    call_inputs = parsed[True]["workflow_call"]["inputs"]
+    assert "default" in call_inputs["serial_platforms"]
+    assert not call_inputs["serial_platforms"]["default"]
+    assert 'if [[ "$SERIAL_LIST" == *",${PLATFORM},"* ]]; then' in workflow
+
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    dispatch_inputs = caller[True]["workflow_dispatch"]["inputs"]
+    assert "default" in dispatch_inputs["api_serial_platforms"]
+    assert not dispatch_inputs["api_serial_platforms"]["default"]
+    # The api lane is chained inside each platform's build-wheels call
+    # (#1792), so the caller hands the escape hatch to that call and the
+    # reusable workflow forwards it; an input accepted and then dropped there
+    # would silently run every platform on its workers.
+    chain_with = caller["jobs"]["build_wheels"]["with"]
+    assert chain_with["serial_platforms"] == (
+        "${{ inputs.api_serial_platforms || vars.SUEWS_API_SERIAL_PLATFORMS || '' }}"
+    )
+    wheels_workflow = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    wheels_inputs = wheels_workflow[True]["workflow_call"]["inputs"]
+    assert "default" in wheels_inputs["serial_platforms"]
+    assert not wheels_inputs["serial_platforms"]["default"]
+    assert (
+        wheels_workflow["jobs"]["api_cross_python"]["with"]["serial_platforms"]
+        == "${{ inputs.serial_platforms }}"
+    )
 
 
 @pytest.mark.smoke
@@ -239,6 +284,88 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
         )
         for d in gate
     )
+
+
+@pytest.mark.smoke
+def test_api_platform_gate_finds_every_preset_runner_label() -> None:
+    """Every platform preset spells its runner label the way the gate looks it up.
+
+    The api lane now runs inside each platform's own reusable call, gated by
+    `run_api_tests`, which asks whether the api platform list contains that
+    platform's runner label wrapped in double quotes. The platform lists are
+    plain text built in determine-matrix.sh, so a preset written in any other
+    quoting shape makes the containment false: the lane is skipped, a skipped
+    inner job reports success, and the publish gate stays green over a run
+    that ran no api test at all. This pins the two shapes together, including
+    the closing quote that keeps `macos-15` from matching `macos-15-intel`.
+    """
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    run_api_tests = caller["jobs"]["build_wheels"]["with"]["run_api_tests"]
+
+    # The gate searches the api platform list (with the buildplat fallback for
+    # a PR that predates an api_buildplat change) for this rendering of the
+    # runner label.
+    assert "needs.determine_matrix.outputs.api_buildplat" in run_api_tests
+    assert "needs.determine_matrix.outputs.buildplat" in run_api_tests
+    key = re.search(r"format\('([^']*)', matrix\.buildplat\[0\]\)", run_api_tests)
+    assert key is not None, run_api_tests
+    template = key.group(1)
+    assert "{0}" in template
+
+    script = (root / ".github/scripts/determine-matrix.sh").read_text(
+        encoding="utf-8"
+    )
+    # Named presets, plus the triples the custom dispatch branch appends one
+    # at a time; both reach api_buildplat, so both are held to the same shape.
+    sources = dict(
+        re.findall(r"^([A-Z_]+PLATFORMS)='(\[.*\])'$", script, re.MULTILINE)
+    )
+    assert {
+        "FULL_PLATFORMS",
+        "PR_PLATFORMS",
+        "MINIMAL_PLATFORMS",
+        "NIGHTLY_API_PLATFORMS",
+    } <= set(sources)
+    for index, triple in enumerate(
+        re.findall(r"PLATFORMS\+='(\[[^']*\]),'", script)
+    ):
+        sources[f"custom dispatch triple {index}"] = triple
+
+    runners: dict[str, set[str]] = {}
+    for name, literal in sources.items():
+        # fromJson consumes these, so JSON is itself part of the contract.
+        parsed = json.loads(literal)
+        triples = [parsed] if parsed and isinstance(parsed[0], str) else parsed
+        assert triples, name
+        runners[name] = {runner for runner, _platform, _arch in triples}
+        for runner in runners[name]:
+            assert template.replace("{0}", runner) in literal, (name, runner)
+
+    # The rendered key must identify one runner and not read as a prefix of
+    # another: `macos-15` sits inside `macos-15-intel`, so a key without the
+    # closing quote would match a list holding only the Intel runner and run
+    # a lane on the wrong platform list. The quotes are what rule that out.
+    every_runner = set().union(*runners.values())
+    for one in every_runner:
+        for other in every_runner - {one}:
+            assert template.replace("{0}", one) not in template.replace(
+                "{0}", other
+            ), (one, other)
+
+    # The nightly trim is the only case where the api list differs from the
+    # build list, so it is the only case where the lookup has to discriminate.
+    dropped = runners["FULL_PLATFORMS"] - runners["NIGHTLY_API_PLATFORMS"]
+    assert dropped == {"macos-15-intel"}
+    for runner in dropped:
+        assert (
+            template.replace("{0}", runner)
+            not in sources["NIGHTLY_API_PLATFORMS"]
+        )
 
 
 @pytest.mark.smoke

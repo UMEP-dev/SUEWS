@@ -29,13 +29,14 @@ with its measured cost:
   accepts it. A bare `slow` is a CPU claim and is checked as one.
 
 "Clearly" is the hysteresis band. Per-test CPU seconds on hosted runners vary
-by up to about 1.5x between dispatches of the same code (the runners are not
-one hardware generation, and a change elsewhere in the tree can move a whole
-lane), so a marker is questioned only when the reading is on the wrong side
-of a threshold by more than the band factor: unmarked from `medium * band`,
-`medium` under `medium / band` or from `slow * band`, bare `slow` under
-`slow / band`. Inside a band either marking is accepted, so a test near a
-threshold does not flap between two nights' readings.
+by up to about 1.8x between dispatches (the runners are not one hardware
+generation, and on the four-worker physics lane a change elsewhere in the tree
+moves what the workers contend for and with it every test's CPU time), so a
+marker is questioned only when the reading is on the wrong side of a threshold
+by more than the band factor: unmarked from `medium * band`, `medium` under
+`medium / band` or from `slow * band`, bare `slow` under `slow / band`. Inside
+a band either marking is accepted, so a test near a threshold does not flap
+between two nights' readings.
 
 A node that appears in several artefacts (a file marked both `physics` and
 `api` runs in both lanes) is judged on its largest measurement. Nodes that did
@@ -67,7 +68,7 @@ MEDIUM_CPU_SECONDS = 10.0
 SLOW_CPU_SECONDS = 30.0
 # Hysteresis: a marker is questioned only when the reading is on the wrong side
 # of a threshold by more than this factor (see the module docstring).
-BAND = 1.5
+BAND = 2.0
 # The phase whose CPU seconds define a test's cost. `call` is the test body;
 # `total` adds fixture setup and teardown, which under xdist charges a shared
 # session fixture to whichever test reaches it first on each worker.

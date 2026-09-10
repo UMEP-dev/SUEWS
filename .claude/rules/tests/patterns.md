@@ -179,7 +179,9 @@ and phase in the `ci-metrics-api-cp312-manylinux-x86_64` and
 `ci-metrics-physics-cp312-manylinux-x86_64` artefacts of every nightly run. The
 thresholds were read from the first such measurement (dispatch run 34415925967
 on PR #1779, 9 September 2026, release wheel; 181 physics and 2122 api tests
-ran their body, and the 37 skipped or xfailed nodes carry no measurement):
+ran their body, and the 37 skipped or xfailed nodes carry no measurement),
+before #1776 landed on master (see the band paragraph below for how much
+that moved the physics lane):
 
 | Test body CPU-s | physics tests | api tests |
 |---|---:|---:|
@@ -209,16 +211,22 @@ for anyone who needs them.
 
 How it is checked. `scripts/lint/check_cost_markers.py` reads those artefacts
 and names every test whose marker clearly disagrees with its measurement.
-"Clearly" is a hysteresis band of 1.5: per-test CPU seconds vary by up to
-about that factor between dispatches of the same code (hosted runners are not
-one hardware generation, and a change elsewhere in the tree can move a whole
-lane: three dispatches of this rule's own PR read the same EHC test at 14.7,
-15.1 and 9.4 CPU-s, and the api lane's total at 742, 776 and 913 CPU-s), so a
-marker is questioned only when the reading is on the wrong side of a threshold
-by more than the band: unmarked from 15 CPU-s (`medium`) or 45 (`slow`),
-`medium` under 6.7 or from 45, bare `slow` under 20. Inside a band either
-marking is accepted, so a test near a threshold does not flap between two
-nights' readings. A `slow` mark under 30 CPU-s must carry its reason
+"Clearly" is a hysteresis band of 2: per-test CPU seconds vary by up to about
+1.8x between dispatches. Hosted runners are not one hardware generation (the
+serial api lane of PR #1779 totalled 742, 776, 913 and 675 CPU-s over four
+dispatches of the same tests, individual tests moving by 0.67x to 1.49x), and
+on the four-worker physics lane a change elsewhere in the tree moves what the
+workers contend for and with it every test's CPU time (the same lane totalled
+955 and 981 CPU-s before #1776 halved the sample-output reference, then 626
+and 542 after it; one EHC regression read 14.7, 15.1, 9.4 and 6.6 CPU-s). So
+a marker is questioned only when the reading is on the wrong side of a
+threshold by more than the band: unmarked from 20 CPU-s (`medium`) or 60
+(`slow`), `medium` under 5 or from 60, bare `slow` under 15. Inside a band
+either marking is accepted, so a test near a threshold does not flap between
+two nights' readings, and the check is for tests that are clearly in the
+wrong class: a heavy test added without a marker, a `medium` that has grown
+into `slow`, a bare `slow` on a cheap test. A `slow` mark under 30 CPU-s must
+carry its reason
 (`pytest.mark.slow(reason="...")`: network or credentials, a run-count policy
 such as the non-anchor legacy-table versions, a spawned server with wall-clock
 assertions, a full-year run that is 148 s of wall on Windows); the plugin

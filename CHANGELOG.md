@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] The wheel build's Rust cache is keyed on the platform, build profile, rustc version and a hash of the bridge inputs (it hashed only `Cargo.lock`, so entries saved on 8 Aug by rustc 1.97.1 kept hitting after the runner images moved to 1.98.0 and cargo recompiled all ~100 crates on every job); restore and save are split so the scheduled nightly builds cold but still refreshes the master-scope entries, merge-queue runs never save, the Linux container installs the host's rustc version, and the lookup outcome is logged; keying rule recorded in `.claude/rules/ci/conventions.md` (#1787)
+
 ### 9 Sep 2026
 
 - [maintenance] The sample-output reference is written at seven significant figures (`float_format="%.7g"`, at most 5e-7 relative error against a tightest test tolerance of 0.002), halving it from 151 MiB to 77 MiB and its parse time from 3.3 s to 1.7 s; it is now parsed once per pytest session via a `sample_reference` fixture, and carries a `provenance.json` sidecar recording the build, compiler, platform and per-shard hashes that a new test asserts against the shards on disk (#1776)

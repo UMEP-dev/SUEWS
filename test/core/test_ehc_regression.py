@@ -243,6 +243,7 @@ def test_ehc_direct_air_qf_mode_changes_lumped_storage_response(monkeypatch):
     assert np.max(np.abs(direct_air_qf_qs - default_qs)) > 0.1
 
 
+@pytest.mark.medium
 @pytest.mark.core
 def test_ehc_direct_air_qf_mode_changes_coupled_qe_response(monkeypatch):
     monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
@@ -270,6 +271,7 @@ def test_ehc_experimental_qf_env_is_ignored_without_gate(monkeypatch):
     np.testing.assert_allclose(ungated_qs, default_qs, rtol=0.0, atol=0.0)
 
 
+@pytest.mark.medium
 def test_ehc_daylight_qf_mode_changes_lumped_storage_response(monkeypatch):
     for key in (
         EHC_EXPERIMENTAL_CONTROLS_KEY,
@@ -293,6 +295,7 @@ def test_ehc_daylight_qf_mode_changes_lumped_storage_response(monkeypatch):
     assert np.max(np.abs(daylight_qf_qs - default_qs)) > 0.1
 
 
+@pytest.mark.medium
 def test_ehc_surface_gradient_allocation_changes_lumped_storage_response(monkeypatch):
     monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QS_SURF_ALLOC", raising=False)
@@ -306,6 +309,7 @@ def test_ehc_surface_gradient_allocation_changes_lumped_storage_response(monkeyp
     assert np.max(np.abs(gradient_qs - default_qs)) > 0.1
 
 
+@pytest.mark.medium
 def test_ehc_parallel_standard_surfaces_preserves_heterogeneous_response(monkeypatch):
     monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_PARALLEL_SURFACES", raising=False)
@@ -328,6 +332,7 @@ def test_ehc_parallel_standard_surfaces_preserves_heterogeneous_response(monkeyp
     assert np.max(np.abs(parallel_qs - pre_lumped_qs)) > 0.05
 
 
+@pytest.mark.medium
 def test_ehc_converged_lumped_storage_is_nearly_relaxation_invariant(monkeypatch):
     for key in EHC_ITERATION_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
@@ -359,6 +364,7 @@ def test_ehc_ra_heat_factor_changes_lumped_storage_response(monkeypatch):
     assert np.max(np.abs(higher_ra_qs - default_qs)) > 0.1
 
 
+@pytest.mark.medium
 def test_ehc_state_dependent_ra_heat_guard_changes_lumped_storage_response(monkeypatch):
     for key in EHC_RA_HEAT_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
@@ -439,7 +445,6 @@ def test_ehc_restore_best_iteration_path_runs(monkeypatch):
 
 
 @pytest.mark.core
-@pytest.mark.medium
 def test_ehc_spartacus_facet_storage_is_sensitive_to_building_rho_cp():
     low_cp_qs = _run_short_spartacus_ehc_with_building_cp(1.0e6)
     high_cp_qs = _run_short_spartacus_ehc_with_building_cp(4.0e6)

@@ -13,7 +13,11 @@ from typing import Any
 
 import pytest
 
-from scripts.suews.pytest_ci_metrics import ProcfsSampler, read_proc_process
+from scripts.suews.pytest_ci_metrics import (
+    ProcfsSampler,
+    process_peak_rss_bytes,
+    read_proc_process,
+)
 
 pytestmark = pytest.mark.api
 
@@ -29,6 +33,8 @@ def test_plugin_writes_parseable_metrics_and_step_summary(tmp_path: Path) -> Non
         """\
 import warnings
 
+import pytest
+
 
 def test_pass():
     assert True
@@ -36,6 +42,16 @@ def test_pass():
 
 def test_warn():
     warnings.warn("group me", UserWarning)
+
+
+@pytest.mark.slow(reason="probe the recorded reason")
+def test_burn():
+    # Enough arithmetic to register on the 10 ms os.times() clock.
+    assert sum(range(10_000_000)) > 0
+
+
+def test_skipped():
+    pytest.skip("probe a skipped node's record")
 """,
         encoding="utf-8",
     )
@@ -61,6 +77,10 @@ def test_warn():
             "scripts.suews.pytest_ci_metrics",
             str(test_file),
             "-q",
+            # The temporary tree has no ini file, so register the marker the
+            # sample uses; an unknown mark would add a warning record.
+            "-o",
+            "markers=slow",
         ],
         cwd=tmp_path,
         env=env,
@@ -71,7 +91,12 @@ def test_warn():
 
     assert result.returncode == 0, result.stdout + result.stderr
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
-    node_ids = ["test_sample.py::test_pass", "test_sample.py::test_warn"]
+    node_ids = [
+        "test_sample.py::test_burn",
+        "test_sample.py::test_pass",
+        "test_sample.py::test_skipped",
+        "test_sample.py::test_warn",
+    ]
     expected_hash = hashlib.sha256("\n".join(node_ids).encode()).hexdigest()
 
     assert metrics["schema_version"] == 2
@@ -79,16 +104,17 @@ def test_warn():
         "exit_code": 0,
         "outcomes": {
             "failed": 0,
-            "passed": 2,
-            "skipped": 0,
+            "passed": 3,
+            "skipped": 1,
             "xfailed": 0,
             "xpassed": 0,
         },
     }
     assert metrics["inventory"] == {
-        "node_count": 2,
+        "node_count": 4,
         "node_id_sha256": expected_hash,
     }
+    _assert_per_test_records(metrics["tests"], node_ids)
     assert metrics["execution"] == {
         "effective_worker_count": 1,
         "worker_finish_skew_seconds": 0.0,
@@ -113,12 +139,80 @@ def test_warn():
     assert "Pytest CI metrics" in summary
     assert expected_hash in summary
     assert "UserWarning: group me" in summary
+    assert "| Controller peak RSS |" in summary
+    assert "| Max worker peak RSS | none |" in summary
+
+
+@pytest.mark.smoke
+def test_process_peak_rss_reports_this_process_on_every_platform() -> None:
+    """The per-process peak works without procfs and is at least a few MiB."""
+    measurement = process_peak_rss_bytes()
+
+    _assert_per_process_peak(measurement)
+    assert measurement["value"] >= 4 * 1024 * 1024
+    if sys.platform.startswith("win"):
+        assert measurement["method"] == "win32-peak-working-set"
+    else:
+        assert measurement["method"] == "getrusage-ru-maxrss"
+
+
+PER_PROCESS_PEAK_METHODS = {"getrusage-ru-maxrss", "win32-peak-working-set"}
+
+
+def _assert_per_process_peak(measurement: dict[str, Any]) -> None:
+    """Per-process peak RSS is available on Linux, macOS and Windows alike."""
+    assert measurement["unit"] == "bytes"
+    assert measurement["available"] is True, measurement
+    assert measurement["status"] == "sampled", measurement
+    assert measurement["reason"] is None, measurement
+    assert measurement["method"] in PER_PROCESS_PEAK_METHODS
+    assert isinstance(measurement["value"], int)
+    assert measurement["value"] > 0
+
+
+def _assert_per_test_records(records: list[dict[str, Any]], node_ids: list[str]) -> None:
+    """Check the additive per-test records: one per node, phases, markers, CPU."""
+    assert [record["node_id"] for record in records] == node_ids
+    by_node = {record["node_id"]: record for record in records}
+    phase_keys = {"setup", "call", "teardown", "total"}
+    for record in records:
+        assert record["cpu_method"] == "os.times"
+        assert set(record["cpu_seconds"]) == phase_keys
+        assert set(record["wall_seconds"]) == phase_keys
+        for measurement in (record["cpu_seconds"], record["wall_seconds"]):
+            assert all(value >= 0 for value in measurement.values())
+            assert measurement["total"] == pytest.approx(
+                measurement["setup"] + measurement["call"] + measurement["teardown"],
+                abs=1e-5,
+            )
+
+    burn = by_node["test_sample.py::test_burn"]
+    assert burn["markers"] == ["slow"]
+    assert burn["marker_reasons"] == {"slow": "probe the recorded reason"}
+    assert burn["outcome"] == "passed"
+    # The busy loop runs in the test body, so the call phase carries the CPU
+    # and dominates the setup and teardown of a fixture-free test.
+    assert burn["cpu_seconds"]["call"] > 0
+    assert burn["cpu_seconds"]["call"] > burn["cpu_seconds"]["setup"]
+    assert burn["wall_seconds"]["call"] > 0
+
+    assert by_node["test_sample.py::test_pass"]["markers"] == []
+    assert by_node["test_sample.py::test_pass"]["marker_reasons"] == {}
+    assert by_node["test_sample.py::test_pass"]["outcome"] == "passed"
+
+    skipped = by_node["test_sample.py::test_skipped"]
+    assert skipped["outcome"] == "skipped"
+    # pytest.skip() inside the body ends the call phase; the record still
+    # carries all three phases, with the missing ones at zero rather than
+    # absent, so a consumer never has to special-case skipped nodes.
+    assert skipped["cpu_seconds"]["total"] >= 0
 
 
 def _assert_resource_contract(resources: dict[str, Any]) -> None:
     """Check stable availability metadata for process-tree measurements."""
     assert resources["sample_interval_seconds"] > 0
     assert resources["sample_count"] >= 0
+    _assert_per_process_peak(resources["controller_peak_rss_bytes"])
     for name, unit in (
         ("process_tree_cpu_seconds", "seconds"),
         ("process_tree_peak_rss_bytes", "bytes"),
@@ -317,6 +411,9 @@ def test_parallel(case):
     )
     assert all(worker["busy_duration_seconds"] > 0 for worker in workers)
     assert all(worker["finished_at_seconds"] >= 0 for worker in workers)
+    for worker in workers:
+        _assert_per_process_peak(worker["peak_rss_bytes"])
+    _assert_per_process_peak(metrics["resources"]["controller_peak_rss_bytes"])
     finish_times = sorted(worker["finished_at_seconds"] for worker in workers)
     assert metrics["execution"]["worker_finish_skew_seconds"] == round(
         finish_times[-1] - finish_times[0], 6
@@ -331,6 +428,19 @@ def test_parallel(case):
         6,
     )
     assert metrics["result"]["outcomes"]["passed"] == 8
+    # Per-test records cross the worker boundary as report attributes.
+    records = metrics["tests"]
+    assert {record["node_id"] for record in records} == assigned_node_ids
+    assert all(record["outcome"] == "passed" for record in records)
+    assert all("parametrize" in record["markers"] for record in records)
+    assert all(record["cpu_seconds"]["total"] >= 0 for record in records)
+    # time.sleep holds wall time without burning CPU: the wall column records
+    # it and the CPU column does not.
+    assert all(record["wall_seconds"]["call"] >= 0.01 for record in records)
+    assert all(
+        record["cpu_seconds"]["call"] <= record["wall_seconds"]["call"]
+        for record in records
+    )
 
 
 def _warning_test_source(temp_root: str) -> str:

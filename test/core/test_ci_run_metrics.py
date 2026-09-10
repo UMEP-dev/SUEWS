@@ -224,6 +224,90 @@ def test_standard_marker_expressions_preserve_core_slow_override() -> None:
     assert "api and smoke and not (medium or slow) and not qgis" in api_workflow
 
 
+def test_api_workers_abba_lane_is_manual_matched_and_per_platform() -> None:
+    """The api-workers lane runs S/P/P/S per platform with fixed worker counts."""
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github/workflows/benchmark-pytest-scheduler.yml").read_text(
+        encoding="utf-8"
+    )
+    parsed = yaml.safe_load(workflow)
+    dispatch = (
+        parsed[True]["workflow_dispatch"]
+        if True in parsed
+        else parsed["on"]["workflow_dispatch"]
+    )
+    api_job = parsed["jobs"]["api_workers"]
+
+    assert set(parsed[True] if True in parsed else parsed["on"]) == {
+        "workflow_dispatch"
+    }
+    assert dispatch["inputs"]["lane"]["default"] == "physics-scheduler"
+    assert dispatch["inputs"]["lane"]["options"] == ["physics-scheduler", "api-workers"]
+    assert parsed["jobs"]["compare"]["if"] == "inputs.lane == 'physics-scheduler'"
+    assert api_job["if"] == "inputs.lane == 'api-workers'"
+    assert parsed["jobs"]["compare"]["needs"] == "source"
+    assert api_job["needs"] == "source"
+
+    cells = {
+        (cell["runner"], cell["platform"], cell["arch"]): cell["workers"]
+        for cell in api_job["strategy"]["matrix"]["include"]
+    }
+    assert cells == {
+        ("ubuntu-latest", "manylinux", "x86_64"): 4,
+        ("windows-2025", "win", "AMD64"): 4,
+        ("macos-15", "macosx", "arm64"): 2,
+    }
+    assert api_job["strategy"]["fail-fast"] is False
+    assert api_job["env"]["MARKER_EXPR"] == "api and (core or not slow) and not qgis"
+
+    trial_names = [
+        step["name"]
+        for step in api_job["steps"]
+        if step.get("continue-on-error") is True
+    ]
+    assert trial_names == [
+        "S1 - serial",
+        "P1 - xdist worksteal",
+        "P2 - xdist worksteal",
+        "S2 - serial",
+    ]
+    trials = {
+        step["name"]: step for step in api_job["steps"] if step["name"] in trial_names
+    }
+    for name, step in trials.items():
+        assert "-p scripts.suews.pytest_ci_metrics test" in step["run"]
+        assert '-m "$MARKER_EXPR"' in step["run"]
+        assert "-p no:cacheprovider" in step["run"]
+        assert step["env"]["SUEWS_CI_METRICS"].startswith("api-abba/")
+        if name.startswith("P"):
+            assert '-n "$WORKERS" --dist worksteal' in step["run"]
+        else:
+            assert "-n " not in step["run"]
+            assert "--dist" not in step["run"]
+    assert len({step["env"]["SUEWS_CI_METRICS"] for step in trials.values()}) == 4
+    assert len({step["run"].split("--basetemp=")[1] for step in trials.values()}) == 4
+
+    downloads = [
+        step["with"]["name"]
+        for step in api_job["steps"]
+        if step.get("uses", "").startswith("actions/download-artifact@")
+    ]
+    assert downloads == [
+        "cp312-${{ matrix.platform }}-${{ matrix.arch }}",
+        "suews-mcp-dist",
+    ]
+
+    tabulate = next(
+        step for step in api_job["steps"] if step["name"] == "Tabulate the four trials"
+    )
+    assert tabulate["if"] == "always()"
+    assert "summarise_abba_trials.py" in tabulate["run"]
+    assert tabulate["run"].count("--trial") == 4
+    upload = api_job["steps"][-1]
+    assert upload["if"] == "always()"
+    assert upload["with"]["if-no-files-found"] == "error"
+
+
 @pytest.mark.core
 def test_publish_jobs_download_only_cpython_wheel_artifacts() -> None:
     """PyPI publishers must not merge metrics or MCP files into ``dist``."""

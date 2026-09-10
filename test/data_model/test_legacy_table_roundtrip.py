@@ -49,8 +49,12 @@ _FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "legacy_table
 
 # Every version with vendored fixtures. The two anchors run in the normal CI
 # tier; the rest carry the ``slow`` marker (full matrix runs in the ``all``
-# tier and locally).
+# tier and locally). Each of these tests is a few CPU seconds, so the marker
+# states its reason: it is a run-count policy, not a per-test cost.
 _ANCHOR_VERSIONS = ["2016a", "2018b"]
+_NON_ANCHOR_SLOW = pytest.mark.slow(
+    reason="non-anchor legacy version: the anchors cover routine tiers, the full matrix runs in the all tier"
+)
 _ALL_VERSIONS = [
     "2016a",
     "2017a",
@@ -63,7 +67,7 @@ _ALL_VERSIONS = [
     "2020a",
 ]
 _MATRIX = [
-    ver if ver in _ANCHOR_VERSIONS else pytest.param(ver, marks=pytest.mark.slow)
+    ver if ver in _ANCHOR_VERSIONS else pytest.param(ver, marks=_NON_ANCHOR_SLOW)
     for ver in _ALL_VERSIONS
 ]
 
@@ -78,6 +82,54 @@ def _extract_legacy_tables(ver: str, dest: Path) -> Path:
         if f.is_file():
             shutil.copyfile(f, dest / f.name)
     return dest
+
+
+@pytest.fixture(scope="session")
+def legacy_tables():
+    """Resolve a vendored legacy table set, read-only, without copying it.
+
+    Every caller here only reads the fixture set: ``convert_table`` and
+    ``reverse_convert_table`` copy their input into a working directory before
+    touching it, and ``capture_legacy_extras`` reads. The one test that edits
+    its input (``test_conversion_rejects_malformed_table_before_output``) takes
+    its own copy through ``_extract_legacy_tables``, as does the gh#1522
+    regression beside it. Resolving instead of copying removes one
+    whole-directory copy per parametrised case, which is cheap on a Unix
+    filesystem and not on NTFS.
+    """
+
+    def _resolve(ver: str) -> Path:
+        src = _FIXTURE_ROOT / ver
+        if not (src / "RunControl.nml").exists():
+            pytest.skip(f"legacy table fixture {ver} not vendored under {_FIXTURE_ROOT}")
+        return src
+
+    return _resolve
+
+
+@pytest.fixture(scope="session")
+def forward_converted(tmp_path_factory, legacy_tables):
+    """The ``2025a`` table set forward-converted from ``ver``, once per session.
+
+    ``convert_table(<ver>, "2025a")`` is deterministic and its output is read,
+    never written to, by every caller below (``df_state_to_tables`` copies the
+    template out before touching it). Converting once per version instead of
+    once per test removes the chained per-step directory rewrite -- up to ten
+    read-modify-write passes over the whole table set for ``2016a`` -- from
+    every parametrised case that only needs the result.
+    """
+    cache: dict[str, Path] = {}
+
+    def _convert(ver: str) -> Path:
+        if ver not in cache:
+            dest = tmp_path_factory.mktemp(f"fwd-{ver}-")
+            convert_table(
+                str(legacy_tables(ver)), str(dest), ver, "2025a", validate_profiles=False
+            )
+            cache[ver] = dest
+        return cache[ver]
+
+    return _convert
 
 
 def _num(token: str):
@@ -277,18 +329,19 @@ def test_chained_forward_conversion_preserves_code_sets_when_table_reader_fails(
 
 
 @pytest.mark.parametrize("ver", _MATRIX)
-def test_legacy_table_roundtrip_is_faithful(ver, tmp_path):
+def test_legacy_table_roundtrip_is_faithful(
+    ver, tmp_path, legacy_tables, forward_converted
+):
     """``legacy -> 2025a -> legacy`` regenerates the source tables faithfully."""
-    src = _extract_legacy_tables(ver, tmp_path / "src")
-    fwd = tmp_path / "fwd"
+    src = legacy_tables(ver)
+    fwd = forward_converted(ver)
     flat = tmp_path / "flat"
     rev = tmp_path / "rev"
     cleaned = tmp_path / "cleaned"
-    for d in (fwd, flat, rev, cleaned):
+    for d in (flat, rev, cleaned):
         d.mkdir(parents=True, exist_ok=True)
 
-    # Forward to the current schema, then flatten the produced table set.
-    convert_table(str(src), str(fwd), ver, "2025a", validate_profiles=False)
+    # Flatten the forward-converted table set.
     for produced in list(fwd.rglob("SUEWS_*.txt")) + list(fwd.rglob("*.nml")):
         shutil.copyfile(produced, flat / produced.name)
 
@@ -315,18 +368,19 @@ def test_legacy_table_roundtrip_is_faithful(ver, tmp_path):
     )
 
 
-def test_runcontrol_roundtrip_preserves_keys(tmp_path):
+def test_runcontrol_roundtrip_preserves_keys(
+    tmp_path, legacy_tables, forward_converted
+):
     """RunControl.nml regenerates with identical keys and values (2018b)."""
     f90nml = pytest.importorskip("f90nml")
     ver = "2018b"
-    src = _extract_legacy_tables(ver, tmp_path / "src")
-    fwd = tmp_path / "fwd"
+    src = legacy_tables(ver)
+    fwd = forward_converted(ver)
     flat = tmp_path / "flat"
     rev = tmp_path / "rev"
-    for d in (fwd, flat, rev):
+    for d in (flat, rev):
         d.mkdir(parents=True, exist_ok=True)
 
-    convert_table(str(src), str(fwd), ver, "2025a", validate_profiles=False)
     for produced in list(fwd.rglob("SUEWS_*.txt")) + list(fwd.rglob("*.nml")):
         shutil.copyfile(produced, flat / produced.name)
     extras = R.capture_legacy_extras(src, ver)
@@ -349,14 +403,13 @@ def test_runcontrol_roundtrip_preserves_keys(tmp_path):
 # --------------------------------------------------------------------------- #
 # Full round-trip: legacy tables <-> modern YAML
 # --------------------------------------------------------------------------- #
-def _forward_to_yaml(ver: str, src: Path, tmp: Path):
+def _forward_to_yaml(tmp: Path, template: Path):
     """``legacy tables -> 2025a template -> df_state -> YAML -> df_state``.
 
-    Returns ``(template_dir, df_state)`` where ``df_state`` has been through the
-    YAML leg (the modern config round-trip), so the reverse drives off it.
+    ``template`` is the session-cached forward conversion; the returned
+    ``df_state`` has been through the YAML leg (the modern config round-trip),
+    so the reverse drives off it.
     """
-    template = tmp / "T0"
-    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
     df0 = load_InitialCond_grid_df(next(template.rglob("RunControl.nml")))
     cfg = SUEWSConfig.from_df_state(df0)
     # legacy provenance (C3), as suews-convert does
@@ -365,7 +418,7 @@ def _forward_to_yaml(ver: str, src: Path, tmp: Path):
     df = SUEWSConfig(
         **yaml.safe_load((tmp / "config.yml").read_text(encoding="utf-8"))
     ).to_df_state()
-    return template, df
+    return df
 
 
 def _reverse_via_writer(df, template: Path, ver: str, src: Path, tmp: Path) -> Path:
@@ -383,15 +436,18 @@ def _reverse_via_writer(df, template: Path, ver: str, src: Path, tmp: Path) -> P
 
 
 @pytest.mark.parametrize("ver", _MATRIX)
-def test_full_roundtrip_legacy_yaml_legacy_is_faithful(ver, tmp_path):
+def test_full_roundtrip_legacy_yaml_legacy_is_faithful(
+    ver, tmp_path, legacy_tables, forward_converted
+):
     """``legacy tables -> modern YAML -> legacy tables`` regenerates the source.
 
     Exercises the whole loop, including the ``df_state -> 2025a tables`` writer
     that closes it. Faithfulness is asserted at the same data level as the
     table-only round-trip. ``2018b`` also covers the C3 legacy-bounds path.
     """
-    src = _extract_legacy_tables(ver, tmp_path / "src")
-    template, df = _forward_to_yaml(ver, src, tmp_path)
+    src = legacy_tables(ver)
+    template = forward_converted(ver)
+    df = _forward_to_yaml(tmp_path, template)
     rev = _reverse_via_writer(df, template, ver, src, tmp_path)
 
     cleaned = tmp_path / "cleaned"
@@ -416,12 +472,9 @@ def test_full_roundtrip_legacy_yaml_legacy_is_faithful(ver, tmp_path):
     )
 
 
-def test_writer_reload_equivalence(tmp_path):
+def test_writer_reload_equivalence(tmp_path, forward_converted):
     """``load(df_state_to_tables(df_state)) == df_state`` (the writer contract)."""
-    ver = "2016a"
-    src = _extract_legacy_tables(ver, tmp_path / "src")
-    template = tmp_path / "T0"
-    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
+    template = forward_converted("2016a")
     df0 = load_InitialCond_grid_df(next(template.rglob("RunControl.nml")))
 
     written = df_state_to_tables(df0, template, tmp_path / "Tprime")
@@ -437,7 +490,9 @@ def test_writer_reload_equivalence(tmp_path):
     assert not diffs, f"reload not equivalent: {len(diffs)} cols, e.g. {diffs[:6]}"
 
 
-def test_edit_propagates_through_full_roundtrip(tmp_path):
+def test_edit_propagates_through_full_roundtrip(
+    tmp_path, legacy_tables, forward_converted
+):
     """An edit to df_state flows through the writer + reverse into the legacy table.
 
     Proves the round-trip is edit-propagating, not a snapshot: change the paved
@@ -445,9 +500,8 @@ def test_edit_propagates_through_full_roundtrip(tmp_path):
     ``Code_Paved`` carries the new value.
     """
     ver = "2016a"
-    src = _extract_legacy_tables(ver, tmp_path / "src")
-    template = tmp_path / "T0"
-    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
+    src = legacy_tables(ver)
+    template = forward_converted(ver)
     df = load_InitialCond_grid_df(next(template.rglob("RunControl.nml")))
     grid = df.index[0]
     df.loc[grid, ("alb", "(0,)")] = 0.42  # paved albedo
@@ -461,7 +515,9 @@ def test_edit_propagates_through_full_roundtrip(tmp_path):
     assert float(paved_row[nv_header.index("AlbedoMax")]) == pytest.approx(0.42)
 
 
-def test_waterdist_remainder_routes_to_correct_legacy_column(tmp_path):
+def test_waterdist_remainder_routes_to_correct_legacy_column(
+    tmp_path, forward_converted
+):
     """The waterdist final-row remainder regenerates into the right legacy column.
 
     Regression for the reverse writer passing the list-valued column spec
@@ -472,10 +528,7 @@ def test_waterdist_remainder_routes_to_correct_legacy_column(tmp_path):
     must route it to ``ToRunoff`` for impervious source surfaces (paved) and
     ``ToSoilStore`` for pervious ones (grass), zeroing the other column.
     """
-    ver = "2016a"
-    src = _extract_legacy_tables(ver, tmp_path / "src")
-    template = tmp_path / "T0"
-    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
+    template = forward_converted("2016a")
     df = load_InitialCond_grid_df(next(template.rglob("RunControl.nml")))
     grid = df.index[0]
     # waterdist source-surface positions: 0=paved (impervious), 4=grass (pervious).
@@ -588,11 +641,8 @@ def _df_state_diff_vars(df, df2):
     }
 
 
-def _mlm_chain(df, ver: str, tmp_path: Path):
+def _mlm_chain(df, ver: str, tmp_path: Path, src: Path, template: Path):
     """``df_state -> <ver> legacy tables -> 2025a -> df_state``."""
-    src = _extract_legacy_tables(ver, tmp_path / "src")
-    template = tmp_path / "T0"
-    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
     rev = _reverse_via_writer(df, template, ver, src, tmp_path)
 
     back = tmp_path / "T2"
@@ -601,7 +651,9 @@ def _mlm_chain(df, ver: str, tmp_path: Path):
 
 
 @pytest.mark.parametrize("ver", _MATRIX)
-def test_modern_to_legacy_to_modern_roundtrip(ver, tmp_path):
+def test_modern_to_legacy_to_modern_roundtrip(
+    ver, tmp_path, legacy_tables, forward_converted
+):
     """A native modern config survives ``modern -> legacy -> modern``.
 
     Drives the writer + reverse converter from the shipped sample config (no
@@ -611,7 +663,7 @@ def test_modern_to_legacy_to_modern_roundtrip(ver, tmp_path):
     canonicalisation, era-representability losses).
     """
     df = _sample_df_state()
-    df2 = _mlm_chain(df, ver, tmp_path)
+    df2 = _mlm_chain(df, ver, tmp_path, legacy_tables(ver), forward_converted(ver))
 
     unexpected = _df_state_diff_vars(df, df2) - _MLM_ALLOWED[ver]
     assert not unexpected, (
@@ -621,7 +673,9 @@ def test_modern_to_legacy_to_modern_roundtrip(ver, tmp_path):
 
 
 @pytest.mark.parametrize("ver", _MATRIX)
-def test_modern_perturbed_to_legacy_roundtrip(ver, tmp_path):
+def test_modern_perturbed_to_legacy_roundtrip(
+    ver, tmp_path, legacy_tables, forward_converted
+):
     """Perturbed values survive ``modern -> legacy -> modern`` cell-for-cell.
 
     Stresses every writer/carry path with values present in no fixture
@@ -636,7 +690,7 @@ def test_modern_perturbed_to_legacy_roundtrip(ver, tmp_path):
         assert key in df.columns, f"perturbation key missing from df_state: {key}"
         df.loc[grid, key] = value
 
-    df2 = _mlm_chain(df, ver, tmp_path)
+    df2 = _mlm_chain(df, ver, tmp_path, legacy_tables(ver), forward_converted(ver))
 
     unexpected = _df_state_diff_vars(df, df2) - _MLM_ALLOWED[ver]
     assert not unexpected, (
@@ -653,25 +707,19 @@ def test_modern_perturbed_to_legacy_roundtrip(ver, tmp_path):
     assert not lost, f"{ver} perturbations lost through the round-trip: {lost}"
 
 
-def test_cross_version_chain_2016a_modern_2018b(tmp_path):
+def test_cross_version_chain_2016a_modern_2018b(
+    tmp_path, legacy_tables, forward_converted
+):
     """Arbitrary-direction chain: ``2016a tables -> modern -> 2018b tables -> modern``.
 
     Loads the 2016a fixture into the modern representation, regenerates a
     *different* era's tables (2018b) from it, forward-converts those back, and
     confirms the two modern states agree on everything 2018b can represent.
     """
-    src_a = _extract_legacy_tables("2016a", tmp_path / "srcA")
-    _, df = _forward_to_yaml("2016a", src_a, tmp_path)
+    df = _forward_to_yaml(tmp_path, forward_converted("2016a"))
 
-    src_b = _extract_legacy_tables("2018b", tmp_path / "srcB")
-    template_b = tmp_path / "TB"
-    convert_table(
-        str(src_b),
-        str(template_b),
-        "2018b",
-        "2025a",
-        validate_profiles=False,
-    )
+    src_b = legacy_tables("2018b")
+    template_b = forward_converted("2018b")
     tmp_b = tmp_path / "legB"
     tmp_b.mkdir()
     rev_b = _reverse_via_writer(df, template_b, "2018b", src_b, tmp_b)
@@ -687,7 +735,9 @@ def test_cross_version_chain_2016a_modern_2018b(tmp_path):
     )
 
 
-def test_yaml_upgrade_chain_old_schema_to_legacy(tmp_path):
+def test_yaml_upgrade_chain_old_schema_to_legacy(
+    tmp_path, legacy_tables, forward_converted
+):
     """Full arbitrary chain: old-schema YAML -> current YAML -> legacy -> modern.
 
     Starts from the oldest vendored release config (pre-``schema_version``),
@@ -708,7 +758,9 @@ def test_yaml_upgrade_chain_old_schema_to_legacy(tmp_path):
     cfg = SUEWSConfig(**yaml.safe_load(upgraded.read_text(encoding="utf-8")))
     df = cfg.to_df_state()
 
-    df2 = _mlm_chain(df, "2016a", tmp_path)
+    df2 = _mlm_chain(
+        df, "2016a", tmp_path, legacy_tables("2016a"), forward_converted("2016a")
+    )
 
     unexpected = _df_state_diff_vars(df, df2) - _MLM_ALLOWED["2016a"]
     assert not unexpected, (

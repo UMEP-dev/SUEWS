@@ -3,12 +3,27 @@
 Load this module as a pytest plugin and set ``SUEWS_CI_METRICS`` to the output
 path. The plugin performs no additional collection or test execution: it only
 records timestamps and data already exposed by pytest hooks. On Linux, a small
-background sampler reads procfs for process-tree CPU time and peak RSS.
+background sampler reads procfs for process-tree CPU time and peak RSS. On
+every platform each xdist worker also reports its own peak resident set size
+(``getrusage`` on POSIX, ``GetProcessMemoryInfo`` on Windows) so per-worker
+memory can be compared where procfs is unavailable.
+
+Per-test records (the ``tests`` key) are additive to schema version 2: every
+consumer written against v2 reads only the keys it knows, so the version is
+unchanged. Each record carries the node id, its marker names, the outcome, and
+wall and CPU seconds per phase (setup, call, teardown). CPU is the delta of
+``os.times()`` (user + system for the process and its reaped children) taken
+around each phase in the process that runs the test, so an xdist worker
+measures its own tests and a CLI test that spawns a subprocess is charged for
+it. The values travel to the controller as attributes on the phase
+``TestReport``; xdist serialises the report's ``__dict__`` verbatim.
 """
 
 from __future__ import annotations
 
 from collections import Counter
+import ctypes
+from ctypes import wintypes
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 import hashlib
@@ -27,9 +42,23 @@ import warnings
 
 import pytest
 
+try:
+    import resource
+except ImportError:  # Windows has no resource module.
+    resource = None
+
 SCHEMA_VERSION = 2
 SUMMARY_WARNING_LIMIT = 10
 OUTCOME_NAMES = ("passed", "failed", "skipped", "xfailed", "xpassed")
+TEST_PHASES = ("setup", "call", "teardown")
+CPU_METHOD = "os.times"
+# Attribute names on the phase TestReport that carry per-test measurements
+# from the executing process to the controller.
+REPORT_CPU_ATTR = "suews_cpu_seconds"
+REPORT_MARKERS_ATTR = "suews_markers"
+REPORT_MARKER_REASONS_ATTR = "suews_marker_reasons"
+# Cost markers whose `reason=` keyword is recorded beside the marker name.
+COST_MARKERS = ("medium", "slow")
 DEFAULT_SAMPLE_INTERVAL_SECONDS = 0.25
 _ADDRESS_RE = re.compile(r"0x[0-9a-fA-F]+")
 _UUID_RE = re.compile(
@@ -45,6 +74,17 @@ class _WorkerMetrics:
     node_ids: set[str] = field(default_factory=set)
     busy_duration_seconds: float = 0.0
     finished_at_seconds: float | None = None
+    peak_rss: dict[str, Any] | None = None
+
+
+@dataclass
+class _TestMetrics:
+    """Per-phase measurements for one collected test, gathered from its reports."""
+
+    markers: list[str] = field(default_factory=list)
+    marker_reasons: dict[str, str] = field(default_factory=dict)
+    wall_seconds: dict[str, float] = field(default_factory=dict)
+    cpu_seconds: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -59,6 +99,7 @@ class _MetricsState:
     warning_counts: Counter[tuple[str, str]] = field(default_factory=Counter)
     warning_samples: dict[tuple[str, str], str] = field(default_factory=dict)
     node_outcomes: dict[str, str] = field(default_factory=dict)
+    tests: dict[str, _TestMetrics] = field(default_factory=dict)
     workers: dict[str, _WorkerMetrics] = field(default_factory=dict)
     effective_worker_count: int = 1
     uses_xdist: bool = False
@@ -76,6 +117,7 @@ class _MetricsState:
         self.warning_counts.clear()
         self.warning_samples.clear()
         self.node_outcomes.clear()
+        self.tests.clear()
         self.workers.clear()
         self.effective_worker_count = 1
         self.uses_xdist = False
@@ -249,11 +291,16 @@ def read_proc_process(
     return start_time, cpu_seconds, rss_bytes
 
 
-def _available(unit: str, value: Any) -> dict[str, Any]:
+def _available(
+    unit: str,
+    value: Any,
+    *,
+    method: str = "linux-procfs-sampling",
+) -> dict[str, Any]:
     """Build a populated resource measurement."""
     return {
         "available": True,
-        "method": "linux-procfs-sampling",
+        "method": method,
         "reason": None,
         "status": "sampled",
         "unit": unit,
@@ -276,6 +323,97 @@ def _unavailable(
         "unit": unit,
         "value": None,
     }
+
+
+WORKER_OUTPUT_PEAK_RSS_KEY = "suews_ci_metrics_peak_rss_bytes"
+WORKER_PEAK_RSS_MISSING_REASON = "Worker exited without reporting its peak RSS."
+
+
+def process_peak_rss_bytes() -> dict[str, Any]:
+    """Return the calling process's own peak resident set size in bytes.
+
+    Unlike the procfs sampler this covers one process, not its children, and
+    works on Linux, macOS and Windows. Each xdist worker reports this value to
+    the controller; in a serial run the controller's own value is the test
+    process's peak.
+    """
+    if sys.platform.startswith("win"):
+        return _windows_peak_working_set_bytes()
+    if resource is None:  # pragma: no cover - POSIX always ships resource
+        return _unavailable("bytes", "The resource module is unavailable.")
+    max_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # ru_maxrss is bytes on macOS and kibibytes on Linux and the BSDs.
+    scale = 1 if sys.platform == "darwin" else 1024
+    return _available("bytes", int(max_rss) * scale, method="getrusage-ru-maxrss")
+
+
+class _ProcessMemoryCounters(ctypes.Structure):
+    """PROCESS_MEMORY_COUNTERS from psapi.h (SIZE_T fields are pointer-sized)."""
+
+    _fields_ = [
+        ("cb", wintypes.DWORD),
+        ("PageFaultCount", wintypes.DWORD),
+        ("PeakWorkingSetSize", ctypes.c_size_t),
+        ("WorkingSetSize", ctypes.c_size_t),
+        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+        ("PagefileUsage", ctypes.c_size_t),
+        ("PeakPagefileUsage", ctypes.c_size_t),
+    ]
+
+
+def _windows_memory_info_prototype() -> tuple[Any, Any]:
+    """Bind GetCurrentProcess and GetProcessMemoryInfo with declared prototypes.
+
+    The prototypes must be declared: without ``restype`` and ``argtypes``
+    ctypes passes the pseudo-handle from ``GetCurrentProcess`` (``(HANDLE)-1``)
+    as a 32-bit int, and on 64-bit Windows ``GetProcessMemoryInfo`` rejects the
+    truncated handle with ERROR_INVALID_HANDLE (6).
+    """
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    get_current_process = kernel32.GetCurrentProcess
+    get_current_process.argtypes = []
+    get_current_process.restype = wintypes.HANDLE
+    get_process_memory_info = psapi.GetProcessMemoryInfo
+    get_process_memory_info.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_ProcessMemoryCounters),
+        wintypes.DWORD,
+    ]
+    get_process_memory_info.restype = wintypes.BOOL
+    return get_current_process, get_process_memory_info
+
+
+def _windows_peak_working_set_bytes() -> dict[str, Any]:
+    """Read PeakWorkingSetSize for the current process through psapi.
+
+    Any failure is reported as an explicit ``error`` measurement, never raised.
+    """
+    counters = _ProcessMemoryCounters()
+    counters.cb = ctypes.sizeof(counters)
+    try:
+        get_current_process, get_process_memory_info = _windows_memory_info_prototype()
+        succeeded = get_process_memory_info(
+            get_current_process(), ctypes.byref(counters), counters.cb
+        )
+    except (OSError, AttributeError) as error:
+        return _unavailable(
+            "bytes", f"GetProcessMemoryInfo unavailable: {error}", status="error"
+        )
+    if not succeeded:
+        code = ctypes.get_last_error()
+        return _unavailable(
+            "bytes",
+            f"GetProcessMemoryInfo failed with error {code}: "
+            f"{ctypes.FormatError(code).strip()}",
+            status="error",
+        )
+    return _available(
+        "bytes", int(counters.PeakWorkingSetSize), method="win32-peak-working-set"
+    )
 
 
 _STATE = _MetricsState()
@@ -369,6 +507,8 @@ def _worker_records() -> tuple[list[dict[str, Any]], float, float]:
             "finished_at_seconds": finish,
             **inventory,
             "node_ids": node_ids,
+            "peak_rss_bytes": worker.peak_rss
+            or _unavailable("bytes", WORKER_PEAK_RSS_MISSING_REASON),
             "worker_id": worker_id,
         })
     if len(finishes) < 2:
@@ -379,6 +519,30 @@ def _worker_records() -> tuple[list[dict[str, Any]], float, float]:
         round(latest - min(finishes), 6),
         round(latest - median(finishes), 6),
     )
+
+
+def _phase_seconds(values: dict[str, float]) -> dict[str, float]:
+    """Serialise per-phase seconds with an explicit total; a missing phase is 0."""
+    phases = {phase: round(values.get(phase, 0.0), 6) for phase in TEST_PHASES}
+    phases["total"] = round(sum(values.get(phase, 0.0) for phase in TEST_PHASES), 6)
+    return phases
+
+
+def _test_records() -> list[dict[str, Any]]:
+    """Serialise one record per collected test, sorted by node id."""
+    records = []
+    for node_id in sorted(set(_STATE.tests) | set(_STATE.node_outcomes)):
+        test = _STATE.tests.get(node_id, _TestMetrics())
+        records.append({
+            "cpu_method": CPU_METHOD,
+            "cpu_seconds": _phase_seconds(test.cpu_seconds),
+            "marker_reasons": dict(sorted(test.marker_reasons.items())),
+            "markers": sorted(test.markers),
+            "node_id": node_id,
+            "outcome": _STATE.node_outcomes.get(node_id),
+            "wall_seconds": _phase_seconds(test.wall_seconds),
+        })
+    return records
 
 
 def _metrics(exit_code: int, session_seconds: float) -> dict[str, Any]:
@@ -412,7 +576,11 @@ def _metrics(exit_code: int, session_seconds: float) -> dict[str, Any]:
             "workers": workers,
             "xdist": _STATE.uses_xdist,
         },
-        "resources": sampler.measurements(),
+        "resources": {
+            **sampler.measurements(),
+            "controller_peak_rss_bytes": process_peak_rss_bytes(),
+        },
+        "tests": _test_records(),
         "warnings": _warning_records(),
     }
 
@@ -428,6 +596,13 @@ def _write_json(path: Path, metrics: dict[str, Any]) -> None:
     temporary_path.replace(path)
 
 
+def _format_bytes(measurement: dict[str, Any]) -> str:
+    """Render a byte measurement as MiB, or its status when unavailable."""
+    if not measurement["available"]:
+        return measurement["status"]
+    return f"{measurement['value'] / (1024 * 1024):.1f} MiB"
+
+
 def _append_step_summary(path: Path, metrics: dict[str, Any]) -> None:
     """Append a compact human view to the GitHub Actions step summary."""
     phases = metrics["phases"]
@@ -438,8 +613,15 @@ def _append_step_summary(path: Path, metrics: dict[str, Any]) -> None:
     cpu = resources["process_tree_cpu_seconds"]
     rss = resources["process_tree_peak_rss_bytes"]
     cpu_value = f"{cpu['value']:.3f} s" if cpu["available"] else cpu["status"]
-    rss_value = (
-        f"{rss['value'] / (1024 * 1024):.1f} MiB" if rss["available"] else rss["status"]
+    rss_value = _format_bytes(rss)
+    controller_value = _format_bytes(resources["controller_peak_rss_bytes"])
+    worker_peaks = [
+        worker["peak_rss_bytes"]["value"]
+        for worker in execution["workers"]
+        if worker["peak_rss_bytes"]["available"]
+    ]
+    worker_value = (
+        f"{max(worker_peaks) / (1024 * 1024):.1f} MiB" if worker_peaks else "none"
     )
     lines = [
         "## Pytest CI metrics",
@@ -454,6 +636,8 @@ def _append_step_summary(path: Path, metrics: dict[str, Any]) -> None:
         f"| Worker finish skew | {execution['worker_finish_skew_seconds']:.3f} s |",
         f"| Process-tree CPU | {cpu_value} |",
         f"| Process-tree peak RSS | {rss_value} |",
+        f"| Controller peak RSS | {controller_value} |",
+        f"| Max worker peak RSS | {worker_value} |",
         "",
         f"Coverage fingerprint: `{inventory['node_id_sha256']}`",
         "",
@@ -515,6 +699,22 @@ def pytest_xdist_setupnodes(config: pytest.Config, specs: list[Any]) -> None:
 
 
 @pytest.hookimpl(optionalhook=True)
+def pytest_testnodedown(node: Any, error: object | None) -> None:
+    """Keep the peak RSS each worker reported in its final output."""
+    worker = _STATE.workers.setdefault(str(node.gateway.id), _WorkerMetrics())
+    output = getattr(node, "workeroutput", None)
+    reported = (
+        output.get(WORKER_OUTPUT_PEAK_RSS_KEY) if isinstance(output, dict) else None
+    )
+    if isinstance(reported, dict):
+        worker.peak_rss = reported
+    elif error is not None:
+        worker.peak_rss = _unavailable(
+            "bytes", f"Worker went down with an error: {error}", status="error"
+        )
+
+
+@pytest.hookimpl(optionalhook=True)
 def pytest_xdist_node_collection_finished(node: Any, ids: list[str]) -> None:
     """Capture the common xdist inventory reported by the first worker."""
     if not _STATE.node_ids:
@@ -530,9 +730,97 @@ def pytest_runtestloop(session: pytest.Session):
     _STATE.tests_seconds += time.perf_counter() - started
 
 
+def _cpu_clock() -> float:
+    """CPU seconds consumed so far by this process and its reaped children."""
+    times = os.times()
+    return times.user + times.system + times.children_user + times.children_system
+
+
+_CPU_STASH = pytest.StashKey[dict[str, float]]()
+
+
+def _measure_phase(item: pytest.Item, phase: str):
+    """Wrap one runtest phase and stash its CPU delta on the item."""
+    started = _cpu_clock()
+    yield
+    item.stash.setdefault(_CPU_STASH, {})[phase] = max(0.0, _cpu_clock() - started)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_setup(item: pytest.Item):
+    """Measure the CPU cost of fixture setup in the executing process."""
+    yield from _measure_phase(item, "setup")
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item: pytest.Item):
+    """Measure the CPU cost of the test body in the executing process."""
+    yield from _measure_phase(item, "call")
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None):
+    """Measure the CPU cost of fixture teardown in the executing process."""
+    del nextitem
+    yield from _measure_phase(item, "teardown")
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
+    """Attach the phase's CPU delta and the item's marker names to its report.
+
+    The phase hookwrapper above has already run to completion when pytest
+    builds the report, so the stash holds this phase's value. Plain attributes
+    survive xdist because it serialises the report's ``__dict__`` and rebuilds
+    it through ``TestReport(**kwargs)``.
+    """
+    outcome = yield
+    report = outcome.get_result()
+    cpu_by_phase = item.stash.get(_CPU_STASH, {})
+    if call.when in cpu_by_phase:
+        setattr(report, REPORT_CPU_ATTR, round(cpu_by_phase[call.when], 6))
+    if call.when == "setup":
+        setattr(
+            report,
+            REPORT_MARKERS_ATTR,
+            sorted({marker.name for marker in item.iter_markers()}),
+        )
+        setattr(report, REPORT_MARKER_REASONS_ATTR, _marker_reasons(item))
+
+
+def _marker_reasons(item: pytest.Item) -> dict[str, str]:
+    """Collect ``reason=`` keyword arguments from the cost markers on an item.
+
+    ``pytest.mark.slow(reason="...")`` is how a test states that it stays out
+    of routine PR runs for a cause other than CPU cost; the cost-marker check
+    reads the reason from the artefact instead of the source.
+    """
+    reasons: dict[str, str] = {}
+    for marker in item.iter_markers():
+        if marker.name in COST_MARKERS and "reason" in marker.kwargs:
+            reasons.setdefault(marker.name, str(marker.kwargs["reason"]))
+    return reasons
+
+
+def _record_test(report: pytest.TestReport) -> None:
+    """Fold one phase report into the per-test record."""
+    test = _STATE.tests.setdefault(report.nodeid, _TestMetrics())
+    test.wall_seconds[report.when] = max(0.0, float(report.duration))
+    cpu_seconds = getattr(report, REPORT_CPU_ATTR, None)
+    if cpu_seconds is not None:
+        test.cpu_seconds[report.when] = float(cpu_seconds)
+    markers = getattr(report, REPORT_MARKERS_ATTR, None)
+    if markers:
+        test.markers = [str(marker) for marker in markers]
+    reasons = getattr(report, REPORT_MARKER_REASONS_ATTR, None)
+    if reasons:
+        test.marker_reasons = {str(name): str(text) for name, text in dict(reasons).items()}
+
+
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
-    """Record outcomes and xdist assignments from existing reports."""
+    """Record outcomes, per-test measurements and xdist assignments."""
     _record_outcome(report)
+    _record_test(report)
     worker_id = getattr(report, "worker_id", None)
     if worker_id is None:
         return
@@ -589,6 +877,10 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     if sampler is not None:
         sampler.stop()
     if hasattr(session.config, "workerinput"):
+        # xdist sends config.workeroutput to the controller after this hook.
+        output = getattr(session.config, "workeroutput", None)
+        if isinstance(output, dict):
+            output[WORKER_OUTPUT_PEAK_RSS_KEY] = process_peak_rss_bytes()
         return
     output = os.environ.get("SUEWS_CI_METRICS")
     if not output:

@@ -39,6 +39,13 @@ fixture is `test/fixtures/ci_metrics/schema-v2-xdist.json`.
 | `execution` | Effective worker count, xdist flag and worker timeline |
 | `resources` | Process-tree CPU seconds and peak resident bytes with availability metadata |
 | `warnings` | Counts grouped by normalised warning fingerprint, retaining one raw sample message |
+| `tests` | One record per collected test: node id, marker names and their `reason=` keywords, outcome, and wall and CPU seconds for the setup, call and teardown phases (plus their total) |
+
+Per-test CPU is the `os.times()` delta (process plus reaped children) taken
+around each phase in the executing process; under xdist the worker carries it
+to the controller as `TestReport` attributes. `cpu_seconds` and `wall_seconds`
+are keyed by phase. The `medium` and `slow` cost markers are checked against
+these records by `scripts/lint/check_cost_markers.py`.
 
 For xdist, each `execution.workers` record contains the assigned node IDs,
 their count/hash, `busy_duration_seconds` and `finished_at_seconds`.

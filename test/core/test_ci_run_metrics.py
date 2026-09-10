@@ -217,9 +217,9 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
     )
     wheel_jobs = [
         f"Build and test ({platform}) / cp312-{platform}"
-        for platform in ("manylinux x86_64", "macosx arm64", "win AMD64")
+        for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64")
     ]
-    for platform in ("manylinux x86_64", "macosx arm64", "win AMD64"):
+    for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64"):
         api_job = f"Build and test ({platform}) / API cross-CPython tests / cp312-x"
         patterns = [k for k in declared_needs if fnmatchcase(api_job, k)]
         dependencies = {d for k in patterns for d in declared_needs[k]}

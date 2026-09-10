@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 10 Sep 2026
 
+- [maintenance] The nightly tolerance-spread matrix (platform x CPython bookend) moved into `tolerance-spread-reusable.yml`, called once from the wheel workflow as `Tolerance spread`, so the checks list shows one group with a `cpXYZ-<platform> <arch>` child per cell instead of eight top-level entries; artefact names, trigger and never-gating behaviour are unchanged. The convention that a matrix of test or report jobs is one reusable-workflow call named for the group is recorded in `.claude/rules/ci/conventions.md` and enforced by a structure test (#1794)
 - [maintenance] The legacy-table round-trip tests resolve the vendored fixture set without copying it and forward-convert each legacy version once per pytest session (`legacy_tables` and `forward_converted` fixtures) instead of rebuilding both per parametrised case; the file was the only one in the API lane materially above the platform-wide 1.35x Windows-to-Linux ratio, at 1.66x (36 s beyond what the baseline predicts), at 1.66x, and it drops from 71.9 s to 66.8 s on a Linux machine with assertions unchanged (#1791)
 - [maintenance] Added a one-day sweep over every physics-option value and hypothesis property tests for the attribution, resampling and forcing-interpolation numerics (#1789)
 - [maintenance] Added an api-workers lane to the hosted pytest scheduler benchmark (serial vs xdist workers in ABBA order on Linux, Windows and macOS), per-worker peak RSS in the CI metrics plugin on every platform, and a summariser that tabulates the trials (#1786)

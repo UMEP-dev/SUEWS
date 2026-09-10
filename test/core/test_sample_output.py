@@ -196,12 +196,8 @@ def _write_run_inputs(
     return config_path, forcing_rows
 
 
-def _run_engine(binary: Path, config_path: Path, run_dir: Path, timeout: int) -> bytes:
-    """Run the engine and return the Arrow output as bytes.
-
-    Read to bytes rather than handing back a path: pyarrow keeps the file open,
-    which blocks TemporaryDirectory cleanup on Windows.
-    """
+def _run_engine(binary: Path, config_path: Path, run_dir: Path, timeout: int) -> Path:
+    """Run the engine and return the path of its Arrow output."""
     result = subprocess.run(
         [str(binary), "run", str(config_path)],
         capture_output=True,
@@ -217,21 +213,39 @@ def _run_engine(binary: Path, config_path: Path, run_dir: Path, timeout: int) ->
     output_path = run_dir / "suews_output.arrow"
     if not output_path.exists():
         raise AssertionError("Engine did not produce suews_output.arrow")
-    return output_path.read_bytes()
+    return output_path
 
 
-def _read_engine_output(arrow_bytes: bytes, columns) -> pd.DataFrame:
+def _read_engine_output(output_path: Path, columns) -> pd.DataFrame:
     """Return the requested columns of the Arrow output as a DataFrame.
 
-    Projects before converting to pandas. A full year is ~1.1 GB across 1350
-    columns; converting all of them and copying the slice peaked at 3.3 GB to
-    compare nine, against 1.2 GB when projected first.
+    Reads through a memory map and projects before materialising anything, so
+    only the pages holding the requested columns are ever faulted in. The
+    engine writes all eleven output groups: a full year is 1,350 columns over
+    105,408 rows, about 1.1 GB on disk, and this comparison reads nine of those
+    columns. Slurping the file into ``bytes`` and calling ``read_all()`` cost
+    that whole 1.1 GB in this process; projecting off the map costs the nine
+    columns.
+
+    Every column is copied out of the map before returning, and the map is
+    closed here rather than being left for the caller: pyarrow holding the file
+    open blocks TemporaryDirectory cleanup on Windows.
     """
+    import pyarrow as pa
     import pyarrow.ipc as ipc
 
-    table = ipc.open_file(arrow_bytes).read_all()
-    present = [name for name in columns if name in table.schema.names]
-    return table.select(present).to_pandas()
+    with pa.memory_map(str(output_path), "rb") as source:
+        reader = ipc.open_file(source)
+        present = [name for name in columns if name in reader.schema.names]
+        table = reader.read_all().select(present)
+        # to_pandas() may hand back arrays that alias the map, which would
+        # dangle once it is closed. Copy each column explicitly instead.
+        data = {
+            name: table.column(name).to_numpy(zero_copy_only=False).copy()
+            for name in present
+        }
+        del table, reader
+    return pd.DataFrame(data)
 
 
 def _compare_frames(df_actual, df_expected, variables) -> tuple[bool, list, list]:
@@ -658,9 +672,12 @@ class TestSampleOutput(TestCase):
         Why the CLI binary rather than SUEWSSimulation, which is what users call:
         memory. A full year through the library holds the whole 105,408 x 1295
         output as a DataFrame, measured at 8.2 GB peak resident memory. The CLI
-        writes Arrow, so the columns under test can be projected before
-        conversion, measured at 1.2 GB. Under xdist the difference decides
-        whether this test can run at all on hosted runners.
+        writes Arrow, so the columns under test can be read straight off a
+        memory map without the other ten output groups ever being faulted in,
+        measured at 128 MiB in this process. Under xdist the difference decides
+        whether this test can run at all on hosted runners. What the engine
+        subprocess itself costs while producing that file is a separate matter
+        and is not reduced here.
 
         What that trades away is real and worth knowing: this path exercises the
         engine and its Arrow output, not the PyO3 bridge, DataFrame construction
@@ -700,9 +717,9 @@ class TestSampleOutput(TestCase):
                 f"Validating first {validation_steps} timesteps "
                 f"from {forcing_rows} forcing rows"
             )
-            arrow_bytes = _run_engine(engine, config_path, run_dir, timeout)
+            output_path = _run_engine(engine, config_path, run_dir, timeout)
+            df_actual = _read_engine_output(output_path, TOLERANCE_CONFIG)
 
-        df_actual = _read_engine_output(arrow_bytes, TOLERANCE_CONFIG)
         if len(df_actual) < validation_steps:
             self.fail(
                 "Engine produced fewer rows than requested: "

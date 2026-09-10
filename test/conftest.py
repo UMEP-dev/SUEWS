@@ -377,7 +377,11 @@ def pytest_collection_finish(session):
 # memoising by forcing window rather than always the full
 # range - see its own docstring for the copy contract.
 #
-# All six fixtures are lazy (nothing runs at import or collection time) and
+# `sample_dailystate_full_year` is the same idea for the one window that is
+# too wide to memoise whole: it runs the full year once and keeps only the
+# DailyState group.
+#
+# All seven fixtures are lazy (nothing runs at import or collection time) and
 # session-scoped, so each underlying sample run happens at most once per
 # `pytest` invocation, however many tests request it.
 
@@ -457,6 +461,37 @@ def sample_run_output(completed_sample_sim):
     Same READ-ONLY contract as ``completed_sample_sim``.
     """
     return completed_sample_sim.output
+
+
+@pytest.fixture(scope="session")
+def sample_dailystate_full_year(sample_data_loaded):
+    """The DailyState group of one full-year sample run, kept without the rest.
+
+    READ-ONLY, shared across the whole test session: consumers must not mutate
+    the returned frame.
+
+    Rows are the day boundaries at which DailyState is written; the all-NaN
+    timesteps in between are already dropped, which is what every consumer did
+    for itself.
+
+    Why this is not ``sample_run_cached()``: that factory memoises the whole
+    output frame for the session and hands each caller a ``.copy()`` of it. The
+    full-year window is 105,408 rows across roughly 1,295 columns, about 1.1 GB
+    per frame, so five DailyState tests going through the factory kept one full
+    frame alive for the session and built a second on every call while reading
+    52 columns on about 1,000 rows. Projecting the group here lets the wide
+    frame be released as soon as the run returns.
+    """
+    import gc
+
+    df_state_init, df_forcing = sample_data_loaded
+    simulation = supy.SUEWSSimulation.from_state(df_state_init.copy())
+    simulation.update_forcing(df_forcing)
+    output = simulation.run()
+    df_dailystate = output.df.loc[:, "DailyState"].dropna(how="all").copy()
+    del output, simulation
+    gc.collect()
+    return df_dailystate
 
 
 @pytest.fixture(scope="session")

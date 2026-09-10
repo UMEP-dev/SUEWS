@@ -215,15 +215,23 @@ rule below applies to this cache and to any build cache added later.
   restored on every run for a month while cargo recompiled all ~100 crates:
   the key omitted the compiler, and rustc had moved from 1.97.1 to 1.98.0
   with the runner image (nightly 34075203398, 7 Sep 2026).
-- **`restore-keys` fall back within the same platform and profile only**:
-  first the same compiler (bridge inputs changed), then any compiler (the
-  registry is still useful). Cargo's own fingerprints discard whatever a
-  fallback cannot reuse, so a fallback costs time, never correctness.
+- **`restore-keys` fall back within the same platform, profile and compiler
+  only** (bridge inputs changed). There is deliberately no any-compiler
+  fallback: cargo ignores objects built by another compiler but does not
+  delete them, so a fallback restore would be saved back and the entry would
+  grow by one object set per fallback (seen on #1787: 116 MB against 199 MB
+  for the same key with and without a fallback). A fallback costs time,
+  never correctness.
 - **The scheduled nightly restores nothing but still saves.** Restoring
-  nothing means one cold build per day exists on every platform; saving is
-  what refreshes the master-scope entries, because pull requests and the
-  merge queue can only read caches saved on their own ref or on master, and
-  the nightly is the only event that builds wheels on master.
+  nothing means one cold build per day exists on every platform, a
+  staleness canary. Saving creates the master-scope entry whenever the key
+  changes (a primary-key hit is never re-saved, so on a stable key the
+  nightly's save is a no-op): pull requests and the merge queue can only
+  read caches saved on their own ref or on master, and the nightly is the
+  only event that builds wheels on master, so the queue warms the night
+  after a key change and stays warm until the next one. Only the release
+  profile is saved; the checked profile is built by the nightly alone with
+  its restore skipped, so a checked entry could never be read.
 - **Merge-queue runs never save.** The `gh-readonly-queue/...` ref is deleted
   with its queue entry, so a cache saved there is unreadable and only spends
   the repository's 10 GB budget.

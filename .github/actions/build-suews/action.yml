@@ -117,12 +117,12 @@ runs:
           .cargo-cache
           .rust-target-cache
         key: ${{ steps.rust-cache-key.outputs.key }}
-        # Fallbacks stay within the same platform and profile: first the same
-        # compiler (bridge inputs changed), then any compiler (registry still
-        # useful; cargo discards the objects it cannot reuse).
+        # The only fallback stays within the same platform, profile and
+        # compiler (bridge inputs changed). No any-compiler fallback: cargo
+        # ignores objects from another compiler rather than deleting them, so
+        # such a fallback would be saved back and grow the entry every time.
         restore-keys: |
           ${{ steps.rust-cache-key.outputs.toolchain-prefix }}
-          ${{ steps.rust-cache-key.outputs.prefix }}-
 
     - name: Report the Rust build cache lookup
       shell: bash
@@ -330,10 +330,13 @@ runs:
 
     - name: Save the Rust build cache
       # Only a miss is worth saving: an existing primary-key entry cannot be
-      # overwritten, and a merge-queue ref is deleted with its queue entry, so
-      # nothing could ever read a cache saved there. On the scheduled nightly
-      # the restore step is skipped and this step saves the cold build.
-      if: github.event_name != 'merge_group' && steps.rust-cache.outputs.cache-hit != 'true'
+      # overwritten. A merge-queue ref is deleted with its queue entry and a
+      # tag ref is never restored from, so nothing could read a cache saved
+      # there. Only the release profile is saved: the checked profile is built
+      # by the nightly alone, whose restore is skipped, so its entries would
+      # never be read. On the scheduled nightly the restore step is skipped
+      # and this step saves the cold release build under the master scope.
+      if: github.event_name != 'merge_group' && github.ref_type != 'tag' && inputs.build_profile != 'checked' && steps.rust-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
       with:
         path: |

@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 10 Sep 2026
 
-- [maintenance] The wheel build's Rust cache is keyed on the platform, build profile, rustc version and a hash of the bridge inputs (it hashed only `Cargo.lock`, so entries saved on 8 Aug by rustc 1.97.1 kept hitting after the runner images moved to 1.98.0 and cargo recompiled all ~100 crates on every job); restore and save are split so the scheduled nightly builds cold but still refreshes the master-scope entries, merge-queue runs never save, the Linux container installs the host's rustc version, and the lookup outcome is logged; keying rule recorded in `.claude/rules/ci/conventions.md` (#1787)
+- [maintenance] The wheel build's Rust cache is keyed on the platform, build profile, rustc version and a hash of the bridge inputs (it hashed only `Cargo.lock`, so entries saved on 8 Aug by rustc 1.97.1 kept hitting after the runner images moved to 1.98.0 and cargo recompiled all ~100 crates on every job); restore and save are split so the scheduled nightly builds cold but still refreshes the master-scope entries, merge-queue runs never save, the Linux container installs the host's rustc version, and the lookup outcome is logged; keying rule recorded in `.claude/rules/ci/conventions.md`; Linux wheels, shipped ones included, now build with the runner image's rustc rather than the newest stable (#1787)
 
 ### 9 Sep 2026
 

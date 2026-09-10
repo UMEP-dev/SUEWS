@@ -122,6 +122,8 @@ def fetch(repo: str, workflow: str, limit: int) -> tuple[list, dict]:
         ]
     )
     runs = payload.get("workflow_runs", [])[:limit]
+    if limit > 100:
+        raise SystemExit("--limit is capped at 100: the runs API returns one page of at most 100")
     jobs_by_run_id = {}
     for run in runs:
         jobs_payload = _gh_json(
@@ -162,7 +164,9 @@ def render(summary: dict[str, Any], workflow: str) -> str:
         "",
         f"Green streak from the newest run: {summary['green_streak']}",
         "A run is green when it concluded success and no gating job failed;",
-        "that is when the report_scheduled_run alert stays silent.",
+        "that is when the report_scheduled_run alert stays silent (a needed job",
+        "that was skipped counts as green here, but its upstream failure reddens the",
+        "run conclusion, so the two views agree in practice).",
     ]
     return "\n".join(lines)
 
@@ -172,7 +176,12 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", default=DEFAULT_REPO)
     parser.add_argument("--workflow", default=DEFAULT_WORKFLOW)
-    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="scheduled runs to examine, at most 100 (one page of the runs API)",
+    )
     parser.add_argument(
         "--runs-json",
         type=Path,

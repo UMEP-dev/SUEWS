@@ -440,7 +440,7 @@ trusted, which is what the alert job below is for.
 
 | Job | Runs on | Produces | Who reads it |
 |---|---|---|---|
-| `build_wheels` at test tier `all` | every event, but `all` only on schedule / tag / manual `full` | the `cp*` wheels and the `ci-metrics-*` artefacts | anyone diagnosing a lane's cost with `scripts/suews/analyse_ci_run.py` or `benchmark_ci_metrics.py` |
+| `build_wheels` at test tier `all` | every event, but `all` only on schedule, tag and manual dispatch (`test_tier: all`, the dispatch default) | the `cp*` wheels and the `ci-metrics-*` artefacts | anyone diagnosing a lane's cost with `scripts/suews/analyse_ci_run.py` or `benchmark_ci_metrics.py` |
 | `build_wheels_checked` | `schedule` only | `checked-cp*` wheels, built `-O0 -fcheck=all`, running the full physics tier | whoever investigates a Fortran runtime error; the release-profile run in the same night is the comparison |
 | `tolerance_spread` | `schedule`, or `workflow_dispatch` with the `tolerance_spread` input | one `tolerance-spread-<platform>-<arch>-<cpXY>` JSON per matrix cell, 30-day retention | the tolerance derivation for `test/core/test_sample_output.py`, via `tolerance_spread.py summarise` (see `.claude/rules/tests/patterns.md`) |
 | `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md` |
@@ -458,10 +458,13 @@ which the nightly restores nothing from but still saves, under "Build Caches".
 
 ### What may redden the nightly
 
-Only the genuine test tiers and the infrastructure they need: `build_wheels`,
+Only the genuine test tiers and the infrastructure they need. The alert
+watches exactly `report_scheduled_run`'s needs: `build_wheels`,
 `build_wheels_checked`, `test_api_cross_python`, `check_test_markers`,
-`build_mcp`, `create_nightly_tag` and `deploy_testpypi`. These are exactly
-`report_scheduled_run`'s needs.
+`build_mcp`, `create_nightly_tag` and `deploy_testpypi`. The matrix and tag
+jobs they depend on (`determine_matrix`, `detect-changes`,
+`verify-release-tag`) are not in that list, but a failure there skips the
+needed jobs, which reaches the alert as a non-success result.
 
 The recording jobs -- `tolerance_spread` and `cost_markers` -- carry
 `continue-on-error: true` and feed neither `report_scheduled_run` nor `pr-gate`.

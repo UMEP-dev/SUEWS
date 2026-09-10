@@ -25,6 +25,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_V2_FIXTURE = PROJECT_ROOT / "test/fixtures/ci_metrics/schema-v2-xdist.json"
 
 
+# One Windows scheduler quantum: the granularity of the process CPU clock
+# that os.times() reads (GetProcessTimes); see the xdist per-test assertions.
+CPU_CLOCK_TICK_SECONDS = 0.015625
+
+
 @pytest.mark.smoke
 def test_plugin_writes_parseable_metrics_and_step_summary(tmp_path: Path) -> None:
     """A pytest run records its stable inventory, timings, workers and warnings."""
@@ -354,7 +359,7 @@ import pytest
 
 @pytest.mark.parametrize("case", range(8))
 def test_parallel(case):
-    time.sleep(0.01)
+    time.sleep(0.05)
     assert case >= 0
 """,
         encoding="utf-8",
@@ -435,10 +440,15 @@ def test_parallel(case):
     assert all("parametrize" in record["markers"] for record in records)
     assert all(record["cpu_seconds"]["total"] >= 0 for record in records)
     # time.sleep holds wall time without burning CPU: the wall column records
-    # it and the CPU column does not.
-    assert all(record["wall_seconds"]["call"] >= 0.01 for record in records)
+    # it and the CPU column does not. The CPU clock behind os.times() is
+    # quantised: on Windows GetProcessTimes advances by one scheduler quantum
+    # (15.625 ms) at a time, so a phase can be charged a whole tick that the
+    # perf_counter wall clock did not see. Sleep for several ticks and allow
+    # one tick of slack rather than asserting sub-tick agreement.
+    assert all(record["wall_seconds"]["call"] >= 0.05 for record in records)
     assert all(
-        record["cpu_seconds"]["call"] <= record["wall_seconds"]["call"]
+        record["cpu_seconds"]["call"]
+        <= record["wall_seconds"]["call"] + CPU_CLOCK_TICK_SECONDS
         for record in records
     )
 

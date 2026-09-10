@@ -365,3 +365,25 @@ The checker is designed to be:
 - **Informative** (shows what's correct with `--show-info`)
 
 To modify checking behaviour, edit `scripts/suews/check_naming_conventions.py`.
+
+## Nightly streak
+
+**Script**: `nightly_streak.py`
+
+Lists the last N scheduled runs of `build-publish_to_pypi.yml` with their
+conclusion and the display names of any failing job, and counts the leading
+green streak:
+
+```bash
+python scripts/suews/nightly_streak.py            # last 30, text
+python scripts/suews/nightly_streak.py --json     # machine-readable
+```
+
+A run counts as green when it concluded `success` and no gating job failed --
+the condition under which the `report_scheduled_run` alert stays silent. The
+recording jobs (`tolerance_spread`, `cost_markers`) are `continue-on-error` and
+are listed separately, so their failures do not break the streak. Runs and jobs
+come from `gh api`; `--runs-json` and `--jobs-json` read saved payloads instead.
+The verification criterion for the nightly-as-scientific-tier arrangement is
+thirty consecutive green runs; see `.claude/rules/ci/conventions.md` ("The
+Nightly as the Scientific Tier").

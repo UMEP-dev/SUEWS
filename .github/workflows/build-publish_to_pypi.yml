@@ -723,6 +723,15 @@ jobs:
   # and a cancelled run never reaches deploy_testpypi. This job runs on every
   # scheduled run, opens or updates one tracking issue while the nightly is
   # red, and closes it on the next green run.
+  #
+  # Its needs are exactly the jobs that must run and pass on a schedule; the
+  # recording jobs (tolerance_spread, cost_markers) are deliberately absent, so
+  # a wide spread or a drifted cost marker never opens an issue. Anything other
+  # than success counts as bad, skipped included: on a schedule every one of
+  # these jobs is expected to run, so a skip means an upstream job
+  # (determine_matrix, create_nightly_tag) failed and the run built nothing.
+  # Counting only failure and cancelled would report that night as green and
+  # close the tracking issue.
   report_scheduled_run:
     name: Report scheduled run outcome
     runs-on: ubuntu-latest
@@ -741,8 +750,8 @@ jobs:
           script: |
             const needs = JSON.parse(process.env.NEEDS_JSON);
             const bad = Object.entries(needs)
-              .filter(([, v]) => v.result === 'failure' || v.result === 'cancelled')
-              .map(([k, v]) => `${k}: ${v.result}`);
+              .filter(([, v]) => v.result !== 'success')
+              .map(([k, v]) => `${k}: ${v.result || 'no result'}`);
             const title = 'Nightly scheduled run is failing';
             const marker = '<!-- nightly-run-tracker -->';
             const { data: open } = await github.rest.issues.listForRepo({

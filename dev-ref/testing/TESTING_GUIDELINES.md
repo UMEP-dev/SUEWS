@@ -218,6 +218,13 @@ Assignment by Event" for the authoritative mapping):
 `full`); every other tier expression explicitly excludes them
 (`and not qgis`), so they never gate a PR or the merge queue.
 
+The `all` tier is only part of what the nightly does. The scheduled run is the
+project's scientific tier: it also builds the checked Fortran profile, records
+the cross-platform tolerance spread and checks the cost markers against measured
+CPU seconds, none of which gate a PR. What runs there, what may redden it, and
+where a new expensive check belongs are in `.claude/rules/ci/conventions.md`
+("The Nightly as the Scientific Tier").
+
 ## 6. Coverage Standards
 
 ### Coverage Targets

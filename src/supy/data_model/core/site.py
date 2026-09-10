@@ -522,15 +522,18 @@ class LAIParams(BaseModel):
             idx_str = str(indices) if isinstance(indices, int) else str(indices)
             return df.loc[grid_id, (col_name, idx_str)]
 
-        # Extract basic LAI parameters
+        # Extract basic LAI parameters. The DataFrame columns keep the legacy
+        # fused spellings for the Fortran bridge; the keys are the canonical
+        # field names so the constructor does not trip its own deprecation
+        # shim.
         lai_params = {
-            "baset": get_df_value("baset", (veg_idx,)),
-            "gddfull": get_df_value("gddfull", (veg_idx,)),
-            "basete": get_df_value("basete", (veg_idx,)),
-            "sddfull": get_df_value("sddfull", (veg_idx,)),
-            "laimin": get_df_value("laimin", (veg_idx,)),
-            "laimax": get_df_value("laimax", (veg_idx,)),
-            "laitype": int(get_df_value("laitype", (veg_idx,))),
+            "base_temperature": get_df_value("baset", (veg_idx,)),
+            "gdd_full": get_df_value("gddfull", (veg_idx,)),
+            "base_temperature_senescence": get_df_value("basete", (veg_idx,)),
+            "sdd_full": get_df_value("sddfull", (veg_idx,)),
+            "lai_min": get_df_value("laimin", (veg_idx,)),
+            "lai_max": get_df_value("laimax", (veg_idx,)),
+            "lai_type": int(get_df_value("laitype", (veg_idx,))),
         }
 
         # Convert scalar parameters to RefValue
@@ -1261,31 +1264,36 @@ class SnowParams(BaseModel):
             SnowParams: Instance of SnowParams.
         """
         # Extract scalar attributes
+        # DataFrame columns keep the legacy fused spellings; the keys are the
+        # canonical field names so the constructor does not trip its own
+        # deprecation shim.
         scalar_params = {
-            "crwmax": df.loc[grid_id, ("crwmax", "0")],
-            "crwmin": df.loc[grid_id, ("crwmin", "0")],
-            "narp_emis_snow": df.loc[grid_id, ("narp_emis_snow", "0")],
-            "preciplimit": df.loc[grid_id, ("preciplimit", "0")],
-            "preciplimitalb": df.loc[grid_id, ("preciplimitalb", "0")],
-            "snowalbmax": df.loc[grid_id, ("snowalbmax", "0")],
-            "snowalbmin": df.loc[grid_id, ("snowalbmin", "0")],
-            "snowdensmin": df.loc[grid_id, ("snowdensmin", "0")],
-            "snowdensmax": df.loc[grid_id, ("snowdensmax", "0")],
-            "snowlimbldg": df.loc[grid_id, ("snowlimbldg", "0")],
-            "snowlimpaved": df.loc[grid_id, ("snowlimpaved", "0")],
-            "tau_a": df.loc[grid_id, ("tau_a", "0")],
-            "tau_f": df.loc[grid_id, ("tau_f", "0")],
-            "tau_r": df.loc[grid_id, ("tau_r", "0")],
-            "tempmeltfact": df.loc[grid_id, ("tempmeltfact", "0")],
-            "radmeltfact": df.loc[grid_id, ("radmeltfact", "0")],
+            "water_holding_capacity_max": df.loc[grid_id, ("crwmax", "0")],
+            "water_holding_capacity_min": df.loc[grid_id, ("crwmin", "0")],
+            "narp_emissivity_snow": df.loc[grid_id, ("narp_emis_snow", "0")],
+            "temperature_rain_snow_threshold": df.loc[grid_id, ("preciplimit", "0")],
+            "precipitation_threshold_albedo_reset": df.loc[
+                grid_id, ("preciplimitalb", "0")
+            ],
+            "snow_albedo_max": df.loc[grid_id, ("snowalbmax", "0")],
+            "snow_albedo_min": df.loc[grid_id, ("snowalbmin", "0")],
+            "snow_density_min": df.loc[grid_id, ("snowdensmin", "0")],
+            "snow_density_max": df.loc[grid_id, ("snowdensmax", "0")],
+            "snow_depth_limit_building": df.loc[grid_id, ("snowlimbldg", "0")],
+            "snow_depth_limit_paved": df.loc[grid_id, ("snowlimpaved", "0")],
+            "tau_cold_snow": df.loc[grid_id, ("tau_a", "0")],
+            "tau_melting_snow": df.loc[grid_id, ("tau_f", "0")],
+            "tau_refreezing_snow": df.loc[grid_id, ("tau_r", "0")],
+            "temperature_melt_factor": df.loc[grid_id, ("tempmeltfact", "0")],
+            "radiation_melt_factor": df.loc[grid_id, ("radmeltfact", "0")],
         }
 
         # Convert scalar parameters to RefValue
         scalar_params = {key: RefValue(value) for key, value in scalar_params.items()}
 
-        # Extract HourlyProfile (DF column stays "snowprof_24hr" for the Fortran bridge;
-        # the Pydantic shim renames the kwarg to `snow_profile_24hr` on the way in).
-        snowprof_24hr = HourlyProfile.from_df_state(df, grid_id, "snowprof_24hr")
+        # Extract HourlyProfile (DF column stays "snowprof_24hr" for the Fortran
+        # bridge; the constructor takes the canonical `snow_profile_24hr`).
+        snow_profile_24hr = HourlyProfile.from_df_state(df, grid_id, "snowprof_24hr")
 
         # Snow's OHM parameters live at surface index 7 (df_state convention).
         ohm_params = {}
@@ -1301,7 +1309,7 @@ class SnowParams(BaseModel):
                 ohm_params[field_name] = RefValue(df.loc[grid_id, (col, "(7,)")])
 
         # Construct and return the SnowParams instance
-        return cls(snowprof_24hr=snowprof_24hr, **ohm_params, **scalar_params)
+        return cls(snow_profile_24hr=snow_profile_24hr, **ohm_params, **scalar_params)
 
 
 class LandCover(BaseModel):
@@ -1970,7 +1978,7 @@ class ArchetypeProperties(BaseModel):
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
         cols = {("gridiv", "0"): grid_id}
-        for field_name in self.model_fields:
+        for field_name in type(self).model_fields:
             if field_name in excluded_fields:
                 continue
             field_val = getattr(self, field_name)
@@ -2548,7 +2556,7 @@ class StebbsProperties(BaseModel):
         # `dhwwatervolume`). The Fortran/Rust bridge still keys on the fused
         # lowercase spelling; renaming bridge columns is Tier B/C work.
         cols = {("gridiv", "0"): grid_id}
-        for field_name in self.model_fields:
+        for field_name in type(self).model_fields:
             if field_name in excluded_fields:
                 continue
             field_val = getattr(self, field_name)

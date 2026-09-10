@@ -27,6 +27,9 @@ resource and warning details. It intentionally changes warning fingerprints
 to hash normalised rather than raw text, so consumers must check
 `schema_version` before interpreting fingerprints. The deterministic consumer
 fixture is `test/fixtures/ci_metrics/schema-v2-xdist.json`.
+Since the api-workers lane, every worker record carries `peak_rss_bytes` (the
+worker process's own peak RSS on Linux, macOS and Windows) and `resources`
+carries `controller_peak_rss_bytes`; both are additive to schema v2.
 
 | Field | Meaning |
 |---|---|
@@ -37,11 +40,13 @@ fixture is `test/fixtures/ci_metrics/schema-v2-xdist.json`.
 | `phases` | Collection, test-loop and whole-session wall durations in seconds |
 | `inventory` | Collected node count and SHA-256 of sorted node IDs |
 | `execution` | Effective worker count, xdist flag and worker timeline |
-| `resources` | Process-tree CPU seconds and peak resident bytes with availability metadata |
+| `resources` | Process-tree CPU seconds and peak resident bytes (Linux), plus the controller's own peak RSS, each with availability metadata |
 | `warnings` | Counts grouped by normalised warning fingerprint, retaining one raw sample message |
 
 For xdist, each `execution.workers` record contains the assigned node IDs,
-their count/hash, `busy_duration_seconds` and `finished_at_seconds`.
+their count/hash, `busy_duration_seconds`, `finished_at_seconds` and
+`peak_rss_bytes`, the worker process's own peak resident size reported through
+xdist's worker output when the worker finishes.
 Assignment means a node ID observed in that worker's pytest reports. Busy time
 is the sum of setup, call and teardown report durations. Finish time is the
 arrival of the worker's last test report, relative to the controller's
@@ -55,13 +60,31 @@ observed cumulative total for an exited child. Peak RSS is the largest sampled
 sum of resident bytes across the live tree. `sample_count`, interval, status,
 method and reason are always explicit. Short-lived processes between samples
 can be missed, and procfs access/exit races are ignored safely. macOS and
-Windows records are explicitly unavailable rather than reported as zero.
+Windows process-tree records are explicitly unavailable rather than reported as
+zero. The per-process peaks (`controller_peak_rss_bytes` and each worker's
+`peak_rss_bytes`) are available on all three platforms: `getrusage(RUSAGE_SELF)`
+on Linux and macOS, `GetProcessMemoryInfo` on Windows. They cover one process
+each and exclude its children.
 
 Warning grouping replaces workspace/temp roots, memory addresses and UUIDs in
 the fingerprint input. The first unmodified message remains in `message` for
 diagnosis, and the grouped representation is in `normalised_message`. Other
 numbers and paths are preserved so scientifically different warnings do not
 collapse together.
+
+The total across `warnings[].count` is a tracked number. On 9 September 2026 it
+fell from 9261 to 690 in the cp312 API lane, of which the `DeprecationWarning`
+share fell from 8754 to 684, when the `from_df_state` reconstructors stopped
+passing deprecated field names to their own constructors and the test fixtures
+moved to current names; a supy `DeprecationWarning` is now an error under
+`filterwarnings` in `pyproject.toml`. The deprecation share is now about 684 on the
+cp312 API lane, almost all of it from the tests that opt out because their
+subject is the deprecated surface itself; expect it stable at that baseline. When the
+total rises above it, read the new fingerprints rather than the total: a fixture or an
+internal caller has regressed to a deprecated spelling (fix the caller, do not
+add a filter), or a dependency has started warning (pin or adapt). Widening the
+`filterwarnings` opt-out list is the last resort, and only for a test whose
+subject is the deprecated surface itself.
 
 ### Wheel-job phase evidence
 
@@ -114,6 +137,52 @@ This manual same-job result is the acceptance evidence. Ordinary PR runs and
 unrelated historical runs cannot establish the overhead bound because GitHub
 host load is uncontrolled.
 
+## Tolerance spread of the sample comparison
+
+**Script**: `tolerance_spread.py`
+
+`test/core/test_sample_output.py` accepts each output variable of the
+full-year sample run within a tolerance, and every tolerance there is a bare
+number: nothing records the cross-platform and cross-CPython spread the numbers
+are meant to absorb. This script records that spread so the tolerances can be
+derived from it.
+
+```bash
+# Run the full-year sample comparison with every tolerance set to zero
+python scripts/suews/tolerance_spread.py measure \
+  --output tolerance-spread/tolerance-spread-manylinux-x86_64-cp312.json
+
+# Print the spread across a set of artefacts beside the current tolerance
+python scripts/suews/tolerance_spread.py summarise artefacts/ [--markdown]
+```
+
+`measure` reuses the test module's loader, variable list, run helpers and
+deviation arithmetic (`deviation_arrays`), so the numbers are exactly what the
+comparator sees. Per variable it records the maximum absolute and maximum
+relative deviation, the timestamp and grid where each occurs, the actual and
+expected values there, the count of exactly equal points, and the tolerance the
+test currently resolves on that platform and CPython. The header carries the
+platform key, CPython version, supy version, git SHA (`--git-sha`, else
+`GITHUB_SHA`, else `git rev-parse HEAD`) and Fortran build profile
+(`--build-profile`, else `SUEWS_BUILD_PROFILE`, else `unknown`; the wheel does
+not expose it). The exit code is 0 however large the spread is. When
+`GITHUB_STEP_SUMMARY` is set, the same table is appended as Markdown.
+
+The `tolerance_spread` job in `build-publish_to_pypi.yml` runs `measure` on
+every scheduled run, on each built platform for the two CPython bookends, and
+uploads one artefact per cell named
+`tolerance-spread-<platform>-<arch>-<cpXY>` (retained 30 days). The same job
+runs on `workflow_dispatch` when the `tolerance_spread` input is set. It never
+fails the nightly: it feeds neither `report_scheduled_run` nor the PR gate.
+
+`summarise` accepts artefact files or directories (the layout `gh run download
+<id> --pattern 'tolerance-spread-*'` produces), lists the artefacts with their
+SHA, supy version and build profile, warns when they span more than one SHA,
+and prints per variable the largest absolute and relative deviation across all
+of them, which artefact and timestamp produced each, and the range of current
+tolerances. Deriving a tolerance from the spread is deliberately left to the
+reader of that table.
+
 ## Hosted pytest scheduler comparison
 
 **Workflow**: `Hosted pytest scheduler ABBA`
@@ -159,6 +228,29 @@ immutable failure under policy v1's 10% hard relative-RSS gate. Policy v2 is a
 prospective correction: the raw trials may be re-evaluated under its
 hosted-runner headroom criterion, but the v1 manifest must not be rewritten or
 described as having passed.
+
+### The `api-workers` lane
+
+The same workflow has a second lane, selected with the `lane` dispatch input
+(`physics-scheduler` is the default and runs the comparison above). `api-workers`
+measures whether the api lane can leave one process: on Linux, Windows and macOS
+it installs the exact `cp312-<platform>-<arch>` wheel and `suews-mcp-dist` from
+the source run and runs the standard api selection
+(`api and (core or not slow) and not qgis`) four times in S/P/P/S order:
+serial, `-n N --dist worksteal`, `-n N --dist worksteal`, serial, with N = 4 on
+Linux and Windows and 2 on macOS (7 GB runners). Every trial writes a schema-v2
+metrics artefact under `api-abba/`.
+
+`summarise_abba_trials.py` tabulates those artefacts (`--trial LABEL=PATH` in run
+order) into the step summary and `api-abba/summary.json`: session and test-phase
+wall time, exit code and outcome counts, the Linux process-tree peak RSS, the
+largest single-process peak (a worker's, or the serial controller's), the sum of
+worker peaks, and the worker finish skew and tail over the median. It reports
+and does not gate; a trial that never wrote its artefact appears as `missing`,
+which is what a runner-killed worker lane looks like. Per-process peaks come
+from the plugin's `peak_rss_bytes` worker field and `controller_peak_rss_bytes`
+resource (`getrusage` on POSIX, `GetProcessMemoryInfo` on Windows); they cover
+one process each, so only the Linux process-tree sample bounds the whole tree.
 
 ## Naming Convention Checker
 

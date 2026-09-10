@@ -93,8 +93,12 @@ recipes and the installation docs.
 ## Build System Notes
 
 - `FCFLAGS` env var is NOT forwarded through `make dev` -> meson-python pipeline
-  - Compiler flags are hard-coded in `meson.build` (`fast_build` vs full flag sets)
-  - To add debug flags like `-fcheck=bounds`, modify `meson.build` directly
+  - Fortran compiler flags live in `src/suews/Makefile.gfortran`, selected by
+    the build profile: `SUEWS_BUILD_PROFILE=release` (`-O3`, no checks, the
+    default) or `checked` (runtime checks; the nightly physics tier builds it
+    too). `src/supy/run_make.py` and `src/suews_bridge/build.rs` read the
+    same variable
+  - Checked build locally, for debugging physics: `SUEWS_BUILD_PROFILE=checked make dev`
 - `make clean` removes `build/` but meson-python may cache compiled extensions elsewhere
   - For a truly clean rebuild: `make clean && pip cache purge && make dev`
 

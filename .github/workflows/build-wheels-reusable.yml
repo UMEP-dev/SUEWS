@@ -26,6 +26,16 @@ on:
         required: false
         type: string
         default: 'false'
+      build_profile:
+        description: 'Fortran build profile: release (optimised, no checks, the default) or checked (runtime checks; the nightly physics tier)'
+        required: false
+        type: string
+        default: 'release'
+      artifact_prefix:
+        description: 'Prefix for the wheel and metrics artefact names (the checked nightly build uses "checked-" so it never collides with the release wheels)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -75,4 +85,6 @@ jobs:
           python: ${{ matrix.python }}
           test_tier: ${{ inputs.test_tier }}
           is_testpypi_build: ${{ inputs.is_testpypi_build }}
+          build_profile: ${{ inputs.build_profile }}
+          artifact_prefix: ${{ inputs.artifact_prefix }}
           metrics_host_dir: ${{ runner.temp }}/suews-ci-metrics

@@ -1,7 +1,8 @@
 ---
 paths:
   - src/suews/src/suews_phys_*.f95
-  - test/fixtures/data_test/sample_output.csv.gz
+  - test/fixtures/data_test/sample_output_2012-*.csv
+  - test/fixtures/data_test/provenance.json
   - test/fixtures/data_test/stebbs_test/**
   - test/fixtures/benchmark1/**
 ---
@@ -44,7 +45,8 @@ A PR is physics-changing -- and MUST be labelled `0-physics:change` (see below)
   physics backend under `src/suews_bridge/` behind the `physics` feature.
 - **Moves a reference output.** Any change that alters a vendored reference
   fixture:
-  - `test/fixtures/data_test/sample_output.csv.gz` (main SuPy reference run),
+  - `test/fixtures/data_test/sample_output_2012-*.csv` (main SuPy reference
+    run, twelve monthly shards),
   - `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` (STEBBS
     reference run),
   - `test/fixtures/benchmark1/*.pkl` (benchmark reference outputs).
@@ -120,13 +122,23 @@ PR explicitly linked from it). A physics change and its fixture update must not
 drift across separate, unlinked PRs -- that is the exact failure #1575 had to
 repair after the fact.
 
+A refresh of the main SuPy reference must also carry the regenerated
+`test/fixtures/data_test/provenance.json` sidecar, which records the SuPy build,
+git commit, compiler and platform that produced the numbers, and the SHA-256 of
+each shard. Run `scripts/suews/gen_sample_output.py`, which writes both; do not
+hand-edit the shards. The shards are written at seven significant figures
+(`float_format="%.7g"`), the precision justified against the tightest test
+tolerance in `test/fixtures/data_test/sample_output_io.py`, so a refresh
+produced any other way will not match the committed reference's shape.
+`test_reference_provenance_matches_shards` fails when the sidecar and the shards
+disagree, so a refresh without it does not merge.
+
 ### 4. The full `-m physics` tier runs before merge
 
 The `slow` physics regression tests must run as a required check on a
 `0-physics:change` PR, so output shifts surface in the PR/merge-queue rather than
-in the nightly. The CI wiring for this is tracked as the second PR of gh#1576
-(see "CI gate" below); until it lands, `audit-pr` requires a manual full-tier run
-(`pytest -m physics`) and a link to its result.
+in the nightly. The CI wiring landed with gh#1576 (see "CI gate" below); read
+"What `physics-full` adds over `standard`" for what the tier currently delivers.
 
 ---
 
@@ -165,22 +177,55 @@ When reviewing a PR whose diff matches the physics-change triggers:
 - If the change touches an owned subsystem, confirm the owner's sign-off is
   present (or request it) -> blocking until resolved.
 - Confirm any moved reference fixture is refreshed in this PR (or a linked PR).
-- Confirm the full `-m physics` tier (including `slow`) has run green -- via the
-  required check once the CI wiring lands, or via a linked manual run in the
-  interim.
+- Confirm the full `-m physics` tier (including `slow`) has run green: the
+  `physics-full` wheel-build checks on a labelled PR.
 
-## CI gate (the second PR of gh#1576)
+## CI gate (gh#1576)
 
 `.github/scripts/determine-matrix.sh` selects `test_tier=standard` for both
-`pull_request` (ready) and `merge_group`. Standard now retains `core` + `slow`
+`pull_request` (ready) and `merge_group`. Standard retains `core` + `slow`
 regressions while excluding non-core `slow` tests. Only `schedule` (nightly)
-and tag/full-dispatch use `test_tier=all`, which is why the physics-full label
-override remains necessary for all physics regressions.
+and tag/full-dispatch use `test_tier=all`.
 
-The CI wiring bumps the tier to include the `slow` physics tests when a PR
-carries `0-physics:change`, making the full physics regression a required check
-before merge. This is implemented in the follow-up CI PR; this rule documents the
-contract the wiring must satisfy.
+When a PR carries `0-physics:change`, the same script selects
+`test_tier=physics-full` instead, in both contexts, so the `slow` physics tests
+run as a required check before merge. The physics axis then runs `-m physics`
+(`.github/actions/build-suews/action.yml`); the api axis is unchanged.
+
+## What `physics-full` adds over `standard`
+
+Today: nothing. The physics axis of `standard` runs
+`-m "physics and (core or not slow)"` and `physics-full` runs `-m physics`, so
+the only tests the label can add are those matching
+`physics and slow and not core`, and that expression collects zero nodes: on
+9 September 2026 (master at `ce29700498`) both tiers collected the same 178
+physics nodes, because the two `slow` physics regressions
+(`test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation_full_year`
+and `::TestSTEBBSOutput::test_stebbs_building_energy_outputs`) are also
+`core` and already run in `standard`. The label's present value is the
+evidence and sign-off contract above, not extra test coverage.
+
+A collection check keeps this paragraph honest.
+`test/core/test_physics_tier_delta.py::test_physics_full_tier_adds_exactly_what_the_rule_records`
+(a `core` test, so `standard` and every fuller tier and `make test` run it;
+logic in `scripts/lint/check_physics_tier_delta.py`) collects
+`physics and slow and not core` with pytest itself and compares the node ids
+with the list recorded below, failing on a difference in either direction: an
+unrecorded test (it would run only in `physics-full` and in the nightly, and
+nobody said so) or a recorded pattern that matches nothing (the rule would
+claim coverage the tier no longer adds). When you add a `slow` physics test
+that is not `core`, either mark it `core` too so `standard` keeps running it,
+or record its node id below (one per line; `*` and `?` wildcards, so
+`path::test_name[*]` covers a parametrised test) and rewrite the paragraph
+above. When a recorded test gains `core` or goes away, remove it. The check
+cannot run in the "Check pytest marker axis" job, which has no built supy to
+collect with.
+
+<!-- physics-full-only nodes: begin -->
+```text
+(none)
+```
+<!-- physics-full-only nodes: end -->
 
 ## Related
 

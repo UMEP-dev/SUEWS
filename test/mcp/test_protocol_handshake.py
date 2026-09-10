@@ -27,6 +27,12 @@ pytestmark = [pytest.mark.api, pytest.mark.smoke]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 _HANDSHAKE_REQUEST_TIMEOUT = timedelta(seconds=30)
+# Ceiling on any single request in the concurrency tests below. It sits well
+# above the CLI cost on every CI host and well below pytest-timeout's 600 s,
+# so a server that never answers fails here with an ``McpError`` naming the
+# request instead of running the lane into its job timeout, which is how the
+# scheduled Windows lane was lost for 20 nights (gh#1768).
+_CONCURRENT_REQUEST_TIMEOUT = timedelta(seconds=120)
 
 
 _mcp_session = pytest.importorskip(
@@ -295,7 +301,11 @@ async def _run_baseline_then_concurrent(
     )
 
     async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
+        async with ClientSession(
+            read,
+            write,
+            read_timeout_seconds=_CONCURRENT_REQUEST_TIMEOUT,
+        ) as session:
             await session.initialize()
 
             # 1. Warm-up + baseline measurement. This call also primes any

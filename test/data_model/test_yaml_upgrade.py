@@ -77,6 +77,8 @@ class TestYamlUpgradeModule:
         reloaded = yaml.safe_load(out.read_text(encoding="utf-8"))
         assert reloaded["schema_version"] == CURRENT_SCHEMA_VERSION
 
+    # The upgrade handler carries pre-rename spellings by design.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_upgraded_yaml_parses_under_current_validator(
         self, signed_yaml: Path, tmp_path: Path
     ):
@@ -463,6 +465,8 @@ class TestSuewsConvertYamlPath:
         assert ".yml" in result.output
         assert "YAML" in result.output or "cross-release" in result.output
 
+    # The signed legacy YAML under test is on deprecated spellings.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_yaml_input_end_to_end(self, signed_yaml: Path, tmp_path: Path):
         """`suews-convert -i old.yml -o new.yml` routes via `upgrade_yaml`."""
         # ARRANGE

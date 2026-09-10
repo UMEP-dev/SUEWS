@@ -42,11 +42,19 @@ pytestmark = pytest.mark.physics
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
-# The reference output is stored as twelve monthly plain-CSV shards;
-# load_sample_output reconstructs the full-year frame. See the split/combine
-# convention in fixtures/data_test/sample_output_io.py.
+# The reference output is stored as twelve monthly plain-CSV shards written at
+# seven significant figures, plus a provenance.json sidecar. The shards are
+# parsed once per session by the `sample_reference` fixture in test/conftest.py,
+# not per test: the full-year frame costs a few seconds of CSV parsing and
+# every reader wants the same immutable copy. See the split/combine convention
+# and the precision justification in fixtures/data_test/sample_output_io.py.
 sys.path.insert(0, str(test_data_dir))
-from sample_output_io import load_sample_output  # noqa: E402
+from sample_output_io import (  # noqa: E402
+    REFERENCE_FLOAT_FORMAT,
+    column_names_sha256,
+    read_reference_provenance,
+    shard_identities,
+)
 
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
 # Default the smoke path to one model day. Set SUEWS_FAIL_FAST_STEPS to a larger
@@ -196,12 +204,8 @@ def _write_run_inputs(
     return config_path, forcing_rows
 
 
-def _run_engine(binary: Path, config_path: Path, run_dir: Path, timeout: int) -> bytes:
-    """Run the engine and return the Arrow output as bytes.
-
-    Read to bytes rather than handing back a path: pyarrow keeps the file open,
-    which blocks TemporaryDirectory cleanup on Windows.
-    """
+def _run_engine(binary: Path, config_path: Path, run_dir: Path, timeout: int) -> Path:
+    """Run the engine and return the path of its Arrow output."""
     result = subprocess.run(
         [str(binary), "run", str(config_path)],
         capture_output=True,
@@ -217,21 +221,39 @@ def _run_engine(binary: Path, config_path: Path, run_dir: Path, timeout: int) ->
     output_path = run_dir / "suews_output.arrow"
     if not output_path.exists():
         raise AssertionError("Engine did not produce suews_output.arrow")
-    return output_path.read_bytes()
+    return output_path
 
 
-def _read_engine_output(arrow_bytes: bytes, columns) -> pd.DataFrame:
+def _read_engine_output(output_path: Path, columns) -> pd.DataFrame:
     """Return the requested columns of the Arrow output as a DataFrame.
 
-    Projects before converting to pandas. A full year is ~1.1 GB across 1350
-    columns; converting all of them and copying the slice peaked at 3.3 GB to
-    compare nine, against 1.2 GB when projected first.
+    Reads through a memory map and projects before materialising anything, so
+    only the pages holding the requested columns are ever faulted in. The
+    engine writes all eleven output groups: a full year is 1,350 columns over
+    105,408 rows, about 1.1 GB on disk, and this comparison reads nine of those
+    columns. Slurping the file into ``bytes`` and calling ``read_all()`` cost
+    that whole 1.1 GB in this process; projecting off the map costs the nine
+    columns.
+
+    Every column is copied out of the map before returning, and the map is
+    closed here rather than being left for the caller: pyarrow holding the file
+    open blocks TemporaryDirectory cleanup on Windows.
     """
+    import pyarrow as pa
     import pyarrow.ipc as ipc
 
-    table = ipc.open_file(arrow_bytes).read_all()
-    present = [name for name in columns if name in table.schema.names]
-    return table.select(present).to_pandas()
+    with pa.memory_map(str(output_path), "rb") as source:
+        reader = ipc.open_file(source)
+        present = [name for name in columns if name in reader.schema.names]
+        table = reader.read_all().select(present)
+        # to_pandas() may hand back arrays that alias the map, which would
+        # dangle once it is closed. Copy each column explicitly instead.
+        data = {
+            name: table.column(name).to_numpy(zero_copy_only=False).copy()
+            for name in present
+        }
+        del table, reader
+    return pd.DataFrame(data)
 
 
 def _compare_frames(df_actual, df_expected, variables) -> tuple[bool, list, list]:
@@ -389,6 +411,34 @@ def get_tolerance_for_variable(
     return tolerance
 
 
+def deviation_arrays(actual, expected):
+    """Return (abs_diff, rel_diff, valid_mask, nan_mismatch) for two equal-shape arrays.
+
+    This is the arithmetic the comparator applies before any tolerance is
+    consulted, factored out so scripts/suews/tolerance_spread.py can record the
+    raw cross-platform deviation with exactly the comparator's definitions: the
+    relative deviation divides by ``|expected| + eps``, and ``valid_mask`` is
+    False only where both arrays are NaN.
+    """
+    actual = np.asarray(actual)
+    expected = np.asarray(expected)
+    if actual.shape != expected.shape:
+        raise ValueError(f"Shape mismatch: {actual.shape} vs {expected.shape}")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        abs_diff = np.abs(actual - expected)
+        # Use expected value for relative difference calculation
+        # Add small epsilon to avoid division by zero
+        rel_diff = abs_diff / (np.abs(expected) + np.finfo(float).eps)
+
+    actual_nan = np.isnan(actual)
+    expected_nan = np.isnan(expected)
+    nan_mismatch = actual_nan != expected_nan
+    # Ignore positions where both are NaN
+    valid_mask = ~(actual_nan & expected_nan)
+    return abs_diff, rel_diff, valid_mask, nan_mismatch
+
+
 def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
     """
     Compare arrays using same logic as numpy.allclose but with detailed reporting.
@@ -430,25 +480,15 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
         )
 
     # Calculate differences
-    with np.errstate(divide="ignore", invalid="ignore"):
-        abs_diff = np.abs(actual - expected)
-        # Use expected value for relative difference calculation
-        # Add small epsilon to avoid division by zero
-        rel_diff = abs_diff / (np.abs(expected) + np.finfo(float).eps)
+    abs_diff, rel_diff, valid_mask, nan_mismatch = deviation_arrays(actual, expected)
 
     # Check tolerance using same logic as numpy.allclose
     within_tol = (abs_diff <= atol) | (rel_diff <= rtol)
 
     # Handle NaN values
-    actual_nan = np.isnan(actual)
-    expected_nan = np.isnan(expected)
-    nan_mismatch = actual_nan != expected_nan
-
     if np.any(nan_mismatch):
         return False, f"NaN mismatch for {var_name}: NaN positions differ"
 
-    # Ignore positions where both are NaN
-    valid_mask = ~(actual_nan & expected_nan)
     within_tol = within_tol | ~valid_mask
 
     # Generate report
@@ -514,6 +554,14 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
 class TestSampleOutput(TestCase):
     """Dedicated test class for validating SUEWS outputs against reference data."""
 
+    # A TestCase method cannot take a fixture as an argument, so the
+    # session-scoped reference is bound onto the instance by an autouse
+    # fixture. This is what keeps the twelve shards parsed once per pytest
+    # invocation rather than once per test method.
+    @pytest.fixture(autouse=True)
+    def _bind_sample_reference(self, sample_reference):
+        self.df_ref = sample_reference
+
     def setUp(self):
         """Set up test environment."""
         # Clear any cached data from previous tests
@@ -563,7 +611,7 @@ class TestSampleOutput(TestCase):
         )
         df_output = output.df
 
-        df_ref = load_sample_output(test_data_dir)
+        df_ref = self.df_ref
 
         variables_to_test = list(TOLERANCE_CONFIG.keys())
         failed_variables = []
@@ -640,9 +688,12 @@ class TestSampleOutput(TestCase):
         Why the CLI binary rather than SUEWSSimulation, which is what users call:
         memory. A full year through the library holds the whole 105,408 x 1295
         output as a DataFrame, measured at 8.2 GB peak resident memory. The CLI
-        writes Arrow, so the columns under test can be projected before
-        conversion, measured at 1.2 GB. Under xdist the difference decides
-        whether this test can run at all on hosted runners.
+        writes Arrow, so the columns under test can be read straight off a
+        memory map without the other ten output groups ever being faulted in,
+        measured at 128 MiB in this process. Under xdist the difference decides
+        whether this test can run at all on hosted runners. What the engine
+        subprocess itself costs while producing that file is a separate matter
+        and is not reduced here.
 
         What that trades away is real and worth knowing: this path exercises the
         engine and its Arrow output, not the PyO3 bridge, DataFrame construction
@@ -661,7 +712,7 @@ class TestSampleOutput(TestCase):
         sample_config = sample_dir / "sample_config.yml"
         assert sample_config.is_file(), f"Sample config not found: {sample_config}"
 
-        df_ref = load_sample_output(test_data_dir)
+        df_ref = self.df_ref
         print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
 
         validation_steps = (
@@ -682,9 +733,9 @@ class TestSampleOutput(TestCase):
                 f"Validating first {validation_steps} timesteps "
                 f"from {forcing_rows} forcing rows"
             )
-            arrow_bytes = _run_engine(engine, config_path, run_dir, timeout)
+            output_path = _run_engine(engine, config_path, run_dir, timeout)
+            df_actual = _read_engine_output(output_path, TOLERANCE_CONFIG)
 
-        df_actual = _read_engine_output(arrow_bytes, TOLERANCE_CONFIG)
         if len(df_actual) < validation_steps:
             self.fail(
                 "Engine produced fewer rows than requested: "
@@ -722,6 +773,77 @@ class TestSampleOutput(TestCase):
             f"Engine vs reference failed for: {', '.join(failed)}\n"
             + "\n".join(report),
         )
+
+
+# ============================================================================
+# REFERENCE PROVENANCE
+# ============================================================================
+
+
+def test_shard_identity_ignores_line_endings(tmp_path):
+    """A CRLF checkout of a shard (git autocrlf on Windows) has the same
+    identity as the LF original, so the sidecar assertion holds everywhere."""
+    lf = tmp_path / "lf"
+    crlf = tmp_path / "crlf"
+    lf.mkdir()
+    crlf.mkdir()
+    body = "a,b\n1,2\n3,4\n"
+    (lf / "sample_output_2012-01.csv").write_bytes(body.encode())
+    (crlf / "sample_output_2012-01.csv").write_bytes(body.replace("\n", "\r\n").encode())
+    assert shard_identities(lf) == shard_identities(crlf)
+    assert shard_identities(lf)[0]["size_bytes"] == len(body)
+
+
+@pytest.mark.core
+@pytest.mark.smoke
+def test_reference_provenance_matches_shards(sample_reference, sample_reference_dir):
+    """The provenance sidecar describes the reference actually on disk.
+
+    The sidecar records which SuPy build, compiler and platform produced the
+    reference, so a later refresh can be told apart from a drifted checkout.
+    That is only worth anything if the sidecar and the shards cannot fall out
+    of step, which is what this asserts: the shard set, each shard's bytes, the
+    row and column counts and the column names must all match what the
+    generator recorded.
+
+    The check is on file bytes rather than on a hash of the loaded frame, so it
+    cannot fail because a pandas hashing implementation changed underneath it.
+    A sidecar that is stale, missing a shard, or absent altogether fails here
+    rather than being noticed the next time somebody wonders where the numbers
+    came from.
+    """
+    provenance = read_reference_provenance(sample_reference_dir)
+
+    assert provenance["float_format"] == REFERENCE_FLOAT_FORMAT, (
+        "sidecar records a different write precision than the fixture module "
+        f"defines: {provenance['float_format']!r} vs {REFERENCE_FLOAT_FORMAT!r}"
+    )
+    assert provenance["rows"] == len(sample_reference)
+    assert provenance["columns"] == sample_reference.shape[1]
+    assert provenance["column_names_sha256"] == column_names_sha256(sample_reference), (
+        "reference columns differ from the set the sidecar was written for"
+    )
+
+    recorded = {shard["name"]: shard for shard in provenance["shards"]}
+    on_disk = {shard["name"]: shard for shard in shard_identities(sample_reference_dir)}
+    assert recorded.keys() == on_disk.keys(), (
+        "shard set differs from the sidecar: "
+        f"only on disk {sorted(on_disk.keys() - recorded.keys())}, "
+        f"only in sidecar {sorted(recorded.keys() - on_disk.keys())}"
+    )
+    mismatched = [
+        name
+        for name in sorted(on_disk)
+        if on_disk[name]["sha256"] != recorded[name]["sha256"]
+    ]
+    assert not mismatched, (
+        f"shard contents differ from the sidecar: {', '.join(mismatched)} -- "
+        "regenerate the reference with scripts/suews/gen_sample_output.py so "
+        "the sidecar travels with the numbers"
+    )
+
+    build = provenance["build"]
+    assert build["supy_version"], "sidecar records no SuPy version"
 
 
 if __name__ == "__main__":

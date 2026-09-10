@@ -1,8 +1,13 @@
-# Reusable workflow: build SUEWS abi3 wheels with a matrix strategy.
+# Reusable workflow: build SUEWS abi3 wheels with a matrix strategy, and
+# optionally run the api cross-CPython lane on the wheel as soon as it exists.
 #
 # Called by build-publish_to_pypi.yml. One cp312-abi3 wheel per (OS, arch)
-# covers cp312..cp3xx. By isolating the matrix here, the caller job can use
-# a static name that displays cleanly when skipped.
+# covers cp312..cp3xx. The caller passes one platform per call (a matrix over
+# its platform list), so the api lane below waits for its own platform's
+# wheel only: Linux and macOS api tests start when their wheel is built
+# instead of when the slowest build (Windows) has finished. A caller that
+# passes several platforms in one call still works; its api lane then waits
+# for all of them.
 
 name: Build wheels (reusable)
 
@@ -36,6 +41,16 @@ on:
         required: false
         type: string
         default: ''
+      run_api_tests:
+        description: 'Run the api cross-CPython lane (test-api-cross-python-reusable.yml) on this call''s platforms once their wheels exist; the lane also needs the suews-mcp-dist artefact, so the caller must depend on the job that uploads it'
+        required: false
+        type: boolean
+        default: false
+      api_python_json:
+        description: 'JSON array of test-time CPython tags for the api lane (e.g. ["cp312","cp314"]); only read when run_api_tests is true'
+        required: false
+        type: string
+        default: '[]'
 
 permissions:
   contents: read
@@ -88,3 +103,17 @@ jobs:
           build_profile: ${{ inputs.build_profile }}
           artifact_prefix: ${{ inputs.artifact_prefix }}
           metrics_host_dir: ${{ runner.temp }}/suews-ci-metrics
+
+  # The api lane for the platforms built above. It needs the wheel artefact
+  # this call uploaded (cp312-<platform>-<arch>) and the suews-mcp-dist
+  # artefact from the caller's MCP build, which the caller guarantees by
+  # depending on that job and passing run_api_tests only when it succeeded.
+  api_cross_python:
+    name: API cross-CPython tests
+    needs: build
+    if: inputs.run_api_tests
+    uses: $/.github/workflows/test-api-cross-python-reusable.yml
+    with:
+      buildplat_json: ${{ inputs.buildplat_json }}
+      api_python_json: ${{ inputs.api_python_json }}
+      test_tier: ${{ inputs.test_tier }}

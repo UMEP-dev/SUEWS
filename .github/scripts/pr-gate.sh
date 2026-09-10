@@ -8,7 +8,8 @@
 #   DETECT_CHANGES_RESULT -- needs.detect-changes.result
 #   BUILD_WHEELS_RESULT   -- needs.build_wheels.result
 #   BUILD_MCP_RESULT      -- needs.build_mcp.result
-#   TEST_BRIDGE_RESULT    -- needs.test_api_cross_python.result
+#   TEST_BRIDGE_RESULT    -- needs.build_wheels.result: the api cross-CPython lanes are
+#                            chained behind each platform's wheel build inside that job
 #   CHECK_MARKERS_RESULT  -- needs.check_test_markers.result
 #   NEEDS_BUILD           -- needs.detect-changes.outputs.needs-build
 
@@ -21,7 +22,7 @@ echo "=== Job Results ==="
 echo "detect-changes: ${DETECT_CHANGES_RESULT}"
 echo "build_wheels: ${BUILD_WHEELS_RESULT}"
 echo "build_mcp: ${BUILD_MCP_RESULT}"
-echo "test_api_cross_python: ${TEST_BRIDGE_RESULT}"
+echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
 echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
 echo "needs-build: ${NEEDS_BUILD}"
 echo ""
@@ -78,7 +79,7 @@ if [[ "${NEEDS_BUILD}" == "true" ]]; then
     echo "[OK] API tests passed on all matrix cells"
   else
     echo "[X] API cross-CPython tests failed"
-    echo "  test_api_cross_python: ${TEST_BRIDGE_RESULT}"
+    echo "  api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
     VALIDATION_PASSED=false
   fi
 
@@ -93,7 +94,7 @@ else
     echo "Note: Unexpected build activity for non-code PR"
     echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
     echo "  build_mcp: ${BUILD_MCP_RESULT}"
-    echo "  test_api_cross_python: ${TEST_BRIDGE_RESULT}"
+    echo "  api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
     # Still pass if builds succeeded (conservative)
     for result in "${BUILD_WHEELS_RESULT}" "${BUILD_MCP_RESULT}" "${TEST_BRIDGE_RESULT}"; do
       if [[ "$result" != "success" ]] && [[ "$result" != "skipped" ]]; then

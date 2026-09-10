@@ -14,7 +14,10 @@ not the pandas surface it is expressed in.
 
 Kept deliberately cheap -- 50 examples, no deadline (the resampling
 properties build small DataFrames, whose cost varies enough between
-platforms that a per-example deadline is noise), and no I/O.
+platforms that a per-example deadline is noise), and no I/O. The settings
+live in one registered profile, `suews-physics`, so every property here
+draws the same examples on every machine: a failure in the physics lane must
+be reproducible locally, not a seed nobody can recover.
 """
 
 from hypothesis import HealthCheck, given, settings, strategies as st
@@ -35,11 +38,20 @@ from supy.util._attribution._physics import decompose_flux_budget
 
 pytestmark = pytest.mark.physics
 
-PROPERTY_SETTINGS = settings(
+# One fixed profile for the whole module. `derandomize=True` derives the
+# example sequence from the test itself rather than from a per-run seed, so
+# the physics lane runs the same 50 examples on every platform and every
+# rerun; a property that fails on CI fails identically on a developer's
+# machine. `hypothesis` is pinned (pyproject dev extra and the CI test
+# environments) because the generated sequence also depends on its version.
+settings.register_profile(
+    "suews-physics",
     deadline=None,
     max_examples=50,
+    derandomize=True,
     suppress_health_check=[HealthCheck.too_slow],
 )
+PROPERTY_SETTINGS = settings.get_profile("suews-physics")
 
 # Bounded, well-scaled factors: the Shapley identities are exact in real
 # arithmetic, so the only thing an unbounded strategy would test is
@@ -245,8 +257,8 @@ def _synthetic_output(values_sum, values_mean):
         [["SUEWS"], list(_SUEWS_AGGREGATION)], names=["group", "var"]
     )
     df = pd.DataFrame(0.0, index=index, columns=columns)
-    df[("SUEWS", SUM_VAR)] = values_sum
-    df[("SUEWS", MEAN_VAR)] = values_mean
+    df["SUEWS", SUM_VAR] = values_sum
+    df["SUEWS", MEAN_VAR] = values_mean
     return df
 
 
@@ -280,14 +292,14 @@ def test_output_resample_conserves_accumulated_and_bounds_averaged(hours, data):
     # ASSERT
     assert len(resampled) == hours
     np.testing.assert_allclose(
-        resampled[("SUEWS", SUM_VAR)].sum(),
+        resampled["SUEWS", SUM_VAR].sum(),
         values_sum.sum(),
         rtol=1e-12,
         atol=1e-9 * max(float(np.abs(values_sum).sum()), 1.0),
     )
     per_bin = values_mean.reshape(hours, STEPS_PER_HOUR)
     np.testing.assert_allclose(
-        resampled[("SUEWS", MEAN_VAR)].to_numpy(),
+        resampled["SUEWS", MEAN_VAR].to_numpy(),
         per_bin.mean(axis=1),
         rtol=1e-12,
         atol=1e-9 * max(float(np.abs(values_mean).max()), 1.0),

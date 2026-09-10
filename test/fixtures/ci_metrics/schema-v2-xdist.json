@@ -19,6 +19,14 @@
           "test/a.py::test_a",
           "test/c.py::test_c"
         ],
+        "peak_rss_bytes": {
+          "available": true,
+          "method": "getrusage-ru-maxrss",
+          "reason": null,
+          "status": "sampled",
+          "unit": "bytes",
+          "value": 60817408
+        },
         "worker_id": "gw0"
       },
       {
@@ -30,6 +38,14 @@
           "test/b.py::test_b",
           "test/d.py::test_d"
         ],
+        "peak_rss_bytes": {
+          "available": true,
+          "method": "getrusage-ru-maxrss",
+          "reason": null,
+          "status": "sampled",
+          "unit": "bytes",
+          "value": 61865984
+        },
         "worker_id": "gw1"
       }
     ],
@@ -52,6 +68,14 @@
     }
   },
   "resources": {
+    "controller_peak_rss_bytes": {
+      "available": true,
+      "method": "getrusage-ru-maxrss",
+      "reason": null,
+      "status": "sampled",
+      "unit": "bytes",
+      "value": 41943040
+    },
     "process_tree_cpu_seconds": {
       "available": true,
       "method": "linux-procfs-sampling",

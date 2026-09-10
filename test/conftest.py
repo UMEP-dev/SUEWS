@@ -18,6 +18,7 @@ if _MCP_SRC.is_dir() and str(_MCP_SRC) not in sys.path:
     sys.path.insert(0, str(_MCP_SRC))
 
 from click.testing import CliRunner
+import pandas as pd
 import pytest
 
 import supy
@@ -479,8 +480,8 @@ def sample_dailystate_full_year(sample_data_loaded):
     full-year window is 105,408 rows across roughly 1,295 columns, about 1.1 GB
     per frame, so five DailyState tests going through the factory kept one full
     frame alive for the session and built a second on every call while reading
-    52 columns on about 1,000 rows. Projecting the group here lets the wide
-    frame be released as soon as the run returns.
+    47 DailyState columns on 366 day-boundary rows. Projecting the group here
+    lets the wide frame be released as soon as the run returns.
     """
     import gc
 
@@ -492,6 +493,48 @@ def sample_dailystate_full_year(sample_data_loaded):
     del output, simulation
     gc.collect()
     return df_dailystate
+
+
+@pytest.fixture(scope="session")
+def sample_reference() -> pd.DataFrame:
+    """The one-year sample-output reference frame, parsed once per session.
+
+    Reconstructed from the twelve monthly plain-CSV shards under
+    ``test/fixtures/data_test/`` by ``sample_output_io.load_sample_output``.
+    Parsing them costs a few seconds of pure CSV work, and every reader wants
+    the same immutable frame, so it is session-scoped rather than paid per
+    test.
+
+    READ-ONLY, shared across the whole session: consumers must not mutate the
+    frame in place. Slice it (``.iloc[...]``) or ``.copy()`` before changing
+    anything.
+
+    Under pandas copy-on-write the frame is largely protected by construction:
+    the column arrays it hands out are read-only
+    (``df[col].values.flags.writeable`` is ``False``), so an in-place write
+    through a column raises rather than corrupting the shared frame. What is
+    still not protected is column assignment on the frame itself
+    (``df[col] = ...``, ``df.drop(..., inplace=True)``), which would leak to
+    every later consumer -- hence the contract above. No per-test copy is made
+    deliberately: copying 105,408 rows x 113 columns per test would cost what
+    the session-scoped parse saves.
+    """
+    import sys
+
+    data_dir = Path(__file__).parent / "fixtures" / "data_test"
+    # Same path insertion the fixture's own readers use: the module lives
+    # beside the shards so the split/combine convention has one home.
+    if str(data_dir) not in sys.path:
+        sys.path.insert(0, str(data_dir))
+    from sample_output_io import load_sample_output
+
+    return load_sample_output(data_dir)
+
+
+@pytest.fixture(scope="session")
+def sample_reference_dir() -> Path:
+    """Directory holding the sample-output shards and their provenance sidecar."""
+    return Path(__file__).parent / "fixtures" / "data_test"
 
 
 @pytest.fixture(scope="session")

@@ -72,7 +72,7 @@ From a single tag push:
    - Creates version `2024.10.7`
    - Verifies the PEP 639 licence expression and bundled MPL/Apache licence files
 
-2. **Cross-CPython API tests** (`test_api_cross_python` job)
+2. **Cross-CPython API tests** (the `API cross-CPython tests` lane chained behind each platform's wheel build)
    - Installs the single wheel into each test CPython (BOOKEND for PRs, ALL for tags)
    - Runs `pytest -m "api and <tier>"` — the api marker (gh#1300) covers
      the Python wrapper surface (pandas/numpy/pydantic, CLI,

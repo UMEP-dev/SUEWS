@@ -323,7 +323,12 @@ def test_api_platform_gate_finds_every_preset_runner_label() -> None:
     sources = dict(
         re.findall(r"^([A-Z_]+PLATFORMS)='(\[.*\])'$", script, re.MULTILINE)
     )
-    assert {"FULL_PLATFORMS", "PR_PLATFORMS", "NIGHTLY_API_PLATFORMS"} <= set(sources)
+    assert {
+        "FULL_PLATFORMS",
+        "PR_PLATFORMS",
+        "MINIMAL_PLATFORMS",
+        "NIGHTLY_API_PLATFORMS",
+    } <= set(sources)
     for index, triple in enumerate(
         re.findall(r"PLATFORMS\+='(\[[^']*\]),'", script)
     ):

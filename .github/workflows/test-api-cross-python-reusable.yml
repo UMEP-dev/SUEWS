@@ -175,8 +175,8 @@ jobs:
           # xdist duplicates every session fixture per worker, so the worker
           # count is per platform and measured, never taken from the CPU count
           # (see the step above); XDIST_ARGS is empty for a serialised
-          # platform. The metrics plugin records worker timings, and, once
-          # #1786 lands, each worker's peak RSS beside them.
+          # platform. The metrics plugin records worker timings and each
+          # worker's peak RSS beside them (#1786).
           # shellcheck disable=SC2086
           python -m pytest -p scripts.suews.pytest_ci_metrics test \
             -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS

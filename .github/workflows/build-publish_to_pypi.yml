@@ -122,7 +122,7 @@ on:
         type: boolean
         default: false
       api_serial_platforms:
-        description: 'Comma-separated platforms (manylinux, macosx, win) whose api lane runs in one process instead of on its xdist workers; the SUEWS_API_SERIAL_PLATFORMS repository variable does the same for PR, merge-queue and scheduled runs'
+        description: 'Comma-separated platforms (manylinux, macosx, win) whose api lane runs in one process instead of on its xdist workers; the SUEWS_API_SERIAL_PLATFORMS repository variable does the same on every event where this input is empty'
         required: false
         type: string
         default: ''

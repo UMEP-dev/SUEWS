@@ -70,7 +70,9 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
 **Test tier routing:**
 - Wheel-build jobs run `physics` tests once per selected platform/architecture.
 - API cross-CPython jobs install the built wheel and run `api` tests across the
-  selected Python versions.
+  selected Python versions. Each platform's api lane is chained behind that
+  platform's wheel build (one `build-wheels-reusable.yml` call per platform),
+  so it starts as soon as its own wheel exists.
 - `smoke` excludes both `medium` and `slow`; `core` and `cfg` exclude `slow`.
   `standard` includes non-slow tests plus essential `core` regressions even
   when they are slow. All normal tiers exclude `qgis`; `all` is reserved for

@@ -608,9 +608,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: state_id
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SnowDepth
       REAL(KIND(1D0)), DIMENSION(nsurf) :: ev_snow
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(out) :: SnowRemoval
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(inout) :: SnowRemoval
 
-      REAL(KIND(1D0)), INTENT(out) :: swe
+      REAL(KIND(1D0)), INTENT(inout) :: swe
       REAL(KIND(1D0)) :: ev_snowfree
       REAL(KIND(1D0)), INTENT(out) :: ev_tot
       REAL(KIND(1D0)), INTENT(out) :: chSnow_tot
@@ -618,7 +618,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: runoff_tot
       REAL(KIND(1D0)), INTENT(out) :: surf_chang_tot
       REAL(KIND(1D0)), INTENT(out) :: runoffPipes
-      REAL(KIND(1D0)), INTENT(out) :: mwstore
+      REAL(KIND(1D0)), INTENT(inout) :: mwstore
       REAL(KIND(1D0)), INTENT(out) :: runoffwaterbody
 
       REAL(KIND(1D0)) :: qe
@@ -1285,7 +1285,7 @@ CONTAINS
       INTEGER, INTENT(in) :: is
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SnowFrac, sfr_surf
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: SnowPack
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(out) :: SnowRemoval
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(inout) :: SnowRemoval
       REAL(KIND(1D0)), INTENT(in) :: SnowLimPaved, SnowLimBldg
       !write(*,*) is, SnowPack(is),SnowLimPaved,SnowLimBldg
 

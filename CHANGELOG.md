@@ -56,6 +56,11 @@ EXAMPLES:
 
 ### 10 Sep 2026
 
+- [bugfix] Restored snowpack persistence and grid snow aggregates when `model.physics.snow_use` is enabled (#1757, #747)
+  - `SUEWS_cal_snow` now writes the updated snow and surface-water states back to the model state; since the June 2024 derived-type refactor they were left in local copies, so no snowpack could accumulate between timesteps and melt never occurred.
+  - Grid `SWE`, `MeltWStore` and `SnowRPaved`/`SnowRBldgs` are initialised once per timestep instead of once per surface, so they aggregate every land cover rather than only the water surface, and the water-body runoff in `SnowCalc` is area-weighted like every other surface.
+  - Added `test/physics/test_snow_budget.py`: a deterministic accumulation, hold, melt and snow-free scenario checking mass and energy conservation, the degree-day melt law, albedo reset and ageing, and density and depth consistency. The snow module remains experimental; these are internal-consistency checks, not observational validation.
+
 - [maintenance] The legacy-table round-trip tests resolve the vendored fixture set without copying it and forward-convert each legacy version once per pytest session (`legacy_tables` and `forward_converted` fixtures) instead of rebuilding both per parametrised case; the file was the only one in the API lane materially above the platform-wide 1.35x Windows-to-Linux ratio, at 1.66x (36 s beyond what the baseline predicts), at 1.66x, and it drops from 71.9 s to 66.8 s on a Linux machine with assertions unchanged (#1791)
 - [maintenance] Added a one-day sweep over every physics-option value and hypothesis property tests for the attribution, resampling and forcing-interpolation numerics (#1789)
 - [maintenance] Added an api-workers lane to the hosted pytest scheduler benchmark (serial vs xdist workers in ABBA order on Linux, Windows and macOS), per-worker peak RSS in the CI metrics plugin on every platform, and a summariser that tabulates the trials (#1786)
@@ -87,11 +92,6 @@ EXAMPLES:
 
 - [feature][experimental] Saved runs now carry a `provenance.json` sidecar: `SUEWSSimulation.save()` and `suews run` write the configuration and forcing identities (name, size, SHA-256), SuPy version and git commit, requested and actual simulation period, timestamp conventions, run options and the list of files written (#1746)
   - `suews diagnose` and the MCP `suews://runs/{run_id}/provenance` resource now succeed on ordinary runs; their missing-sidecar guidance names an executable path instead of the non-existent `suews run --format json`.
-
-- [bugfix] Restored snowpack persistence and grid snow aggregates when `model.physics.snow_use` is enabled (#1757, #747)
-  - `SUEWS_cal_snow` now writes the updated snow and surface-water states back to the model state; since the June 2024 derived-type refactor they were left in local copies, so no snowpack could accumulate between timesteps and melt never occurred.
-  - Grid `SWE`, `MeltWStore` and `SnowRPaved`/`SnowRBldgs` are initialised once per timestep instead of once per surface, so they aggregate every land cover rather than only the water surface, and the water-body runoff in `SnowCalc` is area-weighted like every other surface.
-  - Added `test/physics/test_snow_budget.py`: a deterministic accumulation, hold, melt and snow-free scenario checking mass and energy conservation, the degree-day melt law, albedo reset and ageing, and density and depth consistency. The snow module remains experimental; these are internal-consistency checks, not observational validation.
 
 - [bugfix] Fortran kernel warnings now reach the user: the per-grid warning log survives the whole run, each entry is stamped with its timestep, the log crosses the Rust bridge, and SuPy logs a deduplicated summary and exposes `SUEWSSimulation.kernel_warnings` / `SUEWSOutput.kernel_warnings` (#1743; issue #1737)
   - The 20 physics fallbacks that reported through the no-op `add_supy_warning` stub (SPARTACUS flat-tile substitution, EHC leaving QS at zero, STEBBS, RSL, ESTM, AnOHM, Kdown split, DyOHM stability) now report through the per-grid state; the stub is removed.

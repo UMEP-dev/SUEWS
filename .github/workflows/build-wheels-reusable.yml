@@ -51,6 +51,11 @@ on:
         required: false
         type: string
         default: '[]'
+      serial_platforms:
+        description: 'Comma-separated platform names (manylinux, macosx, win) whose api lane runs in one process instead of on its xdist workers; forwarded to the api lane, and only read when run_api_tests is true'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -117,3 +122,4 @@ jobs:
       buildplat_json: ${{ inputs.buildplat_json }}
       api_python_json: ${{ inputs.api_python_json }}
       test_tier: ${{ inputs.test_tier }}
+      serial_platforms: ${{ inputs.serial_platforms }}

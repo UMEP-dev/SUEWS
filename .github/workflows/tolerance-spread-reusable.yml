@@ -1,0 +1,101 @@
+# Reusable workflow: record the zero-tolerance spread of the full-year sample
+# comparison (scripts/suews/tolerance_spread.py) on every built platform for
+# the two CPython bookends, one JSON artefact per cell.
+#
+# Called by build-publish_to_pypi.yml as the `tolerance_spread` job, once per
+# run with a static name, so the checks list shows one `Tolerance spread`
+# group with a `cpXYZ-<platform> <arch>` child per cell rather than one
+# top-level entry per cell (`.claude/rules/ci/conventions.md`, "Matrix jobs
+# render as one group"). The (platform x CPython) matrix lives here; the
+# caller decides when the group runs (nightly schedule, or a dispatch with the
+# `tolerance_spread` input) and what it measures (the release wheel the run
+# built, or the profile a dispatch chose).
+#
+# The job records and never gates: the script exits 0 however large the
+# spread, and `continue-on-error` on the measuring job keeps a runner or
+# install failure from turning the calling run red. Both that key and
+# `timeout-minutes` have to live on this inner job: GitHub does not accept
+# them on a caller job that calls a reusable workflow. The artefact names
+# are unchanged (`tolerance-spread-<platform>-<arch>-<cpXY>`), so
+# `tolerance_spread.py summarise` and the download recipe in
+# scripts/suews/README.md keep working.
+
+name: Tolerance spread (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      buildplat_json:
+        description: 'JSON array of [runner, platform_name, arch] triples'
+        required: true
+        type: string
+      python_json:
+        description: 'JSON array of CPython tags to measure on (the two bookends, e.g. ["cp312","cp314"])'
+        required: true
+        type: string
+      build_profile:
+        description: 'Fortran build profile of the wheel being measured, recorded in the artefact header (release or checked)'
+        required: false
+        type: string
+        default: 'release'
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: ${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    continue-on-error: true
+    # The full-year engine run is under a minute on a laptop; the cap only
+    # bounds a hung install or runner, matching the api lane's guardrail.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        buildplat: ${{ fromJson(inputs.buildplat_json) }}
+        python_version: ${{ fromJson(inputs.python_json) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve Python version (cp312 -> 3.12)
+        id: pyver
+        shell: bash
+        env:
+          PV: ${{ matrix.python_version }}
+        run: |
+          echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: ${{ steps.pyver.outputs.spec }}
+
+      - name: Download wheel for this platform
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: wheelhouse/
+
+      - name: Install wheel and measure the spread
+        shell: bash
+        env:
+          SUEWS_BUILD_PROFILE: ${{ inputs.build_profile }}
+          OUTPUT: tolerance-spread/tolerance-spread-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-${{ matrix.python_version }}.json
+        run: |
+          python -m pip install --upgrade pip
+          # The script reuses the sample-output test module, which imports
+          # pytest and the test conftest; the wheel alone does not bring pytest.
+          python -m pip install pytest==9.1.1
+          python -m pip install wheelhouse/*.whl
+          python scripts/suews/tolerance_spread.py measure --output "$OUTPUT"
+
+      - name: Upload tolerance-spread artefact
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: tolerance-spread-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-${{ matrix.python_version }}
+          path: tolerance-spread/*.json
+          if-no-files-found: error
+          retention-days: 30

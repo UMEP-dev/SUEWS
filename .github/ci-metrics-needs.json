@@ -43,5 +43,9 @@
     "Build MCP package",
     "Check pytest marker axis",
     "Detect code changes"
+  ],
+  "Tolerance spread / *": [
+    "Determine build matrix",
+    "Build and test (*) / cp*"
   ]
 }

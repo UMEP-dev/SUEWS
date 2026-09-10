@@ -73,6 +73,10 @@ Python line. Both use Python 3.12 on Windows; the runtime pin is
   selected Python versions. Each platform's api lane is chained behind that
   platform's wheel build (one `build-wheels-reusable.yml` call per platform),
   so it starts as soon as its own wheel exists.
+- The nightly `Tolerance spread` group (`tolerance-spread-reusable.yml`, also on
+  dispatch with the `tolerance_spread` input) installs the built wheel on the
+  two CPython bookends per platform and records the zero-tolerance spread of
+  the sample comparison; it records and never gates.
 - `smoke` excludes both `medium` and `slow`; `core` and `cfg` exclude `slow`.
   `standard` includes non-slow tests plus essential `core` regressions even
   when they are slow. All normal tiers exclude `qgis`; `all` is reserved for

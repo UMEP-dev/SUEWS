@@ -62,7 +62,6 @@ class TestSimulationLoading(TestCase):
 
         print(f"✓ Loaded state with {len(df_state.columns)} columns")
 
-    @pytest.mark.medium
     def test_benchmark_config(self):
         """Test initializing with benchmark configuration if available.
 

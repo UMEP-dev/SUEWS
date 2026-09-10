@@ -139,7 +139,6 @@ class TestDailyStateOutput:
             assert (df_saved[data_cols] != -999).any().any()
 
 
-    @pytest.mark.medium
     def test_dailystate_lai_responds_to_phenology(self, sample_dailystate_full_year):
         """LAI increases during leaf growth and decreases during senescence."""
 

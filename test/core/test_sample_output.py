@@ -652,7 +652,7 @@ class TestSampleOutput(TestCase):
 
     @pytest.mark.core
     @pytest.mark.slow(
-        reason="full-year comparison: about 35 CPU-s on Linux and over two minutes of wall time on Windows"
+        reason="full-year comparison: 17 to 36 CPU-s on Linux across dispatches and over two minutes of wall time on Windows"
     )
     @pytest.mark.rust
     def test_sample_output_validation_full_year(self):
@@ -862,7 +862,7 @@ if __name__ == "__main__":
 @pytest.mark.core
 # Expensive, but core keeps it in ready-PR and queue standard tiers.
 @pytest.mark.slow(
-    reason="full-year STEBBS comparison: about 34 CPU-s on Linux and 148 s of wall time on Windows"
+    reason="full-year STEBBS comparison: 21 to 34 CPU-s on Linux across dispatches and 148 s of wall time on Windows"
 )
 class TestSTEBBSOutput(TestCase):
     """Test class for validating STEBBS building energy outputs."""

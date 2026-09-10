@@ -382,7 +382,6 @@ def test_ehc_state_dependent_ra_heat_guard_changes_lumped_storage_response(monke
     assert np.max(np.abs(guarded_qs - default_qs)) > 0.1
 
 
-@pytest.mark.medium
 def test_ehc_state_dependent_ra_heat_guard_includes_zero_kdown(monkeypatch):
     for key in EHC_RA_HEAT_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)

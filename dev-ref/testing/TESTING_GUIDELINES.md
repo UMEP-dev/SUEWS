@@ -191,7 +191,7 @@ markers = [
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     # Cost markers
-    "medium: Test body of 10 to 30 CPU seconds on the Linux reference runner (cp312); excluded from smoke",
+    "medium: Test body of 10 to 30 CPU seconds on the Linux reference runner (cp312); excluded from the smoke tier only, included by core, cfg and standard",
     "slow: Test body of 30 CPU seconds or more on the Linux reference runner, or unsuitable for routine PR runs for a stated reason (slow(reason=...)); excluded from standard unless core",
     "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]

@@ -139,17 +139,11 @@ class TestDailyStateOutput:
             assert (df_saved[data_cols] != -999).any().any()
 
 
-    def test_dailystate_lai_responds_to_phenology(
-        self, sample_run_cached, sample_data_loaded
-    ):
+    def test_dailystate_lai_responds_to_phenology(self, sample_dailystate_full_year):
         """LAI increases during leaf growth and decreases during senescence."""
 
-        _, df_forcing = sample_data_loaded
-
-        # Run the full available forcing period.
-        df_output, _ = sample_run_cached()
-
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+        # The full available forcing period, DailyState only.
+        df_dailystate = sample_dailystate_full_year
 
         lai = df_dailystate["LAI_DecTr"]
         gdd = df_dailystate["GDD_DecTr"]
@@ -173,7 +167,7 @@ class TestDailyStateOutput:
         assert (lai >= 0).all()
 
     def test_dailystate_gdd_sdd_progression(
-        self, sample_run_cached, sample_data_loaded, sample_config_loaded
+        self, sample_dailystate_full_year, sample_config_loaded
     ):
         """GDD increases and SDD decreases until they are reset."""
 
@@ -181,9 +175,7 @@ class TestDailyStateOutput:
         gdd_full_dectr = config_lai_dectr.gdd_full.value
         sdd_full_dectr = config_lai_dectr.sdd_full.value
 
-        df_output, _ = sample_run_cached()
-
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+        df_dailystate = sample_dailystate_full_year
 
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
@@ -220,14 +212,10 @@ class TestDailyStateOutput:
         assert (sdd <= 0).all()
         assert (sdd >= sdd_full_dectr).all()
 
-    def test_dailystate_gdd_sdd_seasonal_resets(
-        self, sample_run_cached, sample_data_loaded, sample_config_loaded
-    ):
+    def test_dailystate_gdd_sdd_seasonal_resets(self, sample_dailystate_full_year):
         """GDD and SDD are reset at the seasonal transition."""
 
-        df_output, _ = sample_run_cached()
-
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+        df_dailystate = sample_dailystate_full_year
 
         gdd = df_dailystate["GDD_DecTr"].dropna()
         sdd = df_dailystate["SDD_DecTr"].dropna()
@@ -248,16 +236,12 @@ class TestDailyStateOutput:
             "SDD should be reset to 0 on the seasonal transition day"
         )
 
-    def test_dailystate_gdd_sdd_threshold_resets(
-        self, sample_run_cached, sample_data_loaded, sample_config_loaded
-    ):
+    def test_dailystate_gdd_sdd_threshold_resets(self, sample_dailystate_full_year):
         """GDD and SDD are reset when their seasonal thresholds are exceeded."""
 
         crit_days = 50
 
-        df_output, _ = sample_run_cached()
-
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+        df_dailystate = sample_dailystate_full_year
 
         gdd = df_dailystate["GDD_DecTr"].dropna()
         sdd = df_dailystate["SDD_DecTr"].dropna()
@@ -297,7 +281,7 @@ class TestDailyStateOutput:
         )
 
     def test_dailystate_lai_gdd_growth_branch(
-        self, sample_data_loaded, sample_run_cached, sample_config_loaded
+        self, sample_dailystate_full_year, sample_config_loaded
     ):
         """LAI increases while GDD is between zero and GDDFull."""
 
@@ -305,9 +289,7 @@ class TestDailyStateOutput:
         gdd_full = config_lai_dectr.gdd_full.value
         lai_max = config_lai_dectr.lai_max.value
 
-        df_output, _ = sample_run_cached()
-
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+        df_dailystate = sample_dailystate_full_year
 
         lai = df_dailystate["LAI_DecTr"]
         gdd = df_dailystate["GDD_DecTr"]
@@ -336,6 +318,7 @@ class TestDailyStateOutput:
         )
 
 
+    @pytest.mark.medium
     def test_dailystate_lai_northern_lai_type_0_sdd_senescence(
         self, sample_data_loaded, sample_config_loaded, sample_yaml_path
     ):
@@ -419,6 +402,7 @@ class TestDailyStateOutput:
             "when SDD < 0 and SDD > SDDFull"
         )
 
+    @pytest.mark.medium
     def test_dailystate_lai_northern_lai_type_1_daylength_senescence(
         self, sample_data_loaded, sample_yaml_path
     ):

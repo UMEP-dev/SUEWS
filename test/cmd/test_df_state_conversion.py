@@ -151,7 +151,6 @@ class TestCsvFileConversion:
         assert "buildingname" in col_names
         # building_type dropped (gh#1392): no longer a df_state column
 
-    @pytest.mark.slow
     def test_full_yaml_conversion(self, old_csv_path, tmp_path):
         """Test full conversion from old CSV to YAML."""
         output_yaml = tmp_path / "config.yml"

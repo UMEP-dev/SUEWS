@@ -167,9 +167,25 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
     dispatch_inputs = caller[True]["workflow_dispatch"]["inputs"]
     assert "default" in dispatch_inputs["api_serial_platforms"]
     assert not dispatch_inputs["api_serial_platforms"]["default"]
-    api_with = caller["jobs"]["test_api_cross_python"]["with"]
-    assert api_with["serial_platforms"] == (
+    # The api lane is chained inside each platform's build-wheels call
+    # (#1792), so the caller hands the escape hatch to that call and the
+    # reusable workflow forwards it; an input accepted and then dropped there
+    # would silently run every platform on its workers.
+    chain_with = caller["jobs"]["build_wheels"]["with"]
+    assert chain_with["serial_platforms"] == (
         "${{ inputs.api_serial_platforms || vars.SUEWS_API_SERIAL_PLATFORMS || '' }}"
+    )
+    wheels_workflow = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    wheels_inputs = wheels_workflow[True]["workflow_call"]["inputs"]
+    assert "default" in wheels_inputs["serial_platforms"]
+    assert not wheels_inputs["serial_platforms"]["default"]
+    assert (
+        wheels_workflow["jobs"]["api_cross_python"]["with"]["serial_platforms"]
+        == "${{ inputs.serial_platforms }}"
     )
 
 
@@ -182,9 +198,21 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
             encoding="utf-8"
         )
     )
-    api_job = caller["jobs"]["test_api_cross_python"]
-    assert {"determine_matrix", "build_wheels", "build_mcp"} <= set(api_job["needs"])
-    assert "needs.build_mcp.result == 'success'" in api_job["if"]
+    chain_job = caller["jobs"]["build_wheels"]
+    assert {"determine_matrix", "build_mcp"} <= set(chain_job["needs"])
+    assert chain_job["with"]["run_api_tests"].startswith(
+        "${{ needs.build_mcp.result == 'success' && "
+    )
+
+    wheels_workflow = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    api_job = wheels_workflow["jobs"]["api_cross_python"]
+    assert api_job["needs"] == "build"
+    assert api_job["if"] == "inputs.run_api_tests"
+    assert api_job["uses"].endswith("/test-api-cross-python-reusable.yml")
 
     api_workflow = (
         root / ".github/workflows/test-api-cross-python-reusable.yml"
@@ -196,7 +224,64 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     declared_needs = json.loads(
         (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
-    assert "Build MCP package" in declared_needs["API cross-CPython tests / *"]
+    api_patterns = [
+        pattern
+        for pattern in declared_needs
+        if "/ API cross-CPython tests / " in pattern
+    ]
+    assert api_patterns
+    for pattern in api_patterns:
+        assert "Build MCP package" in declared_needs[pattern]
+
+
+@pytest.mark.smoke
+def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
+    """Each platform's api lane is chained behind that platform's wheel build.
+
+    The caller runs one reusable-workflow call per platform, so the api lane
+    inside it depends on one wheel, and the declared-needs graph read by
+    analyse_ci_run.py says the same per platform.
+    """
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    chain_job = caller["jobs"]["build_wheels"]
+    assert chain_job["strategy"]["matrix"]["buildplat"] == (
+        "${{ fromJson(needs.determine_matrix.outputs.buildplat) }}"
+    )
+    assert chain_job["strategy"]["fail-fast"] is False
+    assert "matrix.buildplat[1]" in chain_job["name"]
+    assert chain_job["with"]["buildplat_json"].startswith("${{ format('[[")
+    assert "test_api_cross_python" not in caller["jobs"]
+
+    declared_needs = json.loads(
+        (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
+    )
+    wheel_jobs = [
+        f"Build and test ({platform}) / cp312-{platform}"
+        for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64")
+    ]
+    for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64"):
+        api_job = f"Build and test ({platform}) / API cross-CPython tests / cp312-x"
+        patterns = [k for k in declared_needs if fnmatchcase(api_job, k)]
+        dependencies = {d for k in patterns for d in declared_needs[k]}
+        wheels_waited_for = [
+            wheel
+            for wheel in wheel_jobs
+            if any(fnmatchcase(wheel, d) for d in dependencies)
+        ]
+        assert wheels_waited_for == [f"Build and test ({platform}) / cp312-{platform}"]
+    gate = declared_needs["PR build validation"]
+    assert any(fnmatchcase(wheel_jobs[0], d) for d in gate)
+    assert any(
+        fnmatchcase(
+            "Build and test (win AMD64) / API cross-CPython tests / cp312-win AMD64", d
+        )
+        for d in gate
+    )
 
 
 @pytest.mark.smoke
@@ -251,6 +336,90 @@ def test_standard_marker_expressions_preserve_core_slow_override() -> None:
     assert api_workflow.count(api_standard) == 2  # standard and physics-full
     assert "physics and smoke and not (medium or slow)" in action
     assert "api and smoke and not (medium or slow) and not qgis" in api_workflow
+
+
+def test_api_workers_abba_lane_is_manual_matched_and_per_platform() -> None:
+    """The api-workers lane runs S/P/P/S per platform with fixed worker counts."""
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github/workflows/benchmark-pytest-scheduler.yml").read_text(
+        encoding="utf-8"
+    )
+    parsed = yaml.safe_load(workflow)
+    dispatch = (
+        parsed[True]["workflow_dispatch"]
+        if True in parsed
+        else parsed["on"]["workflow_dispatch"]
+    )
+    api_job = parsed["jobs"]["api_workers"]
+
+    assert set(parsed[True] if True in parsed else parsed["on"]) == {
+        "workflow_dispatch"
+    }
+    assert dispatch["inputs"]["lane"]["default"] == "physics-scheduler"
+    assert dispatch["inputs"]["lane"]["options"] == ["physics-scheduler", "api-workers"]
+    assert parsed["jobs"]["compare"]["if"] == "inputs.lane == 'physics-scheduler'"
+    assert api_job["if"] == "inputs.lane == 'api-workers'"
+    assert parsed["jobs"]["compare"]["needs"] == "source"
+    assert api_job["needs"] == "source"
+
+    cells = {
+        (cell["runner"], cell["platform"], cell["arch"]): cell["workers"]
+        for cell in api_job["strategy"]["matrix"]["include"]
+    }
+    assert cells == {
+        ("ubuntu-latest", "manylinux", "x86_64"): 4,
+        ("windows-2025", "win", "AMD64"): 4,
+        ("macos-15", "macosx", "arm64"): 2,
+    }
+    assert api_job["strategy"]["fail-fast"] is False
+    assert api_job["env"]["MARKER_EXPR"] == "api and (core or not slow) and not qgis"
+
+    trial_names = [
+        step["name"]
+        for step in api_job["steps"]
+        if step.get("continue-on-error") is True
+    ]
+    assert trial_names == [
+        "S1 - serial",
+        "P1 - xdist worksteal",
+        "P2 - xdist worksteal",
+        "S2 - serial",
+    ]
+    trials = {
+        step["name"]: step for step in api_job["steps"] if step["name"] in trial_names
+    }
+    for name, step in trials.items():
+        assert "-p scripts.suews.pytest_ci_metrics test" in step["run"]
+        assert '-m "$MARKER_EXPR"' in step["run"]
+        assert "-p no:cacheprovider" in step["run"]
+        assert step["env"]["SUEWS_CI_METRICS"].startswith("api-abba/")
+        if name.startswith("P"):
+            assert '-n "$WORKERS" --dist worksteal' in step["run"]
+        else:
+            assert "-n " not in step["run"]
+            assert "--dist" not in step["run"]
+    assert len({step["env"]["SUEWS_CI_METRICS"] for step in trials.values()}) == 4
+    assert len({step["run"].split("--basetemp=")[1] for step in trials.values()}) == 4
+
+    downloads = [
+        step["with"]["name"]
+        for step in api_job["steps"]
+        if step.get("uses", "").startswith("actions/download-artifact@")
+    ]
+    assert downloads == [
+        "cp312-${{ matrix.platform }}-${{ matrix.arch }}",
+        "suews-mcp-dist",
+    ]
+
+    tabulate = next(
+        step for step in api_job["steps"] if step["name"] == "Tabulate the four trials"
+    )
+    assert tabulate["if"] == "always()"
+    assert "summarise_abba_trials.py" in tabulate["run"]
+    assert tabulate["run"].count("--trial") == 4
+    upload = api_job["steps"][-1]
+    assert upload["if"] == "always()"
+    assert upload["with"]["if-no-files-found"] == "error"
 
 
 @pytest.mark.core

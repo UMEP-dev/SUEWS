@@ -193,6 +193,60 @@ Requires Docker and `act` (`brew install act`).
 
 ---
 
+## Build Caches (`actions/cache`)
+
+The wheel build (`.github/actions/build-suews/action.yml`) caches the Rust
+registry (`CARGO_HOME`) and the cargo target directory (`CARGO_TARGET_DIR`)
+across jobs. Inside cibuildwheel both live where `CIBW_ENVIRONMENT` points
+them: `.cargo-cache` and `.rust-target-cache` in the workspace on macOS and
+Windows, and the bind-mounted `/cargo-cache` and `/rust-target-cache` on
+Linux (`CIBW_CONTAINER_ENGINE` mounts the same host directories). The keying
+rule below applies to this cache and to any build cache added later.
+
+- **The key is a content hash of everything that determines the cached
+  output**: platform and architecture, build profile, the compiler version
+  that produced the objects (`rustc -V`, read on the host before the cache
+  step; the Linux container installs that same version through
+  `CIBW_ENVIRONMENT_PASS_LINUX`), and the inputs (`Cargo.lock`, `Cargo.toml`,
+  `build.rs`, the bridge sources). Never a branch name, a date or a manual
+  epoch.
+- **A primary-key hit is never re-saved**, so anything that can change the
+  output has to be in the key. The `cargo-*` entries saved on 2026-08-08 were
+  restored on every run for a month while cargo recompiled all ~100 crates:
+  the key omitted the compiler, and rustc had moved from 1.97.1 to 1.98.0
+  with the runner image (nightly 34075203398, 7 Sep 2026).
+- **`restore-keys` fall back within the same platform, profile and compiler
+  only** (bridge inputs changed). There is deliberately no any-compiler
+  fallback: cargo ignores objects built by another compiler but does not
+  delete them, so a fallback restore would be saved back and the entry would
+  grow by one object set per fallback (seen on #1787: 116 MB against 199 MB
+  for the same key with and without a fallback). A fallback costs time,
+  never correctness.
+- **The scheduled nightly restores nothing but still saves.** Restoring
+  nothing means one cold build per day exists on every platform, a
+  staleness canary. Saving creates the master-scope entry whenever the key
+  changes (a primary-key hit is never re-saved, so on a stable key the
+  nightly's save is a no-op): pull requests and the merge queue can only
+  read caches saved on their own ref or on master, and the nightly is the
+  only event that builds wheels on master, so the queue warms the night
+  after a key change and stays warm until the next one. Only the release
+  profile is saved; the checked profile is built by the nightly alone with
+  its restore skipped, so a checked entry could never be read.
+- **Merge-queue runs never save.** The `gh-readonly-queue/...` ref is deleted
+  with its queue entry, so a cache saved there is unreadable and only spends
+  the repository's 10 GB budget.
+- **The job log and step summary record the lookup** (primary key, exact hit
+  or fallback key, or miss). Read those lines before believing a build was
+  warm; a restored cache is not a reused cache.
+- **Fortran objects are not cached.** Neither ccache nor sccache caches
+  Fortran (module files are not handled; gfortran is passed through), as
+  gh#1604 recorded. A direct cache of the `src/suews` objects would need the
+  gfortran version in its key, which is unknown until `pacman` runs inside
+  cibuildwheel, and a `touch` after restore because tar preserves the
+  archived mtimes and `make` would otherwise rebuild everything.
+
+---
+
 ## Build Workflow Triggers (`build-publish_to_pypi.yml`)
 
 The main build workflow responds to these events:
@@ -235,9 +289,15 @@ Test tiers control which pytest markers run during CI builds. Defined via pytest
 - **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`.
 - **all** (no filter) -- full suite including slow tests (~15-30 min)
 
-Importance and cost are independent: `medium` means roughly 30-60 seconds on
-the slowest normal CI platform, while `slow` means over 60 seconds or otherwise
-unsuitable for routine PR runs. Absence of either cost marker means fast. Each
+Importance and cost are independent. The cost markers are defined by the CPU
+seconds of the test body on the Linux reference runner (cp312), which the
+metrics plugin records per test: `medium` is 10 to 30 CPU seconds, `slow` is 30
+or more, or unsuitable for routine PR runs for a stated non-CPU reason
+(`pytest.mark.slow(reason="...")`). Absence of either cost marker means fast.
+The nightly `cost_markers` job (`scripts/lint/check_cost_markers.py`, also on
+`workflow_dispatch` with the `cost_markers` input) reports every marker that
+disagrees with the measurement and never gates; the thresholds and their
+reasoning are in `.claude/rules/tests/patterns.md`. Each
 higher tier is a superset of smoke. The `standard` tier excludes non-core
 `slow` tests but retains tests marked both `core` and `slow`.
 
@@ -277,9 +337,11 @@ Always: FULL_PLATFORMS (4), ALL_PYTHON (3, clamped to the `>=3.12` floor --
 cp312/cp313/cp314), test tier **all**.
 
 **Nightly-only api-test platform trim (run 28990965739, 9 Jul 2026):** the
-nightly `api cross-CPython` job (`test_api_cross_python`) uses a separate
-platform matrix output, `api_buildplat`, distinct from the wheel-build job's
-`buildplat`. On the nightly schedule `api_buildplat` = `NIGHTLY_API_PLATFORMS`
+nightly `api cross-CPython` lane uses a separate platform matrix output,
+`api_buildplat`, distinct from the wheel-build job's `buildplat`. (The lane
+is chained behind each platform's wheel build inside
+`build-wheels-reusable.yml`; the caller passes `run_api_tests` per platform
+by checking that platform's runner label against `api_buildplat`.) On the nightly schedule `api_buildplat` = `NIGHTLY_API_PLATFORMS`
 = FULL_PLATFORMS minus `macos-15-intel`; every other trigger (PR, merge queue,
 tag push, workflow_dispatch) sets `api_buildplat` equal to `buildplat`. This
 closes a runner-scarcity gap: in run 28990965739 the
@@ -364,6 +426,84 @@ oldest supported Python; nightly and release CI retain cross-version coverage.
 - If a nightly fails, the issue is visible in the Actions tab and can be addressed before the next release.
 
 **When to reconsider:** If a platform-specific bug reaches master via the merge queue and causes user impact before the nightly catches it, consider either adding macOS Intel to PR_PLATFORMS (increases merge queue from 6 to 8 jobs) or running the full matrix on merge queue for fortran-touching changes only.
+
+---
+
+## The Nightly as the Scientific Tier
+
+The nightly scheduled run (2 AM UTC, `build-publish_to_pypi.yml`) is where the
+expensive science lives. The PR and merge-queue tiers stay fast on purpose; the
+checks that cost real runner minutes -- a second Fortran build profile, a
+full-year cross-platform comparison, per-test CPU accounting -- run once a day on
+master instead of on every push. That trade only holds while the nightly is
+trusted, which is what the alert job below is for.
+
+### What runs only on the schedule
+
+| Job | Runs on | Produces | Who reads it |
+|---|---|---|---|
+| `build_wheels` at test tier `all` | every event, but `all` only on schedule, tag and manual dispatch (`test_tier: all`, the dispatch default) | the `cp*` wheels and the `ci-metrics-*` artefacts | anyone diagnosing a lane's cost with `scripts/suews/analyse_ci_run.py` or `benchmark_ci_metrics.py` |
+| `build_wheels_checked` | `schedule` only | `checked-cp*` wheels, built `-O0 -fcheck=all`, running the full physics tier | whoever investigates a Fortran runtime error; the release-profile run in the same night is the comparison |
+| `tolerance_spread` | `schedule`, or `workflow_dispatch` with the `tolerance_spread` input | one `tolerance-spread-<platform>-<arch>-<cpXY>` JSON per matrix cell, 30-day retention | the tolerance derivation for `test/core/test_sample_output.py`, via `tolerance_spread.py summarise` (see `.claude/rules/tests/patterns.md`) |
+| `cost_markers` | `schedule`, or `workflow_dispatch` with the `cost_markers` input | a step-summary table and histogram of every `medium` / `slow` marker that disagrees with the measured CPU seconds | whoever adds or changes a cost marker; thresholds in `.claude/rules/tests/patterns.md` |
+| `report_scheduled_run` | `schedule` only | the `2-infra:ci` tracking issue "Nightly scheduled run is failing" | everyone; the first green night closes it |
+
+`create_nightly_tag` and the TestPyPI publish are schedule-side infrastructure
+rather than science, but they gate the same way the test tiers do: they are in
+`report_scheduled_run`'s needs, so a broken nightly tag is an alert, not a
+silent skip.
+
+Two further nightly-only behaviours are documented in their own sections above:
+the api-test platform trim (`api_buildplat` drops `macos-15-intel` on the
+schedule alone) under "Test Tier Assignment by Event", and the build cache,
+which the nightly restores nothing from but still saves, under "Build Caches".
+
+### What may redden the nightly
+
+Only the genuine test tiers and the infrastructure they need. The alert
+watches exactly `report_scheduled_run`'s needs: `build_wheels`,
+`build_wheels_checked`, `test_api_cross_python`, `check_test_markers`,
+`build_mcp`, `create_nightly_tag` and `deploy_testpypi`. The matrix and tag
+jobs they depend on (`determine_matrix`, `detect-changes`,
+`verify-release-tag`) are not in that list, but a failure there skips the
+needed jobs, which reaches the alert as a non-success result.
+
+The recording jobs -- `tolerance_spread` and `cost_markers` -- carry
+`continue-on-error: true` and feed neither `report_scheduled_run` nor `pr-gate`.
+A wide spread or a drifted marker is information to act on, not a red night. A
+new recording job must be wired the same way, or the nightly stops being
+trusted and the fast PR tier stops being defensible.
+
+`report_scheduled_run` counts any needed job whose result is not `success` as a
+failure, `skipped` included. On a schedule every one of its needs is expected to
+run, so a skip means an upstream job failed and the night built nothing;
+counting only `failure` and `cancelled` would report that night as green and
+close the tracking issue.
+
+### Where a new expensive check goes
+
+A new check that costs more than a minute or two of runner time goes to the
+nightly first, as a recording job that never gates. Give it a PR-tier
+counterpart only when it must gate merges -- that is, when landing the failure
+it detects would be worse than the delay it adds to every PR. The physics tier
+is the worked example: `slow` physics tests run nightly, and gate a PR only
+through the `0-physics:change` label (gh#1576), never by default.
+
+The corollary is that the nightly's own reliability is a first-class concern.
+The verification criterion for this arrangement is thirty consecutive green
+scheduled runs with the alert job silent; read the current streak with
+
+```bash
+python scripts/suews/nightly_streak.py
+```
+
+which lists the last thirty scheduled runs with their conclusion and the display
+names of any failing job, counting the recording jobs separately so their
+failures do not read as a broken nightly.
+
+The benchmark candidate evaluation (Stage 3 in `benchmark/README.md`) belongs
+in this tier too, once data governance for the observations is settled. It is
+deliberately not wired in yet.
 
 ---
 

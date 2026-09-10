@@ -193,6 +193,60 @@ Requires Docker and `act` (`brew install act`).
 
 ---
 
+## Build Caches (`actions/cache`)
+
+The wheel build (`.github/actions/build-suews/action.yml`) caches the Rust
+registry (`CARGO_HOME`) and the cargo target directory (`CARGO_TARGET_DIR`)
+across jobs. Inside cibuildwheel both live where `CIBW_ENVIRONMENT` points
+them: `.cargo-cache` and `.rust-target-cache` in the workspace on macOS and
+Windows, and the bind-mounted `/cargo-cache` and `/rust-target-cache` on
+Linux (`CIBW_CONTAINER_ENGINE` mounts the same host directories). The keying
+rule below applies to this cache and to any build cache added later.
+
+- **The key is a content hash of everything that determines the cached
+  output**: platform and architecture, build profile, the compiler version
+  that produced the objects (`rustc -V`, read on the host before the cache
+  step; the Linux container installs that same version through
+  `CIBW_ENVIRONMENT_PASS_LINUX`), and the inputs (`Cargo.lock`, `Cargo.toml`,
+  `build.rs`, the bridge sources). Never a branch name, a date or a manual
+  epoch.
+- **A primary-key hit is never re-saved**, so anything that can change the
+  output has to be in the key. The `cargo-*` entries saved on 2026-08-08 were
+  restored on every run for a month while cargo recompiled all ~100 crates:
+  the key omitted the compiler, and rustc had moved from 1.97.1 to 1.98.0
+  with the runner image (nightly 34075203398, 7 Sep 2026).
+- **`restore-keys` fall back within the same platform, profile and compiler
+  only** (bridge inputs changed). There is deliberately no any-compiler
+  fallback: cargo ignores objects built by another compiler but does not
+  delete them, so a fallback restore would be saved back and the entry would
+  grow by one object set per fallback (seen on #1787: 116 MB against 199 MB
+  for the same key with and without a fallback). A fallback costs time,
+  never correctness.
+- **The scheduled nightly restores nothing but still saves.** Restoring
+  nothing means one cold build per day exists on every platform, a
+  staleness canary. Saving creates the master-scope entry whenever the key
+  changes (a primary-key hit is never re-saved, so on a stable key the
+  nightly's save is a no-op): pull requests and the merge queue can only
+  read caches saved on their own ref or on master, and the nightly is the
+  only event that builds wheels on master, so the queue warms the night
+  after a key change and stays warm until the next one. Only the release
+  profile is saved; the checked profile is built by the nightly alone with
+  its restore skipped, so a checked entry could never be read.
+- **Merge-queue runs never save.** The `gh-readonly-queue/...` ref is deleted
+  with its queue entry, so a cache saved there is unreadable and only spends
+  the repository's 10 GB budget.
+- **The job log and step summary record the lookup** (primary key, exact hit
+  or fallback key, or miss). Read those lines before believing a build was
+  warm; a restored cache is not a reused cache.
+- **Fortran objects are not cached.** Neither ccache nor sccache caches
+  Fortran (module files are not handled; gfortran is passed through), as
+  gh#1604 recorded. A direct cache of the `src/suews` objects would need the
+  gfortran version in its key, which is unknown until `pacman` runs inside
+  cibuildwheel, and a `touch` after restore because tar preserves the
+  archived mtimes and `make` would otherwise rebuild everything.
+
+---
+
 ## Build Workflow Triggers (`build-publish_to_pypi.yml`)
 
 The main build workflow responds to these events:

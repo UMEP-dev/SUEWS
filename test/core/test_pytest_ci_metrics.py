@@ -13,7 +13,11 @@ from typing import Any
 
 import pytest
 
-from scripts.suews.pytest_ci_metrics import ProcfsSampler, read_proc_process
+from scripts.suews.pytest_ci_metrics import (
+    ProcfsSampler,
+    process_peak_rss_bytes,
+    read_proc_process,
+)
 
 pytestmark = pytest.mark.api
 
@@ -113,12 +117,42 @@ def test_warn():
     assert "Pytest CI metrics" in summary
     assert expected_hash in summary
     assert "UserWarning: group me" in summary
+    assert "| Controller peak RSS |" in summary
+    assert "| Max worker peak RSS | none |" in summary
+
+
+@pytest.mark.smoke
+def test_process_peak_rss_reports_this_process_on_every_platform() -> None:
+    """The per-process peak works without procfs and is at least a few MiB."""
+    measurement = process_peak_rss_bytes()
+
+    _assert_per_process_peak(measurement)
+    assert measurement["value"] >= 4 * 1024 * 1024
+    if sys.platform.startswith("win"):
+        assert measurement["method"] == "win32-peak-working-set"
+    else:
+        assert measurement["method"] == "getrusage-ru-maxrss"
+
+
+PER_PROCESS_PEAK_METHODS = {"getrusage-ru-maxrss", "win32-peak-working-set"}
+
+
+def _assert_per_process_peak(measurement: dict[str, Any]) -> None:
+    """Per-process peak RSS is available on Linux, macOS and Windows alike."""
+    assert measurement["unit"] == "bytes"
+    assert measurement["available"] is True, measurement
+    assert measurement["status"] == "sampled", measurement
+    assert measurement["reason"] is None, measurement
+    assert measurement["method"] in PER_PROCESS_PEAK_METHODS
+    assert isinstance(measurement["value"], int)
+    assert measurement["value"] > 0
 
 
 def _assert_resource_contract(resources: dict[str, Any]) -> None:
     """Check stable availability metadata for process-tree measurements."""
     assert resources["sample_interval_seconds"] > 0
     assert resources["sample_count"] >= 0
+    _assert_per_process_peak(resources["controller_peak_rss_bytes"])
     for name, unit in (
         ("process_tree_cpu_seconds", "seconds"),
         ("process_tree_peak_rss_bytes", "bytes"),
@@ -317,6 +351,9 @@ def test_parallel(case):
     )
     assert all(worker["busy_duration_seconds"] > 0 for worker in workers)
     assert all(worker["finished_at_seconds"] >= 0 for worker in workers)
+    for worker in workers:
+        _assert_per_process_peak(worker["peak_rss_bytes"])
+    _assert_per_process_peak(metrics["resources"]["controller_peak_rss_bytes"])
     finish_times = sorted(worker["finished_at_seconds"] for worker in workers)
     assert metrics["execution"]["worker_finish_skew_seconds"] == round(
         finish_times[-1] - finish_times[0], 6

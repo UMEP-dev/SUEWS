@@ -25,6 +25,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_V2_FIXTURE = PROJECT_ROOT / "test/fixtures/ci_metrics/schema-v2-xdist.json"
 
 
+# One Windows scheduler quantum: the granularity of the process CPU clock
+# that os.times() reads (GetProcessTimes); see the xdist per-test assertions.
+CPU_CLOCK_TICK_SECONDS = 0.015625
+
+
 @pytest.mark.smoke
 def test_plugin_writes_parseable_metrics_and_step_summary(tmp_path: Path) -> None:
     """A pytest run records its stable inventory, timings, workers and warnings."""
@@ -33,6 +38,8 @@ def test_plugin_writes_parseable_metrics_and_step_summary(tmp_path: Path) -> Non
         """\
 import warnings
 
+import pytest
+
 
 def test_pass():
     assert True
@@ -40,6 +47,16 @@ def test_pass():
 
 def test_warn():
     warnings.warn("group me", UserWarning)
+
+
+@pytest.mark.slow(reason="probe the recorded reason")
+def test_burn():
+    # Enough arithmetic to register on the 10 ms os.times() clock.
+    assert sum(range(10_000_000)) > 0
+
+
+def test_skipped():
+    pytest.skip("probe a skipped node's record")
 """,
         encoding="utf-8",
     )
@@ -65,6 +82,10 @@ def test_warn():
             "scripts.suews.pytest_ci_metrics",
             str(test_file),
             "-q",
+            # The temporary tree has no ini file, so register the marker the
+            # sample uses; an unknown mark would add a warning record.
+            "-o",
+            "markers=slow",
         ],
         cwd=tmp_path,
         env=env,
@@ -75,7 +96,12 @@ def test_warn():
 
     assert result.returncode == 0, result.stdout + result.stderr
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
-    node_ids = ["test_sample.py::test_pass", "test_sample.py::test_warn"]
+    node_ids = [
+        "test_sample.py::test_burn",
+        "test_sample.py::test_pass",
+        "test_sample.py::test_skipped",
+        "test_sample.py::test_warn",
+    ]
     expected_hash = hashlib.sha256("\n".join(node_ids).encode()).hexdigest()
 
     assert metrics["schema_version"] == 2
@@ -83,16 +109,17 @@ def test_warn():
         "exit_code": 0,
         "outcomes": {
             "failed": 0,
-            "passed": 2,
-            "skipped": 0,
+            "passed": 3,
+            "skipped": 1,
             "xfailed": 0,
             "xpassed": 0,
         },
     }
     assert metrics["inventory"] == {
-        "node_count": 2,
+        "node_count": 4,
         "node_id_sha256": expected_hash,
     }
+    _assert_per_test_records(metrics["tests"], node_ids)
     assert metrics["execution"] == {
         "effective_worker_count": 1,
         "worker_finish_skew_seconds": 0.0,
@@ -146,6 +173,44 @@ def _assert_per_process_peak(measurement: dict[str, Any]) -> None:
     assert measurement["method"] in PER_PROCESS_PEAK_METHODS
     assert isinstance(measurement["value"], int)
     assert measurement["value"] > 0
+
+
+def _assert_per_test_records(records: list[dict[str, Any]], node_ids: list[str]) -> None:
+    """Check the additive per-test records: one per node, phases, markers, CPU."""
+    assert [record["node_id"] for record in records] == node_ids
+    by_node = {record["node_id"]: record for record in records}
+    phase_keys = {"setup", "call", "teardown", "total"}
+    for record in records:
+        assert record["cpu_method"] == "os.times"
+        assert set(record["cpu_seconds"]) == phase_keys
+        assert set(record["wall_seconds"]) == phase_keys
+        for measurement in (record["cpu_seconds"], record["wall_seconds"]):
+            assert all(value >= 0 for value in measurement.values())
+            assert measurement["total"] == pytest.approx(
+                measurement["setup"] + measurement["call"] + measurement["teardown"],
+                abs=1e-5,
+            )
+
+    burn = by_node["test_sample.py::test_burn"]
+    assert burn["markers"] == ["slow"]
+    assert burn["marker_reasons"] == {"slow": "probe the recorded reason"}
+    assert burn["outcome"] == "passed"
+    # The busy loop runs in the test body, so the call phase carries the CPU
+    # and dominates the setup and teardown of a fixture-free test.
+    assert burn["cpu_seconds"]["call"] > 0
+    assert burn["cpu_seconds"]["call"] > burn["cpu_seconds"]["setup"]
+    assert burn["wall_seconds"]["call"] > 0
+
+    assert by_node["test_sample.py::test_pass"]["markers"] == []
+    assert by_node["test_sample.py::test_pass"]["marker_reasons"] == {}
+    assert by_node["test_sample.py::test_pass"]["outcome"] == "passed"
+
+    skipped = by_node["test_sample.py::test_skipped"]
+    assert skipped["outcome"] == "skipped"
+    # pytest.skip() inside the body ends the call phase; the record still
+    # carries all three phases, with the missing ones at zero rather than
+    # absent, so a consumer never has to special-case skipped nodes.
+    assert skipped["cpu_seconds"]["total"] >= 0
 
 
 def _assert_resource_contract(resources: dict[str, Any]) -> None:
@@ -294,7 +359,7 @@ import pytest
 
 @pytest.mark.parametrize("case", range(8))
 def test_parallel(case):
-    time.sleep(0.01)
+    time.sleep(0.05)
     assert case >= 0
 """,
         encoding="utf-8",
@@ -368,6 +433,24 @@ def test_parallel(case):
         6,
     )
     assert metrics["result"]["outcomes"]["passed"] == 8
+    # Per-test records cross the worker boundary as report attributes.
+    records = metrics["tests"]
+    assert {record["node_id"] for record in records} == assigned_node_ids
+    assert all(record["outcome"] == "passed" for record in records)
+    assert all("parametrize" in record["markers"] for record in records)
+    assert all(record["cpu_seconds"]["total"] >= 0 for record in records)
+    # time.sleep holds wall time without burning CPU: the wall column records
+    # it and the CPU column does not. The CPU clock behind os.times() is
+    # quantised: on Windows GetProcessTimes advances by one scheduler quantum
+    # (15.625 ms) at a time, so a phase can be charged a whole tick that the
+    # perf_counter wall clock did not see. Sleep for several ticks and allow
+    # one tick of slack rather than asserting sub-tick agreement.
+    assert all(record["wall_seconds"]["call"] >= 0.05 for record in records)
+    assert all(
+        record["cpu_seconds"]["call"]
+        <= record["wall_seconds"]["call"] + CPU_CLOCK_TICK_SECONDS
+        for record in records
+    )
 
 
 def _warning_test_source(temp_root: str) -> str:

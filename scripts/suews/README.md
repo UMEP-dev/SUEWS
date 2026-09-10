@@ -42,6 +42,13 @@ carries `controller_peak_rss_bytes`; both are additive to schema v2.
 | `execution` | Effective worker count, xdist flag and worker timeline |
 | `resources` | Process-tree CPU seconds and peak resident bytes (Linux), plus the controller's own peak RSS, each with availability metadata |
 | `warnings` | Counts grouped by normalised warning fingerprint, retaining one raw sample message |
+| `tests` | One record per collected test: node id, marker names and their `reason=` keywords, outcome, and wall and CPU seconds for the setup, call and teardown phases (plus their total) |
+
+Per-test CPU is the `os.times()` delta (process plus reaped children) taken
+around each phase in the executing process; under xdist the worker carries it
+to the controller as `TestReport` attributes. `cpu_seconds` and `wall_seconds`
+are keyed by phase. The `medium` and `slow` cost markers are checked against
+these records by `scripts/lint/check_cost_markers.py`.
 
 For xdist, each `execution.workers` record contains the assigned node IDs,
 their count/hash, `busy_duration_seconds`, `finished_at_seconds` and
@@ -365,3 +372,25 @@ The checker is designed to be:
 - **Informative** (shows what's correct with `--show-info`)
 
 To modify checking behaviour, edit `scripts/suews/check_naming_conventions.py`.
+
+## Nightly streak
+
+**Script**: `nightly_streak.py`
+
+Lists the last N scheduled runs of `build-publish_to_pypi.yml` with their
+conclusion and the display names of any failing job, and counts the leading
+green streak:
+
+```bash
+python scripts/suews/nightly_streak.py            # last 30, text
+python scripts/suews/nightly_streak.py --json     # machine-readable
+```
+
+A run counts as green when it concluded `success` and no gating job failed --
+the condition under which the `report_scheduled_run` alert stays silent. The
+recording jobs (`tolerance_spread`, `cost_markers`) are `continue-on-error` and
+are listed separately, so their failures do not break the streak. Runs and jobs
+come from `gh api`; `--runs-json` and `--jobs-json` read saved payloads instead.
+The verification criterion for the nightly-as-scientific-tier arrangement is
+thirty consecutive green runs; see `.claude/rules/ci/conventions.md` ("The
+Nightly as the Scientific Tier").

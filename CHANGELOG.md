@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] Added a one-day sweep over every physics-option value and hypothesis property tests for the attribution, resampling and forcing-interpolation numerics (#1789)
+
 ### 9 Sep 2026
 
 - [maintenance] Test lanes emit about 950 warnings instead of about 13000: the `from_df_state` reconstructors now build their models with current field names instead of deprecated ones, the test fixtures and documented YAML examples moved off deprecated field names, and a supy `DeprecationWarning` is an error under `filterwarnings` so a new deprecation regression fails a test rather than joining the noise (#1777).

@@ -173,12 +173,15 @@ def measure(args: argparse.Namespace) -> int:
         )
         print(f"Running {engine} on {forcing_rows} forcing rows (full year)")
         started = datetime.now(UTC)
-        arrow_bytes = sample._run_engine(
+        output_path = sample._run_engine(
             engine, config_path, run_dir, ENGINE_TIMEOUT_SECONDS
         )
         engine_seconds = (datetime.now(UTC) - started).total_seconds()
+        # Read inside the temporary directory: _run_engine returns the path of
+        # the Arrow file and _read_engine_output memory-maps it, so the file
+        # has to outlive both calls.
+        df_actual = sample._read_engine_output(output_path, variables)
 
-    df_actual = sample._read_engine_output(arrow_bytes, variables)
     engine_rows = len(df_actual)
     rows_compared = min(engine_rows, steps)
     df_actual = df_actual.iloc[:rows_compared]

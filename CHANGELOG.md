@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 10 Sep 2026
 
+- [maintenance] Each platform's api cross-CPython lane starts as soon as that platform's wheel exists: `build_wheels` is one `build-wheels-reusable.yml` call per platform and the reusable workflow chains the api lane behind its own build, instead of every lane waiting for the slowest (Windows) wheel; in merge-queue runs 34430754322 and 34433508009 the Linux and macOS api lanes had sat idle for 95 s / 144 s and 357 s / 428 s. Gate, publish and nightly-report semantics unchanged; the merge-queue platform matrix is untouched (#1792)
 - [maintenance] The legacy-table round-trip tests resolve the vendored fixture set without copying it and forward-convert each legacy version once per pytest session (`legacy_tables` and `forward_converted` fixtures) instead of rebuilding both per parametrised case; the file was the only one in the API lane materially above the platform-wide 1.35x Windows-to-Linux ratio, at 1.66x (36 s beyond what the baseline predicts), at 1.66x, and it drops from 71.9 s to 66.8 s on a Linux machine with assertions unchanged (#1791)
 - [maintenance] Added a one-day sweep over every physics-option value and hypothesis property tests for the attribution, resampling and forcing-interpolation numerics (#1789)
 - [maintenance] Added an api-workers lane to the hosted pytest scheduler benchmark (serial vs xdist workers in ABBA order on Linux, Windows and macOS), per-worker peak RSS in the CI metrics plugin on every platform, and a summariser that tabulates the trials (#1786)

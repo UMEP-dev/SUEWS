@@ -1,0 +1,6 @@
+{
+  "name": "suews-ci-scripts",
+  "private": true,
+  "type": "commonjs",
+  "description": "Marks .github/scripts as CommonJS so post-ci-summary.js loads under actions/github-script and node --test regardless of any package.json higher up the tree."
+}

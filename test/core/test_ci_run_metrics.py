@@ -233,7 +233,7 @@ def test_caller_matrix_jobs_are_reusable_workflow_calls() -> None:
         assert "continue-on-error" not in job, job_id
         assert "timeout-minutes" not in job, job_id
         if "matrix" not in (job.get("strategy") or {}):
-            assert "matrix." not in job["name"], job_id
+            assert "matrix." not in job.get("name", ""), job_id
 
 
 @pytest.mark.smoke

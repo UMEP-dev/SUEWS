@@ -577,11 +577,12 @@ future test group on the second shape.
   the group's name (`Tolerance spread`, `Build checked wheels (nightly
   physics tier)`). The inner job's `name:` is the cell
   (`${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}`).
-- **Fan-out at the caller is for chaining only.** When the caller has to run
+- **Fan-out at the caller is for chaining only.** When a caller has to run
   one call per platform so a downstream lane can start as soon as its own
-  input exists (the per-platform wheel-then-api chain), each call is still a
-  `uses:` job and its name carries the group and the platform
-  (`Build and test (<platform> <arch>)`); the cells inside stay nested.
+  input exists (the per-platform wheel-then-api chain #1792 introduces),
+  each call is still a `uses:` job and its name carries the group and the
+  platform (`Build and test (<platform> <arch>)`); the cells inside stay
+  nested.
 - **`continue-on-error` and `timeout-minutes` go on the inner job.** GitHub
   does not accept them on a caller job that `uses:` a reusable workflow (the
   allowed keys there are `name`, `uses`, `with`, `secrets`, `needs`, `if`,

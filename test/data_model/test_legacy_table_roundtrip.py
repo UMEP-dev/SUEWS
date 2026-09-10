@@ -84,10 +84,14 @@ def _extract_legacy_tables(ver: str, dest: Path) -> Path:
 def legacy_tables():
     """Resolve a vendored legacy table set, read-only, without copying it.
 
-    Every test here reads the fixture set; only the two malformed-input tests
-    edit one, and they take their own copy through ``_extract_legacy_tables``.
-    Resolving instead of copying removes one whole-directory copy per
-    parametrised case, which is cheap on a Unix filesystem and not on NTFS.
+    Every caller here only reads the fixture set: ``convert_table`` and
+    ``reverse_convert_table`` copy their input into a working directory before
+    touching it, and ``capture_legacy_extras`` reads. The one test that edits
+    its input (``test_conversion_rejects_malformed_table_before_output``) takes
+    its own copy through ``_extract_legacy_tables``, as does the gh#1522
+    regression beside it. Resolving instead of copying removes one
+    whole-directory copy per parametrised case, which is cheap on a Unix
+    filesystem and not on NTFS.
     """
 
     def _resolve(ver: str) -> Path:

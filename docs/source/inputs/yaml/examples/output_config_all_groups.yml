@@ -24,9 +24,9 @@ model:
       # (e.g., London_KCL_2020_DailyState.txt) as they contain daily-only data
       
   physics:
-    netradiationmethod: 3
-    emissionsmethod: 2
-    snowuse: 1  # Enable snow model to get snow output
+    net_radiation: 3
+    emissions: 2
+    snow_use: 1  # Enable snow model to get snow output
 
 sites:
   - name: "Urban_Site"

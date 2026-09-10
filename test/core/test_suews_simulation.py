@@ -38,6 +38,12 @@ class TestInit:
         assert sim.config is not None
         assert sim._df_state_init is not None
 
+    # The three `from_sample_data` tests below stay on the full shipped
+    # sample: the factory's own behaviour is what they assert (its row count,
+    # its parity with the sample YAML, its runnability), so a short stand-in
+    # would test the stand-in. Every other test in this file that merely
+    # needed *a* working simulation now takes `short_sample_sim`.
+
     @pytest.mark.core
     def test_from_sample_data(self):
         """Test initialization from sample data factory method."""
@@ -529,6 +535,8 @@ class TestConfigFromDict:
         tstep = sim.config.model.control.tstep
         assert int(tstep.value if hasattr(tstep, "value") else tstep) == 600
 
+    # Subject is the legacy field name itself, so the deprecation is expected.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_update_config_legacy_field_name_renamed(self, sim_from_yaml):
         """Legacy field names must work in partial updates as in full input.
 
@@ -542,6 +550,8 @@ class TestConfigFromDict:
         inner = st.value if hasattr(st, "value") else st
         assert int(inner) == 3
 
+    # Subject is the deprecated `model.control.output_file` key itself.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_update_config_legacy_output_file(self, sim_from_yaml):
         """The deprecated output_file dict form must lift under output."""
         sim_from_yaml.update_config({
@@ -997,10 +1007,11 @@ class TestRun:
         with pytest.raises(RuntimeError, match="No forcing"):
             sim.run()
 
-    def test_run_respects_config_date_range(self):
+    def test_run_respects_config_date_range(self, short_sample_sim):
         """Test that config start_time/end_time filters the model run period (GH-996)."""
-        # Create simulation from sample data
-        sim = SUEWSSimulation.from_sample_data()
+        # A month of forcing is ample: the contract is that the config narrows
+        # the run to one day of it, whatever the file holds.
+        sim = short_sample_sim()
 
         # Note the full forcing range and resolution
         full_forcing_start = sim._df_forcing.index.min()
@@ -1130,9 +1141,9 @@ class TestEnhancements:
         assert "Not configured" in repr_str
         assert "SUEWSSimulation" in repr_str
 
-    def test_repr_ready(self):
+    def test_repr_ready(self, short_sample_sim):
         """Test repr for configured simulation."""
-        sim = SUEWSSimulation.from_sample_data()
+        sim = short_sample_sim()
         repr_str = repr(sim)
         assert "Ready" in repr_str
         assert "site" in repr_str
@@ -1144,22 +1155,22 @@ class TestEnhancements:
         assert "Complete" in repr_str
         assert "results" in repr_str
 
-    def test_state_properties(self):
+    def test_state_properties(self, short_sample_sim):
         """Test state property access."""
-        sim = SUEWSSimulation.from_sample_data()
+        sim = short_sample_sim()
         assert sim.state_init is not None
         assert sim.state_final is None
 
         sim.run(end_date=sim.forcing.index[23])
         assert sim.state_final is not None
 
-    def test_validation_methods(self):
+    def test_validation_methods(self, short_sample_sim):
         """Test is_ready and is_complete."""
         sim = SUEWSSimulation()
         assert not sim.is_ready()
         assert not sim.is_complete()
 
-        sim = SUEWSSimulation.from_sample_data()
+        sim = short_sample_sim()
         assert sim.is_ready()
         assert not sim.is_complete()
 
@@ -1208,11 +1219,11 @@ class TestGetVariable:
         with pytest.raises(ValueError, match="appears in multiple groups"):
             completed_sample_sim.get_variable("QH")
 
-    def test_get_variable_not_run(self):
+    def test_get_variable_not_run(self, short_sample_sim):
         """Test get_variable fails gracefully if not run."""
         # Must be a fresh, un-run sim (asserts pre-run behaviour), so this
         # cannot share `completed_sample_sim`.
-        sim = SUEWSSimulation.from_sample_data()
+        sim = short_sample_sim()
         with pytest.raises(RuntimeError, match="No results available"):
             sim.get_variable("QH")
 
@@ -1315,10 +1326,10 @@ class TestPathResolution:
 class TestContinuationRuns:
     """Test continuation runs using typed checkpoints."""
 
-    def test_from_checkpoint_file(self, tmp_path):
+    def test_from_checkpoint_file(self, short_sample_sim, tmp_path):
         """Test loading typed checkpoint JSON for continuation."""
         # Run initial simulation
-        sim1 = SUEWSSimulation.from_sample_data()
+        sim1 = short_sample_sim()
 
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
@@ -1349,12 +1360,14 @@ class TestContinuationRuns:
         sim2.run(start_date=df_forcing_2.index[0], end_date=df_forcing_2.index[-1])
         assert sim2.is_complete() is True
 
-    def test_save_parquet_writes_checkpoint_not_df_state(self, tmp_path):
+    def test_save_parquet_writes_checkpoint_not_df_state(
+        self, short_sample_sim, tmp_path
+    ):
         """Test OOP parquet save writes checkpoint as the restart artifact."""
         pytest.importorskip("pyarrow", reason="Parquet support requires pyarrow")
 
         # Run initial simulation
-        sim1 = SUEWSSimulation.from_sample_data()
+        sim1 = short_sample_sim()
 
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
@@ -1382,10 +1395,10 @@ class TestContinuationRuns:
         sim2.run(start_date=df_forcing_2.index[0], end_date=df_forcing_2.index[-1])
         assert sim2.is_complete() is True
 
-    def test_from_state_dataframe(self):
+    def test_from_state_dataframe(self, short_sample_sim):
         """Test loading state from DataFrame directly."""
         # Run initial simulation
-        sim1 = SUEWSSimulation.from_sample_data()
+        sim1 = short_sample_sim()
 
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
@@ -1409,12 +1422,13 @@ class TestContinuationRuns:
         sim2.run(start_date=df_forcing_2.index[0], end_date=df_forcing_2.index[-1])
         assert sim2.is_complete() is True
 
-    def test_from_state_version_warning(self, tmp_path):
+    def test_from_state_version_warning(self, sample_forcing_parsed, tmp_path):
         """Test version compatibility warning."""
 
-        # Create a state file with different version
-        sim1 = SUEWSSimulation.from_sample_data()
-        df_state = sim1.state_init.copy()
+        # Create a state file with different version. Only the state frame is
+        # read here, so take it from the shared parse rather than building a
+        # simulation.
+        df_state, _ = sample_forcing_parsed(0)
 
         # Modify version to trigger warning
         df_state[("version", "0")] = "9999.99.99"

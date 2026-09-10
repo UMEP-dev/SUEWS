@@ -33,8 +33,14 @@ class TestSimulationLoading(TestCase):
         # file as a bare sibling, so a file-only as_file() would not carry it.
         sample_dir = self.enterContext(as_file(trv_supy_module / "sample_data"))
         self.sample_config = sample_dir / "sample_config.yml"
+        # The short-window variant of the benchmark configuration: identical
+        # to benchmark1.yml apart from name, description and the forcing
+        # path. See test_benchmark_config for why the window matters.
         self.benchmark_config = (
-            Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
+            Path(__file__).parent.parent
+            / "fixtures"
+            / "benchmark1"
+            / "benchmark1_short.yml"
         )
 
     @pytest.mark.core
@@ -58,7 +64,23 @@ class TestSimulationLoading(TestCase):
 
     @pytest.mark.medium
     def test_benchmark_config(self):
-        """Test initializing with benchmark configuration if available."""
+        """Test initializing with benchmark configuration if available.
+
+        Uses benchmark1_short.yml, which carries the same parameter set as
+        benchmark1.yml over a seven-day forcing window (2016 records of
+        2011-01-01 onwards) instead of the full 2011-2013 period.
+
+        The window matters because SUEWSSimulation eagerly loads the forcing
+        named in the config, and benchmark1.yml names the whole forcing/
+        directory: 54 MB across three annual files. Profiling this test
+        showed 96 per cent of its runtime in that read, dominated by the
+        per-record pd.to_datetime call in set_index_dt (317,676 calls) -
+        all of it to make three assertions about the state table, which the
+        forcing does not touch. Directory globbing of forcing.file is
+        exercised in test_forcing_overlap_conflicts.py on its
+        conflict-rejection path; no test now concatenates a multi-file
+        forcing directory successfully.
+        """
         print("\n========================================")
         print("Testing SUEWSSimulation with benchmark config...")
 

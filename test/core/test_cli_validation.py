@@ -142,7 +142,6 @@ def test_validate_produces_meaningful_output(suews_validate_exe, tmp_path):
 
 
 @pytest.mark.cfg
-@pytest.mark.slow
 def test_validate_second_run_not_truncated(suews_validate_exe, tmp_path):
     """Repeated validation runs should not truncate reports or updated YAML files."""
     yaml_path = tmp_path / "yaml_setup.yml"

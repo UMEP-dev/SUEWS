@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] The api cross-CPython lane runs on xdist worksteal workers per platform (Linux 4, Windows 4, macOS 2, counts measured in #1786) with a `serial_platforms` escape hatch fed by the `api_serial_platforms` dispatch input or the `SUEWS_API_SERIAL_PLATFORMS` repository variable (#1788)
+
 ### 9 Sep 2026
 
 - [maintenance] Test lanes emit about 950 warnings instead of about 13000: the `from_df_state` reconstructors now build their models with current field names instead of deprecated ones, the test fixtures and documented YAML examples moved off deprecated field names, and a supy `DeprecationWarning` is an error under `filterwarnings` so a new deprecation regression fails a test rather than joining the noise (#1777).

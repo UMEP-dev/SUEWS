@@ -1180,45 +1180,55 @@ class ModelPhysics(BaseModel):
         """
         properties: dict = {}
 
+        # (DataFrame column name, canonical field name) pairs -- the reverse
+        # of `_FIELD_COL_PAIRS` above, restated here because that private
+        # attribute is only reachable from an instance. The DataFrame keeps
+        # the legacy fused column spellings for the Fortran bridge; the
+        # constructor is fed the canonical field names so reconstructing a
+        # model never trips its own deprecation shim.
         required_attrs = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
+            ("netradiationmethod", "net_radiation"),
+            ("emissionsmethod", "emissions"),
+            ("storageheatmethod", "storage_heat"),
+            ("ohmincqf", "ohm_inc_qf"),
+            ("roughlenmommethod", "roughness_length_momentum"),
+            ("roughlenheatmethod", "roughness_length_heat"),
+            ("stabilitymethod", "stability"),
+            ("smdmethod", "soil_moisture_deficit"),
+            ("waterusemethod", "water_use"),
+            ("rslmethod", "roughness_sublayer"),
+            ("faimethod", "frontal_area_index"),
+            ("rsllevel", "roughness_sublayer_level"),
+            ("gsmodel", "surface_conductance"),
+            ("snowuse", "snow_use"),
         ]
 
-        # New options: optional in legacy DataFrames, default if missing
+        # New options: optional in legacy DataFrames, default if missing.
+        # Keyed by (column name, field name) as above.
         optional_new_attrs_with_defaults = {
-            "laimethod": LAIMethod.MODELLED,
-            "kdown_split_method": KdownSplitMethod.EPW,
+            ("laimethod", "laimethod"): LAIMethod.MODELLED,
+            ("kdown_split_method", "kdown_split_method"): KdownSplitMethod.EPW,
         }
         optional_float_attrs_with_defaults = {
             "sw_dn_direct_frac": (("sw_dn_direct_frac",), 0.5),
         }
 
-        for attr in required_attrs:
+        for col_name, field_name in required_attrs:
             try:
-                properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
+                properties[field_name] = RefValue(int(df.loc[grid_id, (col_name, "0")]))
             except KeyError:
-                raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
+                raise ValueError(f"Missing attribute '{col_name}' in the DataFrame")
 
         # Optional new attributes
-        for attr, default_enum in optional_new_attrs_with_defaults.items():
+        for (
+            col_name,
+            field_name,
+        ), default_enum in optional_new_attrs_with_defaults.items():
             try:
-                value = df.loc[grid_id, (attr, "0")]
-                properties[attr] = RefValue(int(value))
+                value = df.loc[grid_id, (col_name, "0")]
+                properties[field_name] = RefValue(int(value))
             except KeyError:
-                properties[attr] = RefValue(int(default_enum))
+                properties[field_name] = RefValue(int(default_enum))
 
         for field_name, (col_names, default_value) in (
             optional_float_attrs_with_defaults.items()

@@ -153,6 +153,8 @@ sites:
         assert "DEPRECATION WARNING" in combined
         assert "Namelist format is deprecated" in combined
 
+    # Exercises the legacy DFState adapter, which deprecates itself on use.
+    @pytest.mark.filterwarnings("default::DeprecationWarning:supy")
     def test_namelist_frame_adapter_preserves_unvalidated_forcing(
         self, sample_data_loaded
     ):

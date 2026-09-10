@@ -1,2 +1,4 @@
 src/supy/data_model/output/artefacts/** text eol=lf
 src/supy/data_model/forcing/artefacts/** text eol=lf
+test/fixtures/data_test/sample_output_2012-*.csv text eol=lf
+test/fixtures/data_test/provenance.json text eol=lf

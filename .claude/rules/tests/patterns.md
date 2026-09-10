@@ -121,8 +121,8 @@ not bypass.
 ```python
 @pytest.mark.smoke   # Critical, fast tests (~60s total)
 @pytest.mark.core    # Essential physics/logic contract
-@pytest.mark.medium  # Roughly 30-60s on the slowest normal CI platform
-@pytest.mark.slow    # Over 60s, or unsuitable for routine PR runs
+@pytest.mark.medium  # Test body 10-30 CPU-s on the Linux reference runner
+@pytest.mark.slow    # 30 CPU-s or more, or slow(reason="...") for a non-CPU cause
 @pytest.mark.util    # Utility function tests (non-critical)
 @pytest.mark.cfg     # Config/schema validation tests
 ```
@@ -141,16 +141,138 @@ subset per matrix cell.
   an essential expensive regression is honestly marked `core` + `slow`.
 - `standard`: all non-slow tests plus essential `core` tests for the relevant
   nature axis.
-- `medium`: roughly 30-60 seconds on the slowest normal CI platform. These stay
-  eligible for `standard` and for any importance tier they also carry.
-- `slow`: over 60 seconds individually, or otherwise unsuitable for routine PR
-  runs. A slow test runs before merge only when it also carries `core`; other
-  slow tests belong in `make test-all`, scheduled/release builds, or explicit
-  manual validation.
+- `medium`: a test body of 10 to 30 CPU seconds on the Linux reference runner
+  (see "Cost thresholds" below). These stay eligible for `standard` and for any
+  importance tier they also carry.
+- `slow`: a test body of 30 CPU seconds or more on that runner, or otherwise
+  unsuitable for routine PR runs for a reason other than CPU, which the marker
+  states: `pytest.mark.slow(reason="...")`. A slow test runs before merge only
+  when it also carries `core`; other slow tests belong in `make test-all`,
+  scheduled/release builds, or explicit manual validation.
 - `qgis`: UMEP/QGIS tests only. These target Windows + Python 3.12, which
   matches the current Windows runtime line for both QGIS 3 LTR and QGIS 4.
   They should stay out of local `make test` and normal PR/CR tiers unless
   selected explicitly.
+
+### Cost thresholds
+
+The cost markers are defined by **process CPU seconds of the test body (the
+`call` phase) on the Linux reference runner** (`ubuntu-latest`, cp312), not by
+wall time and not by the slowest platform. Wall time on a hosted runner sits on
+a 2x noise floor (the same 166-test physics tier took 169 s and 343 s on the
+same runner class on the same day), so a marker assigned by wall-clock feel
+drifts with the runner; CPU seconds of one test on one platform are what the
+test itself costs. Windows wall time runs at several times the Linux CPU
+figure (the STEBBS full-year comparison: 21 to 34 CPU-s on Linux across seven
+dispatches, 148 s of wall on Windows), so the old wording "30-60 s on the
+slowest platform" maps onto the same tests.
+
+| Marker | Test body CPU seconds (Linux cp312) |
+|---|---|
+| none (fast) | under 10 |
+| `medium` | 10 to 30 |
+| `slow` | 30 or more, or `slow(reason="...")` for a non-CPU cause |
+
+Where the numbers come from. The metrics plugin
+(`scripts/suews/pytest_ci_metrics.py`) records wall and CPU seconds per test
+and phase in the `ci-metrics-api-cp312-manylinux-x86_64` and
+`ci-metrics-physics-cp312-manylinux-x86_64` artefacts of every nightly run. The
+reference measurement is dispatch run 34434996759 on PR #1779 (10 September
+2026, release wheel, the branch merged with master up to #1782; 183 physics
+and 2129 api tests ran their body, and the 37 skipped or xfailed nodes carry
+no measurement):
+
+| Test body CPU-s | physics tests | api tests |
+|---|---:|---:|
+| 0 - 0.1 | 84 | 1707 |
+| 0.1 - 0.3 | 4 | 67 |
+| 0.3 - 1 | 19 | 113 |
+| 1 - 3 | 15 | 145 |
+| 3 - 10 | 37 | 97 |
+| 10 - 30 | 24 | 0 |
+| 30 - 60 | 0 | 0 |
+| 60 or more | 0 | 0 |
+
+The markers were set from this run and from nothing else. `medium` is kept on
+the 22 tests that read 10.1 to 19.8 CPU-s there (fourteen EHC regressions,
+five AnOHM restart, chunking and engagement checks, the two DailyState
+senescence tests, laimethod seasonal integration) and dropped from the three
+that read under 10: `test_dailystate_lai_responds_to_phenology` (0.0, its
+full-year run moved into a session fixture by #1782), `test_benchmark_config`
+(1.4, after #1781) and `test_ehc_state_dependent_ra_heat_guard_includes_zero_kdown`
+(6.8). No unmarked test reads 10 or more: the heaviest are the OHM blending and
+DailyState southern-hemisphere tests at 7.8 and, on the api lane, a run
+provenance test at 7.7. The thresholds themselves were first read from run
+34415925967 (9 September, before #1776 and #1780 to #1782 landed), where the
+physics 10-30 band held 25 tests at 11.6 to 27.9 CPU-s and two tests exceeded
+30 (33.5 and 35.2); those PRs moved the sample-output and reference-loading
+cost out of the test bodies, and the same tests now read about 0.7 to 0.85x
+of that on the reference run.
+
+Ten seconds sits at the top of the short sample runs (a few model days: the
+OHM blending, irrigation, LAI-method and dyohm tests, 5 to 8 CPU-s on the
+reference run) and at the bottom of the long ones (ten or more model days or
+repeated runs: the EHC regressions, the AnOHM restart and chunking checks, the
+DailyState senescence tests, 10.1 CPU-s and up). That gap, 7.8 to 10.1, is
+narrow, and the band below is what keeps tests on either side of it from
+flapping. Thirty seconds separates nothing cleanly on the merged tree: the
+suite maximum was 26.2 CPU-s on the reference run and 30.1 on the dispatch
+after it (the two full-year sample-output comparisons read 24.8 and 26.2, then
+24.7 and 30.1; 17 to 36 and 21 to 34 across the seven dispatches of PR #1779),
+so the CPU limb of `slow` currently distinguishes at most one test from
+`medium`, and that one only on some readings; every `slow` mark in the suite
+stands on its stated `reason=`, not on its cost. The threshold stays as the
+class boundary, at 3x the medium threshold, for a test that grows past it.
+Nothing in the suite reaches 60 CPU-s.
+
+Why the `call` phase. Under xdist the physics lane runs four workers and each
+worker instantiates a session fixture once, so `setup` charges a shared fixture
+to whichever test reaches it first on each worker; that cost belongs to the
+fixture, not the test, and would make the flagged set differ between two runs
+of the same tree. Setup and teardown are recorded beside `call` in the artefact
+for anyone who needs them.
+
+How it is checked. `scripts/lint/check_cost_markers.py` reads those artefacts
+and names every test whose marker clearly disagrees with its measurement.
+"Clearly" is a hysteresis band of 2: per-test CPU seconds vary by up to about
+2x between dispatches, so the band is the observed spread, not a margin on it.
+Hosted runners are not one hardware generation (the serial api lane of PR
+#1779 totalled 742, 776, 913, 675, 586, 830 and 813 CPU-s over seven
+dispatches of the same tests, and individual tests moved by up to 1.97x
+between two consecutive dispatches), and on the four-worker physics lane a
+change elsewhere in the tree moves what the workers contend for and with it
+every test's CPU time (the same
+lane totalled 955 and 981 CPU-s before #1776 halved the sample-output
+reference, then 626, 542, 540, 644 and 647 after it; one EHC regression read
+14.6, 14.6, 9.3, 7.7, 7.6, 6.8 and 6.8 CPU-s). So a marker is questioned only
+when the reading is on the wrong side of a threshold by more than the band:
+unmarked from 20 CPU-s (`medium`) or 60 (`slow`), `medium` under 5 or from 60,
+bare `slow` under 15. Inside a band either marking is accepted, so a test near a
+threshold does not flap between two nights' readings, and the check is for
+tests that are clearly in the wrong class: a heavy test added without a
+marker, a `medium` that has grown into `slow`, a bare `slow` on a cheap test.
+A `slow` mark under 30 CPU-s must carry its reason
+(`pytest.mark.slow(reason="...")`: network or credentials, a run-count policy
+such as the non-anchor legacy-table versions, a spawned server with wall-clock
+assertions, a full-year run that is 148 s of wall on Windows); the plugin
+records the reason and the check accepts it. Skipped and xfailed nodes are
+excluded by outcome and not judged. An artefact whose per-test records carry a
+schema version this lint does not read stops the check with an error rather
+than being skipped, so a schema bump cannot read as no drift. The nightly
+`cost_markers` job in `build-publish_to_pypi.yml` runs the check after the two
+Linux cp312 lanes (also on `workflow_dispatch` with the `cost_markers` input)
+with `continue-on-error`, so drift is reported in the step summary and never
+reddens the run. Run it locally on downloaded artefacts:
+
+```bash
+gh run download <run-id> -n ci-metrics-api-cp312-manylinux-x86_64 -D ci-metrics/api
+gh run download <run-id> -n ci-metrics-physics-cp312-manylinux-x86_64 -D ci-metrics/physics
+python scripts/lint/check_cost_markers.py ci-metrics --histogram
+```
+
+Fix the marker, not the threshold. A threshold moves only with a new
+distribution table in this section and a matching change to the constants at
+the top of the lint.
 
 ---
 

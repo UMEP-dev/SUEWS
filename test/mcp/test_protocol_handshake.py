@@ -433,7 +433,9 @@ _PER_TASK_TIMEOUT_FACTOR = 4.0
 _PER_TASK_TIMEOUT_FLOOR_SECONDS = 30.0
 
 
-@pytest.mark.slow
+@pytest.mark.slow(
+    reason="asserts wall-clock ratios against a spawned MCP server; kept out of routine PR tiers"
+)
 @pytestmark_skipif
 def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
     """Two ``query_knowledge`` calls issued concurrently via
@@ -521,7 +523,9 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
     )
 
 
-@pytest.mark.slow
+@pytest.mark.slow(
+    reason="asserts wall-clock ratios against a spawned MCP server; kept out of routine PR tiers"
+)
 @pytestmark_skipif
 def test_concurrent_query_knowledge_and_search_schema(capsys) -> None:
     """``query_knowledge`` concurrent with ``search_schema`` on one MCP

@@ -318,6 +318,7 @@ class TestDailyStateOutput:
         )
 
 
+    @pytest.mark.medium
     def test_dailystate_lai_northern_lai_type_0_sdd_senescence(
         self, sample_data_loaded, sample_config_loaded, sample_yaml_path
     ):
@@ -401,6 +402,7 @@ class TestDailyStateOutput:
             "when SDD < 0 and SDD > SDDFull"
         )
 
+    @pytest.mark.medium
     def test_dailystate_lai_northern_lai_type_1_daylength_senescence(
         self, sample_data_loaded, sample_yaml_path
     ):

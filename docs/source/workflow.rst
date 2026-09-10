@@ -238,9 +238,9 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
        start_date: "2015-01-01"
        end_date: "2015-12-31"
      physics:
-       netradiationmethod:
+       net_radiation:
          value: 3  # NARP method
-       storageheatmethod:
+       storage_heat:
          value: 1  # OHM method
    
    sites:

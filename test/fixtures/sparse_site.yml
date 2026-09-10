@@ -16,48 +16,51 @@ model:
       freq: 3600
       dir: ./out
   physics:
-    netradiationmethod:
+    net_radiation:
       value: 3
-    emissionsmethod:
+    emissions:
       value: 2
-    storageheatmethod:
+    storage_heat:
       value: 1
-    ohmincqf:
+    ohm_inc_qf:
       value: 0
-    roughlenmommethod:
+    roughness_length_momentum:
       value: 1
-    roughlenheatmethod:
+    roughness_length_heat:
       value: 2
-    stabilitymethod:
+    stability:
       value: 3
-    smdmethod:
+    soil_moisture_deficit:
       value: 0
-    waterusemethod:
+    water_use:
       value: 0
-    rslmethod:
+    roughness_sublayer:
       value: 1
-    faimethod:
+    frontal_area_index:
       value: 0
-    rsllevel:
+    roughness_sublayer_level:
       value: 1
-    gsmodel:
+    surface_conductance:
       value: 2
-    snowuse:
+    snow_use:
       value: 0
-    stebbsmethod:
-      value: 0
-    rcmethod:
-      value: 0
-    setpointmethod:
-      value: 0
-    same_albedo_wall:
-      value: 0
-    same_albedo_roof:
-      value: 0
-    same_emissivity_wall:
-      value: 0
-    same_emissivity_roof:
-      value: 0
+    stebbs:
+      enabled:
+        value: false
+      parameters:
+        value: 1
+      capacitance:
+        value: 0
+      setpoint:
+        value: 0
+      same_albedo_wall:
+        value: 0
+      same_albedo_roof:
+        value: 0
+      same_emissivity_wall:
+        value: 0
+      same_emissivity_roof:
+        value: 0
 sites:
 - name: example_sparse_site
   gridiv: 7
@@ -76,22 +79,22 @@ sites:
       paved:
         sfr:
           value: 0.22
-        soildepth:
+        soil_depth:
           value: 350.0
-        soilstorecap:
+        soil_store_capacity:
           value: 150.0
-        statelimit:
+        state_limit:
           value: 0.48
         alb:
           value: 0.08
       bldgs:
         sfr:
           value: 0.50
-        soildepth:
+        soil_depth:
           value: 350.0
-        soilstorecap:
+        soil_store_capacity:
           value: 150.0
-        statelimit:
+        state_limit:
           value: 0.25
         alb:
           value: 0.15
@@ -100,9 +103,9 @@ sites:
       dectr:
         sfr:
           value: 0.27
-        beta_bioco2:
+        beta_bio_co2:
           value: 1
-        alpha_bioco2:
+        alpha_bio_co2:
           value: 1
         resp_a:
           value: 1
@@ -111,9 +114,9 @@ sites:
       evetr:
         sfr:
           value: 0.01
-        beta_bioco2:
+        beta_bio_co2:
           value: 1
-        alpha_bioco2:
+        alpha_bio_co2:
           value: 1
         resp_a:
           value: 1
@@ -122,9 +125,9 @@ sites:
       grass:
         sfr:
           value: 0.0
-        beta_bioco2:
+        beta_bio_co2:
           value: 1
-        alpha_bioco2:
+        alpha_bio_co2:
           value: 1
         resp_a:
           value: 1

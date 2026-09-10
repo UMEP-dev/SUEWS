@@ -303,18 +303,17 @@ async def _run_serial_then_concurrent(
     first subprocess has exited. Sequential awaits never show it (the loop is
     idle between calls); concurrent in-flight requests, the real plugin-host
     shape, either overlap on worker threads (fix in place) or serialise on
-    the loop (bug present). What separates the two is therefore the
-    *contrast* between the serial and the concurrent arm, measured on the
-    same host in the same session: a serialised dispatch makes the
-    concurrent arm cost about what the serial arm cost, an offloaded one
-    makes it cost about the longest single call. Both arms run under the
-    same load, so contention that slows the machine slows them alike and
-    the ratio survives it, where a fixed multiple of a single-call baseline
-    (the previous shape) read pure CPU contention as a regression: on a
-    3-core runner shared with another test worker it measured 1.51x against
-    a 1.5x budget with nothing regressed, and on an idle 96-core Linux
-    machine the cross-tool variant failed its 1.8x per-task deadline on the
-    healthy path.
+    the loop (bug present). What separates the two is the *contrast*
+    between the serial and the concurrent arm, measured on the same host in
+    the same session, read per call: a serialised dispatch answers the
+    first concurrent call at about its serial cost and the next one a whole
+    call later, an offloaded one answers them together. Both arms run under
+    the same load, so contention that slows the machine slows them alike,
+    where a fixed multiple of a single-call baseline (the previous shape)
+    read pure CPU contention as a regression: on a 3-core runner shared
+    with another test worker it measured 1.51x against a 1.5x budget with
+    nothing regressed, and on an idle 96-core Linux machine the cross-tool
+    variant failed its 1.8x per-task deadline on the healthy path.
 
     The warm-up primes one-shot costs (the knowledge-pack chunk load, the
     ``search_schema`` per-process cache) so both arms measure steady state.
@@ -397,13 +396,20 @@ def _report_contrast(capsys, label: str, fields: dict[str, float]) -> None:
         print(f"\n[mcp-concurrency] {label}: {body}", file=sys.stderr, flush=True)
 
 
-# Concurrent-arm wall time as a fraction of the serial-arm wall time for two
-# calls of similar cost. A serialised dispatch gives about 1.0 (the calls
-# run back to back either way); an offloaded one gives about 0.5 (they
-# overlap). 0.8 sits between the two, leaving the offloaded side margin for
-# the concurrent arm's two subprocesses sharing cores with the rest of the
-# machine, which slows that arm more than the serial one.
-_CONCURRENT_CONTRAST_RATIO = 0.8
+# Spread between the completion times of two concurrent calls of similar
+# cost, as a fraction of the shorter serial call. A serialised dispatch
+# answers the first call before it starts the second, so the second
+# completes about one whole call after the first (measured about 1.0: with
+# the offload disabled on a Linux machine, c1 = 10.79 s, c2 = 22.05 s
+# against serial calls of 10.87 s and 10.73 s). An offloaded dispatch starts
+# both at once and they complete together whether or not the machine has a
+# spare core for the second (measured 0.00 to 0.06 s of spread on eight CI
+# lanes, including one where the two calls shared a single core and each
+# took twice its solo time). 0.5 sits between the two. Total wall time
+# (C/S) is reported but not asserted: it separates the two dispatches only
+# when a spare core exists, and read 1.04 on that shared-core lane with the
+# offload working.
+_COMPLETION_SPREAD_RATIO = 0.5
 # Delay a fast, primed probe suffers when issued behind a slow call, as a
 # fraction of that slow call's concurrent-arm time. A blocked loop holds the
 # probe's request for the whole slow call (about 1.0); a free loop answers it
@@ -422,19 +428,24 @@ _PER_TASK_TIMEOUT_FLOOR_SECONDS = 10.0
 @pytestmark_skipif
 def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
     """Two ``query_knowledge`` calls issued concurrently via
-    ``asyncio.gather`` on one MCP session finish in materially less wall
-    time than the same two calls issued one after the other.
+    ``asyncio.gather`` on one MCP session complete together, rather than
+    one whole call apart as they do when the dispatch serialises them.
 
     Regression guard for gh#1412. Sequential ``await`` x 2 masks the bug
     because the event loop is idle between calls; ``asyncio.gather``
     replays the real plugin-host shape where two requests are in-flight
     on the same stdio session. Under the bug the loop cannot read the
-    second request from stdin while subprocess 1 is running, so the two
-    CLI calls serialise and the concurrent arm costs about the serial
-    arm (ratio about 1.0). With the fix (``_async_offload`` +
-    ``anyio.to_thread.run_sync``) both subprocesses overlap and the
-    concurrent arm costs about the longer single call (ratio about 0.5).
-    The assertion is ``C < 0.8 S``; see ``_CONCURRENT_CONTRAST_RATIO``.
+    second request from stdin while subprocess 1 is running, so the
+    first call completes at about its serial cost and the second about
+    one serial call later. With the fix (``_async_offload`` +
+    ``anyio.to_thread.run_sync``) both subprocesses start at once and
+    complete together. The assertion is on that completion spread,
+    ``max(c) - min(c) < 0.5 x min(s1, s2)``; see
+    ``_COMPLETION_SPREAD_RATIO`` for the two measured ends. The serial
+    and concurrent totals (S, C) are reported for diagnosis but not
+    asserted, because their ratio measures spare cores as much as
+    dispatch: on a CI lane where the two calls shared one core it read
+    1.04 with both calls overlapping.
     """
     result = asyncio.run(
         _run_serial_then_concurrent(
@@ -463,6 +474,7 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
             per_task_timeout_factor=_PER_TASK_TIMEOUT_FACTOR,
         )
     )
+    spread = max(result.concurrent_each) - min(result.concurrent_each)
     _report_contrast(
         capsys,
         "query_knowledge x2",
@@ -473,7 +485,9 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
             "C": result.concurrent_total,
             "c1": result.concurrent_each[0],
             "c2": result.concurrent_each[1],
+            "spread": spread,
             "ratio_C_over_S": result.concurrent_total / result.serial_total,
+            "ratio_spread_over_min_s": spread / min(result.serial_each),
         },
     )
     assert len(result.envelopes) == 2, (
@@ -485,15 +499,16 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
             f"Concurrent call {idx + 1}/2 returned without content; "
             "FastMCP dispatch likely failed."
         )
-    budget = result.serial_total * _CONCURRENT_CONTRAST_RATIO
-    assert result.concurrent_total < budget, (
-        f"Two concurrent query_knowledge calls took {result.concurrent_total:.1f}s "
-        f"wall-clock against {result.serial_total:.1f}s for the same two calls "
-        f"run one after the other in the same session (serial "
-        f"{result.serial_each[0]:.1f}s + {result.serial_each[1]:.1f}s); expected "
-        f"<{budget:.1f}s (= {_CONCURRENT_CONTRAST_RATIO} x serial). The "
-        "worker-thread offload has regressed: calls are serialising on the "
-        "event loop instead of overlapping on threads (gh#1412)."
+    budget = min(result.serial_each) * _COMPLETION_SPREAD_RATIO
+    assert spread < budget, (
+        f"Two concurrent query_knowledge calls completed {spread:.1f}s apart "
+        f"(at {result.concurrent_each[0]:.1f}s and {result.concurrent_each[1]:.1f}s) "
+        f"where the same two calls run one after the other in the same session "
+        f"took {result.serial_each[0]:.1f}s and {result.serial_each[1]:.1f}s; "
+        f"expected <{budget:.1f}s (= {_COMPLETION_SPREAD_RATIO} x the shorter "
+        "serial call). The worker-thread offload has regressed: calls are "
+        "serialising on the event loop instead of overlapping on threads "
+        "(gh#1412)."
     )
 
 

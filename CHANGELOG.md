@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 10 Sep 2026
+
+- [maintenance] The five full-year DailyState tests take a new session-scoped `sample_dailystate_full_year` fixture that projects the DailyState group and releases the wide frame, instead of `sample_run_cached()` which memoised the whole 105,408 x 1295 output for the session and copied it per test; `test_sample_output_validation_full_year` reads the engine's Arrow output through a memory map and projects the nine compared columns before materialising anything, rather than reading all eleven output groups into memory. Physics lane process-tree peak RSS at four xdist workers falls from 6490 MiB to 5903 MiB; no tolerance, compared column or assertion changes (#1782)
+
 ### 9 Sep 2026
 
 - [maintenance] The sample-output reference is written at seven significant figures (`float_format="%.7g"`, at most 5e-7 relative error against a tightest test tolerance of 0.002), halving it from 151 MiB to 77 MiB and its parse time from 3.3 s to 1.7 s; it is now parsed once per pytest session via a `sample_reference` fixture, and carries a `provenance.json` sidecar recording the build, compiler, platform and per-shard hashes that a new test asserts against the shards on disk (#1776)

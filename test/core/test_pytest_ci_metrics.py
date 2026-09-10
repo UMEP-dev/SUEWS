@@ -22,6 +22,15 @@ from scripts.suews.pytest_ci_metrics import (
 pytestmark = pytest.mark.api
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# os.times() accrues CPU in whole scheduler ticks: 1/CLK_TCK s on POSIX
+# (10 ms at the usual 100 Hz) and the 1/64 s (15.625 ms) clock-interrupt
+# interval on Windows, where the tick that fires while a thread runs is
+# charged to it in full. The wall clock behind report.duration is
+# perf_counter, sub-microsecond on every platform, so a phase that sleeps for
+# 10 ms and runs for a few microseconds either side can be charged one whole
+# tick of CPU and nominally exceed its own wall time. Comparisons between the
+# two columns allow one tick of the coarsest clock.
+CPU_CLOCK_TICK_SECONDS = 1 / 64
 SCHEMA_V2_FIXTURE = PROJECT_ROOT / "test/fixtures/ci_metrics/schema-v2-xdist.json"
 
 
@@ -435,10 +444,12 @@ def test_parallel(case):
     assert all("parametrize" in record["markers"] for record in records)
     assert all(record["cpu_seconds"]["total"] >= 0 for record in records)
     # time.sleep holds wall time without burning CPU: the wall column records
-    # it and the CPU column does not.
+    # it and the CPU column does not, beyond the one tick the CPU clock can
+    # round up by (see CPU_CLOCK_TICK_SECONDS).
     assert all(record["wall_seconds"]["call"] >= 0.01 for record in records)
     assert all(
-        record["cpu_seconds"]["call"] <= record["wall_seconds"]["call"]
+        record["cpu_seconds"]["call"]
+        <= record["wall_seconds"]["call"] + CPU_CLOCK_TICK_SECONDS
         for record in records
     )
 

@@ -148,9 +148,14 @@ difference is outside this repository's direct test surface.
   `physics` feature).
 - `util` — utility function tests (non-critical).
 - `cfg` — config / schema validation tests.
-- `medium` — tests taking roughly 30-60s on the slowest normal CI platform.
-- `slow` — tests taking over 60s individually, or unsuitable for routine PR
-  runs. `core` + `slow` means expensive but essential before merge.
+- `medium` — test body of 10 to 30 CPU seconds on the Linux reference runner
+  (cp312), as recorded per test in the nightly `ci-metrics-*` artefacts.
+- `slow` — test body of 30 CPU seconds or more on that runner, or unsuitable for
+  routine PR runs for a reason other than CPU, stated as
+  `pytest.mark.slow(reason="...")`. `core` + `slow` means expensive but
+  essential before merge. `scripts/lint/check_cost_markers.py` checks every
+  marker against the measurement each night; thresholds and reasoning are in
+  `.claude/rules/tests/patterns.md`.
 - `qgis` — UMEP plugin tests in `test/umep/` (Windows + Python 3.12 target).
 
 ### Selecting a subset

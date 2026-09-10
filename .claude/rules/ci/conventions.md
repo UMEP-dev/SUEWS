@@ -289,9 +289,15 @@ Test tiers control which pytest markers run during CI builds. Defined via pytest
 - **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`.
 - **all** (no filter) -- full suite including slow tests (~15-30 min)
 
-Importance and cost are independent: `medium` means roughly 30-60 seconds on
-the slowest normal CI platform, while `slow` means over 60 seconds or otherwise
-unsuitable for routine PR runs. Absence of either cost marker means fast. Each
+Importance and cost are independent. The cost markers are defined by the CPU
+seconds of the test body on the Linux reference runner (cp312), which the
+metrics plugin records per test: `medium` is 10 to 30 CPU seconds, `slow` is 30
+or more, or unsuitable for routine PR runs for a stated non-CPU reason
+(`pytest.mark.slow(reason="...")`). Absence of either cost marker means fast.
+The nightly `cost_markers` job (`scripts/lint/check_cost_markers.py`, also on
+`workflow_dispatch` with the `cost_markers` input) reports every marker that
+disagrees with the measurement and never gates; the thresholds and their
+reasoning are in `.claude/rules/tests/patterns.md`. Each
 higher tier is a superset of smoke. The `standard` tier excludes non-core
 `slow` tests but retains tests marked both `core` and `slow`.
 

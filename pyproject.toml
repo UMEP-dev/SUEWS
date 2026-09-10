@@ -201,7 +201,9 @@ faulthandler_timeout = 300
 # Three orthogonal properties (gh#1300, gh#1680):
 #   nature:     physics | api       -- what the test actually exercises
 #   importance: smoke | core | cfg  -- where the contract must run
-#   cost:       medium | slow       -- absence means fast
+#   cost:       medium | slow       -- absence means fast; thresholds are CPU seconds
+#               on the Linux reference runner, checked nightly by
+#               scripts/lint/check_cost_markers.py (see .claude/rules/tests/patterns.md)
 # Every test file must carry at least one of {physics, api}; importance and
 # cost markers compose independently with the nature axis.
 markers = [
@@ -215,8 +217,8 @@ markers = [
     "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
-    "medium: Tests taking roughly 30-60s individually on the slowest normal CI platform",
-    "slow: Tests taking over 60s individually, or unsuitable for routine PR runs",
+    "medium: Test body of 10 to 30 CPU seconds on the Linux reference runner (cp312); excluded from the smoke tier only, included by core, cfg and standard",
+    "slow: Test body of 30 CPU seconds or more on the Linux reference runner, or unsuitable for routine PR runs for a stated reason (slow(reason=...)); excluded from standard unless core",
     "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 

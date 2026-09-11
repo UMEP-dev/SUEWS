@@ -4716,6 +4716,7 @@ CONTAINS
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, &
       MetabolismThreshold, LatentSensibleRatio, DaylightControl, LightingIlluminanceThreshold, &
+      InternalShading, ReductionFactorShading, TemperatureThresholdShading, RadiationThresholdShading, &
       ApplianceProfile, LightingPowerDensity, &
       HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, &
@@ -5139,6 +5140,10 @@ CONTAINS
       REAL(KIND(1D0)) :: LatentSensibleRatio
       INTEGER :: DaylightControl
       REAL(KIND(1D0)) :: LightingIlluminanceThreshold
+      INTEGER :: InternalShading
+      REAL(KIND(1D0)) :: ReductionFactorShading
+      REAL(KIND(1D0)) :: TemperatureThresholdShading
+      REAL(KIND(1D0)) :: RadiationThresholdShading
       REAL(KIND(1D0)) :: HeatingSystemEfficiency
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
@@ -6021,6 +6026,10 @@ CONTAINS
       stebbsPrm%latent_sensible_ratio = LatentSensibleRatio
       stebbsPrm%daylight_control = DaylightControl
       stebbsPrm%lighting_illuminance_threshold = LightingIlluminanceThreshold
+      stebbsPrm%internal_shading = InternalShading
+      stebbsPrm%reduction_factor_shading = ReductionFactorShading
+      stebbsPrm%temperature_threshold_shading = TemperatureThresholdShading
+      stebbsPrm%radiation_threshold_shading = RadiationThresholdShading
       stebbsPrm%heating_system_efficiency = HeatingSystemEfficiency
       stebbsPrm%max_cooling_power = MaxCoolingPower
       stebbsPrm%cooling_system_cop = CoolingSystemCOP

@@ -2428,6 +2428,8 @@ mod tests {
         assert!(run_cfg.site.stebbs.hot_water_flow_profile[0][43] >= 0.0);
         assert!((run_cfg.site.stebbs.daylight_control - 1.0).abs() < 1.0e-12);
         assert!((run_cfg.site.stebbs.lighting_illuminance_threshold - 300.0).abs() < 1.0e-12);
+        assert_eq!(run_cfg.site.stebbs.internal_shading, 0.0);
+        assert_eq!(run_cfg.site.stebbs.reduction_factor_shading, 1.0);
         assert!((run_cfg.site.building_archtype.lightingpowerdensity - 2.0).abs() < 1.0e-12);
 
         assert!((run_cfg.state.stebbs_state.deep_soil_temperature - 10.738).abs() < 1.0e-12);
@@ -2445,6 +2447,26 @@ mod tests {
                 < 1.0e-12
         );
         assert!((run_cfg.state.stebbs_state.mains_water_temperature - 10.0).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn parses_internal_shading_controls() {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain one site");
+        *get_path_mut(site, &["properties", "stebbs"])
+            .expect("fixture should define STEBBS properties") = serde_yaml::from_str(
+            "internal_shading:\n  value: 2\nreduction_factor_shading:\n  value: 0.4\ntemperature_threshold_shading:\n  value: 24.0\nradiation_threshold_shading:\n  value: 200.0\n",
+        )
+        .expect("shading controls should be valid YAML");
+
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+
+        assert_eq!(run_cfg.site.stebbs.internal_shading, 2.0);
+        assert!((run_cfg.site.stebbs.reduction_factor_shading - 0.4).abs() < 1.0e-12);
+        assert!((run_cfg.site.stebbs.temperature_threshold_shading - 24.0).abs() < 1.0e-12);
+        assert!((run_cfg.site.stebbs.radiation_threshold_shading - 200.0).abs() < 1.0e-12);
     }
 
     #[test]

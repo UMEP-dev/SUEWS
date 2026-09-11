@@ -9,6 +9,7 @@ from ...core.yaml_helpers import (
     get_stebbsmethod_value,
 )
 from typing import Dict, List, Optional, Union, Any, Tuple
+import math
 
 def check_archetype_radiation_properties(archetype_data, facet):
     """
@@ -240,6 +241,129 @@ def check_daylight_control(context):
                             suggested_value="Provide a value for threshold_lighting_illuminance in stebbs.",
                         )
                     )
+
+    return results
+
+
+@RulesRegistry.add_rule("internal_shading")
+def check_internal_shading(context):
+    """Validate internal window-shading controls when STEBBS is active."""
+    yaml_data = context.yaml_data
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+
+    if get_stebbsmethod_value(physics) != 1:
+        return results
+
+    for site_idx, site in enumerate(yaml_data.get("sites", [])):
+        stebbs = site.get("properties", {}).get("stebbs", {})
+        shading_mode = get_value_safe(stebbs, "internal_shading")
+        if isinstance(shading_mode, bool) or shading_mode not in {0, 1, 2, None}:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="stebbs.internal_shading",
+                    site_index=site_idx,
+                    site_gridid=site.get("gridiv"),
+                    message=(
+                        "internal_shading must be 0 (disabled), 1 (always active), "
+                        f"or 2 (controlled), got '{shading_mode}'."
+                    ),
+                    suggested_value="Set internal_shading to 0, 1, or 2",
+                )
+            )
+            continue
+
+        if shading_mode not in {1, 2}:
+            continue
+
+        reduction_factor = get_value_safe(stebbs, "reduction_factor_shading")
+        if reduction_factor is None:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="stebbs.reduction_factor_shading",
+                    site_index=site_idx,
+                    site_gridid=site.get("gridiv"),
+                    message=(
+                        "reduction_factor_shading must be provided when "
+                        "internal_shading is 1 or 2."
+                    ),
+                    suggested_value="Provide a value between 0 and 1",
+                )
+            )
+        elif (
+            not isinstance(reduction_factor, (int, float))
+            or isinstance(reduction_factor, bool)
+            or not math.isfinite(reduction_factor)
+            or not 0.0 <= reduction_factor <= 1.0
+        ):
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="stebbs.reduction_factor_shading",
+                    site_index=site_idx,
+                    site_gridid=site.get("gridiv"),
+                    message=(
+                        "reduction_factor_shading must be a finite value between "
+                        f"0 and 1, got '{reduction_factor}'."
+                    ),
+                    suggested_value="Set reduction_factor_shading between 0 and 1",
+                )
+            )
+
+        if shading_mode != 2:
+            continue
+
+        threshold_specs = (
+            ("temperature_threshold_shading", -273.15, False, "degC"),
+            ("radiation_threshold_shading", 0.0, True, "W m-2"),
+        )
+        for field_name, lower_bound, inclusive, unit in threshold_specs:
+            threshold = get_value_safe(stebbs, field_name)
+            if threshold is None:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter=f"stebbs.{field_name}",
+                        site_index=site_idx,
+                        site_gridid=site.get("gridiv"),
+                        message=f"{field_name} must be provided when internal_shading is 2.",
+                        suggested_value=f"Provide {field_name} in {unit}",
+                    )
+                )
+                continue
+
+            valid_number = (
+                isinstance(threshold, (int, float))
+                and not isinstance(threshold, bool)
+                and math.isfinite(threshold)
+            )
+            above_lower_bound = (
+                (threshold >= lower_bound if inclusive else threshold > lower_bound)
+                if valid_number
+                else False
+            )
+            if not above_lower_bound:
+                comparison = "at least" if inclusive else "greater than"
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter=f"stebbs.{field_name}",
+                        site_index=site_idx,
+                        site_gridid=site.get("gridiv"),
+                        message=(
+                            f"{field_name} must be finite and {comparison} "
+                            f"{lower_bound} {unit}, got '{threshold}'."
+                        ),
+                        suggested_value=f"Provide a physically valid threshold in {unit}",
+                    )
+                )
 
     return results
 

@@ -101,6 +101,10 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: latent_sensible_ratio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
       INTEGER :: daylight_control = 0 ! Daylight-based lighting control flag encoded as 0/1 [-]
       REAL(KIND(1D0)) :: lighting_illuminance_threshold = 300.0D0 ! Indoor illuminance threshold for switching off electric lighting [lx]
+      INTEGER :: internal_shading = 0 ! Internal window shading mode: 0 off, 1 always active, 2 controlled [-]
+      REAL(KIND(1D0)) :: reduction_factor_shading = 1.0D0 ! Transmitted fraction of window solar gain when shading is active [-]
+      REAL(KIND(1D0)) :: temperature_threshold_shading = 0.0D0 ! Indoor air-temperature threshold for controlled shading [degC]
+      REAL(KIND(1D0)) :: radiation_threshold_shading = 0.0D0 ! Wall/window shortwave-radiation threshold for controlled shading [W m-2]
       REAL(KIND(1D0)) :: heating_system_efficiency = 0.0D0 ! Efficiency of space heating system [-]
       REAL(KIND(1D0)) :: max_cooling_power = 0.0D0 ! Maximum power demand of cooling system [W]
       REAL(KIND(1D0)) :: cooling_system_cop = 0.0D0 ! Coefficient of performance of cooling system [-]
@@ -212,6 +216,10 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: metabolic_rate = 0.0D0
       REAL(KIND(1D0)) :: metabolism_threshold = 0.0D0
       REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible = 0.0D0
+      INTEGER :: internal_shading = 0
+      REAL(KIND(1D0)) :: reduction_factor_shading = 1.0D0
+      REAL(KIND(1D0)) :: temperature_threshold_shading = 0.0D0
+      REAL(KIND(1D0)) :: radiation_threshold_shading = 0.0D0
       REAL(KIND(1D0)) :: appliance_power_rating = 0.0D0
       REAL(KIND(1D0)) :: lighting_power_rating = 0.0D0
       REAL(KIND(1D0)) :: frac_hotwater = 0.0D0

@@ -8384,6 +8384,43 @@
       "title": "RefValue[List[str]]",
       "type": "object"
     },
+    "RefValue_Literal_0__1__2__": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1,
+                2
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[Literal[0, 1, 2]]",
+      "type": "object"
+    },
     "RefValue_MomentumRoughnessMethod_": {
       "additionalProperties": false,
       "properties": {
@@ -10785,6 +10822,99 @@
           "display_name": "Daylight Control",
           "title": "Daylight Control",
           "unit": "dimensionless"
+        },
+        "internal_shading": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_Literal_0__1__2__"
+            },
+            {
+              "enum": [
+                0,
+                1,
+                2
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0,
+          "description": "Internal window shading mode (0 = off, 1 = always active, 2 = temperature-and-radiation controlled)",
+          "display_name": "Internal Shading",
+          "title": "Internal Shading",
+          "unit": "dimensionless"
+        },
+        "reduction_factor_shading": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 1.0,
+          "description": "Fraction of window-transmitted solar heat gain retained when internal shading is active [-]",
+          "display_name": "Internal Shading Reduction Factor",
+          "title": "Reduction Factor Shading",
+          "unit": "dimensionless"
+        },
+        "temperature_threshold_shading": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": -273.15
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Indoor air-temperature threshold for controlled internal shading [degC]",
+          "display_name": "Internal Shading Temperature Threshold",
+          "title": "Temperature Threshold Shading",
+          "unit": "degC"
+        },
+        "radiation_threshold_shading": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Wall/window incident shortwave-radiation threshold for controlled internal shading [W m-2]",
+          "display_name": "Internal Shading Radiation Threshold",
+          "title": "Radiation Threshold Shading",
+          "unit": "W m^-2"
         },
         "threshold_lighting_illuminance": {
           "anyOf": [

@@ -473,6 +473,8 @@ sites:
         value: 2.0
       efficiency_heating_system_air:
         value: 0.8
+      destination_waste_heat:
+        value: 0
       max_power_cooling_system_air:
         value: 14595
       efficiency_cooling_system_air:

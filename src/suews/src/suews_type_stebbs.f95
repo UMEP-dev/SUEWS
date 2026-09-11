@@ -106,6 +106,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: temperature_threshold_shading = 0.0D0 ! Indoor air-temperature threshold for controlled shading [degC]
       REAL(KIND(1D0)) :: radiation_threshold_shading = 0.0D0 ! Wall/window shortwave-radiation threshold for controlled shading [W m-2]
       REAL(KIND(1D0)) :: heating_system_efficiency = 0.0D0 ! Efficiency of space heating system [-]
+      INTEGER :: destination_waste_heat = 0 ! Space-heating waste-heat destination: 0 indoor air, 1 outdoor air [-]
       REAL(KIND(1D0)) :: max_cooling_power = 0.0D0 ! Maximum power demand of cooling system [W]
       REAL(KIND(1D0)) :: cooling_system_cop = 0.0D0 ! Coefficient of performance of cooling system [-]
       REAL(KIND(1D0)) :: ventilation_rate = 0.0D0 ! Ventilation rate (air changes per hour, ACH) [h-1]
@@ -225,6 +226,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: frac_hotwater = 0.0D0
       REAL(KIND(1D0)) :: maxheatingpower_air = 0.0D0
       REAL(KIND(1D0)) :: heating_efficiency_air = 0.0D0
+      INTEGER :: destination_waste_heat = 0
       REAL(KIND(1D0)) :: maxcoolingpower_air = 0.0D0
       REAL(KIND(1D0)) :: coeff_performance_cooling = 0.0D0
       REAL(KIND(1D0)) :: Vair_ind = 0.0D0

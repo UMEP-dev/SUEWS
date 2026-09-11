@@ -550,6 +550,7 @@ STEBBSPROPERTIES_RENAMES: Dict[str, str] = {
     "TemperatureThresholdShading": "temperature_threshold_shading",
     "RadiationThresholdShading": "radiation_threshold_shading",
     "HeatingSystemEfficiency": "heating_system_efficiency",
+    "DestinationWasteHeat": "destination_waste_heat",
     "MaxCoolingPower": "max_cooling_power",
     "CoolingSystemCOP": "cooling_system_cop",
     # Ventilation & initial state

@@ -84,6 +84,35 @@ def _run_daytime_shading_probe(
     return output.df.STEBBS[["Qsw_trans_win_FA", "Qsw_abs_win_FA"]]
 
 
+def _run_heating_waste_probe(destination_waste_heat):
+    """Run one-second STEBBS updates with an explicit waste-heat destination."""
+    simulation = sp.SUEWSSimulation(STEBBS_CONFIG)
+    simulation.config.model.control.tstep = 1
+    stebbs = simulation.config.sites[0].properties.stebbs
+    stebbs.destination_waste_heat = destination_waste_heat
+    simulation._df_state_init = simulation.config.to_df_state()
+
+    forcing = simulation.forcing.df.loc["2017-08-26"].iloc[:2].copy()
+    simulation._df_forcing = forcing
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        output = simulation.run(
+            start_date=forcing.index[0],
+            end_date=forcing.index[-1],
+            n_jobs=1,
+            _validate_forcing=False,
+        )
+    return output.df.STEBBS.iloc[0]
+
+
+@pytest.fixture(scope="module")
+def heating_waste_destination_outputs():
+    return {
+        "indoor": _run_heating_waste_probe(destination_waste_heat=0),
+        "outdoor": _run_heating_waste_probe(destination_waste_heat=1),
+    }
+
+
 @pytest.mark.skipif(
     not _rust_library_available(),
     reason="Rust library backend not available (install src/suews_bridge with physics feature)",
@@ -208,3 +237,53 @@ def test_controlled_internal_shading_requires_temperature_and_radiation():
         rtol=2.0e-6,
         atol=1.0e-10,
     )
+
+
+@pytest.mark.skipif(
+    not _rust_library_available(),
+    reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+)
+def test_destination_waste_heat_controls_outdoor_waste(
+    heating_waste_destination_outputs,
+):
+    indoor = heating_waste_destination_outputs["indoor"]
+    outdoor = heating_waste_destination_outputs["outdoor"]
+
+    assert indoor["QHwaste_heating_FA"] > 0.0
+    assert indoor["QWaste_bldg_FA"] == pytest.approx(indoor["QHwaste_cooling_FA"])
+    assert outdoor["QWaste_bldg_FA"] == pytest.approx(
+        outdoor["QHwaste_cooling_FA"] + outdoor["QHwaste_heating_FA"]
+    )
+
+
+@pytest.mark.skipif(
+    not _rust_library_available(),
+    reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+)
+def test_outdoor_heating_waste_is_removed_from_indoor_air_balance(
+    heating_waste_destination_outputs,
+):
+    indoor = heating_waste_destination_outputs["indoor"]
+    outdoor = heating_waste_destination_outputs["outdoor"]
+
+    assert outdoor["QHload_heating_FA"] == pytest.approx(indoor["QHload_heating_FA"])
+    assert outdoor["QHwaste_heating_FA"] == pytest.approx(indoor["QHwaste_heating_FA"])
+    assert indoor["QS_air_FA"] - outdoor["QS_air_FA"] == pytest.approx(
+        indoor["QHwaste_heating_FA"],
+        rel=2.0e-6,
+        abs=1.0e-10,
+    )
+
+
+@pytest.mark.skipif(
+    not _rust_library_available(),
+    reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+)
+def test_destination_waste_heat_does_not_change_heating_energy_consumption(
+    heating_waste_destination_outputs,
+):
+    indoor = heating_waste_destination_outputs["indoor"]
+    outdoor = heating_waste_destination_outputs["outdoor"]
+
+    assert outdoor["QEC_heating_FA"] == pytest.approx(indoor["QEC_heating_FA"])
+    assert indoor["QEC_heating_FA"] == pytest.approx(indoor["QHload_heating_FA"] / 0.8)

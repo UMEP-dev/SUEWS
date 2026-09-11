@@ -2301,6 +2301,17 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
+    destination_waste_heat: Optional[FlexibleRefValue(Literal[0, 1])] = Field(
+        default=0,
+        description=(
+            "Destination of waste heat from the space-heating system "
+            "(0 = indoor air, 1 = outdoor air)"
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Space-Heating Waste-Heat Destination",
+        },
+    )
     max_power_cooling_system_air: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of cooling system [W]",

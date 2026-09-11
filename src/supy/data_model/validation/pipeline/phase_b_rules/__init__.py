@@ -30,6 +30,7 @@ DEFAULT_RULE_ORDER = (
     "archetype_properties",
     "occupants_metabolism",
     "daylight_control",
+    "internal_shading",
     "stebbs_props",
     "setpoint",
     "rcmethod",

@@ -1360,6 +1360,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%window_transmissivity, self%window_absorptivity, self%window_reflectivity, &
       self%wall_transmissivity_state, self%wall_absorptivity, self%wall_reflectivity, &
       self%roof_transmissivity_state, self%roof_absorptivity, self%roof_reflectivity, &
+      self%internal_shading, self%reduction_factor_shading, &
+      self%temperature_threshold_shading, self%radiation_threshold_shading, &
       self%occupants_state, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
       self%appliance_power_rating, self%lighting_power_rating,&
       self%maxheatingpower_air, self%heating_efficiency_air, &
@@ -1473,6 +1475,8 @@ SUBROUTINE tstep( &
    windowTransmissivity, windowAbsorbtivity, windowReflectivity, &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
+   internal_shading, reduction_factor_shading, &
+   temperature_threshold_shading, radiation_threshold_shading, &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
    appliance_power_rating, lighting_power_rating, &
    maxheatingpower_air, heating_efficiency_air, &
@@ -1620,6 +1624,10 @@ SUBROUTINE tstep( &
                  roofT, & ! // roof transmisivity [-]
                  roofA, & ! // roof absorptivity [-]
                  roofR ! // roof reflectivity [-]
+   INTEGER, INTENT(IN) :: internal_shading ! Internal window shading mode [-]
+   REAL(KIND(1D0)), INTENT(IN) :: reduction_factor_shading, & ! Active transmitted fraction [-]
+                                  temperature_threshold_shading, & ! Indoor-air threshold [degC]
+                                  radiation_threshold_shading ! Wall/window shortwave threshold [W m-2]
    REAL(KIND(1D0)) :: QHload_heating_tstepTotal, & ! // currently only sensible but this needs to be  split into sensible and latent heat components
                       QHload_cooling_tstepTotal, & ! // currently only sensible but this needs to be  split into sensible and latent heat components
                       QHload_dhw_tstepTotal, & ! total heat input into water of hot water tank over simulation, hence do not equate to zero
@@ -1642,6 +1650,7 @@ SUBROUTINE tstep( &
                       wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
    REAL(KIND(1D0)) :: occupants! Number of occupants [-]
+   LOGICAL :: internal_shading_active
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
                       appliance_power_rating, lighting_power_rating ! [W]
    REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
@@ -1906,8 +1915,22 @@ SUBROUTINE tstep( &
 
    IF (MOD(timestep, resolution) == 0) THEN
       looptime: DO i = 1, INT(timestep/resolution), 1
+         internal_shading_active = .FALSE.
+         SELECT CASE (internal_shading)
+         CASE (1)
+            internal_shading_active = .TRUE.
+         CASE (2)
+            IF ((Tair_ind - 273.15D0) >= temperature_threshold_shading .AND. &
+                Qsw_dn_extwall >= radiation_threshold_shading) THEN
+               internal_shading_active = .TRUE.
+            END IF
+         END SELECT
+
          IF (window_surface_active) THEN
             Qsw_transmitted_window = windowInsolation(Qsw_dn_extwall, winT, Awindow)
+            IF (internal_shading_active) THEN
+               Qsw_transmitted_window = reduction_factor_shading*Qsw_transmitted_window
+            END IF
             Qsw_absorbed_window = windowInsolation(Qsw_dn_extwall, winA, Awindow)
             Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
             QHconv_indair_to_intwindow = &
@@ -2509,6 +2532,10 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%occupants_state = building_archtype%occupants_state
    self%metabolism_threshold = stebbsPrm%metabolism_threshold
    self%ratio_metabolic_latent_sensible = stebbsPrm%latent_sensible_ratio
+   self%internal_shading = stebbsPrm%internal_shading
+   self%reduction_factor_shading = stebbsPrm%reduction_factor_shading
+   self%temperature_threshold_shading = stebbsPrm%temperature_threshold_shading
+   self%radiation_threshold_shading = stebbsPrm%radiation_threshold_shading
    self%maxheatingpower_air = building_archtype%max_heating_power
    self%heating_efficiency_air = stebbsPrm%heating_system_efficiency
    self%maxcoolingpower_air = stebbsPrm%max_cooling_power

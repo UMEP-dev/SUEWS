@@ -18,8 +18,8 @@ public :: SUEWS_CAPI_BAD_STATE
 
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_GROUPS = 2_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 331_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 3_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 335_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 4_c_int
 
 type :: stebbs_prm_shadow
    real(c_double) :: wall_internal_convection_coefficient = 0.0_c_double
@@ -38,6 +38,10 @@ type :: stebbs_prm_shadow
    real(c_double) :: latent_sensible_ratio = 0.0_c_double
    real(c_double) :: daylight_control = 0.0_c_double
    real(c_double) :: lighting_illuminance_threshold = 300.0_c_double
+   real(c_double) :: internal_shading = 0.0_c_double
+   real(c_double) :: reduction_factor_shading = 1.0_c_double
+   real(c_double) :: temperature_threshold_shading = 0.0_c_double
+   real(c_double) :: radiation_threshold_shading = 0.0_c_double
    real(c_double) :: heating_system_efficiency = 0.0_c_double
    real(c_double) :: max_cooling_power = 0.0_c_double
    real(c_double) :: cooling_system_cop = 0.0_c_double
@@ -146,6 +150,10 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%latent_sensible_ratio; idx = idx + 1_c_int
    flat(idx) = state%daylight_control; idx = idx + 1_c_int
    flat(idx) = state%lighting_illuminance_threshold; idx = idx + 1_c_int
+   flat(idx) = state%internal_shading; idx = idx + 1_c_int
+   flat(idx) = state%reduction_factor_shading; idx = idx + 1_c_int
+   flat(idx) = state%temperature_threshold_shading; idx = idx + 1_c_int
+   flat(idx) = state%radiation_threshold_shading; idx = idx + 1_c_int
    flat(idx) = state%heating_system_efficiency; idx = idx + 1_c_int
    flat(idx) = state%max_cooling_power; idx = idx + 1_c_int
    flat(idx) = state%cooling_system_cop; idx = idx + 1_c_int
@@ -220,6 +228,10 @@ subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    state%latent_sensible_ratio = flat(idx); idx = idx + 1_c_int
    state%daylight_control = flat(idx); idx = idx + 1_c_int
    state%lighting_illuminance_threshold = flat(idx); idx = idx + 1_c_int
+   state%internal_shading = nint(flat(idx)); idx = idx + 1_c_int
+   state%reduction_factor_shading = flat(idx); idx = idx + 1_c_int
+   state%temperature_threshold_shading = flat(idx); idx = idx + 1_c_int
+   state%radiation_threshold_shading = flat(idx); idx = idx + 1_c_int
    state%heating_system_efficiency = flat(idx); idx = idx + 1_c_int
    state%max_cooling_power = flat(idx); idx = idx + 1_c_int
    state%cooling_system_cop = flat(idx); idx = idx + 1_c_int

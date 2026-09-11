@@ -153,6 +153,14 @@ sites:
         value: 1
       threshold_lighting_illuminance:
         value: 300.0
+      internal_shading:
+        value: 0
+      reduction_factor_shading:
+        value: 1.0
+      temperature_threshold_shading:
+        value: 0.0
+      radiation_threshold_shading:
+        value: 0.0
       profile_appliance:
         working_day:
           '1': 88.0

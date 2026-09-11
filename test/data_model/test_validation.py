@@ -1585,6 +1585,62 @@ def test_daylight_control_daylightcontrol_zero(registry):
     assert not results, "Should not return errors for DaylightControl=0 without LightingIlluminanceThreshold"
 
 
+def test_internal_shading_missing_defaults_to_disabled_in_phase_b(registry):
+    yaml_data = {
+        "model": {"physics": {"stebbs": {"value": 1}}},
+        "sites": [{"properties": {"stebbs": {}}}],
+    }
+
+    results = registry["internal_shading"](ValidationContext(yaml_data=yaml_data))
+
+    assert not results
+
+
+def test_controlled_internal_shading_requires_both_thresholds_in_phase_b(registry):
+    yaml_data = {
+        "model": {"physics": {"stebbs": {"value": 1}}},
+        "sites": [
+            {
+                "properties": {
+                    "stebbs": {
+                        "internal_shading": {"value": 2},
+                        "reduction_factor_shading": {"value": 0.4},
+                    }
+                }
+            }
+        ],
+    }
+
+    results = registry["internal_shading"](ValidationContext(yaml_data=yaml_data))
+
+    assert {result.parameter for result in results} == {
+        "stebbs.temperature_threshold_shading",
+        "stebbs.radiation_threshold_shading",
+    }
+
+
+def test_internal_shading_reduction_factor_range_in_phase_b(registry):
+    yaml_data = {
+        "model": {"physics": {"stebbs": {"value": 1}}},
+        "sites": [
+            {
+                "properties": {
+                    "stebbs": {
+                        "internal_shading": {"value": 1},
+                        "reduction_factor_shading": {"value": 1.2},
+                    }
+                }
+            }
+        ],
+    }
+
+    results = registry["internal_shading"](ValidationContext(yaml_data=yaml_data))
+
+    assert len(results) == 1
+    assert results[0].parameter == "stebbs.reduction_factor_shading"
+    assert "between 0 and 1" in results[0].message
+
+
 def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
     """Test error when occupants=0.0 but profile_metabolism has nonzero values."""
 

@@ -94,6 +94,155 @@ def test_stebbs_missing_required_parameter_is_rejected():
     _assert_public_rejection(data, "Missing required STEBBS parameters")
 
 
+def test_missing_internal_shading_defaults_to_disabled():
+    """Existing YAML without curtain settings keeps shading disabled."""
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    for field_name in (
+        "internal_shading",
+        "reduction_factor_shading",
+        "temperature_threshold_shading",
+        "radiation_threshold_shading",
+    ):
+        stebbs.pop(field_name)
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.internal_shading == 0
+
+
+def test_internal_shading_rejects_invalid_mode():
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["internal_shading"] = {"value": 3}
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    message = str(excinfo.value)
+    assert "internal_shading" in message
+    assert "Input should be 0, 1 or 2" in message
+
+
+def test_constant_internal_shading_requires_reduction_factor():
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    stebbs["internal_shading"] = {"value": 1}
+    stebbs.pop("reduction_factor_shading")
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    assert (
+        "reduction_factor_shading must be provided when internal_shading is 1 or 2"
+        in str(excinfo.value)
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_field",
+    ["temperature_threshold_shading", "radiation_threshold_shading"],
+)
+def test_controlled_internal_shading_requires_both_thresholds(missing_field):
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    stebbs.update({
+        "internal_shading": {"value": 2},
+        "reduction_factor_shading": {"value": 0.4},
+        "temperature_threshold_shading": {"value": 24.0},
+        "radiation_threshold_shading": {"value": 200.0},
+    })
+    del stebbs[missing_field]
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    assert f"{missing_field} must be provided when internal_shading is 2" in str(
+        excinfo.value
+    )
+
+
+@pytest.mark.parametrize("shading_mode", [1, 2])
+def test_valid_internal_shading_configuration_loads(shading_mode):
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    stebbs.update({
+        "internal_shading": {"value": shading_mode},
+        "reduction_factor_shading": {"value": 0.4},
+    })
+    if shading_mode == 2:
+        stebbs.update({
+            "temperature_threshold_shading": {"value": 24.0},
+            "radiation_threshold_shading": {"value": 200.0},
+        })
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.internal_shading == shading_mode
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("reduction_factor_shading", -0.1),
+        ("reduction_factor_shading", 1.1),
+        ("radiation_threshold_shading", -1.0),
+        ("temperature_threshold_shading", -273.15),
+    ],
+)
+def test_internal_shading_rejects_out_of_range_parameters(field, value):
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    stebbs.update({
+        "internal_shading": {"value": 2},
+        "reduction_factor_shading": {"value": 0.4},
+        "temperature_threshold_shading": {"value": 24.0},
+        "radiation_threshold_shading": {"value": 200.0},
+    })
+    stebbs[field] = {"value": value}
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    assert field in str(excinfo.value)
+
+
+def test_internal_shading_roundtrips_through_legacy_df_state():
+    data = _sample_config()
+    _site_properties(data)["stebbs"].update({
+        "internal_shading": {"value": 2},
+        "reduction_factor_shading": {"value": 0.4},
+        "temperature_threshold_shading": {"value": 24.0},
+        "radiation_threshold_shading": {"value": 200.0},
+    })
+    config = SUEWSConfig.from_dict(data)
+
+    df_state = config.to_df_state()
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+    stebbs = reconstructed.sites[0].properties.stebbs
+
+    assert stebbs.internal_shading == 2
+    assert stebbs.reduction_factor_shading == pytest.approx(0.4)
+    assert stebbs.temperature_threshold_shading == pytest.approx(24.0)
+    assert stebbs.radiation_threshold_shading == pytest.approx(200.0)
+
+
+def test_legacy_df_state_without_shading_columns_defaults_to_disabled():
+    config = SUEWSConfig.from_dict(_sample_config())
+    shading_columns = {
+        "internalshading",
+        "reductionfactorshading",
+        "temperaturethresholdshading",
+        "radiationthresholdshading",
+    }
+    full_state = config.to_df_state()
+    columns_to_drop = [col for col in full_state.columns if col[0] in shading_columns]
+    df_state = full_state.drop(columns=columns_to_drop)
+
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.internal_shading == 0
+
+
 SAME_SURFACE_CASES = [
     pytest.param(
         "same_albedo_wall",

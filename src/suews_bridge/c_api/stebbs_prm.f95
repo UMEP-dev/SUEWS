@@ -18,8 +18,8 @@ public :: SUEWS_CAPI_BAD_STATE
 
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_GROUPS = 2_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 336_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 5_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 337_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 6_c_int
 
 type :: stebbs_prm_shadow
    real(c_double) :: wall_internal_convection_coefficient = 0.0_c_double
@@ -44,6 +44,7 @@ type :: stebbs_prm_shadow
    real(c_double) :: radiation_threshold_shading = 0.0_c_double
    real(c_double) :: heating_system_efficiency = 0.0_c_double
    real(c_double) :: destination_waste_heat = 0.0_c_double
+   real(c_double) :: convective_fraction_heating = 1.0_c_double
    real(c_double) :: max_cooling_power = 0.0_c_double
    real(c_double) :: cooling_system_cop = 0.0_c_double
    real(c_double) :: ventilation_rate = 0.0_c_double
@@ -157,6 +158,7 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%radiation_threshold_shading; idx = idx + 1_c_int
    flat(idx) = state%heating_system_efficiency; idx = idx + 1_c_int
    flat(idx) = state%destination_waste_heat; idx = idx + 1_c_int
+   flat(idx) = state%convective_fraction_heating; idx = idx + 1_c_int
    flat(idx) = state%max_cooling_power; idx = idx + 1_c_int
    flat(idx) = state%cooling_system_cop; idx = idx + 1_c_int
    flat(idx) = state%ventilation_rate; idx = idx + 1_c_int
@@ -236,6 +238,7 @@ subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    state%radiation_threshold_shading = flat(idx); idx = idx + 1_c_int
    state%heating_system_efficiency = flat(idx); idx = idx + 1_c_int
    state%destination_waste_heat = nint(flat(idx)); idx = idx + 1_c_int
+   state%convective_fraction_heating = flat(idx); idx = idx + 1_c_int
    state%max_cooling_power = flat(idx); idx = idx + 1_c_int
    state%cooling_system_cop = flat(idx); idx = idx + 1_c_int
    state%ventilation_rate = flat(idx); idx = idx + 1_c_int

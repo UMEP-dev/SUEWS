@@ -38,7 +38,7 @@ use serde_yaml::Value;
 /// wrote in legacy YAMLs). The preprocessor's downstream
 /// `normalise_field_name` then lowercases/fuses before the hand-written
 /// parser reads the Fortran-indexed key.
-/// Total: 193 pairs (including the gh#1688 CO2Params naming completion).
+/// Total: 194 pairs (including the gh#1688 CO2Params naming completion).
 pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // ModelPhysics (17) — fused -> final (Cat 2+3, gh#1321) + flags
     ("net_radiation", "netradiationmethod"),
@@ -179,7 +179,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
         "CoolingSetpointTemperatureProfile",
     ),
     ("profile_metabolism", "MetabolismProfile"),
-    // StebbsProperties (53) — PascalCase was the sole legacy form for the
+    // StebbsProperties (54) — PascalCase was the sole legacy form for the
     // full STEBBS surface pre-gh#1334.
     (
         "wall_internal_convection_coefficient",
@@ -236,6 +236,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("radiation_threshold_shading", "RadiationThresholdShading"),
     ("heating_system_efficiency", "HeatingSystemEfficiency"),
     ("destination_waste_heat", "DestinationWasteHeat"),
+    ("convective_fraction_heating", "ConvectiveFractionHeating"),
     ("max_cooling_power", "MaxCoolingPower"),
     ("cooling_system_cop", "CoolingSystemCOP"),
     ("ventilation_rate", "VentilationRate"),
@@ -2224,7 +2225,7 @@ mod tests {
     fn field_renames_registry_has_expected_size() {
         // Matches the Python ALL_FIELD_RENAMES total (see field_renames.py).
         // Bump when ModelPhysics / SurfaceProperties / ... dicts change.
-        assert_eq!(FIELD_RENAMES.len(), 193);
+        assert_eq!(FIELD_RENAMES.len(), 194);
     }
 
     #[test]

@@ -84,12 +84,19 @@ def _run_daytime_shading_probe(
     return output.df.STEBBS[["Qsw_trans_win_FA", "Qsw_abs_win_FA"]]
 
 
-def _run_heating_waste_probe(destination_waste_heat):
-    """Run one-second STEBBS updates with an explicit waste-heat destination."""
+def _run_heating_waste_probe(
+    destination_waste_heat, convective_fraction_heating=None, window_to_wall=None
+):
+    """Run one-second STEBBS updates with explicit heating settings."""
     simulation = sp.SUEWSSimulation(STEBBS_CONFIG)
     simulation.config.model.control.tstep = 1
-    stebbs = simulation.config.sites[0].properties.stebbs
+    properties = simulation.config.sites[0].properties
+    stebbs = properties.stebbs
     stebbs.destination_waste_heat = destination_waste_heat
+    if convective_fraction_heating is not None:
+        stebbs.convective_fraction_heating = convective_fraction_heating
+    if window_to_wall is not None:
+        properties.building_archetype.ratio_window_to_wall = window_to_wall
     simulation._df_state_init = simulation.config.to_df_state()
 
     forcing = simulation.forcing.df.loc["2017-08-26"].iloc[:2].copy()
@@ -287,3 +294,78 @@ def test_destination_waste_heat_does_not_change_heating_energy_consumption(
 
     assert outdoor["QEC_heating_FA"] == pytest.approx(indoor["QEC_heating_FA"])
     assert indoor["QEC_heating_FA"] == pytest.approx(indoor["QHload_heating_FA"] / 0.8)
+
+
+@pytest.fixture(scope="module", params=[0, 1], ids=["indoor_waste", "outdoor_waste"])
+def heating_fraction_outputs(request):
+    return {
+        fraction: _run_heating_waste_probe(request.param, fraction)
+        for fraction in (None, 0.0, 0.6, 1.0)
+    }
+
+
+@pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
+@pytest.mark.parametrize("fraction,solid_share", [(0.0, 0.5), (0.6, 0.2)])
+def test_convective_fraction_heating_splits_useful_heat_equally_to_solids(
+    heating_fraction_outputs, fraction, solid_share
+):
+    """Catch missing, duplicated, or misdirected heat in any receiving node."""
+    baseline = heating_fraction_outputs[1.0]
+    split = heating_fraction_outputs[fraction]
+    useful_heat = baseline["QHload_heating_FA"]
+    assert useful_heat > 0.0
+    assert baseline["QS_air_FA"] - split["QS_air_FA"] == pytest.approx(
+        2 * solid_share * useful_heat, rel=2e-6
+    )
+    for field in ("QS_indoormass_FA", "QS_wall_FA"):
+        assert split[field] - baseline[field] == pytest.approx(
+            solid_share * useful_heat, rel=2e-6
+        )
+    assert split["Tair_ind"] < baseline["Tair_ind"]
+    assert split["Tindoormass"] > baseline["Tindoormass"]
+    assert split["Tintwall"] > baseline["Tintwall"]
+
+    # At the same initial state, redistributing useful heat conserves total
+    # building storage and does not alter the total supplied heat or losses.
+    for field in (
+        "QS_bldg_FA",
+        "QS_roof_FA",
+        "QS_window_FA",
+        "QS_groundfloor_FA",
+        "QHload_heating_FA",
+        "QEC_heating_FA",
+        "QHwaste_heating_FA",
+        "QWaste_bldg_FA",
+        "QHload_cooling_FA",
+        "QHwaste_dhw_FA",
+    ):
+        assert split[field] == pytest.approx(baseline[field], rel=2e-6, abs=1e-10)
+
+
+@pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
+def test_convective_fraction_heating_default_preserves_air_only_heating(
+    heating_fraction_outputs,
+):
+    np.testing.assert_allclose(
+        heating_fraction_outputs[None],
+        heating_fraction_outputs[1.0],
+        rtol=0,
+        atol=0,
+    )
+
+
+@pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
+def test_convective_fraction_heating_without_wall_conserves_heat_in_mass():
+    """An all-window facade cannot absorb heating in an inactive wall node."""
+    baseline = _run_heating_waste_probe(1, 1.0, window_to_wall=1.0)
+    split = _run_heating_waste_probe(1, 0.6, window_to_wall=1.0)
+    redirected_heat = 0.4 * baseline["QHload_heating_FA"]
+    assert redirected_heat > 0.0
+    assert baseline["QS_air_FA"] - split["QS_air_FA"] == pytest.approx(
+        redirected_heat, rel=2e-6
+    )
+    assert split["QS_indoormass_FA"] - baseline["QS_indoormass_FA"] == pytest.approx(
+        redirected_heat, rel=2e-6
+    )
+    assert split["QS_wall_FA"] == 0.0
+    assert split["QS_bldg_FA"] == pytest.approx(baseline["QS_bldg_FA"], rel=2e-6)

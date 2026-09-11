@@ -2312,6 +2312,20 @@ class StebbsProperties(BaseModel):
             "display_name": "Space-Heating Waste-Heat Destination",
         },
     )
+    convective_fraction_heating: Optional[FlexibleRefValue(float)] = Field(
+        default=1.0,
+        description=(
+            "Fraction of useful space-heating output convected to indoor air; "
+            "the remainder is split equally between indoor mass and the internal "
+            "wall surface. If no opaque wall is present, its share goes to indoor mass [-]"
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Space-Heating Convective Fraction",
+        },
+        ge=0.0,
+        le=1.0,
+    )
     max_power_cooling_system_air: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of cooling system [W]",

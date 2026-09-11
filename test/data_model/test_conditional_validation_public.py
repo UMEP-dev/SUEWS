@@ -290,6 +290,87 @@ def test_legacy_df_state_without_destination_waste_heat_defaults_to_indoor():
     assert reconstructed.sites[0].properties.stebbs.destination_waste_heat == 0
 
 
+def test_missing_convective_fraction_heating_defaults_to_all_air():
+    """Existing YAML keeps all useful space heating in the indoor air."""
+    data = _sample_config()
+    _site_properties(data)["stebbs"].pop("convective_fraction_heating", None)
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.convective_fraction_heating == 1.0
+
+
+@pytest.mark.parametrize("fraction", [0.0, 0.35, 1.0])
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_convective_fraction_heating_accepts_valid_fraction(fraction, wrapped):
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["convective_fraction_heating"] = (
+        {"value": fraction} if wrapped else fraction
+    )
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.convective_fraction_heating == (
+        pytest.approx(fraction)
+    )
+
+
+@pytest.mark.parametrize(
+    "fraction", [-0.1, 1.1, float("nan"), float("inf"), -float("inf")]
+)
+def test_convective_fraction_heating_rejects_invalid_fraction(fraction):
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["convective_fraction_heating"] = {
+        "value": fraction
+    }
+
+    with pytest.raises(ValueError, match="convective_fraction_heating") as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    assert "extra_forbidden" not in str(excinfo.value)
+
+
+def test_convective_fraction_heating_rejects_null_when_stebbs_enabled():
+    data = _sample_config()
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
+    _site_properties(data)["stebbs"]["convective_fraction_heating"] = {"value": None}
+
+    _assert_public_rejection(data, "convective_fraction_heating")
+
+
+def test_convective_fraction_heating_roundtrips_through_legacy_df_state():
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["convective_fraction_heating"] = {"value": 0.35}
+    config = SUEWSConfig.from_dict(data)
+
+    df_state = config.to_df_state()
+    assert df_state.loc[:, ("convectivefractionheating", "0")].iloc[0] == pytest.approx(
+        0.35
+    )
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.convective_fraction_heating == (
+        pytest.approx(0.35)
+    )
+
+
+def test_legacy_df_state_without_convective_fraction_heating_defaults_to_all_air():
+    config = SUEWSConfig.from_dict(_sample_config())
+    full_state = config.to_df_state()
+    columns_to_drop = [
+        col for col in full_state.columns if col[0] == "convectivefractionheating"
+    ]
+    assert columns_to_drop
+    df_state = full_state.drop(columns=columns_to_drop)
+
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.convective_fraction_heating == 1.0
+
+
 SAME_SURFACE_CASES = [
     pytest.param(
         "same_albedo_wall",

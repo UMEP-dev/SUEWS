@@ -475,6 +475,8 @@ sites:
         value: 0.8
       destination_waste_heat:
         value: 0
+      convective_fraction_heating:
+        value: 1.0
       max_power_cooling_system_air:
         value: 14595
       efficiency_cooling_system_air:

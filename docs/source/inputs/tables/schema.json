@@ -11021,6 +11021,30 @@
           "title": "Destination Waste Heat",
           "unit": "dimensionless"
         },
+        "convective_fraction_heating": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 1.0,
+          "description": "Fraction of useful space-heating output convected to indoor air; the remainder is split equally between indoor mass and the internal wall surface. If no opaque wall is present, its share goes to indoor mass [-]",
+          "display_name": "Space-Heating Convective Fraction",
+          "title": "Convective Fraction Heating",
+          "unit": "dimensionless"
+        },
         "max_power_cooling_system_air": {
           "anyOf": [
             {

@@ -4,8 +4,8 @@ use crate::ffi;
 
 pub const STEBBS_PRM_PROFILE_STEPS: usize = 144;
 pub const STEBBS_PRM_PROFILE_GROUPS: usize = 2;
-pub const STEBBS_PRM_FLAT_LEN: usize = 335;
-pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 4;
+pub const STEBBS_PRM_FLAT_LEN: usize = 336;
+pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 5;
 
 pub type StebbsPrmSchema = crate::codec::SimpleSchema;
 
@@ -34,6 +34,7 @@ pub struct StebbsPrm {
     pub temperature_threshold_shading: f64,
     pub radiation_threshold_shading: f64,
     pub heating_system_efficiency: f64,
+    pub destination_waste_heat: f64,
     pub max_cooling_power: f64,
     pub cooling_system_cop: f64,
     pub ventilation_rate: f64,
@@ -87,6 +88,7 @@ impl Default for StebbsPrm {
             temperature_threshold_shading: 0.0,
             radiation_threshold_shading: 0.0,
             heating_system_efficiency: 0.0,
+            destination_waste_heat: 0.0,
             max_cooling_power: 0.0,
             cooling_system_cop: 0.0,
             ventilation_rate: 0.0,
@@ -166,6 +168,10 @@ impl StebbsPrm {
             return Err(BridgeError::BadState);
         }
         let heating_system_efficiency = next();
+        let destination_waste_heat = next();
+        if !matches!(destination_waste_heat, 0.0 | 1.0) {
+            return Err(BridgeError::BadState);
+        }
         let max_cooling_power = next();
         let cooling_system_cop = next();
         let ventilation_rate = next();
@@ -222,6 +228,7 @@ impl StebbsPrm {
             temperature_threshold_shading,
             radiation_threshold_shading,
             heating_system_efficiency,
+            destination_waste_heat,
             max_cooling_power,
             cooling_system_cop,
             ventilation_rate,
@@ -276,6 +283,7 @@ impl StebbsPrm {
         flat.push(self.temperature_threshold_shading);
         flat.push(self.radiation_threshold_shading);
         flat.push(self.heating_system_efficiency);
+        flat.push(self.destination_waste_heat);
         flat.push(self.max_cooling_power);
         flat.push(self.cooling_system_cop);
         flat.push(self.ventilation_rate);
@@ -354,6 +362,7 @@ pub fn stebbs_prm_field_names() -> Vec<String> {
         "temperature_threshold_shading".to_string(),
         "radiation_threshold_shading".to_string(),
         "heating_system_efficiency".to_string(),
+        "destination_waste_heat".to_string(),
         "max_cooling_power".to_string(),
         "cooling_system_cop".to_string(),
         "ventilation_rate".to_string(),
@@ -414,6 +423,27 @@ mod tests {
         assert_eq!(state.reduction_factor_shading, 1.0);
         assert_eq!(state.temperature_threshold_shading, 0.0);
         assert_eq!(state.radiation_threshold_shading, 0.0);
+    }
+
+    #[test]
+    fn destination_waste_heat_defaults_to_indoor_and_roundtrips() {
+        let state = StebbsPrm::default();
+        let mut mapped = stebbs_prm_to_map(&state);
+        assert_eq!(mapped.get("destination_waste_heat"), Some(&0.0));
+
+        mapped.insert("destination_waste_heat".to_string(), 1.0);
+        let updated = stebbs_prm_from_map(&mapped).expect("outdoor destination should work");
+        let roundtripped = stebbs_prm_to_map(&updated);
+
+        assert_eq!(roundtripped.get("destination_waste_heat"), Some(&1.0));
+    }
+
+    #[test]
+    fn destination_waste_heat_rejects_unsupported_value() {
+        let mut mapped = stebbs_prm_to_map(&StebbsPrm::default());
+        mapped.insert("destination_waste_heat".to_string(), 2.0);
+
+        assert_eq!(stebbs_prm_from_map(&mapped), Err(BridgeError::BadState));
     }
 
     #[test]

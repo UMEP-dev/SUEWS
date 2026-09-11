@@ -243,6 +243,53 @@ def test_legacy_df_state_without_shading_columns_defaults_to_disabled():
     assert reconstructed.sites[0].properties.stebbs.internal_shading == 0
 
 
+def test_missing_destination_waste_heat_defaults_to_indoor():
+    """Existing YAML keeps space-heating waste heat indoors by default."""
+    data = _sample_config()
+    _site_properties(data)["stebbs"].pop("destination_waste_heat", None)
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.destination_waste_heat == 0
+
+
+@pytest.mark.parametrize("destination", [-1, 2])
+def test_destination_waste_heat_rejects_invalid_value(destination):
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["destination_waste_heat"] = {"value": destination}
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    message = str(excinfo.value)
+    assert "destination_waste_heat" in message
+    assert "Input should be 0 or 1" in message
+
+
+def test_destination_waste_heat_roundtrips_through_legacy_df_state():
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["destination_waste_heat"] = {"value": 1}
+    config = SUEWSConfig.from_dict(data)
+
+    df_state = config.to_df_state()
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.destination_waste_heat == 1
+
+
+def test_legacy_df_state_without_destination_waste_heat_defaults_to_indoor():
+    config = SUEWSConfig.from_dict(_sample_config())
+    full_state = config.to_df_state()
+    columns_to_drop = [
+        col for col in full_state.columns if col[0] == "destinationwasteheat"
+    ]
+    df_state = full_state.drop(columns=columns_to_drop)
+
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.destination_waste_heat == 0
+
+
 SAME_SURFACE_CASES = [
     pytest.param(
         "same_albedo_wall",

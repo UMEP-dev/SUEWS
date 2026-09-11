@@ -2430,6 +2430,7 @@ mod tests {
         assert!((run_cfg.site.stebbs.lighting_illuminance_threshold - 300.0).abs() < 1.0e-12);
         assert_eq!(run_cfg.site.stebbs.internal_shading, 0.0);
         assert_eq!(run_cfg.site.stebbs.reduction_factor_shading, 1.0);
+        assert_eq!(run_cfg.site.stebbs.destination_waste_heat, 0.0);
         assert!((run_cfg.site.building_archtype.lightingpowerdensity - 2.0).abs() < 1.0e-12);
 
         assert!((run_cfg.state.stebbs_state.deep_soil_temperature - 10.738).abs() < 1.0e-12);
@@ -2467,6 +2468,38 @@ mod tests {
         assert!((run_cfg.site.stebbs.reduction_factor_shading - 0.4).abs() < 1.0e-12);
         assert!((run_cfg.site.stebbs.temperature_threshold_shading - 24.0).abs() < 1.0e-12);
         assert!((run_cfg.site.stebbs.radiation_threshold_shading - 200.0).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn parses_destination_waste_heat_and_defaults_to_indoor() {
+        let mut explicit_root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let explicit_site =
+            first_site_mut(&mut explicit_root).expect("fixture should contain one site");
+        *get_path_mut(
+            explicit_site,
+            &["properties", "stebbs", "destination_waste_heat", "value"],
+        )
+        .expect("fixture should define destination_waste_heat") = Value::Number(1.into());
+
+        let explicit = load_run_config_from_value(&mut explicit_root)
+            .expect("outdoor destination should parse");
+        assert_eq!(explicit.site.stebbs.destination_waste_heat, 1.0);
+
+        let mut omitted_root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let omitted_site =
+            first_site_mut(&mut omitted_root).expect("fixture should contain one site");
+        let Value::Mapping(stebbs) = get_path_mut(omitted_site, &["properties", "stebbs"])
+            .expect("fixture should define STEBBS properties")
+        else {
+            panic!("STEBBS properties should be a mapping");
+        };
+        stebbs.remove(Value::String("destination_waste_heat".to_string()));
+
+        let omitted = load_run_config_from_value(&mut omitted_root)
+            .expect("omitted destination should parse");
+        assert_eq!(omitted.site.stebbs.destination_waste_heat, 0.0);
     }
 
     #[test]

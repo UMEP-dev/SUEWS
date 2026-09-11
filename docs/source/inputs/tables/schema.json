@@ -1704,7 +1704,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Minimum water storage capacity for state change",
+          "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "mm"
@@ -1719,10 +1719,10 @@
             }
           ],
           "default": 0.5,
-          "description": "Surface wetness threshold for OHM calculations",
+          "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "mm"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -2015,7 +2015,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Minimum water storage capacity for state change",
+          "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "mm"
@@ -2030,10 +2030,10 @@
             }
           ],
           "default": 0.5,
-          "description": "Surface wetness threshold for OHM calculations",
+          "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "mm"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -2460,7 +2460,7 @@
           "description": "Conductance parameter related to incoming solar radiation",
           "display_name": "Radiation Response Parameter",
           "title": "G K",
-          "unit": "dimensionless"
+          "unit": "W m^-2"
         },
         "g_q_base": {
           "anyOf": [
@@ -2475,10 +2475,10 @@
             }
           ],
           "default": null,
-          "description": "Base value for conductance parameter related to vapour pressure deficit",
+          "description": "Base conductance response parameter for vapour pressure deficit; its interpretation and units depend on the surface-conductance model",
           "display_name": "VPD Response Base Value",
           "title": "G Q Base",
-          "unit": "kPa^-1"
+          "unit": "model-dependent"
         },
         "g_q_shape": {
           "anyOf": [
@@ -2493,10 +2493,10 @@
             }
           ],
           "default": null,
-          "description": "Shape parameter for conductance related to vapour pressure deficit",
+          "description": "Shape conductance response parameter for vapour pressure deficit; its interpretation and units depend on the surface-conductance model",
           "display_name": "VPD Response Shape Parameter",
           "title": "G Q Shape",
-          "unit": "dimensionless"
+          "unit": "model-dependent"
         },
         "g_t": {
           "anyOf": [
@@ -2532,7 +2532,7 @@
           "description": "Conductance parameter related to soil moisture",
           "display_name": "Soil Moisture Response Parameter",
           "title": "G Sm",
-          "unit": "dimensionless"
+          "unit": "mm^-1"
         },
         "kmax": {
           "anyOf": [
@@ -2880,7 +2880,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Minimum water storage capacity for state change",
+          "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "mm"
@@ -2895,10 +2895,10 @@
             }
           ],
           "default": 0.5,
-          "description": "Surface wetness threshold for OHM calculations",
+          "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "mm"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -3494,7 +3494,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Minimum water storage capacity for state change",
+          "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "mm"
@@ -3509,10 +3509,10 @@
             }
           ],
           "default": 0.5,
-          "description": "Surface wetness threshold for OHM calculations",
+          "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "mm"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -4075,7 +4075,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Minimum water storage capacity for state change",
+          "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "mm"
@@ -4090,10 +4090,10 @@
             }
           ],
           "default": 0.5,
-          "description": "Surface wetness threshold for OHM calculations",
+          "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "mm"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -6938,7 +6938,7 @@
           "description": "Power coefficient for GDD in growth equation (LAIPower[2])",
           "display_name": "GDD Growth Power Coefficient",
           "title": "Growth Gdd",
-          "unit": "dimensionless"
+          "unit": "K^-1 d^-1"
         },
         "senescence_lai": {
           "anyOf": [
@@ -6974,7 +6974,7 @@
           "description": "Power coefficient for SDD in senescence equation (LAIPower[4])",
           "display_name": "SDD Senescence Power Coefficient",
           "title": "Senescence Sdd",
-          "unit": "dimensionless"
+          "unit": "K^-1 d^-1"
         },
         "ref": {
           "anyOf": [
@@ -7168,7 +7168,7 @@
             }
           ],
           "default": null,
-          "description": "Start time of model run. If None use forcing data bounds.",
+          "description": "Start of the model run as a calendar date (YYYY-MM-DD). Forcing rows are stamped at the end of each interval, so the run starts with the first row after that day's midnight. The forcing must cover the requested period; see SUEWSSimulation.run. If None use forcing data bounds.",
           "title": "Start Time"
         },
         "end_time": {
@@ -7181,7 +7181,7 @@
             }
           ],
           "default": null,
-          "description": "End time of model run. If None use forcing data bounds.",
+          "description": "End of the model run as a calendar date (YYYY-MM-DD), inclusive of the whole day, i.e. up to and including the row stamped at the following midnight. The forcing must cover the requested period; see SUEWSSimulation.run. If None use forcing data bounds.",
           "title": "End Time"
         },
         "ref": {
@@ -7888,7 +7888,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Minimum water storage capacity for state change",
+          "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "mm"
@@ -7903,10 +7903,10 @@
             }
           ],
           "default": 0.5,
-          "description": "Surface wetness threshold for OHM calculations",
+          "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "mm"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [
@@ -8382,6 +8382,42 @@
         "value"
       ],
       "title": "RefValue[List[str]]",
+      "type": "object"
+    },
+    "RefValue_Literal_0__1__": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[Literal[0, 1]]",
       "type": "object"
     },
     "RefValue_Literal_0__1__2__": {
@@ -10963,6 +10999,28 @@
           "title": "Efficiency Heating System Air",
           "unit": "dimensionless"
         },
+        "destination_waste_heat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_Literal_0__1__"
+            },
+            {
+              "enum": [
+                0,
+                1
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0,
+          "description": "Destination of waste heat from the space-heating system (0 = indoor air, 1 = outdoor air)",
+          "display_name": "Space-Heating Waste-Heat Destination",
+          "title": "Destination Waste Heat",
+          "unit": "dimensionless"
+        },
         "max_power_cooling_system_air": {
           "anyOf": [
             {
@@ -11777,7 +11835,7 @@
             }
           ],
           "default": 0,
-          "description": "Drainage equation selection (0: linear, 1: exponential)",
+          "description": "Drainage equation selection (1: threshold power law; 2: modified Rutter exponential equation; 3: power law). The default 0 is an unset placeholder and should be replaced for configured surfaces",
           "display_name": "Drainage Equation",
           "title": "Drain Eq",
           "unit": "dimensionless"
@@ -11795,10 +11853,10 @@
             }
           ],
           "default": null,
-          "description": "Drainage coefficient 1 (rate parameter)",
+          "description": "Drainage coefficient 1; interpretation and units depend on drain_eq",
           "display_name": "Drainage Coefficient 1",
           "title": "Drain Coef 1",
-          "unit": "mm h^-1"
+          "unit": "equation-dependent"
         },
         "drain_coef_2": {
           "anyOf": [
@@ -11813,10 +11871,10 @@
             }
           ],
           "default": null,
-          "description": "Drainage coefficient 2 (shape parameter)",
+          "description": "Drainage coefficient 2; interpretation and units depend on drain_eq",
           "display_name": "Drainage Coefficient 2",
           "title": "Drain Coef 2",
-          "unit": "dimensionless"
+          "unit": "equation-dependent"
         },
         "ref": {
           "anyOf": [
@@ -12981,7 +13039,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Minimum water storage capacity for state change",
+          "description": "Upper limit to the surface water state",
           "display_name": "State Limit",
           "title": "State Limit",
           "unit": "mm"
@@ -12996,10 +13054,10 @@
             }
           ],
           "default": 0.5,
-          "description": "Surface wetness threshold for OHM calculations",
+          "description": "Surface water-depth threshold above which the surface is treated as fully wet and surface resistance becomes zero",
           "display_name": "Wetness Threshold",
           "title": "Wet Threshold",
-          "unit": "dimensionless"
+          "unit": "mm"
         },
         "saturated_hydraulic_conductivity": {
           "anyOf": [

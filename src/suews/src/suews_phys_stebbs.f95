@@ -830,6 +830,8 @@ CONTAINS
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer, modState%errorState)
                stebbs_bldg_init = 1
             END IF
+            ! Configuration selectors are not part of the checkpointed building state.
+            buildings(1)%destination_waste_heat = stebbsPrm%destination_waste_heat
 
             ! only for the BEERS scheme, Todo: remove other schemes, <1000 need to be just BEERS code. 
             IF (config%NetRadiationMethod < 1000) THEN
@@ -1364,7 +1366,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%temperature_threshold_shading, self%radiation_threshold_shading, &
       self%occupants_state, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
       self%appliance_power_rating, self%lighting_power_rating,&
-      self%maxheatingpower_air, self%heating_efficiency_air, &
+      self%maxheatingpower_air, self%heating_efficiency_air, self%destination_waste_heat, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%a_wall, self%a_roof, &
       self%v_wall, self%v_roof, self%a_footprint, self%v_ground_floor, &
@@ -1479,7 +1481,7 @@ SUBROUTINE tstep( &
    temperature_threshold_shading, radiation_threshold_shading, &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
    appliance_power_rating, lighting_power_rating, &
-   maxheatingpower_air, heating_efficiency_air, &
+   maxheatingpower_air, heating_efficiency_air, destination_waste_heat, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
    Vwall, Vroof, Afootprint, Vgroundfloor, &
@@ -1625,6 +1627,7 @@ SUBROUTINE tstep( &
                  roofA, & ! // roof absorptivity [-]
                  roofR ! // roof reflectivity [-]
    INTEGER, INTENT(IN) :: internal_shading ! Internal window shading mode [-]
+   INTEGER, INTENT(IN) :: destination_waste_heat ! Space-heating waste-heat destination: 0 indoor, 1 outdoor [-]
    REAL(KIND(1D0)), INTENT(IN) :: reduction_factor_shading, & ! Active transmitted fraction [-]
                                   temperature_threshold_shading, & ! Indoor-air threshold [degC]
                                   radiation_threshold_shading ! Wall/window shortwave threshold [W m-2]
@@ -1698,7 +1701,8 @@ SUBROUTINE tstep( &
                       Qlw_net_intwindow_to_allotherindoorsurfaces, Qlw_net_intgroundfloor_to_allotherindoorsurfaces
    REAL(KIND(1D0)) :: QH_appliance, QH_lighting, QH_ventilation, QHconv_indair_to_intwall, QHconv_indair_to_introof, &
                       QHconv_indair_to_intwindow, QHconv_indair_to_intgroundfloor
-   REAL(KIND(1D0)) :: QHwaste_heating, QHcond_wall, QHcond_roof, QHcond_window, &
+   REAL(KIND(1D0)) :: QHwaste_heating, QHwaste_heating_to_indoor, &
+                      QHcond_wall, QHcond_roof, QHcond_window, &
                       QHcond_groundfloor, QHcond_ground
    REAL(KIND(1D0)) :: Qlw_net_wall, Qlw_net_roof, Qlw_net_window, &
                       QHconv_extwall_to_outair, QHconv_extroof_to_outair, QHconv_extwindow_to_outair
@@ -1990,6 +1994,11 @@ SUBROUTINE tstep( &
          QE_metabolism = Qm(2)
          QHwaste_heating = &
             additionalSystemHeatingEnergy(QHload_heating_timestep, heating_efficiency_air)
+         IF (destination_waste_heat == 1) THEN
+            QHwaste_heating_to_indoor = 0.0D0
+         ELSE
+            QHwaste_heating_to_indoor = QHwaste_heating
+         END IF
          QHcond_roof = &
             wallConduction(conductivity_roof, Aroof, Tintroof, Textroof, thickness_roof)
          QHcond_groundfloor = &
@@ -2098,7 +2107,7 @@ SUBROUTINE tstep( &
             Qlw_net_intwall_to_allotherindoorsurfaces - Qlw_net_introof_to_allotherindoorsurfaces - &
             QHconv_indair_to_intwall - QHconv_indair_to_introof - &
             QHconv_indair_to_intwindow - QHconv_indair_to_intgroundfloor + &
-            QHwaste_heating + QHconv_exttankwall_to_indair + &
+            QHwaste_heating_to_indoor + QHconv_exttankwall_to_indair + &
             QHconv_extvesselwall_to_indair + QHwaste_dhw
          IF (wall_surface_active) THEN
             QStotal_net_intwall = &
@@ -2420,8 +2429,13 @@ SUBROUTINE tstep( &
       QH_bldg_tstepFA = QHconv_extwall_to_outair_tstepFA + QHconv_extroof_to_outair_tstepFA + QHconv_extwindow_to_outair_tstepFA
       !Building air exchange (ventilation)
       QBAE_bldg_tstepFA = - QH_ventilation_tstepFA !QBAE is heat emission, opposite sign to QH_ventilation
-      !Waste heat from HVAC (currenly only cooling is rejected to outdoor)
-      QWaste_bldg_tstepFA = QHwaste_cooling_tstepFA
+      ! Waste heat rejected to outdoor air: cooling plus space-heating losses
+      ! when destination_waste_heat selects the outdoor destination.
+      IF (destination_waste_heat == 0) THEN
+         QWaste_bldg_tstepFA = QHwaste_cooling_tstepFA
+      ELSE
+         QWaste_bldg_tstepFA = QHwaste_cooling_tstepFA + QHwaste_heating_tstepFA
+      END IF
       !Net storage heat flux, including building, soil and hot water and building
       QS_dhw_tstepFA = Qloss_drain_tstepFA 
       QS_ground_tstepFA = QHcond_ground_tstepFA
@@ -2538,6 +2552,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%radiation_threshold_shading = stebbsPrm%radiation_threshold_shading
    self%maxheatingpower_air = building_archtype%max_heating_power
    self%heating_efficiency_air = stebbsPrm%heating_system_efficiency
+   self%destination_waste_heat = stebbsPrm%destination_waste_heat
    self%maxcoolingpower_air = stebbsPrm%max_cooling_power
    self%coeff_performance_cooling = stebbsPrm%cooling_system_cop
    self%Vair_ind = &

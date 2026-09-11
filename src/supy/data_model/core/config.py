@@ -422,6 +422,7 @@ class SUEWSConfig(BaseModel):
         "profile_appliance",
         "power_density_lighting",
         "efficiency_heating_system_air",
+        "destination_waste_heat",
         "max_power_cooling_system_air",
         "efficiency_cooling_system_air",
         "rate_ventilation",

@@ -155,7 +155,8 @@ CONTAINS
 
       REAL(KIND(1D0)) :: temp_C, press_hpa, dectime !,pw
       REAL(KIND(1D0)) :: e_mb, f, press_kpa, es_hPA
-      INTEGER :: from, iv
+      INTEGER, INTENT(IN) :: from
+      INTEGER :: iv
       INTEGER, PARAMETER :: notUsedI = -55
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
@@ -202,7 +203,8 @@ CONTAINS
       IMPLICIT NONE
 
       REAL(KIND(1D0)) :: e_mb, f, temp_C, press_hpa, press_kpa, es_hPA, dectime !,pw
-      INTEGER :: from, iv
+      INTEGER, INTENT(IN) :: from
+      INTEGER :: iv
       INTEGER, PARAMETER :: notUsedI = -55
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
@@ -293,11 +295,18 @@ CONTAINS
                          incr, es_tw, psyc, ea_est, press_hPa, ea_HPa, temp_C, dectime !,Temp_K
       ! REAL(KIND(1d0))::sat_vap_press,psyc_const ! functions
 
-      LOGICAL :: switch1 = .FALSE., switch2 = .FALSE. !,debug=.true.
-      INTEGER :: ii, from = 2
+      ! switch1/switch2 record the search direction within one call. They are
+      ! assigned below, not initialised in the declaration: an initialiser
+      ! implies SAVE, which carried the flags across calls and shared them
+      ! between grids running on parallel threads (GH#1741).
+      LOGICAL :: switch1, switch2
+      INTEGER :: ii
+      INTEGER, PARAMETER :: from = 2
       REAL(KIND(1D0)), PARAMETER :: notUsed = -55.55
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
+      switch1 = .FALSE.
+      switch2 = .FALSE.
       ea_fix = ea_hPa
       !if(debug) write(*,*)Temp_C, 'LV'
       !Temp_K=temp_C+273.16

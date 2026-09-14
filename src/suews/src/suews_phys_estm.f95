@@ -230,9 +230,12 @@ CONTAINS
       INTEGER :: maxiter
       TYPE(error_state), INTENT(INOUT), OPTIONAL :: errorState ! per-grid warning log (GH#1737)
       INTEGER :: niter
-      LOGICAL :: converged = .FALSE.
+      ! Assigned below, not initialised here: an initialiser implies SAVE, so
+      ! once one call converged every later call skipped the fallback (GH#1741)
+      LOGICAL :: converged
       INTEGER :: n, i, j
 
+      converged = .FALSE.
       e = HUGE(1.)
       n = SIZE(Pcoeff)
       x = x0

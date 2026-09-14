@@ -124,7 +124,7 @@ CONTAINS
          gas_ct_dry = 8.31451/0.028965, & !j/kg/k=dry_gas/molar
          gas_ct_wv = 8.31451/0.0180153 !j/kg/k=dry_gas/molar_wat_vap
       !  waterDens     = 999.8395            !Density of water in 0 cel deg
-      INTEGER :: from = 1
+      INTEGER, PARAMETER :: from = 1
 
       !Saturation vapour pressure over water in hPa
       es_hPa = sat_vap_press_x(Temp_C, Press_hPa, from, dectime) ! dectime is more or less unnecessary here
@@ -229,7 +229,7 @@ CONTAINS
 
       INTEGER :: i
 
-      LOGICAL :: debug = .FALSE.
+      LOGICAL, PARAMETER :: debug = .FALSE.
 
       !Kinematic sensible heat flux [K m s-1] used to calculate friction velocity
       H_init = QH_init/(avdens*avcp)

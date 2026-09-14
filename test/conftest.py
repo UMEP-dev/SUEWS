@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 from functools import lru_cache
 from importlib.resources import as_file
+from inspect import signature
 from pathlib import Path
 import subprocess
 import sys
@@ -128,67 +129,16 @@ def _clear_mcp_caches():
 
 
 class CliResultAdapter:
-    """Adapter to make Click's CliRunner results compatible with subprocess.CompletedProcess.
+    """Expose Click's separate captured streams with subprocess-style status.
 
-    This adapter provides a consistent interface for CLI test results, allowing tests
-    to be written in a subprocess-like style while actually running in-process via
-    Click's CliRunner (which avoids the 10-20s ninja rebuild overhead in editable installs).
-
-    Attributes
-    ----------
-    returncode : int
-        Exit code (0 for success, non-zero for failure)
-    stdout : str
-        Standard output content
-    stderr : str
-        Standard error content (heuristically extracted from combined output)
-
-    Notes
-    -----
-    Click's CliRunner combines stdout/stderr by default. This adapter uses keyword
-    matching to heuristically split them, which is a pragmatic workaround. For more
-    precise control, ensure CLI code uses `click.echo(..., err=True)` consistently.
+    Preserve the actual streams, including whitespace and continuation lines.
+    Diagnostic keywords cannot identify which stream a command wrote to.
     """
 
-    # Keywords that typically indicate stderr content
-    STDERR_KEYWORDS = ("DEPRECAT", "ERROR", "WARNING", "=====", "TRACEBACK")
-
     def __init__(self, click_result):
-        """Initialise from a Click Result object.
-
-        Parameters
-        ----------
-        click_result : click.testing.Result
-            Result from CliRunner.invoke()
-        """
-        self._result = click_result
         self.returncode = click_result.exit_code
-        self.stdout = click_result.output or ""
-        self.stderr = self._extract_stderr(click_result.output)
-
-    def _extract_stderr(self, output):
-        """Heuristically extract stderr-like content from combined output.
-
-        Parameters
-        ----------
-        output : str or None
-            Combined output from CliRunner
-
-        Returns
-        -------
-        str
-            Lines that appear to be stderr content
-        """
-        if not output:
-            return ""
-
-        stderr_lines = []
-        for line in output.split("\n"):
-            line_upper = line.upper()
-            if any(kw in line_upper for kw in self.STDERR_KEYWORDS):
-                stderr_lines.append(line)
-
-        return "\n".join(stderr_lines) if stderr_lines else ""
+        self.stdout = click_result.stdout
+        self.stderr = click_result.stderr
 
 
 @pytest.fixture
@@ -203,6 +153,10 @@ def cli_runner():
     CliRunner
         Click test runner instance
     """
+    # Click <8.2 requires opting out of mixed stderr; newer versions always
+    # capture both streams separately and have removed this argument.
+    if "mix_stderr" in signature(CliRunner).parameters:
+        return CliRunner(mix_stderr=False)
     return CliRunner()
 
 

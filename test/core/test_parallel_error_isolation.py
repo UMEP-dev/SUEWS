@@ -13,6 +13,7 @@ from __future__ import annotations
 import copy
 from importlib import import_module
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -187,6 +188,48 @@ def test_parallel_output_matches_serial(
         assert mismatch is None, mismatch
         mismatch = _describe_mismatch(
             "state strings", _as_bytes(state_p), _as_bytes(state_s)
+        )
+        assert mismatch is None, mismatch
+
+
+STEBBS_STEPS = 48  # four hours at the fixture 5-minute timestep
+STEBBS_CONFIG = (
+    Path(__file__).parent.parent / "fixtures" / "data_test" / "stebbs_test"
+) / "sample_config.yml"
+
+
+@pytest.mark.xfail(
+    reason="STEBBS hands per-timestep coupling state from stebbsonlinecouple "
+    "to suewsstebbscouple through module variables "
+    "(module_phys_stebbs_couple::sout and scalars, "
+    "module_phys_stebbs_core::resolution), shared by every grid thread",
+    raises=AssertionError,
+    strict=False,
+)
+def test_parallel_stebbs_output_matches_serial():
+    """Identical STEBBS grids must give bit-identical output in serial and
+    parallel execution."""
+    sim = sp.SUEWSSimulation(STEBBS_CONFIG)
+    # A few hours are enough: the shared coupling state is overwritten on
+    # every timestep, and parallel output diverged within the first 25 steps.
+    df_forcing = sim.forcing.df.loc["2017-08-26"].iloc[:STEBBS_STEPS].copy()
+    # The fixture uses -999 as a dry-period sentinel.
+    df_forcing["rain"] = df_forcing["rain"].clip(lower=0)
+    inputs = {
+        "rust": _run_rust._check_rust_available(),
+        "config_dict": sim.config.model_dump(exclude_none=True, mode="json"),
+        "forcing_flat": _run_rust
+        ._prepare_forcing_block(df_forcing)
+        .ravel(order="C")
+        .tolist(),
+        "len_sim": len(df_forcing),
+    }
+
+    serial = sorted(_run_multi(inputs, [False] * 4, max_workers=1))
+    parallel = sorted(_run_multi(inputs, [False] * 4, max_workers=4))
+    for parallel_result, serial_result in zip(parallel, serial, strict=True):
+        mismatch = _describe_mismatch(
+            "output blocks", bytes(parallel_result[1]), bytes(serial_result[1])
         )
         assert mismatch is None, mismatch
 

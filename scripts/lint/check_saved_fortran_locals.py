@@ -48,8 +48,8 @@ state (SUEWS_STATE), not in a SAVEd local.\
 # Known offenders awaiting a dedicated fix. Each needs per-grid state, not a
 # runtime assignment: they are deliberate "first call" counters.
 ALLOWED: dict[tuple[str, str], str] = {
-    ("suews_phys_estm.f95", "estmstart"): "ESTM first-call counter keyed on Gridiv == 1",
-    ("suews_phys_estm.f95", "tair2set"): "ESTM first-call counter keyed on Gridiv == 1",
+    ("suews_phys_estm.f95", "estmstart"): "ESTM first-call counter",
+    ("suews_phys_estm.f95", "tair2set"): "ESTM first-call counter",
 }
 
 _TYPE_WORDS = r"(?:INTEGER|REAL|LOGICAL|CHARACTER|DOUBLE\s+PRECISION|COMPLEX|TYPE\s*\(|CLASS\s*\()"
@@ -61,8 +61,12 @@ _PROC_START = re.compile(
     r"(?:SUBROUTINE|FUNCTION)\s+\w+",
     re.I,
 )
-_BLOCK_END = re.compile(r"^END\s*(?:SUBROUTINE|FUNCTION|MODULE|TYPE|INTERFACE|PROGRAM)?\b", re.I)
-_CONTROL_END = re.compile(r"^END\s*(?:IF|DO|SELECT|WHERE|ASSOCIATE|BLOCK|FORALL|ENUM)\b", re.I)
+_BLOCK_END = re.compile(
+    r"^END\s*(?:SUBROUTINE|FUNCTION|MODULE|TYPE|INTERFACE|PROGRAM)?\b", re.I
+)
+_CONTROL_END = re.compile(
+    r"^END\s*(?:IF|DO|SELECT|WHERE|ASSOCIATE|BLOCK|FORALL|ENUM)\b", re.I
+)
 
 
 def _strip_comment(line: str) -> str:
@@ -119,58 +123,74 @@ def _entities(entity_list: str) -> list[str]:
     return parts
 
 
+def _update_scope(stmt: str, stack: list[str]) -> bool:
+    """Push or pop a scope for block statements; True if ``stmt`` was one."""
+    upper = stmt.upper()
+    opened = None
+    if re.match(r"^MODULE\s+(?!PROCEDURE\b)\w+$", upper):
+        opened = "MODULE"
+    elif re.match(r"^(?:ABSTRACT\s+)?INTERFACE\b", upper):
+        opened = "INTERFACE"
+    elif re.match(r"^TYPE\s*(?:,[^:]*)?::\s*\w+$", upper) or re.match(
+        r"^TYPE\s+\w+$", upper
+    ):
+        opened = "TYPE"
+    elif re.match(r"^PROGRAM\s+\w+", upper) or (
+        _PROC_START.match(stmt) and not upper.startswith("END")
+    ):
+        opened = "PROC"
+    if opened is not None:
+        stack.append(opened)
+        return True
+    if _BLOCK_END.match(stmt) and not _CONTROL_END.match(stmt):
+        if stack:
+            stack.pop()
+        return True
+    return False
+
+
+def _has_initialiser(entity: str) -> bool:
+    """Report whether ``=`` (or ``=>``) appears outside any dimension spec."""
+    depth = 0
+    for char in entity:
+        if char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        elif char == "=" and depth == 0:
+            return True
+    return False
+
+
+def _saved_entities(stmt: str) -> list[str]:
+    """Names in a declaration that are initialised or explicitly SAVEd."""
+    if not (_DECL.match(stmt) and "::" in stmt):
+        return []
+    attrs, _, entity_list = stmt.partition("::")
+    if re.search(r"\bPARAMETER\b", attrs, re.I):
+        return []
+    explicit_save = re.search(r"\bSAVE\b", attrs, re.I) is not None
+    names = []
+    for entity in _entities(entity_list):
+        name = re.match(r"\s*(\w+)", entity)
+        if name and (explicit_save or _has_initialiser(entity)):
+            names.append(name.group(1))
+    return names
+
+
 def find_hits(source: str) -> list[tuple[int, str, str]]:
     """Return (line, variable, statement) for each implicitly SAVEd local."""
     hits: list[tuple[int, str, str]] = []
     stack: list[str] = []
     for lineno, stmt in _logical_lines(source):
-        if not stmt:
-            continue
-        upper = stmt.upper()
-        if re.match(r"^MODULE\s+(?!PROCEDURE\b)\w+$", upper):
-            stack.append("MODULE")
-            continue
-        if re.match(r"^(?:ABSTRACT\s+)?INTERFACE\b", upper):
-            stack.append("INTERFACE")
-            continue
-        if re.match(r"^TYPE\s*(?:,[^:]*)?::\s*\w+$", upper) or re.match(r"^TYPE\s+\w+$", upper):
-            stack.append("TYPE")
-            continue
-        if re.match(r"^PROGRAM\s+\w+", upper) or (
-            _PROC_START.match(stmt) and not upper.startswith("END")
-        ):
-            stack.append("PROC")
-            continue
-        if _BLOCK_END.match(stmt) and not _CONTROL_END.match(stmt):
-            if stack:
-                stack.pop()
+        if not stmt or _update_scope(stmt, stack):
             continue
         if not stack or stack[-1] != "PROC":
             continue
-        if re.match(r"^SAVE\b", upper):
+        if re.match(r"^SAVE\b", stmt, re.I):
             hits.append((lineno, "SAVE", stmt))
             continue
-        if not (_DECL.match(stmt) and "::" in stmt):
-            continue
-        attrs, _, entity_list = stmt.partition("::")
-        if re.search(r"\bPARAMETER\b", attrs, re.I):
-            continue
-        explicit_save = re.search(r"\bSAVE\b", attrs, re.I) is not None
-        for entity in _entities(entity_list):
-            name = re.match(r"\s*(\w+)", entity)
-            if name is None:
-                continue
-            # `=` at top level of the entity (not inside a dimension spec)
-            depth, has_init = 0, False
-            for char in entity:
-                if char in "([":
-                    depth += 1
-                elif char in ")]":
-                    depth -= 1
-                elif char in "=" and depth == 0:
-                    has_init = True
-            if has_init or explicit_save:
-                hits.append((lineno, name.group(1), stmt))
+        hits.extend((lineno, name, stmt) for name in _saved_entities(stmt))
     return hits
 
 

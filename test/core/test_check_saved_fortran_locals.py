@@ -83,9 +83,10 @@ def _make_repo(tmp_path: Path, files: dict[str, str]) -> Path:
 
 
 def _run(repo_root: Path) -> int:
-    return check_saved_fortran_locals.main(
-        ["check_saved_fortran_locals", str(repo_root)]
-    )
+    return check_saved_fortran_locals.main([
+        "check_saved_fortran_locals",
+        str(repo_root),
+    ])
 
 
 def test_clean_tree_passes(tmp_path):

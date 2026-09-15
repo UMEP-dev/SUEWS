@@ -436,6 +436,7 @@ rst_prolog = rf"""
 
       1. Need help? Please let us know in the `SUEWS Community`_.
       2. Please report issues with the manual on `GitHub Issues`_ (or use `Report Issue for This Page`_ for page-specific feedback).
+         Opening issues is limited to existing contributors, so if GitHub says you cannot open one, post the report in the `SUEWS Community`_ instead: a maintainer will turn it into an issue and can add you as a contributor.
       3. Please cite SUEWS with proper information from our `Zenodo page`_.
 
 .. _SUEWS Community: https://community.suews.io
@@ -731,10 +732,30 @@ def source_read_handler(app, docname, source):
     source[0] = rendered.rstrip("\n")
 
 
+def point_issues_button_to_chooser(app, pagename, templatename, context, doctree):
+    """Send the header "Open issue" button to the issue template chooser.
+
+    The theme links to a blank new issue, but blank issues are disabled and the
+    repository limits new issues to existing contributors. The chooser lists the
+    templates alongside the forum link, which tells blocked reporters where to go.
+    """
+    chooser_url = "https://github.com/UMEP-dev/SUEWS/issues/new/choose"
+    pending = list(context.get("header_buttons", []))
+    while pending:
+        button = pending.pop()
+        pending.extend(button.get("buttons", []))
+        if button.get("label") == "source-issues-button" or "/issues/new?" in str(
+            button.get("url", "")
+        ):
+            button["url"] = chooser_url
+
+
 # Fix for scrolling tables in the RTD-theme
 # https://rackerlabs.github.io/docs-rackspace/tools/rtd-tables.html
 def setup(app):
     app.connect("source-read", source_read_handler)
+    # run after sphinx_book_theme builds its header buttons (priority 501)
+    app.connect("html-page-context", point_issues_button_to_chooser, priority=900)
     app.add_css_file("theme_overrides.css")
     # SUEWS brand styling (aligned with site/css/tokens.css)
     app.add_css_file("brand.css")

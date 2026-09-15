@@ -198,17 +198,14 @@ STEBBS_CONFIG = (
 ) / "sample_config.yml"
 
 
-@pytest.mark.xfail(
-    reason="gh#1801: STEBBS hands per-timestep coupling state from stebbsonlinecouple "
-    "to suewsstebbscouple through module variables "
-    "(module_phys_stebbs_couple::sout and scalars, "
-    "module_phys_stebbs_core::resolution), shared by every grid thread",
-    raises=AssertionError,
-    strict=False,
-)
 def test_parallel_stebbs_output_matches_serial():
     """Identical STEBBS grids must give bit-identical output in serial and
-    parallel execution."""
+    parallel execution (gh#1801).
+
+    STEBBS used to hand its per-timestep coupling inputs from
+    ``stebbsonlinecouple`` to ``suewsstebbscouple`` through module variables
+    shared by every grid thread; they now travel by argument.
+    """
     sim = sp.SUEWSSimulation(STEBBS_CONFIG)
     # A few hours are enough: the shared coupling state is overwritten on
     # every timestep, and parallel output diverged within the first 25 steps.

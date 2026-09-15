@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: SUEWS Community Forum
     url: https://community.suews.io
-    about: New to SUEWS? Start here — interaction limits are enabled on this repository, so new contributors should introduce themselves on the forum first.
+    about: Cannot open an issue? Issues are limited to existing contributors, so post your report on the forum instead and a maintainer will turn it into an issue and can add you as a contributor.

@@ -436,6 +436,7 @@ rst_prolog = rf"""
 
       1. Need help? Please let us know in the `SUEWS Community`_.
       2. Please report issues with the manual on `GitHub Issues`_ (or use `Report Issue for This Page`_ for page-specific feedback).
+         Opening issues is limited to existing contributors, so if GitHub says you cannot open one, post the report in the `SUEWS Community`_ instead: a maintainer will turn it into an issue and can add you as a contributor.
       3. Please cite SUEWS with proper information from our `Zenodo page`_.
 
 .. _SUEWS Community: https://community.suews.io

@@ -1,0 +1,27 @@
+# YAML issue forms are listed before the Markdown templates in the chooser, so
+# this entry is the first thing a new reporter sees. It exists to redirect
+# people blocked by the contributors_only interaction limit to the forum.
+name: "New here or cannot open an issue? Start on the SUEWS Community Forum"
+description: "Opening issues is limited to existing contributors. If GitHub blocks you, post on community.suews.io and a maintainer will open the issue for you."
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Cannot open an issue? Post on the forum instead
+
+        Opening issues on this repository is limited to **existing contributors**. If GitHub tells you that you cannot interact with the repository, please report your bug, question, or idea on the **[SUEWS Community Forum](https://community.suews.io)**.
+
+        A maintainer will turn your post into a GitHub issue and, if you work on SUEWS regularly, can add you as a contributor.
+
+        ---
+
+        Already a contributor? Please go back and pick the template that fits: bug report, docs issue report, feature request, or general.
+  # GitHub requires one input field in an issue form; the card text above is
+  # what matters, since blocked users never reach this body.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes (optional)
+      description: Leave empty and use one of the other templates instead.
+    validations:
+      required: false

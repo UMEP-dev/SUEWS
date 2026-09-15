@@ -166,7 +166,7 @@ The simulation produces comprehensive urban climate data:
    * - **QH**
      - W/m²
      - Sensible heat flux (air heating)
-   * - **Runoff**
+   * - **RO**
      - mm
      - Surface runoff from precipitation
    * - **T2**

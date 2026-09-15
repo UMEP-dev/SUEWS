@@ -200,7 +200,6 @@ PHYS =	\
 	suews_phys_snow.o \
 	suews_phys_dailystate.o \
 	suews_phys_ehc.o \
-	suews_phys_estm.o \
 	suews_ctrl_ver.o \
 	suews_phys_ohm.o \
 	suews_phys_anohm.o \

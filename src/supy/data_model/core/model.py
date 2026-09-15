@@ -256,7 +256,7 @@ class StorageHeatMethod(Enum):
     0: OBSERVED - Uses observed ΔQS values from forcing file
     1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)
     3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended
-    4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
+    4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not available: rejected at validation, because the YAML interface carries no surface-temperature input for it; use EHC (5) or DyOHM (6)
     5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets
     6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface
     7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces
@@ -906,6 +906,25 @@ class ModelPhysics(BaseModel):
         # collapse to the flat `{value: N}` canonical shape.
         value = coerce_orthogonal_to_flat(info.field_name, value)
         return coerce_nested_to_flat(info.field_name, value)
+
+    @field_validator("storage_heat", mode="after")
+    @classmethod
+    def _reject_estm(cls, value):
+        # gh#1785: ESTM reads a 13-column surface-temperature input
+        # (Ts5mindata_ir, the legacy _ESTM_Ts_data.txt) that the YAML surface
+        # never carried, so the kernel read past a zero-length array and took
+        # the Python process down with a segfault. Refuse the option here, on
+        # validated construction and direct field assignment, where it can be
+        # reported; model_construct and model_copy(update=...) bypass validators
+        # by design.
+        inner = value.value if isinstance(value, RefValue) else value
+        if getattr(inner, "value", inner) == StorageHeatMethod.ESTM.value:
+            raise ValueError(
+                "storage_heat=4 (ESTM) is not available: its surface-temperature "
+                "input (Ts5mindata_ir) has no YAML or forcing path. Use EHC (5) "
+                "or DyOHM (6) instead."
+            )
+        return value
 
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,

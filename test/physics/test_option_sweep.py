@@ -23,8 +23,9 @@ three declared tables, each with its reason:
 - `OPTION_VALUES_XFAIL` -- runs, but violates an invariant above. Recorded
   `xfail(strict=True)` against an open issue, so the entry fails the moment
   the defect is fixed.
-- `OPTION_VALUES_NOT_RUN` -- cannot be run at all. Only a failure that takes
-  the interpreter down belongs here; `xfail` cannot survive SIGSEGV.
+- `OPTION_VALUES_REJECTED` -- the data model refuses the value outright, on
+  construction and on assignment, so no run is attempted. The sweep asserts
+  that rejection and its message.
 
 `test_option_tables_name_real_values` keeps the three tables from rotting: a
 key naming a field or value that no longer exists fails.
@@ -98,14 +99,11 @@ OPTION_VALUES_XFAIL = {
     ),
 }
 
-# Values that cannot be run at all.
-OPTION_VALUES_NOT_RUN = {
-    ("storage_heat", 4): (
-        "ESTM segfaults: its Ts5mindata_ir input is never populated on the "
-        "YAML path, so the kernel reads past a zero-length array "
-        "(UMEP-dev/SUEWS#1785). A SIGSEGV takes the pytest worker with it, "
-        "so this cannot be an xfail."
-    ),
+# Values the data model rejects at configuration, before any run.
+OPTION_VALUES_REJECTED = {
+    # ESTM's surface-temperature input has no YAML or forcing path; before
+    # gh#1785 the kernel read past a zero-length array and segfaulted.
+    ("storage_heat", 4): "storage_heat=4 (ESTM) is not available",
 }
 
 
@@ -141,7 +139,7 @@ def _sweep_params():
     for field, enum_cls in _physics_option_enums():
         for member in enum_cls:
             key = (field, member.value)
-            if key in OPTION_VALUES_REFUSED or key in OPTION_VALUES_NOT_RUN:
+            if key in OPTION_VALUES_REFUSED or key in OPTION_VALUES_REJECTED:
                 continue
             marks = []
             if key in OPTION_VALUES_XFAIL:
@@ -156,6 +154,15 @@ def _refusal_params():
     for field, enum_cls in _physics_option_enums():
         for member in enum_cls:
             fragment = OPTION_VALUES_REFUSED.get((field, member.value))
+            if fragment is not None:
+                yield pytest.param(field, member, fragment, id=f"{field}={member.name}")
+
+
+def _rejected_params():
+    """One pytest param per declared configuration-time rejection."""
+    for field, enum_cls in _physics_option_enums():
+        for member in enum_cls:
+            fragment = OPTION_VALUES_REJECTED.get((field, member.value))
             if fragment is not None:
                 yield pytest.param(field, member, fragment, id=f"{field}={member.name}")
 
@@ -263,6 +270,26 @@ def test_option_value_needing_absent_input_is_refused(
         run_simulation(df_forcing, df_state, serial_mode=True)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message_fragment"), list(_rejected_params())
+)
+def test_option_value_rejected_at_configuration(
+    field, value, message_fragment, sample_config_loaded
+):
+    """A value the model cannot run is refused by the data model, not the run.
+
+    The rejection fires on assignment (`validate_assignment=True`), which is
+    also the path `patch_physics` takes, so the sweep never reaches the kernel
+    with the value.
+    """
+    # ARRANGE
+    physics = sample_config_loaded.model.physics.model_copy(deep=True)
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match=re.escape(message_fragment)):
+        setattr(physics, field, value)
+
+
 def test_patched_state_matches_full_config_state(
     sample_config_loaded, sample_state_and_forcing
 ):
@@ -310,14 +337,14 @@ def test_option_tables_name_real_values():
     for table_name, table in (
         ("OPTION_VALUES_REFUSED", OPTION_VALUES_REFUSED),
         ("OPTION_VALUES_XFAIL", OPTION_VALUES_XFAIL),
-        ("OPTION_VALUES_NOT_RUN", OPTION_VALUES_NOT_RUN),
+        ("OPTION_VALUES_REJECTED", OPTION_VALUES_REJECTED),
     ):
         unknown = sorted(key for key in table if key not in known)
         assert not unknown, f"{table_name} names values that do not exist: {unknown}"
 
     overlap = sorted(
         set(OPTION_VALUES_REFUSED) & set(OPTION_VALUES_XFAIL)
-        | set(OPTION_VALUES_REFUSED) & set(OPTION_VALUES_NOT_RUN)
-        | set(OPTION_VALUES_XFAIL) & set(OPTION_VALUES_NOT_RUN)
+        | set(OPTION_VALUES_REFUSED) & set(OPTION_VALUES_REJECTED)
+        | set(OPTION_VALUES_XFAIL) & set(OPTION_VALUES_REJECTED)
     )
     assert not overlap, f"a value is in more than one table: {overlap}"

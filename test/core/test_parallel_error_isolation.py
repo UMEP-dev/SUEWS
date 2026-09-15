@@ -204,8 +204,8 @@ STEBBS_CONFIG = (
 
 # Measurement heights that make the four STEBBS grids differ: the RSL air
 # temperature and wind speed STEBBS reads at building height depend on z, so
-# a grid computing from another grid's coupling inputs cannot match its own
-# serial run by coincidence.
+# a grid computing from another grid's coupling inputs drifts from its own
+# serial run rather than matching it by coincidence.
 STEBBS_GRID_Z = [49.6, 54.6, 59.6, 64.6]
 
 
@@ -260,8 +260,9 @@ def test_parallel_stebbs_output_matches_serial(stebbs_inputs, trial):
     ``stebbsonlinecouple`` to ``suewsstebbscouple`` through module variables
     shared by every grid thread; they now travel by argument. A race shows
     only when the scheduler interleaves grids, so the check is repeated, and
-    the grids differ so that one grid reading another's inputs cannot
-    reproduce its own serial output.
+    the grids differ so that one grid reading another's inputs shows up as a
+    departure from its own serial output; with the module-variable coupling
+    all three trials failed.
     """
     serial = stebbs_inputs["serial"]
     parallel = _run_stebbs_grids(stebbs_inputs, max_workers=4)

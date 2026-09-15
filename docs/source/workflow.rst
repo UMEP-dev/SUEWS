@@ -84,60 +84,60 @@ Quick Start: Sample Data Tutorial
 
 .. code-block:: python
 
-   # Plot energy balance components
-   fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    # Plot energy balance components
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
 
-   # Daily energy fluxes - extract variables using get_variable()
-   qn = sim.get_variable('QN', group='SUEWS')
-   qf = sim.get_variable('QF', group='SUEWS')
-   qs = sim.get_variable('QS', group='SUEWS')
-   qe = sim.get_variable('QE', group='SUEWS')
-   qh = sim.get_variable('QH', group='SUEWS')
+    # Daily energy fluxes - extract variables using get_variable()
+    qn = sim.get_variable('QN', group='SUEWS')
+    qf = sim.get_variable('QF', group='SUEWS')
+    qs = sim.get_variable('QS', group='SUEWS')
+    qe = sim.get_variable('QE', group='SUEWS')
+    qh = sim.get_variable('QH', group='SUEWS')
 
-   # Combine into DataFrame for plotting
-   df_energy = pd.DataFrame({
-       'QN': qn.iloc[:, 0],
-       'QF': qf.iloc[:, 0],
-       'QS': qs.iloc[:, 0],
-       'QE': qe.iloc[:, 0],
-       'QH': qh.iloc[:, 0]
-   })
-   daily_energy = df_energy.resample('D').mean()
+    # Combine into DataFrame for plotting
+    df_energy = pd.DataFrame({
+        'QN': qn.iloc[:, 0],
+        'QF': qf.iloc[:, 0],
+        'QS': qs.iloc[:, 0],
+        'QE': qe.iloc[:, 0],
+        'QH': qh.iloc[:, 0]
+    })
+    daily_energy = df_energy.resample('D', level='datetime').mean()
 
-   daily_energy.plot(ax=axes[0,0], title='Daily Mean Energy Fluxes')
-   axes[0,0].set_ylabel('Energy Flux (W/m²)')
-   axes[0,0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    daily_energy.plot(ax=axes[0,0], title='Daily Mean Energy Fluxes')
+    axes[0,0].set_ylabel('Energy Flux (W/m²)')
+    axes[0,0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
-   # Monthly patterns
-   monthly_energy = df_energy.groupby(df_energy.index.month).mean()
-   monthly_energy.plot(kind='bar', ax=axes[0,1], title='Monthly Energy Balance')
-   axes[0,1].set_ylabel('Energy Flux (W/m²)')
-   axes[0,1].set_xlabel('Month')
+    # Monthly patterns
+    monthly_energy = df_energy.groupby(df_energy.index.get_level_values(1).month).mean()
+    monthly_energy.plot(kind='bar', ax=axes[0,1], title='Monthly Energy Balance')
+    axes[0,1].set_ylabel('Energy Flux (W/m²)')
+    axes[0,1].set_xlabel('Month')
 
-   # Diurnal patterns (summer months)
-   t2 = sim.get_variable('T2', group='SUEWS')
-   summer_mask = t2.index.month.isin([6,7,8])
-   summer_temp = t2[summer_mask]
-   hourly_temp = summer_temp.groupby(summer_temp.index.hour).mean()
-   hourly_temp.iloc[:, 0].plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
-   axes[1,0].set_ylabel('Air Temperature (°C)')
-   axes[1,0].set_xlabel('Hour of Day')
-   axes[1,0].grid(True, alpha=0.3)
+    # Diurnal patterns (summer months)
+    t2 = sim.get_variable('T2', group='SUEWS')
+    summer_mask = t2.index.get_level_values(1).month.isin([6,7,8])
+    summer_temp = t2[summer_mask]
+    hourly_temp = summer_temp.groupby(summer_temp.index.get_level_values(1).hour).mean()
+    hourly_temp.iloc[:, 0].plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
+    axes[1,0].set_ylabel('Air Temperature (°C)')
+    axes[1,0].set_xlabel('Hour of Day')
+    axes[1,0].grid(True, alpha=0.3)
 
-   # Runoff vs Precipitation
-   rain = sim.get_variable('Rain', group='SUEWS')
-   runoff = sim.get_variable('Runoff', group='SUEWS')
-   df_water = pd.DataFrame({
-       'Rain': rain.iloc[:, 0],
-       'Runoff': runoff.iloc[:, 0]
-   })
-   daily_water = df_water.resample('D').sum()
-   daily_water.plot(ax=axes[1,1], title='Daily Water Balance')
-   axes[1,1].set_ylabel('Water (mm/day)')
-   axes[1,1].legend()
+    # Runoff vs Precipitation
+    rain = sim.get_variable('Rain', group='SUEWS')
+    runoff = sim.get_variable('RO', group='SUEWS')
+    df_water = pd.DataFrame({
+        'Rain': rain.iloc[:, 0],
+        'RO': runoff.iloc[:, 0]
+    })
+    daily_water = df_water.resample('D', level='datetime').sum()
+    daily_water.plot(ax=axes[1,1], title='Daily Water Balance')
+    axes[1,1].set_ylabel('Water (mm/day)')
+    axes[1,1].legend()
 
-   plt.tight_layout()
-   plt.show()
+    plt.tight_layout()
+    plt.show()
 
 Understanding Your Results
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

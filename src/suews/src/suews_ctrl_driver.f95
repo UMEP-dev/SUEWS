@@ -446,6 +446,14 @@ CONTAINS
                   timer, config, forcing, siteInfo, datetimeLine, & !input
                   modState, & ! input/output:
                   dataOutLineESTM, dataOutLineSTEBBS)
+               IF (supy_error_flag()) THEN
+                  ! A storage-heat method with no scheme (GH#1802) leaves the
+                  ! sentinel QS = -999; stop the timestep here so LUMPS, the
+                  ! water balance and QH never consume it, and sync the error
+                  ! into modState so the bridge still reads it.
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_06_qs = modState
                END IF

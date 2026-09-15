@@ -49,10 +49,6 @@ January 1st is day 1, February 1st is day 32. If you search on the web using the
 SUEWS related
 -------------
 
-ESTM output
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-First time steps of storage output could give NaN values during the initial converging phase.
-
 First things to Check if the program seems to have problems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -  Check the Python runtime logs (SuPy logger output). Legacy ``problems.txt``/``warnings.txt`` files are no longer written. SuPy logs to the console by default; to capture the output in a file, call :func:`supy.enable_file_logging` or set the ``SUPY_LOGFILE`` / ``SUPY_LOG_DIR`` environment variable (see :ref:`api_core_functions`).

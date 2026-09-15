@@ -16,11 +16,14 @@ One file for the whole physics-option input surface:
 from __future__ import annotations
 
 from pathlib import Path
+import re
+import shutil
 
 from pydantic import ValidationError
 import pytest
 import yaml
 
+from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.field_renames import read_physics_key
 from supy.data_model.core.model import ModelPhysics, NetRadiationMethod
 from supy.data_model.core.physics_families import (
@@ -886,3 +889,53 @@ def test_model_physics_reports_orthogonal_emissions_errors():
             emissions={"heat": "j11", "co2": {"anthropogenic": "qf_linked"}}
         )
     assert "requires a biogenic" in str(exc.value)
+
+
+class TestEstmRejected:
+    """`storage_heat = 4` (ESTM) is refused by the data model (gh#1785).
+
+    ESTM's surface-temperature input has no YAML or forcing path, so before
+    this the kernel read past a zero-length array and segfaulted, which no
+    Python layer can catch. The refusal must hold on every public path.
+    """
+
+    MESSAGE = "storage_heat=4 (ESTM) is not available"
+
+    def test_flat_code_rejected(self):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            ModelPhysics(storage_heat=4)
+
+    def test_refvalue_form_rejected(self):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            ModelPhysics(storage_heat={"value": 4})
+
+    def test_nested_family_form_rejected(self):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            ModelPhysics(storage_heat={"estm": {"value": 4}})
+
+    def test_assignment_rejected(self):
+        phys = ModelPhysics(storage_heat=5)
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            phys.storage_heat = 4
+        assert int(_unwrap(phys.storage_heat)) == 5
+
+    def test_message_names_the_supported_successors(self):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)) as exc:
+            ModelPhysics(storage_heat=4)
+        assert "EHC (5)" in str(exc.value)
+        assert "DyOHM (6)" in str(exc.value)
+
+    def test_from_dict_rejected(self, sample_yaml_path):
+        config = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+        config["model"]["physics"]["storage_heat"] = {"value": 4}
+        with pytest.raises(ValueError, match=re.escape(self.MESSAGE)):
+            SUEWSConfig.from_dict(config)
+
+    def test_from_yaml_rejected(self, sample_yaml_path, tmp_path):
+        sample_dir = shutil.copytree(sample_yaml_path.parent, tmp_path / "sample")
+        yaml_path = sample_dir / sample_yaml_path.name
+        config = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        config["model"]["physics"]["storage_heat"] = {"value": 4}
+        yaml_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+        with pytest.raises(ValueError, match=re.escape(self.MESSAGE)):
+            SUEWSConfig.from_yaml(str(yaml_path))

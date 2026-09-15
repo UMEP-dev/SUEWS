@@ -2049,6 +2049,7 @@ CONTAINS
       ! internal use arrays
       REAL(KIND(1D0)) :: Tair_mav_5d ! Tair_mav_5d=HDD(id-1,4) HDD at the begining of today (id-1)
       REAL(KIND(1D0)) :: qn_use ! qn used in OHM calculations [W m-2]
+      CHARACTER(LEN=12) :: str_storage_heat ! StorageHeatMethod as text for the error message
 
       ASSOCIATE ( &
          atmState => modState%atmState, &
@@ -2082,21 +2083,11 @@ CONTAINS
             SnowUse => config%SnowUse, &
             EmissionsMethod => config%EmissionsMethod, &
             DiagQS => config%DiagQS, &
-            Gridiv => siteInfo%Gridiv, &
-            Ts5mindata_ir => forcing%Ts5mindata_ir, &
             qs_obs => forcing%qs_obs, &
-            avkdn => forcing%kdown, &
-            avu1 => forcing%U, &
-            temp_c => forcing%temp_c, &
-            avrh => forcing%RH, &
-            press_hpa => forcing%pres, &
-            Tair_av => atmState%Tair_av, &
-            zenith_deg => solarstate%zenith_deg, &
             qf => heatState%qf, &
             qn => heatState%qn, &
             qn_surf => heatState%qn_surf, &
             qs => heatState%qs, &
-            ldown => heatState%l_down, &
             tsfc_roof => heatState%tsfc_roof, &
             tsfc_wall => heatState%tsfc_wall, &
             tsfc_surf => heatState%tsfc_surf, &
@@ -2158,8 +2149,7 @@ CONTAINS
                tin_surf => ehcPrm%tin_surf, &
                k_surf => ehcPrm%k_surf, &
                cp_surf => ehcPrm%cp_surf, &
-               dz_surf => ehcPrm%dz_surf, &
-               bldgh => bldgPrm%height_building &
+               dz_surf => ehcPrm%dz_surf &
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
@@ -2494,6 +2484,17 @@ CONTAINS
                   ! PRINT *, '------------------------------------'
                   ! PRINT *, ''
 
+               ELSE
+                  ! No scheme behind this value: ESTM (4) was removed (GH#1802) and
+                  ! 14 never reached the data model. A caller that bypasses the data
+                  ! model must be refused here rather than run on with QS = -999.
+                  WRITE (str_storage_heat, '(I0)') StorageHeatMethod
+                  CALL set_supy_error( &
+                     106, &
+                     'SUEWS_cal_Qs: StorageHeatMethod '//TRIM(str_storage_heat)// &
+                     ' is not available; use OHM (1), AnOHM (3), EHC (5), DyOHM (6), '// &
+                     'STEBBS (7) or DyOHM_BUILDING (8)')
+                  RETURN
                END IF
             END ASSOCIATE
          END ASSOCIATE

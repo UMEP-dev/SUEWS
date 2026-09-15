@@ -88,12 +88,12 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: Temp_C
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ReadLinesMetdata, ncolumnsdataOutBL, NumberOfGrids) :: dataOutBL
 
-      REAL(KIND(1D0)) :: gas_ct_dry = 8.31451/0.028965 !j/kg/k=dry_gas/molar
+      REAL(KIND(1D0)), PARAMETER :: gas_ct_dry = 8.31451/0.028965 !j/kg/k=dry_gas/molar
       ! REAL(KIND(1d0))::  gas_ct_wv = 8.31451/0.0180153 !j/kg/kdry_gas/molar_wat_vap
       REAL(KIND(1D0)) :: qh_use, qe_use, tm_K_zm, qm_gkg_zm
       REAL(KIND(1D0)) :: Temp_C1, avrh1, es_hPa1
       REAL(KIND(1D0)) :: secs0, secs1, Lv
-      REAL(KIND(1D0)) :: NAN = -999
+      REAL(KIND(1D0)), PARAMETER :: NAN = -999
       INTEGER :: idoy, startflag
 
       ! initialise startflag
@@ -503,7 +503,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN), DIMENSION(NumberOfGrids) :: qhforCBL, qeforCBL
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ReadLinesMetdata, ncolumnsdataOutBL, NumberOfGrids) :: dataOutBL
 
-      REAL(KIND(1D0)) :: &
+      REAL(KIND(1D0)), PARAMETER :: &
          k = 0.4, & !Von Karman's contant
          gas_ct_dry = 8.31451/0.028965 !j/kg/k=dry_gas/molar
       REAL(KIND(1D0)) :: qh_use, qe_use
@@ -732,7 +732,7 @@ CONTAINS
 
       IMPLICIT NONE
       REAL(KIND(1D0)), DIMENSION(neqn) :: dyds, y1
-      REAL(KIND(1D0)) :: zero = 0.0
+      REAL(KIND(1D0)), PARAMETER :: zero = 0.0
       REAL(KIND(1D0)) :: h1, t_K, q_kgkg, c, cp, ws, s, foo
       !     real(kind(1D0)) :: tp_K,qp_kgkg
       REAL(KIND(1D0)) :: delt_K, delq_kgkg, delc
@@ -864,7 +864,8 @@ CONTAINS
       USE module_ctrl_const_datain
       USE cbl_module
       IMPLICIT NONE
-      INTEGER :: i, fn = 101, izm = 500, notUsedI = -9999, id
+      INTEGER :: i, id
+      INTEGER, PARAMETER :: fn = 101, izm = 500, notUsedI = -9999
       CHARACTER(len=200) :: FileN
       REAL(KIND(1D0)) :: dxx
       REAL(KIND(1D0)), PARAMETER :: notUsed = -9999.99

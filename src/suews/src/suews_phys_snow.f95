@@ -1253,7 +1253,7 @@ CONTAINS
                          EaIce_hPa, & !Vapour pressure
                          tstep_real !timestep as real
 
-      INTEGER :: from = 1
+      INTEGER, PARAMETER :: from = 1
       !-----------------------------------------------------
 
       tstep_real = REAL(tstep, KIND(1D0))

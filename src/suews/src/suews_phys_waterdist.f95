@@ -768,7 +768,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: AddWater(nsurf) !Water from other surfaces (WGWaterDist in SUEWS_ReDistributeWater.f95) [mm]
 
       INTEGER :: i_receiver, i_contributor, i_surface
-      INTEGER :: NSurfDoNotReceiveDrainage = 0 !Number of surfaces that do not receive drainage water (green roof)
+      INTEGER, PARAMETER :: NSurfDoNotReceiveDrainage = 0 !Number of surfaces that do not receive drainage water (green roof)
 
       !Fractions that go to runoff from each surface
       DO i_surface = 1, nsurf - 1 !not water in the calculation
@@ -1259,7 +1259,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: WUAreaTotal_m2
       REAL(KIND(1D0)) :: InternalWaterUse !Internal water use for the model timestep [mm]
-      REAL(KIND(1D0)) :: flag_WuM = 1
+      REAL(KIND(1D0)) :: flag_WuM ! assigned before use; no initialiser, which would imply SAVE (GH#1741)
       REAL(KIND(1D0)) :: wu !Water use for the model timestep [mm]
       INTEGER :: ih !Hour corrected for Daylight savings
       INTEGER :: iu !1=weekday OR 2=weekend

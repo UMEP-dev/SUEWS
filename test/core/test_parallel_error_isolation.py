@@ -13,6 +13,7 @@ from __future__ import annotations
 import copy
 from importlib import import_module
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -73,7 +74,7 @@ def _describe_mismatch(label: str, left: bytes, right: bytes) -> str | None:
     the number of differing lines; on the multi-megabyte output blocks
     compared below it stalled the Windows API lane for the whole per-test
     budget (#1762). Reporting the first differing byte keeps a failing
-    comparison, expected while gh#1741 is open, cheap to explain.
+    comparison cheap to explain.
     """
     if left == right:
         return None
@@ -139,17 +140,45 @@ def test_valid_batch_after_failure_runs_clean(bridge_inputs):
     assert all(len(r[1]) == len(results[0][1]) for r in results)
 
 
-@pytest.mark.xfail(
-    reason="gh#1741: implicitly saved Fortran locals make parallel output "
-    "differ from serial; promote to a regular test once fixed",
-    raises=AssertionError,
-    strict=False,
+@pytest.fixture(scope="module")
+def serial_reference(bridge_inputs):
+    """Serial output per grid count, computed once and shared by every trial."""
+    cache: dict[int, list] = {}
+
+    def get(n_grids: int) -> list:
+        if n_grids not in cache:
+            cache[n_grids] = sorted(
+                _run_multi(bridge_inputs, [False] * n_grids, max_workers=1)
+            )
+        return cache[n_grids]
+
+    return get
+
+
+@pytest.mark.parametrize("trial", range(5))
+@pytest.mark.parametrize(
+    ("n_grids", "max_workers"),
+    [(4, 4), (8, 2)],
+    ids=["one-worker-per-grid", "workers-reused-across-grids"],
 )
-def test_parallel_output_matches_serial(bridge_inputs):
+def test_parallel_output_matches_serial(
+    bridge_inputs, serial_reference, n_grids, max_workers, trial
+):
     """Identical valid grids must give bit-identical output in serial and
-    parallel execution."""
-    parallel = sorted(_run_multi(bridge_inputs, [False] * 4, max_workers=4))
-    serial = sorted(_run_multi(bridge_inputs, [False] * 4, max_workers=1))
+    parallel execution, on every run.
+
+    Before gh#1741 Fortran locals with declaration initialisers were
+    implicitly SAVEd, so grids running on different threads shared them: the
+    wet-bulb iteration flags in ``Lat_vap`` let one grid pick another grid's
+    step size, and the first diverging row changed from run to run. The race
+    does not fire on every run, hence the repeated trials; the two shapes
+    cover a worker per grid and workers picking up a new grid after finishing
+    one.
+    """
+    parallel = sorted(
+        _run_multi(bridge_inputs, [False] * n_grids, max_workers=max_workers)
+    )
+    serial = serial_reference(n_grids)
     for parallel_result, serial_result in zip(parallel, serial, strict=True):
         idx_p, out_p, state_p, len_p, _warnings_p = parallel_result
         idx_s, out_s, state_s, len_s, _warnings_s = serial_result
@@ -159,6 +188,48 @@ def test_parallel_output_matches_serial(bridge_inputs):
         assert mismatch is None, mismatch
         mismatch = _describe_mismatch(
             "state strings", _as_bytes(state_p), _as_bytes(state_s)
+        )
+        assert mismatch is None, mismatch
+
+
+STEBBS_STEPS = 48  # four hours at the fixture 5-minute timestep
+STEBBS_CONFIG = (
+    Path(__file__).parent.parent / "fixtures" / "data_test" / "stebbs_test"
+) / "sample_config.yml"
+
+
+@pytest.mark.xfail(
+    reason="gh#1801: STEBBS hands per-timestep coupling state from stebbsonlinecouple "
+    "to suewsstebbscouple through module variables "
+    "(module_phys_stebbs_couple::sout and scalars, "
+    "module_phys_stebbs_core::resolution), shared by every grid thread",
+    raises=AssertionError,
+    strict=False,
+)
+def test_parallel_stebbs_output_matches_serial():
+    """Identical STEBBS grids must give bit-identical output in serial and
+    parallel execution."""
+    sim = sp.SUEWSSimulation(STEBBS_CONFIG)
+    # A few hours are enough: the shared coupling state is overwritten on
+    # every timestep, and parallel output diverged within the first 25 steps.
+    df_forcing = sim.forcing.df.loc["2017-08-26"].iloc[:STEBBS_STEPS].copy()
+    # The fixture uses -999 as a dry-period sentinel.
+    df_forcing["rain"] = df_forcing["rain"].clip(lower=0)
+    inputs = {
+        "rust": _run_rust._check_rust_available(),
+        "config_dict": sim.config.model_dump(exclude_none=True, mode="json"),
+        "forcing_flat": _run_rust
+        ._prepare_forcing_block(df_forcing)
+        .ravel(order="C")
+        .tolist(),
+        "len_sim": len(df_forcing),
+    }
+
+    serial = sorted(_run_multi(inputs, [False] * 4, max_workers=1))
+    parallel = sorted(_run_multi(inputs, [False] * 4, max_workers=4))
+    for parallel_result, serial_result in zip(parallel, serial, strict=True):
+        mismatch = _describe_mismatch(
+            "output blocks", bytes(parallel_result[1]), bytes(serial_result[1])
         )
         assert mismatch is None, mismatch
 

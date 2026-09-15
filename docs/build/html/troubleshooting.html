@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-27T07:47:55+00:00" />
-    <title>8. Troubleshooting &#8212; SUEWS 2026.9.15.dev5 documentation</title>
+    <meta property="article:modified_time" content="2026-09-15T22:36:44+00:00" />
+    <title>8. Troubleshooting &#8212; SUEWS 2026.9.15.dev6 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=a58dd486"></script>
+    <script src="_static/documentation_options.js?v=b2f954e0"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="7.2.1.1. SUEWS in UMEP" href="related-softwares/umep.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.15.dev5" />
-    <meta name="docbuild:last-update" content="2026-08-27"/>
+  <meta name="docsearch:version" content="2026.9.15.dev6" />
+    <meta name="docbuild:last-update" content="2026-09-15"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.15.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/286a96837739a8ff6d5ce8cbd6b44fba5ff8ed2f" style="color: #31708f;">286a968</a>).
+        (2026.9.15.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c664e024857dbd2388e6d9bef24749d3487f06a5" style="color: #31708f;">c664e02</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.15.dev5 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.15.dev5 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.15.dev6 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.15.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -672,12 +672,11 @@
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-related">8.2. SUEWS related</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#estm-output">8.2.1. ESTM output</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#first-things-to-check-if-the-program-seems-to-have-problems">8.2.2. First things to Check if the program seems to have problems</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#a-pop-up-saying-file-path-not-found">8.2.3. A pop-up saying “file path not found”</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#t-changed-to-fit-limits">8.2.4. <code class="docutils literal notranslate"><span class="pre">%T</span></code> changed to fit limits</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#iteration-loop-stopped-for-too-stable-conditions">8.2.5. %Iteration loop stopped for too stable conditions.</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reference-to-undefined-variable-array-element-or-function-result">8.2.6. “Reference to undefined variable, array element or function result”</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#first-things-to-check-if-the-program-seems-to-have-problems">8.2.1. First things to Check if the program seems to have problems</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#a-pop-up-saying-file-path-not-found">8.2.2. A pop-up saying “file path not found”</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#t-changed-to-fit-limits">8.2.3. <code class="docutils literal notranslate"><span class="pre">%T</span></code> changed to fit limits</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#iteration-loop-stopped-for-too-stable-conditions">8.2.4. %Iteration loop stopped for too stable conditions.</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reference-to-undefined-variable-array-element-or-function-result">8.2.5. “Reference to undefined variable, array element or function result”</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supy-related">8.3. SuPy related</a><ul class="nav section-nav flex-column">
@@ -750,12 +749,8 @@ The following website may be helpful if you do not know what a command prompt is
 </section>
 <section id="suews-related">
 <h2><span class="section-number">8.2. </span>SUEWS related<a class="headerlink" href="#suews-related" title="Link to this heading">#</a></h2>
-<section id="estm-output">
-<h3><span class="section-number">8.2.1. </span>ESTM output<a class="headerlink" href="#estm-output" title="Link to this heading">#</a></h3>
-<p>First time steps of storage output could give NaN values during the initial converging phase.</p>
-</section>
 <section id="first-things-to-check-if-the-program-seems-to-have-problems">
-<h3><span class="section-number">8.2.2. </span>First things to Check if the program seems to have problems<a class="headerlink" href="#first-things-to-check-if-the-program-seems-to-have-problems" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">8.2.1. </span>First things to Check if the program seems to have problems<a class="headerlink" href="#first-things-to-check-if-the-program-seems-to-have-problems" title="Link to this heading">#</a></h3>
 <ul class="simple">
 <li><p>Check the Python runtime logs (SuPy logger output). Legacy <code class="docutils literal notranslate"><span class="pre">problems.txt</span></code>/<code class="docutils literal notranslate"><span class="pre">warnings.txt</span></code> files are no longer written. SuPy logs to the console by default; to capture the output in a file, call <a class="reference internal" href="api/_autosummary/supy.enable_file_logging.html#supy.enable_file_logging" title="supy.enable_file_logging"><code class="xref py py-func docutils literal notranslate"><span class="pre">supy.enable_file_logging()</span></code></a> or set the <code class="docutils literal notranslate"><span class="pre">SUPY_LOGFILE</span></code> / <code class="docutils literal notranslate"><span class="pre">SUPY_LOG_DIR</span></code> environment variable (see <a class="reference internal" href="api/core-functions.html#api-core-functions"><span class="std std-ref">Procedural API migration</span></a>).</p></li>
 <li><p>Check file options – in RunControl.nml.</p></li>
@@ -764,7 +759,7 @@ The following website may be helpful if you do not know what a command prompt is
 </ul>
 </section>
 <section id="a-pop-up-saying-file-path-not-found">
-<h3><span class="section-number">8.2.3. </span>A pop-up saying “file path not found”<a class="headerlink" href="#a-pop-up-saying-file-path-not-found" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">8.2.2. </span>A pop-up saying “file path not found”<a class="headerlink" href="#a-pop-up-saying-file-path-not-found" title="Link to this heading">#</a></h3>
 <p>This means the program cannot find the file paths defined in RunControl.nml file. Possible solutions:
 -  Check that you have created the folder that you specified in RunControl.nml.
 -  Check does the output directory exist?
@@ -778,19 +773,19 @@ The following website may be helpful if you do not know what a command prompt is
 </ul>
 </section>
 <section id="t-changed-to-fit-limits">
-<h3><span class="section-number">8.2.4. </span><code class="docutils literal notranslate"><span class="pre">%T</span></code> changed to fit limits<a class="headerlink" href="#t-changed-to-fit-limits" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">8.2.3. </span><code class="docutils literal notranslate"><span class="pre">%T</span></code> changed to fit limits<a class="headerlink" href="#t-changed-to-fit-limits" title="Link to this heading">#</a></h3>
 <p>[TL =0.1]/ [TL =39.9] You may want to change the coefficients for surface resistance.
 If you have data from these temperatures, we would happily determine them.</p>
 </section>
 <section id="iteration-loop-stopped-for-too-stable-conditions">
-<h3><span class="section-number">8.2.5. </span>%Iteration loop stopped for too stable conditions.<a class="headerlink" href="#iteration-loop-stopped-for-too-stable-conditions" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">8.2.4. </span>%Iteration loop stopped for too stable conditions.<a class="headerlink" href="#iteration-loop-stopped-for-too-stable-conditions" title="Link to this heading">#</a></h3>
 <p>[zL]/[USTAR] This warning indicates that the atmospheric stability gets above 2.
 In these conditions <a class="reference external" href="http://glossary.ametsoc.org/wiki/Monin-obukhov_similarity_theory">MO theory</a> is not necessarily valid.
 The iteration loop to calculate the <a class="reference external" href="http://glossary.ametsoc.org/wiki/Obukhov_length">Obukhov length</a> and <a class="reference external" href="http://glossary.ametsoc.org/wiki/Friction_velocity">friction velocity</a> is stopped so that stability does not get too high values.
 This is something you do not need to worry as it does not mean wrong input data.</p>
 </section>
 <section id="reference-to-undefined-variable-array-element-or-function-result">
-<h3><span class="section-number">8.2.6. </span>“Reference to undefined variable, array element or function result”<a class="headerlink" href="#reference-to-undefined-variable-array-element-or-function-result" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">8.2.5. </span>“Reference to undefined variable, array element or function result”<a class="headerlink" href="#reference-to-undefined-variable-array-element-or-function-result" title="Link to this heading">#</a></h3>
 <p>Parameter(s) missing from input files.
 See also the error messages and warnings emitted to the console / Python logger.</p>
 </section>
@@ -1099,12 +1094,11 @@ manually edited state DataFrame.</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-related">8.2. SUEWS related</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#estm-output">8.2.1. ESTM output</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#first-things-to-check-if-the-program-seems-to-have-problems">8.2.2. First things to Check if the program seems to have problems</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#a-pop-up-saying-file-path-not-found">8.2.3. A pop-up saying “file path not found”</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#t-changed-to-fit-limits">8.2.4. <code class="docutils literal notranslate"><span class="pre">%T</span></code> changed to fit limits</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#iteration-loop-stopped-for-too-stable-conditions">8.2.5. %Iteration loop stopped for too stable conditions.</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reference-to-undefined-variable-array-element-or-function-result">8.2.6. “Reference to undefined variable, array element or function result”</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#first-things-to-check-if-the-program-seems-to-have-problems">8.2.1. First things to Check if the program seems to have problems</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#a-pop-up-saying-file-path-not-found">8.2.2. A pop-up saying “file path not found”</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#t-changed-to-fit-limits">8.2.3. <code class="docutils literal notranslate"><span class="pre">%T</span></code> changed to fit limits</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#iteration-loop-stopped-for-too-stable-conditions">8.2.4. %Iteration loop stopped for too stable conditions.</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reference-to-undefined-variable-array-element-or-function-result">8.2.5. “Reference to undefined variable, array element or function result”</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supy-related">8.3. SuPy related</a><ul class="nav section-nav flex-column">
@@ -1151,7 +1145,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-27.
+  Last updated on 2026-09-15.
   <br/>
 </p>
   </div>
@@ -1159,8 +1153,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.15.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/286a96837739a8ff6d5ce8cbd6b44fba5ff8ed2f">286a968</a> |
+  <p>Version: 2026.9.15.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c664e024857dbd2388e6d9bef24749d3487f06a5">c664e02</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

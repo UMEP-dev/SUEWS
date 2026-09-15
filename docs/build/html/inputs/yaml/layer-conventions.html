@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-09-09T11:01:10+00:00" />
-    <title>4.2. Vertical and Material Layer Conventions &#8212; SUEWS 2026.9.15.dev5 documentation</title>
+    <meta property="article:modified_time" content="2026-09-15T22:36:44+00:00" />
+    <title>4.2. Vertical and Material Layer Conventions &#8212; SUEWS 2026.9.15.dev6 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=a58dd486"></script>
+    <script src="../../_static/documentation_options.js?v=b2f954e0"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.1. YAML Configuration Format" href="index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.15.dev5" />
-    <meta name="docbuild:last-update" content="2026-09-09"/>
+  <meta name="docsearch:version" content="2026.9.15.dev6" />
+    <meta name="docbuild:last-update" content="2026-09-15"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.15.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/286a96837739a8ff6d5ce8cbd6b44fba5ff8ed2f" style="color: #31708f;">286a968</a>).
+        (2026.9.15.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c664e024857dbd2388e6d9bef24749d3487f06a5" style="color: #31708f;">c664e02</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.15.dev5 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.15.dev5 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.15.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.15.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -784,8 +784,9 @@ surfaces. STEBBS represents the building, so
 <li><p>Ordinary OHM (<code class="docutils literal notranslate"><span class="pre">1</span></code>) does not use material-layer properties.</p></li>
 <li><p>AnOHM (<code class="docutils literal notranslate"><span class="pre">3</span></code>) uses separate bulk properties, such as <code class="docutils literal notranslate"><span class="pre">ch_anohm</span></code>,
 <code class="docutils literal notranslate"><span class="pre">rho_cp_anohm</span></code>, and <code class="docutils literal notranslate"><span class="pre">k_anohm</span></code>.</p></li>
-<li><p>ESTM (<code class="docutils literal notranslate"><span class="pre">4</span></code>) uses separate legacy five-layer ESTM element inputs rather
-than the YAML <code class="docutils literal notranslate"><span class="pre">thermal_layers</span></code> described on this page.</p></li>
+<li><p>ESTM (<code class="docutils literal notranslate"><span class="pre">4</span></code>) is not available and is rejected at validation; its legacy
+implementation used separate five-layer element inputs, not the YAML
+<code class="docutils literal notranslate"><span class="pre">thermal_layers</span></code> described on this page.</p></li>
 </ul>
 </div>
 <p>The following fragment shows one wall facet. It is abbreviated and is not a
@@ -829,14 +830,13 @@ coefficients.</p></td>
 <td><p>Thermal properties may remain in the common configuration but are
 ignored by these storage-heat paths.</p></td>
 </tr>
-<tr class="row-odd"><td><p>ESTM (<code class="docutils literal notranslate"><span class="pre">4</span></code>; not recommended)</p></td>
+<tr class="row-odd"><td><p>ESTM (<code class="docutils literal notranslate"><span class="pre">4</span></code>; not available)</p></td>
 <td><p>ESTM does not consume the YAML roof, wall, or land-cover
 <code class="docutils literal notranslate"><span class="pre">thermal_layers</span></code> described on this page. Its legacy implementation
-instead uses separate five-layer inputs for the internal building, wall,
-roof, and ground elements.</p></td>
-<td><p>Configure ESTM through its separate legacy inputs. Supplying or
-validating YAML <code class="docutils literal notranslate"><span class="pre">thermal_layers</span></code> does not configure or validate the
-ESTM material properties.</p></td>
+used separate five-layer inputs for the internal building, wall,
+roof, and ground elements, which the YAML interface does not carry.</p></td>
+<td><p>Selecting <code class="docutils literal notranslate"><span class="pre">storage_heat:</span> <span class="pre">4</span></code> is rejected at validation. Use EHC or
+DyOHM; their rows below say which thermal-layer properties each uses.</p></td>
 </tr>
 <tr class="row-even"><td><p>EHC (<code class="docutils literal notranslate"><span class="pre">5</span></code>)</p></td>
 <td><p>All five material layers are used for every roof and wall vertical layer
@@ -1014,7 +1014,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-09-09.
+  Last updated on 2026-09-15.
   <br/>
 </p>
   </div>
@@ -1022,8 +1022,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.15.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/286a96837739a8ff6d5ce8cbd6b44fba5ff8ed2f">286a968</a> |
+  <p>Version: 2026.9.15.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c664e024857dbd2388e6d9bef24749d3487f06a5">c664e02</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

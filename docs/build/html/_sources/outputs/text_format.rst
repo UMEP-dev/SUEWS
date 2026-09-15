@@ -189,8 +189,9 @@ Group Details
 
    .. note::
 
-      ESTM is fully available in the current version. Include ``ESTM`` in your
-      ``output.groups`` configuration to enable this output.
+      ESTM is not available in the current version: ``storage_heat: 4`` is
+      rejected at validation. The group remains in the output contract and,
+      if included in ``output.groups``, is written filled with -999.
 
    *Temperature Layers (5 layers each):*
       - **Twall1-5**: Wall temperatures (outer to inner layer)

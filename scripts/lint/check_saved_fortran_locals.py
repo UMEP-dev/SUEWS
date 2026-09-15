@@ -45,12 +45,10 @@ hit read-only storage. Genuine per-grid persistence belongs in the model
 state (SUEWS_STATE), not in a SAVEd local.\
 """
 
-# Known offenders awaiting a dedicated fix (gh#1802). Each needs per-grid
-# state, not a runtime assignment: they are deliberate "first call" counters.
-ALLOWED: dict[tuple[str, str], str] = {
-    ("suews_phys_estm.f95", "estmstart"): "ESTM first-call counter, gh#1802",
-    ("suews_phys_estm.f95", "tair2set"): "ESTM first-call counter, gh#1802",
-}
+# Known offenders awaiting a dedicated fix, keyed (file name, lowercased local)
+# with the issue that tracks the fix. Empty since gh#1802 removed the last two
+# (the ESTM first-call counters) together with the ESTM run path.
+ALLOWED: dict[tuple[str, str], str] = {}
 
 _TYPE_WORDS = r"(?:INTEGER|REAL|LOGICAL|CHARACTER|DOUBLE\s+PRECISION|COMPLEX|TYPE\s*\(|CLASS\s*\()"
 _DECL = re.compile(rf"^{_TYPE_WORDS}", re.I)

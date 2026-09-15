@@ -145,7 +145,7 @@ The variables included in the main output file are determined according to :opti
 - **Ts_[Surface]**: Surface temperatures (°C) for specific surface types (e.g., Ts_Paved, Ts_Bldgs, Ts_Grass) available in both EHC and debug output groups
 
 .. note::
-   **Consistent Naming**: All surface temperature variables now use the ``Ts`` prefix consistently across all output groups. The same ``Ts_[Surface]`` variables appear in both EHC and debug output. For detailed surface temperatures by urban facet (walls, roofs, ground layers), see the :ref:`ESTM output file <SSss_YYYY_ESTM_TT.txt>` which provides 5-layer temperature profiles for different surface elements.
+   **Consistent Naming**: All surface temperature variables now use the ``Ts`` prefix consistently across all output groups. The same ``Ts_[Surface]`` variables appear in both EHC and debug output.
 
 .. csv-table::
   :file: legacy_csv/SSss_YYYY_SUEWS_TT.csv
@@ -229,7 +229,7 @@ Meteorological variables modelled by CBL portion of the model are output in to t
 SSss_YYYY_ESTM_TT.txt
 ^^^^^^^^^^^^^^^^^^^^^
 
-If the ESTM model option is run, the following output file is created.
+The ESTM scheme has been removed from SUEWS; selecting it is rejected. This section describes the file the legacy option produced, for readers of old output only.
 
 .. note:: First time steps of storage output could give NaN values during the initial converging phase.
 

@@ -914,13 +914,15 @@ class ModelPhysics(BaseModel):
         # (Ts5mindata_ir, the legacy _ESTM_Ts_data.txt) that the YAML surface
         # never carried, so the kernel read past a zero-length array and took
         # the Python process down with a segfault. Refuse the option here, on
-        # every construction and assignment path, where it can be reported.
+        # validated construction and direct field assignment, where it can be
+        # reported; model_construct and model_copy(update=...) bypass validators
+        # by design.
         inner = value.value if isinstance(value, RefValue) else value
         if getattr(inner, "value", inner) == StorageHeatMethod.ESTM.value:
             raise ValueError(
                 "storage_heat=4 (ESTM) is not available: its surface-temperature "
                 "input (Ts5mindata_ir) has no YAML or forcing path. Use EHC (5) "
-                "or DyOHM (6) for layer-resolved storage heat."
+                "or DyOHM (6) instead."
             )
         return value
 

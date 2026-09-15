@@ -57,7 +57,7 @@ EXAMPLES:
 ### 15 Sep 2026
 
 - [bugfix] Rejected `model.physics.storage_heat = 4` (ESTM) at validation instead of segfaulting in the kernel (#1785)
-  - ESTM reads a surface-temperature input (`Ts5mindata_ir`, the legacy `_ESTM_Ts_data.txt`) that the YAML interface never carried, so the run read past a zero-length array and took the Python process down. The option is now refused on every construction and assignment path with a message pointing at EHC (5) and DyOHM (6); the physics option sweep asserts the refusal, and the option is documented as unavailable.
+  - ESTM reads a surface-temperature input (`Ts5mindata_ir`, the legacy `_ESTM_Ts_data.txt`) that the YAML interface never carried, so the run read past a zero-length array and took the Python process down. The option is now refused on validated construction and direct field assignment with a message pointing at EHC (5) and DyOHM (6); the physics option sweep asserts the refusal, and the option is documented as unavailable.
 
 ### 10 Sep 2026
 

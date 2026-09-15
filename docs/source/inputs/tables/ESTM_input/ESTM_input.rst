@@ -7,7 +7,7 @@ ESTM input files
 SUEWS_ESTMCoefficients.txt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Note ESTM is under development in this release and should not be used!**
+**Note: ESTM is not available in the current version; selecting** ``StorageHeatMethod`` **= 4 is rejected at validation. This page describes the legacy table-based inputs for historical reference only.**
 
 The Element Surface Temperature Method (ESTM) :cite:`O05`
 calculates the net storage heat flux from surface temperatures. In the

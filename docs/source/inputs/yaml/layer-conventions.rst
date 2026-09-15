@@ -139,14 +139,13 @@ not use them.
        coefficients.
      - Thermal properties may remain in the common configuration but are
        ignored by these storage-heat paths.
-   * - ESTM (``4``; not recommended)
+   * - ESTM (``4``; not available)
      - ESTM does not consume the YAML roof, wall, or land-cover
        ``thermal_layers`` described on this page. Its legacy implementation
-       instead uses separate five-layer inputs for the internal building, wall,
-       roof, and ground elements.
-     - Configure ESTM through its separate legacy inputs. Supplying or
-       validating YAML ``thermal_layers`` does not configure or validate the
-       ESTM material properties.
+       used separate five-layer inputs for the internal building, wall,
+       roof, and ground elements, which the YAML interface does not carry.
+     - Selecting ``storage_heat: 4`` is rejected at validation. Use EHC or
+       DyOHM; the ``thermal_layers`` on this page configure both.
    * - EHC (``5``)
      - All five material layers are used for every roof and wall vertical layer
        and for the solid non-building land covers (paved,

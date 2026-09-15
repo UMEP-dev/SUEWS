@@ -26,9 +26,9 @@ pytestmark = [pytest.mark.api, pytest.mark.rust, pytest.mark.core]
 
 # ErrorHint code raised by the roughness calculation when the measurement
 # height sits below the displacement height (z < zd): fatal, raised on every
-# timestep. It is the first fatal error of the timestep; the driver stops
-# the timestep at its first flag check after storage heat (gh#1802), so the
-# later stability-scheme error (32) that used to overwrite it no longer runs.
+# timestep. The driver stops the timestep at its flag check after storage
+# heat (gh#1802), so this error is the one pending there; the stability
+# scheme's error 32, which used to run later and overwrite it, no longer runs.
 FATAL_CODE = 14
 N_STEPS = 288 * 2  # two days at the sample 5-minute timestep
 

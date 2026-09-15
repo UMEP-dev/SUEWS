@@ -34,10 +34,10 @@ Quick Start
    import supy as sp
 
    # Load your validated configuration
-   config = sp.SUEWSConfig.from_yaml('updated_my_config.yml')
+   sim = sp.SUEWSSimulation('updated_my_config.yml')
 
    # Run simulation
-   output = config.run()
+   output = sim.run()
 
 Configuration Structure
 -----------------------

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-09-10T01:14:20+00:00" />
-    <title>2. Getting Started &#8212; SUEWS 2026.9.15.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-09-15T19:30:41+00:00" />
+    <title>2. Getting Started &#8212; SUEWS 2026.9.15.dev3 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=30985657"></script>
+    <script src="_static/documentation_options.js?v=8b64d44a"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="1. Installation" href="installation.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.15.dev2" />
-    <meta name="docbuild:last-update" content="2026-09-10"/>
+  <meta name="docsearch:version" content="2026.9.15.dev3" />
+    <meta name="docbuild:last-update" content="2026-09-15"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.15.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2ae8ee98547cc5653b19153bcb4f8e81097c234b" style="color: #31708f;">2ae8ee9</a>).
+        (2026.9.15.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/070fac1592f3553cb654fb62369fd38ea0c7940c" style="color: #31708f;">070fac1</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.15.dev2 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.15.dev2 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.15.dev3 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.15.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -793,23 +793,23 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
     <span class="s1">'QE'</span><span class="p">:</span> <span class="n">qe</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
     <span class="s1">'QH'</span><span class="p">:</span> <span class="n">qh</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
 <span class="p">})</span>
-<span class="n">daily_energy</span> <span class="o">=</span> <span class="n">df_energy</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">'D'</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">daily_energy</span> <span class="o">=</span> <span class="n">df_energy</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">'D'</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">'datetime'</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
 <span class="n">daily_energy</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Daily Mean Energy Fluxes'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Energy Flux (W/m²)'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mf">1.05</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">loc</span><span class="o">=</span><span class="s1">'upper left'</span><span class="p">)</span>
 
 <span class="c1"># Monthly patterns</span>
-<span class="n">monthly_energy</span> <span class="o">=</span> <span class="n">df_energy</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">df_energy</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">monthly_energy</span> <span class="o">=</span> <span class="n">df_energy</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">df_energy</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">month</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <span class="n">monthly_energy</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s1">'bar'</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Monthly Energy Balance'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Energy Flux (W/m²)'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">'Month'</span><span class="p">)</span>
 
 <span class="c1"># Diurnal patterns (summer months)</span>
 <span class="n">t2</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'T2'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
-<span class="n">summer_mask</span> <span class="o">=</span> <span class="n">t2</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="mi">6</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="mi">8</span><span class="p">])</span>
+<span class="n">summer_mask</span> <span class="o">=</span> <span class="n">t2</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">month</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="mi">6</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="mi">8</span><span class="p">])</span>
 <span class="n">summer_temp</span> <span class="o">=</span> <span class="n">t2</span><span class="p">[</span><span class="n">summer_mask</span><span class="p">]</span>
-<span class="n">hourly_temp</span> <span class="o">=</span> <span class="n">summer_temp</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">summer_temp</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">hourly_temp</span> <span class="o">=</span> <span class="n">summer_temp</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">summer_temp</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <span class="n">hourly_temp</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Summer Diurnal Temperature Cycle'</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">'o'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Air Temperature (°C)'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">'Hour of Day'</span><span class="p">)</span>
@@ -817,12 +817,12 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 
 <span class="c1"># Runoff vs Precipitation</span>
 <span class="n">rain</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'Rain'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
-<span class="n">runoff</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'Runoff'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
+<span class="n">runoff</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'RO'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
 <span class="n">df_water</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
     <span class="s1">'Rain'</span><span class="p">:</span> <span class="n">rain</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
-    <span class="s1">'Runoff'</span><span class="p">:</span> <span class="n">runoff</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="s1">'RO'</span><span class="p">:</span> <span class="n">runoff</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
 <span class="p">})</span>
-<span class="n">daily_water</span> <span class="o">=</span> <span class="n">df_water</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">'D'</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="n">daily_water</span> <span class="o">=</span> <span class="n">df_water</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">'D'</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">'datetime'</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 <span class="n">daily_water</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Daily Water Balance'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Water (mm/day)'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
@@ -1446,7 +1446,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-09-10.
+  Last updated on 2026-09-15.
   <br/>
 </p>
   </div>
@@ -1454,8 +1454,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.15.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2ae8ee98547cc5653b19153bcb4f8e81097c234b">2ae8ee9</a> |
+  <p>Version: 2026.9.15.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/070fac1592f3553cb654fb62369fd38ea0c7940c">070fac1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

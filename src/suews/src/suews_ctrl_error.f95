@@ -150,7 +150,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
 #ifdef wrf
    CHARACTER(len=1024) :: message ! Used to pass through function wrf_debug() by Zhenkun Li, 10/08/2018
 #endif
-   CHARACTER(len=1024) :: Errmessage = ''  ! Initialize to avoid garbage in unused cases
+   ! Assigned below rather than initialised here: an initialiser implies SAVE,
+   ! making the buffer shared by every grid thread (GH#1741)
+   CHARACTER(len=1024) :: Errmessage
    CHARACTER(len=1024) :: StopMessage ! used to pass error message to stop statement; useful to supy_driver, TS 19 Feb 2019
 
    ! TS 16 Jul 2018:
@@ -160,6 +162,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
    LOGICAL :: flag_continue_on_error
 
    text1 = 'unknown problem' ! Initialization of text
+   Errmessage = ''
    ! WhichFile = 0 ! Initialization of file code
 
    ! Initialise returnTrue as false (HCW 29/10/2014)

@@ -133,8 +133,11 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: dz_surf
 
       REAL(KIND(1D0)), INTENT(IN) :: lambda_c ! Building surface to plan area ratio [-]
-      REAL(KIND(1D0)) :: lambda_c1 = 1.0D0 !constant 1 for land cover
-      REAL(KIND(1D0)) :: ws0 = 0.0D0 !assume wind speed is 0 at ground level
+      REAL(KIND(1D0)), PARAMETER :: lambda_c1 = 1.0D0 !constant 1 for land cover
+      ! Not a PARAMETER: OHM_yl_cal clamps its wind-speed argument in place. Not
+      ! initialised here either: an initialiser implies SAVE, so the clamped
+      ! value was shared across calls and grid threads (GH#1741).
+      REAL(KIND(1D0)) :: ws0 !assume wind speed is 0 at ground level
       REAL(KIND(1D0)), INTENT(INOUT) :: a1_bldg, a2_bldg, a3_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)), INTENT(INOUT) :: a1_paved, a2_paved, a3_paved, &
                                           a1_evetr, a2_evetr, a3_evetr, &
@@ -220,6 +223,7 @@ CONTAINS
                   ! Fully coupled DyOHM modes update dynamic coefficients for
                   ! non-building surfaces. DyOHM-building leaves them as ordinary OHM.
                   ! For non-building surfaces, assume WS=0 at ground level and lambda_c=1.
+                  ws0 = 0.0D0
                   CALL OHM_yl_cal(dt_since_start, &
                                   ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
                                   dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
@@ -797,7 +801,6 @@ CONTAINS
       REAL(KIND(1D0)) :: a1, a2, a3 ! OHM coefficients
 
       ! Local variables for reading CSV file
-      INTEGER :: id_prev = 0
       INTEGER :: iunit_csv, ios_csv
       CHARACTER(LEN=100) :: csv_filename
       CHARACTER(LEN=100) :: csv_date

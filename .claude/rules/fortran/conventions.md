@@ -116,6 +116,23 @@ When investigating "stack smashing detected" or similar buffer overruns:
 
 ---
 
+## No Implicitly Saved Locals
+
+The Rust bridge runs one grid per worker thread through the same compiled
+procedures, so any static local is shared between grids.
+
+- **Never initialise a local in its declaration** (`LOGICAL :: flag = .FALSE.`).
+  The initialiser implies `SAVE`: the value persists between calls and every
+  thread shares one copy. `-frecursive` does not change this.
+- Constant -> `PARAMETER`. Per-call value -> declare bare, assign at the top of
+  the executable part. Value that must persist -> model state (`SUEWS_STATE`).
+- Before making a value `PARAMETER`, check the callee does not assign to the
+  dummy it is passed to (dummies without `INTENT` can be written; a write to a
+  `PARAMETER` actual is a bus error).
+- `scripts/lint/check_saved_fortran_locals.py` enforces this in CI (gh#1741).
+
+---
+
 ## Numerical Guarding
 
 - Comparisons like `< 0.0D0` do not catch `NaN`.

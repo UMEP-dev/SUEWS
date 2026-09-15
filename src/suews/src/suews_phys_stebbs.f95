@@ -498,8 +498,8 @@ CONTAINS
       USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor
-      REAL(KIND(1D0)) :: Rd = 287.058   ! gas constant for dry air
-      REAL(KIND(1D0)) :: Rv = 461.495   ! water vapour
+      REAL(KIND(1D0)), PARAMETER :: Rd = 287.058   ! gas constant for dry air
+      REAL(KIND(1D0)), PARAMETER :: Rv = 461.495   ! water vapour
       REAL(KIND(1D0)) :: es, e, Pd
       REAL(KIND(1D0)) :: air_dens !indoor air densiy
       !Saturation vapour pressure over water in Pa
@@ -586,8 +586,8 @@ SUBROUTINE setdatetime(datetimeLine)
    CHARACTER(len=4) :: cyear
    CHARACTER(len=2) :: cmonth, cday, chour, cmin, csec
    INTEGER, DIMENSION(12) :: stmonth
-   INTEGER, DIMENSION(12) :: stmonth_nonleap = (/0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334/)
-   INTEGER, DIMENSION(12) :: stmonth_leap = (/0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335/)
+   INTEGER, DIMENSION(12), PARAMETER :: stmonth_nonleap = (/0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334/)
+   INTEGER, DIMENSION(12), PARAMETER :: stmonth_leap = (/0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335/)
    WRITE (cyear, '(i4)') INT(datetimeLine(1))
    IF (MOD(INT(datetimeLine(1)), 4) == 0) THEN
       stmonth = stmonth_leap
@@ -747,8 +747,8 @@ CONTAINS
       REAL(KIND(1D0)) :: QEC_heating_tstepFA
       REAL(KIND(1D0)) :: QEC_cooling_tstepFA
       REAL(KIND(1D0)) :: QEC_dhw_tstepFA
-      REAL(KIND(1D0)) :: Unused_heating_setpoint_C = -100
-      REAL(KIND(1D0)) :: Unused_cooling_setpoint_C = 100
+      REAL(KIND(1D0)), PARAMETER :: Unused_heating_setpoint_C = -100
+      REAL(KIND(1D0)), PARAMETER :: Unused_cooling_setpoint_C = 100
       REAL(KIND(1D0)) :: T_watermains_K
       REAL(KIND(1D0)), PARAMETER :: FloorHeightDefault = 2.7D0 ! [m]
       REAL(KIND(1D0)), PARAMETER :: GlobalLuminousEfficacy = 110.0D0 ! [lm W-1]

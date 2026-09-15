@@ -657,6 +657,9 @@ jobs:
   #  2. No test may inspect an imported module through `<module>.__file__`;
   #     use `importlib.resources` for packaged data instead. See
   #     `.claude/rules/tests/patterns.md` ("Locating packaged data").
+  #  3. No Fortran procedure local may carry a declaration initialiser or
+  #     SAVE, which would share it between parallel grid threads (gh#1741).
+  #     Also a text scan that needs no build.
   #
   # The job id and display name are unchanged so nothing that references
   # them (needs:, .github/scripts/pr-gate.sh, branch protection) breaks.
@@ -688,6 +691,13 @@ jobs:
         if: always()
         shell: bash
         run: python scripts/lint/check_packaged_data_paths.py
+
+      # Declaration initialisers make Fortran locals implicitly SAVEd and so
+      # shared between parallel grid threads (gh#1741).
+      - name: Lint implicitly saved Fortran locals
+        if: always()
+        shell: bash
+        run: python scripts/lint/check_saved_fortran_locals.py
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:

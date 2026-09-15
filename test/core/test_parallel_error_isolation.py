@@ -24,9 +24,12 @@ _run_rust = import_module("supy._run_rust")
 
 pytestmark = [pytest.mark.api, pytest.mark.rust, pytest.mark.core]
 
-# ErrorHint code raised by the stability scheme when the measurement height
-# sits below the displacement height (z < zd): fatal, raised on every timestep.
-FATAL_CODE = 32
+# ErrorHint code raised by the roughness calculation when the measurement
+# height sits below the displacement height (z < zd): fatal, raised on every
+# timestep. It is the first fatal error of the timestep; the driver stops
+# the timestep at its first flag check after storage heat (gh#1802), so the
+# later stability-scheme error (32) that used to overwrite it no longer runs.
+FATAL_CODE = 14
 N_STEPS = 288 * 2  # two days at the sample 5-minute timestep
 
 
@@ -49,7 +52,8 @@ def _grid_json(config_dict: dict, gridiv: int, failing: bool) -> str:
     site["gridiv"] = gridiv
     if failing:
         # Measurement height below the displacement height of the sample
-        # site: the stability scheme raises fatal ErrorHint 32 immediately.
+        # site: the roughness calculation raises fatal ErrorHint 14 on the
+        # first timestep.
         site["properties"]["z"] = {"value": 0.5}
     grid_dict = dict(config_dict)
     grid_dict["sites"] = [site]

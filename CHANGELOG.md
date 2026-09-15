@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 87       | 32 | 82 | 41 | 323   |
+| 2026 | 80       | 87       | 33 | 82 | 41 | 324   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -58,6 +58,9 @@ EXAMPLES:
 
 - [bugfix] Rejected `model.physics.storage_heat = 4` (ESTM) at validation instead of segfaulting in the kernel (#1785)
   - ESTM reads a surface-temperature input (`Ts5mindata_ir`, the legacy `_ESTM_Ts_data.txt`) that the YAML interface never carried, so the run read past a zero-length array and took the Python process down. The option is now refused on validated construction and direct field assignment with a message pointing at EHC (5) and DyOHM (6); the physics option sweep asserts the refusal, and the option is documented as unavailable.
+  - ESTM reads a surface-temperature input (`Ts5mindata_ir`, the legacy `_ESTM_Ts_data.txt`) that the YAML interface never carried, so the run read past a zero-length array and took the Python process down. The option is now refused on every construction and assignment path with a message pointing at EHC (5) and DyOHM (6); the physics option sweep asserts the refusal, and the option is documented as unavailable.
+- [change][stable] Removed the legacy ESTM storage-heat scheme from the Fortran kernel (#1802, #1741)
+  - `suews_phys_estm.f95` is deleted with its driver dispatch and the `_ESTM_Ts_data.txt` column constants. Only the `ESTM` subroutine was ever reachable, and since #1785 the option is refused before the kernel runs; every other procedure in the file had no caller. This removes the last module-level run state and implicitly saved first-call counters found in the #1741 audit, so the saved-locals lint allowlist is now empty. The `ESTM` output group stays in the output contract, filled with -999.
 
 ### 10 Sep 2026
 

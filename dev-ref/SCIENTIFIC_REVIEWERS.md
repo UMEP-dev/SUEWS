@@ -56,7 +56,6 @@ Modules without a named domain panel are routed manually to @sunt05 and
 | Water distribution | [`2-module:waterdist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Awaterdist) | `/src/suews/src/suews_phys_waterdist.f95` | @sunt05, @suegrimmond |
 | Anthropogenic heat | [`2-module:anthro`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanthro) | `/src/suews/src/suews_phys_anthro.f95` | @sunt05, @suegrimmond |
 | OHM | [`2-module:ohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aohm) | `/src/suews/src/suews_phys_ohm.f95` | @sunt05, @suegrimmond |
-| ESTM | [`2-module:estm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aestm) | `/src/suews/src/suews_phys_estm.f95` | @sunt05, @suegrimmond |
 | LUMPS | [`2-module:lumps`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Alumps) | `/src/suews/src/suews_phys_lumps.f95` | @sunt05, @suegrimmond |
 | NARP | [`2-module:narp`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Anarp) | `/src/suews/src/suews_phys_narp.f95` | @sunt05, @suegrimmond |
 | SOLWEIG | [`2-module:solweig`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asolweig) | `/src/suews/src/suews_phys_solweig.f95` | @sunt05, @suegrimmond |

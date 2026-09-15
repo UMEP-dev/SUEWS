@@ -198,17 +198,13 @@ STEBBS_CONFIG = (
 ) / "sample_config.yml"
 
 
-def test_parallel_stebbs_output_matches_serial():
-    """Identical STEBBS grids must give bit-identical output in serial and
-    parallel execution (gh#1801).
-
-    STEBBS used to hand its per-timestep coupling inputs from
-    ``stebbsonlinecouple`` to ``suewsstebbscouple`` through module variables
-    shared by every grid thread; they now travel by argument.
-    """
+@pytest.fixture(scope="module")
+def stebbs_inputs():
+    """Bridge inputs for four identical STEBBS grids, plus their serial output."""
     sim = sp.SUEWSSimulation(STEBBS_CONFIG)
-    # A few hours are enough: the shared coupling state is overwritten on
-    # every timestep, and parallel output diverged within the first 25 steps.
+    # Before gh#1801 the shared coupling state was overwritten on every
+    # timestep and parallel output diverged within the first 25 steps, so a
+    # few hours of forcing are enough.
     df_forcing = sim.forcing.df.loc["2017-08-26"].iloc[:STEBBS_STEPS].copy()
     # The fixture uses -999 as a dry-period sentinel.
     df_forcing["rain"] = df_forcing["rain"].clip(lower=0)
@@ -221,9 +217,22 @@ def test_parallel_stebbs_output_matches_serial():
         .tolist(),
         "len_sim": len(df_forcing),
     }
+    inputs["serial"] = sorted(_run_multi(inputs, [False] * 4, max_workers=1))
+    return inputs
 
-    serial = sorted(_run_multi(inputs, [False] * 4, max_workers=1))
-    parallel = sorted(_run_multi(inputs, [False] * 4, max_workers=4))
+
+@pytest.mark.parametrize("trial", range(3))
+def test_parallel_stebbs_output_matches_serial(stebbs_inputs, trial):
+    """Identical STEBBS grids must give bit-identical output in serial and
+    parallel execution, on every run (gh#1801).
+
+    STEBBS used to hand its per-timestep coupling inputs from
+    ``stebbsonlinecouple`` to ``suewsstebbscouple`` through module variables
+    shared by every grid thread; they now travel by argument. A race shows
+    only when the scheduler interleaves grids, so the check is repeated.
+    """
+    serial = stebbs_inputs["serial"]
+    parallel = sorted(_run_multi(stebbs_inputs, [False] * 4, max_workers=4))
     for parallel_result, serial_result in zip(parallel, serial, strict=True):
         mismatch = _describe_mismatch(
             "output blocks", bytes(parallel_result[1]), bytes(serial_result[1])

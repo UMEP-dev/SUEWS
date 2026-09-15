@@ -604,7 +604,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(4) :: wallStatesK, wallStatesL
       TYPE(suewsprop) :: sout ! this grid's coupling inputs for suewsstebbscouple
-      INTEGER :: resolution ! STEBBS sub-steps per SUEWS timestep
+      INTEGER :: resolution ! STEBBS substep duration [s]
       ! Output variables
       REAL(KIND(1D0)) :: ws
       REAL(KIND(1D0)) :: ws_bh
@@ -1001,8 +1001,8 @@ SUBROUTINE suewsstebbscouple(self, sout, resolution, datetimeLine, &
    IMPLICIT NONE
    TYPE(SUEWS_STATE) :: modState
    TYPE(STEBBS_BLDG) :: self
-   TYPE(suewsprop), INTENT(INOUT) :: sout ! coupling inputs from SUEWS for this grid
-   INTEGER, INTENT(IN) :: resolution ! STEBBS sub-steps per SUEWS timestep
+   TYPE(suewsprop), INTENT(IN) :: sout ! coupling inputs from SUEWS for this grid
+   INTEGER, INTENT(IN) :: resolution ! STEBBS substep duration [s]
    INTEGER :: tstep, i
    ! Outdoor forcing for this timestep, unpacked from sout (K, m s-1, kg m-3, J kg-1 K-1, W m-2)
    REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tsurf, Tground_deep, &
@@ -1113,10 +1113,6 @@ SUBROUTINE suewsstebbscouple(self, sout, resolution, datetimeLine, &
       Qlw_dn_extwall = sout%Lwall
       Qlw_dn_extroof = sout%Lroof
       debug_array_dir = './debug_array.csv'
-      IF (sout%ws_exch < 0) THEN
-         sout%ws_exch = 0.2
-         ! WRITE (*, *) 'Wind speed is negative, set to 0.2'
-      END IF
       !use updated temperature to calculate new coefficients
       self%h_o(1) = ext_conv_coeff(ws_out_hbh, self%t_ext_wall - Tair_out_hbh) !wall
       self%h_o(2) = ext_conv_coeff(ws_out_bh, self%t_ext_roof - Tair_out_bh) !roof

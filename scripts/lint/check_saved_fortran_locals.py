@@ -54,10 +54,14 @@ ALLOWED: dict[tuple[str, str], str] = {
 
 _TYPE_WORDS = r"(?:INTEGER|REAL|LOGICAL|CHARACTER|DOUBLE\s+PRECISION|COMPLEX|TYPE\s*\(|CLASS\s*\()"
 _DECL = re.compile(rf"^{_TYPE_WORDS}", re.I)
+# A type prefix may nest one level of parentheses, as in
+# `REAL(KIND(1D0)) FUNCTION f(x)`; `[^)]*` alone would stop at the inner `)`.
+_PAREN = r"\((?:[^()]|\([^()]*\))*\)"
 _PROC_START = re.compile(
     r"^(?:(?:PURE|ELEMENTAL|RECURSIVE|IMPURE|MODULE)\s+)*"
-    r"(?:(?:INTEGER|REAL|LOGICAL|CHARACTER|DOUBLE\s+PRECISION|TYPE\s*\([^)]*\))"
-    r"(?:\s*\([^)]*\))?\s+)?"
+    r"(?:(?:INTEGER|REAL|LOGICAL|CHARACTER|COMPLEX|DOUBLE\s+PRECISION|TYPE|CLASS)"
+    rf"(?:\s*{_PAREN})?\s*(?:\*\s*\d+)?\s+)?"
+    r"(?:(?:PURE|ELEMENTAL|RECURSIVE|IMPURE)\s+)*"
     r"(?:SUBROUTINE|FUNCTION)\s+\w+",
     re.I,
 )

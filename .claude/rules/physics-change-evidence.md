@@ -109,6 +109,13 @@ Current owned subsystems:
 - **STEBBS** (`suews_phys_stebbs.f95`, STEBBS data model, STEBBS fixtures) ->
   `@yiqing1021`.
 
+Owner sign-off is for changes to a subsystem's own physics or behaviour. A
+cross-cutting maintenance fix that touches an owned file only as one of many
+(for example marking never-assigned locals `PARAMETER` across the Fortran tree,
+with no numerical or functional change to that subsystem) does not need the
+owner's approval; the maintainer records that ruling in the PR's
+`Domain owner sign-off` line instead (see #1803).
+
 For subsystems without a named owner, sign-off falls to the maintainer
 (`@sunt05`). Scientific reviewer routing is documented in
 `dev-ref/SCIENTIFIC_REVIEWERS.md` so domain reviewers are requested manually

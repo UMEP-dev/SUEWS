@@ -131,6 +131,34 @@ def test_other_static_forms_fail(tmp_path, declaration):
     assert _run(repo) == 1
 
 
+@pytest.mark.parametrize(
+    "header",
+    [
+        "REAL(KIND(1D0)) FUNCTION example(x)",
+        "PURE REAL(KIND(1D0)) FUNCTION example(x)",
+        "TYPE(dts_example) FUNCTION example(x)",
+    ],
+    ids=["kind-nested-parens", "prefixed-kind", "derived-type-result"],
+)
+def test_typed_function_header_is_a_procedure_scope(tmp_path, header):
+    """A result-type prefix with nested parentheses still opens a procedure,
+    so an initialised local inside it is caught."""
+    source = (
+        "MODULE module_util_example\n"
+        "   IMPLICIT NONE\n"
+        "CONTAINS\n"
+        f"   {header}\n"
+        "      REAL(KIND(1D0)) :: x\n"
+        "      LOGICAL :: flag = .FALSE.\n"
+        "      example = x\n"
+        "   END FUNCTION example\n"
+        "END MODULE module_util_example\n"
+    )
+    repo = _make_repo(tmp_path, {"suews_util_example.f95": source})
+
+    assert _run(repo) == 1
+
+
 def test_save_statement_fails(tmp_path):
     source = (
         "SUBROUTINE example()\n"

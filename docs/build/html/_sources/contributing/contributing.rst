@@ -16,6 +16,8 @@ We welcome community contributions in the following areas:
 - **Documentation Improvements**: Click the "Suggest an edit" button at the top right of the page (the GitHub icon) and make your changes.
 - **Feature Requests**: Discuss ideas in the `SUEWS Community <https://community.suews.io>`_
 
+.. tip:: **Cannot open an issue?** Opening issues on GitHub is limited to existing contributors, so a first-time reporter may see a message that they cannot interact with the repository. Post the report in the `SUEWS Community <https://community.suews.io>`_ instead, and a maintainer will turn it into a GitHub issue. If you work on SUEWS regularly, ask there to be added as a contributor.
+
 .. note:: If you are interested in contributing to the project, please start a discussion in the `SUEWS Community <https://community.suews.io>`_ to share your ideas.
 
 Building SUEWS Locally

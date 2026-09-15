@@ -199,7 +199,7 @@ STEBBS_CONFIG = (
 
 
 @pytest.mark.xfail(
-    reason="STEBBS hands per-timestep coupling state from stebbsonlinecouple "
+    reason="gh#1801: STEBBS hands per-timestep coupling state from stebbsonlinecouple "
     "to suewsstebbscouple through module variables "
     "(module_phys_stebbs_couple::sout and scalars, "
     "module_phys_stebbs_core::resolution), shared by every grid thread",

@@ -99,8 +99,9 @@ represent the physical construction chosen for that surface.
    - Ordinary OHM (``1``) does not use material-layer properties.
    - AnOHM (``3``) uses separate bulk properties, such as ``ch_anohm``,
      ``rho_cp_anohm``, and ``k_anohm``.
-   - ESTM (``4``) uses separate legacy five-layer ESTM element inputs rather
-     than the YAML ``thermal_layers`` described on this page.
+   - ESTM (``4``) is not available and is rejected at validation; its legacy
+     implementation used separate five-layer element inputs, not the YAML
+     ``thermal_layers`` described on this page.
 
 The following fragment shows one wall facet. It is abbreviated and is not a
 complete site configuration.
@@ -145,7 +146,7 @@ not use them.
        used separate five-layer inputs for the internal building, wall,
        roof, and ground elements, which the YAML interface does not carry.
      - Selecting ``storage_heat: 4`` is rejected at validation. Use EHC or
-       DyOHM; the ``thermal_layers`` on this page configure both.
+       DyOHM; their rows below say which thermal-layer properties each uses.
    * - EHC (``5``)
      - All five material layers are used for every roof and wall vertical layer
        and for the solid non-building land covers (paved,

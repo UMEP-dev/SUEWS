@@ -34,7 +34,6 @@ MODULE SUEWS_Driver
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
-   USE module_phys_estm, ONLY: ESTM
    USE module_phys_ehc, ONLY: EHC
    USE module_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
    USE module_phys_dailystate, ONLY: update_DailyStateLine, SUEWS_cal_DailyState
@@ -2463,22 +2462,7 @@ CONTAINS
                   QS_roof = qs
                   QS_wall = qs
 
-                  ! !Calculate QS using ESTM
-               ELSEIF (StorageHeatMethod == 4 .OR. StorageHeatMethod == 14) THEN
-                  !    !CALL ESTM(QSestm,iMB)
-                  IF (Diagnose == 1) WRITE (*, *) 'Calling ESTM...'
-                  CALL ESTM( &
-                     Gridiv, & !input
-                     tstep, &
-                     avkdn, avu1, temp_c, zenith_deg, avrh, press_hpa, ldown, &
-                     bldgh, Ts5mindata_ir, &
-                     Tair_av, &
-                     dataOutLineESTM, QS, & !output
-                     modState)
-                  !    CALL ESTM(QSestm,Gridiv,ir)  ! iMB corrected to Gridiv, TS 09 Jun 2016
-                  !    QS=QSestm   ! Use ESTM qs
                ELSEIF (StorageHeatMethod == 5) THEN
-                  !    !CALL ESTM(QSestm,iMB)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling extended ESTM...'
                   ! facets: seven suews standard facets + extra for buildings [roof, wall] (can be extended for heterogeneous buildings)
                   !
@@ -4466,10 +4450,6 @@ CONTAINS
 
       IF (SnowUse == 1) THEN
          dataOutSnow(ir, 1:ncolumnsDataOutSnow, Gridiv) = [set_nan(dataOutLineSnow)]
-      END IF
-
-      IF (storageheatmethod == 4) THEN
-         dataOutESTM(ir, 1:ncolumnsDataOutESTM, Gridiv) = [set_nan(dataOutLineESTM)]
       END IF
 
       IF (storageheatmethod == 5) THEN

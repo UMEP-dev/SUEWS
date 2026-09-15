@@ -11,7 +11,6 @@
 | Anthropogenic heat (QF) | `suews_phys_anthrop*.f95` |
 | Storage heat (OHM) | `suews_phys_ohm.f95` |
 | Storage heat (AnOHM) | `suews_phys_anohm.f95` |
-| Storage heat (ESTM) | `suews_phys_estm.f95` |
 | Evaporation | `suews_phys_evap.f95` |
 | Snow | `suews_phys_snow.f95` |
 | SPARTACUS | `suews_phys_spartacus.f95` |

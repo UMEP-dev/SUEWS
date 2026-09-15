@@ -77,7 +77,6 @@ MODULE module_ctrl_const_allocate
    INTEGER, PARAMETER :: ncolumnsWGWaterDist = 10 !SUEWS_WithinGridWaterDist.txt
    INTEGER, PARAMETER :: ncolumnsBiogen = 9 !SUEWS_BiogenCO2.txt
    INTEGER, PARAMETER :: ncolumnsMetForcingData = 24 !Meteorological forcing file (_data.txt)
-   INTEGER, PARAMETER :: ncolsESTMdata = 13 !ESTM input file (_ESTM_Ts_data.txt))
 
    ! ---- Set number of columns in output files ---------------------------------------------------
    INTEGER, PARAMETER :: ncolumnsDataOutSUEWS = 90 + 7 + 7 + 7 + 7, & !Main output file (_5.txt): base + Ts_surf + Ts_surf_dyohm + qn_surf + qs_surf
@@ -208,10 +207,7 @@ MODULE module_ctrl_const_allocate
    REAL(KIND(1D0)), DIMENSION(0:23, 2) :: WUProfM_24Hr !Hourly profiles for water use (manual irrigation)
    REAL(KIND(1D0)), DIMENSION(0:23, 2) :: WUProfA_24Hr !Hourly profiles for water use (automatic irrigation)
 
-   ! ---- For ESTM
-   REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: Ts5mindata !surface temperature input data
-   REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: ts5mindata_ir !=ts5mindata(ir,:), ts input for the current timestep
-   REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: Tair24HR
+   ! ---- ESTM output line: the scheme was removed (gh#1802) but the output group stays in the contract, filled with -999
    REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM - 5) :: dataOutLineESTM !ESTM output for the current timestep and grid
 
    ! ---- For ESTM_ext
@@ -1035,22 +1031,6 @@ MODULE module_ctrl_const_allocate
    !Last column number for ModelDailyState array
    INTEGER, PARAMETER :: MaxNCols_cMDS = ccMDS + 0*nsurf + nsurf
    !-----------------------------------------------------------------------------------------------
-
-   ! ---- Set column numbering for ESTM_Ts_data input file ===-------------------------------------
-   ! HCW 15 June 2016
-   INTEGER, PARAMETER :: cTs_iy = 1
-   INTEGER, PARAMETER :: cTs_id = 2
-   INTEGER, PARAMETER :: cTs_it = 3
-   INTEGER, PARAMETER :: cTs_imin = 4
-   INTEGER, PARAMETER :: cTs_Tiair = 5
-   INTEGER, PARAMETER :: cTs_Tsurf = 6
-   INTEGER, PARAMETER :: cTs_Troof = 7
-   INTEGER, PARAMETER :: cTs_Troad = 8
-   INTEGER, PARAMETER :: cTs_Twall = 9
-   INTEGER, PARAMETER :: cTs_Twall_n = 10
-   INTEGER, PARAMETER :: cTs_Twall_e = 11
-   INTEGER, PARAMETER :: cTs_Twall_s = 12
-   INTEGER, PARAMETER :: cTs_Twall_w = 13
 
 END MODULE module_ctrl_const_allocate
 

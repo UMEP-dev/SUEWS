@@ -14,12 +14,6 @@ MODULE module_phys_stebbs_core
 
    REAL(rprc), PARAMETER :: sigma = 5.670E-8
 
-   INTEGER :: resolution
-   INTEGER :: time_st, time_ed, count_p_sec, count_max ! Time check
-
-   INTEGER :: nbtype
-   CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: fnmls, cases
-
 END MODULE module_phys_stebbs_core
 MODULE module_phys_stebbs_func
    USE module_phys_stebbs_precision
@@ -539,10 +533,9 @@ END MODULE module_phys_stebbs_func
 MODULE module_phys_stebbs_couple
    USE module_phys_stebbs_precision
    IMPLICIT NONE
-   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tsurf, Tground_deep, pres, RH, &
-                      density_air_out, cp_air_out, &
-                      Qsw_dn_extroof, Qsw_dn_extwall, &
-                      Qlw_dn_extwall, Qlw_dn_extroof
+   ! Per-timestep SUEWS -> STEBBS coupling inputs. Held by the caller
+   ! (stebbsonlinecouple) and passed down by argument: a module-level
+   ! instance would be shared by every grid thread (gh#1801).
    TYPE :: suewsprop
       INTEGER :: ntstep, timestep
       !CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: datetime, hourmin
@@ -575,42 +568,7 @@ MODULE module_phys_stebbs_couple
       REAL(KIND(1D0)) :: Lwall_exch
       REAL(KIND(1D0)) :: pres_exch, RH_exch, cp_air_exch, density_air_exch
    END TYPE
-   TYPE(suewsprop) :: sout
 END MODULE module_phys_stebbs_couple
-SUBROUTINE setdatetime(datetimeLine)
-   USE module_phys_stebbs_precision
-   USE module_phys_stebbs_couple, ONLY: sout
-   IMPLICIT NONE
-   REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
-   INTEGER :: i
-   CHARACTER(len=4) :: cyear
-   CHARACTER(len=2) :: cmonth, cday, chour, cmin, csec
-   INTEGER, DIMENSION(12) :: stmonth
-   INTEGER, DIMENSION(12), PARAMETER :: stmonth_nonleap = (/0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334/)
-   INTEGER, DIMENSION(12), PARAMETER :: stmonth_leap = (/0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335/)
-   WRITE (cyear, '(i4)') INT(datetimeLine(1))
-   IF (MOD(INT(datetimeLine(1)), 4) == 0) THEN
-      stmonth = stmonth_leap
-   ELSE
-      stmonth = stmonth_nonleap
-   END IF
-   DO i = 1, 11, 1
-      IF (stmonth(i) < datetimeLine(2) .AND. datetimeLine(2) <= stmonth(i + 1)) THEN
-         WRITE (cmonth, '(i2.2)') i
-         WRITE (cday, '(i2.2)') INT(datetimeLine(2)) - stmonth(i)
-      END IF
-      IF (stmonth(12) < datetimeLine(2)) THEN
-         WRITE (cmonth, '(i2.2)') 12
-         WRITE (cday, '(i2.2)') INT(datetimeLine(2)) - stmonth(12)
-      END IF
-   END DO
-   WRITE (chour, '(i2.2)') INT(datetimeLine(3))
-   WRITE (cmin, '(i2.2)') INT(datetimeLine(4))
-   WRITE (csec, '(i2.2)') 0
-   sout%datetime = TRIM(cyear//'-'//cmonth//'-'//cday)
-   sout%hourmin = TRIM(chour//':'//cmin//':'//csec)
-   RETURN
-END SUBROUTINE setdatetime
 MODULE module_phys_stebbs
 
    USE module_phys_stebbs_precision, ONLY: rprc
@@ -624,8 +582,7 @@ CONTAINS
       datetimeLine, nlayer, &
       dataOutLineSTEBBS) ! Output
       USE module_phys_stebbs_func, ONLY: find_layer, cal_mainsWaterTemperature
-      USE module_phys_stebbs_core, ONLY: cases, resolution
-      USE module_phys_stebbs_couple, ONLY: sout ! Defines sout
+      USE module_phys_stebbs_couple, ONLY: suewsprop
       USE module_phys_stebbs_precision, ONLY: rprc ! Defines rprc as REAL64
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSTEBBS
       USE module_phys_rslprof, ONLY: interp_z
@@ -646,6 +603,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(4) :: wallStatesK, wallStatesL
+      TYPE(suewsprop) :: sout ! this grid's coupling inputs for suewsstebbscouple
+      INTEGER :: resolution ! STEBBS substep duration [s]
       ! Output variables
       REAL(KIND(1D0)) :: ws
       REAL(KIND(1D0)) :: ws_bh
@@ -945,10 +904,8 @@ CONTAINS
                END IF
             END IF
 
-            CALL setdatetime(datetimeLine)
-
             CALL suewsstebbscouple( &
-               buildings(1), datetimeLine, &
+               buildings(1), sout, resolution, datetimeLine, &
                Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, &
                Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor,&
                Qsw_transmitted_window_tstepFA, Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, &
@@ -1014,7 +971,7 @@ CONTAINS
    END SUBROUTINE stebbsonlinecouple
 END MODULE module_phys_stebbs
 
-SUBROUTINE suewsstebbscouple(self, datetimeLine, &
+SUBROUTINE suewsstebbscouple(self, sout, resolution, datetimeLine, &
                             Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, &
                             Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor, &
                             Qsw_transmitted_window_tstepFA, Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, &
@@ -1038,20 +995,20 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
                              ) ! Output
 
    USE module_phys_stebbs_precision
-   USE module_phys_stebbs_core, ONLY: resolution
    USE module_phys_stebbs_func, ONLY: ext_conv_coeff, int_conv_coeff, indoor_airdensity
-   USE module_phys_stebbs_couple, ONLY: &
-      sout, &
-      Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tground_deep, Tsurf, density_air_out, &
-      cp_air_out, &
-      Qsw_dn_extroof, &
-      Qsw_dn_extwall, &
-      Qlw_dn_extwall, Qlw_dn_extroof
+   USE module_phys_stebbs_couple, ONLY: suewsprop
    USE module_ctrl_type, ONLY: SUEWS_STATE, STEBBS_BLDG
    IMPLICIT NONE
    TYPE(SUEWS_STATE) :: modState
    TYPE(STEBBS_BLDG) :: self
+   TYPE(suewsprop), INTENT(IN) :: sout ! coupling inputs from SUEWS for this grid
+   INTEGER, INTENT(IN) :: resolution ! STEBBS substep duration [s]
    INTEGER :: tstep, i
+   ! Outdoor forcing for this timestep, unpacked from sout (K, m s-1, kg m-3, J kg-1 K-1, W m-2)
+   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tsurf, Tground_deep, &
+                      density_air_out, cp_air_out, &
+                      Qsw_dn_extroof, Qsw_dn_extwall, &
+                      Qlw_dn_extwall, Qlw_dn_extroof
    ! INTEGER, INTENT(in) :: flginit
    ! Internal variables
    REAL(KIND(1D0)) :: Area, qinternal, qe_cool, qe_heat, q_waste, q_ventilation
@@ -1156,10 +1113,6 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
       Qlw_dn_extwall = sout%Lwall
       Qlw_dn_extroof = sout%Lroof
       debug_array_dir = './debug_array.csv'
-      IF (sout%ws_exch < 0) THEN
-         sout%ws_exch = 0.2
-         ! WRITE (*, *) 'Wind speed is negative, set to 0.2'
-      END IF
       !use updated temperature to calculate new coefficients
       self%h_o(1) = ext_conv_coeff(ws_out_hbh, self%t_ext_wall - Tair_out_hbh) !wall
       self%h_o(2) = ext_conv_coeff(ws_out_bh, self%t_ext_roof - Tair_out_bh) !roof

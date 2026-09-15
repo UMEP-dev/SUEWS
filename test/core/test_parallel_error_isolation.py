@@ -44,13 +44,17 @@ def bridge_inputs():
     }
 
 
-def _grid_json(config_dict: dict, gridiv: int, failing: bool) -> str:
+def _grid_json(
+    config_dict: dict, gridiv: int, failing: bool, z: float | None = None
+) -> str:
     site = copy.deepcopy(config_dict["sites"][0])
     site["gridiv"] = gridiv
     if failing:
         # Measurement height below the displacement height of the sample
         # site: the stability scheme raises fatal ErrorHint 32 immediately.
         site["properties"]["z"] = {"value": 0.5}
+    elif z is not None:
+        site["properties"]["z"] = {"value": z}
     grid_dict = dict(config_dict)
     grid_dict["sites"] = [site]
     return json.dumps(grid_dict)
@@ -198,20 +202,32 @@ STEBBS_CONFIG = (
 ) / "sample_config.yml"
 
 
-@pytest.mark.xfail(
-    reason="gh#1801: STEBBS hands per-timestep coupling state from stebbsonlinecouple "
-    "to suewsstebbscouple through module variables "
-    "(module_phys_stebbs_couple::sout and scalars, "
-    "module_phys_stebbs_core::resolution), shared by every grid thread",
-    raises=AssertionError,
-    strict=False,
-)
-def test_parallel_stebbs_output_matches_serial():
-    """Identical STEBBS grids must give bit-identical output in serial and
-    parallel execution."""
+# Measurement heights that make the four STEBBS grids differ: the RSL air
+# temperature and wind speed STEBBS reads at building height depend on z, so
+# a grid computing from another grid's coupling inputs drifts from its own
+# serial run rather than matching it by coincidence.
+STEBBS_GRID_Z = [49.6, 54.6, 59.6, 64.6]
+
+
+def _run_stebbs_grids(inputs: dict, max_workers: int) -> list:
+    configs = [
+        _grid_json(inputs["config_dict"], idx + 1, False, z=z)
+        for idx, z in enumerate(STEBBS_GRID_Z)
+    ]
+    return sorted(
+        inputs["rust"].run_suews_multi(
+            configs, inputs["forcing_flat"], inputs["len_sim"], max_workers
+        )
+    )
+
+
+@pytest.fixture(scope="module")
+def stebbs_inputs():
+    """Bridge inputs for four distinct STEBBS grids, plus their serial output."""
     sim = sp.SUEWSSimulation(STEBBS_CONFIG)
-    # A few hours are enough: the shared coupling state is overwritten on
-    # every timestep, and parallel output diverged within the first 25 steps.
+    # Before gh#1801 the shared coupling state was overwritten on every
+    # timestep and parallel output diverged within the first 25 steps, so a
+    # few hours of forcing are enough.
     df_forcing = sim.forcing.df.loc["2017-08-26"].iloc[:STEBBS_STEPS].copy()
     # The fixture uses -999 as a dry-period sentinel.
     df_forcing["rain"] = df_forcing["rain"].clip(lower=0)
@@ -224,10 +240,34 @@ def test_parallel_stebbs_output_matches_serial():
         .tolist(),
         "len_sim": len(df_forcing),
     }
+    inputs["serial"] = _run_stebbs_grids(inputs, max_workers=1)
+    return inputs
 
-    serial = sorted(_run_multi(inputs, [False] * 4, max_workers=1))
-    parallel = sorted(_run_multi(inputs, [False] * 4, max_workers=4))
+
+def test_stebbs_grids_are_distinct(stebbs_inputs):
+    """The perturbed measurement heights must produce different serial output
+    per grid, or the parallel comparison below could pass by coincidence."""
+    blocks = [bytes(result[1]) for result in stebbs_inputs["serial"]]
+    assert len(set(blocks)) == len(blocks), "STEBBS grids gave identical output"
+
+
+@pytest.mark.parametrize("trial", range(3))
+def test_parallel_stebbs_output_matches_serial(stebbs_inputs, trial):
+    """Each STEBBS grid must give bit-identical output in serial and parallel
+    execution, on every run (gh#1801).
+
+    STEBBS used to hand its per-timestep coupling inputs from
+    ``stebbsonlinecouple`` to ``suewsstebbscouple`` through module variables
+    shared by every grid thread; they now travel by argument. A race shows
+    only when the scheduler interleaves grids, so the check is repeated, and
+    the grids differ so that one grid reading another's inputs shows up as a
+    departure from its own serial output; with the module-variable coupling
+    all three trials failed.
+    """
+    serial = stebbs_inputs["serial"]
+    parallel = _run_stebbs_grids(stebbs_inputs, max_workers=4)
     for parallel_result, serial_result in zip(parallel, serial, strict=True):
+        assert parallel_result[0] == serial_result[0]
         mismatch = _describe_mismatch(
             "output blocks", bytes(parallel_result[1]), bytes(serial_result[1])
         )

@@ -13,7 +13,7 @@ can run again, and the mechanical steps to put it back.
 - Last commit that holds the file:
   `c664e024857dbd2388e6d9bef24749d3487f06a5`
   (`src/suews/src/suews_phys_estm.f95`, 2147 lines).
-- The disabling change: merge commit
+- The disabling change: squash commit
   `d88ea495846354654d9eebcc844b68bd886e894a` (PR #1809, closing gh#1802).
   Its diff is the authoritative record of every line that was taken out:
 
@@ -100,7 +100,7 @@ deals with them):
 
 ```bash
 git checkout c664e024857dbd2388e6d9bef24749d3487f06a5 -- src/suews/src/suews_phys_estm.f95
-git revert -m 1 --no-commit d88ea495846354654d9eebcc844b68bd886e894a   # merge commit: mainline 1
+git revert --no-commit d88ea495846354654d9eebcc844b68bd886e894a
 ```
 
 A straight revert will conflict where the wording of gh#1802 was later

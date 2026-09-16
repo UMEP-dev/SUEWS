@@ -3,7 +3,7 @@
 The data model rejects ``storage_heat = 4`` (ESTM) before a run starts
 (gh#1785), but the Rust bridge can also be driven directly with a
 configuration mapping that never passed through the data model. With the
-ESTM branch removed from ``SUEWS_cal_Qs``, such a value must be refused at
+ESTM branch disabled in ``SUEWS_cal_Qs``, such a value must be refused at
 the kernel boundary through the error state, not left to fall through the
 dispatch with ``QS = -999`` feeding the energy balance.
 """
@@ -53,7 +53,7 @@ def _run_with_storage_heat(inputs: dict, method: int):
     )
 
 
-@pytest.mark.parametrize("method", [4, 14], ids=["estm-removed", "never-a-scheme"])
+@pytest.mark.parametrize("method", [4, 14], ids=["estm-disabled", "never-a-scheme"])
 def test_unsupported_storage_heat_is_refused_at_the_kernel(bridge_inputs, method):
     with pytest.raises(RuntimeError) as exc_info:
         _run_with_storage_heat(bridge_inputs, method)

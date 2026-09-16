@@ -2,4 +2,4 @@
 0,"Uses observed values of ΔQS supplied in meteorological forcing file."
 1,"ΔQS modelled using the objective hysteresis model (OHM) :cite:`G91` using parameters specified for each surface type."
 3,"ΔQS modelled using AnOHM :cite:`S17`, with coefficients diagnosed from the most recently completed day of forcing (no future data required). |NotRecmd|"
-4,"Element Surface Temperature Method (ESTM) :cite:`O05`. Removed: this value is rejected at validation, and the kernel refuses it; use EHC (5) or DyOHM (6)."
+4,"Element Surface Temperature Method (ESTM) :cite:`O05`. Temporarily disabled pending a per-grid redesign: this value is rejected at validation, and the kernel refuses it; use EHC (5) or DyOHM (6)."

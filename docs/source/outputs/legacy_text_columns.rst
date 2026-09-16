@@ -229,7 +229,7 @@ Meteorological variables modelled by CBL portion of the model are output in to t
 SSss_YYYY_ESTM_TT.txt
 ^^^^^^^^^^^^^^^^^^^^^
 
-The ESTM scheme has been removed from SUEWS; selecting it is rejected. This section describes the file the legacy option produced, for readers of old output only.
+The ESTM scheme is temporarily disabled in SUEWS, pending a per-grid redesign; selecting it is rejected. This section describes the file the option produced, for readers of old output only.
 
 .. note:: First time steps of storage output could give NaN values during the initial converging phase.
 

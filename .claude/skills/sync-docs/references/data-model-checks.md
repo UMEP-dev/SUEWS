@@ -37,7 +37,7 @@
 | `datetime_vars.py` | DATETIME | N/A (Python-only) |
 | `suews_vars.py` | SUEWS | `suews_phys_*.f95` |
 | `snow_vars.py` | SNOW | `suews_phys_snow.f95` |
-| `estm_vars.py` | ESTM | N/A (scheme removed in gh#1802; the group stays in the contract at -999) |
+| `estm_vars.py` | ESTM | N/A (scheme disabled in gh#1802, source in git history, see `dev-ref/ESTM_REACTIVATION.md`; the group stays in the contract at -999) |
 | `rsl_vars.py` | RSL | `suews_phys_rslprof.f95` |
 | `dailystate_vars.py` | DAILYSTATE | `suews_phys_dailystate.f95` |
 | `bl_vars.py` | BL | `suews_phys_bluews.f95` |

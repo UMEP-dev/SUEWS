@@ -46,8 +46,10 @@ state (SUEWS_STATE), not in a SAVEd local.\
 """
 
 # Known offenders awaiting a dedicated fix, keyed (file name, lowercased local)
-# with the issue that tracks the fix. Empty since gh#1802 removed the last two
-# (the ESTM first-call counters) together with the ESTM run path.
+# with the issue that tracks the fix. Empty since gh#1802 disabled the ESTM run
+# path, which carried the last two (the ESTM first-call counters). If ESTM is
+# reinstated (dev-ref/ESTM_REACTIVATION.md), those counters belong in
+# SUEWS_STATE, not back in this allowlist.
 ALLOWED: dict[tuple[str, str], str] = {}
 
 _TYPE_WORDS = r"(?:INTEGER|REAL|LOGICAL|CHARACTER|DOUBLE\s+PRECISION|COMPLEX|TYPE\s*\(|CLASS\s*\()"

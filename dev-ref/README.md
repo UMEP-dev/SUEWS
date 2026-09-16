@@ -41,6 +41,10 @@ This directory contains internal documentation for SUEWS core developers.
   - Module-specific reviewer suggestions
   - When and how to request scientific review
 
+- **[ESTM Reactivation](ESTM_REACTIVATION.md)** - Bringing back the disabled ESTM storage-heat scheme
+  - What gh#1802 took out of the build and where it lives in git history
+  - The blockers to fix first, then the mechanical restore
+
 ### Testing
 - **[Testing Guidelines](testing/TESTING_GUIDELINES.md)** - Overall testing strategy
   - Test design principles

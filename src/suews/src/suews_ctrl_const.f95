@@ -207,7 +207,7 @@ MODULE module_ctrl_const_allocate
    REAL(KIND(1D0)), DIMENSION(0:23, 2) :: WUProfM_24Hr !Hourly profiles for water use (manual irrigation)
    REAL(KIND(1D0)), DIMENSION(0:23, 2) :: WUProfA_24Hr !Hourly profiles for water use (automatic irrigation)
 
-   ! ---- ESTM output line: the scheme was removed (gh#1802) but the output group stays in the contract, filled with -999
+   ! ---- ESTM output line: the scheme is disabled (gh#1802; source in git history, see dev-ref/ESTM_REACTIVATION.md) but the output group stays in the contract, filled with -999
    REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM - 5) :: dataOutLineESTM !ESTM output for the current timestep and grid
 
    ! ---- For ESTM_ext

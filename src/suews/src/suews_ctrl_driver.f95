@@ -2493,7 +2493,8 @@ CONTAINS
                   ! PRINT *, ''
 
                ELSE
-                  ! No scheme behind this value: ESTM (4) was removed (GH#1802) and
+                  ! No scheme behind this value: ESTM (4) is disabled (GH#1802, see
+                  ! dev-ref/ESTM_REACTIVATION.md to bring it back) and
                   ! 14 never reached the data model. A caller that bypasses the data
                   ! model must be refused here rather than run on with QS = -999.
                   WRITE (str_storage_heat, '(I0)') StorageHeatMethod

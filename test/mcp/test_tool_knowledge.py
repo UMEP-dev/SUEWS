@@ -618,6 +618,9 @@ _EDGE_TEXTS = (
     "Occupants and occupants",
     "tab\tnetradiationmethod\nnewline",
     'json-ish {"netradiationmethod": 1}',
+    # Text order deliberately differs from registry order, so an
+    # implementation that emitted hits in token order would disagree.
+    "lai_max then method then Occupants",
 )
 
 
@@ -643,11 +646,66 @@ def test_legacy_detection_matches_the_reference_loop_on_edge_texts(
             text, _SYNTHETIC_RENAMES
         ), f"detector disagreed with the reference loop on {text[:60]!r}"
 
+    # Hits come out in registry order, not in the order the names
+    # happen to appear in the text.
+    assert knowledge._legacy_names_in_text("lai_max then method then Occupants") == [
+        {"legacy": "method", "current": "scheme"},
+        {"legacy": "Occupants", "current": "occupants"},
+        {"legacy": "lai_max", "current": "laimax"},
+    ]
+
     # The synthetic registry is only useful if it actually exercised
     # both branches of the index.
     index = knowledge._legacy_name_index()
     assert set(index.fallback) == {"foo-bar", ""}
     assert "netradiationmethod" in index.token_keys
+
+
+def test_legacy_detection_is_inert_when_the_registry_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An older supy without ``ALL_FIELD_RENAMES`` yields an empty
+    registry; the detector must then return no hits rather than fail,
+    exactly as the per-name loop did (gh#1402, gh#1814).
+    """
+    from suews_mcp.tools import knowledge
+
+    empty: dict[str, str] = {}
+    monkeypatch.setattr(knowledge, "_field_renames", lambda: empty)
+
+    for text in (*_EDGE_TEXTS, None):
+        assert knowledge._legacy_names_in_text(text) == _reference_legacy_names(
+            text, empty
+        )
+
+    assert knowledge._annotate_match({
+        "repo_path": "src/supy/data_model/core/model.py",
+        "text": "netradiationmethod is the legacy spelling",
+    }) == {
+        "repo_path": "src/supy/data_model/core/model.py",
+        "text": "netradiationmethod is the legacy spelling",
+        "audience": "user_yaml",
+    }
+
+
+def test_legacy_name_index_is_rebuilt_when_the_registry_is_reloaded() -> None:
+    """The index is keyed on the identity of the registry mapping, so
+    dropping the registry cache drops the index with it instead of
+    leaving a stale one behind (gh#1814).
+    """
+    from suews_mcp.tools import knowledge
+
+    knowledge.preload_field_renames()
+    before = knowledge._legacy_name_index()
+    assert knowledge._legacy_name_index() is before
+
+    knowledge._field_renames.cache_clear()
+    after = knowledge._legacy_name_index()
+    assert after is not before
+    assert after.entries == before.entries
+
+    # Leave the module as the rest of the suite expects to find it.
+    knowledge.preload_field_renames()
 
 
 def test_legacy_detection_matches_the_reference_loop_on_the_real_registry() -> None:

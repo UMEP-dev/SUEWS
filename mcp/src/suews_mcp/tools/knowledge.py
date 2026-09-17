@@ -127,13 +127,13 @@ def _field_renames() -> dict[str, str]:
 #
 # ``_legacy_names_in_text`` used to build and run one ``re.search``
 # per registry entry over the match's full text, so annotation cost
-# scaled with registry size x chunk bytes - about 530 sweeps of the
-# whole chunk. Annotating before trimming is deliberate (gh#1402: the
-# detector must see names past the snippet prefix), so the order is
-# not the defect; the per-name loop was. A 205 KB single-line chunk
-# therefore cost ~1.5 s of pure regex on every ``query_knowledge``
-# call that surfaced it, even in the default ``snippet`` mode that
-# then discards all but 2 KB.
+# scaled with registry size x chunk bytes: 188 sweeps of the whole
+# chunk at the registry's current size. Annotating before trimming is
+# deliberate (gh#1402: the detector must see names past the snippet
+# prefix), so the order is not the defect; the per-name loop was. A
+# 205 KB single-line chunk therefore cost ~650 ms of pure regex on
+# every ``query_knowledge`` call that surfaced it, even in the
+# default ``snippet`` mode that then discards all but 2 KB.
 #
 # Every rename key is a bare identifier, so "appears as a whole
 # token" is decided by splitting the text into maximal
@@ -161,13 +161,13 @@ class _LegacyNameIndex(NamedTuple):
     token_keys: frozenset[str]
     """Legacy names that are single ``[A-Za-z0-9_]`` runs."""
 
-    fallback: dict[str, "re.Pattern[str]"]
+    fallback: dict[str, re.Pattern[str]]
     """Compiled lookaround patterns for every other legacy name."""
 
 
 def _build_legacy_name_index(renames: dict[str, str]) -> _LegacyNameIndex:
     token_keys: set[str] = set()
-    fallback: dict[str, "re.Pattern[str]"] = {}
+    fallback: dict[str, re.Pattern[str]] = {}
     for legacy in renames:
         if _TOKEN_RE.fullmatch(legacy):
             token_keys.add(legacy)

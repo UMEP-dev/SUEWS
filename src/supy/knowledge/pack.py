@@ -32,8 +32,8 @@ OVERLAP_LINES = 20
 # Line windowing alone cannot bound a chunk: a minified one-line artefact
 # becomes one chunk however large it is, which then matches ordinary
 # questions on token overlap and is truncated to an arbitrary prefix
-# downstream. The largest window WINDOW_LINES produces over the SUEWS
-# sources measures 15,120 bytes, so this bound leaves ordinary source
+# downstream. Measured at gh#1815, the largest window WINDOW_LINES produces
+# over the SUEWS sources was ~15 kB, so this bound leaves ordinary source
 # windows untouched and only splits pathological input.
 MAX_CHUNK_BYTES = 32768
 GITHUB_BLOB_TEMPLATE = "https://github.com/UMEP-dev/SUEWS/blob/{git_sha}/{path}#L{line_start}-L{line_end}"
@@ -298,19 +298,9 @@ def _iter_chunks(
         if not lines:
             continue
 
-        # `_line_spans` overlaps its windows by OVERLAP_LINES for context
-        # continuity. Re-cutting two overlapping windows can emit the same
-        # piece twice -- a single line longer than MAX_CHUNK_BYTES that falls
-        # in the overlap is byte-windowed once per window -- and those pieces
-        # are identical, down to the chunk id. Keep the first of each.
-        seen_ids: set[str] = set()
-        for start, end, text in _bounded_spans(source, lines):
-            chunk_id = _chunk_id(source.path, start, end, text)
-            if chunk_id in seen_ids:
-                continue
-            seen_ids.add(chunk_id)
+        for start, end, text, piece in _bounded_spans(source, lines):
             yield {
-                "id": chunk_id,
+                "id": _chunk_id(source.path, start, end, piece, text),
                 "content_type": source.content_type,
                 "repo_path": source.path,
                 "line_start": start,
@@ -331,8 +321,8 @@ def _iter_chunks(
 def _bounded_spans(
     source: SourceFile,
     lines: list[str],
-) -> Iterator[tuple[int, int, str]]:
-    """Yield ``(line_start, line_end, text)`` triples bounded by byte size.
+) -> Iterator[tuple[int, int, str, int]]:
+    """Yield ``(line_start, line_end, text, piece_index)`` within the byte bound.
 
     Line windowing sets the shape of a chunk; this wrapper enforces the
     ``MAX_CHUNK_BYTES`` ceiling on top of it, so no consumer of a pack can
@@ -342,25 +332,59 @@ def _bounded_spans(
     A span that does not fit is re-cut on line boundaries. A *single* line
     that does not fit on its own is split into byte windows that all carry
     that line's number, so the citation still resolves; for those pieces
-    ``text`` is a slice of the line rather than the whole of it.
+    ``text`` is a slice of the line rather than the whole of it and
+    ``piece_index`` counts them from zero. Every other span carries zero.
+
+    ``_line_spans`` overlaps its windows by ``OVERLAP_LINES`` for context
+    continuity, so re-cutting two overlapping windows reaches the same content
+    twice. That is suppressed here rather than by the caller: emitting distinct
+    spans is this function's job, and a caller that had to dedup would need to
+    know the windows overlap at all. The piece index is part of the identity
+    compared, because a repeating over-long line yields byte-identical pieces
+    that are genuinely different chunks -- dropping one would lose bytes.
     """
+    seen: set[tuple[int, int, str, int]] = set()
     for start, end in _line_spans(source, lines):
         text = "\n".join(lines[start - 1 : end])
         if _utf8_size(text) <= MAX_CHUNK_BYTES:
-            yield start, end, text
-            continue
-        yield from _split_oversized_span(lines, start, end)
+            candidates: Iterable[tuple[int, int, str, int]] = ((start, end, text, 0),)
+        else:
+            candidates = _split_oversized_span(lines, start, end)
+        for span in candidates:
+            if span in seen:
+                continue
+            seen.add(span)
+            yield span
 
 
 def _split_oversized_span(
     lines: list[str],
     start: int,
     end: int,
-) -> Iterator[tuple[int, int, str]]:
-    """Re-cut an over-long line span into pieces within ``MAX_CHUNK_BYTES``."""
+) -> Iterator[tuple[int, int, str, int]]:
+    """Re-cut an over-long line span into pieces within ``MAX_CHUNK_BYTES``.
+
+    Groups of whole lines carry ``piece_index`` zero. A single line past the
+    bound is byte-windowed and its pieces numbered from zero, so two
+    byte-identical pieces of a repeating line stay two distinct chunks.
+    """
     group: list[str] = []
     group_start = start
     group_size = 0
+
+    def flush(group_end: int) -> list[tuple[int, int, str, int]]:
+        """Return the accumulated group, unless it carries no evidence.
+
+        Re-cutting can isolate a blank line beside an over-long one. An
+        all-whitespace chunk says nothing, yet still scores on its
+        ``repo_path`` tokens, so it is dropped here. The pass-through path in
+        `_bounded_spans` deliberately keeps its existing behaviour -- only
+        re-cutting can manufacture a group like this.
+        """
+        text = "\n".join(group)
+        if not text.strip():
+            return []
+        return [(group_start, group_end, text, 0)]
 
     for line_no in range(start, end + 1):
         line = lines[line_no - 1]
@@ -368,18 +392,18 @@ def _split_oversized_span(
 
         if line_size > MAX_CHUNK_BYTES:
             if group:
-                yield group_start, line_no - 1, "\n".join(group)
+                yield from flush(line_no - 1)
                 group = []
                 group_size = 0
-            for piece in _byte_windows(line):
-                yield line_no, line_no, piece
+            for piece_index, piece in enumerate(_byte_windows(line)):
+                yield line_no, line_no, piece, piece_index
             continue
 
         # The newline that will join this line to the one before it counts
         # towards the budget.
         addition = line_size + (1 if group else 0)
         if group and group_size + addition > MAX_CHUNK_BYTES:
-            yield group_start, line_no - 1, "\n".join(group)
+            yield from flush(line_no - 1)
             group = []
             group_size = 0
             addition = line_size
@@ -389,7 +413,7 @@ def _split_oversized_span(
         group_size += addition
 
     if group:
-        yield group_start, end, "\n".join(group)
+        yield from flush(end)
 
 
 def _byte_windows(text: str) -> Iterator[str]:
@@ -593,8 +617,14 @@ def _manifest_summary(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _chunk_id(path: str, start: int, end: int, text: str) -> str:
-    digest = hashlib.sha256(f"{path}:{start}:{end}:{text}".encode()).hexdigest()
+def _chunk_id(path: str, start: int, end: int, piece: int, text: str) -> str:
+    """Return a stable identity for one chunk.
+
+    ``piece`` distinguishes the byte windows of a single over-long line
+    (gh#1815): they share a line span and may share text, so the span and the
+    text together do not identify them.
+    """
+    digest = hashlib.sha256(f"{path}:{start}:{end}:{piece}:{text}".encode()).hexdigest()
     return digest[:16]
 
 

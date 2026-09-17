@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 import gzip
 import json
 from pathlib import Path
@@ -314,6 +315,15 @@ def test_installed_pack_respects_the_byte_bound() -> None:
         f"Chunks exceed the {MAX_CHUNK_BYTES} byte bound: {oversized[:5]}"
     )
 
+    # Pack-format integrity rather than a regression for this bug: the
+    # synthetic tests below are what fail on an unfixed chunker.
+    duplicate_ids = sorted(
+        chunk_id
+        for chunk_id, count in Counter(chunk["id"] for chunk in chunks).items()
+        if count > 1
+    )
+    assert not duplicate_ids, f"Duplicate chunk ids in the pack: {duplicate_ids[:5]}"
+
     packed_exclusions = sorted({
         chunk["repo_path"]
         for chunk in chunks
@@ -356,8 +366,10 @@ def test_over_long_line_in_a_window_overlap_is_not_chunked_twice(tmp_path: Path)
     path_repo = tmp_path / "repo"
     _make_repo(path_repo)
     lines = [f"! line {index:04d}" for index in range(200)]
-    # Line 150 sits inside the overlap between windows 1-160 and 141-200.
-    lines[149] = "z" * (MAX_CHUNK_BYTES + 8000)
+    # Line 150 sits inside the overlap between windows 1-160 and 141-200. Its
+    # length is exactly twice the bound, so its two pieces are equal byte for
+    # byte: an identity that ignored their order would drop one of them.
+    lines[149] = "z" * (2 * MAX_CHUNK_BYTES)
     _write(path_repo / "src/suews/src/suews_phys_overlap.f95", "\n".join(lines) + "\n")
     path_pack = tmp_path / "pack"
 
@@ -373,3 +385,59 @@ def test_over_long_line_in_a_window_overlap_is_not_chunked_twice(tmp_path: Path)
     pieces = [chunk for chunk in chunks if chunk["line_start"] == chunk["line_end"] == 150]
     assert len(pieces) == 2
     assert "".join(piece["text"] for piece in pieces) == lines[149]
+
+
+def test_repeating_over_long_line_keeps_byte_identical_pieces(tmp_path: Path) -> None:
+    """Two identical byte windows of one line are two chunks, not one.
+
+    A line of a repeating character exactly twice the bound splits into pieces
+    equal byte for byte that share a line span, so an identity built from the
+    span and the text alone collapses them and silently loses half the line.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    line = "z" * (2 * MAX_CHUNK_BYTES)
+    _write(path_repo / "src/supy/data_model/repeating_registry.json", line + "\n")
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/supy/data_model/repeating_registry.json"
+    ]
+
+    assert len(chunks) == 2
+    assert chunks[0]["text"] == chunks[1]["text"], "fixture no longer tests the collision"
+    assert chunks[0]["id"] != chunks[1]["id"]
+    assert "".join(chunk["text"] for chunk in chunks) == line
+
+
+def test_re_cutting_drops_a_whitespace_only_group(tmp_path: Path) -> None:
+    """Re-cutting must not manufacture an empty chunk that still ranks.
+
+    A blank line trailing an over-long one would otherwise be flushed as its
+    own zero-byte group, which scoring still rewards for its path tokens.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    _write(
+        path_repo / "src/suews/src/suews_phys_blank.f95",
+        "      REAL :: a\n" + "z" * (MAX_CHUNK_BYTES + 100) + "\n\n",
+    )
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/suews/src/suews_phys_blank.f95"
+    ]
+
+    assert chunks, "the file should still be packed"
+    empty = [
+        (chunk["line_start"], chunk["line_end"])
+        for chunk in chunks
+        if not chunk["text"].strip()
+    ]
+    assert not empty, f"whitespace-only chunks emitted at {empty}"

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from collections import Counter
 import gzip
 import json
 from pathlib import Path
 
 import pytest
 
-from supy.knowledge import build_pack, load_manifest, query_pack
+from supy.knowledge import build_pack, default_pack_dir, load_manifest, query_pack
+from supy.knowledge.pack import EXCLUDED_GENERATED_ROOTS, MAX_CHUNK_BYTES
 
 pytestmark = pytest.mark.api
 
@@ -72,6 +74,26 @@ def _make_repo(path_repo: Path) -> None:
 def _read_chunks(path_pack: Path) -> list[dict]:
     with gzip.open(path_pack / "chunks.jsonl.gz", "rt", encoding="utf-8") as stream:
         return [json.loads(line) for line in stream if line.strip()]
+
+
+def _read_installed_chunks() -> list[dict]:
+    """Read the chunks of the pack shipped with the installed package."""
+    resource = default_pack_dir().joinpath("chunks.jsonl.gz")
+    try:
+        present = resource.is_file()
+    except OSError:
+        present = False
+    if not present:
+        pytest.skip(
+            "No built knowledge pack is installed; it is produced by the meson "
+            "build. Run `make dev` first."
+        )
+    with resource.open("rb") as raw, gzip.open(raw, "rt", encoding="utf-8") as stream:
+        return [json.loads(line) for line in stream if line.strip()]
+
+
+def _chunk_size(chunk: dict) -> int:
+    return len(chunk["text"].encode("utf-8"))
 
 
 def test_build_pack_records_git_bound_manifest(tmp_path: Path) -> None:
@@ -181,3 +203,245 @@ def test_python_chunks_prefer_top_level_definitions_without_dropping_preamble(tm
     assert chunks[0]["symbol"] == "def alpha"
     assert chunks[1]["symbol"] == "class Beta"
     assert "import math" in chunks[0]["text"]
+
+
+# -----------------------------------------------------------------------
+# Chunk size bound and generated-artefact exclusion (gh#1815)
+# -----------------------------------------------------------------------
+
+
+def test_generated_contract_artefacts_are_excluded_and_declared(tmp_path: Path) -> None:
+    """Published contract projections stay out of the pack, visibly so."""
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    _write(
+        path_repo / "src/supy/data_model/output/artefacts/1.0.0/catalogue.json",
+        '{"groups":[{"group":"SUEWS","scope":"stable"}]}\n',
+    )
+    _write(
+        path_repo / "src/supy/data_model/forcing/artefacts/1.0.0.json",
+        '{"missing_value":-999.0}\n',
+    )
+    path_pack = tmp_path / "pack"
+
+    manifest = build_pack(path_repo, path_pack, git_sha="abc123")
+    paths = {chunk["repo_path"] for chunk in _read_chunks(path_pack)}
+
+    assert "src/supy/data_model/output/artefacts/1.0.0/catalogue.json" not in paths
+    assert "src/supy/data_model/forcing/artefacts/1.0.0.json" not in paths
+    for root in EXCLUDED_GENERATED_ROOTS:
+        assert root in manifest["excluded_roots"]
+    assert manifest["max_chunk_bytes"] == MAX_CHUNK_BYTES
+
+
+def test_single_line_file_over_the_bound_splits_into_byte_windows(tmp_path: Path) -> None:
+    """A one-line file larger than the bound becomes several bounded chunks.
+
+    The fixture is deliberately non-ASCII: the payload is a run of 3-byte
+    codepoints behind a 9-byte prefix, so the bound falls inside a codepoint
+    and a naive byte slice would emit undecodable text.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    # U+20AC EURO SIGN, written as an escape so the source file stays ASCII.
+    line = '{"note":"' + "\u20ac" * 20000 + '"}'
+    assert len(line.encode("utf-8")) > MAX_CHUNK_BYTES
+    _write(path_repo / "src/supy/data_model/big_registry.json", line + "\n")
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/supy/data_model/big_registry.json"
+    ]
+
+    assert len(chunks) > 1
+    assert all(_chunk_size(chunk) <= MAX_CHUNK_BYTES for chunk in chunks)
+    # Every piece cites the single line it came from, so the citation resolves.
+    assert {(chunk["line_start"], chunk["line_end"]) for chunk in chunks} == {(1, 1)}
+    assert all(chunk["github_url"].endswith("#L1-L1") for chunk in chunks)
+    # Nothing is lost or duplicated, and no codepoint was cut in half.
+    assert "".join(chunk["text"] for chunk in chunks) == line
+    assert len({chunk["id"] for chunk in chunks}) == len(chunks)
+
+
+def test_oversized_multi_line_window_splits_on_line_boundaries(tmp_path: Path) -> None:
+    """An over-long multi-line window is re-cut on lines, keeping spans exact."""
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    lines = [f"! {index:04d} " + "x" * 400 for index in range(200)]
+    _write(path_repo / "src/suews/src/suews_phys_wide.f95", "\n".join(lines) + "\n")
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/suews/src/suews_phys_wide.f95"
+    ]
+
+    assert len(chunks) > 1
+    for chunk in chunks:
+        assert _chunk_size(chunk) <= MAX_CHUNK_BYTES
+        start, end = chunk["line_start"], chunk["line_end"]
+        assert chunk["text"] == "\n".join(lines[start - 1 : end])
+    # The first line window (1-160) is covered contiguously by its pieces.
+    first_window = [chunk for chunk in chunks if chunk["line_start"] <= 160][:2]
+    assert first_window[0]["line_start"] == 1
+    assert first_window[1]["line_start"] == first_window[0]["line_end"] + 1
+
+
+def test_installed_pack_respects_the_byte_bound() -> None:
+    """The pack shipped with the package carries no unbounded chunk."""
+    chunks = _read_installed_chunks()
+
+    # Checked first: on a pack built before the bound existed this is the
+    # actionable failure, and the size assertion below would otherwise mask it.
+    manifest = load_manifest()
+    assert manifest.get("max_chunk_bytes") == MAX_CHUNK_BYTES, (
+        "The installed pack predates the chunk-size bound; rebuild with `make dev`."
+    )
+
+    # A forward guard over the shipped artefact rather than a regression test
+    # of the bound: with the exclusion in place nothing in the tree is near
+    # 32768 bytes, so removing the bound alone would not trip this assertion.
+    # The synthetic tests below are what fail on an unbounded chunker.
+    oversized = sorted(
+        (
+            (_chunk_size(chunk), chunk["repo_path"], chunk["line_start"], chunk["line_end"])
+            for chunk in chunks
+            if _chunk_size(chunk) > MAX_CHUNK_BYTES
+        ),
+        reverse=True,
+    )
+    assert not oversized, (
+        f"Chunks exceed the {MAX_CHUNK_BYTES} byte bound: {oversized[:5]}"
+    )
+
+    # Pack-format integrity rather than a regression for this bug: the
+    # synthetic tests below are what fail on an unfixed chunker.
+    duplicate_ids = sorted(
+        chunk_id
+        for chunk_id, count in Counter(chunk["id"] for chunk in chunks).items()
+        if count > 1
+    )
+    assert not duplicate_ids, f"Duplicate chunk ids in the pack: {duplicate_ids[:5]}"
+
+    packed_exclusions = sorted({
+        chunk["repo_path"]
+        for chunk in chunks
+        if chunk["repo_path"].startswith(EXCLUDED_GENERATED_ROOTS)
+    })
+    assert not packed_exclusions, (
+        f"Generated contract artefacts reached the pack: {packed_exclusions}"
+    )
+
+
+def test_group_budget_counts_the_joining_newline(tmp_path: Path) -> None:
+    """Two lines whose join is one byte over the bound must not share a chunk.
+
+    Each line is exactly half the bound, so the pair fits only if the newline
+    that joins them is left out of the budget.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    half = "a" * (MAX_CHUNK_BYTES // 2)
+    _write(path_repo / "src/suews/src/suews_phys_pair.f95", half + "\n" + half + "\n")
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/suews/src/suews_phys_pair.f95"
+    ]
+
+    assert [(chunk["line_start"], chunk["line_end"]) for chunk in chunks] == [(1, 1), (2, 2)]
+    assert all(_chunk_size(chunk) <= MAX_CHUNK_BYTES for chunk in chunks)
+
+
+def test_over_long_line_in_a_window_overlap_is_not_chunked_twice(tmp_path: Path) -> None:
+    """Re-cutting overlapping windows must not emit the same piece twice.
+
+    `_line_spans` overlaps its windows, so a line past the bound that falls in
+    the overlap is reached by two windows and byte-windowed once per window.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    lines = [f"! line {index:04d}" for index in range(200)]
+    # Line 150 sits inside the overlap between windows 1-160 and 141-200. Its
+    # length is exactly twice the bound, so its two pieces are equal byte for
+    # byte: an identity that ignored their order would drop one of them.
+    lines[149] = "z" * (2 * MAX_CHUNK_BYTES)
+    _write(path_repo / "src/suews/src/suews_phys_overlap.f95", "\n".join(lines) + "\n")
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/suews/src/suews_phys_overlap.f95"
+    ]
+
+    identities = [chunk["id"] for chunk in chunks]
+    assert len(identities) == len(set(identities)), "duplicate chunks emitted"
+    pieces = [chunk for chunk in chunks if chunk["line_start"] == chunk["line_end"] == 150]
+    assert len(pieces) == 2
+    assert "".join(piece["text"] for piece in pieces) == lines[149]
+
+
+def test_repeating_over_long_line_keeps_byte_identical_pieces(tmp_path: Path) -> None:
+    """Two identical byte windows of one line are two chunks, not one.
+
+    A line of a repeating character exactly twice the bound splits into pieces
+    equal byte for byte that share a line span, so an identity built from the
+    span and the text alone collapses them and silently loses half the line.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    line = "z" * (2 * MAX_CHUNK_BYTES)
+    _write(path_repo / "src/supy/data_model/repeating_registry.json", line + "\n")
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/supy/data_model/repeating_registry.json"
+    ]
+
+    assert len(chunks) == 2
+    assert chunks[0]["text"] == chunks[1]["text"], "fixture no longer tests the collision"
+    assert chunks[0]["id"] != chunks[1]["id"]
+    assert "".join(chunk["text"] for chunk in chunks) == line
+
+
+def test_re_cutting_drops_a_whitespace_only_group(tmp_path: Path) -> None:
+    """Re-cutting must not manufacture an empty chunk that still ranks.
+
+    A blank line trailing an over-long one would otherwise be flushed as its
+    own zero-byte group, which scoring still rewards for its path tokens.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    _write(
+        path_repo / "src/suews/src/suews_phys_blank.f95",
+        "      REAL :: a\n" + "z" * (MAX_CHUNK_BYTES + 100) + "\n\n",
+    )
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/suews/src/suews_phys_blank.f95"
+    ]
+
+    assert chunks, "the file should still be packed"
+    empty = [
+        (chunk["line_start"], chunk["line_end"])
+        for chunk in chunks
+        if not chunk["text"].strip()
+    ]
+    assert not empty, f"whitespace-only chunks emitted at {empty}"

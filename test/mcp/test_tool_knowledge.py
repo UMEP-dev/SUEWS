@@ -616,6 +616,11 @@ _EDGE_TEXTS = (
     "a foo-bar key and a foo_bar one",
     "lai_max and lai_maximum",
     "Occupants and occupants",
+    # Only the casing the registry does NOT hold. Matching is exact,
+    # so this must yield nothing: a detector that folded case before
+    # intersecting would report ``Occupants`` here and pass every other
+    # text in this tuple. 109 of the 188 real keys carry uppercase.
+    "occupants only",
     "tab\tnetradiationmethod\nnewline",
     'json-ish {"netradiationmethod": 1}',
     # Text order deliberately differs from registry order, so an

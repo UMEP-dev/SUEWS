@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import functools
 import re
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
 
 from ..backend import (
     ProjectRoot,
@@ -99,12 +99,14 @@ def _classify_audience(repo_path: Optional[str]) -> str:
 #
 # The registry is therefore loaded eagerly, on whichever thread calls
 # :func:`preload_field_renames`; the server calls it at start-up,
-# before FastMCP builds its event loop and worker-thread pool. Tool
-# bodies then only read the cached mapping. Callers that never
-# preload (unit tests importing the tool functions directly, an older
-# supy without the registry) still work: the first annotated match
-# loads it in place, and a failed import degrades to no annotation
-# rather than an error, exactly as before.
+# before FastMCP builds its event loop and worker-thread pool. The
+# same call builds the detection index below, so the regex
+# compilation is paid once, on the main thread, too. Tool bodies then
+# only read the cached mapping and index. Callers that never preload
+# (unit tests importing the tool functions directly, an older supy
+# without the registry) still work: the first annotated match loads
+# it in place, and a failed import degrades to no annotation rather
+# than an error, exactly as before.
 @functools.lru_cache(maxsize=1)
 def _field_renames() -> dict[str, str]:
     """Return supy's legacy-to-current field-name map, or ``{}``.
@@ -121,13 +123,96 @@ def _field_renames() -> dict[str, str]:
         return {}
 
 
+# Detection index, built once per registry (gh#1814).
+#
+# ``_legacy_names_in_text`` used to build and run one ``re.search``
+# per registry entry over the match's full text, so annotation cost
+# scaled with registry size x chunk bytes: 188 sweeps of the whole
+# chunk at the registry's current size. Annotating before trimming is
+# deliberate (gh#1402: the detector must see names past the snippet
+# prefix), so the order is not the defect; the per-name loop was. A
+# 205 KB single-line chunk therefore cost ~650 ms of pure regex on
+# every ``query_knowledge`` call that surfaced it, even in the
+# default ``snippet`` mode that then discards all but 2 KB.
+#
+# Every rename key is a bare identifier, so "appears as a whole
+# token" is decided by splitting the text into maximal
+# ``[A-Za-z0-9_]`` runs once and intersecting those with the key set:
+# a key K made only of those characters satisfies the old
+# lookarounds at some position exactly when the maximal run
+# containing that position equals K. ``_TOKEN_RE`` therefore mirrors
+# the lookaround class character for character - ``\w`` would be
+# Unicode-aware and would disagree with the original wherever a
+# legacy name abuts an accented letter.
+#
+# Any key that is not such a run (none today, but the registry is
+# supy's to change) keeps its own precompiled lookaround pattern, so
+# the semantics hold for whatever the registry contains. Hits are
+# emitted in registry order, as before.
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
+
+
+class _LegacyNameIndex(NamedTuple):
+    """Precomputed form of the rename registry for token detection."""
+
+    entries: tuple[tuple[str, str], ...]
+    """``(legacy, current)`` pairs in registry order."""
+
+    token_keys: frozenset[str]
+    """Legacy names that are single ``[A-Za-z0-9_]`` runs."""
+
+    fallback: dict[str, re.Pattern[str]]
+    """Compiled lookaround patterns for every other legacy name."""
+
+
+def _build_legacy_name_index(renames: dict[str, str]) -> _LegacyNameIndex:
+    token_keys: set[str] = set()
+    fallback: dict[str, re.Pattern[str]] = {}
+    for legacy in renames:
+        if _TOKEN_RE.fullmatch(legacy):
+            token_keys.add(legacy)
+        else:
+            fallback[legacy] = re.compile(
+                rf"(?<![A-Za-z0-9_]){re.escape(legacy)}(?![A-Za-z0-9_])"
+            )
+    return _LegacyNameIndex(
+        entries=tuple(renames.items()),
+        token_keys=frozenset(token_keys),
+        fallback=fallback,
+    )
+
+
+# Keyed on the identity of the registry mapping rather than cached
+# outright, so clearing ``_field_renames`` (which a test does) drops
+# the index with it instead of leaving a stale one behind. The
+# assignment is a single atomic rebind; two worker threads racing here
+# would each build an equal index and one would win harmlessly, and
+# the server avoids the race entirely by preloading on the main
+# thread.
+_LEGACY_NAME_INDEX: Optional[tuple[dict[str, str], _LegacyNameIndex]] = None
+
+
+def _legacy_name_index() -> _LegacyNameIndex:
+    """Return the detection index for the current rename registry."""
+    global _LEGACY_NAME_INDEX
+    renames = _field_renames()
+    cached = _LEGACY_NAME_INDEX
+    if cached is None or cached[0] is not renames:
+        cached = (renames, _build_legacy_name_index(renames))
+        _LEGACY_NAME_INDEX = cached
+    return cached[1]
+
+
 def preload_field_renames() -> None:
     """Load the field-rename registry now, on the calling thread (gh#1762).
 
-    Idempotent, and never raises. The server calls it during start-up,
-    on the main thread, so no worker thread ever has to.
+    Also builds the detection index, so both the supy import and the
+    pattern compilation happen here rather than on a worker thread
+    (gh#1814). Idempotent, and never raises. The server calls it
+    during start-up, on the main thread, so no worker thread ever has
+    to.
     """
-    _field_renames()
+    _legacy_name_index()
 
 
 def _legacy_names_in_text(text: Optional[str]) -> list[dict[str, str]]:
@@ -137,23 +222,28 @@ def _legacy_names_in_text(text: Optional[str]) -> list[dict[str, str]]:
     Backed by ``ALL_FIELD_RENAMES`` in supy's data-model layer. When
     the registry is unavailable (older supy install) it returns an
     empty list - the audience tag alone is still actionable.
+
+    One pass over ``text`` regardless of registry size (gh#1814); see
+    the index comment above for why whole-token matching reduces to a
+    set intersection.
     """
     if not text:
         return []
-    renames = _field_renames()
-    if not renames:
+    index = _legacy_name_index()
+    if not index.entries:
         return []
+    # Whole-token match so partial substrings (e.g. ``method`` inside
+    # ``methodology``) do not trigger a false positive.
+    present = index.token_keys.intersection(_TOKEN_RE.findall(text))
     hits: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for legacy, current in renames.items():
-        if legacy in seen:
+    for legacy, current in index.entries:
+        pattern = index.fallback.get(legacy)
+        if pattern is None:
+            if legacy not in present:
+                continue
+        elif not pattern.search(text):
             continue
-        # Whole-word match so partial substrings (e.g. ``method`` inside
-        # ``methodology``) do not trigger a false positive.
-        pattern = rf"(?<![A-Za-z0-9_]){re.escape(legacy)}(?![A-Za-z0-9_])"
-        if re.search(pattern, text):
-            hits.append({"legacy": legacy, "current": current})
-            seen.add(legacy)
+        hits.append({"legacy": legacy, "current": current})
     return hits
 
 

@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 87       | 33 | 82 | 41 | 324   |
+| 2026 | 80       | 88       | 33 | 82 | 41 | 325   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -60,6 +60,8 @@ EXAMPLES:
   - The chunker windowed by line count only, so a file with no line structure became one chunk however large it was: `src/supy/data_model/output/artefacts/1.0.0/catalogue.json` is a single 205 kB line and entered the pack whole. Because retrieval scores by token overlap, that chunk ranked third for "compare model output to air temperature observations", so an agent received a minified JSON blob as evidence and the snippet mode truncated it to an arbitrary prefix.
   - Chunk text is now capped at 32768 UTF-8 bytes (`max_chunk_bytes` in the manifest). An over-long window is re-cut on line boundaries; a single line longer than the bound is split into byte windows on codepoint boundaries, each citing the line it came from. Those pieces share one line span and can be equal byte for byte, so a chunk's id now carries its position within the line as well; ids elsewhere in the pack move with it, which costs nothing because the pack is rebuilt on every build. The largest window line windowing produces over the SUEWS sources measures 15,120 bytes, so the line spans and text of ordinary source chunks are unchanged.
   - The published forcing and output contract artefacts under `src/supy/data_model/{forcing,output}/artefacts/` are excluded and listed in the manifest's `excluded_roots`. They are immutable projections of registries that are already packed, every released version is retained side by side, and capping alone would have replaced one large noise chunk with several smaller ones. The top-three evidence for the question above drops from 218 kB to 16 kB and its third hit is source again.
+- [bugfix] Made `query_knowledge` legacy-name annotation one pass over the match text instead of one regex per registry entry (#1814)
+  - `_legacy_names_in_text` built and ran a separate `re.search` for every entry in `ALL_FIELD_RENAMES` over each match's full chunk text, so annotation cost scaled with registry size times chunk bytes and every caller paid it even in the default `snippet` mode, which then discards all but 2 KB. The detector now splits the text into `[A-Za-z0-9_]` runs once and intersects them with the registry keys, with the key set and any non-token key's pattern built once and cached alongside the registry preload. Annotating before trimming is unchanged, so names beyond the snippet prefix are still found, and results are identical entry for entry and in order.
 
 ### 15 Sep 2026
 

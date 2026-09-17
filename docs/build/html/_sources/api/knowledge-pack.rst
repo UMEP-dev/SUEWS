@@ -43,7 +43,12 @@ The v1 build is deliberately deterministic and conservative:
 - preserve source comments and code text rather than applying LLM summaries or
   irreversible cleaning;
 - split files into fixed windows with overlap, using line numbers only as
-  citation coordinates.
+  citation coordinates;
+- cap the text of a single chunk at the manifest's ``max_chunk_bytes``
+  (32768 UTF-8 bytes). A window past the cap is re-cut on line boundaries; a
+  single line past it is split on character boundaries into pieces that each
+  cite that line. Line windowing alone cannot bound a chunk, because a file
+  with no line structure is one window however large it is.
 
 Included Sources
 ----------------
@@ -59,6 +64,11 @@ The installed v1 pack includes:
 The installed v1 pack excludes:
 
 - ``docs/source`` prose, images, publication pages, and large generated tables;
+- the published forcing and output contract artefacts under
+  ``src/supy/data_model/forcing/artefacts`` and
+  ``src/supy/data_model/output/artefacts``. These are immutable projections of
+  registries that are already packed, so they are contract deliverables rather
+  than source evidence;
 - untracked build artefacts;
 - compiled objects and Rust ``target/`` outputs;
 - binary package data.

@@ -28,6 +28,14 @@ CHUNK_FILE_NAME = "chunks.jsonl.gz"
 MANIFEST_FILE_NAME = "manifest.json"
 WINDOW_LINES = 160
 OVERLAP_LINES = 20
+# Upper bound on the UTF-8 size of a single chunk's text (gh#1815).
+# Line windowing alone cannot bound a chunk: a minified one-line artefact
+# becomes one chunk however large it is, which then matches ordinary
+# questions on token overlap and is truncated to an arbitrary prefix
+# downstream. The natural maximum produced by WINDOW_LINES over the SUEWS
+# sources is about 15.8 kB, so this bound leaves ordinary source windows
+# untouched and only splits pathological input.
+MAX_CHUNK_BYTES = 32768
 GITHUB_BLOB_TEMPLATE = "https://github.com/UMEP-dev/SUEWS/blob/{git_sha}/{path}#L{line_start}-L{line_end}"
 DOCS_URLS = {
     "stable": "https://docs.suews.io/stable/",
@@ -43,6 +51,16 @@ _CONFIGURATION_SCHEMA_PREFIXES = (
     "src/supy/data_model/schema/",
 )
 _CONFIGURATION_SCHEMA_VERSION_FILE = "src/supy/data_model/configuration/version.py"
+# Generated data-interface contract artefacts (gh#1815). These are immutable
+# published projections of the forcing and output registries, not source
+# evidence: the registry modules that produce them are already packed, every
+# released version is retained side by side, and the projections are minified
+# JSON that reads as noise when retrieved. See
+# docs/source/contributing/schema/data_interface_versioning.rst.
+EXCLUDED_GENERATED_ROOTS = (
+    "src/supy/data_model/forcing/artefacts/",
+    "src/supy/data_model/output/artefacts/",
+)
 
 _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _FORTRAN_SYMBOL_RE = re.compile(
@@ -192,8 +210,10 @@ def build_pack(
         "excluded_roots": [
             "docs/source",
             "src/suews_bridge/target",
+            *EXCLUDED_GENERATED_ROOTS,
             "build artefacts and untracked files",
         ],
+        "max_chunk_bytes": MAX_CHUNK_BYTES,
         "official_docs": DOCS_URLS,
         "github_blob_template": GITHUB_BLOB_TEMPLATE,
         "retrieval_policy": (
@@ -232,6 +252,8 @@ def _require_source_roots(repo_root: Path) -> None:
 
 
 def _content_type(path: str) -> str | None:
+    if path.startswith(EXCLUDED_GENERATED_ROOTS):
+        return None
     suffix = Path(path).suffix.lower()
     content_type = None
     if path.startswith("src/suews/src/"):
@@ -276,8 +298,7 @@ def _iter_chunks(
         if not lines:
             continue
 
-        for start, end in _line_spans(source, lines):
-            text = "\n".join(lines[start - 1 : end])
+        for start, end, text in _bounded_spans(source, lines):
             yield {
                 "id": _chunk_id(source.path, start, end, text),
                 "content_type": source.content_type,
@@ -295,6 +316,95 @@ def _iter_chunks(
                 "text": text,
                 "text_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
             }
+
+
+def _bounded_spans(
+    source: SourceFile,
+    lines: list[str],
+) -> Iterator[tuple[int, int, str]]:
+    """Yield ``(line_start, line_end, text)`` triples bounded by byte size.
+
+    Line windowing sets the shape of a chunk; this wrapper enforces the
+    ``MAX_CHUNK_BYTES`` ceiling on top of it, so no consumer of a pack can
+    receive an unbounded chunk (gh#1815). Spans that already fit are passed
+    through unchanged, which leaves ordinary source chunking untouched.
+
+    A span that does not fit is re-cut on line boundaries. A *single* line
+    that does not fit on its own is split into byte windows that all carry
+    that line's number, so the citation still resolves; for those pieces
+    ``text`` is a slice of the line rather than the whole of it.
+    """
+    for start, end in _line_spans(source, lines):
+        text = "\n".join(lines[start - 1 : end])
+        if _utf8_size(text) <= MAX_CHUNK_BYTES:
+            yield start, end, text
+            continue
+        yield from _split_oversized_span(lines, start, end)
+
+
+def _split_oversized_span(
+    lines: list[str],
+    start: int,
+    end: int,
+) -> Iterator[tuple[int, int, str]]:
+    """Re-cut an over-long line span into pieces within ``MAX_CHUNK_BYTES``."""
+    group: list[str] = []
+    group_start = start
+    group_size = 0
+
+    for line_no in range(start, end + 1):
+        line = lines[line_no - 1]
+        line_size = _utf8_size(line)
+
+        if line_size > MAX_CHUNK_BYTES:
+            if group:
+                yield group_start, line_no - 1, "\n".join(group)
+                group = []
+                group_size = 0
+            for piece in _byte_windows(line):
+                yield line_no, line_no, piece
+            continue
+
+        # The newline that will join this line to the one before it counts
+        # towards the budget.
+        addition = line_size + (1 if group else 0)
+        if group and group_size + addition > MAX_CHUNK_BYTES:
+            yield group_start, line_no - 1, "\n".join(group)
+            group = []
+            group_size = 0
+            addition = line_size
+        if not group:
+            group_start = line_no
+        group.append(line)
+        group_size += addition
+
+    if group:
+        yield group_start, end, "\n".join(group)
+
+
+def _byte_windows(text: str) -> Iterator[str]:
+    """Split ``text`` into pieces of at most ``MAX_CHUNK_BYTES`` UTF-8 bytes.
+
+    Cuts fall on character boundaries, so a multi-byte codepoint is never
+    halved and concatenating the pieces reproduces ``text`` exactly. A single
+    character encodes to at most 4 bytes, so every piece respects the bound.
+    """
+    piece: list[str] = []
+    piece_size = 0
+    for char in text:
+        char_size = _utf8_size(char)
+        if piece and piece_size + char_size > MAX_CHUNK_BYTES:
+            yield "".join(piece)
+            piece = []
+            piece_size = 0
+        piece.append(char)
+        piece_size += char_size
+    if piece:
+        yield "".join(piece)
+
+
+def _utf8_size(text: str) -> int:
+    return len(text.encode("utf-8"))
 
 
 def _line_spans(source: SourceFile, lines: list[str]) -> Iterator[tuple[int, int]]:

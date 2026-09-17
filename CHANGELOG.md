@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 17 Sep 2026
+
+- [bugfix] Bounded the size of a knowledge-pack chunk and kept generated contract artefacts out of the pack (#1815)
+  - The chunker windowed by line count only, so a file with no line structure became one chunk however large it was: `src/supy/data_model/output/artefacts/1.0.0/catalogue.json` is a single 205 kB line and entered the pack whole. Because retrieval scores by token overlap, that chunk ranked third for "compare model output to air temperature observations", so an agent received a minified JSON blob as evidence and the snippet mode truncated it to an arbitrary prefix.
+  - Chunk text is now capped at 32768 UTF-8 bytes (`max_chunk_bytes` in the manifest). An over-long window is re-cut on line boundaries; a single line longer than the bound is split into byte windows on codepoint boundaries, each citing the line it came from. The natural maximum produced by line windowing over the SUEWS sources is about 15.8 kB, so ordinary source chunks are unchanged.
+  - The published forcing and output contract artefacts under `src/supy/data_model/{forcing,output}/artefacts/` are excluded and listed in the manifest's `excluded_roots`. They are immutable projections of registries that are already packed, every released version is retained side by side, and capping alone would have replaced one large noise chunk with several smaller ones. The top-three evidence for the question above drops from 218 kB to 16 kB and its third hit is source again.
+
 ### 15 Sep 2026
 
 - [bugfix] Rejected `model.physics.storage_heat = 4` (ESTM) at validation instead of segfaulting in the kernel (#1785)

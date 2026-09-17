@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 87       | 33 | 82 | 41 | 324   |
+| 2026 | 80       | 88       | 33 | 82 | 41 | 325   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,11 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 17 Sep 2026
+
+- [bugfix] Made `query_knowledge` legacy-name annotation one pass over the match text instead of one regex per registry entry (#1814)
+  - `_legacy_names_in_text` built and ran a separate `re.search` for every entry in `ALL_FIELD_RENAMES` over each match's full chunk text, so annotation cost scaled with registry size times chunk bytes and every caller paid it even in the default `snippet` mode, which then discards all but 2 KB. The detector now splits the text into `[A-Za-z0-9_]` runs once and intersects them with the registry keys, with the key set and any non-token key's pattern built once and cached alongside the registry preload. Annotating before trimming is unchanged, so names beyond the snippet prefix are still found, and results are identical entry for entry and in order.
 
 ### 15 Sep 2026
 

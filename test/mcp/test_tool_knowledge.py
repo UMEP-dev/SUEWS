@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -540,3 +541,197 @@ def test_server_preloads_field_renames_before_running(
     server.main([])
 
     assert observed["cached"] == 1
+
+
+# One-pass legacy-name detection - gh#1814
+#
+# `_legacy_names_in_text` used to build and run one `re.search` per
+# registry entry over the match's full text, so annotation cost scaled
+# with registry size x chunk bytes: a 205 KB single-line chunk cost
+# hundreds of milliseconds on every `query_knowledge` call that
+# surfaced it, even in the default `snippet` mode that then discards
+# all but 2 KB. It now tokenises the text once and intersects the
+# tokens with the registry keys.
+#
+# The tests below pin the replacement to the behaviour of the loop it
+# replaced rather than to a description of that behaviour, so neither
+# side can drift without the other. Annotating before trimming stays
+# deliberate (gh#1402), so a name past the snippet prefix must still
+# be found.
+
+
+def _reference_legacy_names(text, renames):
+    """The pre-gh#1814 per-name loop, frozen as the equivalence oracle.
+
+    Do not refactor this to share code with the implementation: its
+    whole value is being an independent statement of the contract.
+    """
+    if not text:
+        return []
+    if not renames:
+        return []
+    hits = []
+    seen = set()
+    for legacy, current in renames.items():
+        if legacy in seen:
+            continue
+        pattern = rf"(?<![A-Za-z0-9_]){re.escape(legacy)}(?![A-Za-z0-9_])"
+        if re.search(pattern, text):
+            hits.append({"legacy": legacy, "current": current})
+            seen.add(legacy)
+    return hits
+
+
+# A registry the real one does not currently contain, chosen to
+# exercise every branch of the index: plain names, a name that is a
+# prefix of a word in the texts, PascalCase, an underscore inside the
+# key, a key that is not a single token (so it needs the compiled
+# lookaround fallback), and the degenerate empty key, whose pattern
+# matches between any two non-word characters.
+_SYNTHETIC_RENAMES = {
+    "netradiationmethod": "net_radiation",
+    "method": "scheme",
+    "Occupants": "occupants",
+    "lai_max": "laimax",
+    "foo-bar": "foo_bar",
+    "": "degenerate",
+}
+
+_EDGE_TEXTS = (
+    "",
+    "nothing to see here",
+    "netradiationmethod",
+    "netradiationmethod at the start",
+    "ends with netradiationmethod",
+    # Adjacency to each member of the boundary class must suppress the hit.
+    "xnetradiationmethod and netradiationmethodx",
+    "netradiationmethod9 and 9netradiationmethod",
+    "netradiationmethod_ and _netradiationmethod",
+    # An accented letter is outside [A-Za-z0-9_], so it is a boundary
+    # and the name IS found. A Unicode-aware \w tokeniser would
+    # disagree here, which is why the implementation does not use one.
+    "\u00e9netradiationmethod",
+    "netradiationmethod\u00e9",
+    "methodology mentions method once",
+    "a foo-bar key and a foo_bar one",
+    "lai_max and lai_maximum",
+    "Occupants and occupants",
+    "tab\tnetradiationmethod\nnewline",
+    'json-ish {"netradiationmethod": 1}',
+)
+
+
+def test_legacy_detection_matches_the_reference_loop_on_edge_texts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The one-pass detector returns exactly what the per-name loop
+    returned - same entries, same order - across boundary, casing and
+    non-token cases (gh#1814).
+    """
+    from suews_mcp.tools import knowledge
+
+    monkeypatch.setattr(knowledge, "_field_renames", lambda: _SYNTHETIC_RENAMES)
+
+    # A legacy name that appears only past the snippet cap: annotation
+    # runs on the full text, so it must still be found (gh#1402).
+    filler = "padding text with no legacy field name in it. " * 60
+    assert len(filler.encode("utf-8")) > 2_000
+    beyond_prefix = filler + "and finally netradiationmethod"
+
+    for text in (*_EDGE_TEXTS, beyond_prefix):
+        assert knowledge._legacy_names_in_text(text) == _reference_legacy_names(
+            text, _SYNTHETIC_RENAMES
+        ), f"detector disagreed with the reference loop on {text[:60]!r}"
+
+    # The synthetic registry is only useful if it actually exercised
+    # both branches of the index.
+    index = knowledge._legacy_name_index()
+    assert set(index.fallback) == {"foo-bar", ""}
+    assert "netradiationmethod" in index.token_keys
+
+
+def test_legacy_detection_matches_the_reference_loop_on_the_real_registry() -> None:
+    """Equivalence holds for the shipped registry over real chunk text,
+    including the generated output catalogue that motivated gh#1814.
+    """
+    pytest.importorskip(
+        "supy.data_model.core.field_renames",
+        reason="ALL_FIELD_RENAMES not available without supy data-model layer",
+    )
+    from suews_mcp.tools import knowledge
+    from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
+
+    knowledge.preload_field_renames()
+    renames = knowledge._field_renames()
+
+    texts = [
+        "class SUEWSConfig: pass",
+        f"the legacy {next(iter(ALL_FIELD_RENAMES))} spelling",
+        # Every legacy name at once, which also pins the emitted order.
+        " ".join(ALL_FIELD_RENAMES),
+    ]
+    catalogue = (
+        Path(__file__).resolve().parents[2]
+        / "src/supy/data_model/output/artefacts/1.0.0/catalogue.json"
+    )
+    if catalogue.is_file():
+        texts.append(catalogue.read_text(encoding="utf-8"))
+
+    for text in texts:
+        assert knowledge._legacy_names_in_text(text) == _reference_legacy_names(
+            text, renames
+        )
+
+    # The full-registry text must report every name, in registry order.
+    assert knowledge._legacy_names_in_text(" ".join(ALL_FIELD_RENAMES)) == [
+        {"legacy": legacy, "current": current}
+        for legacy, current in ALL_FIELD_RENAMES.items()
+    ]
+
+
+def test_legacy_name_past_the_snippet_cap_is_still_annotated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End to end in the default ``snippet`` mode: a legacy name that
+    survives only beyond the 2 KB cap is absent from the returned text
+    yet still reported in ``legacy_name_for`` (gh#1402, gh#1814).
+    """
+    pytest.importorskip(
+        "supy.data_model.core.field_renames",
+        reason="ALL_FIELD_RENAMES not available without supy data-model layer",
+    )
+    from suews_mcp.tools import query_knowledge
+    from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
+
+    legacy_sample = next(iter(ALL_FIELD_RENAMES))
+    filler = "padding text with no legacy field name in it. " * 60
+    assert len(filler.encode("utf-8")) > 2_000
+    assert legacy_sample not in filler
+
+    captured: dict = {}
+    matches = [
+        {
+            "id": "long-chunk",
+            "content_type": "python",
+            "git_sha": "deadbeef",
+            "github_url": "https://example/blob/deadbeef/foo.py",
+            "repo_path": "src/supy/data_model/core/model.py",
+            "line_start": 1,
+            "line_end": 50,
+            "score": 5,
+            "text": f"{filler}and finally {legacy_sample} appears",
+        }
+    ]
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        _stub_envelope(captured, {"matches": matches, "manifest": {}}),
+    )
+
+    match = query_knowledge("anything")["data"]["matches"][0]
+    assert match["text_truncated"] is True
+    assert legacy_sample not in match["text"]
+    assert {
+        "legacy": legacy_sample,
+        "current": ALL_FIELD_RENAMES[legacy_sample],
+    } in match["legacy_name_for"]

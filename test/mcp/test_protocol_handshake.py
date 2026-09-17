@@ -291,6 +291,8 @@ async def _run_serial_then_concurrent(
     warm_up: list[tuple[str, dict]],
     sequence: list[tuple[str, dict]],
     per_task_timeout_factor: float,
+    *,
+    dispatch_slowest_first: bool = False,
 ) -> _ContrastResult:
     """Spawn ``suews-mcp`` once and, on that one session, (a) run the
     ``warm_up`` calls, (b) run ``sequence`` one call at a time (the serial
@@ -326,6 +328,14 @@ async def _run_serial_then_concurrent(
     about the serial total) and every healthy completion measured on a
     contended runner, so the contrast assertion, which names gh#1412 and
     prints the numbers, is what reports a regression.
+
+    ``dispatch_slowest_first`` reorders the concurrent arm so the call with
+    the highest measured serial cost is issued first, mapping the results
+    back to ``sequence`` index order afterwards. A test that reads how late
+    one concurrent call completes behind another wants the costlier call
+    dispatched first, so that a healthy reading can only move away from its
+    budget as the two probe costs diverge. Leave it ``False`` where the
+    dispatch order written into ``sequence`` is itself what is under test.
     """
     server_params = StdioServerParameters(
         command=_SUEWS_MCP_COMMAND,
@@ -362,20 +372,30 @@ async def _run_serial_then_concurrent(
         )
 
         # Concurrent arm: the same calls in flight together. gather()
-        # schedules the tasks in ``sequence`` order, so the first call's
-        # request is written to the server first; the tests rely on
-        # that ordering when a fast probe follows a slow call.
+        # schedules the tasks in the order the coroutines are passed, so
+        # the first of them has its request written to the server first.
+        # By default that is ``sequence`` order, which the cross-tool test
+        # relies on when a fast probe follows a slow call; with
+        # ``dispatch_slowest_first`` it is descending serial cost instead.
+        # Results are mapped back to ``sequence`` index order either way,
+        # so ``concurrent_each[i]`` and ``envelopes[i]`` always describe
+        # ``sequence[i]``.
+        order = list(range(len(sequence)))
+        if dispatch_slowest_first:
+            order.sort(key=lambda i: -serial_each[i])
         t_concurrent = time.monotonic()
-        timed = await asyncio.gather(
+        timed_in_order = await asyncio.gather(
             *(
                 asyncio.wait_for(
-                    _timed_call(session, name, args),
+                    _timed_call(session, *sequence[i]),
                     timeout=per_task_timeout,
                 )
-                for name, args in sequence
+                for i in order
             )
         )
         concurrent_total = time.monotonic() - t_concurrent
+        by_index = dict(zip(order, timed_in_order))
+        timed = [by_index[i] for i in range(len(sequence))]
 
     return _ContrastResult(
         serial_each=tuple(serial_each),
@@ -400,21 +420,24 @@ def _report_contrast(capsys, label: str, fields: dict[str, float]) -> None:
         print(f"\n[mcp-concurrency] {label}: {body}", file=sys.stderr, flush=True)
 
 
-# Spread between the completion times of two concurrent calls of similar
-# cost, as a fraction of the shorter serial call. A serialised dispatch
-# answers the first call before it starts the second, so the second
-# completes about one whole call after the first (measured about 1.0: with
-# the offload disabled on a Linux machine, c1 = 10.79 s, c2 = 22.05 s
+# How much later the cheaper of two concurrent calls completes than the
+# costlier one, which is dispatched first, as a fraction of the cheaper
+# serial call. A serialised dispatch answers the first request at its serial
+# cost and the second one whole call later, so this reads about 1.0 (measured
+# with the offload disabled on a Linux machine: c1 = 10.79 s, c2 = 22.05 s
 # against serial calls of 10.87 s and 10.73 s). An offloaded dispatch starts
-# both at once and they complete together whether or not the machine has a
-# spare core for the second (measured 0.00 to 0.39 s of spread, at most 0.14
-# of a serial call, on sixteen CI lanes over two runs plus a Linux machine;
-# the 0.39 s came from a lane where the two calls shared a contended core
-# and each took three times its solo time). 0.5 sits between the two. Total
-# wall time (C/S) is reported but not asserted: it separates the two
-# dispatches only when a spare core exists, and read 1.04 and 1.60 on
-# that lane in the two runs with the offload working.
-_COMPLETION_SPREAD_RATIO = 0.5
+# both at once and the cheaper call finishes no later than the costlier one
+# within jitter: measured -0.61 to +0.16 across 27 CI lanes on 15 to 17
+# September 2026, over probe cost ratios of 0.86 to 1.64. The reading is
+# signed, and the costlier probe dispatched first, because an unsigned spread
+# read a healthy cost difference between the two probes as a regression: on
+# 17 September 2026 a 205 KB chunk entered the first probe's top three hits
+# and the wrapper's annotation cost rose with it. With the costlier call
+# dispatched first, a healthy reading can only move further from the cut as
+# the probe costs diverge, while the serialised reading stays at about 1.0.
+# 0.5 sits between the two ends. Total wall time (C/S) is reported but not
+# asserted: it separates the two dispatches only when a spare core exists.
+_COMPLETION_LATENESS_RATIO = 0.5
 # Delay a fast, primed probe suffers when issued behind a slow call, as a
 # fraction of that slow call's concurrent-arm time. A blocked loop holds the
 # probe's request for the whole slow call (about 1.0); a free loop answers it
@@ -452,9 +475,11 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
     first call completes at about its serial cost and the second about
     one serial call later. With the fix (``_async_offload`` +
     ``anyio.to_thread.run_sync``) both subprocesses start at once and
-    complete together. The assertion is on that completion spread,
-    ``max(c) - min(c) < 0.5 x min(s1, s2)``; see
-    ``_COMPLETION_SPREAD_RATIO`` for the two measured ends. The serial
+    complete together. The costlier of the two probes is dispatched
+    first, by measured serial cost, and the assertion is on how late the
+    cheaper call completes behind it,
+    ``c(cheaper) - c(costlier) < 0.5 x min(s1, s2)``; see
+    ``_COMPLETION_LATENESS_RATIO`` for the two measured ends. The serial
     and concurrent totals (S, C) are reported for diagnosis but not
     asserted, because their ratio measures spare cores as much as
     dispatch: on a CI lane where the two calls shared one core it read
@@ -485,8 +510,12 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
                 ),
             ],
             per_task_timeout_factor=_PER_TASK_TIMEOUT_FACTOR,
+            dispatch_slowest_first=True,
         )
     )
+    slow = max(range(2), key=lambda i: result.serial_each[i])
+    fast = 1 - slow
+    lateness = result.concurrent_each[fast] - result.concurrent_each[slow]
     spread = max(result.concurrent_each) - min(result.concurrent_each)
     _report_contrast(
         capsys,
@@ -501,6 +530,9 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
             "spread": spread,
             "ratio_C_over_S": result.concurrent_total / result.serial_total,
             "ratio_spread_over_min_s": spread / min(result.serial_each),
+            "lateness": lateness,
+            "ratio_lateness_over_min_s": lateness / min(result.serial_each),
+            "ratio_s1_over_s2": result.serial_each[0] / result.serial_each[1],
         },
     )
     assert len(result.envelopes) == 2, (
@@ -512,15 +544,18 @@ def test_concurrent_query_knowledge_does_not_block_event_loop(capsys) -> None:
             f"Concurrent call {idx + 1}/2 returned without content; "
             "FastMCP dispatch likely failed."
         )
-    budget = min(result.serial_each) * _COMPLETION_SPREAD_RATIO
-    assert spread < budget, (
-        f"Two concurrent query_knowledge calls completed {spread:.1f}s apart "
-        f"(at {result.concurrent_each[0]:.1f}s and {result.concurrent_each[1]:.1f}s) "
-        f"where the same two calls run one after the other in the same session "
-        f"took {result.serial_each[0]:.1f}s and {result.serial_each[1]:.1f}s; "
-        f"expected <{budget:.1f}s (= {_COMPLETION_SPREAD_RATIO} x the shorter "
-        "serial call). The worker-thread offload has regressed: calls are "
-        "serialising on the event loop instead of overlapping on threads "
+    budget = min(result.serial_each) * _COMPLETION_LATENESS_RATIO
+    assert lateness < budget, (
+        f"The cheaper of two concurrent query_knowledge calls completed "
+        f"{lateness:.2f}s after the costlier one. Dispatched first: "
+        f"{result.concurrent_each[slow]:.2f}s concurrently against "
+        f"{result.serial_each[slow]:.2f}s on its own; dispatched second: "
+        f"{result.concurrent_each[fast]:.2f}s concurrently against "
+        f"{result.serial_each[fast]:.2f}s on its own. Expected "
+        f"<{budget:.2f}s (= {_COMPLETION_LATENESS_RATIO} x the shorter serial "
+        "call). An offloaded dispatch finishes the second call no later than "
+        "the first within jitter; finishing about one whole call later is the "
+        "signature of the two requests serialising on the event loop "
         "(gh#1412)."
     )
 

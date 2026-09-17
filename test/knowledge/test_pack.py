@@ -242,7 +242,8 @@ def test_single_line_file_over_the_bound_splits_into_byte_windows(tmp_path: Path
     """
     path_repo = tmp_path / "repo"
     _make_repo(path_repo)
-    line = '{"note":"' + "€" * 20000 + '"}'
+    # U+20AC EURO SIGN, written as an escape so the source file stays ASCII.
+    line = '{"note":"' + "\u20ac" * 20000 + '"}'
     assert len(line.encode("utf-8")) > MAX_CHUNK_BYTES
     _write(path_repo / "src/supy/data_model/big_registry.json", line + "\n")
     path_pack = tmp_path / "pack"
@@ -294,6 +295,13 @@ def test_installed_pack_respects_the_byte_bound() -> None:
     """The pack shipped with the package carries no unbounded chunk."""
     chunks = _read_installed_chunks()
 
+    # Checked first: on a pack built before the bound existed this is the
+    # actionable failure, and the size assertion below would otherwise mask it.
+    manifest = load_manifest()
+    assert manifest.get("max_chunk_bytes") == MAX_CHUNK_BYTES, (
+        "The installed pack predates the chunk-size bound; rebuild with `make dev`."
+    )
+
     oversized = sorted(
         (
             (_chunk_size(chunk), chunk["repo_path"], chunk["line_start"], chunk["line_end"])
@@ -315,7 +323,53 @@ def test_installed_pack_respects_the_byte_bound() -> None:
         f"Generated contract artefacts reached the pack: {packed_exclusions}"
     )
 
-    manifest = load_manifest()
-    assert manifest.get("max_chunk_bytes") == MAX_CHUNK_BYTES, (
-        "The installed pack predates the chunk-size bound; rebuild with `make dev`."
-    )
+
+def test_group_budget_counts_the_joining_newline(tmp_path: Path) -> None:
+    """Two lines whose join is one byte over the bound must not share a chunk.
+
+    Each line is exactly half the bound, so the pair fits only if the newline
+    that joins them is left out of the budget.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    half = "a" * (MAX_CHUNK_BYTES // 2)
+    _write(path_repo / "src/suews/src/suews_phys_pair.f95", half + "\n" + half + "\n")
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/suews/src/suews_phys_pair.f95"
+    ]
+
+    assert [(chunk["line_start"], chunk["line_end"]) for chunk in chunks] == [(1, 1), (2, 2)]
+    assert all(_chunk_size(chunk) <= MAX_CHUNK_BYTES for chunk in chunks)
+
+
+def test_over_long_line_in_a_window_overlap_is_not_chunked_twice(tmp_path: Path) -> None:
+    """Re-cutting overlapping windows must not emit the same piece twice.
+
+    `_line_spans` overlaps its windows, so a line past the bound that falls in
+    the overlap is reached by two windows and byte-windowed once per window.
+    """
+    path_repo = tmp_path / "repo"
+    _make_repo(path_repo)
+    lines = [f"! line {index:04d}" for index in range(200)]
+    # Line 150 sits inside the overlap between windows 1-160 and 141-200.
+    lines[149] = "z" * (MAX_CHUNK_BYTES + 8000)
+    _write(path_repo / "src/suews/src/suews_phys_overlap.f95", "\n".join(lines) + "\n")
+    path_pack = tmp_path / "pack"
+
+    build_pack(path_repo, path_pack, git_sha="abc123")
+    chunks = [
+        chunk
+        for chunk in _read_chunks(path_pack)
+        if chunk["repo_path"] == "src/suews/src/suews_phys_overlap.f95"
+    ]
+
+    identities = [chunk["id"] for chunk in chunks]
+    assert len(identities) == len(set(identities)), "duplicate chunks emitted"
+    pieces = [chunk for chunk in chunks if chunk["line_start"] == chunk["line_end"] == 150]
+    assert len(pieces) == 2
+    assert "".join(piece["text"] for piece in pieces) == lines[149]

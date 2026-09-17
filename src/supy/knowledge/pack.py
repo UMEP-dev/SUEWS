@@ -32,9 +32,9 @@ OVERLAP_LINES = 20
 # Line windowing alone cannot bound a chunk: a minified one-line artefact
 # becomes one chunk however large it is, which then matches ordinary
 # questions on token overlap and is truncated to an arbitrary prefix
-# downstream. The natural maximum produced by WINDOW_LINES over the SUEWS
-# sources is about 15.8 kB, so this bound leaves ordinary source windows
-# untouched and only splits pathological input.
+# downstream. The largest window WINDOW_LINES produces over the SUEWS
+# sources measures 15,120 bytes, so this bound leaves ordinary source
+# windows untouched and only splits pathological input.
 MAX_CHUNK_BYTES = 32768
 GITHUB_BLOB_TEMPLATE = "https://github.com/UMEP-dev/SUEWS/blob/{git_sha}/{path}#L{line_start}-L{line_end}"
 DOCS_URLS = {
@@ -298,9 +298,19 @@ def _iter_chunks(
         if not lines:
             continue
 
+        # `_line_spans` overlaps its windows by OVERLAP_LINES for context
+        # continuity. Re-cutting two overlapping windows can emit the same
+        # piece twice -- a single line longer than MAX_CHUNK_BYTES that falls
+        # in the overlap is byte-windowed once per window -- and those pieces
+        # are identical, down to the chunk id. Keep the first of each.
+        seen_ids: set[str] = set()
         for start, end, text in _bounded_spans(source, lines):
+            chunk_id = _chunk_id(source.path, start, end, text)
+            if chunk_id in seen_ids:
+                continue
+            seen_ids.add(chunk_id)
             yield {
-                "id": _chunk_id(source.path, start, end, text),
+                "id": chunk_id,
                 "content_type": source.content_type,
                 "repo_path": source.path,
                 "line_start": start,

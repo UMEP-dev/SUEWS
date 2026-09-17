@@ -303,6 +303,10 @@ def test_installed_pack_respects_the_byte_bound() -> None:
         "The installed pack predates the chunk-size bound; rebuild with `make dev`."
     )
 
+    # A forward guard over the shipped artefact rather than a regression test
+    # of the bound: with the exclusion in place nothing in the tree is near
+    # 32768 bytes, so removing the bound alone would not trip this assertion.
+    # The synthetic tests below are what fail on an unbounded chunker.
     oversized = sorted(
         (
             (_chunk_size(chunk), chunk["repo_path"], chunk["line_start"], chunk["line_end"])

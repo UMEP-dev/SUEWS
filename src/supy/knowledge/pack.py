@@ -378,8 +378,10 @@ def _split_oversized_span(
         Re-cutting can isolate a blank line beside an over-long one. An
         all-whitespace chunk says nothing, yet still scores on its
         ``repo_path`` tokens, so it is dropped here. The pass-through path in
-        `_bounded_spans` deliberately keeps its existing behaviour -- only
-        re-cutting can manufacture a group like this.
+        `_bounded_spans` deliberately keeps its existing behaviour, so a
+        whitespace-only file *within* the bound is still one chunk as before.
+        A whitespace-only file past the bound yields none, which is the right
+        answer for a file that carries no evidence.
         """
         text = "\n".join(group)
         if not text.strip():

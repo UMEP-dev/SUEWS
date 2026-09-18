@@ -27,9 +27,12 @@ stability:
 These classifications are exposed by `OUTPUT_GROUP_SCOPES`. Output contract
 `1.0.0` freezes the registry projection after the observable layouts were
 validated. Output contract `1.1.0` adds the supported saved-output timestamp
-references, with `follow` retaining the forcing clock by default. A group is
-covered when that group is present; the contract does not promise that every
-optional group is emitted by every run.
+references, with `follow` retaining the forcing clock by default. Output
+contract `1.1.1` corrects the descriptions of `Drainage`, `ROSoil`, `ROImp`,
+`ROVeg` and `ROWater` to match what the kernel computes, leaving every name,
+unit, group and layout unchanged. A group is covered when that group is
+present; the contract does not promise that every optional group is emitted by
+every run.
 
 ## Architecture
 

@@ -29,7 +29,7 @@
 28,"SMD","0,1,2","Soil moisture deficit [mm]"
 29,"FlowCh","0,1","Additional flow into water body [mm]"
 30,"AddWater","0,1","Additional water flow received from other grids [mm]"
-31,"ROSoil","0,1","Runoff to soil (sub-surface) [mm]"
+31,"ROSoil","0,1","Overflow from full soil stores during lateral exchange, outside RO [mm]"
 32,"ROPipe","0,1","Runoff to pipes [mm]"
 33,"ROImp","0,1","Above ground runoff over impervious surfaces [mm]"
 34,"ROVeg","0,1","Above ground runoff over vegetated surfaces [mm]"

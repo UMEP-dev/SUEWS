@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 88       | 33 | 82 | 41 | 325   |
+| 2026 | 80       | 88       | 33 | 82 | 42 | 326   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,13 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 18 Sep 2026
+
+- [doc] Corrected the output catalogue descriptions of `Drainage`, `ROSoil`, `ROImp`, `ROVeg` and `ROWater`, and published output contract `1.1.1` (#1819)
+  - `Drainage` read as "Sub-surface drainage from soil store". The driver calls `drainage` on each surface's water state and storage capacity, so it is drainage from the surface stores; `ReDistributeWater` and `cal_water_storage` then route it within the grid to other surfaces, to runoff on impervious surfaces, or into the soil store on pervious ones, and `drain_per_tstep` is divided by `NonWaterFraction`. `ROSoil` read as "Runoff to soil" but moves the other way: it is the overflow from full soil stores during the lateral soil-water exchange in `SUEWS_cal_HorizontalSoilWater`, removed from the store and never added to `RO`, and likewise per unit non-water area.
+  - `ROImp` and `ROVeg` read as a split of runoff by surface type. `updateFlood` only fills them once the accumulated pipe runoff exceeds `PipeCapacity`, so they are above-ground flooding terms and are zero whenever the pipes cope, which is the normal case. `ROWater` is the overflow of the water surface above its `StateLimit` in `cal_water_storage`.
+  - These descriptions are published on the output-variables page and frozen in the output contract catalogue, so the corrections ship as a new release. `1.1.1` is a PATCH: no variable name, unit, group or layout changes. The legacy text-column table carried the same `ROSoil` wording and now matches.
 
 ### 17 Sep 2026
 

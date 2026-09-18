@@ -163,10 +163,11 @@ print("indicate numerical precision limits only.")
 #
 # ``Drainage`` is deliberately not in that equation. It is water leaving each
 # surface store and being redistributed within the grid: onto other surfaces,
-# into the pipe network, or into the soil store. By the end of a run it is
-# already counted inside ``RO`` and ``TotCh``, so subtracting it as well would
-# double-count it. It is also reported per unit non-water area, unlike the
-# grid-average terms above, and is printed below for reference only.
+# into runoff on impervious surfaces, or into the soil store on pervious ones.
+# By the end of a run it is already counted inside ``RO`` and ``TotCh``, so
+# subtracting it as well would double-count it. It is also reported per unit
+# non-water area, unlike the grid-average terms above, and is printed below
+# for reference only.
 
 rain = get_var(output, "Rain")
 evap = get_var(output, "Evap")

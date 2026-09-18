@@ -155,14 +155,25 @@ print("indicate numerical precision limits only.")
 # Water Balance Analysis
 # ----------------------
 #
-# Calculate annual water balance: P + I = E + R + D + dS
+# Calculate the annual water balance: P + I = E + RO + dS
+#
+# ``RO`` is the runoff leaving the grid and ``TotCh`` (dS) is the change in
+# surface and soil water storage, so together they close the budget against
+# precipitation (P) and irrigation (I).
+#
+# ``Drainage`` is deliberately not in that equation. It is water leaving each
+# surface store and being redistributed within the grid: onto other surfaces,
+# into the pipe network, or into the soil store. By the end of a run it is
+# already counted inside ``RO`` and ``TotCh``, so subtracting it as well would
+# double-count it. It is also reported per unit non-water area, unlike the
+# grid-average terms above, and is printed below for reference only.
 
 rain = get_var(output, "Rain")
 evap = get_var(output, "Evap")
 runoff = get_var(output, "RO")
-drainage = get_var(output, "Drainage")
 irr = get_var(output, "Irr")
 storage_change = get_var(output, "TotCh")
+drainage = get_var(output, "Drainage")
 
 # Annual totals (mm/year)
 print("Annual Water Balance (mm):")
@@ -171,18 +182,44 @@ print(f"    Precipitation: {rain.sum():.1f}")
 print(f"    Irrigation:    {irr.sum():.1f}")
 print("  Outputs:")
 print(f"    Evaporation:   {evap.sum():.1f}")
-print(f"    Runoff:        {runoff.sum():.1f}")
-print(f"    Drainage:      {drainage.sum():.1f}")
+print(f"    Runoff (RO):   {runoff.sum():.1f}")
 print(f"  Storage change:  {storage_change.sum():.1f}")
 
 water_residual = (
-    (rain.sum() + irr.sum())
-    - evap.sum()
-    - runoff.sum()
-    - drainage.sum()
-    - storage_change.sum()
+    (rain.sum() + irr.sum()) - evap.sum() - runoff.sum() - storage_change.sum()
 )
 print(f"  Residual:        {water_residual:.1f}")
+
+print("\nInternal transfer, not a loss from the grid (mm):")
+print(f"    Drainage:      {drainage.sum():.1f}")
+
+# Guard against a regression reopening the double-counting this section once
+# carried. A 1 mm tolerance is roughly 0.1% of the sample year's
+# precipitation: far above the floating-point accumulation noise over the
+# ~1e5 timesteps of an annual run (order 1e-11 mm), and far below the ~700 mm
+# error that subtracting Drainage as a separate loss would reintroduce.
+assert abs(water_residual) < 1.0, (
+    f"Water balance does not close: residual {water_residual:.3f} mm"
+)
+
+# %%
+# Runoff Components
+# -----------------
+#
+# ``RO`` is the total of four routed components, all reported in mm. Runoff
+# from the land surfaces is sent to the pipe network first (``ROPipe``);
+# ``ROImp`` and ``ROVeg`` only receive water once ``PipeCapacity`` is
+# exceeded, and ``ROWater`` is overflow from the water body. In the sample
+# configuration the pipes are never saturated, so ``ROPipe`` carries all the
+# runoff and the other three components are legitimately zero.
+
+runoff_parts = get_vars(output, ["ROPipe", "ROImp", "ROVeg", "ROWater"])
+runoff_totals = runoff_parts.sum()
+
+print("Annual Runoff Components (mm):")
+for name, total in runoff_totals.items():
+    print(f"    {name:8s} {total:8.1f}")
+print(f"    {'Sum':8s} {runoff_totals.sum():8.1f}  (RO = {runoff.sum():.1f})")
 
 # %%
 # Energy Balance Time Series

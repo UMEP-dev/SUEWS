@@ -20,17 +20,21 @@ class SharedInstructionValidation(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
-        (self.root / "AGENTS.md").write_text((ROOT / "AGENTS.md").read_text())
-        (self.root / "CLAUDE.md").write_text("@AGENTS.md\n<!-- compatibility -->\n")
+        (self.root / "AGENTS.md").write_text(
+            (ROOT / "AGENTS.md").read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        (self.root / "CLAUDE.md").write_text(
+            "@AGENTS.md\n<!-- compatibility -->\n", encoding="utf-8"
+        )
         for name in VALIDATOR.REQUIRED_SKILL_FILES + VALIDATOR.REQUIRED_RULE_FILES:
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("# Existing guidance\n")
+            path.write_text("# Existing guidance\n", encoding="utf-8")
 
     def run_validator(self):
         return subprocess.run(
             [sys.executable, str(SCRIPT)], cwd=self.root,
-            capture_output=True, text=True,
+            capture_output=True, text=True, encoding="utf-8",
         )
 
     def test_valid_shared_instructions_and_loader(self):
@@ -45,13 +49,13 @@ class SharedInstructionValidation(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
 
     def test_truncated_canonical_file_fails(self):
-        (self.root / "AGENTS.md").write_text("# AGENTS.md\n")
+        (self.root / "AGENTS.md").write_text("# AGENTS.md\n", encoding="utf-8")
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
         self.assertIn("Missing critical sections", result.stdout)
 
     def test_wrong_import_fails(self):
-        (self.root / "CLAUDE.md").write_text("@OTHER.md\n")
+        (self.root / "CLAUDE.md").write_text("@OTHER.md\n", encoding="utf-8")
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
         self.assertIn("must contain only @AGENTS.md", result.stdout)
@@ -63,7 +67,9 @@ class SharedInstructionValidation(unittest.TestCase):
         self.assertIn("Missing CLAUDE.md compatibility import", result.stdout)
 
     def test_duplicate_loader_instructions_fail(self):
-        (self.root / "CLAUDE.md").write_text("@AGENTS.md\n\nDifferent rules\n")
+        (self.root / "CLAUDE.md").write_text(
+            "@AGENTS.md\n\nDifferent rules\n", encoding="utf-8"
+        )
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
 

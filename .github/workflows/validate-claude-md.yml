@@ -1,16 +1,23 @@
-name: Validate CLAUDE.md
+name: Validate shared agent instructions
 
 on:
   pull_request:
     paths:
+      - 'AGENTS.md'
       - 'CLAUDE.md'
       - '.claude/scripts/validate-claude-md.py'
+      - '.claude/scripts/test_validate_agents_md.py'
+      - '.github/workflows/validate-claude-md.yml'
       - '.claude/rules/**'
   push:
     branches:
       - master
     paths:
+      - 'AGENTS.md'
       - 'CLAUDE.md'
+      - '.claude/scripts/validate-claude-md.py'
+      - '.claude/scripts/test_validate_agents_md.py'
+      - '.github/workflows/validate-claude-md.yml'
       - '.claude/rules/**'
 
 permissions:
@@ -31,19 +38,20 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Check CLAUDE.md integrity
+    - name: Check shared instruction integrity
       run: |
-        echo "🔍 Validating CLAUDE.md integrity..."
+        echo "Validating AGENTS.md and the compatibility import..."
+        python -m unittest discover -s .claude/scripts -p test_validate_agents_md.py
         python .claude/scripts/validate-claude-md.py
 
     - name: Check for content reduction
       run: |
-        echo "📊 Checking for content reduction..."
+        echo "Checking for content reduction..."
 
         # Get line counts
-        CURRENT_LINES=$(wc -l < CLAUDE.md)
-        git show HEAD~1:CLAUDE.md > CLAUDE.md.previous 2>/dev/null || echo "First commit" > CLAUDE.md.previous
-        PREVIOUS_LINES=$(wc -l < CLAUDE.md.previous)
+        CURRENT_LINES=$(wc -l < AGENTS.md)
+        git show HEAD~1:AGENTS.md > AGENTS.md.previous 2>/dev/null || git show HEAD~1:CLAUDE.md > AGENTS.md.previous 2>/dev/null || echo "First commit" > AGENTS.md.previous
+        PREVIOUS_LINES=$(wc -l < AGENTS.md.previous)
 
         echo "Previous version: $PREVIOUS_LINES lines"
         echo "Current version: $CURRENT_LINES lines"
@@ -73,30 +81,31 @@ jobs:
 
           if [ "$PERCENT" -gt 20 ]; then
             if [ "$ALL_REFS_EXIST" = true ]; then
-              echo "ℹ️ Large reduction detected ($PERCENT%), but required rule files exist"
+              echo "Large reduction detected ($PERCENT%), but required rule files exist"
               echo "   This appears to be an intentional restructuring (rules-based organisation)"
               echo "   Content moved to .claude/rules/:"
               for ref in "${REQUIRED_REFS[@]}"; do
                 echo "   - $ref"
               done
             else
-              echo "⚠️ WARNING: CLAUDE.md reduced by $PERCENT% ($REDUCTION lines)"
+              echo "WARNING: AGENTS.md reduced by $PERCENT% ($REDUCTION lines)"
               echo "This might indicate content loss!"
               exit 1
             fi
           elif [ "$PERCENT" -gt 10 ]; then
-            echo "⚠️ Notice: CLAUDE.md reduced by $PERCENT% ($REDUCTION lines)"
+            echo "Notice: AGENTS.md reduced by $PERCENT% ($REDUCTION lines)"
           fi
         fi
 
-        echo "✅ Content size check passed"
+        echo "Content size check passed"
 
     - name: Create snapshot on failure
       if: failure()
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
-        name: claude-md-snapshot-${{ github.sha }}
+        name: agent-instructions-snapshot-${{ github.sha }}
         path: |
+          AGENTS.md
           CLAUDE.md
-          CLAUDE.md.previous
+          AGENTS.md.previous
           .claude/snapshots/

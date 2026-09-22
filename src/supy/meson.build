@@ -266,7 +266,6 @@ src_f95_all = [
   'suews_phys_ohm.f95',
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
-  'suews_phys_lai.f95',
   'suews_ctrl_driver.f95',
 ]
 

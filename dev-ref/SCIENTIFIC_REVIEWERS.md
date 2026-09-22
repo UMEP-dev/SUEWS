@@ -64,6 +64,7 @@ Modules without a named domain panel are routed manually to @sunt05 and
 | Resistance | [`2-module:resist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aresist) | `/src/suews/src/suews_phys_resist.f95` | @sunt05, @suegrimmond |
 | BLUEWS | [`2-module:bluews`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abluews) | `/src/suews/src/suews_phys_bluews.f95` | @sunt05, @suegrimmond |
 | Daily state | [`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate) | `/src/suews/src/suews_phys_dailystate.f95` | @sunt05, @suegrimmond |
+| LAI phenology (GDD/SDD) | [`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate) | `/src/suews/src/suews_phys_lai.f95` | @sunt05, @suegrimmond |
 
 For any new `src/suews/src/suews_phys_*.f95` module not listed here, use the
 default reviewers until this guide is updated.

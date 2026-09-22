@@ -23,7 +23,9 @@ enable-decl = True
 # Case conventions:
 # 1 = lowercase, 2 = uppercase, 3 = capitalize, 0 = leave as is
 # Order: keywords, procedures/modules, derived types, intrinsics
-case = [1,1,1,1]
+# Left as is: the source mixes upper-case (most files) and lower-case
+# modules, and forcing either would rewrite whole files.
+case = [0,0,0,0]
 
 # Don't add whitespace before :: in declarations
 whitespace-type = 0
@@ -40,8 +42,8 @@ whitespace-logical = True
 # Add whitespace around arithmetic operators
 whitespace-plusminus = True
 
-# Add whitespace around multiplication/division
-whitespace-multdiv = True
+# No whitespace around multiplication/division (matches most of the source)
+whitespace-multdiv = False
 
 # Add whitespace around print/read statements
 whitespace-print = True
@@ -49,5 +51,5 @@ whitespace-print = True
 # Add whitespace for intrinsics
 whitespace-intrinsics = True
 
-# Don't impose whitespace for comma-separated lists
-disable-indent-mod = True
+# Indent module contents (the source indents them by one level)
+disable-indent-mod = False

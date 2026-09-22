@@ -27,13 +27,13 @@ SCRIPT_SPEC.loader.exec_module(audit)
 
 def test_committed_output_contract_is_current() -> None:
     """Require committed bytes, schema, manifest, and version digest to agree."""
-    assert audit.audit_output_contract(PROJECT_ROOT) == ["1.0.0", "1.1.0"]
+    assert audit.audit_output_contract(PROJECT_ROOT) == ["1.0.0", "1.1.0", "1.1.1"]
 
 
 def test_current_bundle_generation_is_deterministic() -> None:
     """Generate identical canonical bytes from the output registry."""
-    assert audit.build_output_contract_bundle("1.1.0") == (
-        audit.build_output_contract_bundle("1.1.0")
+    assert audit.build_output_contract_bundle("1.1.1") == (
+        audit.build_output_contract_bundle("1.1.1")
     )
 
 
@@ -55,7 +55,7 @@ def test_audit_rejects_tampered_and_extra_files(tmp_path: Path) -> None:
         audit.audit_output_contract(tmp_path)
 
 
-@pytest.mark.parametrize("version", ["1.0.0", "1.1.0"])
+@pytest.mark.parametrize("version", ["1.0.0", "1.1.0", "1.1.1"])
 def test_published_catalogue_is_packaged(version: str) -> None:
     """Expose each versioned catalogue through installed package resources."""
     catalogue = importlib.resources.files("supy.data_model.output").joinpath(

@@ -195,7 +195,10 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Drainage",
         unit="mm",
-        description="Sub-surface drainage from soil store",
+        description=(
+            "Drainage from surface water stores, redistributed within the grid "
+            "to other surfaces, runoff or the soil store (per unit non-water area)"
+        ),
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -228,7 +231,10 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="ROSoil",
         unit="mm",
-        description="Runoff to soil",
+        description=(
+            "Overflow from full soil stores during lateral soil-water exchange "
+            "between surfaces, lost outside RO (per unit non-water area)"
+        ),
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -244,7 +250,10 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="ROImp",
         unit="mm",
-        description="Runoff over impervious surfaces",
+        description=(
+            "Above-ground runoff from paved and building surfaces when pipe "
+            "capacity is exceeded"
+        ),
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -252,7 +261,10 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="ROVeg",
         unit="mm",
-        description="Runoff over vegetated surfaces",
+        description=(
+            "Above-ground runoff from vegetated and bare-soil surfaces when pipe "
+            "capacity is exceeded"
+        ),
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -260,7 +272,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="ROWater",
         unit="mm",
-        description="Runoff for water surface",
+        description="Overflow from the water surface above its state limit",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,

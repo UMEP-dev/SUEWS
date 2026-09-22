@@ -2,8 +2,7 @@
 MODULE module_phys_dailystate
    USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
-   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
-   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
+   USE module_ctrl_error_state, ONLY: supy_error_flag
 
    use module_phys_lai, only: update_gddlai
 

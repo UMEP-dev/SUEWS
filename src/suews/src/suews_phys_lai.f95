@@ -1,7 +1,7 @@
 module module_phys_lai
     use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
     use module_ctrl_const_allocate, only: nvegsurf
-    use module_ctrl_error_state, only: set_supy_error, supy_error_flag
+    use module_ctrl_error_state, only: set_supy_error
 
     implicit none
 

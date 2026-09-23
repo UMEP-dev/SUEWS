@@ -162,9 +162,11 @@ plt.tight_layout()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # View the monthly mean air temperature from the forcing data.
-# The resample method returns aggregated values.
+# ``SUEWSForcing.resample`` only coarsens to fixed-length steps such as
+# ``"1h"`` or ``"1D"``, so calendar months are taken from the underlying
+# DataFrame with pandas.
 
-df_monthly_temp = forcing_sliced.resample("1ME")["Tair"]
+df_monthly_temp = forcing_sliced.df["Tair"].resample("1ME").mean()
 
 fig, ax = plt.subplots(figsize=(8, 5))
 df_monthly_temp.plot.bar(ax=ax, color="tab:blue")

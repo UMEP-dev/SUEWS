@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 88       | 33 | 82 | 42 | 326   |
+| 2026 | 80       | 88       | 33 | 83 | 42 | 327   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,10 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 27 Sep 2026
+
+- [maintenance] The merge queue builds and tests on Linux only when the queued group changes nothing but tests or other non-package files, instead of rebuilding wheels on Linux, macOS and Windows; changes to Fortran, Rust, Python, build or CI files keep the three-platform queue build
 
 ### 18 Sep 2026
 

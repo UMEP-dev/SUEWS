@@ -5,8 +5,16 @@ The main SUEWS repository keeps `.claude/skills/suews/` as the single source of
 truth. This script writes a self-contained marketplace repository for agent
 hosts that need different packaging layouts:
 
-- Claude Code reads `.claude-plugin/marketplace.json` and `.claude/skills/suews/`.
+- Claude Code reads `.claude-plugin/marketplace.json`, which points at
+  `plugins/suews/`.
 - Codex reads `.agents/plugins/marketplace.json` and installs `plugins/suews/`.
+- Anthropic's plugin directory (claude.ai/directory) is submitted with
+  `plugins/suews/` as the plugin path, so that folder must be self-contained:
+  `.claude-plugin/plugin.json`, the skill, `.mcp.json`, a README and a licence.
+
+The generated `.mcp.json` pins `suews-mcp` to the source commit, so the MCP
+server an install launches matches the skill it was generated with, and the
+directory's launcher check sees an exact version rather than a moving branch.
 
 The output directory may already be a Git checkout; its `.git/` directory is
 preserved while the generated payload is refreshed.
@@ -25,7 +33,12 @@ REPO = Path(__file__).resolve().parent.parent
 PLUGIN_NAME = "suews"
 MARKETPLACE_REPO = "UMEP-dev/suews-agent"
 SOURCE_REPO = "UMEP-dev/SUEWS"
+PLUGIN_DIR = Path("plugins") / PLUGIN_NAME
+MCP_GIT_URL = f"git+https://github.com/{SOURCE_REPO}.git"
 
+# Paths the generator owns in the output. `.claude/` and the root `.mcp.json`
+# are no longer generated (the plugin folder carries its own), but stay listed
+# so a refresh removes the copies earlier syncs left behind.
 MANAGED_PATHS = (
     ".agents",
     ".claude",
@@ -80,6 +93,24 @@ def _git_commit() -> str:
         return "unknown"
 
 
+def _pinned_mcp(source_commit: str) -> dict[str, Any]:
+    """Return the plugin `.mcp.json` with `suews-mcp` pinned to the source commit.
+
+    The source `.mcp.json` follows the default branch, which suits a checkout.
+    A published plugin should launch the server from the same commit as the
+    skill it ships with.
+    """
+    payload = _read_json(REPO / PLUGIN_DIR / ".mcp.json")
+    if source_commit == "unknown":
+        return payload
+    for server in payload["mcpServers"].values():
+        server["args"] = [
+            arg.replace(f"{MCP_GIT_URL}#", f"{MCP_GIT_URL}@{source_commit}#")
+            for arg in server.get("args", [])
+        ]
+    return payload
+
+
 def _codex_marketplace() -> dict[str, Any]:
     return {
         "name": "suews",
@@ -109,6 +140,15 @@ def _claude_marketplace() -> dict[str, Any]:
     suews = next(
         plugin for plugin in source["plugins"] if plugin["name"] == PLUGIN_NAME
     )
+    # The generated repository carries a self-contained plugin folder with its
+    # own manifest, skill and `.mcp.json`, so the entry only needs to point at
+    # it; the component paths in the source entry are relative to the SUEWS
+    # repository root and do not apply here.
+    suews = {
+        "name": suews["name"],
+        "description": suews["description"],
+        "source": f"./{PLUGIN_DIR.as_posix()}",
+    }
     metadata = {
         **source["metadata"],
         "repository": f"https://github.com/{MARKETPLACE_REPO}",
@@ -162,10 +202,13 @@ codex plugin add suews@suews
 
 ## Contents
 
-- `.claude-plugin/marketplace.json` and `.claude/skills/suews/` for Claude Code
-  (git commit identifies the installed plugin version).
-- `.agents/plugins/marketplace.json` and `plugins/suews/` for Codex.
-- `.mcp.json` files that launch `suews-mcp` through `uvx`.
+- `plugins/suews/`: the plugin itself, shared by every host. It holds
+  `.claude-plugin/plugin.json` (Claude Code and Anthropic's plugin directory),
+  `.codex-plugin/plugin.json` (Codex), the `suews` skill, and a `.mcp.json` that
+  launches `suews-mcp` through `uvx`, pinned to the source commit below.
+- `.claude-plugin/marketplace.json` for Claude Code (git commit identifies the
+  installed plugin version).
+- `.agents/plugins/marketplace.json` for Codex.
 
 Generated from `{SOURCE_REPO}` commit `{source_commit}`.
 """
@@ -176,28 +219,18 @@ def _build(output: Path) -> None:
 
     source_commit = _git_commit()
 
+    plugin_out = output / PLUGIN_DIR
+
     _copy_file(REPO / "LICENSE", output / "LICENSE")
-    _copy_file(REPO / ".mcp.json", output / ".mcp.json")
-    _copy_file(
-        REPO / "plugins" / "suews" / ".mcp.json",
-        output / "plugins" / "suews" / ".mcp.json",
-    )
+    _copy_file(REPO / "LICENSE", plugin_out / "LICENSE")
+    _copy_file(REPO / PLUGIN_DIR / "README.md", plugin_out / "README.md")
+    _write_json(plugin_out / ".mcp.json", _pinned_mcp(source_commit))
     _copy_tree(
-        REPO / ".claude" / "skills" / "suews",
-        output / ".claude" / "skills" / "suews",
+        REPO / ".claude" / "skills" / PLUGIN_NAME,
+        plugin_out / "skills" / PLUGIN_NAME,
     )
-    _copy_tree(
-        REPO / ".claude" / "skills" / "suews",
-        output / "plugins" / "suews" / "skills" / "suews",
-    )
-    _copy_tree(
-        REPO / "plugins" / "suews" / "assets",
-        output / "plugins" / "suews" / "assets",
-    )
-    _copy_tree(
-        REPO / "plugins" / "suews" / ".codex-plugin",
-        output / "plugins" / "suews" / ".codex-plugin",
-    )
+    for subdir in ("assets", ".codex-plugin", ".claude-plugin"):
+        _copy_tree(REPO / PLUGIN_DIR / subdir, plugin_out / subdir)
 
     _write_json(
         output / ".agents" / "plugins" / "marketplace.json", _codex_marketplace()

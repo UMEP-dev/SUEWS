@@ -27,7 +27,7 @@ merge_group:
 ```
 
 ### Validation Matrix
-- **Platforms**: Linux (manylinux) + ARM Mac + Windows
+- **Platforms**: Linux (manylinux) + ARM Mac + Windows; Linux only when the queued group changes nothing but tests or other non-package files (the wheels are then identical to what master already validated)
 - **Python version**: 3.12 (the `requires-python` / abi3 floor per gh#1553)
 - **Test tier**: `standard` (more thorough than PR smoke tests)
 
@@ -188,7 +188,7 @@ gh pr edit <FAILING_PR_NUMBER> --remove-from-merge-queue
 |-------|-----------|-----------------|-----------|
 | Draft PR | manylinux only | 3.12, 3.14 | smoke |
 | Ready PR | Linux, ARM Mac, Win | 3.12, 3.14 | standard |
-| **Merge Queue** | Linux, ARM Mac, Win | 3.12, 3.14 | standard |
+| **Merge Queue** | Linux, ARM Mac, Win (Linux only for tests-only groups) | 3.12, 3.14 | standard |
 | Nightly | All (incl. x86 Mac) for the wheel build; api tests skip x86 Mac (runner scarcity -- see run 28990965739) | 3.12-3.14 | all |
 | Release (tag push) | All (incl. x86 Mac), api tests included | 3.12-3.14 | all |
 

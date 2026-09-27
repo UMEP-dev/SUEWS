@@ -10,6 +10,8 @@ on:
       - '.mcp.json'
       - 'plugins/suews/.mcp.json'
       - 'plugins/suews/.codex-plugin/**'
+      - 'plugins/suews/.claude-plugin/**'
+      - 'plugins/suews/README.md'
       - 'plugins/suews/assets/**'
       - 'scripts/build_agent_plugin.py'
       - 'LICENSE'
@@ -80,17 +82,19 @@ jobs:
           )
           assert "version" not in claude_marketplace["metadata"]
           assert [plugin["name"] for plugin in claude_marketplace["plugins"]] == ["suews"]
+          assert claude_marketplace["plugins"][0]["source"] == "./plugins/suews"
 
           required = [
-              output / ".mcp.json",
               output / "plugins/suews/.mcp.json",
               output / "plugins/suews/.codex-plugin/plugin.json",
+              output / "plugins/suews/.claude-plugin/plugin.json",
               output / "plugins/suews/assets/icon.png",
+              output / "plugins/suews/LICENSE",
+              output / "plugins/suews/README.md",
           ]
           for path in required:
               assert path.exists(), f"missing generated file: {path}"
 
-          assert manifest(output / ".claude/skills/suews") == manifest(source)
           assert manifest(output / "plugins/suews/skills/suews") == manifest(source)
           PY
 

@@ -27,6 +27,8 @@
 #   PYTHON_CHANGED       -- detect-changes output
 #   UTIL_CHANGED         -- detect-changes output
 #   BUILD_CHANGED        -- detect-changes output
+#   CI_CHANGED           -- detect-changes output (merge queue keeps all three
+#                           OS families when CI or build tooling changed)
 #   INPUT_MATRIX_CONFIG  -- inputs.matrix_config (dispatch only)
 #   INPUT_PLAT_LINUX     -- inputs.plat_linux (dispatch/custom only)
 #   INPUT_PLAT_MACOS_INTEL -- inputs.plat_macos_intel
@@ -52,6 +54,7 @@ IS_DRAFT="${IS_DRAFT:-false}"
 INPUT_MATRIX_CONFIG="${INPUT_MATRIX_CONFIG:-}"
 INPUT_TEST_TIER="${INPUT_TEST_TIER:-all}"
 PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
+CI_CHANGED="${CI_CHANGED:-false}"
 GITHUB_REF="${GITHUB_REF:-}"
 
 # Platform presets
@@ -156,14 +159,23 @@ elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
   # how a known output-changing PR landed without the shift being caught. When
   # the queued PR carries 0-physics:change, run the full physics tier here too.
   MERGE_TIER=standard
+  MERGE_PLATFORMS="$PR_PLATFORMS"
   if [[ "${PHYSICS_CHANGE}" == "true" ]]; then
     echo "Merge queue validation - physics-change PR, full physics tier (incl. slow)"
     MERGE_TIER=physics-full
-  else
+  elif [[ "$NEEDS_MULTIPLATFORM" == "true" ]] || [[ "${CI_CHANGED}" == "true" ]] || \
+       [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
     echo "Merge queue validation - reduced platforms, standard tests"
+  else
+    # Only tests (or other non-package files) changed across the queued group,
+    # so every wheel is byte-for-byte what master already validated on all
+    # three OS families. One Linux build is enough to run the new tests; the
+    # nightly still covers them on every platform.
+    echo "Merge queue validation - tests-only change, minimal platform, standard tests"
+    MERGE_PLATFORMS="$MINIMAL_PLATFORMS"
   fi
-  echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
-  echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "buildplat=$MERGE_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "api_buildplat=$MERGE_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=$MERGE_TIER" >> "$GITHUB_OUTPUT"
   # Ready-PR CI already exercises the API suite on both Python bookends. The

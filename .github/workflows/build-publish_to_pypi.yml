@@ -375,6 +375,7 @@ jobs:
           PYTHON_CHANGED: ${{ needs.detect-changes.outputs.python-changed || 'false' }}
           UTIL_CHANGED: ${{ needs.detect-changes.outputs.util-changed || 'false' }}
           BUILD_CHANGED: ${{ needs.detect-changes.outputs.build-changed || 'false' }}
+          CI_CHANGED: ${{ needs.detect-changes.outputs.ci-changed || 'false' }}
           INPUT_MATRIX_CONFIG: ${{ inputs.matrix_config }}
           INPUT_PLAT_LINUX: ${{ inputs.plat_linux }}
           INPUT_PLAT_MACOS_INTEL: ${{ inputs.plat_macos_intel }}

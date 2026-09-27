@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 88       | 33 | 83 | 42 | 327   |
+| 2026 | 80       | 88       | 33 | 84 | 42 | 328   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 27 Sep 2026
 
+- [maintenance] Make the generated `UMEP-dev/suews-agent` plugin folder submittable to Anthropic's plugin directory
+  - `plugins/suews/` in the generated repository is now self-contained for every host: a Claude Code `.claude-plugin/plugin.json`, a listing README, the licence, the `suews` skill, and a `.mcp.json` whose `suews-mcp` launcher is pinned to the source commit rather than following `master`
+  - The Claude Code marketplace entry points at that folder, and the duplicate `.claude/skills/suews/` and root `.mcp.json` copies are no longer generated
 - [maintenance] The merge queue builds and tests on Linux only when the queued group changes nothing but tests or other non-package files, instead of rebuilding wheels on Linux, macOS and Windows; changes to Fortran, Rust, Python, build or CI files keep the three-platform queue build
 
 ### 18 Sep 2026

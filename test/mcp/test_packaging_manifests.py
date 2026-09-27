@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -248,24 +249,73 @@ def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -
     assert "version" not in claude_marketplace["metadata"]
     assert [plugin["name"] for plugin in claude_marketplace["plugins"]] == ["suews"]
 
-    assert (output / ".mcp.json").exists()
-    assert (output / "plugins" / "suews" / ".mcp.json").exists()
-    assert (
-        output / "plugins" / "suews" / ".codex-plugin" / "plugin.json"
-    ).exists()
-    assert (output / "plugins" / "suews" / "assets" / "icon.png").exists()
+    plugin_dir = output / "plugins" / "suews"
+    assert claude_marketplace["plugins"][0]["source"] == "./plugins/suews"
+    for rel in (
+        ".mcp.json",
+        ".codex-plugin/plugin.json",
+        ".claude-plugin/plugin.json",
+        "assets/icon.png",
+        "LICENSE",
+        "README.md",
+    ):
+        assert (plugin_dir / rel).exists(), f"missing plugins/suews/{rel}"
+    # Copies earlier syncs wrote outside the plugin folder are removed.
+    assert not (output / ".mcp.json").exists()
+    assert not (output / ".claude").exists()
 
     readme = (output / "README.md").read_text(encoding="utf-8")
     assert "generated distribution mirror" in readme
     assert "SUEWS agent-plugin sync workflow" in readme
 
     source = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
-    claude_skill = _skill_manifest(output / ".claude" / "skills" / "suews")
-    codex_skill = _skill_manifest(
-        output / "plugins" / "suews" / "skills" / "suews"
+    assert _skill_manifest(plugin_dir / "skills" / "suews") == source
+
+
+def test_agent_plugin_folder_meets_directory_basics(tmp_path: Path) -> None:
+    """`plugins/suews/` in the generated repo is what Anthropic's plugin
+    directory is submitted with. Guard the checks its portal blocks on that
+    `claude plugin validate` does not cover: a manifest name, a README of at
+    least 40 words outside code blocks, a licence, and an MCP launcher pinned
+    to an exact source commit rather than a moving branch.
+    """
+    output = tmp_path / "suews-agent"
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_agent_plugin.py"),
+            "--output",
+            str(output),
+        ],
+        check=True,
+        capture_output=True,
     )
-    assert claude_skill == source
-    assert codex_skill == source
+    plugin_dir = output / "plugins" / "suews"
+
+    manifest = json.loads(
+        (plugin_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+    assert re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?", manifest["name"])
+    assert manifest["license"] and manifest["description"] and manifest["author"]
+
+    readme = (plugin_dir / "README.md").read_text(encoding="utf-8")
+    prose = re.sub(r"```.*?```", "", readme, flags=re.DOTALL)
+    assert len(prose.split()) >= 40
+    assert (plugin_dir / "LICENSE").read_text(encoding="utf-8").strip()
+
+    commit = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    servers = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))[
+        "mcpServers"
+    ]
+    for name, server in servers.items():
+        assert any(f".git@{commit}#" in arg for arg in server["args"]), (
+            f"server {name!r} is not pinned to the source commit: {server['args']}"
+        )
 
 
 def test_build_plugin_generates_single_skill_bundle_from_source() -> None:

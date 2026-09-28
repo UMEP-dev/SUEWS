@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 88       | 33 | 84 | 42 | 328   |
+| 2026 | 80       | 88       | 33 | 85 | 42 | 329   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,12 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 28 Sep 2026
+
+- [maintenance] The generated `UMEP-dev/suews-agent` plugin now runs `suews-mcp` from source vendored in the plugin, clearing the plugin directory's hold on `uvx` package launchers
+  - `plugins/suews/server/` carries the `mcp/` source with a generated `uv.lock`, narrowed to Python 3.12-3.13 and the four platforms `supy` publishes wheels for so the lockfile stays under the directory's 256 KiB read limit; Claude Code starts it with `uv run --frozen --project ${CLAUDE_PLUGIN_ROOT}/server suews-mcp`
+  - Codex does not expand `${CLAUDE_PLUGIN_ROOT}`, so its manifest points at a separate `.codex-mcp.json` that keeps the commit-pinned `uvx` launcher
 
 ### 27 Sep 2026
 

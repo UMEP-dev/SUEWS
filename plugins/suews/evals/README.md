@@ -18,7 +18,16 @@ does not copy it into the public `UMEP-dev/suews-agent` mirror.
 
 ## Run
 
-Build the skill bundle first (`make plugin`), then from the repository root:
+On your own account, the simplest route is the wrapper, which builds the
+skill bundle and sweeps the models you name (default: haiku):
+
+```bash
+plugins/suews/evals/run_local.sh haiku sonnet opus
+```
+
+It writes one JSON result and one HTML report per model under
+`plugins/suews/evals/results/<timestamp>/` (gitignored). The underlying command,
+if you want to run it by hand: build the skill bundle first (`make plugin`), then from the repository root:
 
 ```bash
 claude plugin eval plugins/suews \

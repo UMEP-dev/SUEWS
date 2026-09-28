@@ -13,6 +13,8 @@ on:
       - 'plugins/suews/.claude-plugin/**'
       - 'plugins/suews/README.md'
       - 'plugins/suews/assets/**'
+      - 'mcp/**'
+      - 'get_ver_git.py'
       - 'scripts/build_agent_plugin.py'
       - 'LICENSE'
       - '.github/workflows/sync-agent-plugin.yml'
@@ -46,6 +48,9 @@ jobs:
           path: suews-agent
           token: ${{ secrets.SUEWS_AGENT_PUSH_TOKEN }}
           fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
 
       - name: Generate agent repository
         run: python scripts/build_agent_plugin.py --output suews-agent
@@ -86,6 +91,10 @@ jobs:
 
           required = [
               output / "plugins/suews/.mcp.json",
+              output / "plugins/suews/.codex-mcp.json",
+              output / "plugins/suews/server/pyproject.toml",
+              output / "plugins/suews/server/uv.lock",
+              output / "plugins/suews/server/src/suews_mcp/_version_scm.py",
               output / "plugins/suews/.codex-plugin/plugin.json",
               output / "plugins/suews/.claude-plugin/plugin.json",
               output / "plugins/suews/assets/icon.png",
@@ -96,6 +105,19 @@ jobs:
               assert path.exists(), f"missing generated file: {path}"
 
           assert manifest(output / "plugins/suews/skills/suews") == manifest(source)
+
+          # The plugin directory reads files up to 256 KiB; a larger lockfile
+          # would leave the vendored server held for review.
+          assert (output / "plugins/suews/server/uv.lock").stat().st_size <= 256 * 1024
+
+          claude_mcp = json.loads((output / "plugins/suews/.mcp.json").read_text())
+          server = claude_mcp["mcpServers"]["suews"]
+          assert server["command"] == "uv"
+          assert "${CLAUDE_PLUGIN_ROOT}/server" in server["args"]
+          codex_manifest = json.loads(
+              (output / "plugins/suews/.codex-plugin/plugin.json").read_text()
+          )
+          assert codex_manifest["mcpServers"] == "./.codex-mcp.json"
           PY
 
       - name: Publish if changed

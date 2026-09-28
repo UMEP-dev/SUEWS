@@ -226,6 +226,8 @@ def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -
             str(REPO_ROOT / "scripts" / "build_agent_plugin.py"),
             "--output",
             str(output),
+            # `uv lock` needs the network; the sync workflow runs it for real.
+            "--skip-lock",
         ],
         check=True,
         capture_output=True,
@@ -253,6 +255,10 @@ def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -
     assert claude_marketplace["plugins"][0]["source"] == "./plugins/suews"
     for rel in (
         ".mcp.json",
+        ".codex-mcp.json",
+        "server/pyproject.toml",
+        "server/src/suews_mcp/server.py",
+        "server/src/suews_mcp/_version_scm.py",
         ".codex-plugin/plugin.json",
         ".claude-plugin/plugin.json",
         "assets/icon.png",
@@ -276,8 +282,11 @@ def test_agent_plugin_folder_meets_directory_basics(tmp_path: Path) -> None:
     """`plugins/suews/` in the generated repo is what Anthropic's plugin
     directory is submitted with. Guard the checks its portal blocks on that
     `claude plugin validate` does not cover: a manifest name, a README of at
-    least 40 words outside code blocks, a licence, and an MCP launcher pinned
-    to an exact source commit rather than a moving branch.
+    least 40 words outside code blocks, a licence, and an MCP server run from
+    source vendored in the plugin rather than fetched by `uvx` (the directory
+    holds package launchers for review). Codex cannot expand
+    `${CLAUDE_PLUGIN_ROOT}`, so it keeps a `uvx` launcher pinned to the source
+    commit in its own MCP file.
     """
     output = tmp_path / "suews-agent"
     subprocess.run(
@@ -286,6 +295,8 @@ def test_agent_plugin_folder_meets_directory_basics(tmp_path: Path) -> None:
             str(REPO_ROOT / "scripts" / "build_agent_plugin.py"),
             "--output",
             str(output),
+            # `uv lock` needs the network; the sync workflow runs it for real.
+            "--skip-lock",
         ],
         check=True,
         capture_output=True,
@@ -303,16 +314,37 @@ def test_agent_plugin_folder_meets_directory_basics(tmp_path: Path) -> None:
     assert len(prose.split()) >= 40
     assert (plugin_dir / "LICENSE").read_text(encoding="utf-8").strip()
 
+    servers = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))[
+        "mcpServers"
+    ]
+    for name, server in servers.items():
+        assert server["command"] == "uv", (
+            f"server {name!r} must run the vendored copy through uv: {server}"
+        )
+        assert "--frozen" in server["args"]
+        assert "${CLAUDE_PLUGIN_ROOT}/server" in server["args"]
+        assert not any("git+" in arg for arg in server["args"])
+
+    pyproject = (plugin_dir / "server" / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    assert "[tool.uv]" in pyproject and "environments" in pyproject
+    assert "[project.optional-dependencies]" not in pyproject
+
     commit = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
         check=True,
         capture_output=True,
         text=True,
     ).stdout.strip()
-    servers = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))[
-        "mcpServers"
-    ]
-    for name, server in servers.items():
+    codex_manifest = json.loads(
+        (plugin_dir / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+    assert codex_manifest["mcpServers"] == "./.codex-mcp.json"
+    codex_servers = json.loads(
+        (plugin_dir / ".codex-mcp.json").read_text(encoding="utf-8")
+    )["mcpServers"]
+    for name, server in codex_servers.items():
         assert any(f".git@{commit}#" in arg for arg in server["args"]), (
             f"server {name!r} is not pinned to the source commit: {server['args']}"
         )

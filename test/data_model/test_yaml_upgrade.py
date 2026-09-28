@@ -57,6 +57,51 @@ def signed_yaml(tmp_path: Path, release_yaml: Path) -> Path:
 
 
 @pytest.mark.cfg
+@pytest.mark.parametrize("explicit_controls", [False, True])
+def test_dev3_stebbs_controls_upgrade_preserves_content(
+    sample_yaml_path: Path, tmp_path: Path, explicit_controls: bool
+):
+    """Upgrade older YAMLs without losing values or requiring new controls."""
+    payload = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+    payload["schema_version"] = "2026.6.dev3"
+    controls = {
+        "internal_shading": 2,
+        "reduction_factor_shading": 0.4,
+        "temperature_threshold_shading": 24.0,
+        "radiation_threshold_shading": 200.0,
+        "destination_waste_heat": 1,
+        "convective_fraction_heating": 0.6,
+    }
+    stebbs = payload["sites"][0]["properties"]["stebbs"]
+    for name, value in controls.items():
+        if explicit_controls:
+            stebbs[name] = {"value": value}
+        else:
+            stebbs.pop(name, None)
+    source = tmp_path / "dev3.yml"
+    output = tmp_path / "dev4.yml"
+    source.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    upgrade_yaml(input_path=source, output_path=output)
+
+    migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
+    assert migrated.pop("schema_version") == "2026.6.dev4"
+    payload.pop("schema_version")
+    assert migrated == payload
+    config = SUEWSConfig.from_yaml(str(output))
+    expected = controls if explicit_controls else {
+        "internal_shading": 0,
+        "reduction_factor_shading": 1.0,
+        "temperature_threshold_shading": 0.0,
+        "radiation_threshold_shading": 0.0,
+        "destination_waste_heat": 0,
+        "convective_fraction_heating": 1.0,
+    }
+    for name, value in expected.items():
+        assert getattr(config.sites[0].properties.stebbs, name) == pytest.approx(value)
+
+
+@pytest.mark.cfg
 class TestYamlUpgradeModule:
     """Behaviour of `upgrade_yaml` at the Python-API level."""
 

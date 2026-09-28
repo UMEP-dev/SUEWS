@@ -28,7 +28,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev3"`` describes the shape of the configuration
+``schema_version: "2026.6.dev4"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +41,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev3"
+   schema_version: "2026.6.dev4"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -59,7 +59,8 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number — ``2026.6.dev3`` comes after ``2026.6.dev2``,
+as a floating-point number — ``2026.6.dev4`` comes after ``2026.6.dev3``,
+which comes after ``2026.6.dev2``,
 which comes after ``2026.6.dev1``,
 which comes after ``2026.5``,
 which comes after ``2026.4``, which comes after ``2026.1``, which comes
@@ -110,7 +111,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev3 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev4 (compatible)
 
    The YAML loads via the chained migration. Regenerate the file with
    :doc:`/inputs/converter` if you want to persist the upgrade.
@@ -118,13 +119,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev3.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev4.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev3.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev4.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -174,7 +175,17 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev3** (current; development)
+**Schema 2026.6.dev4** (current; development)
+   Development schema adding six optional inputs under
+   ``sites[*].properties.stebbs``: ``internal_shading``,
+   ``reduction_factor_shading``, ``temperature_threshold_shading``,
+   ``radiation_threshold_shading``, ``destination_waste_heat`` and
+   ``convective_fraction_heating``. Their defaults disable shading, retain
+   space-heating waste heat indoors and deliver all useful heating to indoor
+   air. The ``(2026.6.dev3 -> 2026.6.dev4)`` handler preserves configuration
+   content and updates the schema marker; explicit settings are retained.
+
+**Schema 2026.6.dev3** (development)
    Development schema completing the naming-convention sweep for
    ``sites[*].properties.anthropogenic_emissions.co2``. Fourteen fused or
    unit-bearing keys are replaced with quantity-first or category-prefixed

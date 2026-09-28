@@ -223,6 +223,38 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.6.dev4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev4`` adds optional shading and space-heating controls under
+``sites[*].properties.stebbs``:
+
+- ``internal_shading`` defaults to ``0`` (off); ``1`` enables constant shading
+  and ``2`` enables shading when both temperature and radiation thresholds
+  are met.
+- ``reduction_factor_shading`` is the retained fraction of transmitted solar
+  gain. It defaults to ``1.0`` and must be supplied explicitly for modes
+  ``1`` and ``2``.
+- ``temperature_threshold_shading`` (degrees Celsius) and
+  ``radiation_threshold_shading`` (W |m^-2|) default to ``0.0`` while inactive
+  and must both be supplied explicitly for mode ``2``.
+- ``destination_waste_heat`` defaults to ``0`` (indoor air); ``1`` directs
+  space-heating system losses outdoors.
+- ``convective_fraction_heating`` defaults to ``1.0`` (all useful heating to
+  indoor air). The remainder is split equally between indoor mass and the
+  internal wall; with no opaque wall, indoor mass receives the remainder.
+
+Existing YAMLs require no new values. The migration preserves their content
+and any explicitly supplied controls, updating only the schema marker.
+These defaults preserve the previous control settings; they do not undo
+physics corrections in the model code.
+
+Upgrade a ``2026.6.dev3`` YAML with:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
 Upgrading to Schema 2026.6.dev3
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

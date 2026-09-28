@@ -13401,7 +13401,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev3. Development schema completing the CO2Params naming-convention sweep (#1688): fourteen fused or unit-bearing anthropogenic-emissions keys renamed to quantity-first or category-prefixed identifiers. Existing 2026.6.dev2 YAMLs remain compatible through an explicit rename migration; legacy df_state column names are unchanged.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev4. Development schema adding STEBBS internal_shading, reduction_factor_shading, temperature_threshold_shading, radiation_threshold_shading, destination_waste_heat and convective_fraction_heating inputs. Existing 2026.6.dev3 YAMLs remain compatible through a no-op content migration: defaults disable shading, retain space-heating waste heat indoors and deliver all useful space heating to indoor air.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13454,20 +13454,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev3",
+  "title": "SUEWS Configuration Schema v2026.6.dev4",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev3.json",
-  "version": "2026.6.dev3",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev4.json",
+  "version": "2026.6.dev4",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev3"
+    "schema_version": "2026.6.dev4"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev3",
+      "schema_version": "2026.6.dev4",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

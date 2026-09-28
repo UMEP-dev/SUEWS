@@ -1,0 +1,50 @@
+schema_version: "1.1"
+name: d-diagnose-bad-fractions
+description: >
+  Group D (diagnosis). scaffold.sh plants one fault in a copy of the sample
+  configuration: the building fraction is 0.58, so land-cover fractions sum
+  to 1.2. The agent must find that fault, not a different one. Run with
+  --scaffold.
+tags: [group-d, diagnose]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    My SUEWS configuration ./config.yml will not run. Find out why, tell me
+    exactly which value is wrong and what it should satisfy, and do not
+    change any file.
+  max_turns: 25
+  timeout_seconds: 900
+  allowed_tools:
+    - Skill
+    - Read
+    - Bash
+    - Glob
+    - Grep
+    - mcp__plugin_suews_suews__validate_config
+    - mcp__plugin_suews_suews__inspect_config
+    - mcp__plugin_suews_suews__diagnose_run
+runs: 3
+graders:
+  - type: regex
+    name: names-fraction-sum
+    target: last_message
+    pattern: "(sum|add up|total)[^.]{0,80}(1\\.0|one|unity)|1\\.2"
+    flags: i
+  - type: regex
+    name: names-building-fraction
+    target: last_message
+    pattern: "bldgs|building"
+    flags: i
+  - type: regex
+    name: config-left-unchanged
+    target: {source: file, path: config.yml}
+    pattern: "sfr:\\n\\s*value: 0\\.58"
+  - type: llm
+    name: points-at-planted-fault
+    criteria: >
+      Pass only if the answer identifies that the land-cover surface
+      fractions (sfr) sum to more than 1, points at the building fraction
+      (0.58) as the likely wrong value, and does not claim to have fixed the
+      file. Blaming the forcing, the model version or an unrelated parameter
+      fails.

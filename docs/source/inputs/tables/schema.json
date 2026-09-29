@@ -11021,7 +11021,7 @@
           "title": "Destination Waste Heat",
           "unit": "dimensionless"
         },
-        "convective_fraction_heating": {
+        "fraction_convective_heating": {
           "anyOf": [
             {
               "anyOf": [
@@ -11042,7 +11042,7 @@
           "default": 1.0,
           "description": "Fraction of useful space-heating output convected to indoor air; the remainder is split equally between indoor mass and the internal wall surface. If no opaque wall is present, its share goes to indoor mass [-]",
           "display_name": "Space-Heating Convective Fraction",
-          "title": "Convective Fraction Heating",
+          "title": "Fraction Convective Heating",
           "unit": "dimensionless"
         },
         "max_power_cooling_system_air": {
@@ -13401,7 +13401,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev4. Development schema adding STEBBS internal_shading, reduction_factor_shading, temperature_threshold_shading, radiation_threshold_shading, destination_waste_heat and convective_fraction_heating inputs. Existing 2026.6.dev3 YAMLs remain compatible through a no-op content migration: defaults disable shading, retain space-heating waste heat indoors and deliver all useful space heating to indoor air.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev4. Development schema adding STEBBS internal_shading, reduction_factor_shading, temperature_threshold_shading, radiation_threshold_shading, destination_waste_heat and fraction_convective_heating inputs. Defaults disable shading, retain space-heating waste heat indoors and deliver all useful heating to indoor air. Existing 2026.6.dev3 YAMLs remain compatible through a no-op content migration that preserves explicit settings.",
   "properties": {
     "name": {
       "default": "sample config",

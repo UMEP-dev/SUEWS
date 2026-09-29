@@ -141,10 +141,10 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "Development schema adding STEBBS internal_shading, "
         "reduction_factor_shading, temperature_threshold_shading, "
         "radiation_threshold_shading, destination_waste_heat and "
-        "convective_fraction_heating inputs. Existing 2026.6.dev3 YAMLs "
-        "remain compatible through a no-op content migration: defaults "
-        "disable shading, retain space-heating waste heat indoors and "
-        "deliver all useful space heating to indoor air."
+        "fraction_convective_heating inputs. Defaults disable shading, retain "
+        "space-heating waste heat indoors and deliver all useful heating to "
+        "indoor air. Existing 2026.6.dev3 YAMLs remain compatible through "
+        "a no-op content migration that preserves explicit settings."
     ),
 }
 

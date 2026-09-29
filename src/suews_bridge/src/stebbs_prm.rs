@@ -35,7 +35,7 @@ pub struct StebbsPrm {
     pub radiation_threshold_shading: f64,
     pub heating_system_efficiency: f64,
     pub destination_waste_heat: f64,
-    pub convective_fraction_heating: f64,
+    pub fraction_convective_heating: f64,
     pub max_cooling_power: f64,
     pub cooling_system_cop: f64,
     pub ventilation_rate: f64,
@@ -90,7 +90,7 @@ impl Default for StebbsPrm {
             radiation_threshold_shading: 0.0,
             heating_system_efficiency: 0.0,
             destination_waste_heat: 0.0,
-            convective_fraction_heating: 1.0,
+            fraction_convective_heating: 1.0,
             max_cooling_power: 0.0,
             cooling_system_cop: 0.0,
             ventilation_rate: 0.0,
@@ -174,9 +174,9 @@ impl StebbsPrm {
         if !matches!(destination_waste_heat, 0.0 | 1.0) {
             return Err(BridgeError::BadState);
         }
-        let convective_fraction_heating = next();
-        if !convective_fraction_heating.is_finite()
-            || !(0.0..=1.0).contains(&convective_fraction_heating)
+        let fraction_convective_heating = next();
+        if !fraction_convective_heating.is_finite()
+            || !(0.0..=1.0).contains(&fraction_convective_heating)
         {
             return Err(BridgeError::BadState);
         }
@@ -237,7 +237,7 @@ impl StebbsPrm {
             radiation_threshold_shading,
             heating_system_efficiency,
             destination_waste_heat,
-            convective_fraction_heating,
+            fraction_convective_heating,
             max_cooling_power,
             cooling_system_cop,
             ventilation_rate,
@@ -293,7 +293,7 @@ impl StebbsPrm {
         flat.push(self.radiation_threshold_shading);
         flat.push(self.heating_system_efficiency);
         flat.push(self.destination_waste_heat);
-        flat.push(self.convective_fraction_heating);
+        flat.push(self.fraction_convective_heating);
         flat.push(self.max_cooling_power);
         flat.push(self.cooling_system_cop);
         flat.push(self.ventilation_rate);
@@ -373,7 +373,7 @@ pub fn stebbs_prm_field_names() -> Vec<String> {
         "radiation_threshold_shading".to_string(),
         "heating_system_efficiency".to_string(),
         "destination_waste_heat".to_string(),
-        "convective_fraction_heating".to_string(),
+        "fraction_convective_heating".to_string(),
         "max_cooling_power".to_string(),
         "cooling_system_cop".to_string(),
         "ventilation_rate".to_string(),
@@ -458,16 +458,16 @@ mod tests {
     }
 
     #[test]
-    fn convective_fraction_heating_defaults_to_air() {
+    fn fraction_convective_heating_defaults_to_air() {
         let mapped = stebbs_prm_to_map(&StebbsPrm::default());
-        assert_eq!(mapped.get("convective_fraction_heating"), Some(&1.0));
+        assert_eq!(mapped.get("fraction_convective_heating"), Some(&1.0));
     }
 
     #[test]
-    fn convective_fraction_heating_roundtrips_valid_fractions() {
+    fn fraction_convective_heating_roundtrips_valid_fractions() {
         for fraction in [0.0, 0.6, 1.0] {
             let mut mapped = stebbs_prm_to_map(&StebbsPrm::default());
-            mapped.insert("convective_fraction_heating".to_string(), fraction);
+            mapped.insert("fraction_convective_heating".to_string(), fraction);
 
             let updated = stebbs_prm_from_map(&mapped).expect("valid heating fraction should work");
             let decoded = StebbsPrm::from_flat(&updated.to_flat())
@@ -475,17 +475,17 @@ mod tests {
             let roundtripped = stebbs_prm_to_map(&decoded);
 
             assert_eq!(
-                roundtripped.get("convective_fraction_heating"),
+                roundtripped.get("fraction_convective_heating"),
                 Some(&fraction)
             );
         }
     }
 
     #[test]
-    fn convective_fraction_heating_rejects_invalid_fractions() {
+    fn fraction_convective_heating_rejects_invalid_fractions() {
         for fraction in [-0.1, 1.1, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
             let mut mapped = stebbs_prm_to_map(&StebbsPrm::default());
-            mapped.insert("convective_fraction_heating".to_string(), fraction);
+            mapped.insert("fraction_convective_heating".to_string(), fraction);
 
             assert_eq!(stebbs_prm_from_map(&mapped), Err(BridgeError::BadState));
         }

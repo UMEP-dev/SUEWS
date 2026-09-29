@@ -2431,7 +2431,7 @@ mod tests {
         assert_eq!(run_cfg.site.stebbs.internal_shading, 0.0);
         assert_eq!(run_cfg.site.stebbs.reduction_factor_shading, 1.0);
         assert_eq!(run_cfg.site.stebbs.destination_waste_heat, 0.0);
-        assert_eq!(run_cfg.site.stebbs.convective_fraction_heating, 1.0);
+        assert_eq!(run_cfg.site.stebbs.fraction_convective_heating, 1.0);
         assert!((run_cfg.site.building_archtype.lightingpowerdensity - 2.0).abs() < 1.0e-12);
 
         assert!((run_cfg.state.stebbs_state.deep_soil_temperature - 10.738).abs() < 1.0e-12);
@@ -2504,7 +2504,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_convective_fraction_heating_and_defaults_to_air() {
+    fn parses_fraction_convective_heating_and_defaults_to_air() {
         let mut root: Value =
             serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain one site");
@@ -2513,12 +2513,12 @@ mod tests {
         else {
             panic!("STEBBS properties should be a mapping");
         };
-        stebbs.remove(Value::String("convective_fraction_heating".to_string()));
+        stebbs.remove(Value::String("fraction_convective_heating".to_string()));
 
         let omitted = load_run_config_from_value(&mut root.clone())
             .expect("omitted heating fraction should parse");
         assert_eq!(
-            stebbs_prm_to_map(&omitted.site.stebbs).get("convective_fraction_heating"),
+            stebbs_prm_to_map(&omitted.site.stebbs).get("fraction_convective_heating"),
             Some(&1.0)
         );
 
@@ -2529,14 +2529,14 @@ mod tests {
             panic!("STEBBS properties should be a mapping");
         };
         stebbs.insert(
-            Value::String("convective_fraction_heating".to_string()),
+            Value::String("fraction_convective_heating".to_string()),
             serde_yaml::from_str("value: 0.6").expect("heating fraction should be valid YAML"),
         );
 
         let explicit =
             load_run_config_from_value(&mut root).expect("explicit heating fraction should parse");
         assert_eq!(
-            stebbs_prm_to_map(&explicit.site.stebbs).get("convective_fraction_heating"),
+            stebbs_prm_to_map(&explicit.site.stebbs).get("fraction_convective_heating"),
             Some(&0.6)
         );
     }

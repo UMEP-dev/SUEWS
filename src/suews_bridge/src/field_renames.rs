@@ -236,7 +236,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("radiation_threshold_shading", "RadiationThresholdShading"),
     ("heating_system_efficiency", "HeatingSystemEfficiency"),
     ("destination_waste_heat", "DestinationWasteHeat"),
-    ("convective_fraction_heating", "ConvectiveFractionHeating"),
+    ("fraction_convective_heating", "FractionConvectiveHeating"),
     ("max_cooling_power", "MaxCoolingPower"),
     ("cooling_system_cop", "CoolingSystemCOP"),
     ("ventilation_rate", "VentilationRate"),

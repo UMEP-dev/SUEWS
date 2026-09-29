@@ -2317,7 +2317,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Space-Heating Waste-Heat Destination",
         },
     )
-    convective_fraction_heating: Optional[FlexibleRefValue(float)] = Field(
+    fraction_convective_heating: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description=(
             "Fraction of useful space-heating output convected to indoor air; "

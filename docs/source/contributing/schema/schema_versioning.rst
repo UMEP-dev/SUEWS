@@ -180,7 +180,7 @@ the schema that shipped with it via
    ``sites[*].properties.stebbs``: ``internal_shading``,
    ``reduction_factor_shading``, ``temperature_threshold_shading``,
    ``radiation_threshold_shading``, ``destination_waste_heat`` and
-   ``convective_fraction_heating``. Their defaults disable shading, retain
+   ``fraction_convective_heating``. Their defaults disable shading, retain
    space-heating waste heat indoors and deliver all useful heating to indoor
    air. The ``(2026.6.dev3 -> 2026.6.dev4)`` handler preserves configuration
    content and updates the schema marker; explicit settings are retained.

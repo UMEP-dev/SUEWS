@@ -4718,7 +4718,7 @@ CONTAINS
       MetabolismThreshold, LatentSensibleRatio, DaylightControl, LightingIlluminanceThreshold, &
       InternalShading, ReductionFactorShading, TemperatureThresholdShading, RadiationThresholdShading, &
       ApplianceProfile, LightingPowerDensity, &
-      HeatingSystemEfficiency, DestinationWasteHeat, ConvectiveFractionHeating, &
+      HeatingSystemEfficiency, DestinationWasteHeat, FractionConvectiveHeating, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, &
       AnnualMeanAirTemperature, MonthMeanAirTemperature_diffmax, &
       InitialOutdoorTemperature, InitialIndoorTemperature, &
@@ -5146,7 +5146,7 @@ CONTAINS
       REAL(KIND(1D0)) :: RadiationThresholdShading
       REAL(KIND(1D0)) :: HeatingSystemEfficiency
       INTEGER :: DestinationWasteHeat
-      REAL(KIND(1D0)) :: ConvectiveFractionHeating
+      REAL(KIND(1D0)) :: FractionConvectiveHeating
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
       REAL(KIND(1D0)) :: VentilationRate
@@ -6034,7 +6034,7 @@ CONTAINS
       stebbsPrm%radiation_threshold_shading = RadiationThresholdShading
       stebbsPrm%heating_system_efficiency = HeatingSystemEfficiency
       stebbsPrm%destination_waste_heat = DestinationWasteHeat
-      stebbsPrm%convective_fraction_heating = ConvectiveFractionHeating
+      stebbsPrm%fraction_convective_heating = FractionConvectiveHeating
       stebbsPrm%max_cooling_power = MaxCoolingPower
       stebbsPrm%cooling_system_cop = CoolingSystemCOP
       stebbsPrm%ventilation_rate = VentilationRate

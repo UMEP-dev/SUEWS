@@ -1318,7 +1318,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%occupants_state, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
       self%appliance_power_rating, self%lighting_power_rating,&
       self%maxheatingpower_air, self%heating_efficiency_air, self%destination_waste_heat, &
-      self%convective_fraction_heating, &
+      self%fraction_convective_heating, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%a_wall, self%a_roof, &
       self%v_wall, self%v_roof, self%a_footprint, self%v_ground_floor, &
@@ -1434,7 +1434,7 @@ SUBROUTINE tstep( &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
    appliance_power_rating, lighting_power_rating, &
    maxheatingpower_air, heating_efficiency_air, destination_waste_heat, &
-   convective_fraction_heating, &
+   fraction_convective_heating, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
    Vwall, Vroof, Afootprint, Vgroundfloor, &
@@ -1581,7 +1581,7 @@ SUBROUTINE tstep( &
                  roofR ! // roof reflectivity [-]
    INTEGER, INTENT(IN) :: internal_shading ! Internal window shading mode [-]
    INTEGER, INTENT(IN) :: destination_waste_heat ! Space-heating waste-heat destination: 0 indoor, 1 outdoor [-]
-   REAL(KIND(1D0)), INTENT(IN) :: convective_fraction_heating ! Fraction of useful heating delivered to indoor air [-]
+   REAL(KIND(1D0)), INTENT(IN) :: fraction_convective_heating ! Fraction of useful heating delivered to indoor air [-]
    REAL(KIND(1D0)), INTENT(IN) :: reduction_factor_shading, & ! Active transmitted fraction [-]
                                   temperature_threshold_shading, & ! Indoor-air threshold [degC]
                                   radiation_threshold_shading ! Wall/window shortwave threshold [W m-2]
@@ -1943,13 +1943,13 @@ SUBROUTINE tstep( &
 
          QHload_heating_timestep = heating(Ts(1), Tair_ind, maxheatingpower_air)
          ! Distribute useful heating; system waste heat is handled separately.
-         QH_heating_to_indair = convective_fraction_heating*QHload_heating_timestep
+         QH_heating_to_indair = fraction_convective_heating*QHload_heating_timestep
          IF (wall_surface_active) THEN
-            QH_heating_to_indoormass = 0.5D0*(1.0D0 - convective_fraction_heating)*QHload_heating_timestep
+            QH_heating_to_indoormass = 0.5D0*(1.0D0 - fraction_convective_heating)*QHload_heating_timestep
             QH_heating_to_intwall = QH_heating_to_indoormass
          ELSE
             ! With no opaque wall, indoor mass receives the entire remainder.
-            QH_heating_to_indoormass = (1.0D0 - convective_fraction_heating)*QHload_heating_timestep
+            QH_heating_to_indoormass = (1.0D0 - fraction_convective_heating)*QHload_heating_timestep
             QH_heating_to_intwall = 0.0D0
          END IF
          QHload_cooling_timestep = cooling(Ts(2), Tair_ind, maxcoolingpower_air)
@@ -2518,7 +2518,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%maxheatingpower_air = building_archtype%max_heating_power
    self%heating_efficiency_air = stebbsPrm%heating_system_efficiency
    self%destination_waste_heat = stebbsPrm%destination_waste_heat
-   self%convective_fraction_heating = stebbsPrm%convective_fraction_heating
+   self%fraction_convective_heating = stebbsPrm%fraction_convective_heating
    self%maxcoolingpower_air = stebbsPrm%max_cooling_power
    self%coeff_performance_cooling = stebbsPrm%cooling_system_cop
    self%Vair_ind = &

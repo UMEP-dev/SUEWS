@@ -70,7 +70,7 @@ def test_dev3_stebbs_controls_upgrade_preserves_content(
         "temperature_threshold_shading": 24.0,
         "radiation_threshold_shading": 200.0,
         "destination_waste_heat": 1,
-        "convective_fraction_heating": 0.6,
+        "fraction_convective_heating": 0.6,
     }
     stebbs = payload["sites"][0]["properties"]["stebbs"]
     for name, value in controls.items():
@@ -85,7 +85,7 @@ def test_dev3_stebbs_controls_upgrade_preserves_content(
     upgrade_yaml(input_path=source, output_path=output)
 
     migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
-    assert migrated.pop("schema_version") == "2026.6.dev4"
+    assert migrated.pop("schema_version") == CURRENT_SCHEMA_VERSION
     payload.pop("schema_version")
     assert migrated == payload
     config = SUEWSConfig.from_yaml(str(output))
@@ -95,7 +95,7 @@ def test_dev3_stebbs_controls_upgrade_preserves_content(
         "temperature_threshold_shading": 0.0,
         "radiation_threshold_shading": 0.0,
         "destination_waste_heat": 0,
-        "convective_fraction_heating": 1.0,
+        "fraction_convective_heating": 1.0,
     }
     for name, value in expected.items():
         assert getattr(config.sites[0].properties.stebbs, name) == pytest.approx(value)

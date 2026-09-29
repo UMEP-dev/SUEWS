@@ -85,7 +85,7 @@ def _run_daytime_shading_probe(
 
 
 def _run_heating_waste_probe(
-    destination_waste_heat, convective_fraction_heating=None, window_to_wall=None
+    destination_waste_heat, fraction_convective_heating=None, window_to_wall=None
 ):
     """Run one-second STEBBS updates with explicit heating settings."""
     simulation = sp.SUEWSSimulation(STEBBS_CONFIG)
@@ -93,8 +93,8 @@ def _run_heating_waste_probe(
     properties = simulation.config.sites[0].properties
     stebbs = properties.stebbs
     stebbs.destination_waste_heat = destination_waste_heat
-    if convective_fraction_heating is not None:
-        stebbs.convective_fraction_heating = convective_fraction_heating
+    if fraction_convective_heating is not None:
+        stebbs.fraction_convective_heating = fraction_convective_heating
     if window_to_wall is not None:
         properties.building_archetype.ratio_window_to_wall = window_to_wall
     simulation._df_state_init = simulation.config.to_df_state()
@@ -306,7 +306,7 @@ def heating_fraction_outputs(request):
 
 @pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
 @pytest.mark.parametrize("fraction,solid_share", [(0.0, 0.5), (0.6, 0.2)])
-def test_convective_fraction_heating_splits_useful_heat_equally_to_solids(
+def test_fraction_convective_heating_splits_useful_heat_equally_to_solids(
     heating_fraction_outputs, fraction, solid_share
 ):
     """Catch missing, duplicated, or misdirected heat in any receiving node."""
@@ -343,7 +343,7 @@ def test_convective_fraction_heating_splits_useful_heat_equally_to_solids(
 
 
 @pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
-def test_convective_fraction_heating_default_preserves_air_only_heating(
+def test_fraction_convective_heating_default_preserves_air_only_heating(
     heating_fraction_outputs,
 ):
     np.testing.assert_allclose(
@@ -355,7 +355,7 @@ def test_convective_fraction_heating_default_preserves_air_only_heating(
 
 
 @pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
-def test_convective_fraction_heating_without_wall_conserves_heat_in_mass():
+def test_fraction_convective_heating_without_wall_conserves_heat_in_mass():
     """An all-window facade cannot absorb heating in an inactive wall node."""
     baseline = _run_heating_waste_probe(1, 1.0, window_to_wall=1.0)
     split = _run_heating_waste_probe(1, 0.6, window_to_wall=1.0)

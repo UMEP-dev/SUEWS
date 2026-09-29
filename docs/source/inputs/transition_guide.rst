@@ -240,7 +240,7 @@ Schema ``2026.6.dev4`` adds optional shading and space-heating controls under
   and must both be supplied explicitly for mode ``2``.
 - ``destination_waste_heat`` defaults to ``0`` (indoor air); ``1`` directs
   space-heating system losses outdoors.
-- ``convective_fraction_heating`` defaults to ``1.0`` (all useful heating to
+- ``fraction_convective_heating`` defaults to ``1.0`` (all useful heating to
   indoor air). The remainder is split equally between indoor mass and the
   internal wall; with no opaque wall, indoor mass receives the remainder.
 

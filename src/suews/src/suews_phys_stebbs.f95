@@ -789,9 +789,6 @@ CONTAINS
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer, modState%errorState)
                stebbs_bldg_init = 1
             END IF
-            ! These heating settings are not part of the checkpointed building state.
-            buildings(1)%destination_waste_heat = stebbsPrm%destination_waste_heat
-            buildings(1)%convective_fraction_heating = stebbsPrm%convective_fraction_heating
 
             ! only for the BEERS scheme, Todo: remove other schemes, <1000 need to be just BEERS code. 
             IF (config%NetRadiationMethod < 1000) THEN

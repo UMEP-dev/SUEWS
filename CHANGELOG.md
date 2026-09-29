@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 88       | 33 | 85 | 42 | 329   |
+| 2026 | 80       | 88       | 33 | 86 | 42 | 330   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,12 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 29 Sep 2026
+
+- [maintenance] The generated agent plugin no longer ships build residue, and its MCP command names a file in the plugin
+  - Locking the vendored server built the package and left `__pycache__/*.pyc` and an `egg-info` in `plugins/suews/server/`, which the plugin directory could not inspect; the generator now removes them and the sync workflow fails if any remain
+  - `.mcp.json` runs `server/run_server.py` through `uv run` instead of the `suews-mcp` console-script name, so the command points at a file reviewers can read
 
 ### 28 Sep 2026
 

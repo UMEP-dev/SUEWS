@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev3"
+CURRENT_SCHEMA_VERSION = "2026.6.dev4"
 
 # Schema version history and descriptions.
 #
@@ -136,6 +136,15 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "renamed to quantity-first or category-prefixed identifiers. Existing "
         "2026.6.dev2 YAMLs remain compatible through an explicit rename "
         "migration; legacy df_state column names are unchanged."
+    ),
+    "2026.6.dev4": (
+        "Development schema adding STEBBS internal_shading, "
+        "reduction_factor_shading, temperature_threshold_shading, "
+        "radiation_threshold_shading, destination_waste_heat and "
+        "fraction_convective_heating inputs. Defaults disable shading, retain "
+        "space-heating waste heat indoors and deliver all useful heating to "
+        "indoor air. Existing 2026.6.dev3 YAMLs remain compatible through "
+        "a no-op content migration that preserves explicit settings."
     ),
 }
 

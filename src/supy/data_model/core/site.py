@@ -16,6 +16,7 @@ from ..validation.core.utils import (
     check_missing_params,
     validate_only_when_complete,
 )
+from ..validation.required_fields import stebbs_shading_requirements
 from .surface import (
     SurfaceType,
     SurfaceProperties,
@@ -2234,6 +2235,57 @@ class StebbsProperties(BaseModel):
             "display_name": "Daylight Control",
         },
     )
+    internal_shading: Optional[FlexibleRefValue(Literal[0, 1, 2])] = Field(
+        default=0,
+        description=(
+            "Internal window shading mode "
+            "(0 = off, 1 = always active, 2 = temperature-and-radiation controlled)"
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Internal Shading",
+        },
+    )
+    reduction_factor_shading: Optional[FlexibleRefValue(float)] = Field(
+        default=1.0,
+        description=(
+            "Effective multiplier of window-transmitted solar heat gain when "
+            "internal shading is active [-] (1 = unchanged, 0 = no retained gain). "
+            "Retained gain is applied to indoor thermal mass. The excluded "
+            "fraction is not separately modelled as blind absorption, reflection "
+            "or indoor heat release; this is not a blind optical transmittance. "
+            "Shading does not modify the daylight factor for lighting control."
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Internal Shading Reduction Factor",
+        },
+        ge=0.0,
+        le=1.0,
+    )
+    temperature_threshold_shading: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description=(
+            "Indoor air-temperature threshold for controlled internal shading [degC]"
+        ),
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Internal Shading Temperature Threshold",
+        },
+        gt=-273.15,
+    )
+    radiation_threshold_shading: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description=(
+            "Wall/window incident shortwave-radiation threshold for controlled "
+            "internal shading [W m-2]"
+        ),
+        json_schema_extra={
+            "unit": "W m^-2",
+            "display_name": "Internal Shading Radiation Threshold",
+        },
+        ge=0.0,
+    )
     threshold_lighting_illuminance: Optional[FlexibleRefValue(float)] = Field(
         default=300.0,
         description="Indoor illuminance threshold above which electric lighting is switched off [lx]",
@@ -2243,6 +2295,7 @@ class StebbsProperties(BaseModel):
         },
         ge=0.0,
     )
+
     efficiency_heating_system_air: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Efficiency of space heating system [-]",
@@ -2252,6 +2305,31 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
         lt=1.0,
+    )
+    destination_waste_heat: Optional[FlexibleRefValue(Literal[0, 1])] = Field(
+        default=0,
+        description=(
+            "Destination of waste heat from the space-heating system "
+            "(0 = indoor air, 1 = outdoor air)"
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Space-Heating Waste-Heat Destination",
+        },
+    )
+    fraction_convective_heating: Optional[FlexibleRefValue(float)] = Field(
+        default=1.0,
+        description=(
+            "Fraction of useful space-heating output convected to indoor air; "
+            "the remainder is split equally between indoor mass and the internal "
+            "wall surface. If no opaque wall is present, its share goes to indoor mass [-]"
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Space-Heating Convective Fraction",
+        },
+        ge=0.0,
+        le=1.0,
     )
     max_power_cooling_system_air: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -2545,6 +2623,19 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
     ref: Optional[Reference] = None
+
+    @model_validator(mode="after")
+    def _validate_internal_shading_parameters(self) -> "StebbsProperties":
+        """Require explicit active parameters whenever shading is enabled."""
+        shading_mode = (
+            self.internal_shading.value
+            if isinstance(self.internal_shading, RefValue)
+            else self.internal_shading
+        )
+        for field_name, message in stebbs_shading_requirements(shading_mode).items():
+            if field_name not in self.model_fields_set:
+                raise ValueError(message)
+        return self
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert StebbsProperties to DataFrame state format."""

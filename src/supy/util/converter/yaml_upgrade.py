@@ -1295,6 +1295,16 @@ def _migrate_2026_6_dev2_to_2026_6_dev3(cfg: dict) -> dict:
     return cfg
 
 
+def _migrate_2026_6_dev3_to_2026_6_dev4(cfg: dict) -> dict:
+    """Preserve YAML content when adding default-backed STEBBS controls.
+
+    The new shading and heating inputs are optional. Model defaults retain
+    disabled shading, indoor waste heat and entirely convective heating;
+    explicitly supplied controls must also survive the upgrade unchanged.
+    """
+    return cfg
+
+
 def _migrate_2026_6_dev1_to_current(cfg: dict) -> dict:
     """Chain the dev2 identity delta and the dev3 CO2Params renames."""
     cfg = _migrate_2026_6_dev1_to_2026_6_dev2(cfg)
@@ -1367,6 +1377,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
+    ("2026.6.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev3_to_2026_6_dev4,
     ("2026.6.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev2_to_2026_6_dev3,
     ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_current,
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,

@@ -7,6 +7,7 @@ import yaml
 
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.model import NetRadiationMethod, StorageHeatMethod
+from supy.data_model.core.site import StebbsProperties
 
 pytestmark = pytest.mark.api
 
@@ -92,6 +93,291 @@ def test_stebbs_missing_required_parameter_is_rejected():
     }
 
     _assert_public_rejection(data, "Missing required STEBBS parameters")
+
+
+def test_missing_internal_shading_defaults_to_disabled():
+    """Existing YAML without curtain settings keeps shading disabled."""
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    for field_name in (
+        "internal_shading",
+        "reduction_factor_shading",
+        "temperature_threshold_shading",
+        "radiation_threshold_shading",
+    ):
+        stebbs.pop(field_name)
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.internal_shading == 0
+
+
+def test_internal_shading_rejects_invalid_mode():
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["internal_shading"] = {"value": 3}
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    message = str(excinfo.value)
+    assert "internal_shading" in message
+    assert "Input should be 0, 1 or 2" in message
+
+
+@pytest.mark.parametrize("input_route", ["model", "dict", "yaml"])
+def test_constant_internal_shading_requires_reduction_factor(input_route, tmp_path):
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    stebbs["internal_shading"] = {"value": 1}
+    stebbs.pop("reduction_factor_shading")
+
+    with pytest.raises(ValueError) as excinfo:
+        if input_route == "model":
+            StebbsProperties.model_validate(stebbs)
+        elif input_route == "dict":
+            SUEWSConfig.from_dict(data)
+        else:
+            path = tmp_path / "shading.yml"
+            path.write_text(yaml.safe_dump(data), encoding="utf-8")
+            SUEWSConfig.from_yaml(path)
+
+    assert (
+        "reduction_factor_shading must be provided when internal_shading is 1 or 2"
+        in str(excinfo.value)
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_field",
+    ["temperature_threshold_shading", "radiation_threshold_shading"],
+)
+def test_controlled_internal_shading_requires_both_thresholds(missing_field):
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    stebbs.update({
+        "internal_shading": {"value": 2},
+        "reduction_factor_shading": {"value": 0.4},
+        "temperature_threshold_shading": {"value": 24.0},
+        "radiation_threshold_shading": {"value": 200.0},
+    })
+    del stebbs[missing_field]
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    assert f"{missing_field} must be provided when internal_shading is 2" in str(
+        excinfo.value
+    )
+
+
+@pytest.mark.parametrize("shading_mode", [1, 2])
+def test_valid_internal_shading_configuration_loads(shading_mode):
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    stebbs.update({
+        "internal_shading": {"value": shading_mode},
+        "reduction_factor_shading": {"value": 0.4},
+    })
+    if shading_mode == 2:
+        stebbs.update({
+            "temperature_threshold_shading": {"value": 24.0},
+            "radiation_threshold_shading": {"value": 200.0},
+        })
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.internal_shading == shading_mode
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("reduction_factor_shading", -0.1),
+        ("reduction_factor_shading", 1.1),
+        ("radiation_threshold_shading", -1.0),
+        ("temperature_threshold_shading", -273.15),
+    ],
+)
+def test_internal_shading_rejects_out_of_range_parameters(field, value):
+    data = _sample_config()
+    stebbs = _site_properties(data)["stebbs"]
+    stebbs.update({
+        "internal_shading": {"value": 2},
+        "reduction_factor_shading": {"value": 0.4},
+        "temperature_threshold_shading": {"value": 24.0},
+        "radiation_threshold_shading": {"value": 200.0},
+    })
+    stebbs[field] = {"value": value}
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    assert field in str(excinfo.value)
+
+
+def test_internal_shading_roundtrips_through_legacy_df_state():
+    data = _sample_config()
+    _site_properties(data)["stebbs"].update({
+        "internal_shading": {"value": 2},
+        "reduction_factor_shading": {"value": 0.4},
+        "temperature_threshold_shading": {"value": 24.0},
+        "radiation_threshold_shading": {"value": 200.0},
+    })
+    config = SUEWSConfig.from_dict(data)
+
+    df_state = config.to_df_state()
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+    stebbs = reconstructed.sites[0].properties.stebbs
+
+    assert stebbs.internal_shading == 2
+    assert stebbs.reduction_factor_shading == pytest.approx(0.4)
+    assert stebbs.temperature_threshold_shading == pytest.approx(24.0)
+    assert stebbs.radiation_threshold_shading == pytest.approx(200.0)
+
+
+def test_legacy_df_state_without_shading_columns_defaults_to_disabled():
+    config = SUEWSConfig.from_dict(_sample_config())
+    shading_columns = {
+        "internalshading",
+        "reductionfactorshading",
+        "temperaturethresholdshading",
+        "radiationthresholdshading",
+    }
+    full_state = config.to_df_state()
+    columns_to_drop = [col for col in full_state.columns if col[0] in shading_columns]
+    df_state = full_state.drop(columns=columns_to_drop)
+
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.internal_shading == 0
+
+
+def test_missing_destination_waste_heat_defaults_to_indoor():
+    """Existing YAML keeps space-heating waste heat indoors by default."""
+    data = _sample_config()
+    _site_properties(data)["stebbs"].pop("destination_waste_heat", None)
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.destination_waste_heat == 0
+
+
+@pytest.mark.parametrize("destination", [-1, 2])
+def test_destination_waste_heat_rejects_invalid_value(destination):
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["destination_waste_heat"] = {"value": destination}
+
+    with pytest.raises(ValueError) as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    message = str(excinfo.value)
+    assert "destination_waste_heat" in message
+    assert "Input should be 0 or 1" in message
+
+
+def test_destination_waste_heat_roundtrips_through_legacy_df_state():
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["destination_waste_heat"] = {"value": 1}
+    config = SUEWSConfig.from_dict(data)
+
+    df_state = config.to_df_state()
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.destination_waste_heat == 1
+
+
+def test_legacy_df_state_without_destination_waste_heat_defaults_to_indoor():
+    config = SUEWSConfig.from_dict(_sample_config())
+    full_state = config.to_df_state()
+    columns_to_drop = [
+        col for col in full_state.columns if col[0] == "destinationwasteheat"
+    ]
+    df_state = full_state.drop(columns=columns_to_drop)
+
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.destination_waste_heat == 0
+
+
+def test_missing_fraction_convective_heating_defaults_to_all_air():
+    """Existing YAML keeps all useful space heating in the indoor air."""
+    data = _sample_config()
+    _site_properties(data)["stebbs"].pop("fraction_convective_heating", None)
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.fraction_convective_heating == 1.0
+
+
+@pytest.mark.parametrize("fraction", [0.0, 0.35, 1.0])
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_fraction_convective_heating_accepts_valid_fraction(fraction, wrapped):
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["fraction_convective_heating"] = (
+        {"value": fraction} if wrapped else fraction
+    )
+
+    config = SUEWSConfig.from_dict(data)
+
+    assert config.sites[0].properties.stebbs.fraction_convective_heating == (
+        pytest.approx(fraction)
+    )
+
+
+@pytest.mark.parametrize(
+    "fraction", [-0.1, 1.1, float("nan"), float("inf"), -float("inf")]
+)
+def test_fraction_convective_heating_rejects_invalid_fraction(fraction):
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["fraction_convective_heating"] = {
+        "value": fraction
+    }
+
+    with pytest.raises(ValueError, match="fraction_convective_heating") as excinfo:
+        SUEWSConfig.from_dict(data)
+
+    assert "extra_forbidden" not in str(excinfo.value)
+
+
+def test_fraction_convective_heating_rejects_null_when_stebbs_enabled():
+    data = _sample_config()
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
+    _site_properties(data)["stebbs"]["fraction_convective_heating"] = {"value": None}
+
+    _assert_public_rejection(data, "fraction_convective_heating")
+
+
+def test_fraction_convective_heating_roundtrips_through_legacy_df_state():
+    data = _sample_config()
+    _site_properties(data)["stebbs"]["fraction_convective_heating"] = {"value": 0.35}
+    config = SUEWSConfig.from_dict(data)
+
+    df_state = config.to_df_state()
+    assert df_state.loc[:, ("fractionconvectiveheating", "0")].iloc[0] == pytest.approx(
+        0.35
+    )
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.fraction_convective_heating == (
+        pytest.approx(0.35)
+    )
+
+
+def test_legacy_df_state_without_fraction_convective_heating_defaults_to_all_air():
+    config = SUEWSConfig.from_dict(_sample_config())
+    full_state = config.to_df_state()
+    columns_to_drop = [
+        col for col in full_state.columns if col[0] == "fractionconvectiveheating"
+    ]
+    assert columns_to_drop
+    df_state = full_state.drop(columns=columns_to_drop)
+
+    reconstructed = SUEWSConfig.from_df_state(df_state)
+
+    assert reconstructed.sites[0].properties.stebbs.fraction_convective_heating == 1.0
 
 
 SAME_SURFACE_CASES = [

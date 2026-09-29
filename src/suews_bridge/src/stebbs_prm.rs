@@ -4,8 +4,8 @@ use crate::ffi;
 
 pub const STEBBS_PRM_PROFILE_STEPS: usize = 144;
 pub const STEBBS_PRM_PROFILE_GROUPS: usize = 2;
-pub const STEBBS_PRM_FLAT_LEN: usize = 331;
-pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 3;
+pub const STEBBS_PRM_FLAT_LEN: usize = 337;
+pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 6;
 
 pub type StebbsPrmSchema = crate::codec::SimpleSchema;
 
@@ -29,7 +29,13 @@ pub struct StebbsPrm {
     pub latent_sensible_ratio: f64,
     pub daylight_control: f64,
     pub lighting_illuminance_threshold: f64,
+    pub internal_shading: f64,
+    pub reduction_factor_shading: f64,
+    pub temperature_threshold_shading: f64,
+    pub radiation_threshold_shading: f64,
     pub heating_system_efficiency: f64,
+    pub destination_waste_heat: f64,
+    pub fraction_convective_heating: f64,
     pub max_cooling_power: f64,
     pub cooling_system_cop: f64,
     pub ventilation_rate: f64,
@@ -78,7 +84,13 @@ impl Default for StebbsPrm {
             latent_sensible_ratio: 0.0,
             daylight_control: 0.0,
             lighting_illuminance_threshold: 300.0,
+            internal_shading: 0.0,
+            reduction_factor_shading: 1.0,
+            temperature_threshold_shading: 0.0,
+            radiation_threshold_shading: 0.0,
             heating_system_efficiency: 0.0,
+            destination_waste_heat: 0.0,
+            fraction_convective_heating: 1.0,
             max_cooling_power: 0.0,
             cooling_system_cop: 0.0,
             ventilation_rate: 0.0,
@@ -140,7 +152,34 @@ impl StebbsPrm {
             return Err(BridgeError::BadState);
         }
         let lighting_illuminance_threshold = next();
+        let internal_shading = next();
+        if !matches!(internal_shading, 0.0 | 1.0 | 2.0) {
+            return Err(BridgeError::BadState);
+        }
+        let reduction_factor_shading = next();
+        if !reduction_factor_shading.is_finite() || !(0.0..=1.0).contains(&reduction_factor_shading)
+        {
+            return Err(BridgeError::BadState);
+        }
+        let temperature_threshold_shading = next();
+        if !temperature_threshold_shading.is_finite() || temperature_threshold_shading <= -273.15 {
+            return Err(BridgeError::BadState);
+        }
+        let radiation_threshold_shading = next();
+        if !radiation_threshold_shading.is_finite() || radiation_threshold_shading < 0.0 {
+            return Err(BridgeError::BadState);
+        }
         let heating_system_efficiency = next();
+        let destination_waste_heat = next();
+        if !matches!(destination_waste_heat, 0.0 | 1.0) {
+            return Err(BridgeError::BadState);
+        }
+        let fraction_convective_heating = next();
+        if !fraction_convective_heating.is_finite()
+            || !(0.0..=1.0).contains(&fraction_convective_heating)
+        {
+            return Err(BridgeError::BadState);
+        }
         let max_cooling_power = next();
         let cooling_system_cop = next();
         let ventilation_rate = next();
@@ -192,7 +231,13 @@ impl StebbsPrm {
             latent_sensible_ratio,
             daylight_control,
             lighting_illuminance_threshold,
+            internal_shading,
+            reduction_factor_shading,
+            temperature_threshold_shading,
+            radiation_threshold_shading,
             heating_system_efficiency,
+            destination_waste_heat,
+            fraction_convective_heating,
             max_cooling_power,
             cooling_system_cop,
             ventilation_rate,
@@ -242,7 +287,13 @@ impl StebbsPrm {
         flat.push(self.latent_sensible_ratio);
         flat.push(self.daylight_control);
         flat.push(self.lighting_illuminance_threshold);
+        flat.push(self.internal_shading);
+        flat.push(self.reduction_factor_shading);
+        flat.push(self.temperature_threshold_shading);
+        flat.push(self.radiation_threshold_shading);
         flat.push(self.heating_system_efficiency);
+        flat.push(self.destination_waste_heat);
+        flat.push(self.fraction_convective_heating);
         flat.push(self.max_cooling_power);
         flat.push(self.cooling_system_cop);
         flat.push(self.ventilation_rate);
@@ -316,7 +367,13 @@ pub fn stebbs_prm_field_names() -> Vec<String> {
         "latent_sensible_ratio".to_string(),
         "daylight_control".to_string(),
         "lighting_illuminance_threshold".to_string(),
+        "internal_shading".to_string(),
+        "reduction_factor_shading".to_string(),
+        "temperature_threshold_shading".to_string(),
+        "radiation_threshold_shading".to_string(),
         "heating_system_efficiency".to_string(),
+        "destination_waste_heat".to_string(),
+        "fraction_convective_heating".to_string(),
         "max_cooling_power".to_string(),
         "cooling_system_cop".to_string(),
         "ventilation_rate".to_string(),
@@ -371,6 +428,70 @@ mod tests {
     use super::*;
 
     #[test]
+    fn default_internal_shading_is_disabled() {
+        let state = StebbsPrm::default();
+        assert_eq!(state.internal_shading, 0.0);
+        assert_eq!(state.reduction_factor_shading, 1.0);
+        assert_eq!(state.temperature_threshold_shading, 0.0);
+        assert_eq!(state.radiation_threshold_shading, 0.0);
+    }
+
+    #[test]
+    fn destination_waste_heat_defaults_to_indoor_and_roundtrips() {
+        let state = StebbsPrm::default();
+        let mut mapped = stebbs_prm_to_map(&state);
+        assert_eq!(mapped.get("destination_waste_heat"), Some(&0.0));
+
+        mapped.insert("destination_waste_heat".to_string(), 1.0);
+        let updated = stebbs_prm_from_map(&mapped).expect("outdoor destination should work");
+        let roundtripped = stebbs_prm_to_map(&updated);
+
+        assert_eq!(roundtripped.get("destination_waste_heat"), Some(&1.0));
+    }
+
+    #[test]
+    fn destination_waste_heat_rejects_unsupported_value() {
+        let mut mapped = stebbs_prm_to_map(&StebbsPrm::default());
+        mapped.insert("destination_waste_heat".to_string(), 2.0);
+
+        assert_eq!(stebbs_prm_from_map(&mapped), Err(BridgeError::BadState));
+    }
+
+    #[test]
+    fn fraction_convective_heating_defaults_to_air() {
+        let mapped = stebbs_prm_to_map(&StebbsPrm::default());
+        assert_eq!(mapped.get("fraction_convective_heating"), Some(&1.0));
+    }
+
+    #[test]
+    fn fraction_convective_heating_roundtrips_valid_fractions() {
+        for fraction in [0.0, 0.6, 1.0] {
+            let mut mapped = stebbs_prm_to_map(&StebbsPrm::default());
+            mapped.insert("fraction_convective_heating".to_string(), fraction);
+
+            let updated = stebbs_prm_from_map(&mapped).expect("valid heating fraction should work");
+            let decoded = StebbsPrm::from_flat(&updated.to_flat())
+                .expect("heating fraction should survive flat roundtrip");
+            let roundtripped = stebbs_prm_to_map(&decoded);
+
+            assert_eq!(
+                roundtripped.get("fraction_convective_heating"),
+                Some(&fraction)
+            );
+        }
+    }
+
+    #[test]
+    fn fraction_convective_heating_rejects_invalid_fractions() {
+        for fraction in [-0.1, 1.1, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let mut mapped = stebbs_prm_to_map(&StebbsPrm::default());
+            mapped.insert("fraction_convective_heating".to_string(), fraction);
+
+            assert_eq!(stebbs_prm_from_map(&mapped), Err(BridgeError::BadState));
+        }
+    }
+
+    #[test]
     fn schema_matches_expected_dimensions() {
         let n_flat = stebbs_prm_schema().expect("schema call should succeed");
         assert_eq!(n_flat, STEBBS_PRM_FLAT_LEN);
@@ -392,6 +513,10 @@ mod tests {
         mapped.insert("ventilation_rate".to_string(), 1.7);
         mapped.insert("daylight_control".to_string(), 1.0);
         mapped.insert("lighting_illuminance_threshold".to_string(), 250.0);
+        mapped.insert("internal_shading".to_string(), 2.0);
+        mapped.insert("reduction_factor_shading".to_string(), 0.4);
+        mapped.insert("temperature_threshold_shading".to_string(), 24.0);
+        mapped.insert("radiation_threshold_shading".to_string(), 200.0);
         mapped.insert("hot_water_flow_profile.018.2".to_string(), 0.002);
         mapped.insert("iter_safe".to_string(), 0.0);
 
@@ -399,6 +524,10 @@ mod tests {
         assert!((updated.ventilation_rate - 1.7).abs() < 1.0e-12);
         assert!((updated.daylight_control - 1.0).abs() < 1.0e-12);
         assert!((updated.lighting_illuminance_threshold - 250.0).abs() < 1.0e-12);
+        assert!((updated.internal_shading - 2.0).abs() < 1.0e-12);
+        assert!((updated.reduction_factor_shading - 0.4).abs() < 1.0e-12);
+        assert!((updated.temperature_threshold_shading - 24.0).abs() < 1.0e-12);
+        assert!((updated.radiation_threshold_shading - 200.0).abs() < 1.0e-12);
         assert!((updated.hot_water_flow_profile[1][18] - 0.002).abs() < 1.0e-12);
         assert!(!updated.iter_safe);
     }
@@ -427,5 +556,29 @@ mod tests {
         let err = StebbsPrm::from_flat(&flat)
             .expect_err("fractional lighting daylight control flag should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn from_flat_rejects_invalid_internal_shading_parameters() {
+        let mut invalid_mode = StebbsPrm::default().to_flat();
+        invalid_mode[16] = 1.5;
+        assert_eq!(
+            StebbsPrm::from_flat(&invalid_mode),
+            Err(BridgeError::BadState)
+        );
+
+        let mut invalid_factor = StebbsPrm::default().to_flat();
+        invalid_factor[17] = 1.1;
+        assert_eq!(
+            StebbsPrm::from_flat(&invalid_factor),
+            Err(BridgeError::BadState)
+        );
+
+        let mut invalid_radiation = StebbsPrm::default().to_flat();
+        invalid_radiation[19] = -1.0;
+        assert_eq!(
+            StebbsPrm::from_flat(&invalid_radiation),
+            Err(BridgeError::BadState)
+        );
     }
 }

@@ -1585,6 +1585,78 @@ def test_daylight_control_daylightcontrol_zero(registry):
     assert not results, "Should not return errors for DaylightControl=0 without LightingIlluminanceThreshold"
 
 
+def test_internal_shading_missing_defaults_to_disabled_in_phase_b(registry):
+    yaml_data = {
+        "model": {"physics": {"stebbs": {"value": 1}}},
+        "sites": [{"properties": {"stebbs": {}}}],
+    }
+
+    results = registry["internal_shading"](ValidationContext(yaml_data=yaml_data))
+
+    assert not results
+
+
+@pytest.mark.parametrize(
+    "mode,expected_fields",
+    [
+        (0, set()),
+        (1, {"reduction_factor_shading"}),
+        (2, {
+            "reduction_factor_shading",
+            "temperature_threshold_shading",
+            "radiation_threshold_shading",
+        }),
+    ],
+)
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_internal_shading_required_fields_in_phase_b(
+    registry, mode, expected_fields, wrapped
+):
+    """Raw YAML reports exactly the missing inputs for the selected mode."""
+    yaml_data = {
+        "model": {"physics": {"stebbs": {"value": 1}}},
+        "sites": [
+            {
+                "properties": {
+                    "stebbs": {
+                        "internal_shading": {"value": mode} if wrapped else mode,
+                    }
+                }
+            }
+        ],
+    }
+
+    results = registry["internal_shading"](ValidationContext(yaml_data=yaml_data))
+
+    assert len(results) == len(expected_fields)
+    assert {result.parameter for result in results} == {
+        f"stebbs.{field}" for field in expected_fields
+    }
+    assert all("must be provided" in result.message for result in results)
+
+
+def test_internal_shading_reduction_factor_range_in_phase_b(registry):
+    yaml_data = {
+        "model": {"physics": {"stebbs": {"value": 1}}},
+        "sites": [
+            {
+                "properties": {
+                    "stebbs": {
+                        "internal_shading": {"value": 1},
+                        "reduction_factor_shading": {"value": 1.2},
+                    }
+                }
+            }
+        ],
+    }
+
+    results = registry["internal_shading"](ValidationContext(yaml_data=yaml_data))
+
+    assert len(results) == 1
+    assert results[0].parameter == "stebbs.reduction_factor_shading"
+    assert "between 0 and 1" in results[0].message
+
+
 def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
     """Test error when occupants=0.0 but profile_metabolism has nonzero values."""
 

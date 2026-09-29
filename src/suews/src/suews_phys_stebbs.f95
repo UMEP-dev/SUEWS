@@ -1119,8 +1119,8 @@ SUBROUTINE suewsstebbscouple(self, sout, resolution, datetimeLine, &
       self%h_o(3) = ext_conv_coeff(ws_out_hbh, self%t_ext_window - Tair_out_hbh) !window
       
       self%h_i(1) = int_conv_coeff(dT = (self%t_int_wall - self%Tair_ind), surf_type = 1) !wall
-      self%h_i(2) = int_conv_coeff(dT = (self%t_int_window - self%Tair_ind), surf_type = 1) !windows
-      self%h_i(3) = int_conv_coeff(dT = (self%t_int_roof - self%Tair_ind), surf_type = 2) !roof
+      self%h_i(2) = int_conv_coeff(dT = (self%t_int_roof - self%Tair_ind), surf_type = 2) !roof
+      self%h_i(3) = int_conv_coeff(dT = (self%t_int_window - self%Tair_ind), surf_type = 1) !windows
       self%h_i(4) = int_conv_coeff(dT = (self%t_int_ground_floor - self%Tair_ind), surf_type = 3) !floor
       self%h_i(5) = int_conv_coeff(dT = (self%t_indoor_mass - self%Tair_ind), surf_type = 1) !nternal mass,assume vertical
       !calculate indoor air density
@@ -1313,9 +1313,12 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%window_transmissivity, self%window_absorptivity, self%window_reflectivity, &
       self%wall_transmissivity_state, self%wall_absorptivity, self%wall_reflectivity, &
       self%roof_transmissivity_state, self%roof_absorptivity, self%roof_reflectivity, &
+      self%internal_shading, self%reduction_factor_shading, &
+      self%temperature_threshold_shading, self%radiation_threshold_shading, &
       self%occupants_state, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
       self%appliance_power_rating, self%lighting_power_rating,&
-      self%maxheatingpower_air, self%heating_efficiency_air, &
+      self%maxheatingpower_air, self%heating_efficiency_air, self%destination_waste_heat, &
+      self%fraction_convective_heating, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%a_wall, self%a_roof, &
       self%v_wall, self%v_roof, self%a_footprint, self%v_ground_floor, &
@@ -1426,9 +1429,12 @@ SUBROUTINE tstep( &
    windowTransmissivity, windowAbsorbtivity, windowReflectivity, &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
+   internal_shading, reduction_factor_shading, &
+   temperature_threshold_shading, radiation_threshold_shading, &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
    appliance_power_rating, lighting_power_rating, &
-   maxheatingpower_air, heating_efficiency_air, &
+   maxheatingpower_air, heating_efficiency_air, destination_waste_heat, &
+   fraction_convective_heating, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
    Vwall, Vroof, Afootprint, Vgroundfloor, &
@@ -1573,6 +1579,12 @@ SUBROUTINE tstep( &
                  roofT, & ! // roof transmisivity [-]
                  roofA, & ! // roof absorptivity [-]
                  roofR ! // roof reflectivity [-]
+   INTEGER, INTENT(IN) :: internal_shading ! Internal window shading mode [-]
+   INTEGER, INTENT(IN) :: destination_waste_heat ! Space-heating waste-heat destination: 0 indoor, 1 outdoor [-]
+   REAL(KIND(1D0)), INTENT(IN) :: fraction_convective_heating ! Fraction of useful heating delivered to indoor air [-]
+   REAL(KIND(1D0)), INTENT(IN) :: reduction_factor_shading, & ! Active transmitted fraction [-]
+                                  temperature_threshold_shading, & ! Indoor-air threshold [degC]
+                                  radiation_threshold_shading ! Wall/window shortwave threshold [W m-2]
    REAL(KIND(1D0)) :: QHload_heating_tstepTotal, & ! // currently only sensible but this needs to be  split into sensible and latent heat components
                       QHload_cooling_tstepTotal, & ! // currently only sensible but this needs to be  split into sensible and latent heat components
                       QHload_dhw_tstepTotal, & ! total heat input into water of hot water tank over simulation, hence do not equate to zero
@@ -1595,6 +1607,7 @@ SUBROUTINE tstep( &
                       wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
    REAL(KIND(1D0)) :: occupants! Number of occupants [-]
+   LOGICAL :: internal_shading_active
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
                       appliance_power_rating, lighting_power_rating ! [W]
    REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
@@ -1642,8 +1655,10 @@ SUBROUTINE tstep( &
                       Qlw_net_intwindow_to_allotherindoorsurfaces, Qlw_net_intgroundfloor_to_allotherindoorsurfaces
    REAL(KIND(1D0)) :: QH_appliance, QH_lighting, QH_ventilation, QHconv_indair_to_intwall, QHconv_indair_to_introof, &
                       QHconv_indair_to_intwindow, QHconv_indair_to_intgroundfloor
-   REAL(KIND(1D0)) :: QHwaste_heating, QHcond_wall, QHcond_roof, QHcond_window, &
+   REAL(KIND(1D0)) :: QHwaste_heating, QHwaste_heating_to_indoor, &
+                      QHcond_wall, QHcond_roof, QHcond_window, &
                       QHcond_groundfloor, QHcond_ground
+   REAL(KIND(1D0)) :: QH_heating_to_indair, QH_heating_to_indoormass, QH_heating_to_intwall
    REAL(KIND(1D0)) :: Qlw_net_wall, Qlw_net_roof, Qlw_net_window, &
                       QHconv_extwall_to_outair, QHconv_extroof_to_outair, QHconv_extwindow_to_outair
    REAL(KIND(1D0)) :: QS_bldg, QS_wall, QS_roof, QS_groundfloor, QS_window, QS_indoormass, QS_air
@@ -1859,8 +1874,22 @@ SUBROUTINE tstep( &
 
    IF (MOD(timestep, resolution) == 0) THEN
       looptime: DO i = 1, INT(timestep/resolution), 1
+         internal_shading_active = .FALSE.
+         SELECT CASE (internal_shading)
+         CASE (1)
+            internal_shading_active = .TRUE.
+         CASE (2)
+            IF ((Tair_ind - 273.15D0) >= temperature_threshold_shading .AND. &
+                Qsw_dn_extwall >= radiation_threshold_shading) THEN
+               internal_shading_active = .TRUE.
+            END IF
+         END SELECT
+
          IF (window_surface_active) THEN
             Qsw_transmitted_window = windowInsolation(Qsw_dn_extwall, winT, Awindow)
+            IF (internal_shading_active) THEN
+               Qsw_transmitted_window = reduction_factor_shading*Qsw_transmitted_window
+            END IF
             Qsw_absorbed_window = windowInsolation(Qsw_dn_extwall, winA, Awindow)
             Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
             QHconv_indair_to_intwindow = &
@@ -1913,6 +1942,16 @@ SUBROUTINE tstep( &
             internalConvectionHeatTransfer(conv_coeff_indoormass, Aindoormass, Tindoormass, Tair_ind)
 
          QHload_heating_timestep = heating(Ts(1), Tair_ind, maxheatingpower_air)
+         ! Distribute useful heating; system waste heat is handled separately.
+         QH_heating_to_indair = fraction_convective_heating*QHload_heating_timestep
+         IF (wall_surface_active) THEN
+            QH_heating_to_indoormass = 0.5D0*(1.0D0 - fraction_convective_heating)*QHload_heating_timestep
+            QH_heating_to_intwall = QH_heating_to_indoormass
+         ELSE
+            ! With no opaque wall, indoor mass receives the entire remainder.
+            QH_heating_to_indoormass = (1.0D0 - fraction_convective_heating)*QHload_heating_timestep
+            QH_heating_to_intwall = 0.0D0
+         END IF
          QHload_cooling_timestep = cooling(Ts(2), Tair_ind, maxcoolingpower_air)
          !internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible, Qmetabolic_sensible, Qmetabolic_latent)
          Qm = internalOccupancyGains(metabolic_rate, ratio_metabolic_latent_sensible)
@@ -1920,6 +1959,11 @@ SUBROUTINE tstep( &
          QE_metabolism = Qm(2)
          QHwaste_heating = &
             additionalSystemHeatingEnergy(QHload_heating_timestep, heating_efficiency_air)
+         IF (destination_waste_heat == 1) THEN
+            QHwaste_heating_to_indoor = 0.0D0
+         ELSE
+            QHwaste_heating_to_indoor = QHwaste_heating
+         END IF
          QHcond_roof = &
             wallConduction(conductivity_roof, Aroof, Tintroof, Textroof, thickness_roof)
          QHcond_groundfloor = &
@@ -2019,20 +2063,20 @@ SUBROUTINE tstep( &
             Qlw_net_extvesselwall_to_wall - Qlw_net_extvesselwall_to_indoormass
 
          QStotal_net_indoormass = &
-            Qsw_transmitted_window + QHconv_indair_to_indoormass + &
+            QH_heating_to_indoormass + Qsw_transmitted_window + QHconv_indair_to_indoormass + &
             Qlw_net_intwall_to_allotherindoorsurfaces + Qlw_net_introof_to_allotherindoorsurfaces + &
             Qlw_net_exttankwall_to_indoormass + Qlw_net_extvesselwall_to_indoormass
          QStotal_net_indair = &
             QH_appliance + QH_lighting + QH_metabolism + QH_ventilation + &
-            QHload_heating_timestep - QHload_cooling_timestep - QHconv_indair_to_indoormass - &
+            QH_heating_to_indair - QHload_cooling_timestep - QHconv_indair_to_indoormass - &
             Qlw_net_intwall_to_allotherindoorsurfaces - Qlw_net_introof_to_allotherindoorsurfaces - &
             QHconv_indair_to_intwall - QHconv_indair_to_introof - &
             QHconv_indair_to_intwindow - QHconv_indair_to_intgroundfloor + &
-            QHwaste_heating + QHconv_exttankwall_to_indair + &
+            QHwaste_heating_to_indoor + QHconv_exttankwall_to_indair + &
             QHconv_extvesselwall_to_indair + QHwaste_dhw
          IF (wall_surface_active) THEN
             QStotal_net_intwall = &
-               QHconv_indair_to_intwall - QHcond_wall - &
+               QH_heating_to_intwall + QHconv_indair_to_intwall - QHcond_wall - &
                Qlw_net_intwall_to_allotherindoorsurfaces + Qlw_net_extvesselwall_to_wall
             QStotal_net_extwall = &
                QHcond_wall + Qsw_absorbed_wall - &
@@ -2350,8 +2394,13 @@ SUBROUTINE tstep( &
       QH_bldg_tstepFA = QHconv_extwall_to_outair_tstepFA + QHconv_extroof_to_outair_tstepFA + QHconv_extwindow_to_outair_tstepFA
       !Building air exchange (ventilation)
       QBAE_bldg_tstepFA = - QH_ventilation_tstepFA !QBAE is heat emission, opposite sign to QH_ventilation
-      !Waste heat from HVAC (currenly only cooling is rejected to outdoor)
-      QWaste_bldg_tstepFA = QHwaste_cooling_tstepFA
+      ! Waste heat rejected to outdoor air: cooling plus space-heating losses
+      ! when destination_waste_heat selects the outdoor destination.
+      IF (destination_waste_heat == 0) THEN
+         QWaste_bldg_tstepFA = QHwaste_cooling_tstepFA
+      ELSE
+         QWaste_bldg_tstepFA = QHwaste_cooling_tstepFA + QHwaste_heating_tstepFA
+      END IF
       !Net storage heat flux, including building, soil and hot water and building
       QS_dhw_tstepFA = Qloss_drain_tstepFA 
       QS_ground_tstepFA = QHcond_ground_tstepFA
@@ -2428,7 +2477,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%conductivity_roofext = building_archtype%roof_external_effective_conductivity
    self%conductivity_groundfloor = building_archtype%ground_floor_effective_conductivity
    self%conductivity_window = building_archtype%window_effective_conductivity
-   self%conductivity_ground = building_archtype%ground_floor_effective_conductivity
+   self%conductivity_ground = stebbsPrm%external_ground_conductivity
    self%density_wall = building_archtype%wall_density
    self%density_wallext = building_archtype%wall_external_density
    self%density_roof = building_archtype%roof_density
@@ -2462,8 +2511,14 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%occupants_state = building_archtype%occupants_state
    self%metabolism_threshold = stebbsPrm%metabolism_threshold
    self%ratio_metabolic_latent_sensible = stebbsPrm%latent_sensible_ratio
+   self%internal_shading = stebbsPrm%internal_shading
+   self%reduction_factor_shading = stebbsPrm%reduction_factor_shading
+   self%temperature_threshold_shading = stebbsPrm%temperature_threshold_shading
+   self%radiation_threshold_shading = stebbsPrm%radiation_threshold_shading
    self%maxheatingpower_air = building_archtype%max_heating_power
    self%heating_efficiency_air = stebbsPrm%heating_system_efficiency
+   self%destination_waste_heat = stebbsPrm%destination_waste_heat
+   self%fraction_convective_heating = stebbsPrm%fraction_convective_heating
    self%maxcoolingpower_air = stebbsPrm%max_cooling_power
    self%coeff_performance_cooling = stebbsPrm%cooling_system_cop
    self%Vair_ind = &

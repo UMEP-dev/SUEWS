@@ -49,6 +49,8 @@ from ..validation.required_fields import (
     EVERGREEN_REQUIRED_PROVIDED_FAI,
     LAI_CALCULATED_ONLY_REQUIRED,
     LAI_REQUIRED,
+    STEBBS_SHADING_REQUIRED_MODES,
+    stebbs_shading_requirements,
 )
 
 from datetime import datetime
@@ -415,9 +417,13 @@ class SUEWSConfig(BaseModel):
         "ratio_latent_sensible",
         "daylight_control",
         "threshold_lighting_illuminance",
+        "internal_shading",
+        *STEBBS_SHADING_REQUIRED_MODES,
         "profile_appliance",
         "power_density_lighting",
         "efficiency_heating_system_air",
+        "destination_waste_heat",
+        "fraction_convective_heating",
         "max_power_cooling_system_air",
         "efficiency_cooling_system_air",
         "rate_ventilation",
@@ -1975,6 +1981,15 @@ class SUEWSConfig(BaseModel):
 
         daylightcontrol_params_stebbs = ["threshold_lighting_illuminance"]
 
+        internal_shading = getattr(stebbs, "internal_shading", None)
+        internal_shading_val = (
+            _unwrap_value(internal_shading) if internal_shading is not None else None
+        )
+        try:
+            internal_shading_val = int(internal_shading_val)
+        except (TypeError, ValueError):
+            internal_shading_val = None
+
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
             # Exclude window params if WWR is zero
@@ -2003,6 +2018,13 @@ class SUEWSConfig(BaseModel):
         # Exclude daylight control params based on daylightcontrol
         if daylightcontrol_val == 0:
             stebbs_required = [p for p in stebbs_required if p not in daylightcontrol_params_stebbs]
+
+        if internal_shading_val in (0, 1, 2):
+            shading_required = stebbs_shading_requirements(internal_shading_val)
+            stebbs_required = [
+                p for p in stebbs_required
+                if p not in STEBBS_SHADING_REQUIRED_MODES or p in shading_required
+            ]
 
         # Validate stebbs required params
         _check_required(stebbs, stebbs_required)

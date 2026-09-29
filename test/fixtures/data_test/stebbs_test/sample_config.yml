@@ -153,6 +153,14 @@ sites:
         value: 1
       threshold_lighting_illuminance:
         value: 300.0
+      internal_shading:
+        value: 0
+      reduction_factor_shading:
+        value: 1.0
+      temperature_threshold_shading:
+        value: 0.0
+      radiation_threshold_shading:
+        value: 0.0
       profile_appliance:
         working_day:
           '1': 88.0
@@ -448,6 +456,10 @@ sites:
         value: 2.0
       efficiency_heating_system_air:
         value: 0.8
+      destination_waste_heat:
+        value: 0
+      fraction_convective_heating:
+        value: 1.0
       max_power_cooling_system_air:
         value: 14595.0
       efficiency_cooling_system_air:

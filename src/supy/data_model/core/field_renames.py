@@ -545,7 +545,13 @@ STEBBSPROPERTIES_RENAMES: Dict[str, str] = {
     "LatentSensibleRatio": "latent_sensible_ratio",
     "DaylightControl": "daylight_control",
     "LightingIlluminanceThreshold": "lighting_illuminance_threshold",
+    "InternalShading": "internal_shading",
+    "ReductionFactorShading": "reduction_factor_shading",
+    "TemperatureThresholdShading": "temperature_threshold_shading",
+    "RadiationThresholdShading": "radiation_threshold_shading",
     "HeatingSystemEfficiency": "heating_system_efficiency",
+    "DestinationWasteHeat": "destination_waste_heat",
+    "FractionConvectiveHeating": "fraction_convective_heating",
     "MaxCoolingPower": "max_cooling_power",
     "CoolingSystemCOP": "cooling_system_cop",
     # Ventilation & initial state

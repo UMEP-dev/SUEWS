@@ -59,6 +59,16 @@ EXAMPLES:
 - [maintenance] The generated agent plugin no longer ships build residue, and its MCP command names a file in the plugin
   - Locking the vendored server built the package and left `__pycache__/*.pyc` and an `egg-info` in `plugins/suews/server/`, which the plugin directory could not inspect; the generator now removes them and the sync workflow fails if any remain
   - `.mcp.json` runs `server/run_server.py` through `uv run` instead of the `suews-mcp` console-script name, so the command points at a file reviewers can read
+- [bugfix] Corrected STEBBS heat-transfer parameters (#1830)
+  - **Convective coefficient order:** Corrected the swapped internal roof and window convection coefficients so each surface uses the correct coefficient.
+  - **External ground conductivity:** Corrected external ground conduction to use `external_ground_conductivity` instead of the ground-floor conductivity.
+- [feature][experimental] Added STEBBS internal shading and space-heating controls (#1830)
+  - **Internal shading:** Added window shading that can be disabled, always active, or activated by indoor temperature and incident radiation thresholds. A configurable reduction factor controls the fraction of transmitted solar gain retained when shading is active.
+  - **Space-heating waste-heat destination:** Added `destination_waste_heat` to select whether space-heating system losses are released indoors or outdoors. Losses released outdoors contribute to the building waste-heat output.
+  - **Space-heating partition:** Added `fraction_convective_heating` to split useful space heating into convective and radiative components. The convective component heats indoor air; the radiative component is distributed equally to indoor mass and the internal wall, or entirely to indoor mass when no opaque wall is present.
+- [maintenance] Regenerated the STEBBS regression reference using a continuous simulation of 26-27 August 2017, retaining the second day's 288 five-minute records (#1830)
+- [change][experimental] Advanced the input schema to `2026.6.dev4` for the six optional STEBBS shading and heating controls, with updated schema documentation and sample configurations (#1830)
+  - The migration preserves existing configuration content and explicit settings. Defaults keep shading disabled, space-heating waste heat indoors and useful heating fully convective; the heat-transfer corrections still intentionally change model outputs.
 
 ### 28 Sep 2026
 

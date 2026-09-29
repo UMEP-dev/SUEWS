@@ -324,6 +324,10 @@ def test_agent_plugin_folder_meets_directory_basics(tmp_path: Path) -> None:
         assert "--frozen" in server["args"]
         assert "${CLAUDE_PLUGIN_ROOT}/server" in server["args"]
         assert not any("git+" in arg for arg in server["args"])
+        # The command names a file in the plugin the directory can read.
+        launcher = server["args"][-1]
+        assert launcher.startswith("${CLAUDE_PLUGIN_ROOT}/")
+        assert (plugin_dir / launcher.removeprefix("${CLAUDE_PLUGIN_ROOT}/")).is_file()
 
     pyproject = (plugin_dir / "server" / "pyproject.toml").read_text(
         encoding="utf-8"

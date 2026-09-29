@@ -71,6 +71,16 @@ SERVER_IGNORE = shutil.ignore_patterns(
 )
 
 SERVER_DIR = "server"
+# The directory reviews what an MCP command runs; a console-script name
+# (`suews-mcp`) is not a file it can read, so the command runs this one.
+SERVER_LAUNCHER = "run_server.py"
+SERVER_LAUNCHER_SOURCE = '''"""Start the vendored SUEWS MCP server (the `suews-mcp` console script)."""
+
+from suews_mcp.server import main
+
+if __name__ == "__main__":
+    main()
+'''
 CODEX_MCP_FILE = ".codex-mcp.json"
 
 # The vendored server's lockfile must stay under the directory's 256 KiB
@@ -164,7 +174,8 @@ def _vendored_mcp() -> dict[str, Any]:
                     "--frozen",
                     "--project",
                     f"${{CLAUDE_PLUGIN_ROOT}}/{SERVER_DIR}",
-                    "suews-mcp",
+                    "python",
+                    f"${{CLAUDE_PLUGIN_ROOT}}/{SERVER_DIR}/{SERVER_LAUNCHER}",
                 ],
                 "env": {"UV_PYTHON": SERVER_REQUIRES_PYTHON},
             }
@@ -252,6 +263,9 @@ def _vendor_server(plugin_out: Path, *, lock: bool) -> None:
     # The source README documents installing and launching the server by hand,
     # which does not apply here; `pyproject.toml` still needs a readme.
     (server_out / "README.md").write_text(SERVER_README, encoding="utf-8")
+    (server_out / SERVER_LAUNCHER).write_text(
+        SERVER_LAUNCHER_SOURCE, encoding="utf-8"
+    )
     pyproject = server_out / "pyproject.toml"
     pyproject.write_text(
         _server_pyproject(pyproject.read_text(encoding="utf-8")), encoding="utf-8"
@@ -266,6 +280,13 @@ def _vendor_server(plugin_out: Path, *, lock: bool) -> None:
         if key not in {"UV_CONSTRAINT", "UV_PYTHON", "UV_OVERRIDE"}
     }
     subprocess.run(["uv", "lock"], cwd=server_out, env=env, check=True)
+    # Locking builds the package to read its metadata, leaving bytecode and
+    # an egg-info behind; the directory cannot inspect those, so drop them.
+    for residue in [
+        *server_out.rglob("__pycache__"),
+        *server_out.rglob("*.egg-info"),
+    ]:
+        shutil.rmtree(residue, ignore_errors=True)
     size = (server_out / "uv.lock").stat().st_size
     if size > LOCKFILE_LIMIT_BYTES:
         raise RuntimeError(

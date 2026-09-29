@@ -244,6 +244,22 @@ Schema ``2026.6.dev4`` adds optional shading and space-heating controls under
   indoor air). The remainder is split equally between indoor mass and the
   internal wall; with no opaque wall, indoor mass receives the remainder.
 
+Internal shading is represented using a simplified effective solar-heat-gain
+multiplier, rather than an explicit thermal and optical model of a blind.
+When shading is active, the window-transmitted solar gain is multiplied by
+``reduction_factor_shading``. The retained gain is applied to the indoor
+thermal mass and subsequently exchanged with the indoor air and other
+surfaces through the existing heat-transfer processes.
+
+A value of ``1`` leaves the gain unchanged, while ``0`` removes this
+contribution entirely. The excluded fraction is not separately represented
+as blind absorption, reflection or heat release into the room. The
+multiplier should therefore represent the effective reduction in net indoor
+solar heat gain, rather than the blind's optical transmittance alone.
+
+Shading does not currently modify the daylight factor used by the
+electric-lighting control.
+
 Existing YAMLs require no new values. The migration preserves their content
 and any explicitly supplied controls, updating only the schema marker.
 These defaults preserve the previous control settings; they do not undo

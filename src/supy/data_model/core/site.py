@@ -2248,8 +2248,12 @@ class StebbsProperties(BaseModel):
     reduction_factor_shading: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description=(
-            "Fraction of window-transmitted solar heat gain retained when "
-            "internal shading is active [-]"
+            "Effective multiplier of window-transmitted solar heat gain when "
+            "internal shading is active [-] (1 = unchanged, 0 = no retained gain). "
+            "Retained gain is applied to indoor thermal mass. The excluded "
+            "fraction is not separately modelled as blind absorption, reflection "
+            "or indoor heat release; this is not a blind optical transmittance. "
+            "Shading does not modify the daylight factor for lighting control."
         ),
         json_schema_extra={
             "unit": "dimensionless",

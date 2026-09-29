@@ -114,6 +114,14 @@ jobs:
           server = claude_mcp["mcpServers"]["suews"]
           assert server["command"] == "uv"
           assert "${CLAUDE_PLUGIN_ROOT}/server" in server["args"]
+          assert (output / "plugins/suews/server/run_server.py").is_file()
+          # Build residue from `uv lock` is binary the directory cannot inspect.
+          residue = [
+              str(path)
+              for path in (output / "plugins/suews").rglob("*")
+              if path.suffix == ".pyc" or path.name.endswith(".egg-info")
+          ]
+          assert not residue, residue
           codex_manifest = json.loads(
               (output / "plugins/suews/.codex-plugin/plugin.json").read_text()
           )

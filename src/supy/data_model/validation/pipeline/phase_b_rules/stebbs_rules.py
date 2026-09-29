@@ -3,6 +3,7 @@ from .rules_core import (
     ValidationResult,
 )
 from collections.abc import Mapping
+from ...required_fields import stebbs_shading_requirements
 from ...core.yaml_helpers import (
     get_value_safe,
     get_stebbs_block,
@@ -275,26 +276,32 @@ def check_internal_shading(context):
             )
             continue
 
-        if shading_mode not in {1, 2}:
+        required_fields = stebbs_shading_requirements(shading_mode)
+        if not required_fields:
             continue
 
-        reduction_factor = get_value_safe(stebbs, "reduction_factor_shading")
-        if reduction_factor is None:
+        missing_suggestions = {
+            "reduction_factor_shading": "Provide a value between 0 and 1",
+            "temperature_threshold_shading": "Provide temperature_threshold_shading in degC",
+            "radiation_threshold_shading": "Provide radiation_threshold_shading in W m-2",
+        }
+        for field_name, message in required_fields.items():
+            if get_value_safe(stebbs, field_name) is not None:
+                continue
             results.append(
                 ValidationResult(
                     status="ERROR",
                     category="MODEL_OPTIONS",
-                    parameter="stebbs.reduction_factor_shading",
+                    parameter=f"stebbs.{field_name}",
                     site_index=site_idx,
                     site_gridid=site.get("gridiv"),
-                    message=(
-                        "reduction_factor_shading must be provided when "
-                        "internal_shading is 1 or 2."
-                    ),
-                    suggested_value="Provide a value between 0 and 1",
+                    message=f"{message}.",
+                    suggested_value=missing_suggestions[field_name],
                 )
             )
-        elif (
+
+        reduction_factor = get_value_safe(stebbs, "reduction_factor_shading")
+        if reduction_factor is not None and (
             not isinstance(reduction_factor, (int, float))
             or isinstance(reduction_factor, bool)
             or not math.isfinite(reduction_factor)
@@ -315,27 +322,15 @@ def check_internal_shading(context):
                 )
             )
 
-        if shading_mode != 2:
-            continue
-
         threshold_specs = (
             ("temperature_threshold_shading", -273.15, False, "degC"),
             ("radiation_threshold_shading", 0.0, True, "W m-2"),
         )
         for field_name, lower_bound, inclusive, unit in threshold_specs:
+            if field_name not in required_fields:
+                continue
             threshold = get_value_safe(stebbs, field_name)
             if threshold is None:
-                results.append(
-                    ValidationResult(
-                        status="ERROR",
-                        category="MODEL_OPTIONS",
-                        parameter=f"stebbs.{field_name}",
-                        site_index=site_idx,
-                        site_gridid=site.get("gridiv"),
-                        message=f"{field_name} must be provided when internal_shading is 2.",
-                        suggested_value=f"Provide {field_name} in {unit}",
-                    )
-                )
                 continue
 
             valid_number = (

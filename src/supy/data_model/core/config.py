@@ -49,6 +49,8 @@ from ..validation.required_fields import (
     EVERGREEN_REQUIRED_PROVIDED_FAI,
     LAI_CALCULATED_ONLY_REQUIRED,
     LAI_REQUIRED,
+    STEBBS_SHADING_REQUIRED_MODES,
+    stebbs_shading_requirements,
 )
 
 from datetime import datetime
@@ -416,9 +418,7 @@ class SUEWSConfig(BaseModel):
         "daylight_control",
         "threshold_lighting_illuminance",
         "internal_shading",
-        "reduction_factor_shading",
-        "temperature_threshold_shading",
-        "radiation_threshold_shading",
+        *STEBBS_SHADING_REQUIRED_MODES,
         "profile_appliance",
         "power_density_lighting",
         "efficiency_heating_system_air",
@@ -1990,12 +1990,6 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             internal_shading_val = None
 
-        shading_factor_params_stebbs = ["reduction_factor_shading"]
-        shading_threshold_params_stebbs = [
-            "temperature_threshold_shading",
-            "radiation_threshold_shading",
-        ]
-
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
             # Exclude window params if WWR is zero
@@ -2025,16 +2019,11 @@ class SUEWSConfig(BaseModel):
         if daylightcontrol_val == 0:
             stebbs_required = [p for p in stebbs_required if p not in daylightcontrol_params_stebbs]
 
-        if internal_shading_val == 0:
+        if internal_shading_val in (0, 1, 2):
+            shading_required = stebbs_shading_requirements(internal_shading_val)
             stebbs_required = [
-                p
-                for p in stebbs_required
-                if p
-                not in shading_factor_params_stebbs + shading_threshold_params_stebbs
-            ]
-        elif internal_shading_val == 1:
-            stebbs_required = [
-                p for p in stebbs_required if p not in shading_threshold_params_stebbs
+                p for p in stebbs_required
+                if p not in STEBBS_SHADING_REQUIRED_MODES or p in shading_required
             ]
 
         # Validate stebbs required params

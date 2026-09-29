@@ -7,6 +7,7 @@ import yaml
 
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.model import NetRadiationMethod, StorageHeatMethod
+from supy.data_model.core.site import StebbsProperties
 
 pytestmark = pytest.mark.api
 
@@ -123,14 +124,22 @@ def test_internal_shading_rejects_invalid_mode():
     assert "Input should be 0, 1 or 2" in message
 
 
-def test_constant_internal_shading_requires_reduction_factor():
+@pytest.mark.parametrize("input_route", ["model", "dict", "yaml"])
+def test_constant_internal_shading_requires_reduction_factor(input_route, tmp_path):
     data = _sample_config()
     stebbs = _site_properties(data)["stebbs"]
     stebbs["internal_shading"] = {"value": 1}
     stebbs.pop("reduction_factor_shading")
 
     with pytest.raises(ValueError) as excinfo:
-        SUEWSConfig.from_dict(data)
+        if input_route == "model":
+            StebbsProperties.model_validate(stebbs)
+        elif input_route == "dict":
+            SUEWSConfig.from_dict(data)
+        else:
+            path = tmp_path / "shading.yml"
+            path.write_text(yaml.safe_dump(data), encoding="utf-8")
+            SUEWSConfig.from_yaml(path)
 
     assert (
         "reduction_factor_shading must be provided when internal_shading is 1 or 2"

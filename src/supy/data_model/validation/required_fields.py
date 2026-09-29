@@ -12,7 +12,7 @@ validator itself could reach it. It is hoisted here so the documentation
 generator can describe the same conditions to readers instead of reporting that
 these parameters have no default and leaving the reader to guess.
 
-Two distinct things live in this module:
+This module contains:
 
 - The ``*_REQUIRED`` tables, which map a field name to the
   ``(message, fix)`` pair emitted in annotated-YAML feedback. These are
@@ -20,6 +20,9 @@ Two distinct things live in this module:
 - ``DOC_REQUIRED_WHEN``, which maps a model class name to a reader-facing
   description of when each field is required. This is consumed by the
   documentation generator.
+- ``STEBBS_SHADING_REQUIRED_MODES`` and ``stebbs_shading_requirements``,
+  which share shading requirements across parameter models, full
+  configurations and raw YAML diagnostics.
 
 .. warning::
 
@@ -33,6 +36,35 @@ from __future__ import annotations
 
 # (message, fix) keyed by field name.
 RequirementTable = dict[str, tuple[str, str]]
+
+# Fixed shading inputs that must be explicitly supplied in each active mode.
+STEBBS_SHADING_REQUIRED_MODES: dict[str, tuple[int, ...]] = {
+    "reduction_factor_shading": (1, 2),
+    "temperature_threshold_shading": (2,),
+    "radiation_threshold_shading": (2,),
+}
+
+
+def stebbs_shading_requirements(mode: int | None) -> dict[str, str]:
+    """Return required shading fields and their missing-value messages.
+
+    Parameters
+    ----------
+    mode : int or None
+        Validated shading mode; disabled or absent modes require no fields.
+
+    Returns
+    -------
+    dict of str to str
+        Required field names mapped to messages shared by model and YAML checks.
+    """
+    return {
+        field: f"{field} must be provided when internal_shading is "
+        + " or ".join(str(value) for value in modes)
+        for field, modes in STEBBS_SHADING_REQUIRED_MODES.items()
+        if mode in modes
+    }
+
 
 LAI_REQUIRED: RequirementTable = {
     "lai_max": (

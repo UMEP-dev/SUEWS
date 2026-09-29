@@ -1596,15 +1596,30 @@ def test_internal_shading_missing_defaults_to_disabled_in_phase_b(registry):
     assert not results
 
 
-def test_controlled_internal_shading_requires_both_thresholds_in_phase_b(registry):
+@pytest.mark.parametrize(
+    "mode,expected_fields",
+    [
+        (0, set()),
+        (1, {"reduction_factor_shading"}),
+        (2, {
+            "reduction_factor_shading",
+            "temperature_threshold_shading",
+            "radiation_threshold_shading",
+        }),
+    ],
+)
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_internal_shading_required_fields_in_phase_b(
+    registry, mode, expected_fields, wrapped
+):
+    """Raw YAML reports exactly the missing inputs for the selected mode."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [
             {
                 "properties": {
                     "stebbs": {
-                        "internal_shading": {"value": 2},
-                        "reduction_factor_shading": {"value": 0.4},
+                        "internal_shading": {"value": mode} if wrapped else mode,
                     }
                 }
             }
@@ -1613,10 +1628,11 @@ def test_controlled_internal_shading_requires_both_thresholds_in_phase_b(registr
 
     results = registry["internal_shading"](ValidationContext(yaml_data=yaml_data))
 
+    assert len(results) == len(expected_fields)
     assert {result.parameter for result in results} == {
-        "stebbs.temperature_threshold_shading",
-        "stebbs.radiation_threshold_shading",
+        f"stebbs.{field}" for field in expected_fields
     }
+    assert all("must be provided" in result.message for result in results)
 
 
 def test_internal_shading_reduction_factor_range_in_phase_b(registry):

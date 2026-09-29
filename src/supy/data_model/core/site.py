@@ -16,6 +16,7 @@ from ..validation.core.utils import (
     check_missing_params,
     validate_only_when_complete,
 )
+from ..validation.required_fields import stebbs_shading_requirements
 from .surface import (
     SurfaceType,
     SurfaceProperties,
@@ -2631,23 +2632,9 @@ class StebbsProperties(BaseModel):
             if isinstance(self.internal_shading, RefValue)
             else self.internal_shading
         )
-        if (
-            shading_mode in (1, 2)
-            and "reduction_factor_shading" not in self.model_fields_set
-        ):
-            raise ValueError(
-                "reduction_factor_shading must be provided when "
-                "internal_shading is 1 or 2"
-            )
-        if shading_mode == 2:
-            for field_name in (
-                "temperature_threshold_shading",
-                "radiation_threshold_shading",
-            ):
-                if field_name not in self.model_fields_set:
-                    raise ValueError(
-                        f"{field_name} must be provided when internal_shading is 2"
-                    )
+        for field_name, message in stebbs_shading_requirements(shading_mode).items():
+            if field_name not in self.model_fields_set:
+                raise ValueError(message)
         return self
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:

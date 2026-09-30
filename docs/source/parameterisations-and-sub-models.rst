@@ -24,6 +24,70 @@ incoming shortwave radiation to be provided.
 #. `SPARTACUS-Surface (SS)` computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation). More details can be found in the `SPARTACUS-Surface (SS)` section.
 #. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis. More details can be found in the ``BEERS`` section.
 
+.. _shortwave_partition:
+
+Direct and diffuse shortwave partitioning
+-----------------------------------------
+
+For SPARTACUS-Surface net-radiation options, the SUEWS driver partitions
+global horizontal irradiance (``kdown``) before passing the components to
+SPARTACUS. Select the scheme with ``model.physics.kdown_split_method``:
+
+.. list-table:: Shortwave partition options
+   :header-rows: 1
+   :widths: 15 85
+
+   * - Option
+     - Behaviour
+   * - ``forcing``
+     - Use direct-normal ``kdir`` and diffuse-horizontal ``kdiff`` forcing.
+       Invalid components fall back to ``epw`` with a warning.
+   * - ``constant``
+     - Use the direct-horizontal fraction set by
+       ``kdown_split_method.constant.sw_dn_direct_frac``.
+   * - ``epw`` (default)
+     - Use pressure-corrected DISC with a static DIRINT correction.
+   * - ``reindl``
+     - Use the Reindl et al. (1990) diffuse-fraction correlation
+       :cite:`R90`, as implemented in BEERS.
+
+For example, with incoming longwave estimated from air conditions:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation: ldown_ss_air
+       kdown_split_method: reindl
+
+Reindl uses the extraterrestrial clearness index, solar altitude, air
+temperature in degrees Celsius and relative humidity in percent. The
+clearness index is ``kdown`` divided by extraterrestrial horizontal
+irradiance, using the same 1370 W |m^-2| solar constant and Spencer orbital
+correction as the ``epw`` splitter. It is not a clear-sky index. The
+correlation has three ranges: :math:`K_t \leq 0.3`,
+:math:`0.3 < K_t < 0.78`, and :math:`K_t \geq 0.78`.
+
+The diffuse estimate is bounded between zero and ``kdown``. Direct-horizontal
+irradiance is the remainder, so the two components sum to non-negative
+``kdown``. At solar altitudes of 0.1 degrees or less, the direct component
+is zero and any positive ``kdown`` is treated as diffuse. Non-positive
+``kdown`` gives zero for both components. If temperature or humidity is
+missing (at or below -99) or non-finite, the numerical helper uses BEERS'
+clearness-index-only fallback. Normal forcing validation still applies.
+
+BEERS' own radiation calculation is unchanged. Its legacy Earth-Sun
+correction differs from the correction used here, and its separate low-sun
+cap on direct-normal irradiance is not applied to the horizontal split.
+Consequently, choosing ``reindl`` does not promise identical BEERS and
+SPARTACUS radiation components. The selector affects SPARTACUS input
+partitioning; it does not change NARP or BEERS method selection.
+
+.. note::
+   The Reindl correlation was developed from hourly measurements. SUEWS
+   evaluates it at the model timestep; performance at shorter timesteps
+   should be assessed against suitable direct/diffuse observations.
+
 BEERS (Building Envelope Energy Radiation Scheme)
 --------------------------------------------------
 

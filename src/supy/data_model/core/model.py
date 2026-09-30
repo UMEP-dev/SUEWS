@@ -236,11 +236,13 @@ class KdownSplitMethod(Enum):
     1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid
     2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction
     3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach
+    4: REINDL - Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS
     """
 
     FORCING = 1
     CONSTANT = 2
     EPW = 3
+    REINDL = 4
 
     def __int__(self):
         return self.value

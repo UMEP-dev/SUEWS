@@ -1,5 +1,6 @@
-import pytest
 from pydantic import ValidationError
+import pytest
+import yaml
 
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.model import KdownSplitMethod, ModelPhysics
@@ -45,6 +46,7 @@ def test_kdown_split_method_roundtrips_through_df_state(method):
         ("forcing", KdownSplitMethod.FORCING),
         ("constant", KdownSplitMethod.CONSTANT),
         ("epw", KdownSplitMethod.EPW),
+        ("reindl", KdownSplitMethod.REINDL),
     ],
 )
 def test_kdown_split_method_accepts_readable_names(name, method):
@@ -75,10 +77,28 @@ def test_legacy_df_state_defaults_to_epw():
     assert _method_code(restored.kdown_split_method) == KdownSplitMethod.EPW.value
 
 
-@pytest.mark.parametrize("value", [0, 4])
+@pytest.mark.parametrize("value", [0, 5])
 def test_kdown_split_method_rejects_unknown_values(value):
     with pytest.raises(ValidationError):
         ModelPhysics(kdown_split_method=value)
+
+
+@pytest.mark.parametrize("selector", ["reindl", {"value": "reindl"}, {"value": 4}])
+@pytest.mark.parametrize("validate", [True, False])
+def test_reindl_roundtrips_via_mapping_and_yaml(
+    sample_yaml_path, tmp_path, selector, validate
+):
+    payload = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+    payload["model"]["physics"]["kdown_split_method"] = selector
+    config = SUEWSConfig.from_dict(payload, use_conditional_validation=validate)
+    path = tmp_path / "reindl.yml"
+    config.to_yaml(str(path))
+    restored = SUEWSConfig.from_yaml(str(path), use_conditional_validation=validate)
+    if validate:
+        assert _method_code(restored.model.physics.kdown_split_method) == 4
+    else:
+        # The explicitly unchecked path preserves raw values without coercion.
+        assert restored.model["physics"]["kdown_split_method"] == selector
 
 
 def test_config_migrates_legacy_spartacus_fraction_to_model_physics():

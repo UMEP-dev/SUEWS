@@ -93,6 +93,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (1, "forcing", ()),
         (2, "constant", ()),
         (3, "epw", ()),
+        (4, "reindl", ()),
     ],
     "emissions": [
         (0, "observed", ()),

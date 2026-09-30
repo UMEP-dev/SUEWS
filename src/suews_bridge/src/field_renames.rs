@@ -756,7 +756,7 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
     ),
     (
         "kdown_split_method",
-        &[("forcing", 1), ("constant", 2), ("epw", 3)],
+        &[("forcing", 1), ("constant", 2), ("epw", 3), ("reindl", 4)],
     ),
     (
         "emissions",

@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 30 Sep 2026
+
+- [feature][experimental] Added `model.physics.kdown_split_method: reindl` for SPARTACUS shortwave partitioning using the existing BEERS Reindl correlation
+  - The driver supplies energy-conserving direct-horizontal and diffuse-horizontal components; EPW remains the default and BEERS behaviour is unchanged.
+  - Reindl uses the existing EPW orbital correction, with documented low-sun and missing-meteorology handling.
+
 ### 29 Sep 2026
 
 - [maintenance] The generated agent plugin no longer ships build residue, and its MCP command names a file in the plugin

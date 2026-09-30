@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 88       | 33 | 86 | 42 | 330   |
+| 2026 | 81       | 88       | 34 | 86 | 42 | 332   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -54,15 +54,14 @@ EXAMPLES:
 
 ## 2026
 
-### 30 Sep 2026
+### 31 Sep 2026
 
-- [change][experimental] Named shortwave split option 3 `perez` after Perez et al. (1992), using static DIRINT.
+- [change][experimental] Named shortwave split option 3 `perez` after Perez et al. (1992), using static DIRINT (#1832).
   - The previous text selector is no longer accepted; use `perez` or numeric `3`. The numerical method and default selection are unchanged.
-  - Schema `2026.6.dev5` adds a migration from the previous text selector to `perez`, preserving wrapped reference metadata and existing numeric selections. (#1832)
+  - Schema `2026.6.dev5` adds a migration from the previous text selector to `perez`, preserving wrapped reference metadata and existing numeric selections.
 
-- [feature][experimental] Added `model.physics.kdown_split_method: reindl` for SPARTACUS shortwave partitioning using the existing BEERS Reindl correlation
+- [feature][experimental] Added `model.physics.kdown_split_method: reindl` for SPARTACUS shortwave partitioning using the existing BEERS Reindl correlation(#1832)
   - The driver supplies energy-conserving direct-horizontal and diffuse-horizontal components; Perez remains the default and BEERS behaviour is unchanged.
-  - Reindl uses the existing Spencer orbital correction, with documented low-sun and missing-meteorology handling.
 
 ### 29 Sep 2026
 

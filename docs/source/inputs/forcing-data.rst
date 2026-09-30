@@ -440,7 +440,7 @@ Direct and diffuse shortwave components
 When SPARTACUS-Surface is selected, ``model.physics.kdown_split_method``
 controls how global horizontal irradiance is partitioned. Use ``forcing``
 for measured direct-normal ``kdir`` and diffuse-horizontal ``kdiff``,
-``constant`` for a specified direct-horizontal fraction, ``epw`` for the
+``constant`` for a specified direct-horizontal fraction, ``perez`` for the
 default DISC/static-DIRINT estimate, or ``reindl`` for the Reindl et al.
 (1990) estimate. The ``reindl`` option needs no additional forcing columns:
 it uses ``kdown``, temperature, humidity and the model's solar position.

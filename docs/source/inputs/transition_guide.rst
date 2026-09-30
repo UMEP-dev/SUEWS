@@ -347,7 +347,7 @@ SPARTACUS direct/diffuse benchmark work. It extends the ``2026.5``
 surface with default-backed controls:
 
 - ``model.physics.kdown_split_method`` selects forcing-provided,
-  constant-fraction, or EPW-derived direct/diffuse shortwave
+  constant-fraction, or Perez-based direct/diffuse shortwave
   partitioning. The constant split value is nested with the constant
   selector, for example:
 

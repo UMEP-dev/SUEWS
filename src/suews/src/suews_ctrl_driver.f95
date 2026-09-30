@@ -30,7 +30,7 @@ MODULE SUEWS_Driver
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
    USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
-   USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc, split_shortwave_forcing, split_shortwave_reindl
+   USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_perez, split_shortwave_forcing, split_shortwave_reindl
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
@@ -1669,7 +1669,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineSPARTACUS) ! output
       USE module_phys_narp, ONLY: RadMethod, NARP
-      USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc, split_shortwave_forcing, split_shortwave_reindl
+      USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_perez, split_shortwave_forcing, split_shortwave_reindl
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
                                SUEWS_FORCING, SUEWS_SITE, &
@@ -1922,28 +1922,28 @@ CONTAINS
                            kdown, forcing%kdiff, forcing%kdir, zenith_deg, &
                            kdown_direct, kdown_diffuse, forcing_split_valid)
                         IF (.NOT. forcing_split_valid) THEN
-                           CALL split_shortwave_epw_disc( &
+                           CALL split_shortwave_perez( &
                               kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
                               sw_dn_direct_frac, kdown_direct)
                            kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
                            CALL modState%errorState%report( &
-                              message='invalid kdir/kdiff forcing; using EPW Kdown split', &
+                              message='invalid kdir/kdiff forcing; using Perez Kdown split', &
                               location='SUEWS_cal_Qn', is_fatal=.FALSE.)
                         END IF
                      CASE (2) ! constant direct-horizontal fraction
                         kdown_direct = MAX(0.0D0, kdown) &
                                        *MAX(0.0D0, MIN(1.0D0, sw_dn_direct_frac))
                         kdown_diffuse = MAX(0.0D0, kdown) - kdown_direct
-                     CASE (3) ! EPW/DISC static-DIRINT split
-                        CALL split_shortwave_epw_disc( &
+                     CASE (3) ! Perez/DISC static-DIRINT split
+                        CALL split_shortwave_perez( &
                            kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
                            sw_dn_direct_frac, kdown_direct)
                         kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
                      CASE (4) ! Reindl et al. (1990), using the BEERS diffuse correlation
                         CALL split_shortwave_reindl(kdown, id, zenith_deg, Tair_C, avRH, kdown_direct)
                         kdown_diffuse = MAX(0.0D0, kdown) - kdown_direct
-                     CASE DEFAULT ! retain EPW fallback for unrecognised method values
-                        CALL split_shortwave_epw_disc( &
+                     CASE DEFAULT ! retain Perez fallback for unrecognised method values
+                        CALL split_shortwave_perez( &
                            kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
                            sw_dn_direct_frac, kdown_direct)
                         kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)

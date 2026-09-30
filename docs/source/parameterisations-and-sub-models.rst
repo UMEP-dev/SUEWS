@@ -41,12 +41,13 @@ SPARTACUS. Select the scheme with ``model.physics.kdown_split_method``:
      - Behaviour
    * - ``forcing``
      - Use direct-normal ``kdir`` and diffuse-horizontal ``kdiff`` forcing.
-       Invalid components fall back to ``epw`` with a warning.
+       Invalid components fall back to ``perez`` with a warning.
    * - ``constant``
      - Use the direct-horizontal fraction set by
        ``kdown_split_method.constant.sw_dn_direct_frac``.
-   * - ``epw`` (default)
-     - Use pressure-corrected DISC with a static DIRINT correction.
+   * - ``perez`` (default)
+     - Use Perez et al. (1992) :cite:`P92DIRINT`: pressure-corrected DISC
+       with a static DIRINT correction.
    * - ``reindl``
      - Use the Reindl et al. (1990) diffuse-fraction correlation
        :cite:`R90`, as implemented in BEERS.
@@ -60,11 +61,18 @@ For example, with incoming longwave estimated from air conditions:
        net_radiation: ldown_ss_air
        kdown_split_method: reindl
 
+The ``perez`` option retains method number 3 and the default calculation.
+It uses the no-time-series-correction DIRINT coefficients, without the
+neighbouring-timestep variability correction. Here Perez refers to the
+global-to-direct irradiance conversion method, not the separate Perez
+sky-diffuse transposition model. Configurations using the previous text
+selector for method 3 must now use ``perez`` or numeric ``3``.
+
 Reindl uses the extraterrestrial clearness index, solar altitude, air
 temperature in degrees Celsius and relative humidity in percent. The
 clearness index is ``kdown`` divided by extraterrestrial horizontal
 irradiance, using the same 1370 W |m^-2| solar constant and Spencer orbital
-correction as the ``epw`` splitter. It is not a clear-sky index. The
+correction as the ``perez`` splitter. It is not a clear-sky index. The
 correlation has three ranges: :math:`K_t \leq 0.3`,
 :math:`0.3 < K_t < 0.78`, and :math:`K_t \geq 0.78`.
 

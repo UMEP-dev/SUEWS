@@ -6742,7 +6742,7 @@
       "type": "object"
     },
     "KdownSplitMethod": {
-      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid\n2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction\n3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach\n4: REINDL - Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
+      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid\n2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction\n3: PEREZ - Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction\n4: REINDL - Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
       "enum": [
         1,
         2,
@@ -7237,7 +7237,7 @@
           "depends_on": [
             "net_radiation"
           ],
-          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (EPW) = Uses the pressure-corrected DISC/static-DIRINT approach; 4 (REINDL) = Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
+          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (PEREZ) = Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction; 4 (REINDL) = Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
           "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
           "title": "Kdown Split Method",
           "unit": "dimensionless"

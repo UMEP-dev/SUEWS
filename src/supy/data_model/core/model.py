@@ -233,15 +233,15 @@ class KdownSplitMethod(Enum):
     """
     Method for partitioning global horizontal irradiance into direct and diffuse components.
 
-    1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid
+    1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid
     2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction
-    3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach
+    3: PEREZ - Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction
     4: REINDL - Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS
     """
 
     FORCING = 1
     CONSTANT = 2
-    EPW = 3
+    PEREZ = 3
     REINDL = 4
 
     def __int__(self):
@@ -939,7 +939,7 @@ class ModelPhysics(BaseModel):
         },
     )
     kdown_split_method: FlexibleRefValue(KdownSplitMethod) = Field(
-        default=KdownSplitMethod.EPW,
+        default=KdownSplitMethod.PEREZ,
         description=_enum_description(KdownSplitMethod),
         json_schema_extra={
             "unit": "dimensionless",
@@ -1228,7 +1228,7 @@ class ModelPhysics(BaseModel):
         # Keyed by (column name, field name) as above.
         optional_new_attrs_with_defaults = {
             ("laimethod", "laimethod"): LAIMethod.MODELLED,
-            ("kdown_split_method", "kdown_split_method"): KdownSplitMethod.EPW,
+            ("kdown_split_method", "kdown_split_method"): KdownSplitMethod.PEREZ,
         }
         optional_float_attrs_with_defaults = {
             "sw_dn_direct_frac": (("sw_dn_direct_frac",), 0.5),

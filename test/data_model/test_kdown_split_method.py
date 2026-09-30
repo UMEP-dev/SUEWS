@@ -20,10 +20,10 @@ def _scalar(value):
     return value
 
 
-def test_kdown_split_method_defaults_to_epw():
+def test_kdown_split_method_defaults_to_perez():
     physics = ModelPhysics()
 
-    assert _method_code(physics.kdown_split_method) == KdownSplitMethod.EPW.value
+    assert _method_code(physics.kdown_split_method) == KdownSplitMethod.PEREZ.value
     assert _scalar(physics.sw_dn_direct_frac) == 0.5
 
 
@@ -45,7 +45,7 @@ def test_kdown_split_method_roundtrips_through_df_state(method):
     [
         ("forcing", KdownSplitMethod.FORCING),
         ("constant", KdownSplitMethod.CONSTANT),
-        ("epw", KdownSplitMethod.EPW),
+        ("perez", KdownSplitMethod.PEREZ),
         ("reindl", KdownSplitMethod.REINDL),
     ],
 )
@@ -67,14 +67,14 @@ def test_kdown_split_constant_owns_direct_fraction():
     assert state.loc[1, ("sw_dn_direct_frac", "0")] == 0.42
 
 
-def test_legacy_df_state_defaults_to_epw():
+def test_legacy_df_state_defaults_to_perez():
     state = ModelPhysics().to_df_state(grid_id=1).drop(
         columns=[("kdown_split_method", "0")]
     )
 
     restored = ModelPhysics.from_df_state(state, grid_id=1)
 
-    assert _method_code(restored.kdown_split_method) == KdownSplitMethod.EPW.value
+    assert _method_code(restored.kdown_split_method) == KdownSplitMethod.PEREZ.value
 
 
 @pytest.mark.parametrize("value", [0, 5])
@@ -83,19 +83,22 @@ def test_kdown_split_method_rejects_unknown_values(value):
         ModelPhysics(kdown_split_method=value)
 
 
-@pytest.mark.parametrize("selector", ["reindl", {"value": "reindl"}, {"value": 4}])
+@pytest.mark.parametrize(("name", "code"), [("perez", 3), ("reindl", 4)])
+@pytest.mark.parametrize("form", ["name", "wrapped_name", "wrapped_code"])
 @pytest.mark.parametrize("validate", [True, False])
-def test_reindl_roundtrips_via_mapping_and_yaml(
-    sample_yaml_path, tmp_path, selector, validate
+def test_shortwave_split_roundtrips_via_mapping_and_yaml(
+    sample_yaml_path, tmp_path, name, code, form, validate
 ):
+    selector = {"name": name, "wrapped_name": {"value": name},
+                "wrapped_code": {"value": code}}[form]
     payload = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
     payload["model"]["physics"]["kdown_split_method"] = selector
     config = SUEWSConfig.from_dict(payload, use_conditional_validation=validate)
-    path = tmp_path / "reindl.yml"
+    path = tmp_path / f"{name}.yml"
     config.to_yaml(str(path))
     restored = SUEWSConfig.from_yaml(str(path), use_conditional_validation=validate)
     if validate:
-        assert _method_code(restored.model.physics.kdown_split_method) == 4
+        assert _method_code(restored.model.physics.kdown_split_method) == code
     else:
         # The explicitly unchecked path preserves raw values without coercion.
         assert restored.model["physics"]["kdown_split_method"] == selector

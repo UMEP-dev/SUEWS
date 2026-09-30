@@ -1239,9 +1239,10 @@ CONTAINS
 
    END SUBROUTINE SPARTACUS
 
-   SUBROUTINE split_shortwave_epw_disc(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
+   SUBROUTINE split_shortwave_perez(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
       ! Estimate direct horizontal SW from global horizontal SW using the
-      ! DISC/Perez core used by the EPW writer through pvlib DIRINT.
+      ! Perez et al. (1992), Dynamic Global-to-Direct Irradiance Conversion Models.
+      ! Pressure-corrected DISC with the static DIRINT correction from pvlib.
       !
       ! Full pvlib DIRINT uses neighbouring timesteps to correct kt'.  Here
       ! SPARTACUS is called one timestep at a time, so we use pressure-corrected
@@ -1340,12 +1341,12 @@ CONTAINS
       kdir = MAX(0.0D0, kn*i0_normal*dirint_coeff)
       kdirect = MIN(kdown, MAX(0.0D0, kdir*cos_sza))
 
-   END SUBROUTINE split_shortwave_epw_disc
+   END SUBROUTINE split_shortwave_perez
 
    SUBROUTINE split_shortwave_reindl(kdown, doy, zenith_deg, tair_c, rh, kdirect)
       ! Reindl, Beckman and Duffie (1990), Solar Energy 45(1), 1-7.
       ! Reuse BEERS' four-predictor diffuse correlation (or its Kt-only
-      ! fallback). Use the same extraterrestrial irradiance as the EPW split.
+      ! fallback). Use the same extraterrestrial irradiance as the Perez split.
       ! Return direct HORIZONTAL irradiance, conserving the supplied Kdown;
       ! BEERS' separate low-sun cap on direct NORMAL irradiance is not used.
       IMPLICIT NONE

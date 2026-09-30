@@ -12,7 +12,7 @@ import supy as sp
 pytestmark = [pytest.mark.physics, pytest.mark.rust]
 
 
-@pytest.mark.parametrize("split_method", ["epw", "reindl"])
+@pytest.mark.parametrize("split_method", ["perez", "reindl"])
 def test_spartacus_config_patch_runs_and_reports_radiation(split_method):
     sim = sp.SUEWSSimulation.from_sample_data()
     config = sim.config.model_dump(exclude_none=True, mode="json")

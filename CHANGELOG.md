@@ -58,6 +58,7 @@ EXAMPLES:
 
 - [change][experimental] Named shortwave split option 3 `perez` after Perez et al. (1992), using static DIRINT.
   - The previous text selector is no longer accepted; use `perez` or numeric `3`. The numerical method and default selection are unchanged.
+  - Schema `2026.6.dev5` adds a migration from the previous text selector to `perez`, preserving wrapped reference metadata and existing numeric selections. (#1832)
 
 - [feature][experimental] Added `model.physics.kdown_split_method: reindl` for SPARTACUS shortwave partitioning using the existing BEERS Reindl correlation
   - The driver supplies energy-conserving direct-horizontal and diffuse-horizontal components; Perez remains the default and BEERS behaviour is unchanged.

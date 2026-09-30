@@ -223,6 +223,30 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev5_shortwave_migration:
+
+Upgrading to Schema 2026.6.dev5
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev5`` renames the shortwave splitting selector to ``perez``.
+The previous text selector is no longer accepted when loading a configuration.
+Use the schema converter to update an older YAML before loading it:
+
+.. code-block:: bash
+
+   suews-convert -i old.yml -o current.yml
+
+The migration rewrites the retired text selector in both bare and
+``value``-wrapped forms under ``model.physics.kdown_split_method``. It
+preserves reference metadata and all other settings. Numeric option ``3``
+and its calculations remain unchanged; numeric selections and omitted
+selectors require no content changes. The output is stamped
+``schema_version: '2026.6.dev5'``. Merely changing the version stamp does
+not rename the old selector.
+
+The new ``reindl`` option (numeric ``4``) is opt-in and needs no additional
+inputs. See :ref:`shortwave_partition` for both splitting methods.
+
 Upgrading to Schema 2026.6.dev4
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

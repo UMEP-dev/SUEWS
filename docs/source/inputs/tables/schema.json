@@ -13402,7 +13402,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev4. Development schema adding STEBBS internal_shading, reduction_factor_shading, temperature_threshold_shading, radiation_threshold_shading, destination_waste_heat and fraction_convective_heating inputs. Defaults disable shading, retain space-heating waste heat indoors and deliver all useful heating to indoor air. Existing 2026.6.dev3 YAMLs remain compatible through a no-op content migration that preserves explicit settings.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev5. Development schema renaming the model.physics.kdown_split_method text selector from epw to perez (#1832). The migration rewrites bare and RefValue-wrapped selectors while preserving reference metadata. Numeric option 3 and its default calculation are unchanged. The optional reindl selector (option 4) adds no required inputs.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13455,20 +13455,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev4",
+  "title": "SUEWS Configuration Schema v2026.6.dev5",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev4.json",
-  "version": "2026.6.dev4",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev5.json",
+  "version": "2026.6.dev5",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev4"
+    "schema_version": "2026.6.dev5"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev4",
+      "schema_version": "2026.6.dev5",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

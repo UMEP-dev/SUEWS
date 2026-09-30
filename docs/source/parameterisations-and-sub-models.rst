@@ -67,6 +67,8 @@ neighbouring-timestep variability correction. Here Perez refers to the
 global-to-direct irradiance conversion method, not the separate Perez
 sky-diffuse transposition model. Configurations using the previous text
 selector for method 3 must now use ``perez`` or numeric ``3``.
+Schema ``2026.6.dev5`` provides a migration for older YAMLs; see
+:ref:`schema_dev5_shortwave_migration` for the conversion command.
 
 Reindl uses the extraterrestrial clearness index, solar altitude, air
 temperature in degrees Celsius and relative humidity in percent. The

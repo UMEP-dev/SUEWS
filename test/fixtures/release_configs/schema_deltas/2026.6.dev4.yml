@@ -1,0 +1,8 @@
+# Outgoing shortwave-selector shape; tests overlay this on the shipped sample.
+schema_version: '2026.6.dev4'
+model:
+  physics:
+    kdown_split_method:
+      value: epw
+      ref:
+        desc: Existing shortwave partition selection

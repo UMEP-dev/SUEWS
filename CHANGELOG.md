@@ -54,7 +54,7 @@ EXAMPLES:
 
 ## 2026
 
-### 31 Sep 2026
+### 1 Oct 2026
 
 - [change][experimental] Named shortwave split option 3 `perez` after Perez et al. (1992), using static DIRINT (#1832).
   - The previous text selector is no longer accepted; use `perez` or numeric `3`. The numerical method and default selection are unchanged.

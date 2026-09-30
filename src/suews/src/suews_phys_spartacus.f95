@@ -1343,7 +1343,7 @@ CONTAINS
 
    END SUBROUTINE split_shortwave_perez
 
-   SUBROUTINE split_shortwave_reindl(kdown, doy, zenith_deg, tair_c, rh, kdirect)
+   SUBROUTINE split_shortwave_reindl(kdown, doy, zenith_deg, tair_c, rh, kdirect_horizontal)
       ! Reindl, Beckman and Duffie (1990), Solar Energy 45(1), 1-7.
       ! Reuse BEERS' four-predictor diffuse correlation (or its Kt-only
       ! fallback). Use the same extraterrestrial irradiance as the Perez split.
@@ -1352,12 +1352,12 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: doy
       REAL(KIND(1D0)), INTENT(IN) :: kdown, zenith_deg, tair_c, rh
-      REAL(KIND(1D0)), INTENT(OUT) :: kdirect
+      REAL(KIND(1D0)), INTENT(OUT) :: kdirect_horizontal ! [W m-2] direct horizontal irradiance
       REAL(KIND(1D0)) :: altitude, cos_zenith, ecc, kt, kdiffuse, direct_normal
       REAL(KIND(1D0)) :: temperature, humidity
       REAL(KIND(1D0)), PARAMETER :: PI = 3.141592653589793D0
 
-      kdirect = 0.0D0
+      kdirect_horizontal = 0.0D0
       IF (.NOT. IEEE_IS_FINITE(kdown) .OR. .NOT. IEEE_IS_FINITE(zenith_deg)) RETURN
       IF (kdown <= 0.0D0) RETURN
       altitude = 90.0D0 - zenith_deg
@@ -1373,7 +1373,7 @@ CONTAINS
       IF (.NOT. IEEE_IS_FINITE(temperature)) temperature = -999.0D0
       IF (.NOT. IEEE_IS_FINITE(humidity)) humidity = -999.0D0
       CALL diffusefraction(kdown, altitude, kt, temperature, humidity, direct_normal, kdiffuse)
-      kdirect = MAX(0.0D0, MIN(kdown, kdown - kdiffuse))
+      kdirect_horizontal = MAX(0.0D0, MIN(kdown, kdown - kdiffuse))
    END SUBROUTINE split_shortwave_reindl
 
    SUBROUTINE split_shortwave_forcing(kdown, kdiff, kdir, zenith_deg, kdirect, kdiffuse, valid)

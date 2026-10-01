@@ -434,6 +434,18 @@ For model-level data or spatial grids, use the gridded dataset:
 
 See :func:`~supy.util.gen_forcing_era5` API documentation for all options.
 
+Direct and diffuse shortwave components
+---------------------------------------
+
+When SPARTACUS-Surface is selected, ``model.physics.kdown_split_method``
+controls how global horizontal irradiance is partitioned. Use ``forcing``
+for measured direct-normal ``kdir`` and diffuse-horizontal ``kdiff``,
+``constant`` for a specified direct-horizontal fraction, ``perez`` for the
+default DISC/static-DIRINT estimate, or ``reindl`` for the Reindl et al.
+(1990) estimate. The ``reindl`` option needs no additional forcing columns:
+it uses ``kdown``, temperature, humidity and the model's solar position.
+See :ref:`shortwave_partition` for configuration, conventions and limitations.
+
 Using EPW Weather Files
 -----------------------
 

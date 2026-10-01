@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 88       | 33 | 86 | 42 | 330   |
+| 2026 | 81       | 88       | 34 | 86 | 42 | 332   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,15 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 1 Oct 2026
+
+- [change][experimental] Named shortwave split option 3 `perez` after Perez et al. (1992), using static DIRINT (#1832).
+  - The previous text selector is no longer accepted; use `perez` or numeric `3`. The numerical method and default selection are unchanged.
+  - Schema `2026.6.dev5` adds a migration from the previous text selector to `perez`, preserving wrapped reference metadata and existing numeric selections.
+
+- [feature][experimental] Added `model.physics.kdown_split_method: reindl` for SPARTACUS shortwave partitioning using the existing BEERS Reindl correlation(#1832)
+  - The driver supplies energy-conserving direct-horizontal and diffuse-horizontal components; Perez remains the default and BEERS behaviour is unchanged.
 
 ### 29 Sep 2026
 
@@ -316,7 +325,7 @@ EXAMPLES:
 - [feature][experimental] Added configurable partitioning of global horizontal irradiance into direct and diffuse components for SPARTACUS-Surface (#1567)
   - Wired forcing-file `kdir` (direct-normal irradiance) and `kdiff` (diffuse-horizontal irradiance) through the Python, Rust, C, and Fortran interfaces.
   - Moved the partition calculation outside SPARTACUS-Surface so it receives prepared direct-horizontal and diffuse-horizontal canopy-top forcing.
-  - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `epw`. (#1570)
+  - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `perez`. (#1570)
 
 - [feature][experimental] Expanded SPARTACUS radiation diagnostics and vegetation-control inputs (#1570)
   - Added layer-resolved SW/LW diagnostics, vegetation absorption diagnostics, layer top/base fluxes, and additional ground/top radiation outputs; the SuPy SPARTACUS output metadata now reflects the expanded output schema.

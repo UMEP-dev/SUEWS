@@ -2413,6 +2413,25 @@ mod tests {
     }
 
     #[test]
+    fn parses_shortwave_split_methods() {
+        let yaml = include_str!("../../../src/supy/sample_data/sample_config.yml");
+        for (selector, code) in [
+            ("perez", 3),
+            ("{value: perez}", 3),
+            ("{value: 3}", 3),
+            ("reindl", 4),
+            ("{value: reindl}", 4),
+            ("{value: 4}", 4),
+        ] {
+            let mut root: Value = serde_yaml::from_str(yaml).unwrap();
+            root["model"]["physics"]["kdown_split_method"] =
+                serde_yaml::from_str(selector).unwrap();
+            let run_cfg = load_run_config_from_value(&mut root).unwrap();
+            assert_eq!(run_cfg.config.kdown_split_method, code);
+        }
+    }
+
+    #[test]
     fn parses_stebbs_and_building_archetype_sections() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");

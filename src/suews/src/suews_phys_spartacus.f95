@@ -39,7 +39,8 @@ MODULE module_phys_spartacus
    USE module_ctrl_const_allocate, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
    USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
-   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
+   USE module_phys_beers, ONLY: diffusefraction
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, IEEE_IS_FINITE
 
    IMPLICIT NONE
 
@@ -1238,9 +1239,10 @@ CONTAINS
 
    END SUBROUTINE SPARTACUS
 
-   SUBROUTINE split_shortwave_epw_disc(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
+   SUBROUTINE split_shortwave_perez(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
       ! Estimate direct horizontal SW from global horizontal SW using the
-      ! DISC/Perez core used by the EPW writer through pvlib DIRINT.
+      ! Perez et al. (1992), Dynamic Global-to-Direct Irradiance Conversion Models.
+      ! Pressure-corrected DISC with the static DIRINT correction from pvlib.
       !
       ! Full pvlib DIRINT uses neighbouring timesteps to correct kt'.  Here
       ! SPARTACUS is called one timestep at a time, so we use pressure-corrected
@@ -1339,7 +1341,40 @@ CONTAINS
       kdir = MAX(0.0D0, kn*i0_normal*dirint_coeff)
       kdirect = MIN(kdown, MAX(0.0D0, kdir*cos_sza))
 
-   END SUBROUTINE split_shortwave_epw_disc
+   END SUBROUTINE split_shortwave_perez
+
+   SUBROUTINE split_shortwave_reindl(kdown, doy, zenith_deg, tair_c, rh, kdirect_horizontal)
+      ! Reindl, Beckman and Duffie (1990), Solar Energy 45(1), 1-7.
+      ! Reuse BEERS' four-predictor diffuse correlation (or its Kt-only
+      ! fallback). Use the same extraterrestrial irradiance as the Perez split.
+      ! Return direct HORIZONTAL irradiance, conserving the supplied Kdown;
+      ! BEERS' separate low-sun cap on direct NORMAL irradiance is not used.
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: doy
+      REAL(KIND(1D0)), INTENT(IN) :: kdown, zenith_deg, tair_c, rh
+      REAL(KIND(1D0)), INTENT(OUT) :: kdirect_horizontal ! [W m-2] direct horizontal irradiance
+      REAL(KIND(1D0)) :: altitude, cos_zenith, ecc, kt, kdiffuse, direct_normal
+      REAL(KIND(1D0)) :: temperature, humidity
+      REAL(KIND(1D0)), PARAMETER :: PI = 3.141592653589793D0
+
+      kdirect_horizontal = 0.0D0
+      IF (.NOT. IEEE_IS_FINITE(kdown) .OR. .NOT. IEEE_IS_FINITE(zenith_deg)) RETURN
+      IF (kdown <= 0.0D0) RETURN
+      altitude = 90.0D0 - zenith_deg
+      ! Match BEERS' daylight threshold and avoid its division by sin(0).
+      IF (altitude <= 0.1D0) RETURN
+
+      cos_zenith = COS(zenith_deg*PI/180.0D0)
+      CALL spartacus_spencer_eccentricity(doy, ecc)
+      kt = kdown/(1370.0D0*ecc*cos_zenith)
+      temperature = tair_c
+      humidity = rh
+      ! Missing/non-finite meteorology selects BEERS' reduced correlation.
+      IF (.NOT. IEEE_IS_FINITE(temperature)) temperature = -999.0D0
+      IF (.NOT. IEEE_IS_FINITE(humidity)) humidity = -999.0D0
+      CALL diffusefraction(kdown, altitude, kt, temperature, humidity, direct_normal, kdiffuse)
+      kdirect_horizontal = MAX(0.0D0, MIN(kdown, kdown - kdiffuse))
+   END SUBROUTINE split_shortwave_reindl
 
    SUBROUTINE split_shortwave_forcing(kdown, kdiff, kdir, zenith_deg, kdirect, kdiffuse, valid)
       ! Convert observed direct-normal and diffuse-horizontal forcing to energy-conserving horizontal

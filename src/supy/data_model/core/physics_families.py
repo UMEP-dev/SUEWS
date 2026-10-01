@@ -92,7 +92,8 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
     "kdown_split_method": [
         (1, "forcing", ()),
         (2, "constant", ()),
-        (3, "epw", ()),
+        (3, "perez", ()),
+        (4, "reindl", ()),
     ],
     "emissions": [
         (0, "observed", ()),

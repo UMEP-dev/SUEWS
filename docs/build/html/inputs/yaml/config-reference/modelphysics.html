@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.5.33. Physics Methods &#8212; SUEWS 2026.9.29.dev2 documentation</title>
+    <title>4.5.33. Physics Methods &#8212; SUEWS 2026.10.1.dev1 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=7a35414f"></script>
+    <script src="../../../_static/documentation_options.js?v=20d3ce29"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -62,7 +62,7 @@
     <link rel="prev" title="4.5.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.29.dev2" />
+  <meta name="docsearch:version" content="2026.10.1.dev1" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.29.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6aae28c5c74113632e028dae3ef116d5b7341c3a" style="color: #31708f;">6aae28c</a>).
+        (2026.10.1.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e2385e236f88f4f7bc2ab895b2fa61d3212d31f7" style="color: #31708f;">e2385e2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -197,8 +197,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.29.dev2 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.29.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.1.dev1 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.1.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -749,7 +749,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p><code class="docutils literal notranslate"><span class="pre">frontal_area_index:</span> <span class="pre">modelled</span></code> is retained for compatibility, but its building estimate uses grid-cell area as a horizontal length scale. It is therefore resolution-dependent and can become very small on coarse grids.</p>
-<p>Building surface fraction alone does not determine building FAI. For idealised square buildings, <span class="math notranslate nohighlight">\(\lambda_f = \lambda_p H / b\)</span>; the same plan-area fraction can represent many narrow buildings or a few wide ones. Use <code class="docutils literal notranslate"><span class="pre">observed</span></code> with morphology-derived FAI for coarse-grid applications. A replacement closure needs a validated additional geometry measure; SUEWS does not assume a universal building width (<span class="bibtex-citation" id="id1">Grimmond and Oke [<a class="reference internal" href="../../../references.html#id60" title="Grimmond, C. S. B. and Oke, T. R. Aerodynamic properties of urban areas derived from analysis of surface form. J. Appl. Meteor., 38(9):1262-1292, September 1999. doi:10.1175/1520-0450(1999)038&lt;1262:apouad&gt;2.0.co;2.">1999</a>]</span>).</p>
+<p>Building surface fraction alone does not determine building FAI. For idealised square buildings, <span class="math notranslate nohighlight">\(\lambda_f = \lambda_p H / b\)</span>; the same plan-area fraction can represent many narrow buildings or a few wide ones. Use <code class="docutils literal notranslate"><span class="pre">observed</span></code> with morphology-derived FAI for coarse-grid applications. A replacement closure needs a validated additional geometry measure; SUEWS does not assume a universal building width (<span class="bibtex-citation" id="id1">Grimmond and Oke [<a class="reference internal" href="../../../references.html#id61" title="Grimmond, C. S. B. and Oke, T. R. Aerodynamic properties of urban areas derived from analysis of surface form. J. Appl. Meteor., 38(9):1262-1292, September 1999. doi:10.1175/1520-0450(1999)038&lt;1262:apouad&gt;2.0.co;2.">1999</a>]</span>).</p>
 </div>
 <div class="pst-scrollable-table-container"><table class="table" id="id6">
 <caption><span class="caption-number">Table 4.5 </span><span class="caption-text">Other method selectors</span><a class="headerlink" href="#id6" title="Link to this table">#</a></caption>
@@ -872,13 +872,14 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="field-list">
 <dt class="field-odd">Options<span class="colon">:</span></dt>
 <dd class="field-odd"><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid</div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction</div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">3</span></code> (EPW) = Uses the pressure-corrected DISC/static-DIRINT approach</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">3</span></code> (PEREZ) = Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">4</span></code> (REINDL) = Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS</div>
 </div>
 </dd>
 <dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (EPW)</p>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (PEREZ)</p>
 </dd>
 </dl>
 <div class="note admonition">
@@ -1357,8 +1358,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.29.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6aae28c5c74113632e028dae3ef116d5b7341c3a">6aae28c</a> |
+  <p>Version: 2026.10.1.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e2385e236f88f4f7bc2ab895b2fa61d3212d31f7">e2385e2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

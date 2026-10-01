@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-09-07T23:37:57+00:00" />
-    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.9.29.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-10-01T17:45:50+00:00" />
+    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.10.1.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=7a35414f"></script>
+    <script src="../_static/documentation_options.js?v=20d3ce29"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="4.2. Vertical and Material Layer Conventions" href="yaml/layer-conventions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.9.29.dev2" />
-    <meta name="docbuild:last-update" content="2026-09-07"/>
+  <meta name="docsearch:version" content="2026.10.1.dev1" />
+    <meta name="docbuild:last-update" content="2026-10-01"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.9.29.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6aae28c5c74113632e028dae3ef116d5b7341c3a" style="color: #31708f;">6aae28c</a>).
+        (2026.10.1.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e2385e236f88f4f7bc2ab895b2fa61d3212d31f7" style="color: #31708f;">e2385e2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -201,8 +201,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.9.29.dev2 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.9.29.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.1.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.1.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -673,10 +673,11 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-conditional-and-additional-variables">4.3.6. Choosing Conditional and Additional Variables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.3.7. Prescribing Observed LAI</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.3.8. Generating Forcing Data from ERA5</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.3.9. Using EPW Weather Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.3.10. Data Preparation Tips</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.3.11. Validating Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.12. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#direct-and-diffuse-shortwave-components">4.3.9. Direct and diffuse shortwave components</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.3.10. Using EPW Weather Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.3.11. Data Preparation Tips</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.3.12. Validating Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.13. See Also</a></li>
 </ul>
             </nav>
         </div>
@@ -1110,8 +1111,19 @@ unexpected outputs.</p>
 </ul>
 <p>See <a class="reference internal" href="../api/_autosummary/supy.util.gen_forcing_era5.html#supy.util.gen_forcing_era5" title="supy.util.gen_forcing_era5"><code class="xref py py-func docutils literal notranslate"><span class="pre">gen_forcing_era5()</span></code></a> API documentation for all options.</p>
 </section>
+<section id="direct-and-diffuse-shortwave-components">
+<h2><span class="section-number">4.3.9. </span>Direct and diffuse shortwave components<a class="headerlink" href="#direct-and-diffuse-shortwave-components" title="Link to this heading">#</a></h2>
+<p>When SPARTACUS-Surface is selected, <code class="docutils literal notranslate"><span class="pre">model.physics.kdown_split_method</span></code>
+controls how global horizontal irradiance is partitioned. Use <code class="docutils literal notranslate"><span class="pre">forcing</span></code>
+for measured direct-normal <code class="docutils literal notranslate"><span class="pre">kdir</span></code> and diffuse-horizontal <code class="docutils literal notranslate"><span class="pre">kdiff</span></code>,
+<code class="docutils literal notranslate"><span class="pre">constant</span></code> for a specified direct-horizontal fraction, <code class="docutils literal notranslate"><span class="pre">perez</span></code> for the
+default DISC/static-DIRINT estimate, or <code class="docutils literal notranslate"><span class="pre">reindl</span></code> for the Reindl et al.
+(1990) estimate. The <code class="docutils literal notranslate"><span class="pre">reindl</span></code> option needs no additional forcing columns:
+it uses <code class="docutils literal notranslate"><span class="pre">kdown</span></code>, temperature, humidity and the model’s solar position.
+See <a class="reference internal" href="../parameterisations-and-sub-models.html#shortwave-partition"><span class="std std-ref">Direct and diffuse shortwave partitioning</span></a> for configuration, conventions and limitations.</p>
+</section>
 <section id="using-epw-weather-files">
-<h2><span class="section-number">4.3.9. </span>Using EPW Weather Files<a class="headerlink" href="#using-epw-weather-files" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.3.10. </span>Using EPW Weather Files<a class="headerlink" href="#using-epw-weather-files" title="Link to this heading">#</a></h2>
 <p>EPW (EnergyPlus Weather) files are a common format for building energy simulation, often derived from Typical Meteorological Year (TMY) data. SUEWS can read EPW data via the <a class="reference internal" href="../api/_autosummary/supy.util.read_epw.html#supy.util.read_epw" title="supy.util.read_epw"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_epw()</span></code></a> utility function.</p>
 <p><strong>Important: Measurement Height Assumptions</strong></p>
 <p>EPW files follow standard meteorological station conventions with fixed measurement heights:</p>
@@ -1228,7 +1240,7 @@ unexpected outputs.</p>
 </div>
 </section>
 <section id="data-preparation-tips">
-<h2><span class="section-number">4.3.10. </span>Data Preparation Tips<a class="headerlink" href="#data-preparation-tips" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.3.11. </span>Data Preparation Tips<a class="headerlink" href="#data-preparation-tips" title="Link to this heading">#</a></h2>
 <p><strong>Gap Filling</strong></p>
 <p>If your data has gaps, you must fill them before use. SuPy provides <a class="reference internal" href="../api/_autosummary/supy.util.fill_gap_all.html#supy.util.fill_gap_all" title="supy.util.fill_gap_all"><code class="xref py py-func docutils literal notranslate"><span class="pre">fill_gap_all()</span></code></a> for automatic gap filling using neighbouring time periods. Common approaches:</p>
 <ul class="simple">
@@ -1257,7 +1269,7 @@ interval-end convention (see note above)</p></li>
 </ul>
 </section>
 <section id="validating-forcing-data">
-<h2><span class="section-number">4.3.11. </span>Validating Forcing Data<a class="headerlink" href="#validating-forcing-data" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.3.12. </span>Validating Forcing Data<a class="headerlink" href="#validating-forcing-data" title="Link to this heading">#</a></h2>
 <p>SUEWS provides the <code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code> function to validate your forcing data files before running simulations. The validation performs four main checks:</p>
 <ol class="arabic simple">
 <li><p><strong>Column completeness</strong>: Verifies all expected columns are present</p></li>
@@ -1313,7 +1325,7 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <p>For comprehensive quality control, combine <code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code> with visual inspection of time series plots.</p>
 </section>
 <section id="see-also">
-<h2><span class="section-number">4.3.12. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.3.13. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="../data-structures/df_forcing.html#df-forcing-var"><span class="std std-ref">Forcing variable reference</span></a> - Canonical variables, units, ranges, and conditions</p></li>
 <li><p><a class="reference internal" href="yaml/index.html"><span class="doc">YAML Configuration Format</span></a> - YAML configuration including forcing file specification</p></li>
@@ -1382,10 +1394,11 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-conditional-and-additional-variables">4.3.6. Choosing Conditional and Additional Variables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.3.7. Prescribing Observed LAI</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.3.8. Generating Forcing Data from ERA5</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.3.9. Using EPW Weather Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.3.10. Data Preparation Tips</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.3.11. Validating Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.12. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#direct-and-diffuse-shortwave-components">4.3.9. Direct and diffuse shortwave components</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.3.10. Using EPW Weather Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.3.11. Data Preparation Tips</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.3.12. Validating Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.3.13. See Also</a></li>
 </ul>
   </nav></div>
 
@@ -1419,7 +1432,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-09-07.
+  Last updated on 2026-10-01.
   <br/>
 </p>
   </div>
@@ -1427,8 +1440,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.9.29.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6aae28c5c74113632e028dae3ef116d5b7341c3a">6aae28c</a> |
+  <p>Version: 2026.10.1.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e2385e236f88f4f7bc2ab895b2fa61d3212d31f7">e2385e2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

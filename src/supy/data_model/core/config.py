@@ -2870,6 +2870,64 @@ class SUEWSConfig(BaseModel):
                         )
         return issues
 
+    
+    ###############FA
+    
+    def _validate_spartacus_storage_heat_method_dependency(self, site: Site, site_index: int, sfr_tol: float=1E-4) -> List[str]:
+        """
+        
+        Validate that STEBBS is turned on and storage heat method 7 employed whenever SPARTACUS is employed and building 
+        surface fraction is non-zero. Also prevent use of observed storage heat fluxes when using SPARTACUS for any surface type 
+ 
+        
+        Returns:
+            issues: list of str - List of messages describing validation failures found
+        """
+        
+        issues: List[str] = []
+        
+        # get  storage heat method and stebbs method flag (missing values etc. are dealt with elsewhere)
+        stebbs_method_val = self._composed_stebbsmethod()
+        physics = getattr(self.model, "physics", None)
+        storage_heat = getattr(physics, "storage_heat", None)
+        storage_heat_method = getattr(storage_heat, "value", storage_heat)
+        
+        # make sure that integer to enable proper comparison
+        try:
+            storage_heat_method = int(storage_heat_method)
+        except (TypeError, ValueError):
+            storage_heat_method = None
+            
+        if storage_heat_method == 0:
+            issues.append('Use of observed storage heat fluxes (storage method 0) with SPARTACUS is currently not supported. Use alternative storage_heat method 7')
+        
+        # get building land cover fraction from site properties
+        props = getattr(site, "properties", None) 
+        land_cover = getattr(props, "land_cover", None)
+        
+        # get surface building fraction
+        bldgs = getattr(land_cover, "bldgs", None)
+        
+        # if non-zero building fraction, validate that STEBBS is employed with heat storage method 7
+        if bldgs is not None:
+            sfr_raw = getattr(bldgs, "sfr", None)
+            sfr_value = getattr(sfr_raw, "value", sfr_raw)
+            
+            # make sure float so does not fail upon comparison
+            try:
+                sfr_value = float(sfr_value)
+            except (TypeError, ValueError):
+                sfr_value = None
+            
+            if sfr_value is not None and sfr_value > sfr_tol:
+                
+                if storage_heat_method != 7 or stebbs_method_val != 1:
+                    issues.append('STEBBS must be employed (enabled=true), and storage_heat method 7 used where SPARTACUS is enabled and non-zero building surface fraction prescribed')
+                
+        return issues
+    
+    #################FA
+    
     def _validate_conditional_parameters(self) -> List[str]:
         """
         Run conditional, method-specific validations for all sites.
@@ -3016,6 +3074,15 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_veg_issues)
+                    
+                #FA validate that stebbs and appropriate heat storage whenever buildings used with SPARTACUS
+                spartacus_heat_storage_issues = self._validate_spartacus_storage_heat_method_dependency(site, idx)
+                if spartacus_heat_storage_issues:
+                    self._validation_summary['issue_types'].add('SPARTACUS heat storage method consistency')
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                                            self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_heat_storage_issues)
+                    
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:

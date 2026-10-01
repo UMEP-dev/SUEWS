@@ -7,14 +7,14 @@ The test-local geometry changes are not a new scientific reference dataset.
 import numpy as np
 import pytest
 
-import supy as sp
-
 pytestmark = [pytest.mark.physics, pytest.mark.rust]
 
 
 @pytest.mark.parametrize("split_method", ["perez", "reindl"])
-def test_spartacus_config_patch_runs_and_reports_radiation(split_method):
-    sim = sp.SUEWSSimulation.from_sample_data()
+def test_spartacus_config_patch_runs_and_reports_radiation(
+    split_method, short_sample_sim
+):
+    sim = short_sample_sim()
     config = sim.config.model_dump(exclude_none=True, mode="json")
     # The sample has no observed incoming longwave: select the air-derived mode.
     config["model"]["physics"]["net_radiation"] = {"value": 1003}

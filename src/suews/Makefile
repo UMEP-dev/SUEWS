@@ -192,6 +192,7 @@ UTILS = suews_ctrl_const.o \
 # SUEWS physics modules
 PHYS =	\
 	suews_phys_narp.o \
+	suews_phys_beers.o \
 	suews_phys_spartacus.o \
 	suews_phys_atmmoiststab.o \
 	suews_phys_resist.o \
@@ -210,7 +211,6 @@ PHYS =	\
     suews_phys_rslprof.o \
 	suews_phys_biogenco2.o \
 	suews_phys_solweig.o \
-	suews_phys_beers.o \
 	suews_phys_stebbs.o
 
 # SUEWS driver module (wrapper of all main calculations)
@@ -355,7 +355,7 @@ exe: $(addprefix $(DIR_SRC_SUEWS), $(OTHERS) suews_program$(suffix_code))
 	mkdir -p $(DIR_RELEASE_SUEWS) && cp -f $(DIR_BIN_SUEWS)/$(EXECUTABLE) $(DIR_RELEASE_SUEWS)/$(TARGET)
 
 # special rule for the spartacus wrapper
-src/suews_phys_spartacus.o: src/suews_phys_spartacus.f95 libspartacus
+src/suews_phys_spartacus.o: src/suews_phys_spartacus.f95 src/suews_phys_beers.o libspartacus
 	$(FC) $(FCFLAGS) -c $< -o $@
 
 # rules for f95-->f90

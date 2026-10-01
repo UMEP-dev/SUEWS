@@ -6742,11 +6742,12 @@
       "type": "object"
     },
     "KdownSplitMethod": {
-      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid\n2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction\n3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach",
+      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid\n2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction\n3: PEREZ - Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction\n4: REINDL - Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
       "enum": [
         1,
         2,
-        3
+        3,
+        4
       ],
       "title": "KdownSplitMethod",
       "type": "integer"
@@ -7236,7 +7237,7 @@
           "depends_on": [
             "net_radiation"
           ],
-          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (EPW) = Uses the pressure-corrected DISC/static-DIRINT approach",
+          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (PEREZ) = Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction; 4 (REINDL) = Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
           "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
           "title": "Kdown Split Method",
           "unit": "dimensionless"
@@ -13401,7 +13402,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev4. Development schema adding STEBBS internal_shading, reduction_factor_shading, temperature_threshold_shading, radiation_threshold_shading, destination_waste_heat and fraction_convective_heating inputs. Defaults disable shading, retain space-heating waste heat indoors and deliver all useful heating to indoor air. Existing 2026.6.dev3 YAMLs remain compatible through a no-op content migration that preserves explicit settings.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev5. Development schema renaming the model.physics.kdown_split_method text selector from epw to perez (#1832). The migration rewrites bare and RefValue-wrapped selectors while preserving reference metadata. Numeric option 3 and its default calculation are unchanged. The optional reindl selector (option 4) adds no required inputs.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13454,20 +13455,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev4",
+  "title": "SUEWS Configuration Schema v2026.6.dev5",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev4.json",
-  "version": "2026.6.dev4",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev5.json",
+  "version": "2026.6.dev5",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev4"
+    "schema_version": "2026.6.dev5"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev4",
+      "schema_version": "2026.6.dev5",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

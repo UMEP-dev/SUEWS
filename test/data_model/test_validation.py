@@ -2044,7 +2044,6 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
     msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
     assert msgs == []
 
-####FA
 
 # tests: test that fails when using heat storage method 6 with non-zero building fraction and SPARTACUS
 def test_validate_spartacus_heat_storage_failing_case():

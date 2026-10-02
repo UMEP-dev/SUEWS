@@ -13,10 +13,7 @@ from numbers import Integral, Real
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 
-############ FA
-
 # Constants 
-SFR_FRACTION_TOL = 1e-4
 SPARTACUS_METHODS = {1001, 1002, 1003}
 
 
@@ -29,9 +26,31 @@ def _as_float(x: Any) -> Optional[float]:
         return None
 
 
-def _are_buildings_present(yaml_data: Mapping, sfr_fraction_tol: float=SFR_FRACTION_TOL) -> Optional[bool]:
-    """ 
-    Returns True if any site in yaml configuration contains surface building fraction exceeding a tolerance 
+def _are_buildings_present(yaml_data: Mapping, sfr_fraction_tol: float=1e-6) -> bool:
+    """
+    Determine whether buildings are present at any site in the YAML configuration.
+
+    Parameters
+    ----------
+    yaml_data : Mapping
+        Parsed YAML configuration containing site definitions and their properties.
+        Building surface fraction is read from
+        `properties.land_cover.bldgs.sfr` for each site.
+    sfr_fraction_tol : float, optional
+        Surface building fraction tolerance above which buildings are considered
+        present. Defaults to 1e-6.
+
+    Returns
+    -------
+    bool
+        `True` if the building surface fraction exceeds `sfr_fraction_tol` at
+        any site; otherwise `False`.
+
+    Notes
+    -----
+    Sites for which the building surface fraction is missing or cannot be
+    converted to a float are ignored. Such missing values are expected to be
+    handled by other validation checks.
     """
     
     # initialise flag
@@ -61,8 +80,44 @@ def _are_buildings_present(yaml_data: Mapping, sfr_fraction_tol: float=SFR_FRACT
 
 def validate_spartacus_dependencies(bldgs_present: bool, netradiationmethod: int, storageheatmethod: int, stebbsmethod: int) -> List[ValidationResult]:
     """
-    Validate SPARTACUS storage heat method dependencies. Requires modelled storage heat fluxes, as well as STEBBS for building storage 
-    heat fluxes wheever buildings are present in the configuration.
+        Validate dependencies between SPARTACUS, storage heat, and STEBBS options.
+
+    Parameters
+    ----------
+    bldgs_present : bool
+        Whether buildings are present at any site in the configuration, based
+        on the building surface fraction.
+    netradiationmethod : int
+        Net radiation method identifier. SPARTACUS methods are identified by
+        membership in `SPARTACUS_METHODS`.
+    storageheatmethod : int
+        Storage heat flux method identifier. A value of 7 is required when
+        SPARTACUS is used with buildings. A value of 0, representing storage
+        heat fluxes supplied from a forcing file, is not currently supported
+        with SPARTACUS.
+    stebbsmethod : int
+        STEBBS method identifier. A value of 1 or 2 is required when SPARTACUS
+        is used with buildings.
+
+    Returns
+    -------
+    List[ValidationResult]
+        Validation results describing whether the SPARTACUS, storage heat,
+        and STEBBS configuration is valid. Errors include a suggested value
+        where an incompatible configuration is detected.
+
+    Notes
+    -----
+    - If `netradiationmethod` is a SPARTACUS method and buildings are present,
+      `storageheatmethod` must be 7.
+    - If `netradiationmethod` is a SPARTACUS method and buildings are present,
+      `stebbsmethod` must be 1 or 2.
+    - If `netradiationmethod` is a SPARTACUS method, `storageheatmethod` must
+      not be 0, as SPARTACUS is not currently supported with observed storage
+      heat fluxes supplied from a forcing file.
+    - No validation results are returned when `netradiationmethod` is not a
+      SPARTACUS method.
+      
     """
     
     results = []
@@ -134,10 +189,7 @@ def validate_spartacus_dependencies(bldgs_present: bool, netradiationmethod: int
                             )
                         )
 
-    return results
-        
-#############FA         
-
+    return results       
 
 
 @RulesRegistry.add_rule("physics_params")
@@ -644,6 +696,8 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
         - Ensures that the selected RSL method is compatible with the chosen stability method.
         - Checks compatibility between the storage heat method and the OhmIncQf option.
         - Validates that the SMD method is consistent with the presence of required soil observation data.
+        - Vaidates that storage heat method 7 is employed whenever SPARTACUS is used and non-zero building 
+        fraction prescribed
 
     Parameters
     ----------
@@ -675,7 +729,7 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     rcmethod = get_value_safe(get_stebbs_block(physics), "capacitance")
     
     # flag for non-zero building fraction
-    bldgs_present = _are_buildings_present(yaml_data, sfr_fraction_tol=SFR_FRACTION_TOL)
+    bldgs_present = _are_buildings_present(yaml_data)
 
     # RSL method and stability method dependencies
     result = validate_rslmethod_dependency(rslmethod=rslmethod, stabilitymethod=stabilitymethod)

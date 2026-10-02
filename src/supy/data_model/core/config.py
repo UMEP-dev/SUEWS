@@ -2873,15 +2873,39 @@ class SUEWSConfig(BaseModel):
     
     ###############FA
     
-    def _validate_spartacus_storage_heat_method_dependency(self, site: Site, site_index: int, sfr_tol: float=1E-4) -> List[str]:
+    def _validate_spartacus_storage_heat_method_dependency(self, site: Site, site_index: int, sfr_tol: float=1E-6) -> List[str]:
         """
         
-        Validate that STEBBS is turned on and storage heat method 7 employed whenever SPARTACUS is employed and building 
-        surface fraction is non-zero. Also prevent use of observed storage heat fluxes when using SPARTACUS for any surface type 
- 
-        
-        Returns:
-            issues: list of str - List of messages describing validation failures found
+        Validate storage heat method dependencies when SPARTACUS is employed.
+
+        This check ensures that observed storage heat fluxes are not used with
+        SPARTACUS and, where a non-zero building surface fraction is prescribed,
+        that STEBBS is enabled and storage heat method 7 is used.
+
+        Parameters
+        ----------
+        site : Site
+            The site object to validate.
+        site_index : int
+            Index of the site in the configuration.
+        sfr_tol : float, optional
+            Tolerance above which the building surface fraction is considered
+            non-zero. Defaults to 1E-6.
+
+        Returns
+        -------
+        issues : list of str
+                    List of issue messages if validation fails; empty if valid.
+
+        Notes
+        -----
+        - Storage heat method 0, corresponding to observed storage heat fluxes,
+        is not currently supported when SPARTACUS is employed.
+        - Where the building surface fraction exceeds `sfr_tol`, STEBBS must be
+        enabled (`stebbsmethod=1`) and storage heat method 7 must be used.
+        - Missing or non-numeric storage heat and building surface fraction values
+        are not reported by this check and are expected to be handled by other
+        validation checks.
         """
         
         issues: List[str] = []
@@ -2926,7 +2950,6 @@ class SUEWSConfig(BaseModel):
                 
         return issues
     
-    #################FA
     
     def _validate_conditional_parameters(self) -> List[str]:
         """
@@ -2955,7 +2978,8 @@ class SUEWSConfig(BaseModel):
         - same_emissivity_wall/roof: Ensures uniform emissivity across wall/roof
           layers and matches the building archetype if enabled.
         - SPARTACUS: Validates building height, surface fraction, and vegetation
-          layer consistency when SPARTACUS is enabled.
+          layer consistency when SPARTACUS is enabled, as well as storage heat method
+          and STEBBS dependencies.
 
         All issues found are accumulated and returned as a list of messages.
         """
@@ -3074,8 +3098,7 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_veg_issues)
-                    
-                #FA validate that stebbs and appropriate heat storage whenever buildings used with SPARTACUS
+                
                 spartacus_heat_storage_issues = self._validate_spartacus_storage_heat_method_dependency(site, idx)
                 if spartacus_heat_storage_issues:
                     self._validation_summary['issue_types'].add('SPARTACUS heat storage method consistency')

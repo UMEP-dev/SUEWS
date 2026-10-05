@@ -270,7 +270,8 @@ def validate_storageheatmethod_dependencies(
     -----
     - If StorageHeatMethod == 1, OhmIncQf must be 0.
     - If OhmIncQf == 1, an OHM-like storage heat branch must be active.
-    - If StorageHeatMethod == 5, NetRadiationMethod must be a SPARTACUS code.
+    - StorageHeatMethod == 5 (EHC) runs with any NetRadiationMethod; only
+      SPARTACUS codes resolve roof and wall facets.
     - If StorageHeatMethod == 7, NetRadiationMethod must be a SPARTACUS code
       and STEBBS must be active.
     """
@@ -330,29 +331,28 @@ def validate_storageheatmethod_dependencies(
         )
 
     if storageheatmethod == 5:
-        if netradiationmethod is None or netradiationmethod <= 1000:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="MODEL_OPTIONS",
-                    parameter="storageheatmethod-netradiationmethod",
-                    message=(
-                        "StorageHeatMethod=5 (EHC) requires a SPARTACUS "
-                        "NetRadiationMethod code greater than 1000 so facet "
-                        "radiation is available."
-                    ),
-                    suggested_value="Set net_radiation to a SPARTACUS method such as 1003 or net_radiation.spartacus.ldown=air.",
-                )
-            )
+        # EHC runs with either radiation scheme (gh#1574): SPARTACUS supplies
+        # roof/wall facet radiation; otherwise all land covers are lumped
+        # into one plan-area slab from their own thermal layers.
+        if netradiationmethod is not None and netradiationmethod > 1000:
+            message = "StorageHeatMethod EHC-SPARTACUS compatibility validated"
         else:
-            results.append(
-                ValidationResult(
-                    status="PASS",
-                    category="MODEL_OPTIONS",
-                    parameter="storageheatmethod-netradiationmethod",
-                    message="StorageHeatMethod EHC-SPARTACUS compatibility validated",
-                )
+            message = (
+                "StorageHeatMethod=5 (EHC) with a non-SPARTACUS "
+                "NetRadiationMethod: all land covers, buildings included, "
+                "are lumped into one plan-area slab using each land "
+                "cover's thermal_layers; roof and wall layers are unused. "
+                "Roof and wall facets are resolved only with SPARTACUS "
+                "(NetRadiationMethod > 1000)."
             )
+        results.append(
+            ValidationResult(
+                status="PASS",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-netradiationmethod",
+                message=message,
+            )
+        )
 
     if storageheatmethod == 7:
         if netradiationmethod not in {1001, 1002, 1003}:

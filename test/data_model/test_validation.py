@@ -2473,9 +2473,9 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     assert "uses DyOHM only for the building storage heat flux" in storage_results[0].message
 
 
-def test_phase_b_storageheatmethod_ehc_requires_spartacus(registry):
-    """EHC storage heat needs SPARTACUS facet radiation."""
-    yaml_data_incompatible = {
+def test_phase_b_storageheatmethod_ehc_accepts_narp(registry):
+    """EHC runs with NARP (lumped plan-area slab) as well as SPARTACUS (facets)."""
+    yaml_data_narp = {
         "model": {
             "physics": {
                 "storage_heat": "ehc",
@@ -2486,15 +2486,15 @@ def test_phase_b_storageheatmethod_ehc_requires_spartacus(registry):
     }
 
     results = registry["option_dependencies"](
-        ValidationContext(yaml_data=yaml_data_incompatible)
+        ValidationContext(yaml_data=yaml_data_narp)
     )
 
     storage_results = [
         r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
     ]
     assert len(storage_results) == 1
-    assert storage_results[0].status == "ERROR"
-    assert "requires a SPARTACUS NetRadiationMethod" in storage_results[0].message
+    assert storage_results[0].status == "PASS"
+    assert "lumped into one plan-area slab" in storage_results[0].message
 
     yaml_data_compatible = {
         "model": {

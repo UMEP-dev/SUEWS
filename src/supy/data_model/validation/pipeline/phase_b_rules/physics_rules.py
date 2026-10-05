@@ -332,16 +332,17 @@ def validate_storageheatmethod_dependencies(
 
     if storageheatmethod == 5:
         # EHC runs with either radiation scheme (gh#1574): SPARTACUS supplies
-        # roof/wall facet radiation, while NARP solves the building as a
-        # lumped land-cover surface using its own thermal layers.
+        # roof/wall facet radiation; otherwise all land covers are lumped
+        # into one plan-area slab from their own thermal layers.
         if netradiationmethod is not None and netradiationmethod > 1000:
             message = "StorageHeatMethod EHC-SPARTACUS compatibility validated"
         else:
             message = (
                 "StorageHeatMethod=5 (EHC) with a non-SPARTACUS "
-                "NetRadiationMethod: buildings are solved as a lumped "
-                "land-cover surface using land_cover.bldgs thermal layers; "
-                "roof and wall facets are resolved only with SPARTACUS "
+                "NetRadiationMethod: all land covers, buildings included, "
+                "are lumped into one plan-area slab using each land "
+                "cover's thermal_layers; roof and wall layers are unused. "
+                "Roof and wall facets are resolved only with SPARTACUS "
                 "(NetRadiationMethod > 1000)."
             )
         results.append(

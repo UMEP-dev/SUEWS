@@ -935,7 +935,7 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["snow_use"],
             "provides_to": ["storage_heat"],
-            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by STEBBS (7) storage heat; EHC (5) uses it to resolve roof and wall facets and otherwise treats buildings as a lumped land-cover surface.",
+            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by STEBBS (7) storage heat; EHC (5) uses it to resolve roof and wall facets and otherwise lumps all land covers into one plan-area slab.",
         },
     )
     kdown_split_method: FlexibleRefValue(KdownSplitMethod) = Field(

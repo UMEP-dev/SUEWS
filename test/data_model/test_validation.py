@@ -2474,7 +2474,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
 
 
 def test_phase_b_storageheatmethod_ehc_accepts_narp(registry):
-    """EHC runs with NARP (lumped buildings) as well as SPARTACUS (facets)."""
+    """EHC runs with NARP (lumped plan-area slab) as well as SPARTACUS (facets)."""
     yaml_data_narp = {
         "model": {
             "physics": {
@@ -2494,7 +2494,7 @@ def test_phase_b_storageheatmethod_ehc_accepts_narp(registry):
     ]
     assert len(storage_results) == 1
     assert storage_results[0].status == "PASS"
-    assert "lumped land-cover surface" in storage_results[0].message
+    assert "lumped into one plan-area slab" in storage_results[0].message
 
     yaml_data_compatible = {
         "model": {

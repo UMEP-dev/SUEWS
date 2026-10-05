@@ -3,7 +3,7 @@
 Validation Tool Reference
 =========================
 
-The ``suews-validate`` command checks SUEWS YAML configuration files and writes
+The ``suews validate`` command checks SUEWS YAML configuration files and writes
 an updated YAML file plus a validation report. It is a validator first: structural
 updates are applied where they are mechanical, while scientific initialisation
 changes are only applied when explicitly requested.
@@ -29,28 +29,28 @@ Basic Usage
 .. code-block:: bash
 
     # Validate configuration and write updated_config.yml plus report_config.txt
-    suews-validate config.yml
+    suews validate config.yml
 
     # Apply Phase B scientific initialisation updates to the output YAML
-    suews-validate --science-fixes apply config.yml
+    suews validate --science-fixes apply config.yml
 
     # Run Phase B scientific checks without suggestions or scientific updates
-    suews-validate --science-fixes off config.yml
+    suews validate --science-fixes off config.yml
 
     # Check configuration without writing files
-    suews-validate validate config.yml
+    suews validate validate config.yml
 
     # Check without writing files (read-only validation)
-    suews-validate --dry-run config.yml
+    suews validate --dry-run config.yml
 
 For complete usage options and advanced features, use:
 
 .. code-block:: bash
 
-    suews-validate --help
-    suews-validate validate --help
-    suews-validate migrate --help
-    suews-validate version --help
+    suews validate --help
+    suews validate validate --help
+    suews validate migrate --help
+    suews validate version --help
 
 Phase B Scientific Fix Policy
 -----------------------------
@@ -75,7 +75,7 @@ historical timezone settings, or specialist case studies.
 Output Files
 ------------
 
-When you run ``suews-validate config.yml``, it creates:
+When you run ``suews validate config.yml``, it creates:
 
 - ``updated_config.yml`` - the updated configuration from the last successful
   validation phase
@@ -165,7 +165,7 @@ CI/CD Integration
 
     - name: Validate SUEWS Configuration
       run: |
-        suews-validate validate config.yml --format json > results.json
+        suews validate validate config.yml --format json > results.json
         if [ $? -ne 0 ]; then
           echo "Configuration validation failed"
           exit 1
@@ -178,7 +178,7 @@ Batch Processing
 
     #!/bin/bash
     for config in configs/*.yml; do
-        if suews-validate validate "$config" --quiet; then
+        if suews validate validate "$config" --quiet; then
             echo "OK $config"
         else
             echo "FAILED $config - needs attention"

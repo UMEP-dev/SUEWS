@@ -13,7 +13,7 @@ The :class:`~supy.SUEWSSimulation` class provides a clean, intuitive interface f
 - Simple configuration management
 - Flexible forcing data loading
 - Straightforward simulation execution  
-- Multiple output formats via OutputConfig
+- Multiple output formats via OutputControl (``model.control.output``)
 - Easy configuration updates
 
 Getting Started
@@ -120,7 +120,7 @@ Some variables appear in multiple output groups (e.g., ``AlbSnow`` in both ``SUE
 4. Saving Results
 ~~~~~~~~~~~~~~~~~
 
-Save results according to OutputConfig settings:
+Save results according to OutputControl (``model.control.output``) settings:
 
 .. code-block:: python
 
@@ -264,7 +264,7 @@ Best Practices
 
 1. **Always check results**: Verify simulation completed successfully
 2. **Use relative paths in config**: Makes projects portable
-3. **Save frequently**: Use OutputConfig to control format and frequency
+3. **Save frequently**: Use OutputControl (``model.control.output``) to control format and frequency
 4. **Reset between runs**: Use ``sim.reset()`` when changing parameters
 5. **Check forcing data**: Ensure forcing covers simulation period
 

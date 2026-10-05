@@ -15,10 +15,10 @@ CLI Command
 .. code-block:: bash
 
     # Run with RunControl.nml in current directory (default behaviour)
-    suews-run
+    suews run
 
     # Run with RunControl.nml at specific path
-    suews-run -p path/to/RunControl.nml
+    suews run -p path/to/RunControl.nml
 
 .. note::
    The CLI command currently only supports the deprecated namelist format.

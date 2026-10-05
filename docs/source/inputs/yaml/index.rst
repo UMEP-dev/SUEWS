@@ -23,7 +23,7 @@ Quick Start
 .. code-block:: bash
 
    # Automatically fix common issues
-   suews-validate my_config.yml
+   suews validate my_config.yml
 
    # Creates: updated_my_config.yml (ready to use)
 
@@ -49,16 +49,17 @@ A SUEWS YAML file has two main sections:
    name: "My Simulation"
    description: "Urban climate simulation for my city"
 
-   model:          # Global simulation settings
-     control:      # Time and file settings
-     physics:      # Physics options
-     output:       # Output control
+   model:              # Global simulation settings
+     control:          # Time step, run period, forcing and output
+       output:         # Output control
+     physics:          # Physics options
 
-   sites:          # List of sites to simulate
+   sites:              # List of sites to simulate
      - name: "Site1"
-       properties: # Site characteristics
-       land_cover: # Surface fractions
-       initial:    # Initial conditions
+       gridiv: 1       # Grid identifier
+       properties:     # Site characteristics
+         land_cover:   # Per-surface fractions (sfr) and parameters
+       initial_states: # Initial conditions
 
 Essential Parameters
 --------------------
@@ -85,13 +86,16 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
          lng: -0.1                    # Longitude
          alt: 10.0                    # Altitude [m]
          timezone: 0                  # UTC offset
-         surfacearea: 1000000.0       # Area [m²]
-       land_cover:
-         fractions:
-           paved: 0.4                 # Must sum to 1.0
-           bldgs: 0.3
-           grass: 0.2
-           dectr: 0.1
+         surfacearea: 1000000.0       # Area [m^2]
+         land_cover:
+           paved:
+             sfr: 0.4                 # Surface fractions must sum to 1.0
+           bldgs:
+             sfr: 0.3
+           grass:
+             sfr: 0.2
+           dectr:
+             sfr: 0.1
 
 .. note::
 
@@ -119,7 +123,7 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
 
    **To explore all parameters:**
 
-   1. Run ``suews-validate`` on your configuration to generate a complete file with all defaults
+   1. Run ``suews validate`` on your configuration to generate a complete file with all defaults
    2. Review the generated ``updated_*.yml`` file to see all parameters
    3. Consult the :doc:`config-reference/index` for comprehensive parameter documentation
 
@@ -209,18 +213,18 @@ Validation and Troubleshooting
 Using the Validation Tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ``suews-validate`` command checks your configuration and fixes common issues:
+The ``suews validate`` command checks your configuration and fixes common issues:
 
 .. code-block:: bash
 
    # Basic validation with automatic fixes
-   suews-validate config.yml
+   suews validate config.yml
 
    # Check without making changes
-   suews-validate validate config.yml
+   suews validate validate config.yml
 
    # Get JSON output for scripts
-   suews-validate validate config.yml --format json
+   suews validate validate config.yml --format json
 
 What Gets Fixed Automatically
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -281,19 +285,23 @@ Urban Site Configuration
          alt: 10.0
          timezone: 0
          surfacearea: 1000000.0
-         popdens: 5500.0
-       land_cover:
-         fractions:
-           paved: 0.35
-           bldgs: 0.40
-           grass: 0.15
-           dectr: 0.10
-       land_cover_params:
-         bldgs:
-           bldgh: 20.0
-           faibldg: 3.5
+         anthropogenic_emissions:
+           heat:
+             popdensnighttime: 5500.0   # Night-time population density [ha^-1]
+         land_cover:
+           paved:
+             sfr: 0.35
+           bldgs:
+             sfr: 0.40
+             bldgh: 20.0                # Mean building height [m]
+             faibldg: 3.5               # Frontal area index of buildings
+           grass:
+             sfr: 0.15
+           dectr:
+             sfr: 0.10
+       initial_states:
          dectr:
-           lai_id: 4.5
+           lai_id: 4.5                  # Initial LAI (an initial state, not a parameter)
 
 Tips for Success
 ----------------

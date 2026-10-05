@@ -77,14 +77,11 @@ Check or update schema versions in configuration files.
    # Update to specific version
    suews schema version config.yml --update --target-version 2026.4
 
-   # Update without backup (not recommended)
-   suews schema version config.yml --update --no-backup
-
 **Options:**
 
 - ``--update, -u``: Update schema version in files
 - ``--target-version``: Target version for update (default: current)
-- ``--backup, -b``: Create backup before updating (default: true)
+- ``--backup, -b``: Create backup before updating (default: true; there is currently no option to turn the backup off)
 
 migrate
 ~~~~~~~
@@ -115,7 +112,7 @@ Migrate configuration files between schema versions.
 
 - ``--target-version``: Target schema version (default: current)
 - ``--output-dir, -o``: Output directory for migrated files
-- ``--backup, -b``: Keep original files (default: true)
+- ``--backup, -b``: Keep original files (default: true; there is currently no option to turn this off)
 - ``--dry-run, -n``: Show what would be done without doing it
 
 export
@@ -307,6 +304,6 @@ Try step-by-step migration if jumping multiple versions:
 See Also
 --------
 
-- :ref:`yaml_config` - YAML configuration documentation
+- :ref:`yaml_config_reference` - YAML configuration documentation
 - :ref:`schema_versioning` - Schema versioning details
 - :ref:`validation` - Configuration validation guide

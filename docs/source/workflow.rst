@@ -235,18 +235,17 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
        forcing:
          file:
            value: "Input/Met_Data.txt"
-       start_date: "2015-01-01"
-       end_date: "2015-12-31"
+       start_time: "2015-01-01"
+       end_time: "2015-12-31"
      physics:
        net_radiation:
          value: 3  # NARP method
        storage_heat:
          value: 1  # OHM method
-   
+
    sites:
      - name: MyUrbanSite
-       grid_id:
-         value: 1
+       gridiv: 1
        properties:
          # Geographic location
          lat:
@@ -255,30 +254,31 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
            value: -0.12
          alt:
            value: 35.0
-         # Surface cover fractions (must sum to 1.0)
-         frc_land_cover:
-           Paved:
-             value: 0.43
-           Buildings:
-             value: 0.38
-           Grass:
-             value: 0.15
-           DeciduousTrees:
-             value: 0.04
-         # Surface properties for each land cover type
-         land_cover_params:
-           Paved:
+         # Surface cover fractions (sfr, must sum to 1.0 across all
+         # surfaces) and surface properties for each land cover type
+         land_cover:
+           paved:
+             sfr:
+               value: 0.43
              alb:
                value: 0.10  # Albedo
              emis:
                value: 0.95  # Emissivity
-           Buildings:
+           bldgs:
+             sfr:
+               value: 0.38
              alb:
                value: 0.15
              emis:
                value: 0.90
              bldgh:
                value: 12.0  # Average building height (m)
+           grass:
+             sfr:
+               value: 0.15
+           dectr:
+             sfr:
+               value: 0.04
 
 Validate Your Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -288,7 +288,7 @@ Before running simulations, validate your configuration to catch and fix common 
 .. code-block:: bash
 
    # Validate and automatically fix your configuration
-   suews-validate config.yml
+   suews validate config.yml
 
    # This creates:
    # - updated_config.yml (corrected configuration)
@@ -494,7 +494,7 @@ Climate Change Impact Studies
        'Storage Heat': rcp85_fluxes['QS'].mean() - baseline_fluxes['QS'].mean()
    }
 
-**Complete Tutorial**: :doc:`Impact Studies </auto_examples/tutorial_03_impact_studies>`
+**Complete Tutorial**: :doc:`Impact Studies </auto_examples/tutorial_04_impact_studies>`
 
 Model Coupling and Integration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -529,7 +529,7 @@ SuPy enables integration with other atmospheric and urban models:
 
        return wrf_fluxes
 
-**Complete Tutorial**: :doc:`External Model Integration <integration/external-interaction>`
+**Complete Tutorial**: :doc:`External Model Integration </auto_examples/tutorial_06_external_coupling>`
 
 Advanced Analysis Patterns
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -622,11 +622,8 @@ Migration Process
 
 .. code-block:: bash
 
-   # Convert legacy table inputs to modern YAML (under development)
-   suews-convert to-yaml -i legacy_input_dir/ -o modern_config.yml
-   
-   # Note: This feature is under development
-   # For now, use the SUEWSSimulation class with existing table inputs or YAML files
+   # Convert legacy table inputs to modern YAML
+   suews convert -i legacy_input_dir/RunControl.nml -o modern_config.yml
 
 **Testing Your Migration:**
 

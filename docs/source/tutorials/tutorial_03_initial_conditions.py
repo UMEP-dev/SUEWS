@@ -253,7 +253,7 @@ print("  Initial temps: [15.0, 14.0, 13.0, 12.0, 11.0] degC (must have 5 values)
 #
 # 1. **Always use spin-up** for production runs - at least one year
 # 2. **Match vegetation state to season** - use ``get_initial_lai()`` helper
-# 3. **Check soil moisture bounds** - cannot exceed ``soil_store_capacity`` (``soilstorecap`` in df_state)
+# 3. **Check soil moisture bounds** - cannot exceed ``soil_store_capacity`` (``soilstorecap_surf`` in df_state)
 # 4. **Thermal layers must match** - same number of values as layer depths
 # 5. **Use the validator** - ``suews validate`` handles many details automatically
 #

@@ -14,17 +14,19 @@ CLI Command
 
 .. code-block:: bash
 
-    # Run with RunControl.nml in current directory (default behaviour)
+    # Run with config.yml in the current directory (falls back to RunControl.nml)
     suews run
 
-    # Run with RunControl.nml at specific path
-    suews run -p path/to/RunControl.nml
+    # Run with a YAML configuration at a specific path
+    suews run path/to/config.yml
+
+    # Run with a legacy namelist (deprecated)
+    suews run path/to/RunControl.nml
 
 .. note::
-   The CLI command currently only supports the deprecated namelist format.
-   YAML support is still being added.
-
-   For YAML configurations, use the Python API below.
+   With no argument, ``suews run`` looks for ``config.yml`` in the current
+   directory first and only then for ``RunControl.nml``. The ``-p`` option is
+   deprecated; pass the configuration file as a positional argument instead.
 
 Python API
 ~~~~~~~~~~

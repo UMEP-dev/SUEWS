@@ -37,10 +37,10 @@ Basic Usage
     # Run Phase B scientific checks without suggestions or scientific updates
     suews validate --science-fixes off config.yml
 
-    # Check configuration without writing files
-    suews validate validate config.yml
+    # Check one or more files against the schema without writing files
+    suews validate -p C --dry-run config.yml
 
-    # Check without writing files (read-only validation)
+    # Read-only run of the full pipeline on a single file
     suews validate --dry-run config.yml
 
 For complete usage options and advanced features, use:
@@ -48,9 +48,8 @@ For complete usage options and advanced features, use:
 .. code-block:: bash
 
     suews validate --help
-    suews validate validate --help
-    suews validate migrate --help
-    suews validate version --help
+    suews schema migrate --help
+    suews schema version --help
 
 Phase B Scientific Fix Policy
 -----------------------------
@@ -165,7 +164,7 @@ CI/CD Integration
 
     - name: Validate SUEWS Configuration
       run: |
-        suews validate validate config.yml --format json > results.json
+        suews validate -p C --dry-run --format json config.yml > results.json
         if [ $? -ne 0 ]; then
           echo "Configuration validation failed"
           exit 1
@@ -178,7 +177,7 @@ Batch Processing
 
     #!/bin/bash
     for config in configs/*.yml; do
-        if suews validate validate "$config" --quiet; then
+        if suews validate -p C --dry-run "$config" > /dev/null; then
             echo "OK $config"
         else
             echo "FAILED $config - needs attention"

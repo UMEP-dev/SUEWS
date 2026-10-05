@@ -221,10 +221,10 @@ The ``suews validate`` command checks your configuration and fixes common issues
    suews validate config.yml
 
    # Check without making changes
-   suews validate validate config.yml
+   suews validate -p C --dry-run config.yml
 
    # Get JSON output for scripts
-   suews validate validate config.yml --format json
+   suews validate -p C --dry-run --format json config.yml
 
 What Gets Fixed Automatically
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

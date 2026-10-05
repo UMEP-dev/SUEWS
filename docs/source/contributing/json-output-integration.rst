@@ -23,17 +23,14 @@ Basic Usage
 
 .. code-block:: bash
 
-    # Validate one or more files against the schema (read-only)
-    suews validate validate config.yml --format json
-
-    # Read-only dry run of pipeline C with JSON output
+    # Validate one or more files against the schema (read-only, pipeline C dry run)
     suews validate -p C --dry-run --format json config.yml
 
     # Full validation pipeline with JSON output
     suews validate --format json config.yml
 
     # Pipe to jq for processing
-    suews validate validate *.yml --format json | jq '.data'
+    suews validate -p C --dry-run --format json *.yml | jq '.data'
 
 Output Structure
 ----------------
@@ -51,22 +48,24 @@ The top-level structure shared by all commands:
       "errors": [...],
       "warnings": [...],
       "meta": {
-        "schema_version": "2026.6.dev5",
+        "schema_version": "<current schema version>",
         "suews_version": "...",
         "supy_version": "...",
         "git_commit": "e2385e2",
-        "command": "suews validate validate config.yml --format json",
+        "command": "suews validate -p C --dry-run --format json config.yml",
         "started_at": "2026-10-05T10:30:00Z",
         "ended_at": "2026-10-05T10:30:01Z"
       }
     }
 
 ``meta.schema_version`` is the YAML configuration schema version of the installed SuPy (``CURRENT_SCHEMA_VERSION``).
+``meta.command`` is built from the process arguments, so a real run may show the full path of the ``suews``
+entry-point script rather than the bare command name.
 
 File Validation Results
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-For ``suews validate validate FILES`` and ``suews validate -p C --dry-run FILES``, ``data`` holds one entry per file:
+For ``suews validate -p C --dry-run --format json FILES``, ``data`` holds one entry per file:
 
 .. code-block:: json
 
@@ -78,7 +77,7 @@ For ``suews validate validate FILES`` and ``suews validate -p C --dry-run FILES`
       "is_valid": false
     }
 
-``data.schema_version`` echoes ``--schema-version`` (``null`` when not given). Each error in the top-level
+On this dry-run path, ``data.schema_version`` echoes ``--schema-version`` and is ``null`` when that option is not given. Each error in the top-level
 ``errors`` list names the file it belongs to:
 
 .. code-block:: json
@@ -175,7 +174,7 @@ Process JSON output in GitHub Actions:
     - name: Validate configurations
       id: validate
       run: |
-        suews validate validate test/*.yml --format json > results.json || true
+        suews validate -p C --dry-run --format json test/*.yml > results.json || true
 
         # Parse results with Python
         python -c "
@@ -204,7 +203,7 @@ Use in Jenkins pipeline:
         steps {
             script {
                 def result = sh(
-                    script: 'suews validate validate *.yml --format json || true',
+                    script: 'suews validate -p C --dry-run --format json *.yml || true',
                     returnStdout: true
                 )
                 def json = readJSON text: result
@@ -228,14 +227,14 @@ Extract specific information with jq:
 .. code-block:: bash
 
     # Overall result
-    suews validate validate *.yml --format json | jq '.data.is_valid'
+    suews validate -p C --dry-run --format json *.yml | jq '.data.is_valid'
 
     # List invalid files
-    suews validate validate *.yml --format json | \
+    suews validate -p C --dry-run --format json *.yml | \
       jq '.data.files[] | select(.valid == false) | .file'
 
     # Count errors by type
-    suews validate validate *.yml --format json | \
+    suews validate -p C --dry-run --format json *.yml | \
       jq '[.errors[].code_name // "UNCODED"] | group_by(.) | map({(.[0]): length}) | add'
 
 Using Python
@@ -250,7 +249,7 @@ Process results in Python:
 
     # Run validation
     result = subprocess.run(
-        ["suews", "validate", "validate", "config.yml", "--format", "json"],
+        ["suews", "validate", "-p", "C", "--dry-run", "--format", "json", "config.yml"],
         capture_output=True,
         text=True,
     )

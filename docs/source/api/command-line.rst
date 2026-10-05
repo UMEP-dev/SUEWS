@@ -51,7 +51,7 @@ Legacy namelist format is still supported but deprecated:
 .. code-block:: bash
 
     # Legacy format with deprecation warning
-    suews run -p RunControl.nml
+    suews run RunControl.nml
 
 **Migration from Namelist to YAML**
 

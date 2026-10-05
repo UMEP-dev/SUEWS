@@ -299,8 +299,8 @@ When using SMD method 0 (modelled soil moisture), the soil water balance is calc
        model:
          physics:
            soil_moisture_deficit: {value: 1}  # Observed volumetric soil moisture
-           # or
-           soil_moisture_deficit: {value: 2}  # Observed gravimetric soil moisture
+           # or, for observed gravimetric soil moisture:
+           # soil_moisture_deficit: {value: 2}
 
    This requires providing soil moisture data in your forcing file.
 

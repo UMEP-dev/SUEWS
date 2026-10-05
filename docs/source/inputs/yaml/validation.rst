@@ -40,7 +40,8 @@ Basic Usage
     # Check one or more files against the schema without writing files
     suews validate -p C --dry-run config.yml
 
-    # Read-only run of the full pipeline on a single file
+    # Same schema-only check, restricted to a single file (phases A and B
+    # do not run and --forcing is ignored)
     suews validate --dry-run config.yml
 
 For complete usage options and advanced features, use:

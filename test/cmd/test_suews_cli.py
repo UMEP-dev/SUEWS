@@ -164,6 +164,75 @@ def test_validate_help_keeps_schema_lifecycle_hidden() -> None:
         assert hidden_subcommand not in result.output
 
 
+def test_validate_is_a_plain_command() -> None:
+    """``suews validate`` takes FILES directly and declares no subcommands.
+
+    Its variadic FILES argument would swallow any subcommand name, so
+    subcommands registered on it could never be reached; schema lifecycle
+    operations live under ``suews schema`` instead.
+    """
+    import click
+
+    from supy.cmd.validate_config import cli as validate_cli
+
+    assert not isinstance(validate_cli, click.Group)
+
+
+# ---------------------------------------------------------------------------
+# suews schema version / migrate: backup handling
+# ---------------------------------------------------------------------------
+
+
+def _write_old_config(path: Path) -> None:
+    path.write_text("name: test\nschema_version: '0.1'\n", encoding="utf-8")
+
+
+def test_schema_version_update_keeps_backup_by_default(tmp_path) -> None:
+    import yaml as _yaml
+    from supy.cmd.suews_cli import cli
+
+    config = tmp_path / "config.yml"
+    _write_old_config(config)
+
+    result = CliRunner().invoke(cli, ["schema", "version", "--update", str(config)])
+    assert result.exit_code == 0, result.output
+
+    backups = list(tmp_path.glob("config.backup-*.yml"))
+    assert len(backups) == 1
+    assert _yaml.safe_load(backups[0].read_text())["schema_version"] == "0.1"
+    assert _yaml.safe_load(config.read_text())["schema_version"] != "0.1"
+
+
+def test_schema_version_update_no_backup(tmp_path) -> None:
+    import yaml as _yaml
+    from supy.cmd.suews_cli import cli
+
+    config = tmp_path / "config.yml"
+    _write_old_config(config)
+
+    result = CliRunner().invoke(
+        cli, ["schema", "version", "--update", "--no-backup", str(config)]
+    )
+    assert result.exit_code == 0, result.output
+
+    assert list(tmp_path.glob("config.backup-*.yml")) == []
+    assert _yaml.safe_load(config.read_text())["schema_version"] != "0.1"
+
+
+@pytest.mark.parametrize("flag", [[], ["-b"], ["--no-backup"]])
+def test_schema_migrate_leaves_input_unchanged(tmp_path, flag) -> None:
+    """``migrate`` never rewrites its input; the legacy backup flag is inert."""
+    from supy.cmd.suews_cli import cli
+
+    config = tmp_path / "config.yml"
+    _write_old_config(config)
+    original = config.read_text()
+
+    result = CliRunner().invoke(cli, ["schema", "migrate", *flag, str(config)])
+    assert result.exit_code == 0, result.output
+    assert config.read_text() == original
+
+
 # ---------------------------------------------------------------------------
 # Back-compat aliases
 # ---------------------------------------------------------------------------

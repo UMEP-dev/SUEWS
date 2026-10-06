@@ -369,7 +369,9 @@ class RSTGenerator:
             "     - Heat roughness-length method.",
             "   * - ``stability``",
             "     - ``not_used``; ``not_used2``; ``hoegstrom``; ``CN98``; ``BH71``",
-            "     - Atmospheric stability correction method.",
+            "     - Atmospheric stability correction method. ``not_used`` and "
+            "``not_used2`` (codes 0 and 1) are reserved and rejected at "
+            "validation.",
             "   * - ``roughness_sublayer``",
             "     - ``most``; ``rst`` / ``T19``; ``variable``",
             "     - Roughness sublayer treatment.",

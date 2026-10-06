@@ -17,6 +17,7 @@ import tempfile
 import warnings
 from pathlib import Path
 
+import numpy as np
 import pytest
 import yaml
 from pydantic import ValidationError
@@ -618,6 +619,7 @@ class TestRefValueAssignmentCoercion:
         assert lat.ref.DOI == "10.1000/xyz"
 
     def test_dict_ref_construction_is_coerced(self):
+        """Pin: construction already coerced a dict ``ref``; keep it in step."""
         rv = RefValue(51.5, ref={"DOI": "10.1000/xyz"})
         assert isinstance(rv.ref, Reference)
         assert rv.ref.DOI == "10.1000/xyz"
@@ -644,3 +646,9 @@ class TestRefValueAssignmentCoercion:
         assert isinstance(laimethod.value, LAIMethod)
 
         self._dump_all(sample_config, tmp_path)
+
+    def test_numpy_scalar_value_assignment_becomes_native(self, sample_config):
+        lat = sample_config.sites[0].properties.lat
+        lat.value = np.float64(52.0)
+        assert type(lat.value) is float
+        assert lat.value == pytest.approx(52.0)

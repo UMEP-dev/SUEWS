@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 6 Oct 2026
 
-- [bugfix] Assigning a plain dict to a parameter's `ref` (e.g. `site.properties.lat.ref = {"DOI": ...}`) now coerces it into a `Reference`, and assigning a raw code to an option's `value` coerces it into the option's enum, so dumping the config no longer floods `PydanticSerializationUnexpectedValue` warnings (#1095).
+- [bugfix] Assigning a plain dict to a parameter's `ref` (e.g. `site.properties.lat.ref = {"DOI": ...}`) now coerces it into a `Reference`, and assigning a raw code to an option's `value` coerces it into the option's enum, so dumping the config no longer floods `PydanticSerializationUnexpectedValue` warnings; an assignment that does not validate now raises `ValidationError` instead of being stored silently (#1095).
 
 ### 1 Oct 2026
 

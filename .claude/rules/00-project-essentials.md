@@ -80,6 +80,10 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
 - Include new source files in `meson.build`:
   - Python files (.py) in `src/supy/`
   - Fortran files (.f90, .f95) in `src/suews/src/`
+- After adding a Fortran file or a `USE` statement, regenerate the module
+  dependency edges that keep `make -j` safe:
+  `python scripts/suews/gen_fortran_deps.py` (writes `src/suews/Makefile.deps`;
+  `test/core/test_fortran_deps.py` fails when it is stale)
 
 ## Quick Start
 

@@ -18,7 +18,7 @@ Style check: `/lint-code` | Docs check: `/audit-docs` | Build check: `/verify-bu
 - **No emoji** in print/logging - plain ASCII only
 - **Test before commit**: `make test-smoke`
 - **Git remote**: `origin` only (`git@github.com:UMEP-dev/SUEWS.git`)
-- **New source files**: Add to `meson.build`
+- **New source files**: Add to `meson.build`; after adding a Fortran file or `USE` statement, regenerate `src/suews/Makefile.deps` (`python scripts/suews/gen_fortran_deps.py`)
 
 ## Project Structure
 

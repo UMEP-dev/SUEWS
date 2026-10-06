@@ -939,3 +939,68 @@ class TestEstmRejected:
         yaml_path.write_text(yaml.safe_dump(config), encoding="utf-8")
         with pytest.raises(ValueError, match=re.escape(self.MESSAGE)):
             SUEWSConfig.from_yaml(str(yaml_path))
+
+
+class TestReservedStabilityRejected:
+    """Reserved `stability` codes 0 and 1 are refused by the data model (gh#1783).
+
+    Neither code has a stability function behind it, so the kernel's psi
+    functions return an undefined result and the roughness-sublayer profile
+    gives NaN near-surface diagnostics with no warning.
+    """
+
+    @staticmethod
+    def message(code):
+        return f"stability={code} is a reserved code"
+
+    @pytest.mark.parametrize("code", [0, 1])
+    def test_flat_code_rejected(self, code):
+        with pytest.raises(ValidationError, match=re.escape(self.message(code))):
+            ModelPhysics(stability=code)
+
+    @pytest.mark.parametrize("code", [0, 1])
+    def test_refvalue_form_rejected(self, code):
+        with pytest.raises(ValidationError, match=re.escape(self.message(code))):
+            ModelPhysics(stability={"value": code})
+
+    @pytest.mark.parametrize(("name", "code"), [("not_used", 0), ("not_used2", 1)])
+    def test_named_form_rejected(self, name, code):
+        # `stability` is a scalar selector: its readable names resolve to the
+        # code, so the reserved names must be refused like the codes.
+        with pytest.raises(ValidationError, match=re.escape(self.message(code))):
+            ModelPhysics(stability=name)
+
+    def test_assignment_rejected(self):
+        phys = ModelPhysics(stability=3)
+        with pytest.raises(ValidationError, match=re.escape(self.message(1))):
+            phys.stability = 1
+        assert int(_unwrap(phys.stability)) == 3
+
+    @pytest.mark.parametrize("code", [2, 3, 4])
+    def test_implemented_codes_accepted(self, code):
+        assert int(_unwrap(ModelPhysics(stability=code).stability)) == code
+
+    def test_message_names_the_allowed_codes(self):
+        with pytest.raises(ValidationError) as exc:
+            ModelPhysics(stability=0)
+        for allowed in (
+            "3 (Campbell & Norman",
+            "2 (Hoegstrom)",
+            "4 (Businger-Hoegstrom)",
+        ):
+            assert allowed in str(exc.value)
+
+    def test_from_dict_rejected(self, sample_yaml_path):
+        config = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+        config["model"]["physics"]["stability"] = {"value": 0}
+        with pytest.raises(ValueError, match=re.escape(self.message(0))):
+            SUEWSConfig.from_dict(config)
+
+    def test_from_yaml_rejected(self, sample_yaml_path, tmp_path):
+        sample_dir = shutil.copytree(sample_yaml_path.parent, tmp_path / "sample")
+        yaml_path = sample_dir / sample_yaml_path.name
+        config = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        config["model"]["physics"]["stability"] = {"value": 1}
+        yaml_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+        with pytest.raises(ValueError, match=re.escape(self.message(1))):
+            SUEWSConfig.from_yaml(str(yaml_path))

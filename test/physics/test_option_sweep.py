@@ -80,14 +80,6 @@ OPTION_VALUES_REFUSED = {
 
 # Values that run and then violate one of the sweep's invariants.
 OPTION_VALUES_XFAIL = {
-    ("stability", 0): (
-        "reserved stability code: psi has no branch for it, so the RSL "
-        "profile returns NaN T2/RH2/Q2/U10 (UMEP-dev/SUEWS#1783)"
-    ),
-    ("stability", 1): (
-        "reserved stability code: psi has no branch for it, so the RSL "
-        "profile returns NaN T2/RH2/Q2/U10 (UMEP-dev/SUEWS#1783)"
-    ),
     ("stability", 2): (
         "RSL profile returns NaN T2/RH2/Q2/U10 while fluxes stay finite "
         "(UMEP-dev/SUEWS#1784)"
@@ -104,6 +96,10 @@ OPTION_VALUES_REJECTED = {
     # ESTM's surface-temperature input has no YAML or forcing path; before
     # gh#1785 the kernel read past a zero-length array and segfaulted.
     ("storage_heat", 4): "storage_heat=4 (ESTM) is not available",
+    # Reserved stability codes have no stability function behind them; before
+    # gh#1783 the RSL profile returned NaN T2/RH2/Q2/U10 without a warning.
+    ("stability", 0): "stability=0 is a reserved code",
+    ("stability", 1): "stability=1 is a reserved code",
 }
 
 

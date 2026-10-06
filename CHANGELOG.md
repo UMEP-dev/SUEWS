@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Oct 2026
+
+- [doc] The YAML config reference now states when `anthropogenic_emissions.startdls` and `enddls` are required (#1677)
+  - Each now renders as required when saved output uses the daylight-saving clock, or when the other end of the DLS window is given, matching the validator: it rejects `model.control.output.timestamp_reference: daylight` unless the full window is supplied, and rejects a window with only one end. They previously carried only the generic no-default note.
+
 ### 1 Oct 2026
 
 - [change][experimental] Named shortwave split option 3 `perez` after Perez et al. (1992), using static DIRINT (#1832).

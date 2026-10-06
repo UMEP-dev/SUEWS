@@ -4324,13 +4324,11 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
                     "diagnose": 0,
                 },
                 "physics": {
+                    # stability codes 0 and 1 are reserved (gh#1783)
                     param: {
-                        "value": 0
-                        if param in ["snow_use", "ohm_inc_qf"]
-                        # stability codes 0 and 1 are reserved (gh#1783)
-                        else 3
-                        if param == "stability"
-                        else 1
+                        "value": {"snow_use": 0, "ohm_inc_qf": 0, "stability": 3}.get(
+                            param, 1
+                        )
                     }
                     for param in physics_options
                 },

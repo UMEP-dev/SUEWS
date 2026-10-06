@@ -57,7 +57,7 @@ EXAMPLES:
 ### 6 Oct 2026
 
 - [bugfix] Rejected the reserved `model.physics.stability` codes 0 and 1 at validation (#1783)
-  - Neither code has a stability function behind it, so on the roughness-sublayer path the run returned NaN `T2`, `RH2`, `Q2` and `U10` on most timesteps without any warning. Both codes are now refused on validated construction and direct field assignment, in their numeric, `RefValue` and readable-name (`not_used`, `not_used2`) forms, with a message naming the implemented codes 2, 3 (recommended) and 4. No schema bump: the YAML shape is unchanged and the enum keeps its members.
+  - Neither code has a stability function behind it, so on the roughness-sublayer path the run returned NaN `T2`, `RH2`, `Q2` and `U10` on most timesteps without any warning. Both codes are now refused on validated construction and direct field assignment, in their numeric, `RefValue` and readable-name (`not_used`, `not_used2`) forms, with a message naming the implemented codes 2, 3 (recommended) and 4.
 
 ### 1 Oct 2026
 

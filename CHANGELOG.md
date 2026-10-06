@@ -57,6 +57,7 @@ EXAMPLES:
 ### 6 Oct 2026
 
 - [bugfix] Assigning a plain dict to a parameter's `ref` (e.g. `site.properties.lat.ref = {"DOI": ...}`) now coerces it into a `Reference`, and assigning a raw code to an option's `value` coerces it into the option's enum, so dumping the config no longer floods `PydanticSerializationUnexpectedValue` warnings; an assignment that does not validate now raises `ValidationError` instead of being stored silently (#1095).
+- [bugfix] Legacy AnOHM field names `chanohm`, `cpanohm` and `kkanohm` now load on the run path with a deprecation warning, matching `suews validate`, which already renamed them to `ch_anohm`, `rho_cp_anohm` and `k_anohm`; previously the same YAML passed validation and then failed to load with `extra_forbidden` (#1723)
 - [doc] The YAML config reference now states when `anthropogenic_emissions.startdls` and `enddls` are required (#1677)
   - Each now renders as required when saved output uses the daylight-saving clock, or when the other end of the DLS window is given, matching the validator: it rejects `model.control.output.timestamp_reference: daylight` unless the full window is supplied, and rejects a window with only one end. They previously carried only the generic no-default note.
 

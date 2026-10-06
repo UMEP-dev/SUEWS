@@ -19,10 +19,12 @@ from pathlib import Path
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from supy._env import trv_supy_module
 from supy.data_model.core.config import SUEWSConfig
-from supy.data_model.core.type import RefValue
+from supy.data_model.core.model import LAIMethod
+from supy.data_model.core.type import Reference, RefValue
 from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.data_model.validation.pipeline.phase_a import find_extra_parameters
 
@@ -575,3 +577,70 @@ class TestRefValueSerialisationNoWarnings:
         # ASSERT
         after = reloaded.sites[0].properties.land_cover.paved.sfr.value
         assert after == pytest.approx(before)
+
+
+_GH1095_REF = {"desc": "Site survey", "ID": "survey2024", "DOI": "10.1000/xyz"}
+
+
+@pytest.mark.cfg
+class TestRefValueAssignmentCoercion:
+    """gh#1095: assigning to a ``RefValue`` attribute is validated and coerced.
+
+    Assigning a plain dict to ``ref`` used to store the raw dict, so every
+    later dump emitted ``PydanticSerializationUnexpectedValue(Expected
+    `Reference` ...)``. The same applied to ``value`` on an enum-typed field
+    (``laimethod.value = 0`` stored an ``int``). ``RefValue`` now validates
+    assignment, so the dict becomes a ``Reference`` and the int an enum member.
+    """
+
+    @staticmethod
+    def _dump_all(config, tmp_path):
+        """Serialise ``config`` every way a user would; serializer warnings raise."""
+        out_path = tmp_path / "gh1095.yml"
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "error",
+                message=r"(?s).*(PydanticSerializationUnexpectedValue"
+                r"|serialized value may not be as expected)",
+            )
+            config.model_dump()
+            config.model_dump(mode="json")
+            config.model_dump_json()
+            config.to_yaml(str(out_path))
+        return out_path
+
+    def test_dict_ref_assignment_is_coerced(self, sample_config):
+        lat = sample_config.sites[0].properties.lat
+        lat.ref = dict(_GH1095_REF)
+        assert isinstance(lat.ref, Reference)
+        assert lat.ref.desc == "Site survey"
+        assert lat.ref.ID == "survey2024"
+        assert lat.ref.DOI == "10.1000/xyz"
+
+    def test_dict_ref_construction_is_coerced(self):
+        rv = RefValue(51.5, ref={"DOI": "10.1000/xyz"})
+        assert isinstance(rv.ref, Reference)
+        assert rv.ref.DOI == "10.1000/xyz"
+
+    def test_dict_ref_dumps_without_warnings_and_round_trips(
+        self, sample_config, tmp_path
+    ):
+        sample_config.sites[0].properties.lat.ref = dict(_GH1095_REF)
+
+        out_path = self._dump_all(sample_config, tmp_path)
+
+        reloaded = SUEWSConfig.from_yaml(str(out_path))
+        ref = reloaded.sites[0].properties.lat.ref
+        assert isinstance(ref, Reference)
+        assert ref.model_dump() == _GH1095_REF
+
+    def test_invalid_ref_assignment_raises(self, sample_config):
+        with pytest.raises(ValidationError):
+            sample_config.sites[0].properties.lat.ref = "not a reference"
+
+    def test_enum_value_assignment_is_coerced(self, sample_config, tmp_path):
+        laimethod = sample_config.model.physics.laimethod
+        laimethod.value = 0
+        assert isinstance(laimethod.value, LAIMethod)
+
+        self._dump_all(sample_config, tmp_path)

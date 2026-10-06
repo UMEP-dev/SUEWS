@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Oct 2026
+
+- [bugfix] Assigning a plain dict to a parameter's `ref` (e.g. `site.properties.lat.ref = {"DOI": ...}`) now coerces it into a `Reference`, and assigning a raw code to an option's `value` coerces it into the option's enum, so dumping the config no longer floods `PydanticSerializationUnexpectedValue` warnings (#1095).
+
 ### 1 Oct 2026
 
 - [change][experimental] Named shortwave split option 3 `perez` after Perez et al. (1992), using static DIRINT (#1832).

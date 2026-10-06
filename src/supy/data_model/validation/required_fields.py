@@ -19,7 +19,10 @@ This module contains:
   consumed by ``SUEWSConfig._iter_critical_null_site_param_issues``.
 - ``DOC_REQUIRED_WHEN``, which maps a model class name to a reader-facing
   description of when each field is required. This is consumed by the
-  documentation generator.
+  documentation generator. Most entries mirror the tables above; the
+  ``AnthropogenicEmissions`` entry mirrors the DLS checks in
+  ``SUEWSConfig.validate_model_output_timestamp_reference`` and
+  ``SUEWSConfig.validate_dls_parameters`` instead.
 - ``STEBBS_SHADING_REQUIRED_MODES`` and ``stebbs_shading_requirements``,
   which share shading requirements across parameter models, full
   configurations and raw YAML diagnostics.
@@ -187,6 +190,19 @@ DECIDUOUS_REQUIRED_PROVIDED_FAI: RequirementTable = {
 _VEGETATION_PRESENT = "a vegetated surface using these parameters is present"
 _LAI_MODELLED = "leaf area index is modelled rather than observed"
 _PROVIDED_FAI = "frontal area index is taken from site parameters"
+# Mirrors two SUEWSConfig validators: validate_model_output_timestamp_reference
+# rejects a daylight output clock unless both ends of the DLS window are
+# supplied, and validate_dls_parameters rejects a window with only one end.
+_DAYLIGHT_OUTPUT = (
+    "saved output uses the daylight-saving clock "
+    "(``model.control.output.timestamp_reference: daylight``)"
+)
+
+
+def _dls_condition(other_end: str) -> str:
+    """Describe when one end of the DLS window must be supplied."""
+    return f"{_DAYLIGHT_OUTPUT}, or when ``{other_end}`` is given"
+
 
 # Reader-facing conditions, keyed by the model class that declares the field.
 # Consumed by the documentation generator; see docs/generate_datamodel_rst.py.
@@ -210,6 +226,10 @@ DOC_REQUIRED_WHEN: dict[str, dict[str, str]] = {
     "DectrProperties": {
         "height_deciduous_tree": "deciduous trees are present",
         "fai_deciduous_tree": f"deciduous trees are present and {_PROVIDED_FAI}",
+    },
+    "AnthropogenicEmissions": {
+        "startdls": _dls_condition("enddls"),
+        "enddls": _dls_condition("startdls"),
     },
 }
 

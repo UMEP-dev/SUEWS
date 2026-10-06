@@ -130,6 +130,21 @@ SURFACEPROPERTIES_RENAMES: Dict[str, str] = {
     "ohm_threshwd": "ohm_threshold_wet_dry",
 }
 
+# Legacy fused AnOHM spellings on SurfaceProperties (gh#1723). Older YAMLs
+# carry ``chanohm`` / ``cpanohm`` / ``kkanohm``; the Phase A validator
+# renamed them while ``SUEWSConfig`` rejected them as ``extra_forbidden``.
+# NOT spread into ALL_FIELD_RENAMES: the Rust bridge reads both spellings
+# directly and keeps ``chanohm`` / ``cpanohm`` / ``kkanohm`` as its OHM struct
+# members and DataFrame columns, and SURFACE_RENAMES already maps the
+# ``cpanohm`` / ``kkanohm`` Fortran TYPE members to different targets. The
+# SurfaceProperties shim applies this table after SURFACEPROPERTIES_RENAMES,
+# and RAW_YAML_FIELD_RENAMES composes it for raw-dict callers.
+SURFACEPROPERTIES_ANOHM_RENAMES: Dict[str, str] = {
+    "chanohm": "ch_anohm",
+    "cpanohm": "rho_cp_anohm",
+    "kkanohm": "k_anohm",
+}
+
 # -- LAIParams (site.py) -----------------------------------------------------
 
 LAIPARAMS_RENAMES: Dict[str, str] = {
@@ -1281,6 +1296,7 @@ RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
     STEBBSPROPERTIES_DEV12_RENAMES,
+    SURFACEPROPERTIES_ANOHM_RENAMES,
     ALL_FIELD_RENAMES,
 )
 

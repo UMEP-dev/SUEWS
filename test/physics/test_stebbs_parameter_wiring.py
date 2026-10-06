@@ -199,6 +199,7 @@ def test_constant_internal_shading_reduces_only_transmitted_solar_gain():
     )
 
 
+@pytest.mark.medium  # Test body 10-30 CPU-s on the Linux reference runner
 @pytest.mark.skipif(
     not _rust_library_available(),
     reason="Rust library backend not available (install src/suews_bridge with physics feature)",

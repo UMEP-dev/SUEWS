@@ -5,7 +5,7 @@ Version 2020a (released on 14 May 2020)
 ----------------------------------------------------
 
 .. note::
-  In a future release, we will **ONLY** deliver SUEWS along with `SuPy <https://supy.readthedocs.io/en/latest/>`_ as a command line tool `suews-run`: release of standalone SUEWS binaries **will be stopped** to ease our maintenance load and to facilitate rapid developments.
+  In a future release, we will **ONLY** deliver SUEWS along with `SuPy <https://supy.readthedocs.io/en/latest/>`_ as a command line tool ``suews-run``: release of standalone SUEWS binaries **will be stopped** to ease our maintenance load and to facilitate rapid developments.
   Users will need to have Python 3.6+ to install SuPy:
 
   .. code-block:: shell

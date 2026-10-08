@@ -295,46 +295,60 @@ When using SMD method 0 (modelled soil moisture), the soil water balance is calc
 1. **Switch to SMD method 1 or 2** (recommended if you have observed soil moisture data):
    
    In your YAML configuration::
-   
-       smd_method: {value: 1}  # Use observed volumetric soil moisture
-       # or
-       smd_method: {value: 2}  # Use observed gravimetric soil moisture
-   
+
+       model:
+         physics:
+           soil_moisture_deficit: {value: 1}  # Observed volumetric soil moisture
+           # or, for observed gravimetric soil moisture:
+           # soil_moisture_deficit: {value: 2}
+
    This requires providing soil moisture data in your forcing file.
 
-2. **If using SMD method 0**, check and adjust:
-   
+2. **If using SMD method 0**, check and adjust (all paths below are under ``sites[i]``, with one entry per surface type: ``paved``, ``bldgs``, ``evetr``, ``dectr``, ``grass``, ``bsoil``, ``water``):
+
    a. **Initial soil moisture states** - ensure reasonable starting values::
-   
-       initial_conditions:
-         soilstore_bldgs: {value: 50.0}  # Not too low
-         soilstore_paved: {value: 50.0}
-         soilstore_evetr: {value: 100.0}
-         soilstore_dectr: {value: 100.0}
-         soilstore_grass: {value: 80.0}
-         soilstore_bsoil: {value: 60.0}
-   
+
+       sites:
+       - initial_states:
+           bldgs:
+             soilstore: {value: 50.0}  # mm, not too low
+           paved:
+             soilstore: {value: 50.0}
+           evetr:
+             soilstore: {value: 100.0}
+           # ... similar for dectr, grass, bsoil
+
    b. **Soil capacity parameters** - verify they match your site::
-   
-       soil:
-         bldgs:
-           soilstorecap: {value: 150.0}  # mm
-         paved:
-           soilstorecap: {value: 150.0}
-         # ... similar for other surfaces
-   
-   c. **Soil moisture stress parameters**::
-   
-       vegetation:
-         s1: {value: 5.56}   # Wilting point threshold (mm)
-         s2: {value: 100.0}  # Capacity threshold (mm)
-         g_sm: {value: 3.5}  # Soil moisture sensitivity
-   
-   d. **Enable irrigation** if appropriate for your site::
-   
-       water_use:
-         method: {value: 1}  # Enable irrigation
-         # Configure irrigation parameters
+
+       sites:
+       - properties:
+           land_cover:
+             bldgs:
+               soil_store_capacity: {value: 150.0}  # mm
+             paved:
+               soil_store_capacity: {value: 150.0}
+             # ... similar for other surfaces
+
+   c. **Soil moisture stress parameters** (surface conductance)::
+
+       sites:
+       - properties:
+           conductance:
+             s1: {value: 5.56}  # Wilting point threshold (mm)
+             s2: {value: 100.0}  # Capacity threshold (mm)
+             g_sm: {value: 3.5}  # Soil moisture sensitivity
+
+   d. **Check irrigation (external water use)** if appropriate for your site. ``model.physics.water_use`` selects how water use is obtained, not whether irrigation is on: ``0``/``modelled`` calculates it from the irrigation parameters under ``sites[i].properties.irrigation``, while ``1``/``observed`` reads it from the ``wuh`` column of the forcing file::
+
+       model:
+         physics:
+           water_use: modelled  # or {value: 0}; use observed / {value: 1} for forcing wuh
+       sites:
+       - properties:
+           irrigation:
+             ie_start: {value: 90}  # first day of year with irrigation
+             ie_end: {value: 270}  # last day of year with irrigation
+             # ... other irrigation parameters
 
 **Diagnostic Steps**:
 

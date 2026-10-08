@@ -172,7 +172,7 @@ Implementation Map
   that consults the handler registry.
 - ``src/supy/util/converter/yaml_upgrade.py`` — migration handlers
   and the ``release-tag → schema`` mapping.
-- ``src/supy/util/converter/__init__.py`` — unified ``suews-convert``
+- ``src/supy/util/converter/__init__.py`` — unified ``suews convert``
   entry point covering both legacy table conversion and schema
   migration.
 - ``src/supy/cmd/schema_cli.py`` — ``suews schema`` CLI entry

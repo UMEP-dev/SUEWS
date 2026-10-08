@@ -368,7 +368,7 @@ remote-sensing product is available, users can bypass the internal scheme by:
 
 .. important::
    Observed LAI values are clamped into each vegetation class's
-   ``[laimin, laimax]`` envelope at runtime. The same clamp is applied to the
+   ``[lai_min, lai_max]`` envelope at runtime. The same clamp is applied to the
    parameterised branch (``laimethod: 1``); the observed branch enforces it too
    for consistency and because the downstream conductance and active-vegetation
    fraction calculations (``LAI / laimax`` in ``suews_phys_resist`` and
@@ -378,8 +378,11 @@ remote-sensing product is available, users can bypass the internal scheme by:
 
    If you supply observations that should pass through unchanged -- e.g. a genuine
    winter dieback with ``LAI = 0`` -- configure the corresponding class's
-   ``laimin`` to zero in the site configuration. Similarly, widen ``laimax`` if
-   observations legitimately exceed the default site canopy capacity. The
+   ``lai_min`` to zero in the site configuration
+   (``sites[i].properties.land_cover.<veg>.lai.lai_min``, where ``<veg>`` is
+   ``evetr``, ``dectr`` or ``grass``). Similarly, widen ``lai_max`` (same
+   block) if observations legitimately exceed the default site canopy
+   capacity. The
    pre-flight validator (``check_forcing()``) issues a warning
    when any forcing value would be clamped, so the user sees once that
    observations are being modified rather than discovering it through
@@ -627,15 +630,15 @@ Basic validation from Python:
 
 **Automatic Validation**
 
-When using ``suews-validate``, forcing data validation runs automatically:
+When using ``suews validate``, forcing data validation runs automatically:
 
 .. code-block:: bash
 
    # Validates configuration AND forcing data
-   suews-validate config.yml
+   suews validate config.yml
 
    # Skip forcing validation if needed
-   suews-validate --forcing off config.yml
+   suews validate --forcing off config.yml
 
 The validation report shows any issues found:
 

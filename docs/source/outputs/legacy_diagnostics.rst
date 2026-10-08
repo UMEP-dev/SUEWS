@@ -58,7 +58,7 @@ In older versions, minor issues that don't stop the simulation were written to
 .. code-block:: bash
 
    # Capture stdout/stderr to a log file and inspect it
-   suews-run config.yml 2>&1 | tee suews-run.log
+   suews run config.yml 2>&1 | tee suews-run.log
    tail -100 suews-run.log
 
    # Search for specific warnings/errors

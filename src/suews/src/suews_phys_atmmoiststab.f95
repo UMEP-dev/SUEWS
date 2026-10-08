@@ -140,13 +140,13 @@ CONTAINS
       dq = spec_hum_def(vpd_hPa, Press_hPa) !Specific humidity deficit in g/kg
 
       !Vap density or absolute humidity         (kg/m3)
-      vap_dens = (Ea_hPa*100/((Temp_C + 273.16)*gas_ct_wv))
+      vap_dens = (Ea_hPa*100/((Temp_C + 273.15)*gas_ct_wv))
 
       !density Dry Air Beer(1990)        kg/m3
-      dens_dry = ((Press_hPa - Ea_hPa)*100)/(gas_ct_dry*(273.16 + Temp_C))
+      dens_dry = ((Press_hPa - Ea_hPa)*100)/(gas_ct_dry*(273.15 + Temp_C))
 
       !Air density in kg/m3
-      air_dens = (Press_hPa*100)/(gas_ct_dry*(Temp_C + 273.16))
+      air_dens = (Press_hPa*100)/(gas_ct_dry*(Temp_C + 273.15))
 
       !Calculate specific heat capacity in J kg-1 K-1
       avcp = spec_heat_beer(Temp_C, avRh, vap_dens, dens_dry)
@@ -235,7 +235,7 @@ CONTAINS
       H_init = QH_init/(avdens*avcp)
 
       IF (debug) WRITE (*, *) StabilityMethod, z0m, avU1, H_init, UStar, L_MOD
-      G_T_K = (Grav/(Temp_C + 273.16))*k !gravity constant/(Temperature*Von Karman Constant)
+      G_T_K = (Grav/(Temp_C + 273.15))*k !gravity constant/(Temperature*Von Karman Constant)
       KUZ = k*AvU1 !Von Karman constant*mean wind speed
       IF (zzd < 0) THEN
          CALL ErrorHint(32, &

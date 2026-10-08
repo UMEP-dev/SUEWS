@@ -41,7 +41,7 @@ def cal_qa(rh_pct, theta_K, pres_hPa):
 def cal_dq(rh_pct, ta_c, pres_hPa):
     from atmosp import calculate as ac
 
-    ta_k = ta_c + 273.16
+    ta_k = ta_c + 273.15
     pa = pres_hPa * 100
     dq = ac("qvs", T=ta_k, p=pa) - ac("qv", T=ta_k, p=pa, RH=rh_pct)
 
@@ -221,7 +221,7 @@ def cal_dens_dry(RH_pct, Temp_C, Press_hPa):
     gas_ct_dry = 8.31451 / 0.028965  # dry_gas/molar
     es_hPa = cal_vap_sat(Temp_C, Press_hPa)
     Ea_hPa = RH_pct / 100 * es_hPa
-    dens_dry = ((Press_hPa - Ea_hPa) * 100) / (gas_ct_dry * (273.16 + Temp_C))
+    dens_dry = ((Press_hPa - Ea_hPa) * 100) / (gas_ct_dry * (273.15 + Temp_C))
     return dens_dry
 
 
@@ -230,7 +230,7 @@ def cal_dens_vap(RH_pct, Temp_C, Press_hPa):
     gas_ct_wv = 8.31451 / 0.0180153  # dry_gas/molar_wat_vap
     es_hPa = cal_vap_sat(Temp_C, Press_hPa)
     Ea_hPa = RH_pct / 100 * es_hPa
-    vap_dens = Ea_hPa * 100 / ((Temp_C + 273.16) * gas_ct_wv)
+    vap_dens = Ea_hPa * 100 / ((Temp_C + 273.15) * gas_ct_wv)
     return vap_dens
 
 
@@ -264,14 +264,14 @@ def cal_dens_air(Press_hPa, Temp_C):
     gas_ct_dry = 8.31451 / 0.028965
 
     # air density [kg m-3]
-    dens_air = (Press_hPa * 100) / (gas_ct_dry * (Temp_C + 273.16))
+    dens_air = (Press_hPa * 100) / (gas_ct_dry * (Temp_C + 273.15))
     return dens_air
 
 
 # Obukhov length
 def cal_Lob(QH, UStar, Temp_C, RH_pct, Pres_hPa, g=9.8, k=0.4):
     # gravity constant/(Temperature*Von Karman Constant)
-    G_T_K = (g / (Temp_C + 273.16)) * k
+    G_T_K = (g / (Temp_C + 273.15)) * k
 
     # air density [kg m-3]
     rho = cal_dens_air(Pres_hPa, Temp_C)

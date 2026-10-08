@@ -272,9 +272,9 @@ CONTAINS
       ! DTIME=dectime
       ! KDOWN=avkdn
       KDOWN_HR = 0.
-      tsfc_surf_K = tsfc_surf + 273.16
-      ! tsurf_0_K = tsurf_0 + 273.16
-      Temp_K = Temp_C + 273.16
+      tsfc_surf_K = tsfc_surf + 273.15
+      ! tsurf_0_K = tsurf_0 + 273.15
+      Temp_K = Temp_C + 273.15
       SIGMATK4 = SIGMA_SB*Temp_K**4
       TD = dewpoint_narp(Temp_C, RH)
       ! Sun postition is now calculated in the main loop, FL
@@ -412,7 +412,7 @@ CONTAINS
 
          !Net all wave
          QSTAR = KDOWN - KUP + LDOWN - LUP
-         TSURF_C = TSURF_K - 273.16
+         TSURF_C = TSURF_K - 273.15
 
          !Define sub-surface radiation components
          qn1_ind_nosnow(is) = QSTAR
@@ -435,7 +435,7 @@ CONTAINS
             IF (NetRadiationMethod_use < 10) THEN
                ! NARP method
                TSURF_SNOW_K = ((NARP_EMIS_SNOW*SIGMATK4)/(NARP_EMIS_SNOW*SIGMA_SB))**0.25 !Snow surface temperature
-               !IF (TSURF_SNOW>273.16) TSURF_SNOW=min(273.16,Temp_K)!Set this to 2 degrees (melted water on top)
+               !IF (TSURF_SNOW>273.15) TSURF_SNOW=min(273.15,Temp_K)!Set this to 2 degrees (melted water on top)
                !open(34,file='TestingSnowFrac.txt',position='append')
                !write(34,*) dectime,is,albedo_snow,albedo_snowfree,SnowFrac(is),IceFrac(is),KDOWN,KUP_snow
                !close(34)
@@ -447,7 +447,7 @@ CONTAINS
             END IF
 
             QSTAR_SNOW = KDOWN - KUP_SNOW + LDOWN - LUP_SNOW
-            TSURF_SNOW_C = TSURF_SNOW_K - 273.16
+            TSURF_SNOW_C = TSURF_SNOW_K - 273.15
 
          ELSE
             KUP_SNOW = 0

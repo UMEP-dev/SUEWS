@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-30T22:50:11+00:00" />
-    <title>2.4. Schema Management CLI &#8212; SUEWS 2026.10.8.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-10T10:57:02+00:00" />
+    <title>2.4. Schema Management CLI &#8212; SUEWS 2026.10.10.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=d48090cf"></script>
+    <script src="../../_static/documentation_options.js?v=bf3cba25"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="2.3. Data-interface versioning" href="data_interface_versioning.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.8.dev1" />
-    <meta name="docbuild:last-update" content="2026-06-30"/>
+  <meta name="docsearch:version" content="2026.10.10.dev1" />
+    <meta name="docbuild:last-update" content="2026-10-10"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.8.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d7cd54650c30d60fc19e59f88d10f97481990b0" style="color: #31708f;">4d7cd54</a>).
+        (2026.10.10.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7151dbbe1374bc871d9f53b73d8737fb07e92e98" style="color: #31708f;">7151dbb</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.8.dev1 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.8.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.10.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.10.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -769,7 +769,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">--update,</span> <span class="pre">-u</span></code>: Update schema version in files</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--target-version</span></code>: Target version for update (default: current)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--backup,</span> <span class="pre">-b</span></code>: Create backup before updating (default: true)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--backup/--no-backup,</span> <span class="pre">-b</span></code>: Keep a timestamped copy (<code class="docutils literal notranslate"><span class="pre">&lt;name&gt;.backup-YYYYMMDD-HHMMSS.yml</span></code>) of each file before updating it (default: <code class="docutils literal notranslate"><span class="pre">--backup</span></code>)</p></li>
 </ul>
 </section>
 <section id="migrate">
@@ -795,9 +795,9 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">--target-version</span></code>: Target schema version (default: current)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--output-dir,</span> <span class="pre">-o</span></code>: Output directory for migrated files</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--backup,</span> <span class="pre">-b</span></code>: Keep original files (default: true)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dry-run,</span> <span class="pre">-n</span></code>: Show what would be done without doing it</p></li>
 </ul>
+<p>The input files are never modified: each migrated copy is written next to its original as <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;.migrated.yml</span></code>, or into <code class="docutils literal notranslate"><span class="pre">--output-dir</span></code>.</p>
 </section>
 <section id="export">
 <h3><span class="section-number">2.4.3.4. </span>export<a class="headerlink" href="#export" title="Link to this heading">#</a></h3>
@@ -1071,7 +1071,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-30.
+  Last updated on 2026-10-10.
   <br/>
 </p>
   </div>
@@ -1079,8 +1079,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.8.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d7cd54650c30d60fc19e59f88d10f97481990b0">4d7cd54</a> |
+  <p>Version: 2026.10.10.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7151dbbe1374bc871d9f53b73d8737fb07e92e98">7151dbb</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

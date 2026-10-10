@@ -21,9 +21,6 @@ RENAMED_PARAMS = {
     "cp": "rho_cp",
     "diagmethod": "roughness_sublayer",
     "localclimatemethod": "roughness_sublayer_level",
-    "chanohm": "ch_anohm",
-    "cpanohm": "rho_cp_anohm",
-    "kkanohm": "k_anohm",
     # Phase 2 + 3 renames: fused -> snake_case -> final (#1256, #1321)
     **RAW_YAML_FIELD_RENAMES,
 }

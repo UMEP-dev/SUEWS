@@ -309,7 +309,7 @@ CONTAINS
       switch2 = .FALSE.
       ea_fix = ea_hPa
       !if(debug) write(*,*)Temp_C, 'LV'
-      !Temp_K=temp_C+273.16
+      !Temp_K=temp_C+273.15
 
       !lv=1.91846E6*(Temp_K/(Temp_K-33.91))**2
 

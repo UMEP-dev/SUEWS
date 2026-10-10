@@ -67,11 +67,11 @@ CONTAINS
       ! USE module_phys_snow, ONLY: SnowUpdate
       USE module_util_datetime, ONLY: datetime, timedelta
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
-                               PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
-                               IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &
-                               LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
-                               LC_BSOIL_PRM, LC_WATER_PRM, &
-                               HYDRO_STATE, atm_STATE, SUEWS_STATE
+                                  PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
+                                  IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &
+                                  LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
+                                  LC_BSOIL_PRM, LC_WATER_PRM, &
+                                  HYDRO_STATE, atm_STATE, SUEWS_STATE
 
       IMPLICIT NONE
 
@@ -82,7 +82,6 @@ CONTAINS
 
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
-
       INTEGER :: LAICalcYes ! 1 = calculate LAI internally (GDD), 0 = use forcing%LAI_obs [-]
 
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating
@@ -90,7 +89,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(4, nvegsurf) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
 
       TYPE(PHENOLOGY_STATE) :: phenState_prev
-
 
       LOGICAL :: first_tstep_Q ! if this is the first tstep of a day
       LOGICAL :: last_tstep_Q ! if this is the last tstep of a day
@@ -251,8 +249,6 @@ CONTAINS
                LAIPower(:, 1) = evetrLAIPower
                LAIPower(:, 2) = dectrLAIPower
                LAIPower(:, 3) = grassLAIPower
-
-
 
                ! get timestamps
                time_now = datetime(year=iy) + timedelta(days=id - 1, hours=it, minutes=imin, seconds=isec)
@@ -786,28 +782,28 @@ CONTAINS
             IF (it == 23 .AND. imin == INT((nsh_real - 1)/nsh_real*60)) THEN
                ! Write actual data only at the last timestep of each day
                DailyStateLine = [ &
-                  HDD_id(1:6), &
-                  GDD_id, &
-                  SDD_id, &
-                  Tmin_id, &
-                  Tmax_id, &
-                  lenday_id, &
-                  LAI_id, &
-                  DecidCap_id, &
-                  Porosity_id, &
-                  AlbEveTr_id, &
-                  AlbDecTr_id, &
-                  AlbGrass_id, &
-                  WUDay_id, &
-                  VegPhenLumps, &
-                  SnowAlb, &
-                  SnowDens, &
-                  a1, &
-                  a2, &
-                  a3, &
-                  a1_bldg, &
-                  a2_bldg, &
-                  a3_bldg]
+                                HDD_id(1:6), &
+                                GDD_id, &
+                                SDD_id, &
+                                Tmin_id, &
+                                Tmax_id, &
+                                lenday_id, &
+                                LAI_id, &
+                                DecidCap_id, &
+                                Porosity_id, &
+                                AlbEveTr_id, &
+                                AlbDecTr_id, &
+                                AlbGrass_id, &
+                                WUDay_id, &
+                                VegPhenLumps, &
+                                SnowAlb, &
+                                SnowDens, &
+                                a1, &
+                                a2, &
+                                a3, &
+                                a1_bldg, &
+                                a2_bldg, &
+                                a3_bldg]
             END IF
 
          END ASSOCIATE

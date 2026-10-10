@@ -375,8 +375,8 @@ class StabilityMethod(Enum):
     """
     Atmospheric stability correction functions for momentum and heat fluxes.
 
-    0: NOT_USED - Reserved
-    1: NOT_USED2 - Reserved
+    0: NOT_USED - Reserved; not available (rejected at validation)
+    1: NOT_USED2 - Reserved; not available (rejected at validation)
     2: HOEGSTROM - Dyer (1974)/Högström (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)
     3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat
     4: BUSINGER_HOEGSTROM - Businger et al. (1971)/Högström (1988) formulations (not recommended)
@@ -928,6 +928,24 @@ class ModelPhysics(BaseModel):
             )
         return value
 
+    @field_validator("stability", mode="after")
+    @classmethod
+    def _reject_reserved_stability(cls, value):
+        # gh#1783: codes 0 and 1 are reserved placeholders with no stability
+        # function behind them, so the kernel's psi/phi functions return an
+        # undefined result and the roughness-sublayer profile yields NaN
+        # near-surface diagnostics without any warning. Refuse them on
+        # validated construction and direct field assignment, as for ESTM.
+        inner = value.value if isinstance(value, RefValue) else value
+        code = getattr(inner, "value", inner)
+        if code in {StabilityMethod.NOT_USED.value, StabilityMethod.NOT_USED2.value}:
+            raise ValueError(
+                f"stability={code} is a reserved code with no stability-function "
+                "implementation. Use 3 (Campbell & Norman, recommended), or 2 "
+                "(Hoegstrom) or 4 (Businger-Hoegstrom)."
+            )
+        return value
+
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
@@ -935,7 +953,7 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["snow_use"],
             "provides_to": ["storage_heat"],
-            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by EHC (5) and STEBBS (7) storage heat.",
+            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by STEBBS (7) storage heat; EHC (5) uses it to resolve roof and wall facets and otherwise lumps all land covers into one plan-area slab.",
         },
     )
     kdown_split_method: FlexibleRefValue(KdownSplitMethod) = Field(

@@ -19,6 +19,7 @@ One file for both halves of the rename surface:
 
 from __future__ import annotations
 
+from importlib.resources import as_file
 from pathlib import Path
 import re
 import warnings
@@ -27,6 +28,7 @@ import pandas as pd
 import pytest
 import yaml
 
+from supy._env import trv_supy_module
 from supy.validation import analyze_config_methods
 
 pytestmark = pytest.mark.api
@@ -70,6 +72,7 @@ from supy.data_model.core.field_renames import (
     STEBBSPROPERTIES_RENAMES,
     STEBBSSTATE_RENAMES,
     SURFACE_RENAMES,
+    SURFACEPROPERTIES_ANOHM_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     WATERDIST_RENAMES,
@@ -77,6 +80,7 @@ from supy.data_model.core.field_renames import (
     read_physics_key,
     rename_keys_recursive,
 )
+from supy.data_model import SUEWSConfig
 from supy.data_model.core.model import ModelPhysics, StebbsPhysics
 from supy.data_model.core.human_activity import CO2Params
 from supy.data_model.core.site import (
@@ -1199,6 +1203,90 @@ class TestRawDictCompatibility:
         assert get_value_safe(archetype, "thickness_wall_outer") == 0.25
         assert get_value_safe(archetype, "reflectivity_wall_external") == 0.2
         assert get_value_safe(archetype, "ratio_window_to_wall") == 0.4
+
+
+_SAMPLE_CONFIG = trv_supy_module / "sample_data" / "sample_config.yml"
+_ANOHM_FIELDS = ("ch_anohm", "rho_cp_anohm", "k_anohm")
+_SURFACE_KEYS = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
+
+
+def _sample_config_with_legacy_anohm():
+    """Return the sample config as a dict with the fused AnOHM spellings."""
+    config = yaml.safe_load(_SAMPLE_CONFIG.read_text(encoding="utf-8"))
+    legacy_by_new = {new: old for old, new in SURFACEPROPERTIES_ANOHM_RENAMES.items()}
+    for site in config["sites"]:
+        land_cover = site["properties"]["land_cover"]
+        for surface in _SURFACE_KEYS:
+            props = land_cover[surface]
+            for new_name, old_name in legacy_by_new.items():
+                props[old_name] = props.pop(new_name)
+    return config
+
+
+def _sample_anohm_values():
+    """Return the AnOHM values of the current-spelling sample config."""
+    with as_file(_SAMPLE_CONFIG) as path_config:
+        return _anohm_values(SUEWSConfig.from_yaml(path_config))
+
+
+def _anohm_values(config):
+    """Return {(surface, field): value} for the AnOHM fields of the first site."""
+    land_cover = config.sites[0].properties.land_cover
+    return {
+        (surface, field): _unwrap(getattr(getattr(land_cover, surface), field))
+        for surface in _SURFACE_KEYS
+        for field in _ANOHM_FIELDS
+    }
+
+
+class TestLegacyAnohmNames:
+    """Fused AnOHM spellings load on the run path, as Phase A reports (gh#1723).
+
+    ``suews validate`` renamed ``chanohm`` / ``cpanohm`` / ``kkanohm`` and
+    passed the YAML, while ``SUEWSConfig`` rejected the same keys as
+    ``extra_forbidden``. Both paths must now agree and keep the user's values.
+    """
+
+    def test_registry_maps_to_pydantic_fields(self):
+        assert set(SURFACEPROPERTIES_ANOHM_RENAMES.values()) <= set(
+            SurfaceProperties.model_fields
+        )
+        for old, new in SURFACEPROPERTIES_ANOHM_RENAMES.items():
+            assert RAW_YAML_FIELD_RENAMES[old] == new
+            # Kept out of the bridge-facing one-to-one registry on purpose.
+            assert old not in ALL_FIELD_RENAMES
+
+    def test_yaml_path_accepts_legacy_names(self, tmp_path):
+        expected = _sample_anohm_values()
+        path_legacy = tmp_path / "legacy_anohm.yml"
+        path_legacy.write_text(
+            yaml.safe_dump(_sample_config_with_legacy_anohm(), sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.warns(DeprecationWarning, match="'chanohm' is deprecated"):
+            config = SUEWSConfig.from_yaml(path_legacy)
+
+        assert _anohm_values(config) == expected
+
+    def test_dict_path_accepts_legacy_names(self):
+        expected = _sample_anohm_values()
+
+        with pytest.warns(DeprecationWarning, match="'kkanohm' is deprecated"):
+            config = SUEWSConfig(**_sample_config_with_legacy_anohm())
+
+        assert _anohm_values(config) == expected
+
+    def test_raw_yaml_normalisation_renames_legacy_names(self):
+        normalised = normalise_yaml_renames(_sample_config_with_legacy_anohm())
+        paved = normalised["sites"][0]["properties"]["land_cover"]["paved"]
+
+        assert set(_ANOHM_FIELDS) <= set(paved)
+        assert not {"chanohm", "cpanohm", "kkanohm"} & set(paved)
+
+    def test_both_spellings_conflict(self):
+        with pytest.raises(ValueError, match="both 'chanohm'"):
+            SurfaceProperties(chanohm=1.0, ch_anohm=2.0)
 
 
 class TestDataFrameColumnsPreserveLegacyNames:

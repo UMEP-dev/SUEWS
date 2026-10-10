@@ -89,7 +89,10 @@ represent the physical construction chosen for that surface.
    are complete for the selected storage-heat method. When material-layer arrays
    are provided, supply five entries and note how each method uses them:
 
-   - EHC (``5``) uses all five material layers of its conducting facets.
+   - EHC (``5``) uses all five material layers of its conducting facets:
+     roof, wall, and solid non-building land covers with SPARTACUS-Surface
+     radiation, or every land cover's ``thermal_layers`` (lumped into one
+     plan-area slab) otherwise.
    - DyOHM (``6``) uses material layer ``0`` of every SUEWS land-cover surface.
    - Method ``7`` uses material layer ``0`` only for non-building DyOHM
      surfaces. STEBBS represents the building, so
@@ -148,12 +151,18 @@ not use them.
      - Selecting ``storage_heat: 4`` is rejected at validation. Use EHC or
        DyOHM; their rows below say which thermal-layer properties each uses.
    * - EHC (``5``)
-     - All five material layers are used for every roof and wall vertical layer
-       and for the solid non-building land covers (paved,
-       vegetation, and bare soil). The ``land_cover.bldgs`` and water thermal
-       arrays are not used by facet-resolved EHC conduction.
-     - Provide complete five-entry ``dz``, ``k``, and ``rho_cp`` arrays for all
-       roof and wall facets and for the solid non-building land covers.
+     - With SPARTACUS-Surface radiation (``net_radiation`` 1001--1003), all
+       five material layers are used for every roof and wall vertical layer
+       and for the solid non-building land covers (paved, vegetation, and bare
+       soil); the ``land_cover.bldgs`` and water thermal arrays are not used.
+       With any other ``net_radiation`` (for example NARP), every land cover
+       with a positive fraction, buildings and water included, is lumped into
+       one plan-area slab from its own ``thermal_layers``; roof and wall
+       layers are not used.
+     - With SPARTACUS, provide complete five-entry ``dz``, ``k``, and
+       ``rho_cp`` arrays for all roof and wall facets and for the solid
+       non-building land covers. Otherwise, provide them in
+       ``thermal_layers`` for every land cover with a positive fraction.
    * - DyOHM for all surfaces (``6``)
      - Only the outermost material layer, index ``0``, affects the dynamic OHM
        coefficients. Buildings use ``land_cover.bldgs.thermal_layers``; each

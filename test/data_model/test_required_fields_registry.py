@@ -8,8 +8,13 @@ the coupling is pinned here.
 
 from __future__ import annotations
 
-import pytest
+from pathlib import Path
 
+import pytest
+import yaml
+
+from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.human_activity import AnthropogenicEmissions
 from supy.data_model.core.site import (
     Conductance,
     DectrProperties,
@@ -39,6 +44,7 @@ MODELS = {
     "BldgsProperties": BldgsProperties,
     "EvetrProperties": EvetrProperties,
     "DectrProperties": DectrProperties,
+    "AnthropogenicEmissions": AnthropogenicEmissions,
 }
 
 ALL_TABLES = (
@@ -218,3 +224,41 @@ def test_required_when_returns_condition_or_empty() -> None:
     # store_cap is in no validator, so nothing may be claimed about it.
     assert not required_when("StorageDrainParams", "store_cap")
     assert not required_when("LAIParams", "not_a_field")
+
+
+def _load_config(path_yaml: Path, clock: str, **dls: float) -> SUEWSConfig:
+    """Load a configuration through the public YAML path."""
+    config = {
+        "sites": [{"properties": {"anthropogenic_emissions": dls}}],
+        "model": {"control": {"output": {"timestamp_reference": clock}}},
+    }
+    path_yaml.write_text(yaml.safe_dump(config), encoding="utf-8")
+    return SUEWSConfig.from_yaml(str(path_yaml))
+
+
+@pytest.mark.parametrize(
+    ("missing", "given"), [("startdls", "enddls"), ("enddls", "startdls")]
+)
+def test_documented_dls_condition_matches_validator(
+    missing: str, given: str, tmp_path: Path
+) -> None:
+    """The documented DLS conditions are the ones the validator enforces."""
+    # ARRANGE
+    path_yaml = tmp_path / "config.yml"
+    window = {"startdls": 86.0, "enddls": 303.0}
+    condition = required_when("AnthropogenicEmissions", missing)
+
+    # ACT / ASSERT - the daylight output clock needs the whole window ...
+    assert "timestamp_reference: daylight" in condition
+    with pytest.raises(ValueError, match="timestamp_reference='daylight' requires"):
+        _load_config(path_yaml, "daylight", **{given: window[given]})
+    _load_config(path_yaml, "daylight", **window)
+
+    # ... and so does giving the other end, whatever the clock ...
+    assert f"``{given}`` is given" in condition
+    with pytest.raises(ValueError, match="must both be set or both be None"):
+        _load_config(path_yaml, "follow", **{given: window[given]})
+
+    # ... but otherwise the window may be omitted.
+    _load_config(path_yaml, "follow")
+    _load_config(path_yaml, "utc")

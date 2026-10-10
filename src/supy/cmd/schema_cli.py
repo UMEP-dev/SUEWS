@@ -235,7 +235,11 @@ def cli(ctx, verbose, quiet, schema_version, out_format):
 @click.option("--update", "-u", is_flag=True, help="Update schema version in files")
 @click.option("--target-version", help="Target version for update")
 @click.option(
-    "--backup", "-b", is_flag=True, default=True, help="Create backup before updating"
+    "--backup/--no-backup",
+    "-b",
+    default=True,
+    show_default=True,
+    help="Keep a timestamped copy of each file before updating it",
 )
 @click.pass_context
 def version(ctx, files, update, target_version, backup):
@@ -285,25 +289,15 @@ def version(ctx, files, update, target_version, backup):
             if update:
                 new_version = target_version or CURRENT_SCHEMA_VERSION
                 if current_version != new_version:
-                    # Backup if requested
                     if backup:
                         backup_path = path.with_suffix(
                             f".backup-{datetime.now():%Y%m%d-%H%M%S}.yml"
                         )
                         path.rename(backup_path)
-                        with open(path, "w", encoding="utf-8") as f:
-                            config["schema_version"] = new_version
-                            yaml.dump(
-                                config, f, default_flow_style=False, sort_keys=False
-                            )
-                        action = f"Updated → {new_version}"
-                    else:
-                        config["schema_version"] = new_version
-                        with open(path, "w", encoding="utf-8") as f:
-                            yaml.dump(
-                                config, f, default_flow_style=False, sort_keys=False
-                            )
-                        action = f"Updated → {new_version}"
+                    config["schema_version"] = new_version
+                    with open(path, "w", encoding="utf-8") as f:
+                        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+                    action = f"Updated → {new_version}"
                 else:
                     action = "No change needed"
 
@@ -328,7 +322,9 @@ def version(ctx, files, update, target_version, backup):
 @click.option(
     "--output-dir", "-o", type=click.Path(), help="Output directory for migrated files"
 )
-@click.option("--backup", "-b", is_flag=True, default=True, help="Keep original files")
+# Accepted for compatibility only: migrate never modifies its input files (it
+# writes <name>.migrated.yml or into --output-dir), so there is nothing to back up.
+@click.option("--backup/--no-backup", "-b", default=True, hidden=True)
 @click.option(
     "--dry-run", "-n", is_flag=True, help="Show what would be done without doing it"
 )
@@ -336,6 +332,9 @@ def version(ctx, files, update, target_version, backup):
 def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     """
     Migrate configuration files between schema versions.
+
+    The input files are left unchanged; migrated copies are written next to
+    them as <name>.migrated.yml, or into --output-dir.
 
     Examples:
         suews schema migrate old_config.yml

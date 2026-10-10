@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 81       | 88       | 34 | 86 | 42 | 332   |
+| 2026 | 81       | 89       | 34 | 86 | 42 | 333   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -65,6 +65,11 @@ EXAMPLES:
 - [bugfix] Legacy AnOHM field names `chanohm`, `cpanohm` and `kkanohm` now load on the run path with a deprecation warning, matching `suews validate`, which already renamed them to `ch_anohm`, `rho_cp_anohm` and `k_anohm`; previously the same YAML passed validation and then failed to load with `extra_forbidden` (#1723)
 - [doc] The YAML config reference now states when `anthropogenic_emissions.startdls` and `enddls` are required (#1677)
   - Each now renders as required when saved output uses the daylight-saving clock, or when the other end of the DLS window is given, matching the validator: it rejects `model.control.output.timestamp_reference: daylight` unless the full window is supplied, and rejects a window with only one end. They previously carried only the generic no-default note.
+
+### 5 Oct 2026
+
+- [bugfix] `suews schema version --update` now accepts `--no-backup` to skip the timestamped backup copy; previously `--backup/-b` defaulted to on with no way to turn it off. `suews schema migrate` keeps `-b` only for compatibility, since it never modifies its input files.
+  - `suews validate` is now a plain command: the hidden `validate`/`migrate`/`version`/`export`/`schema` subcommands registered on it could never be reached, because its FILES argument consumed their names. Use `suews validate -p C --dry-run FILES...` for read-only checks and `suews schema` for schema lifecycle operations.
 
 ### 1 Oct 2026
 

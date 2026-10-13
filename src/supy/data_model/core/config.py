@@ -4956,6 +4956,24 @@ class SUEWSConfig(BaseModel):
         # Use mode='json' to serialize enums as their values
         config_dict = self.model_dump(exclude_none=True, mode="json")
 
+        # An explicit null forcing file means "forcing supplied at runtime"
+        # (gh#1722). exclude_none would drop it, and reloading would then
+        # fall back to the 'forcing.txt' default, so write it back.
+        # A config loaded without validation holds plain dicts, not models.
+        node = self.model
+        for key in ("control", "forcing"):
+            node = node.get(key) if isinstance(node, dict) else getattr(node, key, None)
+        file_entry = (
+            node.get("file", "") if isinstance(node, dict) else getattr(node, "file", "")
+        )
+        if node is not None and file_entry is None:
+            forcing_dict = (
+                config_dict.setdefault("model", {})
+                .setdefault("control", {})
+                .setdefault("forcing", {})
+            )
+            forcing_dict["file"] = None
+
         # Strip private implementation fields
         for key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):
             config_dict.pop(key, None)

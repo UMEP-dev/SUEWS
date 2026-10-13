@@ -1444,17 +1444,37 @@ class ForcingControl(BaseModel):
 
     model_config = ConfigDict(title="Forcing Control")
 
-    file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
+    file: Optional[Union[FlexibleRefValue(str), FlexibleRefValue(List[str])]] = Field(
         default="forcing.txt",
         description=(
             "Path(s) to meteorological forcing data file(s). This can be "
             "either: (1) A single file path as a string (e.g., 'forcing.txt'), "
             "or (2) A list of file paths (e.g., ['forcing_2020.txt', "
             "'forcing_2021.txt']). When multiple files are provided, they "
-            "are concatenated in chronological order. For details, see "
-            ":ref:`met_input`."
+            "are concatenated in chronological order. Set it explicitly to "
+            "a bare ``null`` when forcing is supplied at runtime through "
+            "``SUEWSSimulation.update_forcing()`` instead of from a file: "
+            "the validator then skips the forcing-file checks and warns "
+            "that forcing must be supplied before ``run()``. Omitting the "
+            "key is not the same as ``null`` and is still reported as an "
+            "error. For details, see :ref:`met_input`."
         ),
     )
+
+    @field_validator("file", mode="before")
+    @classmethod
+    def _collapse_null_ref_value(cls, value):
+        """Treat a RefValue whose value is null as a bare null (gh#1722).
+
+        ``update_config`` patches wrap scalars as ``{"value": ...}``, so a
+        ``None`` patch would otherwise arrive as ``RefValue(value=None)`` and
+        stop meaning "forcing supplied at runtime".
+        """
+        if isinstance(value, RefValue):
+            return None if value.value is None else value
+        if isinstance(value, dict) and "value" in value and value["value"] is None:
+            return None
+        return value
 
     timestamp_reference: FlexibleRefValue(ForcingTimestampReference) = Field(
         default=ForcingTimestampReference.LOCAL_STANDARD_TIME,

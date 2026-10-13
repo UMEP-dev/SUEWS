@@ -2218,14 +2218,35 @@ fn read_sites_indexed(root: &Value, idx: usize) -> Option<&Value> {
     }
 }
 
+fn forcing_file_entry(root: &Value) -> Option<&Value> {
+    // Prefer the new `forcing.file` shape introduced in schema 2026.5.dev7
+    // (gh#1372); fall back to the legacy `forcing_file` so user YAMLs at either
+    // schema parse pre-migration. An explicit `forcing.file` key wins even when
+    // it is null, matching `ModelControl._coerce_legacy_forcing_file`.
+    get_path(root, &["model", "control", "forcing", "file"])
+        .or_else(|| get_path(root, &["model", "control", "forcing_file"]))
+}
+
 fn read_forcing_rel(root: &Value) -> Option<String> {
-    // Prefer the new `forcing.file` (and its RefValue `.value`) shape introduced
-    // in schema 2026.5.dev7 (gh#1372); fall back to the legacy `forcing_file`
-    // (and its RefValue `.value`) so user YAMLs at either schema parse pre-migration.
-    read_string(root, &["model", "control", "forcing", "file"])
-        .or_else(|| read_string(root, &["model", "control", "forcing", "file", "value"]))
-        .or_else(|| read_string(root, &["model", "control", "forcing_file"]))
-        .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
+    // A string, or a RefValue mapping whose `.value` is a string. A null entry
+    // (forcing supplied at runtime, gh#1722) yields no file.
+    match forcing_file_entry(root)? {
+        Value::String(s) => Some(s.clone()),
+        entry @ Value::Mapping(_) => match get_path(entry, &["value"])? {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn forcing_file_is_null(root: &Value) -> bool {
+    // A bare null, or a RefValue mapping whose `.value` is null.
+    match forcing_file_entry(root) {
+        Some(Value::Null) => true,
+        Some(entry @ Value::Mapping(_)) => matches!(get_path(entry, &["value"]), Some(Value::Null)),
+        _ => false,
+    }
 }
 
 fn read_forcing_timestamp_reference(root: &Value) -> Result<ForcingTimestampReference, String> {
@@ -2317,10 +2338,16 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
         serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
     let mut run_cfg = load_run_config_from_value(&mut root)?;
 
-    let forcing_rel = read_forcing_rel(&root)
-        .ok_or_else(|| {
+    let forcing_rel = read_forcing_rel(&root).ok_or_else(|| {
+        if forcing_file_is_null(&root) {
+            "`model.control.forcing.file` is null, which means forcing is supplied at runtime; \
+             run this configuration through the Python API (`SUEWSSimulation.update_forcing()`) \
+             or set `forcing.file` to a forcing file path"
+                .to_string()
+        } else {
             "`model.control.forcing.file` is missing (also accepts legacy `model.control.forcing_file`)".to_string()
-        })?;
+        }
+    })?;
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     run_cfg.forcing_path = base_dir.join(forcing_rel);
     // Resolve output_dir relative to config file location
@@ -2410,6 +2437,63 @@ mod tests {
             Value::Sequence(items) => items.get_mut(0),
             _ => None,
         }
+    }
+
+    #[test]
+    fn reads_forcing_file_entry_shapes() {
+        let cases = [
+            (
+                "model: {control: {forcing: {file: met.txt}}}",
+                Some("met.txt"),
+                false,
+            ),
+            (
+                "model: {control: {forcing: {file: {value: met.txt}}}}",
+                Some("met.txt"),
+                false,
+            ),
+            (
+                "model: {control: {forcing_file: legacy.txt}}",
+                Some("legacy.txt"),
+                false,
+            ),
+            ("model: {control: {forcing: {file: null}}}", None, true),
+            (
+                "model: {control: {forcing: {file: {value: null}}}}",
+                None,
+                true,
+            ),
+            // An explicit `forcing.file` key wins over the legacy key, even when null.
+            (
+                "model: {control: {forcing: {file: null}, forcing_file: legacy.txt}}",
+                None,
+                true,
+            ),
+            ("model: {control: {tstep: 300}}", None, false),
+        ];
+        for (yaml, expected, is_null) in cases {
+            let root: Value = serde_yaml::from_str(yaml).unwrap();
+            assert_eq!(read_forcing_rel(&root).as_deref(), expected, "{yaml}");
+            assert_eq!(forcing_file_is_null(&root), is_null, "{yaml}");
+        }
+    }
+
+    #[test]
+    fn load_run_config_reports_null_forcing_file() {
+        let yaml = include_str!("../../../src/supy/sample_data/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml).unwrap();
+        root["model"]["control"]["forcing"]["file"] = Value::Null;
+        let dir = std::env::temp_dir().join(format!("suews_gh1722_{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.yml");
+        fs::write(&path, serde_yaml::to_string(&root).unwrap()).unwrap();
+
+        let Err(err) = load_run_config(&path) else {
+            panic!("null forcing.file must not load");
+        };
+        fs::remove_dir_all(&dir).ok();
+        assert!(err.contains("is null"), "{err}");
+        assert!(err.contains("update_forcing"), "{err}");
     }
 
     #[test]

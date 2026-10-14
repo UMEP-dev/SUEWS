@@ -455,3 +455,22 @@ def test_onboarding_files_do_not_understate_python_floor(relative_path: str) -> 
         f"{relative_path} claims a Python floor below requires-python "
         f"{floor[0]}.{floor[1]}: {understated}"
     )
+
+
+def test_run_explains_null_forcing_file(tmp_path: Path) -> None:
+    """``suews run`` on a ``forcing.file: null`` YAML points at the Python API."""
+    from supy._env import trv_supy_module
+    from supy.cmd.suews_cli import cli
+
+    sample = trv_supy_module / "sample_data" / "sample_config.yml"
+    entry = "      file:\n        value: Kc_2012_data_60.txt\n"
+    text = sample.read_text(encoding="utf-8")
+    assert text.count(entry) == 1, "fixture forcing entry moved"
+    config_path = tmp_path / "config.yml"
+    config_path.write_text(text.replace(entry, "      file: null\n"), encoding="utf-8")
+
+    result = CliRunner().invoke(cli, ["run", str(config_path)])
+
+    assert result.exit_code == 1, result.output
+    assert "'forcing.file' is null" in result.output
+    assert "update_forcing()" in result.output

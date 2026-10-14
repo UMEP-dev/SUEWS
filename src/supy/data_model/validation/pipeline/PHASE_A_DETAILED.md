@@ -277,6 +277,7 @@ The forcing validation performs comprehensive checks:
    - Wind speed: ≥ 0.01 m/s (prevents division by zero)
    - And more...
 5. **Multiple File Support**: When a list of forcing files is provided, **all files are validated** (not just the first)
+6. **Runtime forcing (gh#1722)**: An explicit `model.control.forcing.file: null` means forcing is supplied at runtime through `SUEWSSimulation.update_forcing()`. No file is checked and Phase A reports a `A.FORCING.RUNTIME` warning under **NO ACTION NEEDED** instead of an error. An omitted key or a non-existent path is still an `A.FORCING` error. An explicit `forcing.file` key, null included, takes precedence over legacy `forcing_file`, as in `ModelControl`.
 
 ### Control Options
 

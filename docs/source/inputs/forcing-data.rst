@@ -292,6 +292,48 @@ order):
            - "forcing/Kc_2021_data_60.txt"
            - "forcing/Kc_2022_data_60.txt"
 
+.. _forcing_runtime:
+
+Forcing supplied at runtime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the forcing is built in Python and passed to the model with
+``SUEWSSimulation.update_forcing()``, for example when SUEWS is coupled to
+another model or the forcing is assembled in memory, say so in the YAML by
+setting ``forcing.file`` explicitly to ``null``:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       forcing:
+         file: null
+
+With an explicit ``null``:
+
+* ``suews validate`` skips the forcing-file checks and reports a warning,
+  not an error, that forcing must be supplied before ``run()``;
+* ``SUEWSSimulation`` does not try to load forcing from the configuration;
+* ``run()`` raises ``RuntimeError`` if no forcing has been supplied by then;
+* ``suews run`` stops with a message pointing to the Python API, since the
+  command line has no way to supply the forcing.
+
+Then supply the forcing before running:
+
+.. code-block:: python
+
+   from supy import SUEWSSimulation
+
+   sim = SUEWSSimulation("config.yml")
+   sim.update_forcing(df_forcing)  # DataFrame, SUEWSForcing or file path(s)
+   output = sim.run()
+
+Only an explicit ``null`` has this meaning. Omitting the ``file`` key, or
+giving a path that does not exist, is still reported as an error, so a
+forgotten forcing file is not mistaken for runtime forcing. To skip
+forcing validation for a configuration that does name a file, use
+``suews validate --forcing off`` instead.
+
 .. _forcing_overlapping_files:
 
 Overlapping files
@@ -636,6 +678,10 @@ When using ``suews-validate``, forcing data validation runs automatically:
 
    # Skip forcing validation if needed
    suews-validate --forcing off config.yml
+
+A configuration whose ``forcing.file`` is set explicitly to ``null`` is
+validated without a forcing file and reports a warning instead (see
+:ref:`forcing_runtime`).
 
 The validation report shows any issues found:
 

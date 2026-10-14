@@ -573,7 +573,16 @@ class SUEWSSimulation:
             ):
                 forcing_file_obj = self._config.model.control.forcing.file
 
-                if forcing_file_obj is not None:
+                if forcing_file_obj is None:
+                    # Explicit null: forcing is supplied at runtime (gh#1722).
+                    warnings.warn(
+                        "model.control.forcing.file is null, so no forcing was "
+                        "loaded from the configuration. Supply forcing with "
+                        "update_forcing() before run().",
+                        UserWarning,
+                        stacklevel=3,
+                    )
+                else:
                     # Handle RefValue wrapper
                     if hasattr(forcing_file_obj, "value"):
                         forcing_value = forcing_file_obj.value
@@ -590,6 +599,13 @@ class SUEWSSimulation:
 
         except Exception as e:
             warnings.warn(f"Could not load forcing from config: {e}", stacklevel=2)
+
+    def _forcing_declared_runtime(self) -> bool:
+        """Return True when the config sets ``forcing.file`` explicitly to null."""
+        try:
+            return self._config.model.control.forcing.file is None
+        except AttributeError:
+            return False
 
     def _resolve_forcing_paths(
         self, paths: Union[str, list[str]]
@@ -812,7 +828,13 @@ class SUEWSSimulation:
         if self._df_state_init is None:
             raise RuntimeError("No configuration loaded. Use update_config() first.")
         if self._df_forcing is None:
-            raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
+            message = "No forcing data loaded. Use update_forcing() first."
+            if self._forcing_declared_runtime():
+                message += (
+                    " The configuration sets model.control.forcing.file to "
+                    "null, which means forcing must be supplied at runtime."
+                )
+            raise RuntimeError(message)
         if self._config is None:
             # Backward-compatible path: allow runs initialised from df_state
             # (legacy functional workflows and continuation tests).

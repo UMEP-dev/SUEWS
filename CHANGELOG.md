@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 13 Oct 2026
+
+- [feature][experimental] A YAML configuration can declare that its forcing is supplied at runtime by setting `model.control.forcing.file` explicitly to `null` (#1722)
+  - `suews validate` then skips the forcing-file checks and reports a warning instead of an error; an omitted key or a non-existent path is still an error.
+  - `SUEWSSimulation` does not try to load forcing for such a configuration, `run()` names the null in its error when no forcing was supplied with `update_forcing()`, and `suews run` stops with a message pointing to the Python API.
+  - The null survives `SUEWSConfig.to_yaml()` round trips and `update_config()` patches, and the Rust YAML reader reports it as runtime forcing rather than a missing key.
+
 ### 6 Oct 2026
 
 - [maintenance] The Fortran library now builds with parallel `make` jobs, capped at 8 and set with `SUEWS_MAKE_JOBS` (#1790)

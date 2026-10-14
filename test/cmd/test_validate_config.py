@@ -1207,3 +1207,50 @@ def test_emit_pipeline_result_clears_missing_phase_yaml_paths(
     assert by_phase["B"]["yaml_out"] is None
     # No phase falsely claims the surviving final YAML as its own output.
     assert all(p["yaml_out"] != str(existing_yaml) for p in payload["phases"])
+
+
+# ---------------------------------------------------------------------------
+# Runtime forcing: explicit null forcing.file (gh#1722)
+# ---------------------------------------------------------------------------
+
+_SAMPLE_FORCING_ENTRY = "      file:\n        value: Kc_2012_data_60.txt\n"
+
+
+def _forcing_issues(tmp_path: Path) -> list:
+    payload = json.loads(
+        (tmp_path / "report_sample_config.json").read_text(encoding="utf-8")
+    )
+    return [
+        issue
+        for phase in payload["phases"]
+        for issue in phase["issues"]
+        if issue["category"] == "FORCING"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("replacement", "exit_code", "expected"),
+    [
+        ("      file: null\n", 0, [("A.FORCING.RUNTIME", "WARNING")]),
+        ("", 1, [("A.FORCING", "ERROR")]),
+    ],
+    ids=["explicit-null", "absent-key"],
+)
+def test_validate_forcing_file_null_is_a_warning(
+    tmp_path: Path, replacement: str, exit_code: int, expected: list
+) -> None:
+    """``forcing.file: null`` validates with a warning; an absent key fails."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    config_path = _copy_sample_data(tmp_path)
+    original = config_path.read_text(encoding="utf-8")
+    assert original.count(_SAMPLE_FORCING_ENTRY) == 1, "fixture forcing entry moved"
+    config_path.write_text(
+        original.replace(_SAMPLE_FORCING_ENTRY, replacement), encoding="utf-8"
+    )
+
+    result = CliRunner().invoke(validate_cli, [str(config_path)])
+
+    assert result.exit_code == exit_code, result.output
+    found = [(i["code"], i["severity"]) for i in _forcing_issues(tmp_path)]
+    assert found == expected, found

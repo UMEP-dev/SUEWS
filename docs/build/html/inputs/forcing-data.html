@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-01T17:45:50+00:00" />
-    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.10.10.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-14T07:47:36+00:00" />
+    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.10.14.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=bf3cba25"></script>
+    <script src="../_static/documentation_options.js?v=f772fd74"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="4.2. Vertical and Material Layer Conventions" href="yaml/layer-conventions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.10.dev1" />
-    <meta name="docbuild:last-update" content="2026-10-01"/>
+  <meta name="docsearch:version" content="2026.10.14.dev1" />
+    <meta name="docbuild:last-update" content="2026-10-14"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.10.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7151dbbe1374bc871d9f53b73d8737fb07e92e98" style="color: #31708f;">7151dbb</a>).
+        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -201,8 +201,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.10.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.10.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -667,7 +667,8 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files">4.3.3. Named-column forcing files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.3.4. Important Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.3.5. YAML Configuration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#overlapping-files">4.3.5.1. Overlapping files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-supplied-at-runtime">4.3.5.1. Forcing supplied at runtime</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#overlapping-files">4.3.5.2. Overlapping files</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-conditional-and-additional-variables">4.3.6. Choosing Conditional and Additional Variables</a></li>
@@ -983,8 +984,43 @@ order):</p>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"forcing/Kc_2022_data_60.txt"</span>
 </pre></div>
 </div>
+<section id="forcing-supplied-at-runtime">
+<span id="forcing-runtime"></span><h3><span class="section-number">4.3.5.1. </span>Forcing supplied at runtime<a class="headerlink" href="#forcing-supplied-at-runtime" title="Link to this heading">#</a></h3>
+<p>When the forcing is built in Python and passed to the model with
+<code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.update_forcing()</span></code>, for example when SUEWS is coupled to
+another model or the forcing is assembled in memory, say so in the YAML by
+setting <code class="docutils literal notranslate"><span class="pre">forcing.file</span></code> explicitly to <code class="docutils literal notranslate"><span class="pre">null</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">control</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">forcing</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+</pre></div>
+</div>
+<p>With an explicit <code class="docutils literal notranslate"><span class="pre">null</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code> skips the forcing-file checks and reports a warning,
+not an error, that forcing must be supplied before <code class="docutils literal notranslate"><span class="pre">run()</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> does not try to load forcing from the configuration;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">run()</span></code> raises <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> if no forcing has been supplied by then;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code> stops with a message pointing to the Python API, since the
+command line has no way to supply the forcing.</p></li>
+</ul>
+<p>Then supply the forcing before running:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
+
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">)</span>  <span class="c1"># DataFrame, SUEWSForcing or file path(s)</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Only an explicit <code class="docutils literal notranslate"><span class="pre">null</span></code> has this meaning. Omitting the <code class="docutils literal notranslate"><span class="pre">file</span></code> key, or
+giving a path that does not exist, is still reported as an error, so a
+forgotten forcing file is not mistaken for runtime forcing. To skip
+forcing validation for a configuration that does name a file, use
+<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span> <span class="pre">--forcing</span> <span class="pre">off</span></code> instead.</p>
+</section>
 <section id="overlapping-files">
-<span id="forcing-overlapping-files"></span><h3><span class="section-number">4.3.5.1. </span>Overlapping files<a class="headerlink" href="#overlapping-files" title="Link to this heading">#</a></h3>
+<span id="forcing-overlapping-files"></span><h3><span class="section-number">4.3.5.2. </span>Overlapping files<a class="headerlink" href="#overlapping-files" title="Link to this heading">#</a></h3>
 <p>Files in a list (and files matched by a wildcard pattern or found in a
 directory) are merged by timestamp, so their periods may touch or
 overlap. The merge follows three rules, applied per timestamp and per
@@ -1310,6 +1346,9 @@ suews-validate<span class="w"> </span>config.yml
 suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span class="w"> </span>config.yml
 </pre></div>
 </div>
+<p>A configuration whose <code class="docutils literal notranslate"><span class="pre">forcing.file</span></code> is set explicitly to <code class="docutils literal notranslate"><span class="pre">null</span></code> is
+validated without a forcing file and reports a warning instead (see
+<a class="reference internal" href="#forcing-runtime"><span class="std std-ref">Forcing supplied at runtime</span></a>).</p>
 <p>The validation report shows any issues found:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>## ACTION NEEDED
 - Found (2) forcing data validation error(s):
@@ -1388,7 +1427,8 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files">4.3.3. Named-column forcing files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.3.4. Important Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.3.5. YAML Configuration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#overlapping-files">4.3.5.1. Overlapping files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-supplied-at-runtime">4.3.5.1. Forcing supplied at runtime</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#overlapping-files">4.3.5.2. Overlapping files</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-conditional-and-additional-variables">4.3.6. Choosing Conditional and Additional Variables</a></li>
@@ -1432,7 +1472,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-01.
+  Last updated on 2026-10-14.
   <br/>
 </p>
   </div>
@@ -1440,8 +1480,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.10.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7151dbbe1374bc871d9f53b73d8737fb07e92e98">7151dbb</a> |
+  <p>Version: 2026.10.14.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

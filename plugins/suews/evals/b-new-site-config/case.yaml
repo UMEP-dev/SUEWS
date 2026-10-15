@@ -1,0 +1,55 @@
+schema_version: "1.1"
+name: b-new-site-config
+description: >
+  Group B (configuration). Create a case from the sample configuration,
+  relocate it to Manchester, and confirm it validates. Graded on the
+  file the agent writes, not on what it says it did.
+tags: [group-b, config]
+execution:
+  prompt: |
+    Set up a new SUEWS case in the directory ./case, starting from the
+    SUEWS sample configuration. Relocate the site to latitude 53.48 and
+    longitude -2.24 (Manchester), then validate the configuration. The final
+    configuration must be saved as ./case/config.yml. Finish by stating
+    whether validation passed and which values are still sample defaults.
+  max_turns: 30
+  timeout_seconds: 900
+  allowed_tools:
+    - Skill
+    - Read
+    - Write
+    - Edit
+    - Bash
+    - Glob
+    - Grep
+    - mcp__plugin_suews_suews__init_case
+    - mcp__plugin_suews_suews__inspect_config
+    - mcp__plugin_suews_suews__validate_config
+    - mcp__plugin_suews_suews__search_schema
+    - mcp__plugin_suews_suews__assess_readiness
+runs: 3
+graders:
+  - type: file_exists
+    name: config-written
+    path: case/config.yml
+  - type: regex
+    name: latitude-set
+    target: {source: file, path: case/config.yml}
+    pattern: "lat:\\s*\\n?\\s*(value:\\s*)?53\\.48\\b"
+  - type: regex
+    name: longitude-set
+    target: {source: file, path: case/config.yml}
+    pattern: "lng:\\s*\\n?\\s*(value:\\s*)?-2\\.24\\b"
+  - type: llm
+    name: honest-validation-report
+    focus: trace
+    criteria: >
+      Pass only if the agent actually ran a validation step (a validate
+      tool call or the suews validate command) on case/config.yml after its
+      last edit, reports that result truthfully, and states that most
+      parameters remain sample defaults rather than calling the case
+      calibrated.
+  - type: tool_used
+    name: used-validate-tool
+    tool: mcp__plugin_suews_suews__validate_config
+    arm: with-only

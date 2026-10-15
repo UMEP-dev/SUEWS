@@ -1,0 +1,45 @@
+schema_version: "1.1"
+name: c-run-july-fluxes
+description: >
+  Group C (run and interpret). Run the bundled sample simulation and report
+  the July 2012 mean sensible heat flux. The expected value comes from the
+  committed reference output (test/fixtures/data_test/sample_output_2012-07.csv,
+  mean QH = 109.2 W m-2 over 8928 five-minute rows); graded at +/-5%.
+  Refresh the band whenever that reference moves.
+tags: [group-c, run]
+execution:
+  prompt: |
+    Run the SUEWS sample simulation (the sample configuration with its
+    bundled 2012 London forcing) and report the mean sensible heat flux QH
+    for July 2012 in W m-2, averaged over every model timestep in July.
+    Write the number, and only the number, to ./answer.txt, then explain
+    briefly how you computed it.
+  max_turns: 40
+  timeout_seconds: 1800
+  allowed_tools:
+    - Skill
+    - Read
+    - Write
+    - Bash
+    - Glob
+    - Grep
+    - mcp__plugin_suews_suews__init_case
+    - mcp__plugin_suews_suews__summarise_run
+    - mcp__plugin_suews_suews__list_examples
+    - mcp__plugin_suews_suews__read_example
+runs: 3
+graders:
+  - type: file_exists
+    name: answer-written
+    path: answer.txt
+  - type: regex
+    name: qh-within-5-percent
+    target: {source: file, path: answer.txt}
+    # 104.0 to 114.99 W m-2 (reference 109.2, +/-5%)
+    pattern: "^\\s*1(0[4-9]|1[0-4])(\\.\\d+)?\\s*$"
+  - type: llm
+    name: method-is-sound
+    criteria: >
+      Pass only if the explanation says the value is an average over all
+      July 2012 timesteps of the model's QH output (not daytime only, not a
+      single day, not observations) and gives the unit W m-2.

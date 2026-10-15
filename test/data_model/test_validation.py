@@ -2044,6 +2044,64 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
     msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
     assert msgs == []
 
+
+# tests: test that fails when using heat storage method 6 with non-zero building fraction and SPARTACUS
+def test_validate_spartacus_heat_storage_failing_case():
+    
+    cfg = SUEWSConfig.model_construct()
+            
+    # parameters for all sites
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001, storage_heat=6, stebbs=SimpleNamespace(enabled='true'))))
+    
+    # set up dummy LC for site
+    lc = SimpleNamespace(bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.6)), paved=SimpleNamespace(sfr=SimpleNamespace(value=0.4)))
+    
+    props = SimpleNamespace(land_cover=lc)
+    site = DummySite(properties=props, name='TestSite')
+    msgs = cfg._validate_spartacus_storage_heat_method_dependency(site, 0)
+    
+    assert any(
+            "STEBBS must be employed (enabled=true), and storage_heat method 7 used where SPARTACUS "
+            "is enabled and non-zero building surface fraction prescribed"
+            in m
+            for m in msgs
+        )
+
+
+def test_validate_spartacus_heat_storage_passing_case_with_bldgs():
+    
+    cfg = SUEWSConfig.model_construct()
+        
+    # parameters for all sites
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001, storage_heat=7, stebbs=SimpleNamespace(enabled='true'))))
+    
+    # set up dummy LC for site
+    lc = SimpleNamespace(bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.6)), paved=SimpleNamespace(sfr=SimpleNamespace(value=0.4)))
+    
+    props = SimpleNamespace(land_cover=lc)
+    site = DummySite(properties=props, name='TestSite')
+    msgs = cfg._validate_spartacus_storage_heat_method_dependency(site, 0)
+    
+    assert msgs == []
+
+
+def test_validate_spartacus_heat_storage_passing_case_no_bldgs():
+    
+    cfg = SUEWSConfig.model_construct()
+        
+    # parameters for all sites
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001, storage_heat=6, stebbs=SimpleNamespace(enabled='true'))))
+    
+    # set up dummy LC for site
+    lc = SimpleNamespace(bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.0)), paved=SimpleNamespace(sfr=SimpleNamespace(value=1.0)))
+        
+    props = SimpleNamespace(land_cover=lc)
+    site = DummySite(properties=props, name='TestSite')
+    msgs = cfg._validate_spartacus_storage_heat_method_dependency(site, 0)
+    
+    assert msgs == []
+
+
 def make_sample_physics(fields):
     obj = types.SimpleNamespace()
     obj.model_fields_set = set(fields)

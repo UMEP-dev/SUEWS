@@ -15,7 +15,7 @@ The envelope has the same top-level shape for every command; only the ``data`` p
 - ``status``: ``"success"`` (no errors or warnings), ``"warning"`` (warnings but no errors) or ``"error"`` (any error)
 - ``data``: the command-specific payload
 - ``errors``: a list of error objects, each with at least a ``message``
-- ``warnings``: a list of warning objects
+- ``warnings``: a list whose items are either plain strings or objects; consumers should handle both forms
 - ``meta``: provenance (schema version, SUEWS/SuPy versions, git commit, command, start and end times)
 
 Basic Usage

@@ -2221,7 +2221,7 @@ class RSTGenerator:
             if model_name in {"Model", "Site", "SUEWSConfig"}:
                 categories["root"].append(model_name)
             # Model configuration (under model: control, physics, output)
-            elif model_name in {"ModelControl", "ModelPhysics", "OutputConfig"}:
+            elif model_name in {"ModelControl", "ModelPhysics", "OutputControl"}:
                 categories["model_config"].append(model_name)
             # Site structure components (direct children of site)
             elif model_name in {"SiteProperties", "LandCover", "InitialStates"}:

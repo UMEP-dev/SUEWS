@@ -308,6 +308,6 @@ Try step-by-step migration if jumping multiple versions:
 See Also
 --------
 
-- :ref:`yaml_config` - YAML configuration documentation
+- :ref:`yaml_config_reference` - YAML configuration documentation
 - :ref:`schema_versioning` - Schema versioning details
 - :ref:`validation` - Configuration validation guide

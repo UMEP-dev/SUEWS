@@ -15,10 +15,11 @@ SUEWS can be coupled with external models through SuPy's low-level API functions
 Coupling Examples
 -----------------
 
+- Simple coupling via Python interface: :doc:`/auto_examples/tutorial_06_external_coupling`
+
 .. toctree::
   :maxdepth: 1
 
-  Simple coupling via Python interface <external-interaction>
   Coupling with WRF <wrf-suews>
 
 .. note::

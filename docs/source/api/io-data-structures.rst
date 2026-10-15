@@ -67,7 +67,7 @@ actually be of higher dimension. The ``ind_dim`` level in columns indicates vari
 - ``(ind_dim1, ind_dim2, ...)`` for arrays (vectors are 1D arrays)
 
 For example, ``ohm_coef`` has dimension {8, 4, 3} according to
-:ref:`its description <cmdoption-arg-ohm-coef>`. The flattened representation:
+:option:`its description <ohm_coef>`. The flattened representation:
 
 .. code-block:: python
 

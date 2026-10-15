@@ -265,7 +265,7 @@ Legacy Features (Deprecated)
 .. deprecated:: 2025.10.15
 
    The features in this section are deprecated and retained for backwards
-   compatibility only. Use the YAML-based :ref:`OutputConfig <outputconfig>` instead.
+   compatibility only. Use the YAML-based :ref:`OutputControl <outputcontrol>` instead.
 
 Legacy Supplementary Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

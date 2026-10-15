@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-14T07:47:36+00:00" />
-    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f772fd74"></script>
+    <script src="../_static/documentation_options.js?v=e0067d12"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="4.2. Vertical and Material Layer Conventions" href="yaml/layer-conventions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2026-10-14"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -201,8 +201,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -1089,7 +1089,7 @@ land-cover-specific column overrides the bulk value for that class.</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p>Observed LAI values are clamped into each vegetation class’s
-<code class="docutils literal notranslate"><span class="pre">[laimin,</span> <span class="pre">laimax]</span></code> envelope at runtime. The same clamp is applied to the
+<code class="docutils literal notranslate"><span class="pre">[lai_min,</span> <span class="pre">lai_max]</span></code> envelope at runtime. The same clamp is applied to the
 parameterised branch (<code class="docutils literal notranslate"><span class="pre">laimethod:</span> <span class="pre">1</span></code>); the observed branch enforces it too
 for consistency and because the downstream conductance and active-vegetation
 fraction calculations (<code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">/</span> <span class="pre">laimax</span></code> in <code class="docutils literal notranslate"><span class="pre">suews_phys_resist</span></code> and
@@ -1098,8 +1098,11 @@ fraction calculations (<code class="docutils literal notranslate"><span class="p
 meaningful.</p>
 <p>If you supply observations that should pass through unchanged – e.g. a genuine
 winter dieback with <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">=</span> <span class="pre">0</span></code> – configure the corresponding class’s
-<code class="docutils literal notranslate"><span class="pre">laimin</span></code> to zero in the site configuration. Similarly, widen <code class="docutils literal notranslate"><span class="pre">laimax</span></code> if
-observations legitimately exceed the default site canopy capacity. The
+<code class="docutils literal notranslate"><span class="pre">lai_min</span></code> to zero in the site configuration
+(<code class="docutils literal notranslate"><span class="pre">sites[i].properties.land_cover.&lt;veg&gt;.lai.lai_min</span></code>, where <code class="docutils literal notranslate"><span class="pre">&lt;veg&gt;</span></code> is
+<code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code> or <code class="docutils literal notranslate"><span class="pre">grass</span></code>). Similarly, widen <code class="docutils literal notranslate"><span class="pre">lai_max</span></code> (same
+block) if observations legitimately exceed the default site canopy
+capacity. The
 pre-flight validator (<code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code>) issues a warning
 when any forcing value would be clamped, so the user sees once that
 observations are being modified rather than discovering it through
@@ -1338,12 +1341,12 @@ and missing-value policy.</p>
 </pre></div>
 </div>
 <p><strong>Automatic Validation</strong></p>
-<p>When using <code class="docutils literal notranslate"><span class="pre">suews-validate</span></code>, forcing data validation runs automatically:</p>
+<p>When using <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code>, forcing data validation runs automatically:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validates configuration AND forcing data</span>
-suews-validate<span class="w"> </span>config.yml
+suews<span class="w"> </span>validate<span class="w"> </span>config.yml
 
 <span class="c1"># Skip forcing validation if needed</span>
-suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span class="w"> </span>config.yml
+suews<span class="w"> </span>validate<span class="w"> </span>--forcing<span class="w"> </span>off<span class="w"> </span>config.yml
 </pre></div>
 </div>
 <p>A configuration whose <code class="docutils literal notranslate"><span class="pre">forcing.file</span></code> is set explicitly to <code class="docutils literal notranslate"><span class="pre">null</span></code> is
@@ -1472,7 +1475,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-14.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -1480,8 +1483,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

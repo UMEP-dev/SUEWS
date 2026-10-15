@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-10-08T18:27:24+00:00" />
-    <title>4.6. SUEWS Format Converter &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>4.6. SUEWS Format Converter &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f772fd74"></script>
+    <script src="../_static/documentation_options.js?v=e0067d12"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.5.59. Weekly Profile" href="yaml/config-reference/weeklyprofile.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2025-10-08"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -662,11 +662,7 @@
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-usage">4.6.1. Command-Line Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">4.6.2. Parameters</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#required-parameters">4.6.2.1. Required Parameters:</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-parameters">4.6.2.2. Optional Parameters:</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">4.6.2. Parameters</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.6.3. Examples</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-detection">4.6.4. Version Detection</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#path-handling">4.6.5. Path Handling</a></li>
@@ -692,79 +688,66 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </div>
 <section id="suews-format-converter">
 <span id="input-converter"></span><h1><span class="section-number">4.6. </span>SUEWS Format Converter<a class="headerlink" href="#suews-format-converter" title="Link to this heading">#</a></h1>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code> tool provides seamless conversion between different SUEWS input formats and versions. It supports:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code> command turns any supported SUEWS input into a YAML configuration that matches the current schema. It accepts three kinds of input, detected from the file you pass to <code class="docutils literal notranslate"><span class="pre">-i</span></code>:</p>
 <ul class="simple">
-<li><p><strong>Version migration</strong>: Update older SUEWS input files to newer table formats</p></li>
-<li><p><strong>Format conversion</strong>: Transform legacy table-based inputs to modern YAML format</p></li>
+<li><p><strong>Legacy table set</strong>: a <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> file (any <code class="docutils literal notranslate"><span class="pre">*.nml</span></code>) together with the <code class="docutils literal notranslate"><span class="pre">SUEWS_*.txt</span></code> tables it points to</p></li>
+<li><p><strong>df_state snapshot</strong>: a <code class="docutils literal notranslate"><span class="pre">*.csv</span></code> or <code class="docutils literal notranslate"><span class="pre">*.pkl</span></code> file holding a SuPy <code class="docutils literal notranslate"><span class="pre">df_state</span></code></p></li>
+<li><p><strong>Older YAML</strong>: a <code class="docutils literal notranslate"><span class="pre">*.yml</span></code> / <code class="docutils literal notranslate"><span class="pre">*.yaml</span></code> configuration from an earlier release, upgraded to the current schema</p></li>
 </ul>
+<p>The output is always a single YAML file in the current schema; there is no option to choose a target version.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>From v2025a onwards, SUEWS uses YAML format as the primary configuration method. The converter automatically determines the output format based on the target version.</p>
+<p><code class="docutils literal notranslate"><span class="pre">suews-convert</span></code> is a deprecated alias of <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code>. It still works but prints a deprecation notice to stderr.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p><strong>Python API Available</strong>: For programmatic access (e.g., integrating with QGIS plugins or other tools), see the <a class="reference internal" href="../api/converter.html"><span class="doc">Configuration Converter API</span></a> documentation for direct Python function usage.</p>
+<p><strong>Python API Available</strong>: For programmatic access (e.g., integrating with QGIS plugins or other tools), see the <a class="reference internal" href="../api/converter.html"><span class="doc">Configuration Converter API</span></a> documentation for direct Python function usage. Table-to-table conversion between legacy table releases is no longer a command-line feature; use <a class="reference internal" href="../api/converter.html#supy.util.converter.convert_table" title="supy.util.converter.convert_table"><code class="xref py py-func docutils literal notranslate"><span class="pre">supy.util.converter.convert_table()</span></code></a> from Python instead.</p>
 </div>
 <section id="command-line-usage">
 <h2><span class="section-number">4.6.1. </span>Command-Line Usage<a class="headerlink" href="#command-line-usage" title="Link to this heading">#</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-f<span class="w"> </span>FROM_VERSION<span class="w"> </span>-t<span class="w"> </span>TO_VERSION<span class="w"> </span>-i<span class="w"> </span>INPUT_PATH<span class="w"> </span>-o<span class="w"> </span>OUTPUT_PATH
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span><span class="o">[</span>-f<span class="w"> </span>FROM_VERSION<span class="o">]</span><span class="w"> </span>-i<span class="w"> </span>INPUT_FILE<span class="w"> </span>-o<span class="w"> </span>OUTPUT.yml
 </pre></div>
 </div>
-<p>The converter automatically determines the conversion type:</p>
-<ul class="simple">
-<li><p><strong>Versions before 2025</strong> (e.g., 2024a): Table-to-table conversion</p></li>
-<li><p><strong>Version 2025a or later</strong>: Converts to YAML format</p></li>
-<li><p><strong>Same version</strong> (e.g., 2016a to 2016a): Reformats files only (removes inline comments, fixes whitespace, standardises delimiters, organises into correct directory structure)</p></li>
-</ul>
 </section>
 <section id="parameters">
 <h2><span class="section-number">4.6.2. </span>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
-<section id="required-parameters">
-<h3><span class="section-number">4.6.2.1. </span>Required Parameters:<a class="headerlink" href="#required-parameters" title="Link to this heading">#</a></h3>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">-i,</span> <span class="pre">--input</span></code>: Input directory containing SUEWS files (must have RunControl.nml)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-o,</span> <span class="pre">--output</span></code>: Output path (directory for table conversion, file path for YAML)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-i,</span> <span class="pre">--input</span></code> (required): Input file. Pass <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> for a legacy table set, a <code class="docutils literal notranslate"><span class="pre">*.csv</span></code>/<code class="docutils literal notranslate"><span class="pre">*.pkl</span></code> file for a df_state snapshot, or a <code class="docutils literal notranslate"><span class="pre">*.yml</span></code>/<code class="docutils literal notranslate"><span class="pre">*.yaml</span></code> file for an older YAML configuration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-o,</span> <span class="pre">--output</span></code> (required): Output YAML file path. A path not ending in <code class="docutils literal notranslate"><span class="pre">.yml</span></code> or <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> triggers a warning.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-f,</span> <span class="pre">--from</span></code>: Source version. For <code class="docutils literal notranslate"><span class="pre">.nml</span></code> inputs, a table release (e.g. <code class="docutils literal notranslate"><span class="pre">2020a</span></code>, <code class="docutils literal notranslate"><span class="pre">2024a</span></code>); for YAML inputs, a SuPy release tag (e.g. <code class="docutils literal notranslate"><span class="pre">2026.1.28</span></code>) or a schema version. Auto-detected when omitted.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-d,</span> <span class="pre">--debug-dir</span></code>: Directory in which to keep intermediate conversion files (table and df_state inputs only; ignored for YAML upgrades).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--no-profile-validation</span></code>: Disable automatic profile validation and creation of missing profiles (table and df_state inputs only).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">text|json</span></code>: Output format for the command’s own report. <code class="docutils literal notranslate"><span class="pre">json</span></code> emits the standard SUEWS JSON envelope on stdout.</p></li>
 </ul>
-</section>
-<section id="optional-parameters">
-<h3><span class="section-number">4.6.2.2. </span>Optional Parameters:<a class="headerlink" href="#optional-parameters" title="Link to this heading">#</a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">-f,</span> <span class="pre">--from</span></code>: Source version (e.g., ‘2020a’, ‘2024a’). If not specified, the converter will auto-detect the version</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-t,</span> <span class="pre">--to</span></code>: Target version. Options include:</p>
-<ul>
-<li><p>Specific version (e.g., ‘2024a’ for tables, ‘2025a’ for YAML)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">latest</span></code> (default): Converts to the current YAML format</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-d,</span> <span class="pre">--debug-dir</span></code>: Directory to save intermediate conversion files for debugging</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--no-profile-validation</span></code>: Disable automatic profile validation and creation of missing profiles</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--force-table</span></code>: Force table output format even for 2025a (skip YAML conversion)</p></li>
-</ul>
-</section>
 </section>
 <section id="examples">
 <h2><span class="section-number">4.6.3. </span>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
-<p><strong>Auto-detect version and convert to latest YAML:</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-i<span class="w"> </span>your_suews_folder<span class="w"> </span>-o<span class="w"> </span>config.yml
-<span class="c1"># Auto-detects source version and converts to latest YAML format</span>
+<p><strong>Legacy tables to YAML, auto-detecting the table release:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>your_suews_folder/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
 </pre></div>
 </div>
-<p><strong>Table-to-table conversion (pre-2025):</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-f<span class="w"> </span>2018a<span class="w"> </span>-t<span class="w"> </span>2024a<span class="w"> </span>-i<span class="w"> </span>your_2018a_folder<span class="w"> </span>-o<span class="w"> </span>your_2024a_folder
+<p><strong>Legacy tables to YAML with an explicit source release:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-f<span class="w"> </span>2024a<span class="w"> </span>-i<span class="w"> </span>your_2024a_folder/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
 </pre></div>
 </div>
-<p><strong>Table-to-YAML conversion (2025+):</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-f<span class="w"> </span>2024a<span class="w"> </span>-t<span class="w"> </span>2025a<span class="w"> </span>-i<span class="w"> </span>your_2024a_folder<span class="w"> </span>-o<span class="w"> </span>config.yml
+<p><strong>df_state snapshot to YAML:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span class="w"> </span>-o<span class="w"> </span>config.yml
+</pre></div>
+</div>
+<p><strong>Older YAML to the current schema:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>old.yml<span class="w"> </span>-o<span class="w"> </span>new.yml
+<span class="c1"># Without a schema_version field in old.yml, name the source release:</span>
+suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>old.yml<span class="w"> </span>-o<span class="w"> </span>new.yml<span class="w"> </span>-f<span class="w"> </span><span class="m">2026</span>.1.28
 </pre></div>
 </div>
 <p><strong>Debug intermediate steps:</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-f<span class="w"> </span>2016a<span class="w"> </span>-t<span class="w"> </span>latest<span class="w"> </span>-i<span class="w"> </span>old_data<span class="w"> </span>-o<span class="w"> </span>config.yml<span class="w"> </span>-d<span class="w"> </span>debug_output
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-f<span class="w"> </span>2016a<span class="w"> </span>-i<span class="w"> </span>old_data/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml<span class="w"> </span>-d<span class="w"> </span>debug_output
 <span class="c1"># Saves intermediate conversion files in debug_output directory</span>
 </pre></div>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>The converter uses the <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> file in your input folder to determine the location of input tables. This ensures that custom paths specified in <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code> are correctly handled.</p>
+<p>The converter uses the <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> file you pass to determine the location of input tables. This ensures that custom paths specified in <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code> are correctly handled.</p>
 </div>
 </section>
 <section id="version-detection">
@@ -783,10 +766,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <p>The converter respects path configurations in <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>:</p>
 <ul class="simple">
 <li><p><strong>Absolute paths</strong>: Used directly as specified</p></li>
-<li><p><strong>Relative paths</strong>: Resolved relative to the input directory</p></li>
+<li><p><strong>Relative paths</strong>: Resolved relative to the directory containing <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code></p></li>
 <li><p><strong>Automatic fallback</strong>: If files aren’t found at the configured path, the converter checks:</p>
 <ol class="arabic simple">
-<li><p>The root input directory</p></li>
+<li><p>The directory containing <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code></p></li>
 <li><p>The path specified in <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code></p></li>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">Input/</span></code> subdirectory</p></li>
 </ol>
@@ -844,11 +827,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-usage">4.6.1. Command-Line Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">4.6.2. Parameters</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#required-parameters">4.6.2.1. Required Parameters:</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-parameters">4.6.2.2. Optional Parameters:</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">4.6.2. Parameters</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.6.3. Examples</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-detection">4.6.4. Version Detection</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#path-handling">4.6.5. Path Handling</a></li>
@@ -885,7 +864,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-10-08.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -893,8 +872,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

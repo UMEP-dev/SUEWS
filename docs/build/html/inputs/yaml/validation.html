@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-20T02:29:42+00:00" />
-    <title>4.8. Validation Tool Reference &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>4.8. Validation Tool Reference &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=f772fd74"></script>
+    <script src="../../_static/documentation_options.js?v=e0067d12"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.7. Transitioning to YAML-based Configuration" href="../transition_guide.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2026-08-20"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -695,7 +695,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </div>
 <section id="validation-tool-reference">
 <span id="validation"></span><h1><span class="section-number">4.8. </span>Validation Tool Reference<a class="headerlink" href="#validation-tool-reference" title="Link to this heading">#</a></h1>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-validate</span></code> command checks SUEWS YAML configuration files and writes
+<p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code> command checks SUEWS YAML configuration files and writes
 an updated YAML file plus a validation report. It is a validator first: structural
 updates are applied where they are mechanical, while scientific initialisation
 changes are only applied when explicitly requested.</p>
@@ -717,26 +717,26 @@ SUEWS data model.</p></li>
 <section id="basic-usage">
 <h2><span class="section-number">4.8.2. </span>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate configuration and write updated_config.yml plus report_config.txt</span>
-suews-validate<span class="w"> </span>config.yml
+suews<span class="w"> </span>validate<span class="w"> </span>config.yml
 
 <span class="c1"># Apply Phase B scientific initialisation updates to the output YAML</span>
-suews-validate<span class="w"> </span>--science-fixes<span class="w"> </span>apply<span class="w"> </span>config.yml
+suews<span class="w"> </span>validate<span class="w"> </span>--science-fixes<span class="w"> </span>apply<span class="w"> </span>config.yml
 
 <span class="c1"># Run Phase B scientific checks without suggestions or scientific updates</span>
-suews-validate<span class="w"> </span>--science-fixes<span class="w"> </span>off<span class="w"> </span>config.yml
+suews<span class="w"> </span>validate<span class="w"> </span>--science-fixes<span class="w"> </span>off<span class="w"> </span>config.yml
 
-<span class="c1"># Check configuration without writing files</span>
-suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml
+<span class="c1"># Check one or more files against the schema without writing files</span>
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>config.yml
 
-<span class="c1"># Check without writing files (read-only validation)</span>
-suews-validate<span class="w"> </span>--dry-run<span class="w"> </span>config.yml
+<span class="c1"># Same schema-only check, restricted to a single file (phases A and B</span>
+<span class="c1"># do not run and --forcing is ignored)</span>
+suews<span class="w"> </span>validate<span class="w"> </span>--dry-run<span class="w"> </span>config.yml
 </pre></div>
 </div>
 <p>For complete usage options and advanced features, use:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-validate<span class="w"> </span>--help
-suews-validate<span class="w"> </span>validate<span class="w"> </span>--help
-suews-validate<span class="w"> </span>migrate<span class="w"> </span>--help
-suews-validate<span class="w"> </span>version<span class="w"> </span>--help
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>validate<span class="w"> </span>--help
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>--help
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>--help
 </pre></div>
 </div>
 </section>
@@ -761,7 +761,7 @@ historical timezone settings, or specialist case studies.</p>
 </section>
 <section id="output-files">
 <h2><span class="section-number">4.8.4. </span>Output Files<a class="headerlink" href="#output-files" title="Link to this heading">#</a></h2>
-<p>When you run <code class="docutils literal notranslate"><span class="pre">suews-validate</span> <span class="pre">config.yml</span></code>, it creates:</p>
+<p>When you run <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span> <span class="pre">config.yml</span></code>, it creates:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">updated_config.yml</span></code> - the updated configuration from the last successful
 validation phase</p></li>
@@ -845,7 +845,7 @@ Each issue includes <code class="docutils literal notranslate"><span class="pre"
 <h2><span class="section-number">4.8.8. </span>CI/CD Integration<a class="headerlink" href="#ci-cd-integration" title="Link to this heading">#</a></h2>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validate SUEWS Configuration</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<span class="w">    </span><span class="no">suews-validate validate config.yml --format json &gt; results.json</span>
+<span class="w">    </span><span class="no">suews validate -p C --dry-run --format json config.yml &gt; results.json</span>
 <span class="w">    </span><span class="no">if [ $? -ne 0 ]; then</span>
 <span class="w">      </span><span class="no">echo "Configuration validation failed"</span>
 <span class="w">      </span><span class="no">exit 1</span>
@@ -856,7 +856,7 @@ Each issue includes <code class="docutils literal notranslate"><span class="pre"
 <h3><span class="section-number">4.8.8.1. </span>Batch Processing<a class="headerlink" href="#batch-processing" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
 <span class="k">for</span><span class="w"> </span>config<span class="w"> </span><span class="k">in</span><span class="w"> </span>configs/*.yml<span class="p">;</span><span class="w"> </span><span class="k">do</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span>suews-validate<span class="w"> </span>validate<span class="w"> </span><span class="s2">"</span><span class="nv">$config</span><span class="s2">"</span><span class="w"> </span>--quiet<span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span>suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span><span class="s2">"</span><span class="nv">$config</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="w"> </span>/dev/null<span class="p">;</span><span class="w"> </span><span class="k">then</span>
 <span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"OK </span><span class="nv">$config</span><span class="s2">"</span>
 <span class="w">    </span><span class="k">else</span>
 <span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"FAILED </span><span class="nv">$config</span><span class="s2"> - needs attention"</span>
@@ -975,7 +975,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-20.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -983,8 +983,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

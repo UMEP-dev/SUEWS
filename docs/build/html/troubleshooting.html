@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-09-15T22:36:44+00:00" />
-    <title>8. Troubleshooting &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>8. Troubleshooting &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=f772fd74"></script>
+    <script src="_static/documentation_options.js?v=e0067d12"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="7.2.1.1. SUEWS in UMEP" href="related-softwares/umep.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2026-09-15"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -969,48 +969,62 @@ manually edited state DataFrame.</p>
 <ol class="arabic">
 <li><p><strong>Switch to SMD method 1 or 2</strong> (recommended if you have observed soil moisture data):</p>
 <p>In your YAML configuration:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">smd_method</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>  <span class="c1"># Use observed volumetric soil moisture</span>
-<span class="c1"># or</span>
-<span class="n">smd_method</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>  <span class="c1"># Use observed gravimetric soil moisture</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="n">physics</span><span class="p">:</span>
+    <span class="n">soil_moisture_deficit</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>  <span class="c1"># Observed volumetric soil moisture</span>
+    <span class="c1"># or, for observed gravimetric soil moisture:</span>
+    <span class="c1"># soil_moisture_deficit: {value: 2}</span>
 </pre></div>
 </div>
 <p>This requires providing soil moisture data in your forcing file.</p>
 </li>
-<li><p><strong>If using SMD method 0</strong>, check and adjust:</p>
+<li><p><strong>If using SMD method 0</strong>, check and adjust (all paths below are under <code class="docutils literal notranslate"><span class="pre">sites[i]</span></code>, with one entry per surface type: <code class="docutils literal notranslate"><span class="pre">paved</span></code>, <code class="docutils literal notranslate"><span class="pre">bldgs</span></code>, <code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code>, <code class="docutils literal notranslate"><span class="pre">bsoil</span></code>, <code class="docutils literal notranslate"><span class="pre">water</span></code>):</p>
 <ol class="loweralpha">
 <li><p><strong>Initial soil moisture states</strong> - ensure reasonable starting values:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">initial_conditions</span><span class="p">:</span>
-  <span class="n">soilstore_bldgs</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">50.0</span><span class="p">}</span>  <span class="c1"># Not too low</span>
-  <span class="n">soilstore_paved</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">50.0</span><span class="p">}</span>
-  <span class="n">soilstore_evetr</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">}</span>
-  <span class="n">soilstore_dectr</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">}</span>
-  <span class="n">soilstore_grass</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">80.0</span><span class="p">}</span>
-  <span class="n">soilstore_bsoil</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">60.0</span><span class="p">}</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sites</span><span class="p">:</span>
+<span class="o">-</span> <span class="n">initial_states</span><span class="p">:</span>
+    <span class="n">bldgs</span><span class="p">:</span>
+      <span class="n">soilstore</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">50.0</span><span class="p">}</span>  <span class="c1"># mm, not too low</span>
+    <span class="n">paved</span><span class="p">:</span>
+      <span class="n">soilstore</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">50.0</span><span class="p">}</span>
+    <span class="n">evetr</span><span class="p">:</span>
+      <span class="n">soilstore</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">}</span>
+    <span class="c1"># ... similar for dectr, grass, bsoil</span>
 </pre></div>
 </div>
 </li>
 <li><p><strong>Soil capacity parameters</strong> - verify they match your site:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">soil</span><span class="p">:</span>
-  <span class="n">bldgs</span><span class="p">:</span>
-    <span class="n">soilstorecap</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">150.0</span><span class="p">}</span>  <span class="c1"># mm</span>
-  <span class="n">paved</span><span class="p">:</span>
-    <span class="n">soilstorecap</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">150.0</span><span class="p">}</span>
-  <span class="c1"># ... similar for other surfaces</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sites</span><span class="p">:</span>
+<span class="o">-</span> <span class="n">properties</span><span class="p">:</span>
+    <span class="n">land_cover</span><span class="p">:</span>
+      <span class="n">bldgs</span><span class="p">:</span>
+        <span class="n">soil_store_capacity</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">150.0</span><span class="p">}</span>  <span class="c1"># mm</span>
+      <span class="n">paved</span><span class="p">:</span>
+        <span class="n">soil_store_capacity</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">150.0</span><span class="p">}</span>
+      <span class="c1"># ... similar for other surfaces</span>
 </pre></div>
 </div>
 </li>
-<li><p><strong>Soil moisture stress parameters</strong>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">vegetation</span><span class="p">:</span>
-  <span class="n">s1</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">5.56</span><span class="p">}</span>   <span class="c1"># Wilting point threshold (mm)</span>
-  <span class="n">s2</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">}</span>  <span class="c1"># Capacity threshold (mm)</span>
-  <span class="n">g_sm</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">3.5</span><span class="p">}</span>  <span class="c1"># Soil moisture sensitivity</span>
+<li><p><strong>Soil moisture stress parameters</strong> (surface conductance):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sites</span><span class="p">:</span>
+<span class="o">-</span> <span class="n">properties</span><span class="p">:</span>
+    <span class="n">conductance</span><span class="p">:</span>
+      <span class="n">s1</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">5.56</span><span class="p">}</span>  <span class="c1"># Wilting point threshold (mm)</span>
+      <span class="n">s2</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">}</span>  <span class="c1"># Capacity threshold (mm)</span>
+      <span class="n">g_sm</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mf">3.5</span><span class="p">}</span>  <span class="c1"># Soil moisture sensitivity</span>
 </pre></div>
 </div>
 </li>
-<li><p><strong>Enable irrigation</strong> if appropriate for your site:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">water_use</span><span class="p">:</span>
-  <span class="n">method</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>  <span class="c1"># Enable irrigation</span>
-  <span class="c1"># Configure irrigation parameters</span>
+<li><p><strong>Check irrigation (external water use)</strong> if appropriate for your site. <code class="docutils literal notranslate"><span class="pre">model.physics.water_use</span></code> selects how water use is obtained, not whether irrigation is on: <code class="docutils literal notranslate"><span class="pre">0</span></code>/<code class="docutils literal notranslate"><span class="pre">modelled</span></code> calculates it from the irrigation parameters under <code class="docutils literal notranslate"><span class="pre">sites[i].properties.irrigation</span></code>, while <code class="docutils literal notranslate"><span class="pre">1</span></code>/<code class="docutils literal notranslate"><span class="pre">observed</span></code> reads it from the <code class="docutils literal notranslate"><span class="pre">wuh</span></code> column of the forcing file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="p">:</span>
+  <span class="n">physics</span><span class="p">:</span>
+    <span class="n">water_use</span><span class="p">:</span> <span class="n">modelled</span>  <span class="c1"># or {value: 0}; use observed / {value: 1} for forcing wuh</span>
+<span class="n">sites</span><span class="p">:</span>
+<span class="o">-</span> <span class="n">properties</span><span class="p">:</span>
+    <span class="n">irrigation</span><span class="p">:</span>
+      <span class="n">ie_start</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mi">90</span><span class="p">}</span>  <span class="c1"># first day of year with irrigation</span>
+      <span class="n">ie_end</span><span class="p">:</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="mi">270</span><span class="p">}</span>  <span class="c1"># last day of year with irrigation</span>
+      <span class="c1"># ... other irrigation parameters</span>
 </pre></div>
 </div>
 </li>
@@ -1145,7 +1159,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-09-15.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -1153,8 +1167,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

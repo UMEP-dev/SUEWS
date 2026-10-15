@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-01T17:45:50+00:00" />
-    <title>4.7. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>4.7. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f772fd74"></script>
+    <script src="../_static/documentation_options.js?v=e0067d12"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="4.6. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2026-10-01"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -201,8 +201,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -669,9 +669,9 @@
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.7.3. Examples</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-1-auto-detect-and-convert-to-latest-yaml">4.7.3.1. Example 1: Auto-detect and Convert to Latest YAML</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-2-converting-to-yaml-with-explicit-versions">4.7.3.2. Example 2: Converting to YAML with Explicit Versions</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-2-converting-to-yaml-with-an-explicit-source-version">4.7.3.2. Example 2: Converting to YAML with an Explicit Source Version</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-3-converting-older-tables-to-yaml">4.7.3.3. Example 3: Converting Older Tables to YAML</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-4-table-to-table-conversion-pre-2025">4.7.3.4. Example 4: Table-to-Table Conversion (Pre-2025)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-4-table-to-table-conversion-python-only">4.7.3.4. Example 4: Table-to-Table Conversion (Python only)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-5-debugging-conversion-issues">4.7.3.5. Example 5: Debugging Conversion Issues</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version-auto-detection">4.7.3.6. Version Auto-Detection</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#path-resolution-and-file-location">4.7.3.7. Path Resolution and File Location</a></li>
@@ -715,45 +715,36 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <section id="transitioning-to-yaml-based-configuration">
 <span id="transition-guide"></span><h1><span class="section-number">4.7. </span>Transitioning to YAML-based Configuration<a class="headerlink" href="#transitioning-to-yaml-based-configuration" title="Link to this heading">#</a></h1>
 <p>As of 2025, SUEWS has adopted a new YAML-based format for input files to enhance readability, maintainability, and user experience. To help users migrate their existing table-based input files to this new format, a transition tool is provided.</p>
-<p>This guide explains how to use the <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code> command-line tool to automate the conversion process.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code> tool automatically determines the appropriate conversion based on the target version:</p>
-<ul class="simple">
-<li><p><strong>Versions before 2025</strong> (e.g., 2024a): Performs table-to-table conversion</p></li>
-<li><p><strong>Version 2025a or later</strong>: Converts to YAML format</p></li>
-</ul>
-<p>When converting to YAML (2025+), the process involves two main steps:</p>
+<p>This guide explains how to use the <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code> command (formerly <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code>, which still works as a deprecated alias) to automate the conversion process.</p>
+<p><code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code> always produces a single YAML file in the current schema. When the input is a legacy table set, the process involves two main steps:</p>
 <ol class="arabic simple">
 <li><p><strong>Table Version Update (if needed)</strong>: If you are using input files from an older version of SUEWS, the tool first converts them to the latest available table-based format.</p></li>
 <li><p><strong>Conversion to YAML</strong>: The tool then reads the complete set of (updated) table-based inputs and converts them into a single, comprehensive YAML file.</p></li>
 </ol>
+<p>The same command also accepts a df_state snapshot (<code class="docutils literal notranslate"><span class="pre">*.csv</span></code>/<code class="docutils literal notranslate"><span class="pre">*.pkl</span></code>) or an older YAML configuration (<code class="docutils literal notranslate"><span class="pre">*.yml</span></code>/<code class="docutils literal notranslate"><span class="pre">*.yaml</span></code>) and upgrades it to the current schema. Table-to-table conversion between legacy releases is not available from the command line; use <a class="reference internal" href="../api/converter.html#supy.util.converter.convert_table" title="supy.util.converter.convert_table"><code class="xref py py-func docutils literal notranslate"><span class="pre">supy.util.converter.convert_table()</span></code></a> from Python (see <a class="reference internal" href="../api/converter.html"><span class="doc">Configuration Converter API</span></a>).</p>
 <section id="prerequisites">
 <h2><span class="section-number">4.7.1. </span>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">#</a></h2>
 <p>Ensure that <code class="docutils literal notranslate"><span class="pre">supy</span></code> is installed in your Python environment. The transition tool is part of the <code class="docutils literal notranslate"><span class="pre">supy</span></code> package.</p>
 </section>
 <section id="using-the-transition-tool">
 <h2><span class="section-number">4.7.2. </span>Using the Transition Tool<a class="headerlink" href="#using-the-transition-tool" title="Link to this heading">#</a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code> command is installed with the <code class="docutils literal notranslate"><span class="pre">supy</span></code> package and can be run directly from the command line.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code> command is installed with the <code class="docutils literal notranslate"><span class="pre">supy</span></code> package and can be run directly from the command line.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </pre></div>
 </div>
 <section id="command-line-options">
 <h3><span class="section-number">4.7.2.1. </span>Command-Line Options<a class="headerlink" href="#command-line-options" title="Link to this heading">#</a></h3>
 <p>Required arguments:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">-i,</span> <span class="pre">--input</span> <span class="pre">PATH</span></code>: The directory containing <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>. The converter will read the <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code> parameter from this file to locate the actual table files (e.g., if <code class="docutils literal notranslate"><span class="pre">FileInputPath=&quot;./Input/&quot;</span></code>, it will look for tables in <code class="docutils literal notranslate"><span class="pre">input_dir/Input/</span></code>).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-o,</span> <span class="pre">--output</span> <span class="pre">PATH</span></code>: The output path:
-- For table conversion (pre-2025): Directory for the converted tables
-- For YAML conversion (2025+): Path for the output YAML file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-i,</span> <span class="pre">--input</span> <span class="pre">FILE</span></code>: The input file. For a legacy table set this is the <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> file itself (not its directory). The converter reads the <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code> parameter from it to locate the actual table files (e.g., if <code class="docutils literal notranslate"><span class="pre">FileInputPath=&quot;./Input/&quot;</span></code>, it looks for tables in the <code class="docutils literal notranslate"><span class="pre">Input/</span></code> directory next to <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>). A <code class="docutils literal notranslate"><span class="pre">*.csv</span></code>/<code class="docutils literal notranslate"><span class="pre">*.pkl</span></code> df_state snapshot or a <code class="docutils literal notranslate"><span class="pre">*.yml</span></code>/<code class="docutils literal notranslate"><span class="pre">*.yaml</span></code> configuration is also accepted.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-o,</span> <span class="pre">--output</span> <span class="pre">FILE</span></code>: Path for the output YAML file.</p></li>
 </ul>
 <p>Optional arguments:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">-f,</span> <span class="pre">--from</span> <span class="pre">VERSION</span></code>: The version of your source input files (e.g., <code class="docutils literal notranslate"><span class="pre">2020a</span></code>, <code class="docutils literal notranslate"><span class="pre">2024a</span></code>). If not specified, the tool will auto-detect the version.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-t,</span> <span class="pre">--to</span> <span class="pre">VERSION</span></code>: The target version. Options include:
-- Specific version (e.g., <code class="docutils literal notranslate"><span class="pre">2024a</span></code> for tables, <code class="docutils literal notranslate"><span class="pre">2025a</span></code> for YAML)
-- <code class="docutils literal notranslate"><span class="pre">latest</span></code> (default): Converts to the current YAML format</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-d,</span> <span class="pre">--debug-dir</span> <span class="pre">PATH</span></code>: Directory to save intermediate conversion files for debugging.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-f,</span> <span class="pre">--from</span> <span class="pre">VERSION</span></code>: The version of your source input (e.g., <code class="docutils literal notranslate"><span class="pre">2020a</span></code>, <code class="docutils literal notranslate"><span class="pre">2024a</span></code> for tables; a SuPy release tag or schema version for YAML). If not specified, the tool will auto-detect the version.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-d,</span> <span class="pre">--debug-dir</span> <span class="pre">PATH</span></code>: Directory to save intermediate conversion files for debugging (table and df_state inputs only).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--no-profile-validation</span></code>: Disable automatic profile validation and creation of missing profiles.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--force-table</span></code>: Force table output format even for 2025a (skip YAML conversion).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">text|json</span></code>: Report format; <code class="docutils literal notranslate"><span class="pre">json</span></code> emits the standard SUEWS JSON envelope on stdout.</p></li>
 </ul>
 </section>
 </section>
@@ -762,70 +753,70 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <section id="example-1-auto-detect-and-convert-to-latest-yaml">
 <h3><span class="section-number">4.7.3.1. </span>Example 1: Auto-detect and Convert to Latest YAML<a class="headerlink" href="#example-1-auto-detect-and-convert-to-latest-yaml" title="Link to this heading">#</a></h3>
 <p>The simplest way to convert your files to YAML format - let the tool detect the version automatically:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-i<span class="w"> </span>/path/to/suews_run_london<span class="w"> </span><span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-i<span class="w"> </span>/path/to/suews_run_london/RunControl.nml<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-o<span class="w"> </span>/path/to/new_config/config.yml
 </pre></div>
 </div>
 <p>The tool will:
-1. Read <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> from the input directory
+1. Read the given <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>
 2. Auto-detect the version of your input files
 3. Find table files using the path specified in <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code> (e.g., <code class="docutils literal notranslate"><span class="pre">./Input/</span></code>)
 4. Convert them to the latest YAML format
 5. Create <code class="docutils literal notranslate"><span class="pre">config.yml</span></code> in the specified output location</p>
 </section>
-<section id="example-2-converting-to-yaml-with-explicit-versions">
-<h3><span class="section-number">4.7.3.2. </span>Example 2: Converting to YAML with Explicit Versions<a class="headerlink" href="#example-2-converting-to-yaml-with-explicit-versions" title="Link to this heading">#</a></h3>
+<section id="example-2-converting-to-yaml-with-an-explicit-source-version">
+<h3><span class="section-number">4.7.3.2. </span>Example 2: Converting to YAML with an Explicit Source Version<a class="headerlink" href="#example-2-converting-to-yaml-with-an-explicit-source-version" title="Link to this heading">#</a></h3>
 <p>If you know your source version and want to explicitly specify it:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span><span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-f<span class="w"> </span>2024a<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-t<span class="w"> </span>2025a<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-i<span class="w"> </span>/path/to/old_runs/london_2024a<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-i<span class="w"> </span>/path/to/old_runs/london_2024a/RunControl.nml<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-o<span class="w"> </span>/path/to/yaml_configs/london.yml
 </pre></div>
 </div>
-<p>Note: The input path should contain <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>. The converter will read <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code> from it to locate the table files.</p>
+<p>Note: The converter reads <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code> from <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> to locate the table files.</p>
 </section>
 <section id="example-3-converting-older-tables-to-yaml">
 <h3><span class="section-number">4.7.3.3. </span>Example 3: Converting Older Tables to YAML<a class="headerlink" href="#example-3-converting-older-tables-to-yaml" title="Link to this heading">#</a></h3>
 <p>If you have input files from an older SUEWS version (e.g., <code class="docutils literal notranslate"><span class="pre">2019b</span></code>), you can convert them directly to YAML:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span><span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-f<span class="w"> </span>2019b<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-t<span class="w"> </span>latest<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-i<span class="w"> </span>/path/to/archive/2019_runs/site_v2019b<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-i<span class="w"> </span>/path/to/archive/2019_runs/site_v2019b/RunControl.nml<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-o<span class="w"> </span>/path/to/updated_configs/site_2019.yml
 </pre></div>
 </div>
 <p>The tool will:
-1. Read <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> from the input directory
+1. Read the given <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>
 2. Find table files (typically in <code class="docutils literal notranslate"><span class="pre">Input/</span></code> subdirectory as specified by <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code>)
 3. Update the tables from <code class="docutils literal notranslate"><span class="pre">2019b</span></code> through intermediate versions
 4. Convert to YAML format</p>
 </section>
-<section id="example-4-table-to-table-conversion-pre-2025">
-<h3><span class="section-number">4.7.3.4. </span>Example 4: Table-to-Table Conversion (Pre-2025)<a class="headerlink" href="#example-4-table-to-table-conversion-pre-2025" title="Link to this heading">#</a></h3>
-<p>For converting between table versions without creating YAML, use a target version before 2025:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-f<span class="w"> </span>2020a<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-t<span class="w"> </span>2024a<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-i<span class="w"> </span>/path/to/suews_run/Input_v2020a<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-o<span class="w"> </span>/path/to/suews_run/Input_v2024a
+<section id="example-4-table-to-table-conversion-python-only">
+<h3><span class="section-number">4.7.3.4. </span>Example 4: Table-to-Table Conversion (Python only)<a class="headerlink" href="#example-4-table-to-table-conversion-python-only" title="Link to this heading">#</a></h3>
+<p>Converting between legacy table versions without creating YAML is not a command-line feature. Use the Python function instead:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.util.converter</span><span class="w"> </span><span class="kn">import</span> <span class="n">convert_table</span>
+
+<span class="n">convert_table</span><span class="p">(</span>
+    <span class="s2">"/path/to/suews_run/Input_v2020a"</span><span class="p">,</span>
+    <span class="s2">"/path/to/suews_run/Input_v2024a"</span><span class="p">,</span>
+    <span class="s2">"2020a"</span><span class="p">,</span>
+    <span class="s2">"2024a"</span><span class="p">,</span>
+<span class="p">)</span>
 </pre></div>
 </div>
-<p>This will convert the tables from <code class="docutils literal notranslate"><span class="pre">2020a</span></code> to <code class="docutils literal notranslate"><span class="pre">2024a</span></code> format, creating the updated tables in the specified output directory.</p>
+<p>This converts the tables from <code class="docutils literal notranslate"><span class="pre">2020a</span></code> to <code class="docutils literal notranslate"><span class="pre">2024a</span></code> format in the output directory. See <a class="reference internal" href="../api/converter.html"><span class="doc">Configuration Converter API</span></a> for the full signature.</p>
 </section>
 <section id="example-5-debugging-conversion-issues">
 <h3><span class="section-number">4.7.3.5. </span>Example 5: Debugging Conversion Issues<a class="headerlink" href="#example-5-debugging-conversion-issues" title="Link to this heading">#</a></h3>
 <p>If you encounter issues during conversion, use the debug directory option to inspect intermediate files:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span><span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-f<span class="w"> </span>2016a<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-t<span class="w"> </span>latest<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-i<span class="w"> </span>/path/to/legacy_runs/2016a_site<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-i<span class="w"> </span>/path/to/legacy_runs/2016a_site/RunControl.nml<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-o<span class="w"> </span>/path/to/yaml_output/site_config.yml<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-d<span class="w"> </span>/tmp/suews_debug
 </pre></div>
 </div>
-<p>This saves all intermediate conversion steps in the debug directory (<code class="docutils literal notranslate"><span class="pre">/tmp/suews_debug</span></code>), allowing you to identify where issues occur in the conversion chain. The input directory should contain <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>.</p>
+<p>This saves all intermediate conversion steps in the debug directory (<code class="docutils literal notranslate"><span class="pre">/tmp/suews_debug</span></code>), allowing you to identify where issues occur in the conversion chain.</p>
 </section>
 <section id="version-auto-detection">
 <h3><span class="section-number">4.7.3.6. </span>Version Auto-Detection<a class="headerlink" href="#version-auto-detection" title="Link to this heading">#</a></h3>
@@ -844,10 +835,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <ul class="simple">
 <li><p><strong>Configured paths</strong>: The converter respects custom paths specified in <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code></p></li>
 <li><p><strong>Absolute paths</strong>: Used directly as specified (e.g., <code class="docutils literal notranslate"><span class="pre">/home/user/data/inputs/</span></code>)</p></li>
-<li><p><strong>Relative paths</strong>: Resolved relative to the input directory (e.g., <code class="docutils literal notranslate"><span class="pre">./Input/</span></code> becomes <code class="docutils literal notranslate"><span class="pre">input_dir/Input/</span></code>)</p></li>
+<li><p><strong>Relative paths</strong>: Resolved relative to the directory containing <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> (e.g., <code class="docutils literal notranslate"><span class="pre">./Input/</span></code> becomes <code class="docutils literal notranslate"><span class="pre">&lt;run_dir&gt;/Input/</span></code>)</p></li>
 <li><p><strong>Automatic fallback</strong>: If files aren’t found at the configured path, the converter automatically checks:</p>
 <ol class="arabic simple">
-<li><p>The root input directory</p></li>
+<li><p>The directory containing <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code></p></li>
 <li><p>The path specified in <code class="docutils literal notranslate"><span class="pre">FileInputPath</span></code></p></li>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">Input/</span></code> subdirectory</p></li>
 </ol>
@@ -892,7 +883,7 @@ for that surface.</p>
 <h2><span class="section-number">4.7.5. </span>YAML Schema Migrations<a class="headerlink" href="#yaml-schema-migrations" title="Link to this heading">#</a></h2>
 <p>Once your configuration is in YAML, subsequent SUEWS releases may bump
 the YAML <em>schema</em> — the structure of the file itself. Each bump is
-backed by a registered migration handler, so <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code> (for
+backed by a registered migration handler, so <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code> (for
 combined legacy+schema upgrades) and <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span></code> (for
 schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
@@ -905,7 +896,7 @@ lives in <a class="reference internal" href="../contributing/schema/schema_versi
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev5</span></code> renames the shortwave splitting selector to <code class="docutils literal notranslate"><span class="pre">perez</span></code>.
 The previous text selector is no longer accepted when loading a configuration.
 Use the schema converter to update an older YAML before loading it:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-i<span class="w"> </span>old.yml<span class="w"> </span>-o<span class="w"> </span>current.yml
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>old.yml<span class="w"> </span>-o<span class="w"> </span>current.yml
 </pre></div>
 </div>
 <p>The migration rewrites the retired text selector in both bare and
@@ -1128,7 +1119,7 @@ names).</p></li>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5
 </pre></div>
 </div>
-<p>For a combined legacy-table-plus-schema upgrade, use <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code>,
+<p>For a combined legacy-table-plus-schema upgrade, use <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code>,
 which runs the table conversion first and then walks the schema chain
 to the same shape.</p>
 <p>The handler logs every field rename and drop via
@@ -1210,7 +1201,7 @@ upgraded file, pass <code class="docutils literal notranslate"><span class="pre"
 <ol class="arabic simple">
 <li><p><strong>“Could not auto-detect version”</strong></p>
 <ul class="simple">
-<li><p>Ensure your input directory contains <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code></p></li>
+<li><p>Ensure you pass the <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> file with <code class="docutils literal notranslate"><span class="pre">-i</span></code> and that the tables it points to exist</p></li>
 <li><p>Check that your SUEWS table files are present</p></li>
 <li><p>Specify the source version explicitly with <code class="docutils literal notranslate"><span class="pre">-f</span></code></p></li>
 </ul>
@@ -1379,9 +1370,9 @@ but their CO2 fluxes are discarded by the driver.</p>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.7.3. Examples</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-1-auto-detect-and-convert-to-latest-yaml">4.7.3.1. Example 1: Auto-detect and Convert to Latest YAML</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-2-converting-to-yaml-with-explicit-versions">4.7.3.2. Example 2: Converting to YAML with Explicit Versions</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-2-converting-to-yaml-with-an-explicit-source-version">4.7.3.2. Example 2: Converting to YAML with an Explicit Source Version</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-3-converting-older-tables-to-yaml">4.7.3.3. Example 3: Converting Older Tables to YAML</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-4-table-to-table-conversion-pre-2025">4.7.3.4. Example 4: Table-to-Table Conversion (Pre-2025)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-4-table-to-table-conversion-python-only">4.7.3.4. Example 4: Table-to-Table Conversion (Python only)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-5-debugging-conversion-issues">4.7.3.5. Example 5: Debugging Conversion Issues</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version-auto-detection">4.7.3.6. Version Auto-Detection</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#path-resolution-and-file-location">4.7.3.7. Path Resolution and File Location</a></li>
@@ -1435,7 +1426,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-01.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -1443,8 +1434,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

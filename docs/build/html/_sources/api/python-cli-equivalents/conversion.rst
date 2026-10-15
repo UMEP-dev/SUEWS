@@ -8,8 +8,8 @@ CLI Command
 
 .. code-block:: bash
 
-    suews-convert -i input_dir/RunControl.nml -o config.yml
-    suews-convert -i df_state.csv -o config.yml
+    suews convert -i input_dir/RunControl.nml -o config.yml
+    suews convert -i df_state.csv -o config.yml
 
 Python Equivalent
 ~~~~~~~~~~~~~~~~~~

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-12-05T16:39:41+00:00" />
-    <title>JSON Output Format &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>JSON Output Format &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f772fd74"></script>
+    <script src="../_static/documentation_options.js?v=e0067d12"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,8 +58,8 @@
     <link rel="search" title="Search" href="../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2025-12-05"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -107,7 +107,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -664,12 +664,12 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">Basic Usage</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-structure">Output Structure</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#validation-result">Validation Result</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#file-results">File Results</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#envelope">Envelope</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#file-validation-results">File Validation Results</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#error-codes">Error Codes</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-results">Phase Results</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-results">Pipeline Results</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">CI/CD Integration</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#github-actions-example">GitHub Actions Example</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#jenkins-example">Jenkins Example</a></li>
@@ -682,7 +682,6 @@
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">Exit Codes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#best-practices">Best Practices</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-scripts">Example Scripts</a></li>
 </ul>
             </nav>
         </div>
@@ -705,84 +704,90 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </div>
 <section id="json-output-format">
 <h1>JSON Output Format<a class="headerlink" href="#json-output-format" title="Link to this heading">#</a></h1>
-<p>The SUEWS validator provides structured JSON output designed for easy integration with CI/CD tools,
+<p>The <code class="docutils literal notranslate"><span class="pre">suews</span></code> command-line interface provides structured JSON output designed for easy integration with CI/CD tools,
 command-line utilities, and automation scripts.</p>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h2>
-<p>When using the <code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">json</span></code> option with validation commands, the output follows a consistent,
-machine-readable structure that includes:</p>
+<p>Every <code class="docutils literal notranslate"><span class="pre">suews</span></code> subcommand that supports <code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">json</span></code> writes a single JSON object (the “envelope”) to stdout.
+The envelope has the same top-level shape for every command; only the <code class="docutils literal notranslate"><span class="pre">data</span></code> payload is command-specific:</p>
 <ul class="simple">
-<li><p>Status information (success/failure)</p></li>
-<li><p>Detailed error reporting with error codes</p></li>
-<li><p>Metadata including timestamps and versions</p></li>
-<li><p>Summary statistics</p></li>
-<li><p>File-by-file results</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">status</span></code>: <code class="docutils literal notranslate"><span class="pre">&quot;success&quot;</span></code> (no errors or warnings), <code class="docutils literal notranslate"><span class="pre">&quot;warning&quot;</span></code> (warnings but no errors) or <code class="docutils literal notranslate"><span class="pre">&quot;error&quot;</span></code> (any error)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: the command-specific payload</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">errors</span></code>: a list of error objects, each with at least a <code class="docutils literal notranslate"><span class="pre">message</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">warnings</span></code>: a list of warning objects</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">meta</span></code>: provenance (schema version, SUEWS/SuPy versions, git commit, command, start and end times)</p></li>
 </ul>
 </section>
 <section id="basic-usage">
 <h2>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate with JSON output</span>
-suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--format<span class="w"> </span>json
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate one or more files against the schema (read-only, pipeline C dry run)</span>
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>config.yml
 
-<span class="c1"># Dry-run validation with JSON output</span>
-suews-validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>config.yml<span class="w"> </span>--format<span class="w"> </span>json
+<span class="c1"># Full validation pipeline with JSON output</span>
+suews<span class="w"> </span>validate<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>config.yml
 
 <span class="c1"># Pipe to jq for processing</span>
-suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.summary'</span>
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>*.yml<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data'</span>
 </pre></div>
 </div>
 </section>
 <section id="output-structure">
 <h2>Output Structure<a class="headerlink" href="#output-structure" title="Link to this heading">#</a></h2>
-<section id="validation-result">
-<h3>Validation Result<a class="headerlink" href="#validation-result" title="Link to this heading">#</a></h3>
-<p>The top-level structure for validation results:</p>
+<section id="envelope">
+<h3>Envelope<a class="headerlink" href="#envelope" title="Link to this heading">#</a></h3>
+<p>The top-level structure shared by all commands:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"success|failure"</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"suews-validate"</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"timestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025-08-20T10:30:00.000Z"</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.234</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"metadata"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">"suews_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025.8.20"</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"schema_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.0"</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"dry_run"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nt">"summary"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">"total_files"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"valid_files"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"invalid_files"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"total_errors"</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"success_rate"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.6</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nt">"results"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">]</span>
+<span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"error"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="err">...</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"errors"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"warnings"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"meta"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"schema_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;current schema version&gt;"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"suews_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"supy_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"git_commit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"e2385e2"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"suews validate -p C --dry-run --format json config.yml"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"started_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-10-05T10:30:00Z"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"ended_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-10-05T10:30:01Z"</span>
+<span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">meta.schema_version</span></code> is the YAML configuration schema version of the installed SuPy (<code class="docutils literal notranslate"><span class="pre">CURRENT_SCHEMA_VERSION</span></code>).
+<code class="docutils literal notranslate"><span class="pre">meta.command</span></code> is built from the process arguments, so a real run may show the full path of the <code class="docutils literal notranslate"><span class="pre">suews</span></code>
+entry-point script rather than the bare command name.</p>
 </section>
-<section id="file-results">
-<h3>File Results<a class="headerlink" href="#file-results" title="Link to this heading">#</a></h3>
-<p>Each file in the <code class="docutils literal notranslate"><span class="pre">results</span></code> array contains:</p>
+<section id="file-validation-results">
+<h3>File Validation Results<a class="headerlink" href="#file-validation-results" title="Link to this heading">#</a></h3>
+<p>For <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span> <span class="pre">-p</span> <span class="pre">C</span> <span class="pre">--dry-run</span> <span class="pre">--format</span> <span class="pre">json</span> <span class="pre">FILES</span></code>, <code class="docutils literal notranslate"><span class="pre">data</span></code> holds one entry per file:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">"schema_version"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"files"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">"file"</span><span class="p">:</span><span class="w"> </span><span class="s2">"path/to/config.yml"</span><span class="p">,</span><span class="w"> </span><span class="nt">"valid"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="nt">"error_count"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"is_valid"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>On this dry-run path, <code class="docutils literal notranslate"><span class="pre">data.schema_version</span></code> echoes <code class="docutils literal notranslate"><span class="pre">--schema-version</span></code> and is <code class="docutils literal notranslate"><span class="pre">null</span></code> when that option is not given. Each error in the top-level
+<code class="docutils literal notranslate"><span class="pre">errors</span></code> list names the file it belongs to:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">  </span><span class="nt">"file"</span><span class="p">:</span><span class="w"> </span><span class="s2">"path/to/config.yml"</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"valid"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"error_count"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"errors"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">"code"</span><span class="p">:</span><span class="w"> </span><span class="mi">1002</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">"code_name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"MISSING_REQUIRED_FIELD"</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Required field 'bldgh' is missing"</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">"field"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sites[0].geometry"</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">"location"</span><span class="p">:</span><span class="w"> </span><span class="s2">"path/to/config.yml"</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">  </span><span class="p">]</span>
+<span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Required field 'bldgh' is missing"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"schema_path"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sites[0].properties.land_cover.bldgs"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"hint"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Required field 'bldgh' is missing"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"code"</span><span class="p">:</span><span class="w"> </span><span class="mi">1002</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"code_name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"MISSING_REQUIRED_FIELD"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"severity"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ERROR"</span>
 <span class="p">}</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">code</span></code>, <code class="docutils literal notranslate"><span class="pre">code_name</span></code>, <code class="docutils literal notranslate"><span class="pre">severity</span></code> and <code class="docutils literal notranslate"><span class="pre">site_gridid</span></code> are present only when the validator supplied them.</p>
 </section>
 </section>
 <section id="error-codes">
 <h2>Error Codes<a class="headerlink" href="#error-codes" title="Link to this heading">#</a></h2>
-<p>The validator uses machine-readable error codes for categorizing issues:</p>
+<p>The validator uses machine-readable error codes for categorising issues:</p>
 <div class="pst-scrollable-table-container"><table class="table" id="id1">
 <caption><span class="caption-text">Error Code Reference</span><a class="headerlink" href="#id1" title="Link to this table">#</a></caption>
 <colgroup>
@@ -849,33 +854,20 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 </table>
 </div>
 </section>
-<section id="phase-results">
-<h2>Phase Results<a class="headerlink" href="#phase-results" title="Link to this heading">#</a></h2>
-<p>When running validation pipelines (A/B/C), phase results include:</p>
+<section id="pipeline-results">
+<h2>Pipeline Results<a class="headerlink" href="#pipeline-results" title="Link to this heading">#</a></h2>
+<p>When the full validation pipeline runs (<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span> <span class="pre">--format</span> <span class="pre">json</span> <span class="pre">config.yml</span></code>, phases A/B/C), <code class="docutils literal notranslate"><span class="pre">data</span></code>
+carries the phase-by-phase report and the paths the pipeline wrote:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"success|failure"</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"suews-validate_phase_B"</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"timestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025-08-20T10:30:00.000Z"</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.456</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"metadata"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">"suews_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025.8.20"</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"phase"</span><span class="p">:</span><span class="w"> </span><span class="s2">"B"</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nt">"summary"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">"success"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"error_count"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"warning_count"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nt">"files"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">"input"</span><span class="p">:</span><span class="w"> </span><span class="s2">"config.yml"</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"config_science.yml"</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"report"</span><span class="p">:</span><span class="w"> </span><span class="s2">"phase_B_report.txt"</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nt">"errors"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">],</span>
-<span class="w">  </span><span class="nt">"warnings"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">]</span>
+<span class="w">  </span><span class="nt">"validation_report"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="err">...</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"report_file"</span><span class="p">:</span><span class="w"> </span><span class="s2">"report_config.txt"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"updated_yaml"</span><span class="p">:</span><span class="w"> </span><span class="s2">"updated_config.yml"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"phases_run"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"A"</span><span class="p">,</span><span class="w"> </span><span class="s2">"B"</span><span class="p">,</span><span class="w"> </span><span class="s2">"C"</span><span class="p">]</span>
 <span class="p">}</span>
 </pre></div>
 </div>
+<p>Pipeline errors and warnings appear in the top-level <code class="docutils literal notranslate"><span class="pre">errors</span></code> and <code class="docutils literal notranslate"><span class="pre">warnings</span></code> lists with <code class="docutils literal notranslate"><span class="pre">phase</span></code>, <code class="docutils literal notranslate"><span class="pre">code</span></code>,
+<code class="docutils literal notranslate"><span class="pre">message</span></code>, <code class="docutils literal notranslate"><span class="pre">severity</span></code> and <code class="docutils literal notranslate"><span class="pre">yaml_path</span></code> fields.</p>
 </section>
 <section id="ci-cd-integration">
 <h2>CI/CD Integration<a class="headerlink" href="#ci-cd-integration" title="Link to this heading">#</a></h2>
@@ -885,7 +877,7 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validate configurations</span>
 <span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">validate</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<span class="w">    </span><span class="no">suews-validate validate test/*.yml --format json &gt; results.json</span>
+<span class="w">    </span><span class="no">suews validate -p C --dry-run --format json test/*.yml &gt; results.json || true</span>
 
 <span class="w">    </span><span class="no"># Parse results with Python</span>
 <span class="w">    </span><span class="no">python -c "</span>
@@ -893,16 +885,14 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 <span class="w">    </span><span class="no">import sys</span>
 
 <span class="w">    </span><span class="no">with open('results.json') as f:</span>
-<span class="w">        </span><span class="no">data = json.load(f)</span>
+<span class="w">        </span><span class="no">envelope = json.load(f)</span>
 
 <span class="w">    </span><span class="no"># Create GitHub annotations</span>
-<span class="w">    </span><span class="no">for result in data['results']:</span>
-<span class="w">        </span><span class="no">if not result['valid']:</span>
-<span class="w">            </span><span class="no">for error in result['errors']:</span>
-<span class="w">                </span><span class="no">print(f\"::error file={result['file']}::{error['message']}\")</span>
+<span class="w">    </span><span class="no">for error in envelope['errors']:</span>
+<span class="w">        </span><span class="no">print(f\"::error file={error.get('file', '')}::{error['message']}\")</span>
 
 <span class="w">    </span><span class="no"># Exit with proper code</span>
-<span class="w">    </span><span class="no">sys.exit(0 if data['status'] == 'success' else 1)</span>
+<span class="w">    </span><span class="no">sys.exit(0 if envelope['data']['is_valid'] else 1)</span>
 <span class="w">    </span><span class="no">"</span>
 </pre></div>
 </div>
@@ -914,13 +904,14 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 <span class="w">    </span><span class="n">steps</span><span class="w"> </span><span class="o">{</span>
 <span class="w">        </span><span class="n">script</span><span class="w"> </span><span class="o">{</span>
 <span class="w">            </span><span class="kt">def</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sh</span><span class="o">(</span>
-<span class="w">                </span><span class="nl">script:</span><span class="w"> </span><span class="s1">'suews-validate validate *.yml --format json'</span><span class="o">,</span>
+<span class="w">                </span><span class="nl">script:</span><span class="w"> </span><span class="s1">'suews validate -p C --dry-run --format json *.yml || true'</span><span class="o">,</span>
 <span class="w">                </span><span class="nl">returnStdout:</span><span class="w"> </span><span class="kc">true</span>
 <span class="w">            </span><span class="o">)</span>
 <span class="w">            </span><span class="kt">def</span><span class="w"> </span><span class="n">json</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">readJSON</span><span class="w"> </span><span class="nl">text:</span><span class="w"> </span><span class="n">result</span>
 
-<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">(</span><span class="n">json</span><span class="o">.</span><span class="na">status</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s1">'success'</span><span class="o">)</span><span class="w"> </span><span class="o">{</span>
-<span class="w">                </span><span class="n">error</span><span class="w"> </span><span class="s2">"Validation failed: ${json.summary.invalid_files} files invalid"</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">(</span><span class="n">json</span><span class="o">.</span><span class="na">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s1">'error'</span><span class="o">)</span><span class="w"> </span><span class="o">{</span>
+<span class="w">                </span><span class="kt">def</span><span class="w"> </span><span class="n">invalid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">json</span><span class="o">.</span><span class="na">data</span><span class="o">.</span><span class="na">files</span><span class="o">.</span><span class="na">findAll</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="o">!</span><span class="n">it</span><span class="o">.</span><span class="na">valid</span><span class="w"> </span><span class="o">}.</span><span class="na">size</span><span class="o">()</span>
+<span class="w">                </span><span class="n">error</span><span class="w"> </span><span class="s2">"Validation failed: ${invalid} files invalid"</span>
 <span class="w">            </span><span class="o">}</span>
 <span class="w">        </span><span class="o">}</span>
 <span class="w">    </span><span class="o">}</span>
@@ -934,16 +925,16 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 <section id="using-jq">
 <h3>Using jq<a class="headerlink" href="#using-jq" title="Link to this heading">#</a></h3>
 <p>Extract specific information with jq:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get summary only</span>
-suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.summary'</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Overall result</span>
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>*.yml<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.is_valid'</span>
 
 <span class="c1"># List invalid files</span>
-suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>jq<span class="w"> </span><span class="s1">'.results[] | select(.valid == false) | .file'</span>
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>*.yml<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>jq<span class="w"> </span><span class="s1">'.data.files[] | select(.valid == false) | .file'</span>
 
 <span class="c1"># Count errors by type</span>
-suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>jq<span class="w"> </span><span class="s1">'[.results[].errors[].code_name] | group_by(.) | map({(.[0]): length}) | add'</span>
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>*.yml<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>jq<span class="w"> </span><span class="s1">'[.errors[].code_name // "UNCODED"] | group_by(.) | map({(.[0]): length}) | add'</span>
 </pre></div>
 </div>
 </section>
@@ -955,24 +946,22 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 
 <span class="c1"># Run validation</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-    <span class="p">[</span><span class="s1">'suews-validate'</span><span class="p">,</span> <span class="s1">'validate'</span><span class="p">,</span> <span class="s1">'config.yml'</span><span class="p">,</span> <span class="s1">'--format'</span><span class="p">,</span> <span class="s1">'json'</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">"suews"</span><span class="p">,</span> <span class="s2">"validate"</span><span class="p">,</span> <span class="s2">"-p"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">,</span> <span class="s2">"--dry-run"</span><span class="p">,</span> <span class="s2">"--format"</span><span class="p">,</span> <span class="s2">"json"</span><span class="p">,</span> <span class="s2">"config.yml"</span><span class="p">],</span>
     <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">text</span><span class="o">=</span><span class="kc">True</span>
+    <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="c1"># Parse output</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+<span class="n">envelope</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
 
 <span class="c1"># Check status</span>
-<span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s1">'status'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'success'</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"✅ All configurations valid"</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">envelope</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">"error"</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"[OK] All configurations valid"</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
     <span class="c1"># Process errors</span>
-    <span class="k">for</span> <span class="n">file_result</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s1">'results'</span><span class="p">]:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">file_result</span><span class="p">[</span><span class="s1">'valid'</span><span class="p">]:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"❌ </span><span class="si">{</span><span class="n">file_result</span><span class="p">[</span><span class="s1">'file'</span><span class="p">]</span><span class="si">}</span><span class="s2">:"</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">file_result</span><span class="p">[</span><span class="s1">'errors'</span><span class="p">]:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - [</span><span class="si">{</span><span class="n">error</span><span class="p">[</span><span class="s1">'code_name'</span><span class="p">]</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">error</span><span class="p">[</span><span class="s1">'message'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">envelope</span><span class="p">[</span><span class="s2">"errors"</span><span class="p">]:</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">error</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"code_name"</span><span class="p">,</span> <span class="s2">"ERROR"</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[X] </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'file'</span><span class="p">,</span><span class="w"> </span><span class="s1">''</span><span class="p">)</span><span class="si">}</span><span class="s2">: [</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">error</span><span class="p">[</span><span class="s1">'message'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -983,27 +972,18 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">0</span></code>: Success - all validations passed</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">1</span></code>: Failure - validation errors found</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">2</span></code>: Error - command execution failed</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">2</span></code>: Error - command usage or execution failed</p></li>
 </ul>
 </section>
 <section id="best-practices">
 <h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p><strong>Always check status field</strong>: Use <code class="docutils literal notranslate"><span class="pre">status</span></code> field to determine overall success</p></li>
-<li><p><strong>Parse error codes</strong>: Use <code class="docutils literal notranslate"><span class="pre">code</span></code> or <code class="docutils literal notranslate"><span class="pre">code_name</span></code> for automated handling</p></li>
-<li><p><strong>Include metadata</strong>: Check <code class="docutils literal notranslate"><span class="pre">metadata.schema_version</span></code> for compatibility</p></li>
-<li><p><strong>Handle missing fields</strong>: Some fields may be optional in the output</p></li>
-<li><p><strong>Use timestamps</strong>: Track when validations were performed</p></li>
+<li><p><strong>Always check the status field</strong>: <code class="docutils literal notranslate"><span class="pre">status</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;error&quot;</span></code> whenever <code class="docutils literal notranslate"><span class="pre">errors</span></code> is non-empty</p></li>
+<li><p><strong>Parse error codes</strong>: Use <code class="docutils literal notranslate"><span class="pre">code</span></code> or <code class="docutils literal notranslate"><span class="pre">code_name</span></code> for automated handling, but allow for errors without them</p></li>
+<li><p><strong>Check metadata</strong>: Use <code class="docutils literal notranslate"><span class="pre">meta.schema_version</span></code> and <code class="docutils literal notranslate"><span class="pre">meta.supy_version</span></code> for compatibility checks</p></li>
+<li><p><strong>Handle missing fields</strong>: Optional error fields may be absent</p></li>
+<li><p><strong>Use timestamps</strong>: <code class="docutils literal notranslate"><span class="pre">meta.started_at</span></code> and <code class="docutils literal notranslate"><span class="pre">meta.ended_at</span></code> record when validation ran</p></li>
 </ol>
-</section>
-<section id="example-scripts">
-<h2>Example Scripts<a class="headerlink" href="#example-scripts" title="Link to this heading">#</a></h2>
-<p>The repository includes example integration scripts in <code class="docutils literal notranslate"><span class="pre">.github/scripts/</span></code>:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">validate-configs.py</span></code>: Python script for CI validation with annotations</p></li>
-<li><p>GitHub Actions workflow in <code class="docutils literal notranslate"><span class="pre">.github/workflows/validate-configs.yml</span></code></p></li>
-</ul>
-<p>These demonstrate best practices for parsing and using the JSON output in real-world scenarios.</p>
 </section>
 </section>
 
@@ -1039,12 +1019,12 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">Basic Usage</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-structure">Output Structure</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#validation-result">Validation Result</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#file-results">File Results</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#envelope">Envelope</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#file-validation-results">File Validation Results</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#error-codes">Error Codes</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-results">Phase Results</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-results">Pipeline Results</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">CI/CD Integration</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#github-actions-example">GitHub Actions Example</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#jenkins-example">Jenkins Example</a></li>
@@ -1057,7 +1037,6 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>*.yml<span
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">Exit Codes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#best-practices">Best Practices</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-scripts">Example Scripts</a></li>
 </ul>
   </nav></div>
 
@@ -1091,7 +1070,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-12-05.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -1099,8 +1078,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

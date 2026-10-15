@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-09-15T21:00:59+00:00" />
-    <title>2. Getting Started &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>2. Getting Started &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=f772fd74"></script>
+    <script src="_static/documentation_options.js?v=e0067d12"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="1. Installation" href="installation.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2026-09-15"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -931,8 +931,8 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <span class="w">    </span><span class="nt">forcing</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">file</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">"Input/Met_Data.txt"</span>
-<span class="w">    </span><span class="nt">start_date</span><span class="p">:</span><span class="w"> </span><span class="s">"2015-01-01"</span>
-<span class="w">    </span><span class="nt">end_date</span><span class="p">:</span><span class="w"> </span><span class="s">"2015-12-31"</span>
+<span class="w">    </span><span class="nt">start_time</span><span class="p">:</span><span class="w"> </span><span class="s">"2015-01-01"</span>
+<span class="w">    </span><span class="nt">end_time</span><span class="p">:</span><span class="w"> </span><span class="s">"2015-12-31"</span>
 <span class="w">  </span><span class="nt">physics</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">net_radiation</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">  </span><span class="c1"># NARP method</span>
@@ -941,8 +941,7 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 
 <span class="nt">sites</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MyUrbanSite</span>
-<span class="w">    </span><span class="nt">grid_id</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">gridiv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 <span class="w">    </span><span class="nt">properties</span><span class="p">:</span>
 <span class="w">      </span><span class="c1"># Geographic location</span>
 <span class="w">      </span><span class="nt">lat</span><span class="p">:</span>
@@ -951,30 +950,31 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-0.12</span>
 <span class="w">      </span><span class="nt">alt</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">35.0</span>
-<span class="w">      </span><span class="c1"># Surface cover fractions (must sum to 1.0)</span>
-<span class="w">      </span><span class="nt">frc_land_cover</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">Paved</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.43</span>
-<span class="w">        </span><span class="nt">Buildings</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.38</span>
-<span class="w">        </span><span class="nt">Grass</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.15</span>
-<span class="w">        </span><span class="nt">DeciduousTrees</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.04</span>
-<span class="w">      </span><span class="c1"># Surface properties for each land cover type</span>
-<span class="w">      </span><span class="nt">land_cover_params</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">Paved</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Surface cover fractions (sfr, must sum to 1.0 across all</span>
+<span class="w">      </span><span class="c1"># surfaces) and surface properties for each land cover type</span>
+<span class="w">      </span><span class="nt">land_cover</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">paved</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">sfr</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.43</span>
 <span class="w">          </span><span class="nt">alb</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.10</span><span class="w">  </span><span class="c1"># Albedo</span>
 <span class="w">          </span><span class="nt">emis</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.95</span><span class="w">  </span><span class="c1"># Emissivity</span>
-<span class="w">        </span><span class="nt">Buildings</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">bldgs</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">sfr</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.38</span>
 <span class="w">          </span><span class="nt">alb</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.15</span>
 <span class="w">          </span><span class="nt">emis</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.90</span>
 <span class="w">          </span><span class="nt">bldgh</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12.0</span><span class="w">  </span><span class="c1"># Average building height (m)</span>
+<span class="w">        </span><span class="nt">grass</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">sfr</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.15</span>
+<span class="w">        </span><span class="nt">dectr</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">sfr</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.04</span>
 </pre></div>
 </div>
 </section>
@@ -982,7 +982,7 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <h3><span class="section-number">2.3.2. </span>Validate Your Configuration<a class="headerlink" href="#validate-your-configuration" title="Link to this heading">#</a></h3>
 <p>Before running simulations, validate your configuration to catch and fix common issues:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate and automatically fix your configuration</span>
-suews-validate<span class="w"> </span>config.yml
+suews<span class="w"> </span>validate<span class="w"> </span>config.yml
 
 <span class="c1"># This creates:</span>
 <span class="c1"># - updated_config.yml (corrected configuration)</span>
@@ -1172,7 +1172,7 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
 <span class="p">}</span>
 </pre></div>
 </div>
-<p><strong>Complete Tutorial</strong>: <span class="xref std std-doc">Impact Studies</span></p>
+<p><strong>Complete Tutorial</strong>: <a class="reference internal" href="auto_examples/tutorial_04_impact_studies.html"><span class="doc">Impact Studies</span></a></p>
 </section>
 <section id="model-coupling-and-integration">
 <h3><span class="section-number">2.4.3. </span>Model Coupling and Integration<a class="headerlink" href="#model-coupling-and-integration" title="Link to this heading">#</a></h3>
@@ -1204,7 +1204,7 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
     <span class="k">return</span> <span class="n">wrf_fluxes</span>
 </pre></div>
 </div>
-<p><strong>Complete Tutorial</strong>: <span class="xref std std-doc">External Model Integration</span></p>
+<p><strong>Complete Tutorial</strong>: <a class="reference internal" href="auto_examples/tutorial_06_external_coupling.html"><span class="doc">External Model Integration</span></a></p>
 </section>
 <section id="advanced-analysis-patterns">
 <h3><span class="section-number">2.4.4. </span>Advanced Analysis Patterns<a class="headerlink" href="#advanced-analysis-patterns" title="Link to this heading">#</a></h3>
@@ -1288,11 +1288,8 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
 <section id="migration-process">
 <h3><span class="section-number">2.5.1. </span>Migration Process<a class="headerlink" href="#migration-process" title="Link to this heading">#</a></h3>
 <p><strong>Automated Conversion:</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert legacy table inputs to modern YAML (under development)</span>
-suews-convert<span class="w"> </span>to-yaml<span class="w"> </span>-i<span class="w"> </span>legacy_input_dir/<span class="w"> </span>-o<span class="w"> </span>modern_config.yml
-
-<span class="c1"># Note: This feature is under development</span>
-<span class="c1"># For now, use the SUEWSSimulation class with existing table inputs or YAML files</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert legacy table inputs to modern YAML</span>
+suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>legacy_input_dir/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>modern_config.yml
 </pre></div>
 </div>
 <p><strong>Testing Your Migration:</strong></p>
@@ -1446,7 +1443,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-09-15.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -1454,8 +1451,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

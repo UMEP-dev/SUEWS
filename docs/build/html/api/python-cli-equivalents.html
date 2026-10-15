@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-08-07T06:31:46+00:00" />
-    <title>6.6. Python API for CLI Users &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>6.6. Python API for CLI Users &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f772fd74"></script>
+    <script src="../_static/documentation_options.js?v=e0067d12"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="6.5. Knowledge Pack" href="knowledge-pack.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2026-08-07"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -757,7 +757,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <p>Validating YAML configuration files programmatically.</p>
 <section id="cli-command">
 <h3><a class="toc-backref" href="#id4" role="doc-backlink"><span class="section-number">6.6.1.1. </span>CLI Command</a><a class="headerlink" href="#cli-command" title="Link to this heading">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-validate<span class="w"> </span>config.yml
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>validate<span class="w"> </span>config.yml
 </pre></div>
 </div>
 </section>
@@ -855,8 +855,8 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <p>Converting between SUEWS input formats programmatically.</p>
 <section id="id1">
 <h3><a class="toc-backref" href="#id8" role="doc-backlink"><span class="section-number">6.6.2.1. </span>CLI Command</a><a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-i<span class="w"> </span>input_dir/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
-suews-convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span class="w"> </span>-o<span class="w"> </span>config.yml
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>input_dir/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
+suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span class="w"> </span>-o<span class="w"> </span>config.yml
 </pre></div>
 </div>
 </section>
@@ -938,18 +938,21 @@ is deprecated.</p>
 </div>
 <section id="id2">
 <h3><a class="toc-backref" href="#id12" role="doc-backlink"><span class="section-number">6.6.3.1. </span>CLI Command</a><a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run with RunControl.nml in current directory (default behaviour)</span>
-suews-run
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run with config.yml in the current directory (falls back to RunControl.nml)</span>
+suews<span class="w"> </span>run
 
-<span class="c1"># Run with RunControl.nml at specific path</span>
-suews-run<span class="w"> </span>-p<span class="w"> </span>path/to/RunControl.nml
+<span class="c1"># Run with a YAML configuration at a specific path</span>
+suews<span class="w"> </span>run<span class="w"> </span>path/to/config.yml
+
+<span class="c1"># Run with a legacy namelist (deprecated)</span>
+suews<span class="w"> </span>run<span class="w"> </span>path/to/RunControl.nml
 </pre></div>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The CLI command currently only supports the deprecated namelist format.
-YAML support is still being added.</p>
-<p>For YAML configurations, use the Python API below.</p>
+<p>With no argument, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code> looks for <code class="docutils literal notranslate"><span class="pre">config.yml</span></code> in the current
+directory first and only then for <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>. The <code class="docutils literal notranslate"><span class="pre">-p</span></code> option is
+deprecated; pass the configuration file as a positional argument instead.</p>
 </div>
 </section>
 <section id="python-api">
@@ -1288,7 +1291,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-08-07.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -1296,8 +1299,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

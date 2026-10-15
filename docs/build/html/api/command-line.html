@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-05-01T13:01:12+00:00" />
-    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.10.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
+    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.10.14.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=f772fd74"></script>
+    <script src="../_static/documentation_options.js?v=e0067d12"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="6.3.7.9. supy.util.AttributionResult" href="_autosummary/supy.util.AttributionResult.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev1" />
-    <meta name="docbuild:last-update" content="2026-05-01"/>
+  <meta name="docsearch:version" content="2026.10.14.dev2" />
+    <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a" style="color: #31708f;">8da29f9</a>).
+        (2026.10.14.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae" style="color: #31708f;">cf94865</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -662,11 +662,16 @@
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#available-commands">6.4.1. Available Commands</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-run">6.4.1.1. suews-run</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-convert">6.4.1.2. suews-convert</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-validate">6.4.1.3. suews-validate</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.4. suews-schema</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.5. suews knowledge</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-init">6.4.1.1. suews init</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-run">6.4.1.2. suews run</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-convert">6.4.1.3. suews convert</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-validate">6.4.1.4. suews validate</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-inspect">6.4.1.5. suews inspect</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-summarise">6.4.1.6. suews summarise</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-compare">6.4.1.7. suews compare</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-diagnose">6.4.1.8. suews diagnose</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.9. suews schema</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.10. suews knowledge</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.4.2. Related Documentation</a></li>
@@ -693,49 +698,63 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <section id="command-line-tools">
 <span id="api-command-line"></span><h1><span class="section-number">6.4. </span>Command-Line Tools<a class="headerlink" href="#command-line-tools" title="Link to this heading">#</a></h1>
 <p>SUEWS provides command-line tools for common operations without requiring Python scripting.</p>
+<p>All tools are subcommands of a single <code class="docutils literal notranslate"><span class="pre">suews</span></code> command. Run <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">--help</span></code> for the list, and <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">&lt;subcommand&gt;</span> <span class="pre">--help</span></code> for the options of each one. Most subcommands accept <code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">json</span></code>, which writes the standard SUEWS JSON envelope to stdout (see <a class="reference internal" href="../contributing/json-output-integration.html"><span class="doc">JSON Output Format</span></a>).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The hyphenated commands <code class="docutils literal notranslate"><span class="pre">suews-run</span></code>, <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code>, <code class="docutils literal notranslate"><span class="pre">suews-validate</span></code>, <code class="docutils literal notranslate"><span class="pre">suews-schema</span></code> and <code class="docutils literal notranslate"><span class="pre">suews-inspect</span></code> are deprecated aliases of <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code>, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code>, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code>, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> and <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">inspect</span></code>. They still work but print a <code class="docutils literal notranslate"><span class="pre">DEPRECATED:</span></code> notice to stderr and will be removed in a future release.</p>
+</div>
 <section id="available-commands">
 <h2><span class="section-number">6.4.1. </span>Available Commands<a class="headerlink" href="#available-commands" title="Link to this heading">#</a></h2>
+<section id="suews-init">
+<h3><span class="section-number">6.4.1.1. </span>suews init<a class="headerlink" href="#suews-init" title="Link to this heading">#</a></h3>
+<p>Create a new case directory from a packaged template. The directory is created if missing; existing config files are not overwritten.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>init<span class="w"> </span>my_case
+suews<span class="w"> </span>init<span class="w"> </span>my_case<span class="w"> </span>--template<span class="w"> </span>simple-urban
+</pre></div>
+</div>
+<p>Only the <code class="docutils literal notranslate"><span class="pre">simple-urban</span></code> template is shipped at present; the other template names (<code class="docutils literal notranslate"><span class="pre">multi-site</span></code>, <code class="docutils literal notranslate"><span class="pre">teaching-demo</span></code>, <code class="docutils literal notranslate"><span class="pre">spartacus</span></code>) are reserved and rejected with an error.</p>
+</section>
 <section id="suews-run">
-<h3><span class="section-number">6.4.1.1. </span>suews-run<a class="headerlink" href="#suews-run" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">6.4.1.2. </span>suews run<a class="headerlink" href="#suews-run" title="Link to this heading">#</a></h3>
 <p>Execute SUEWS simulations from the command line with YAML or namelist configuration files.</p>
 <p><strong>YAML Configuration (Recommended)</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run with YAML configuration file</span>
-suews-run<span class="w"> </span>config.yml
+suews<span class="w"> </span>run<span class="w"> </span>config.yml
 
 <span class="c1"># Or specify full path</span>
-suews-run<span class="w"> </span>/path/to/config.yml
+suews<span class="w"> </span>run<span class="w"> </span>/path/to/config.yml
 
 <span class="c1"># Use default config.yml in current directory</span>
-suews-run
+suews<span class="w"> </span>run
 </pre></div>
 </div>
 <p><strong>Namelist Configuration (Deprecated)</strong></p>
 <p>Legacy namelist format is still supported but deprecated:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Legacy format with deprecation warning</span>
-suews-run<span class="w"> </span>-p<span class="w"> </span>RunControl.nml
+suews<span class="w"> </span>run<span class="w"> </span>RunControl.nml
 </pre></div>
 </div>
 <p><strong>Migration from Namelist to YAML</strong></p>
 <p>To migrate from the deprecated namelist format to modern YAML:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Step 1: Convert namelist to YAML</span>
-suews-convert<span class="w"> </span>-i<span class="w"> </span>RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
+suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
 
 <span class="c1"># Step 2: Run with YAML configuration</span>
-suews-run<span class="w"> </span>config.yml
+suews<span class="w"> </span>run<span class="w"> </span>config.yml
 </pre></div>
 </div>
 <p><strong>Format Auto-Detection</strong></p>
 <p>The tool automatically detects the configuration format based on file extension:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">.yml</span></code>, <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> → YAML format (modern, recommended)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">.nml</span></code> → Namelist format (legacy, shows deprecation warning)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.yml</span></code>, <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> -&gt; YAML format (modern, recommended)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.nml</span></code> -&gt; Namelist format (legacy, shows deprecation warning)</p></li>
 </ul>
 <p>For detailed usage and examples, see the <a class="reference internal" href="../workflow.html"><span class="doc">Getting Started</span></a> guide.</p>
 </section>
 <section id="suews-convert">
-<h3><span class="section-number">6.4.1.2. </span>suews-convert<a class="headerlink" href="#suews-convert" title="Link to this heading">#</a></h3>
-<p>Convert between SUEWS input formats and versions.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-i<span class="w"> </span>input_dir<span class="w"> </span>-o<span class="w"> </span>output.yml
+<h3><span class="section-number">6.4.1.3. </span>suews convert<a class="headerlink" href="#suews-convert" title="Link to this heading">#</a></h3>
+<p>Convert a legacy table set (<code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>), a df_state snapshot (<code class="docutils literal notranslate"><span class="pre">.csv</span></code>/<code class="docutils literal notranslate"><span class="pre">.pkl</span></code>) or an older YAML configuration into a current-schema YAML file.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
 </pre></div>
 </div>
 <p><strong>Documentation</strong>:</p>
@@ -745,21 +764,56 @@ suews-run<span class="w"> </span>config.yml
 </ul>
 </section>
 <section id="suews-validate">
-<h3><span class="section-number">6.4.1.3. </span>suews-validate<a class="headerlink" href="#suews-validate" title="Link to this heading">#</a></h3>
-<p>Validate SUEWS YAML configuration files against the schema.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-validate<span class="w"> </span>config.yml
+<h3><span class="section-number">6.4.1.4. </span>suews validate<a class="headerlink" href="#suews-validate" title="Link to this heading">#</a></h3>
+<p>Validate SUEWS YAML configuration files against the schema and run the validation pipeline.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>validate<span class="w"> </span>config.yml
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="../inputs/yaml/validation.html"><span class="doc">Validation Tool Reference</span></a> for the pipeline phases and options.</p>
+</section>
+<section id="suews-inspect">
+<h3><span class="section-number">6.4.1.5. </span>suews inspect<a class="headerlink" href="#suews-inspect" title="Link to this heading">#</a></h3>
+<p>Show a compact, read-only overview of a YAML configuration: per-site coordinates, surface-cover fractions and a forcing file summary.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>inspect<span class="w"> </span>config.yml
+suews<span class="w"> </span>inspect<span class="w"> </span>config.yml<span class="w"> </span>--format<span class="w"> </span>json
+</pre></div>
+</div>
+</section>
+<section id="suews-summarise">
+<h3><span class="section-number">6.4.1.6. </span>suews summarise<a class="headerlink" href="#suews-summarise" title="Link to this heading">#</a></h3>
+<p>Print a per-variable summary (mean, minimum, maximum and percentage of missing values) of the output in a run directory.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>summarise<span class="w"> </span>path/to/run_dir
+suews<span class="w"> </span>summarise<span class="w"> </span>path/to/run_dir<span class="w"> </span>--variables<span class="w"> </span>QH,QE,QN
+</pre></div>
+</div>
+</section>
+<section id="suews-compare">
+<h3><span class="section-number">6.4.1.7. </span>suews compare<a class="headerlink" href="#suews-compare" title="Link to this heading">#</a></h3>
+<p>Compare two run directories, or a run directory and an observations CSV file, by computing per-variable RMSE, bias and Pearson correlation over their shared timestamps.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>compare<span class="w"> </span>run_a<span class="w"> </span>run_b
+suews<span class="w"> </span>compare<span class="w"> </span>run_a<span class="w"> </span>observations.csv<span class="w"> </span>--variables<span class="w"> </span>QH,QE<span class="w"> </span>--metrics<span class="w"> </span>rmse,bias
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">--grid</span></code> to choose a grid when an input holds several, and <code class="docutils literal notranslate"><span class="pre">--align</span> <span class="pre">positional</span></code> for inputs without a recoverable time axis.</p>
+</section>
+<section id="suews-diagnose">
+<h3><span class="section-number">6.4.1.8. </span>suews diagnose<a class="headerlink" href="#suews-diagnose" title="Link to this heading">#</a></h3>
+<p>Run a battery of checks on a run directory: provenance present, output files present, proportion of missing values in QH, QE and QN, and energy-balance closure.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>diagnose<span class="w"> </span>path/to/run_dir
+suews<span class="w"> </span>diagnose<span class="w"> </span>path/to/run_dir<span class="w"> </span>--format<span class="w"> </span>json
 </pre></div>
 </div>
 </section>
 <section id="suews-schema">
-<h3><span class="section-number">6.4.1.4. </span>suews-schema<a class="headerlink" href="#suews-schema" title="Link to this heading">#</a></h3>
-<p>Display and export SUEWS configuration schema for validation and tooling.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>--help
+<h3><span class="section-number">6.4.1.9. </span>suews schema<a class="headerlink" href="#suews-schema" title="Link to this heading">#</a></h3>
+<p>Display, check, migrate and export the SUEWS configuration schema (subcommands <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">migrate</span></code> and <code class="docutils literal notranslate"><span class="pre">export</span></code>).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>--help
 </pre></div>
 </div>
+<p>See <a class="reference internal" href="../contributing/schema/schema_cli.html"><span class="doc">Schema Management CLI</span></a> for details.</p>
 </section>
 <section id="suews-knowledge">
-<h3><span class="section-number">6.4.1.5. </span>suews knowledge<a class="headerlink" href="#suews-knowledge" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">6.4.1.10. </span>suews knowledge<a class="headerlink" href="#suews-knowledge" title="Link to this heading">#</a></h3>
 <p>Query the packaged source-evidence knowledge pack. The pack is generated from
 the Git checkout used to build the installed SuPy wheel and carries citations
 back to the exact repository paths and line spans.</p>
@@ -829,11 +883,16 @@ suews<span class="w"> </span>knowledge<span class="w"> </span>query<span class="
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#available-commands">6.4.1. Available Commands</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-run">6.4.1.1. suews-run</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-convert">6.4.1.2. suews-convert</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-validate">6.4.1.3. suews-validate</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.4. suews-schema</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.5. suews knowledge</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-init">6.4.1.1. suews init</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-run">6.4.1.2. suews run</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-convert">6.4.1.3. suews convert</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-validate">6.4.1.4. suews validate</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-inspect">6.4.1.5. suews inspect</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-summarise">6.4.1.6. suews summarise</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-compare">6.4.1.7. suews compare</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-diagnose">6.4.1.8. suews diagnose</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.9. suews schema</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.10. suews knowledge</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.4.2. Related Documentation</a></li>
@@ -870,7 +929,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-05-01.
+  Last updated on 2026-10-15.
   <br/>
 </p>
   </div>
@@ -878,8 +937,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8da29f9603b7edaf91b804245f2a70f2fa8f7e6a">8da29f9</a> |
+  <p>Version: 2026.10.14.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cf948655aea0c017a4749fc3e2a5cff41dcd7dae">cf94865</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

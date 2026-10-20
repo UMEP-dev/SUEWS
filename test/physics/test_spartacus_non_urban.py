@@ -1,10 +1,14 @@
 """Regression tests for non-urban SPARTACUS paths."""
 
-from conftest import load_sample_frames, run_simulation
+from conftest import load_sample_frames
 import numpy as np
 import pytest
+from supy import SUEWSSimulation
 
 pytestmark = [pytest.mark.physics, pytest.mark.core]
+
+# SPARTACUS radiation_constants.F90, in W m-2 K-4.
+STEFAN_BOLTZMANN = 5.67037321e-8
 
 
 def _forest_only_direct_albedo_state(df_state_init):
@@ -42,6 +46,10 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays(
     df_state_init, df_forcing = load_sample_frames()
     df_state = _forest_only_direct_albedo_state(df_state_init)
     df_state.loc[:, ("air_ext_lw", "0")] = air_ext_lw
+    albedo_diffuse = 0.25
+    albedo_direct_factor = df_state[("ground_albedo_dir_mult_fact", "0")].iloc[0]
+    emissivity = 0.95
+    fraction_direct = 0.6
     if not with_trees:
         df_state.loc[:, ("sfr_surf", "(2,)")] = 0.0
         df_state.loc[:, ("sfr_surf", "(4,)")] = 1.0
@@ -49,17 +57,26 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays(
         df_state.loc[:, "veg_scale"] = 0.0
         df_state.loc[:, ("evetreeh", "0")] = 0.0
         df_state.loc[:, ("faievetree", "0")] = 0.0
+        # Fix grass optical properties independently of seasonal phenology.
+        for name in ("albmin_grass", "albmax_grass", "albgrass_id"):
+            df_state.loc[:, (name, "0")] = albedo_diffuse
+        df_state.loc[:, ("emis", "(4,)")] = emissivity
+        df_state.loc[:, ("kdown_split_method", "0")] = 2
+        df_state.loc[:, ("sw_dn_direct_frac", "0")] = fraction_direct
     df_forcing_daytime = df_forcing.loc[df_forcing["kdown"] > 100].iloc[:2]
     # Method 1001 uses observed longwave; the sample has missing ldown.
     df_forcing_daytime = df_forcing_daytime.copy()
     df_forcing_daytime["ldown"] = 300.0
 
-    df_output, _ = run_simulation(
-        df_forcing_daytime,
-        df_state,
-        validate_forcing=False,
-        serial_mode=True,
-    )
+    simulation = SUEWSSimulation.from_state(df_state)
+    simulation.update_forcing(df_forcing_daytime)
+    output = simulation.run(n_jobs=1)
+    kernel_warnings = output.kernel_warnings
+    spartacus_warnings = kernel_warnings[
+        kernel_warnings["location"].str.contains("SPARTACUS", case=False, na=False)
+    ]
+    assert spartacus_warnings.empty, spartacus_warnings.to_string(index=False)
+    df_output = output.df
 
     assert "SPARTACUS" in df_output.columns.get_level_values(0)
 
@@ -91,10 +108,27 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays(
                 columns = [f"{band}{quantity}_{facet}_{layer}" for layer in range(1, 4)]
                 np.testing.assert_allclose(spartacus[columns], 0.0, atol=1e-12)
     if not with_trees:
-        # A flat tile has no canopy absorption; budgets agree to round-off.
-        np.testing.assert_allclose(
-            spartacus["LTopNet"], spartacus["LNet_Grnd"], rtol=0, atol=1e-10
+        # No canopy: both boundaries obey the flat-tile radiation laws.
+        kdown = df_forcing_daytime["kdown"].to_numpy()
+        expected_shortwave = (
+            kdown * fraction_direct * (1 - albedo_diffuse * albedo_direct_factor)
+            + kdown * (1 - fraction_direct) * (1 - albedo_diffuse)
         )
-        np.testing.assert_allclose(
-            spartacus["KTopNet"], spartacus["KNet_Grnd"], rtol=0, atol=1e-10
+        # Tsurf is the area-weighted temperature used in radiation, before
+        # the subsequent turbulent-flux temperature update. Here it is grass.
+        temperature_ground = df_output["SUEWS", "Tsurf"].to_numpy() + 273.15
+        expected_longwave = emissivity * (
+            df_forcing_daytime["ldown"].to_numpy()
+            - STEFAN_BOLTZMANN * temperature_ground**4
         )
+        # Shortwave should agree to double-precision round-off.
+        for column in ("KTopNet", "KNet_Grnd"):
+            np.testing.assert_allclose(
+                spartacus[column], expected_shortwave, rtol=0, atol=1e-10
+            )
+        for column in ("LTopNet", "LNet_Grnd"):
+            # The kernel's single-precision 273.15 literal shifts emission
+            # by about 3e-5 W m-2 at these temperatures.
+            np.testing.assert_allclose(
+                spartacus[column], expected_longwave, rtol=0, atol=1e-4
+            )

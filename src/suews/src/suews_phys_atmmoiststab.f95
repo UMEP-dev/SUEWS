@@ -3,6 +3,7 @@ MODULE module_phys_atmmoiststab
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
    USE module_ctrl_const_physconst, ONLY: eps_fp
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
@@ -383,6 +384,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: zl, psim
       INTEGER :: StabilityMethod
+      CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
       CASE (W16)
@@ -397,6 +399,13 @@ CONTAINS
       CASE (B71)
          psim = psi_mom_B71(ZL)
 
+      CASE DEFAULT
+         WRITE (message, '(A,I0,A)') 'stab_psi_mom: stability=', StabilityMethod, &
+            ' is reserved or unsupported; use an implemented stability method.'
+         CALL set_supy_error(107, TRIM(message))
+         ! Neutral fallback is safe for callers unwinding the fatal error.
+         psim = 0.0D0
+         RETURN
       END SELECT
 
    END FUNCTION
@@ -407,6 +416,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: zl, psih
       INTEGER :: StabilityMethod
+      CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
       CASE (W16)
@@ -421,6 +431,13 @@ CONTAINS
       CASE (B71)
          psih = psi_heat_B71(ZL)
 
+      CASE DEFAULT
+         WRITE (message, '(A,I0,A)') 'stab_psi_heat: stability=', StabilityMethod, &
+            ' is reserved or unsupported; use an implemented stability method.'
+         CALL set_supy_error(107, TRIM(message))
+         ! Neutral fallback is safe for callers unwinding the fatal error.
+         psih = 0.0D0
+         RETURN
       END SELECT
 
    END FUNCTION
@@ -431,6 +448,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: zl, phim
       INTEGER :: StabilityMethod
+      CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
       CASE (J12)
@@ -442,6 +460,13 @@ CONTAINS
       CASE (B71)
          phim = phi_mom_B71(zl)
 
+      CASE DEFAULT
+         WRITE (message, '(A,I0,A)') 'stab_phi_mom: stability=', StabilityMethod, &
+            ' is reserved or unsupported; use an implemented stability method.'
+         CALL set_supy_error(107, TRIM(message))
+         ! Neutral fallback is safe for callers unwinding the fatal error.
+         phim = 1.0D0
+         RETURN
       END SELECT
 
    END FUNCTION
@@ -452,6 +477,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: zl, phih
       INTEGER :: StabilityMethod
+      CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
       CASE (J12)
@@ -463,6 +489,13 @@ CONTAINS
       CASE (B71)
          phih = phi_heat_B71(zl)
 
+      CASE DEFAULT
+         WRITE (message, '(A,I0,A)') 'stab_phi_heat: stability=', StabilityMethod, &
+            ' is reserved or unsupported; use an implemented stability method.'
+         CALL set_supy_error(107, TRIM(message))
+         ! Neutral fallback is safe for callers unwinding the fatal error.
+         phih = 1.0D0
+         RETURN
       END SELECT
 
    END FUNCTION

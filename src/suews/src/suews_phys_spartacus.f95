@@ -191,13 +191,14 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(OUT) :: qn_roof
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(OUT) :: qn_wall
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(OUT) :: qn_surf
-      REAL(KIND(1D0)) :: sw_net_grnd
+      REAL(KIND(1D0)) :: sw_net_grnd_sum
       REAL(KIND(1D0)) :: lw_net_grnd
-      REAL(KIND(1D0)) :: sw_dn_grnd
+      REAL(KIND(1D0)) :: sw_dn_grnd_dir, sw_dn_grnd_diff
       REAL(KIND(1D0)) :: lw_dn_grnd
       REAL(KIND(1D0)) :: lw_up_grnd
       REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: qn_grnd_ind
       REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: alb_grnd_ind
+      REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: alb_grnd_dir_ind
       REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: emis_grnd_ind
       REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: sfr_grnd_ind
       REAL(KIND(1D0)), DIMENSION(nsurf - 1) :: sw_net_grnd_ind
@@ -1131,12 +1132,29 @@ CONTAINS
 
       ! note the ground here includes all surfaces that are not roof/wall
       ! de-normalise net radiation for ground surfaces - these will be used in other SUEWS calculations:
-      sw_net_grnd = grnd_net_sw_spc/(1 - building_frac(1))
       lw_net_grnd = grnd_net_lw_spc/(1 - building_frac(1))
 
-      ! net shortwave radiation for individual ground surfaces
-      sw_dn_grnd = sw_net_grnd/DOT_PRODUCT(alb_grnd_ind, sfr_grnd_ind)/SUM(sfr_grnd_ind)
-      sw_net_grnd_ind = sw_net_grnd*(1 - alb_surf([PavSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf]))
+      ! Absorb incident direct and diffuse SW once, using each surface's albedo.
+      ! All three solver ground fluxes are per grid area; use the same ground
+      ! area to convert the incident fluxes to W m-2 of ground.
+      sw_dn_grnd_dir = grnd_dn_dir_sw_spc/(1 - building_frac(1))
+      sw_dn_grnd_diff = (grnd_dn_sw_spc - grnd_dn_dir_sw_spc)/(1 - building_frac(1))
+      alb_grnd_dir_ind = alb_grnd_ind
+      IF (config%use_sw_direct_albedo) alb_grnd_dir_ind = alb_grnd_ind*ground_albedo_dir_mult_fact
+      sw_net_grnd_ind = sw_dn_grnd_dir*(1.0D0 - alb_grnd_dir_ind) &
+                        + sw_dn_grnd_diff*(1.0D0 - alb_grnd_ind)
+
+      ! The solver's effective ground albedo excludes trees, whereas these
+      ! surface fractions include them. Preserve relative absorption but
+      ! rescale to the solver's ground budget, not a residual on buildings.
+      sw_net_grnd_sum = DOT_PRODUCT(sw_net_grnd_ind, sfr_grnd_ind)
+      IF (sw_net_grnd_sum > eps_fp) THEN
+         sw_net_grnd_ind = sw_net_grnd_ind*(grnd_net_sw_spc/sw_net_grnd_sum)
+      ELSE
+         ! No resolved absorption (night or perfectly reflecting ground):
+         ! retain the budget without dividing by zero or a vanishing flux.
+         sw_net_grnd_ind = grnd_net_sw_spc/SUM(sfr_grnd_ind)
+      END IF
 
       ! net longwave radiation for individual ground surfaces
       lw_up_grnd = SBConst*DOT_PRODUCT(emis_grnd_ind*tsfc_grnd_ind_K**4, sfr_grnd_ind)/SUM(sfr_grnd_ind)

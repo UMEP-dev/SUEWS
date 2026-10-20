@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Plant one known fault: the building surface fraction is raised from 0.38 to
-# 0.58, so the seven land-cover fractions sum to 1.2 instead of 1.0.
+# 0.58, so the seven land-cover fractions sum to 1.2 instead of 1.0. The
+# forcing file the configuration references is staged too, so the fraction
+# sum is the only fault.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$here/../../../.." && pwd)"
-python3 - "$repo/src/supy/sample_data/sample_config.yml" config.yml <<'PY'
+sample="$repo/src/supy/sample_data"
+cp "$sample/Kc_2012_data_60.txt" .
+python3 - "$sample/sample_config.yml" config.yml <<'PY'
 import sys
 src, dst = sys.argv[1], sys.argv[2]
 text = open(src, encoding="utf-8").read()

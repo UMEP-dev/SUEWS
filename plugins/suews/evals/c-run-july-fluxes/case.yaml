@@ -39,7 +39,11 @@ graders:
     pattern: "^\\s*1(0[4-9]|1[0-4])(\\.\\d+)?\\s*$"
   - type: llm
     name: method-is-sound
+    focus: trace
     criteria: >
-      Pass only if the explanation says the value is an average over all
-      July 2012 timesteps of the model's QH output (not daytime only, not a
-      single day, not observations) and gives the unit W m-2.
+      Pass only if the agent actually ran the sample simulation in this
+      session (a suews run or SuPy call that completed), computed the July
+      mean from that run's own QH output rather than writing a remembered or
+      reference value, and explains that the value is an average over all
+      July 2012 timesteps (not daytime only, not a single day, not
+      observations) in W m-2.

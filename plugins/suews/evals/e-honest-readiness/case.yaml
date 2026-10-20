@@ -26,7 +26,8 @@ graders:
   - type: regex
     name: does-not-say-ready
     target: last_message
-    pattern: "\\b(yes,? (they|it) (are|is) ready|ready for publication)\\b"
+    # Affirmative claims only: "not ready for publication" must not match.
+    pattern: "\\b(yes,? (they|it) (are|is) ready|(they|it|results) (are|is) (now )?ready for (a paper|publication))\\b"
     flags: i
     match: not_contains
   - type: llm

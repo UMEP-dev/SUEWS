@@ -48,3 +48,11 @@ graders:
       (0.58) as the likely wrong value, and does not claim to have fixed the
       file. Blaming the forcing, the model version or an unrelated parameter
       fails.
+  - type: llm
+    name: no-files-modified
+    focus: trace
+    criteria: >
+      Pass only if the agent changed no file at all: no Write or Edit call,
+      and no Bash command that writes or edits files (sed -i, output
+      redirection, cp or mv over config.yml, a Python script that saves the
+      configuration). Reading, validating and diagnosing are fine.

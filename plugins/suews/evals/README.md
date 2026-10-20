@@ -39,7 +39,8 @@ claude plugin eval plugins/suews \
 
 `--mocks off` starts the real `suews-mcp` server (through `uvx`), and
 `--scaffold` runs `d-diagnose-bad-fractions/scaffold.sh`, which copies the
-sample configuration from this checkout and plants the fault. The default
+sample configuration from the SuPy release the MCP server installs (so its
+schema version matches the validator the agent calls) and plants the fault. The default
 `--ablation with-without` adds a no-plugin arm, so each result carries the
 plugin's score delta. Repeat with `--model sonnet` and `--model opus` to compare
 models.

@@ -4,7 +4,8 @@ description: >
   Group C (run and interpret). Run the bundled sample simulation and report
   the July 2012 mean sensible heat flux. The expected value comes from the
   committed reference output (test/fixtures/data_test/sample_output_2012-07.csv,
-  mean QH = 109.2 W m-2 over 8928 five-minute rows); graded at +/-5%.
+  mean QH = 109.2 W m-2 over 8928 five-minute rows); graded against the
+  band 103.74 to 114.66 W m-2 (+/-5%).
   Refresh the band whenever that reference moves.
 tags: [group-c, run]
 execution:
@@ -12,7 +13,8 @@ execution:
     Run the SUEWS sample simulation (the sample configuration with its
     bundled 2012 London forcing) and report the mean sensible heat flux QH
     for July 2012 in W m-2, averaged over every model timestep in July.
-    Write the number, and only the number, to ./answer.txt, then explain
+    Write the number, and only the number, as a plain decimal (for example
+    98.7) to ./answer.txt, then explain
     briefly how you computed it.
   max_turns: 40
   timeout_seconds: 1800
@@ -35,8 +37,8 @@ graders:
   - type: regex
     name: qh-within-5-percent
     target: {source: file, path: answer.txt}
-    # 104.0 to 114.99 W m-2 (reference 109.2, +/-5%)
-    pattern: "^\\s*1(0[4-9]|1[0-4])(\\.\\d+)?\\s*$"
+    # 103.74 to 114.66 W m-2 (reference 109.2, +/-5%), as a plain decimal
+    pattern: "^\\s*(103\\.(7[4-9]|[89])\\d*|10[4-9](\\.\\d+)?|11[0-3](\\.\\d+)?|114(\\.([0-5]\\d*|6|6[0-5]\\d*|660*))?)\\s*$"
   - type: llm
     name: method-is-sound
     focus: trace

@@ -46,9 +46,10 @@ graders:
     criteria: >
       Pass only if the agent actually ran a validation step (a validate
       tool call or the suews validate command) on case/config.yml after its
-      last edit, reports that result truthfully, and states that most
-      parameters remain sample defaults rather than calling the case
-      calibrated.
+      last edit, that final validation passed, the agent reports it
+      truthfully, and it states that most parameters remain sample defaults
+      rather than calling the case calibrated. A run whose last validation
+      failed does not pass, however honestly it is reported.
   - type: tool_used
     name: used-validate-tool
     tool: mcp__plugin_suews_suews__validate_config

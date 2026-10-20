@@ -1,9 +1,11 @@
 """Transparent transport, SW zero-absorption convention and band isolation."""
 
 import ctypes
+import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -60,7 +62,7 @@ end subroutine matrices
         "radtool/radtool_calc_matrices_lw_eig.F90",
         "radtool/radtool_calc_matrices_sw_eig.F90",
     ]
-    library = directory / "matrices.so"
+    library = directory / ("matrices.dll" if sys.platform == "win32" else "matrices.so")
     # Match the numerical flags in Makefile.gfortran for each build profile.
     profile_flags = ["-O3"] if request.param == "release" else ["-O0", "-fcheck=all"]
     subprocess.run(
@@ -70,7 +72,17 @@ end subroutine matrices
          str(wrapper), "-o", str(library)],
         cwd=directory, check=True, capture_output=True, text=True,
     )
-    native = ctypes.CDLL(str(library)).matrices
+    if sys.platform == "win32":
+        # The library links the gfortran and OpenMP runtimes, which Windows
+        # resolves only from directories registered for DLL search.
+        os.add_dll_directory(str(Path(compiler).resolve().parent))
+    try:
+        native = ctypes.CDLL(str(library)).matrices
+    except OSError as error:
+        if sys.platform != "win32":
+            raise
+        pytest.skip(f"gfortran runtime DLLs not loadable on this runner ({error}); "
+                    "the solver maths is checked on Linux and macOS")
     array_arg = np.ctypeslib.ndpointer(dtype=np.float64, flags="F_CONTIGUOUS")
     native.argtypes = [ctypes.c_int] * 4 + [array_arg] * 6
     native.restype = None

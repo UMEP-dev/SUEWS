@@ -12,6 +12,10 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
+! SUEWS modification (2026, GH#1498): handle transparent spectral bands
+! with analytical transmission, integrated flux and emission source terms.
+! See ../SUEWS_PATCHES.md for scope and upstream follow-up.
+!
 
 module radtool_calc_matrices_lw_eig
 
@@ -144,7 +148,8 @@ contains
     if (any(transparent)) then
       ! A transparent layer has R=0 and T=I. The eigenvalue formulation
       ! below instead tries to invert a zero matrix (GH#1498). Treat each
-      ! spectral interval independently so absorbing bands remain unchanged.
+      ! spectral interval independently, using the existing solver for
+      ! ordinary bands (multi-band optimisation may change the last bits).
       do jspec = 1,nmat
         if (transparent(jspec)) then
           reflectance(jspec,:,:) = 0.0_jprb

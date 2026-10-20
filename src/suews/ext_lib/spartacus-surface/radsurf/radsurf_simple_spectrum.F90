@@ -12,6 +12,10 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
+! SUEWS modification (2026, GH#1498): skip canopy emission arrays for
+! flat tiles with neither urban nor vegetation canopy enabled.
+! See ../SUEWS_PATCHES.md for scope and upstream follow-up.
+!
 
 module radsurf_simple_spectrum
 

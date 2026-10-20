@@ -12,6 +12,10 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
+! SUEWS modification (2026, GH#1498): handle transparent spectral bands
+! without singular inverses; document the zero-absorption convention.
+! See ../SUEWS_PATCHES.md for scope and upstream follow-up.
+!
 
 module radtool_calc_matrices_sw_eig
 
@@ -93,7 +97,12 @@ contains
     ! base, and s_conv is the convergence of direct fluxes into the
     ! layer, i.e. the direct flux at layer top minus the direct flux
     ! at layer base. Likewise, the integrated direct flux is 
-    !   int_diff * s_conv
+    !   int_dir * s_conv
+    ! Exception: for a fully transparent band, all three coefficients
+    ! are zero by an absorption convention, since flux convergence and
+    ! absorption are zero. This is not the analytical integrated-flux
+    ! limit: illuminated transparent layers have nonzero integrated flux,
+    ! which no finite coefficient multiplying zero convergence recovers.
     real(kind=jprb), intent(out), optional &
          &  :: int_diff(nmat,ndiff,ndiff), &
          &     int_dir(nmat,ndir,ndir), &
@@ -200,8 +209,9 @@ contains
             trans_dir(jspec,jo,jo) = 1.0_jprb
           end do
           ! These inverse-Gamma coefficients multiply flux convergence,
-          ! which is zero here. Choose zero for the zero absorption;
-          ! unlike LW int_flux, they do not multiply incoming flux.
+          ! which is zero here. Zero is an absorption convention, not
+          ! the analytical integrated-flux limit. Unlike LW int_flux,
+          ! these coefficients do not multiply incoming flux.
           band_int_dir = 0.0_jprb
           band_int_diff = 0.0_jprb
           band_int_dir_diff = 0.0_jprb

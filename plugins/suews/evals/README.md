@@ -44,7 +44,11 @@ task, and the wrapper grants it only its three read-only MCP tools
 (`validate_config`, `inspect_config`, `diagnose_run`).
 
 `--mocks off` starts the real `suews-mcp` server (through `uvx`), and
-`--scaffold` runs `d-diagnose-bad-fractions/scaffold.sh`, which copies the
+`--scaffold` runs each case's `scaffold.sh` on your machine before the agent
+starts. For `b-new-site-config` and `c-run-july-fluxes` it installs the same
+SuPy release the MCP server uses into the workspace's `./.venv`
+(`stage_supy.sh`), so the no-plugin arm can run SUEWS too and the score delta
+measures the plugin, not a missing install. For `d-diagnose-bad-fractions` it copies the
 sample configuration from the SuPy release the MCP server installs (so its
 schema version matches the validator the agent calls) and plants the fault. The default
 `--ablation with-without` adds a no-plugin arm, so each result carries the

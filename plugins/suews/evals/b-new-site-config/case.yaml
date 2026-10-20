@@ -5,6 +5,9 @@ description: >
   relocate it to Manchester, and confirm it validates. Graded on the
   file the agent writes, not on what it says it did.
 tags: [group-b, config]
+context:
+  # Installs the MCP server's SuPy into ./.venv so both arms can run SUEWS.
+  scaffold_script: scaffold.sh
 execution:
   prompt: |
     Set up a new SUEWS case in the directory ./case, starting from the
@@ -12,6 +15,7 @@ execution:
     longitude -2.24 (Manchester), then validate the configuration. The final
     configuration must be saved as ./case/config.yml. Finish by stating
     whether validation passed and which values are still sample defaults.
+    A Python environment with SuPy installed is available at ./.venv.
   max_turns: 30
   timeout_seconds: 900
   allowed_tools:

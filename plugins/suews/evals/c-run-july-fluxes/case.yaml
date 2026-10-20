@@ -8,14 +8,17 @@ description: >
   band 103.74 to 114.66 W m-2 (+/-5%).
   Refresh the band whenever that reference moves.
 tags: [group-c, run]
+context:
+  # Installs the MCP server's SuPy into ./.venv so both arms can run SUEWS.
+  scaffold_script: scaffold.sh
 execution:
   prompt: |
     Run the SUEWS sample simulation (the sample configuration with its
     bundled 2012 London forcing) and report the mean sensible heat flux QH
     for July 2012 in W m-2, averaged over every model timestep in July.
     Write the number, and only the number, as a plain decimal (for example
-    98.7) to ./answer.txt, then explain
-    briefly how you computed it.
+    98.7) to ./answer.txt, then explain briefly how you computed it.
+    A Python environment with SuPy installed is available at ./.venv.
   max_turns: 40
   timeout_seconds: 1800
   allowed_tools:

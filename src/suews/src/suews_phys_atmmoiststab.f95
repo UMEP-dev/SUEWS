@@ -470,7 +470,7 @@ CONTAINS
 
       CASE DEFAULT
          WRITE (message, '(A,I0,A)') 'stab_phi_mom: stability=', StabilityMethod, &
-            ' is reserved or unsupported; use 3 (recommended), 2 or 4.'
+            ' is reserved or unsupported; use 3 (recommended) or 4.'
          CALL set_supy_error(107, TRIM(message))
          ! Neutral value keeps callers finite until the driver reports the error.
          phim = 1.0D0
@@ -507,7 +507,7 @@ CONTAINS
 
       CASE DEFAULT
          WRITE (message, '(A,I0,A)') 'stab_phi_heat: stability=', StabilityMethod, &
-            ' is reserved or unsupported; use 3 (recommended), 2 or 4.'
+            ' is reserved or unsupported; use 3 (recommended) or 4.'
          CALL set_supy_error(107, TRIM(message))
          ! Neutral value keeps callers finite until the driver reports the error.
          phih = 1.0D0

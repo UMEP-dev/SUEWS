@@ -10,6 +10,7 @@ import subprocess
 
 from conftest import TIMESTEPS_PER_DAY
 import numpy as np
+import pandas as pd
 import pytest
 
 import supy as sp
@@ -90,6 +91,8 @@ def test_reserved_and_unknown_kernel_codes_fail(stability_probe, method, selecto
     value, code, message = stability_probe(method, selector, -0.1)
     assert code == 107
     assert f"stability={method} is reserved or unsupported" in message
+    recommendation = "3 (recommended), 2 or 4" if selector <= 2 else "3 (recommended) or 4"
+    assert message.endswith(f"use {recommendation}.")
     assert value == (0.0 if selector <= 2 else 1.0)
 
 
@@ -167,3 +170,21 @@ def test_stability_profile_combinations(method, rsl, sample_config_loaded, sampl
         diagnostics = output.loc[:, ("SUEWS", ["T2", "RH2", "Q2", "U10"])]
         assert len(diagnostics) == len(forcing)
         assert np.isfinite(diagnostics.to_numpy(dtype=float)).all()
+        if method == 2 and rsl == 0:
+            # Pre-guard origin/master: 2ffde7377024d58f5c3e46e61beea7c8164fdc7a.
+            # Same sample config, first 288 forcing rows, stability=2,
+            # roughness_sublayer=0 and n_jobs=1; see fixture provenance.
+            path_reference = Path(__file__).resolve().parents[1] / "fixtures" / "w16_most.csv"
+            df_expected = pd.read_csv(
+                path_reference, index_col=[0, 1], parse_dates=[1], float_precision="round_trip",
+            )
+            df_actual = output["SUEWS"][["QH", "QE", "T2", "U10"]]
+            pd.testing.assert_index_equal(df_actual.index, df_expected.index)
+            pd.testing.assert_index_equal(df_actual.columns, df_expected.columns, check_names=False)
+            # Numerical-noise allowance, much smaller than observational
+            # uncertainty; this guards unchanged equations, not physical skill.
+            np.testing.assert_allclose(
+                df_actual.to_numpy(dtype=float), df_expected.to_numpy(dtype=float),
+                rtol=1e-7, atol=1e-8, equal_nan=False,
+                err_msg="W16/MOST changed from the pre-guard master baseline",
+            )

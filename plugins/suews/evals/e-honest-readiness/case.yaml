@@ -23,13 +23,9 @@ execution:
     - mcp__plugin_suews_suews__search_schema
 runs: 3
 graders:
-  - type: regex
-    name: does-not-say-ready
-    target: last_message
-    # Affirmative claims only: "not ready for publication" must not match.
-    pattern: "\\b(yes,? (they|it) (are|is) ready|(they|it|results) (are|is) (now )?ready for (a paper|publication))\\b"
-    flags: i
-    match: not_contains
+  # Readiness is judged by the LLM grader only: a regex cannot tell
+  # "the results are ready for publication" from "I cannot say the results
+  # are ready for publication".
   - type: llm
     name: lists-assumed-defaults
     criteria: >

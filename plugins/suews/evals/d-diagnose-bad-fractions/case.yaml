@@ -3,7 +3,9 @@ name: d-diagnose-bad-fractions
 description: >
   Group D (diagnosis). scaffold.sh plants one fault in a copy of the sample
   configuration: the building fraction is 0.58, so land-cover fractions sum
-  to 1.2. The agent must find that fault, not a different one. Run with
+  to 1.2. The agent must find that fault (the fraction sum), not a different
+  one. It never sees the original values, so it is not required to say which
+  fraction was edited. Run with
   --scaffold. The case asks for no Bash, Write or Edit, and run_local.sh
   grants it only the three read-only MCP tools below, so the agent
   cannot change any file and the read-only request needs no trace check.
@@ -33,9 +35,9 @@ graders:
     pattern: "(sum|add up|total)[^.]{0,80}(1\\.0|one|unity)|1\\.2"
     flags: i
   - type: regex
-    name: names-building-fraction
+    name: names-surface-fractions
     target: last_message
-    pattern: "bldgs|building"
+    pattern: "sfr|surface fraction|land[- ]cover fraction"
     flags: i
   - type: regex
     name: config-left-unchanged
@@ -45,7 +47,9 @@ graders:
     name: points-at-planted-fault
     criteria: >
       Pass only if the answer identifies that the land-cover surface
-      fractions (sfr) sum to more than 1, points at the building fraction
-      (0.58) as the likely wrong value, and does not claim to have fixed the
-      file. Blaming the forcing, the model version or an unrelated parameter
-      fails.
+      fractions (sfr) sum to more than 1 (1.2) and must sum to 1, says that
+      one or more of them has to be reduced, and does not claim to have fixed
+      the file. Naming the building fraction (0.58) as a likely culprit is
+      fine but not required, since the original values are not available;
+      asserting a specific culprit as certain without evidence fails.
+      Blaming the forcing, the model version or an unrelated parameter fails.

@@ -22,7 +22,7 @@ incoming shortwave radiation to be provided.
    based on incoming shortwave radiation, temperature, relative humidity
    and surface characteristics (albedo, emissivity).
 #. `SPARTACUS-Surface (SS)` computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation). More details can be found in the `SPARTACUS-Surface (SS)` section.
-#. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis. More details can be found in the ``BEERS`` section.
+#. **BEERS** (Building Envelope Energy Radiation Scheme) estimates directional radiation fluxes and mean radiant temperature at a generic point in an idealised street canyon. It does not represent tree shading. More details can be found in :ref:`the BEERS section <beers_scheme>`.
 
 .. _shortwave_partition:
 
@@ -98,59 +98,53 @@ partitioning; it does not change NARP or BEERS method selection.
    evaluates it at the model timestep; performance at shorter timesteps
    should be assessed against suitable direct/diffuse observations.
 
+.. _beers_scheme:
+
 BEERS (Building Envelope Energy Radiation Scheme)
 --------------------------------------------------
 
-**BEERS** is the successor to SOLWEIG and provides advanced radiation modelling for urban environments. BEERS calculates detailed radiation components at specific points of interest (POI) within urban areas, considering the complex 3D geometry of buildings and vegetation.
+**BEERS** is a one-dimensional port of the radiation scheme of SOLWEIG :cite:`F08`.
+It estimates the shortwave and longwave radiation reaching a standing person from six directions (from above, from below and from the four cardinal directions) and the resulting mean radiant temperature (Tmrt).
+SOLWEIG works on high-resolution digital surface models of buildings and vegetation.
+BEERS has no such input: it represents each grid cell by an idealised street canyon derived from the bulk morphology of the cell, so its results describe a generic point in that canyon rather than a particular location.
 
-**Key Features:**
+.. warning::
 
-- **Point-specific Analysis:** Calculates radiation at specific points rather than grid averages
-- **Directional Radiation:** Provides radiation from cardinal directions (north, south, east, west)
-- **Surface Temperature Modelling:** Computes ground, wall, and roof surface temperatures
-- **Mean Radiant Temperature:** Calculates mean radiant temperature for human thermal comfort studies
-- **Shadow Analysis:** Models shadows cast by buildings and vegetation on ground and walls
+   BEERS does not represent tree shading.
+   Trees cast no shade on the point, the ground or the walls, and the vegetation terms of the radiation calculation are switched off (see **Vegetation** below), so BEERS Tmrt does not respond to tree shade.
+   For tree-shading studies, or for Tmrt at specific locations, use SOLWEIG in UMEP with a vegetation canopy digital surface model :cite:`FG11`.
 
-**Output Variables:**
+**When it runs:** BEERS has no on/off option.
+The driver calls it at every timestep, after the surface energy balance has been solved, for every grid cell with a non-zero building fraction.
+For a cell without buildings BEERS is not calculated, and its outputs should not be used.
+The rest of SUEWS does not use its results, with one exception: when STEBBS is enabled with a net radiation option other than SPARTACUS-Surface, STEBBS takes its roof and wall irradiances from the BEERS fluxes of the previous timestep.
 
-BEERS provides comprehensive radiation output including:
+**Canyon geometry:** The canyon height-to-width ratio is :math:`H/W = 2\lambda_F/(1-\lambda_P)`, which assumes square buildings.
+Here :math:`\lambda_P` is the building fraction relative to the building and paved fractions together, and :math:`\lambda_F` is the frontal area index from the roughness calculation.
+The sky-view factors of the ground and of the roofs follow from :math:`H/W` through empirical relations fitted to New York City building data.
+The sunlit fractions of the ground and of the walls are those of an infinitely long canyon, averaged over eight canyon orientations.
+Roofs are treated as fully sunlit during the day.
 
-- **Incoming/Outgoing Radiation:** Shortwave (Kdown2d, Kup2d) and longwave (Ldown2d, Lup2d) at POI
-- **Directional Components:** Radiation from north, south, east, west directions
-- **Shadow Information:** Shadow patterns on ground (SH_Ground) and walls (SH_Walls)  
-- **Sky View Factors:** From ground (SVF_Ground), roof (SVF_Roof), and buildings/vegetation (SVF_BdVeg)
-- **Surface Temperatures:** Ground (Tg), wall (Tw), and air (Ta) temperatures
-- **Comfort Metrics:** Mean radiant temperature (Tmrt) for thermal comfort assessment
+**Vegetation:** The vegetation sky-view factors are fixed at 1, which stands for no vegetation, so the vegetation terms inherited from SOLWEIG have no effect.
+Trees enter BEERS only through the geometry: where trees are present, :math:`\lambda_F` includes their frontal area, which raises :math:`H/W` as if the trees were building walls.
 
-**Physical Basis:**
+**Radiation and surface temperatures:** Global shortwave radiation is split into direct and diffuse components with the correlation of :cite:t:`R90`.
+Downward longwave radiation combines the incoming longwave radiation from SUEWS, weighted by the roof sky-view factor, with emission and reflection from the surrounding walls.
+Ground and wall surface temperatures are not obtained from an energy balance.
+Their excess over air temperature follows an empirical diurnal cycle taken from SOLWEIG, scaled by the clearness of the sky and set to zero at night.
 
-BEERS solves the urban radiation balance by:
+**Output:** The ``BEERS`` output group holds the solar position, the global, direct and diffuse irradiance, the shortwave and longwave fluxes from the six directions, Tmrt, the clearness index and clear-sky quantities, the sky-view factors, the sunlit fractions and the temperatures used in the calculation.
+The output contract classifies this group as provisional.
+Several variables hold something other than their names, or their descriptions in the output variable reference, suggest:
 
-1. **Solar Position Calculation:** Determines sun position using astronomical algorithms
-2. **Geometry Analysis:** Analyzes 3D urban geometry to determine view factors and shadowing
-3. **Radiation Transfer:** Calculates direct, diffuse, and reflected radiation components
-4. **Surface Energy Balance:** Solves energy balance for different urban surfaces
-5. **Thermal Comfort:** Computes mean radiant temperature for human comfort studies
+- ``SH_Ground`` and ``SH_Walls`` are sunlit fractions, not shadow fractions, and both are 0 at night. ``SH_Ground`` runs from 0 to 1 (fully sunlit). ``SH_Walls`` is averaged over the two facing walls of the canyon, one of which is always in shade, so it never exceeds 0.5.
+- ``DiffuseRad`` holds the direct-beam irradiance on a surface normal to the sun, and ``DirectRad`` holds the diffuse irradiance on a horizontal surface.
+- ``Tg`` and ``Tw`` are the excesses of ground and wall surface temperature over air temperature, not absolute surface temperatures.
+- ``SVF_BdVeg`` equals ``SVF_Ground``, because the vegetation sky-view factor is fixed at 1.
+- ``Ta`` is the forcing air temperature.
+- ``Kdown2d`` and ``Ldown2d`` are computed with the roof sky-view factor, and the direct beam in ``Kdown2d`` is never shaded because the roof is treated as fully sunlit.
 
-**Applications:**
-
-- Urban climate analysis and heat island studies
-- Building energy assessment in urban contexts
-- Human thermal comfort evaluation in urban spaces
-- Urban planning and design optimisation
-- Microclimate analysis for specific locations
-
-**Configuration:**
-
-BEERS can be enabled in SUEWS through the model physics settings. Required inputs include:
-
-- Albedo values for ground and building surfaces
-- Emissivity values for ground and wall surfaces
-- Building morphology parameters (plan area fraction, building height)
-- Location coordinates and time zone information
-
-.. note::
-   BEERS provides detailed radiation output that is particularly valuable for applications requiring point-specific radiation analysis or human thermal comfort assessment in urban environments.
+**Development status:** The source code marks the canyon-shading and surface-temperature routines as translations still to be checked, and the constant roof sunlit fraction as a placeholder for a dependence on building morphology and sun position.
 
 Anthropogenic heat flux, Q\ :sub:`F`
 ------------------------------------
@@ -314,24 +308,19 @@ Wind, Temperature and Humidity Profiles in the Roughness Sublayer
 A dignostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following :cite:t:`HF07, HF08` and :cite:t:`T19`.
 An recent application of this RSL scheme can be found in :cite:t:`T21`.
 
-The diagnostic profiles are outputed in 30 uneven levels between the ground and forcing height, which are divided into two groups:
+The diagnostic profiles are output at 30 levels between the surface and the forcing height.
+Where the levels sit depends on the scheme selected by :ref:`roughness_sublayer <roughness_sublayer>`:
 
-- One group of levels are evenly distributed within the urban canopy layer characterised by mean height of roughness elements (e.g. buildings, trees, etc.) :math:`z_H`, which determines the number of layers within urban canopy :math:`n_{can}`:
+- With RST, the lowest 20 levels lie within the canopy and the other 10 above it, whatever the mean height of roughness elements (buildings and trees).
+  The levels are placed on an effective canopy height :math:`z_H = \max(\text{mean height}, 2\ \text{m})`, so over a canopy lower than 2 m they do not follow the actual height.
+  Level 1 is at 1% of :math:`z_H`, capped just below 2 m, levels 1 to 9 lie in the lower third of the canopy, level 10 is at :math:`z_H/2`, and levels 11 to 20 close in on the canopy top.
+  Levels 21 to 30 run from just above :math:`z_H` to the forcing height and are also concentrated towards the canopy top.
+- With MOST, the 30 levels are spaced logarithmically from just above :math:`z_d + z_0` to the forcing height, where :math:`z_d` is the zero-plane displacement height and :math:`z_0` the roughness length for momentum.
+  Where 2 m and 10 m fall within that range, the nearest levels are moved to exactly those heights.
 
-.. math::
-   :nowrap:
-
-   \[
-         n_{can} =
-   \begin{cases}
-      3 & \text{if } z_H \leq \text{2 m} \\
-      10 & \text{if } \text{2 m} \lt z_H \leq \text{10 m} \\
-      15 & \text{if } z_H \gt \text{10 m} \\
-
-   \end{cases}
-   \]
-
-- The other levels are evenly distributed between the urban canopy layer top and forcing height.
+With ``roughness_sublayer`` set to ``variable`` (the default), RST is used when the plan area index of buildings and trees, with trees counted by their non-porous fraction, is between 0.1 and 0.68 and :math:`z_H` exceeds 2 m; otherwise MOST is used.
+The frontal area index does not enter this choice.
+The ``flag_RSL`` column of the RSL output group records the outcome at each timestep: 1 when RST was used and 0 when MOST was used.
 
 
 .. note::
@@ -345,12 +334,25 @@ The diagnostic profiles are outputed in 30 uneven levels between the ground and 
 
 Common near-surface diagnostics:
 
-   -  T2: air temperature at 2 m agl
-   -  Q2: air specific humidity at 2 m agl
-   -  RH2: air relative humidity at 2 m agl
-   -  U10: wind speed at 10 m agl
+   -  T2: air temperature
+   -  Q2: air specific humidity
+   -  RH2: air relative humidity
+   -  U10: wind speed
 
-are calculated by the `RSL scheme <rsl_mod>` by interpolating RSL profile results to the corresponding diagnostic heights.
+are calculated by the `RSL scheme <rsl_mod>` by interpolating the profiles to their reference heights, which differ between the two schemes.
+
+.. _rsl_diag_heights:
+
+.. important::
+
+   **Reference heights of the near-surface diagnostics.**
+   With RST, T2, Q2 and RH2 are taken at 2 m and U10 at 10 m above ground.
+   With MOST, they are taken at 2 m and 10 m above :math:`z_d + z_0`, the level at which the MOST wind profile falls to zero, that is at :math:`2 + z_d + z_0` and :math:`10 + z_d + z_0` above ground.
+   Where :math:`z_d + z_0` is small the two sets of reference heights nearly coincide, but over a tall, dense canopy the MOST values sit well above ground: where :math:`z_d + z_0 = 16` m, for example, MOST reports T2, Q2 and RH2 at 18 m and U10 at 26 m above ground.
+   Where such a height lies above the forcing height, the value at the forcing height is reported instead.
+   The two schemes therefore report quantities at different heights under the same names.
+   Bear this in mind when comparing runs with different ``roughness_sublayer`` settings, or grid cells for which ``variable`` selected different schemes.
+   The :math:`z_d` and :math:`z_0` used at each timestep are reported as ``zd_RSL`` and ``z0_RSL`` in the RSL output group.
 
 
 SPARTACUS-Surface (SS)
@@ -454,7 +456,7 @@ RSL and SS Canopy Representation
 
 
 -  The RSL diagnostic profile contains 30 height levels. When the RSL scheme is active, 20 levels are placed within the urban canopy and the remaining 10 levels extend from the canopy top to the forcing height.
--  The RSL height levels are non-uniformly spaced, with extra resolution near the surface, around half canopy height, and near the canopy top (:numref:`SUEWS-RSL`).
+-  The RSL height levels are non-uniformly spaced: nine levels lie in the lower third of the canopy, one at half canopy height, and the rest are packed increasingly closely towards the canopy top, from below and from above (:numref:`SUEWS-RSL`).
 -  The RSL calculation uses a representative canopy height and morphology. This is separate from the SPARTACUS vertical-layer description, where building and vegetation fractions can vary by layer.
 
 

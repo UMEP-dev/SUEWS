@@ -401,9 +401,9 @@ CONTAINS
 
       CASE DEFAULT
          WRITE (message, '(A,I0,A)') 'stab_psi_mom: stability=', StabilityMethod, &
-            ' is reserved or unsupported; use an implemented stability method.'
+            ' is reserved or unsupported; use 3 (recommended), 2 or 4.'
          CALL set_supy_error(107, TRIM(message))
-         ! Neutral fallback is safe for callers unwinding the fatal error.
+         ! Neutral value keeps callers finite until the driver reports the error.
          psim = 0.0D0
          RETURN
       END SELECT
@@ -433,9 +433,9 @@ CONTAINS
 
       CASE DEFAULT
          WRITE (message, '(A,I0,A)') 'stab_psi_heat: stability=', StabilityMethod, &
-            ' is reserved or unsupported; use an implemented stability method.'
+            ' is reserved or unsupported; use 3 (recommended), 2 or 4.'
          CALL set_supy_error(107, TRIM(message))
-         ! Neutral fallback is safe for callers unwinding the fatal error.
+         ! Neutral value keeps callers finite until the driver reports the error.
          psih = 0.0D0
          RETURN
       END SELECT
@@ -470,9 +470,9 @@ CONTAINS
 
       CASE DEFAULT
          WRITE (message, '(A,I0,A)') 'stab_phi_mom: stability=', StabilityMethod, &
-            ' is reserved or unsupported; use an implemented stability method.'
+            ' is reserved or unsupported; use 3 (recommended), 2 or 4.'
          CALL set_supy_error(107, TRIM(message))
-         ! Neutral fallback is safe for callers unwinding the fatal error.
+         ! Neutral value keeps callers finite until the driver reports the error.
          phim = 1.0D0
          RETURN
       END SELECT
@@ -507,9 +507,9 @@ CONTAINS
 
       CASE DEFAULT
          WRITE (message, '(A,I0,A)') 'stab_phi_heat: stability=', StabilityMethod, &
-            ' is reserved or unsupported; use an implemented stability method.'
+            ' is reserved or unsupported; use 3 (recommended), 2 or 4.'
          CALL set_supy_error(107, TRIM(message))
-         ! Neutral fallback is safe for callers unwinding the fatal error.
+         ! Neutral value keeps callers finite until the driver reports the error.
          phih = 1.0D0
          RETURN
       END SELECT

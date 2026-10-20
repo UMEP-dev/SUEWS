@@ -4,8 +4,7 @@ The previous allocation multiplied already-absorbed ground shortwave by each sur
 The building residual received the missing ground energy.
 The correction is confined to `SPARTACUS` in `src/suews/src/suews_phys_spartacus.f95`.
 
-For ground surface `i`, provisional absorption is
-`A_i = D_dir * (1 - alpha_dir_i) + D_diff * (1 - alpha_i)`.
+For ground surface `i`, provisional absorption is `A_i = D_dir * (1 - alpha_dir_i) + D_diff * (1 - alpha_i)`.
 The incident direct and diffuse fluxes use the solver's ground-area normalisation.
 The direct albedo uses `ground_albedo_dir_mult_fact` when enabled.
 The final allocation is `A_i * KNet_Grnd / sum(f_i * A_i)`.
@@ -68,7 +67,7 @@ No code from #1854 is included here.
 ## Reference audit and validation
 
 The full physics tier passes its existing tolerances, including the sample and STEBBS reference tests.
-An additional before/after comparison of every STEBBS output column nevertheless finds changes in 64 of 82 columns across the 288 validation timesteps on 2017-08-27, after the existing one-day spin-up.
+An additional before/after comparison of diagnostic runs with the old and corrected allocation finds changes in 64 of 82 STEBBS output columns across the 288 validation timesteps on 2017-08-27, after the existing one-day spin-up.
 This uses the configuration and forcing window from `TestSTEBBSOutput.test_stebbs_building_energy_outputs`.
 Examples of maximum absolute changes are:
 
@@ -81,23 +80,37 @@ Examples of maximum absolute changes are:
 | `QHload_cooling_FA` | 0.142800 W m-2 |
 | `Tair_ind` | 0.014164 K |
 
-**Reference fixture requiring a decision:** `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv`.
-No reference fixture was regenerated or edited.
-The job's explicit instruction was to stop at diagnosis if reference outputs move.
-This branch therefore records the correction and evidence for review, but is not merge-ready under the physics-change evidence rule until the reference update is authorised and resolved.
+**Reference fixture refreshed:** `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv`, authorised by Ting Sun for #1857.
+The refresh was generated from `cf0a8991fa0746b498aad96cd90779ff073eab30` on Linux x86_64 with GNU Fortran 11.5.0, Python 3.12.12 and pandas 2.3.3.
+It uses the unchanged `stebbs_test/sample_config.yml`, all 576 five-minute forcing rows from 2017-08-26 00:00 through 2017-08-27 23:55, negative rain clipped to zero, and the first 288 output rows discarded as day-1 spin-up.
+The regenerated values exactly match the earlier corrected diagnostic run.
+Against the previously committed CSV, 65 of 82 columns change; this is a different comparison from the 64-column fix-only diagnostic comparison above.
+
+| Refreshed fixture quantity | Timestamp of largest absolute change | Old fixture | Refreshed fixture | Change |
+|---|---|---:|---:|---:|
+| `QN_bldg_FA` (W m-2) | 2017-08-27 12:55 | 708.810827 | 713.993125 | +5.182298 |
+| `Tair_ind` (K) | 2017-08-27 07:40 | 293.837122 | 293.821534 | -0.015587 |
+
+A column-by-column comparison confirms that only numeric values change.
+The header, all 82 output columns and their order, 288 datetime strings, row count, LF line endings and final newline are unchanged.
+The CSV retains pandas' default full-precision float formatting, and every numerically unchanged cell retains its exact original text.
+The old SHA-256 is `90097d29d41ff7560a84c7041bc646871ec30e27ae5885d5c2c389694327f9d5`; the refreshed SHA-256 is `3f9360e3bc57ab341234b07a048435d9c4228dc016d05865be1c3a2fcda3c1c2`.
+No STEBBS provenance sidecar exists; the adjacent parent-directory `provenance.json` describes only the twelve main sample shards and remains unchanged, consistent with the previous STEBBS fixture refresh in #1830.
 The main sample and benchmark configurations use NARP, which does not enter the changed allocation.
 
-Validation commands, run on the compute host:
+Validation commands, rerun on the compute host after the fixture refresh on 2026-10-20:
 
 ```text
 make dev
 make test-smoke
-python -m pytest test/physics/test_spartacus_ground_budget.py test/physics/test_spartacus_surface_run.py -q --tb=short
+python -m pytest test/core/test_sample_output.py -q
+python -m pytest test/physics/test_spartacus_ground_budget.py test/physics/test_spartacus_surface_run.py -q --tb=long
 python -m pytest test -m physics -q --tb=long
 make test
 ```
 
 The smoke suite passed with 23 passed and 1 skipped.
+All six sample-output tests passed.
 The new tests passed with 12 passed and the one flat-tile expected failure described above.
 The full physics tier passed with 328 passed, 1 skipped and 3 expected failures.
 The everyday suite passed with 2164 passed, 6 skipped and 3 expected failures.

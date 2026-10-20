@@ -464,10 +464,12 @@ class LAIMethod(Enum):
 class RSLMethod(Enum):
     """
     Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
+    The two schemes report these diagnostics at different heights: RST at 2 m and 10 m above ground, MOST at 2 m and 10 m above the zero-plane displacement height plus the roughness length, which over a tall canopy is well above ground.
+    See :ref:`reference heights of the near-surface diagnostics <rsl_diag_heights>`.
 
-    0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces
-    1: RST (Roughness Sublayer Theory; Theeuwes et al. 2019) - Appropriate for heterogeneous urban surfaces with tall roughness elements
-    2: VARIABLE - Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)
+    0: MOST - Monin-Obukhov similarity theory, appropriate for relatively homogeneous, flat surfaces
+    1: RST - Roughness sublayer theory following Theeuwes et al. (2019), appropriate for heterogeneous urban surfaces with tall roughness elements
+    2: VARIABLE - Uses RST when the plan area index of buildings and trees is between 0.1 and 0.68 and the mean roughness-element height exceeds 2 m, otherwise MOST
     """
 
     MOST = 0
@@ -511,11 +513,12 @@ class FAIMethod(Enum):
 
 class RSLLevel(Enum):
     """
-    Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.
+    Air temperature passed to the calculations that respond to near-surface conditions: the daily state (daily temperature statistics and degree days, which drive leaf area index phenology, modelled irrigation and degree-day anthropogenic heat), the modelled anthropogenic heat flux (QF), the surface conductance that controls the latent heat flux (QE), and biogenic CO2 when it is modelled.
+    With a level above 0, a change in the diagnosed near-surface temperature therefore feeds into QF and QE.
 
-    0: NONE - No local climate adjustments; use forcing file meteorology directly
-    1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days
-    2: DETAILED - Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles
+    0: NONE - Forcing air temperature
+    1: BASIC - Near-surface air temperature T2 diagnosed by the roughness_sublayer scheme, at that scheme's reference height
+    2: DETAILED - Air temperature at level 10 of the near-surface profile, which is half the mean roughness-element height when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used
     """
 
     NONE = 0
@@ -1091,7 +1094,7 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["roughness_sublayer"],
             "provides_to": ["surface_conductance"],
-            "note": "Uses near-surface values from roughness_sublayer to modify vegetation processes",
+            "note": "Selects the air temperature (forcing, diagnosed T2, or level-10 profile temperature) passed to the daily state, anthropogenic heat, surface conductance and biogenic CO2 calculations",
         },
     )
     surface_conductance: FlexibleRefValue(GSModel) = Field(

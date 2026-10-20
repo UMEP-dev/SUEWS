@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.5.33. Physics Methods &#8212; SUEWS 2026.10.14.dev3 documentation</title>
+    <title>4.5.33. Physics Methods &#8212; SUEWS 2026.10.20.dev1 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=5bfaff0f"></script>
+    <script src="../../../_static/documentation_options.js?v=2d4364ce"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -62,7 +62,7 @@
     <link rel="prev" title="4.5.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev3" />
+  <meta name="docsearch:version" content="2026.10.20.dev1" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2ffde7377024d58f5c3e46e61beea7c8164fdc7a" style="color: #31708f;">2ffde73</a>).
+        (2026.10.20.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/fdb986f6457676a7fa8b49aeaf2dd71d7aadbe76" style="color: #31708f;">fdb986f</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -197,8 +197,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev3 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev3 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.20.dev1 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.20.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -1145,11 +1145,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="roughness-sublayer">
 <span id="index-12"></span><dt class="sig sig-object input" id="input-option-roughness_sublayer">
 <span class="sig-name descname"><span class="pre">roughness_sublayer</span></span><a class="headerlink" href="#input-option-roughness_sublayer" title="Link to this definition">#</a></dt>
-<dd><p>Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).</p>
+<dd><p>Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). The two schemes report these diagnostics at different heights: RST at 2 m and 10 m above ground, MOST at 2 m and 10 m above the zero-plane displacement height plus the roughness length, which over a tall canopy is well above ground. See <a class="reference internal" href="../../../parameterisations-and-sub-models.html#rsl-diag-heights"><span class="std std-ref">reference heights of the near-surface diagnostics</span></a>.</p>
 <dl class="field-list">
 <dt class="field-odd">Options<span class="colon">:</span></dt>
 <dd class="field-odd"><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (VARIABLE) = Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">0</span></code> (MOST) = Monin-Obukhov similarity theory, appropriate for relatively homogeneous, flat surfaces</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (RST) = Roughness sublayer theory following Theeuwes et al. (2019), appropriate for heterogeneous urban surfaces with tall roughness elements</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (VARIABLE) = Uses RST when the plan area index of buildings and trees is between 0.1 and 0.68 and the mean roughness-element height exceeds 2 m, otherwise MOST</div>
 </div>
 </dd>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
@@ -1189,13 +1191,13 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="input option" id="roughness-sublayer-level">
 <span id="index-14"></span><dt class="sig sig-object input" id="input-option-roughness_sublayer_level">
 <span class="sig-name descname"><span class="pre">roughness_sublayer_level</span></span><a class="headerlink" href="#input-option-roughness_sublayer_level" title="Link to this definition">#</a></dt>
-<dd><p>Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.</p>
+<dd><p>Air temperature passed to the calculations that respond to near-surface conditions: the daily state (daily temperature statistics and degree days, which drive leaf area index phenology, modelled irrigation and degree-day anthropogenic heat), the modelled anthropogenic heat flux (QF), the surface conductance that controls the latent heat flux (QE), and biogenic CO2 when it is modelled. With a level above 0, a change in the diagnosed near-surface temperature therefore feeds into QF and QE.</p>
 <dl class="field-list">
 <dt class="field-odd">Options<span class="colon">:</span></dt>
 <dd class="field-odd"><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">0</span></code> (NONE) = No local climate adjustments</div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (BASIC) = Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days</div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">0</span></code> (NONE) = Forcing air temperature</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (BASIC) = Near-surface air temperature T2 diagnosed by the roughness_sublayer scheme, at that scheme’s reference height</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (DETAILED) = Air temperature at level 10 of the near-surface profile, which is half the effective canopy height (the mean roughness-element height, at least 2 m) when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used</div>
 </div>
 </dd>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
@@ -1207,7 +1209,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </dl>
 <div class="note admonition">
 <p class="admonition-title">Method Interactions</p>
-<p>Uses near-surface values from roughness_sublayer to modify vegetation processes</p>
+<p>Selects the air temperature (forcing, diagnosed T2, or level-10 profile temperature) passed to the daily state, anthropogenic heat, surface conductance and biogenic CO2 calculations</p>
 <p><strong>Depends on:</strong> <a class="reference internal" href="#roughness-sublayer"><span class="std std-ref">roughness_sublayer</span></a>
 <strong>Provides to:</strong> <a class="reference internal" href="#surface-conductance"><span class="std std-ref">surface_conductance</span></a></p>
 </div>
@@ -1358,8 +1360,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2ffde7377024d58f5c3e46e61beea7c8164fdc7a">2ffde73</a> |
+  <p>Version: 2026.10.20.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/fdb986f6457676a7fa8b49aeaf2dd71d7aadbe76">fdb986f</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

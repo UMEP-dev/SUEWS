@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-05T22:13:05+00:00" />
-    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.10.14.dev3 documentation</title>
+    <meta property="article:modified_time" content="2026-10-20T13:46:19+00:00" />
+    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.10.20.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=5bfaff0f"></script>
+    <script src="_static/documentation_options.js?v=2d4364ce"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="3. Acknowledgements" href="acknowledgement.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.14.dev3" />
-    <meta name="docbuild:last-update" content="2026-10-05"/>
+  <meta name="docsearch:version" content="2026.10.20.dev1" />
+    <meta name="docbuild:last-update" content="2026-10-20"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.14.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2ffde7377024d58f5c3e46e61beea7c8164fdc7a" style="color: #31708f;">2ffde73</a>).
+        (2026.10.20.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/fdb986f6457676a7fa8b49aeaf2dd71d7aadbe76" style="color: #31708f;">fdb986f</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -201,8 +201,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.14.dev3 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.14.dev3 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.20.dev1 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.20.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -728,7 +728,7 @@ shortwave and incoming and outgoing longwave radiation components
 based on incoming shortwave radiation, temperature, relative humidity
 and surface characteristics (albedo, emissivity).</p></li>
 <li><p><a class="reference internal" href="#spartacus-surface-ss"><span class="std std-ref">SPARTACUS-Surface (SS)</span></a> computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation). More details can be found in the <a class="reference internal" href="#spartacus-surface-ss"><span class="std std-ref">SPARTACUS-Surface (SS)</span></a> section.</p></li>
-<li><p><strong>BEERS</strong> (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis. More details can be found in the <code class="docutils literal notranslate"><span class="pre">BEERS</span></code> section.</p></li>
+<li><p><strong>BEERS</strong> (Building Envelope Energy Radiation Scheme) estimates directional radiation fluxes and mean radiant temperature at a generic point in an idealised street canyon. It does not represent tree shading. More details can be found in <a class="reference internal" href="#beers-scheme"><span class="std std-ref">the BEERS section</span></a>.</p></li>
 </ol>
 </section>
 <section id="direct-and-diffuse-shortwave-partitioning">
@@ -736,8 +736,8 @@ and surface characteristics (albedo, emissivity).</p></li>
 <p>For SPARTACUS-Surface net-radiation options, the SUEWS driver partitions
 global horizontal irradiance (<code class="docutils literal notranslate"><span class="pre">kdown</span></code>) before passing the components to
 SPARTACUS. Select the scheme with <code class="docutils literal notranslate"><span class="pre">model.physics.kdown_split_method</span></code>:</p>
-<div class="pst-scrollable-table-container"><table class="table" id="id27">
-<caption><span class="caption-number">Table 1.1 </span><span class="caption-text">Shortwave partition options</span><a class="headerlink" href="#id27" title="Link to this table">#</a></caption>
+<div class="pst-scrollable-table-container"><table class="table" id="id30">
+<caption><span class="caption-number">Table 1.1 </span><span class="caption-text">Shortwave partition options</span><a class="headerlink" href="#id30" title="Link to this table">#</a></caption>
 <colgroup>
 <col style="width: 15.0%" />
 <col style="width: 85.0%" />
@@ -810,69 +810,58 @@ should be assessed against suitable direct/diffuse observations.</p>
 </div>
 </section>
 <section id="beers-building-envelope-energy-radiation-scheme">
-<h2><span class="section-number">1.3. </span>BEERS (Building Envelope Energy Radiation Scheme)<a class="headerlink" href="#beers-building-envelope-energy-radiation-scheme" title="Link to this heading">#</a></h2>
-<p><strong>BEERS</strong> is the successor to SOLWEIG and provides advanced radiation modelling for urban environments. BEERS calculates detailed radiation components at specific points of interest (POI) within urban areas, considering the complex 3D geometry of buildings and vegetation.</p>
-<p><strong>Key Features:</strong></p>
-<ul class="simple">
-<li><p><strong>Point-specific Analysis:</strong> Calculates radiation at specific points rather than grid averages</p></li>
-<li><p><strong>Directional Radiation:</strong> Provides radiation from cardinal directions (north, south, east, west)</p></li>
-<li><p><strong>Surface Temperature Modelling:</strong> Computes ground, wall, and roof surface temperatures</p></li>
-<li><p><strong>Mean Radiant Temperature:</strong> Calculates mean radiant temperature for human thermal comfort studies</p></li>
-<li><p><strong>Shadow Analysis:</strong> Models shadows cast by buildings and vegetation on ground and walls</p></li>
-</ul>
-<p><strong>Output Variables:</strong></p>
-<p>BEERS provides comprehensive radiation output including:</p>
-<ul class="simple">
-<li><p><strong>Incoming/Outgoing Radiation:</strong> Shortwave (Kdown2d, Kup2d) and longwave (Ldown2d, Lup2d) at POI</p></li>
-<li><p><strong>Directional Components:</strong> Radiation from north, south, east, west directions</p></li>
-<li><p><strong>Shadow Information:</strong> Shadow patterns on ground (SH_Ground) and walls (SH_Walls)</p></li>
-<li><p><strong>Sky View Factors:</strong> From ground (SVF_Ground), roof (SVF_Roof), and buildings/vegetation (SVF_BdVeg)</p></li>
-<li><p><strong>Surface Temperatures:</strong> Ground (Tg), wall (Tw), and air (Ta) temperatures</p></li>
-<li><p><strong>Comfort Metrics:</strong> Mean radiant temperature (Tmrt) for thermal comfort assessment</p></li>
-</ul>
-<p><strong>Physical Basis:</strong></p>
-<p>BEERS solves the urban radiation balance by:</p>
-<ol class="arabic simple">
-<li><p><strong>Solar Position Calculation:</strong> Determines sun position using astronomical algorithms</p></li>
-<li><p><strong>Geometry Analysis:</strong> Analyzes 3D urban geometry to determine view factors and shadowing</p></li>
-<li><p><strong>Radiation Transfer:</strong> Calculates direct, diffuse, and reflected radiation components</p></li>
-<li><p><strong>Surface Energy Balance:</strong> Solves energy balance for different urban surfaces</p></li>
-<li><p><strong>Thermal Comfort:</strong> Computes mean radiant temperature for human comfort studies</p></li>
-</ol>
-<p><strong>Applications:</strong></p>
-<ul class="simple">
-<li><p>Urban climate analysis and heat island studies</p></li>
-<li><p>Building energy assessment in urban contexts</p></li>
-<li><p>Human thermal comfort evaluation in urban spaces</p></li>
-<li><p>Urban planning and design optimisation</p></li>
-<li><p>Microclimate analysis for specific locations</p></li>
-</ul>
-<p><strong>Configuration:</strong></p>
-<p>BEERS can be enabled in SUEWS through the model physics settings. Required inputs include:</p>
-<ul class="simple">
-<li><p>Albedo values for ground and building surfaces</p></li>
-<li><p>Emissivity values for ground and wall surfaces</p></li>
-<li><p>Building morphology parameters (plan area fraction, building height)</p></li>
-<li><p>Location coordinates and time zone information</p></li>
-</ul>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>BEERS provides detailed radiation output that is particularly valuable for applications requiring point-specific radiation analysis or human thermal comfort assessment in urban environments.</p>
+<span id="beers-scheme"></span><h2><span class="section-number">1.3. </span>BEERS (Building Envelope Energy Radiation Scheme)<a class="headerlink" href="#beers-building-envelope-energy-radiation-scheme" title="Link to this heading">#</a></h2>
+<p><strong>BEERS</strong> is a one-dimensional port of the radiation scheme of SOLWEIG <span class="bibtex-citation" id="id4">[<a class="reference internal" href="references.html#id7" title="Lindberg, Fredrik, Holmer, Björn, and Thorsson, Sofia. SOLWEIG 1.0 – modelling spatial variations of 3D radiant fluxes and mean radiant temperature in complex urban settings. Int J Biometeorol, 52(7):697-713, June 2008. doi:10.1007/s00484-008-0162-7.">Lindberg <em>et al.</em>, 2008</a>]</span>.
+It estimates the shortwave and longwave radiation reaching a standing person from six directions (from above, from below and from the four cardinal directions) and the resulting mean radiant temperature (Tmrt).
+SOLWEIG works on high-resolution digital surface models of buildings and vegetation.
+BEERS has no such input: it represents each grid cell by an idealised street canyon derived from the bulk morphology of the cell, so its results describe a generic point in that canyon rather than a particular location.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>BEERS does not represent tree shading.
+Trees cast no shade on the point, the ground or the walls, and the vegetation terms of the radiation calculation are switched off (see <strong>Vegetation</strong> below), so BEERS Tmrt does not respond to tree shade.
+For tree-shading studies, or for Tmrt at specific locations, use SOLWEIG in UMEP with a vegetation canopy digital surface model <span class="bibtex-citation" id="id5">[<a class="reference internal" href="references.html#id8" title="Lindberg, Fredrik and Grimmond, C. S. B. The influence of vegetation and building morphology on shadow patterns and mean radiant temperatures in urban areas: Model development and evaluation. Theor Appl Climatol, 105(3-4):311-323, January 2011. doi:10.1007/s00704-010-0382-8.">Lindberg and Grimmond, 2011</a>]</span>.</p>
 </div>
+<p><strong>When it runs:</strong> BEERS has no on/off option.
+The driver calls it at every timestep, after the surface energy balance has been solved, for every grid cell with a non-zero building fraction.
+For a cell without buildings BEERS is not calculated, and its outputs should not be used.
+The rest of SUEWS does not use its results, with one exception: when STEBBS is enabled with a net radiation option other than SPARTACUS-Surface, STEBBS takes its roof and wall irradiances from the BEERS fluxes of the previous timestep.</p>
+<p><strong>Canyon geometry:</strong> The canyon height-to-width ratio is <span class="math notranslate nohighlight">\(H/W = 2\lambda_F/(1-\lambda_P)\)</span>, which assumes square buildings.
+Here <span class="math notranslate nohighlight">\(\lambda_P\)</span> is the building fraction relative to the building and paved fractions together, and <span class="math notranslate nohighlight">\(\lambda_F\)</span> is the frontal area index from the roughness calculation.
+The sky-view factors of the ground and of the roofs follow from <span class="math notranslate nohighlight">\(H/W\)</span> through empirical relations fitted to New York City building data.
+The sunlit fractions of the ground and of the walls are those of an infinitely long canyon, averaged over eight canyon orientations.
+Roofs are treated as fully sunlit during the day.</p>
+<p><strong>Vegetation:</strong> The vegetation sky-view factors are fixed at 1, which stands for no vegetation, so the vegetation terms inherited from SOLWEIG have no effect.
+Trees enter BEERS only through the geometry: where trees are present, <span class="math notranslate nohighlight">\(\lambda_F\)</span> includes their frontal area, which raises <span class="math notranslate nohighlight">\(H/W\)</span> as if the trees were building walls.</p>
+<p><strong>Radiation and surface temperatures:</strong> Global shortwave radiation is split into direct and diffuse components with the correlation of <span class="bibtex-citation" id="id6">Reindl <em>et al.</em> [<a class="reference internal" href="references.html#id49" title="Reindl, D.T., Beckman, W.A., and Duffie, J.A. Diffuse fraction correlations. Sol. Energy, 45(1):1-7, 1990. doi:10.1016/0038-092x(90)90060-p.">1990</a>]</span>.
+Downward longwave radiation combines the incoming longwave radiation from SUEWS, weighted by the roof sky-view factor, with emission and reflection from the surrounding walls.
+Ground and wall surface temperatures are not obtained from an energy balance.
+Their excess over air temperature follows an empirical diurnal cycle taken from SOLWEIG, scaled by the clearness of the sky and set to zero at night.</p>
+<p><strong>Output:</strong> The <code class="docutils literal notranslate"><span class="pre">BEERS</span></code> output group holds the solar position, the global, direct and diffuse irradiance, the shortwave and longwave fluxes from the six directions, Tmrt, the clearness index and clear-sky quantities, the sky-view factors, the sunlit fractions and the temperatures used in the calculation.
+The output contract classifies this group as provisional.
+Several variables hold something other than their names, or their descriptions in the output variable reference, suggest:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">SH_Ground</span></code> and <code class="docutils literal notranslate"><span class="pre">SH_Walls</span></code> are sunlit fractions, not shadow fractions, and both are 0 at night. <code class="docutils literal notranslate"><span class="pre">SH_Ground</span></code> runs from 0 to 1 (fully sunlit). <code class="docutils literal notranslate"><span class="pre">SH_Walls</span></code> is averaged over the two facing walls of the canyon, one of which is always in shade, so it never exceeds 0.5.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DiffuseRad</span></code> holds the direct-beam irradiance on a surface normal to the sun, and <code class="docutils literal notranslate"><span class="pre">DirectRad</span></code> holds the diffuse irradiance on a horizontal surface.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Tg</span></code> and <code class="docutils literal notranslate"><span class="pre">Tw</span></code> are the excesses of ground and wall surface temperature over air temperature, not absolute surface temperatures.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SVF_BdVeg</span></code> equals <code class="docutils literal notranslate"><span class="pre">SVF_Ground</span></code>, because the vegetation sky-view factor is fixed at 1.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Ta</span></code> is the forcing air temperature.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Kdown2d</span></code> and <code class="docutils literal notranslate"><span class="pre">Ldown2d</span></code> are computed with the roof sky-view factor, and the direct beam in <code class="docutils literal notranslate"><span class="pre">Kdown2d</span></code> is never shaded because the roof is treated as fully sunlit.</p></li>
+</ul>
+<p><strong>Development status:</strong> The source code marks the canyon-shading and surface-temperature routines as translations still to be checked, and the constant roof sunlit fraction as a placeholder for a dependence on building morphology and sun position.</p>
 </section>
 <section id="anthropogenic-heat-flux-qf">
 <h2><span class="section-number">1.4. </span>Anthropogenic heat flux, Q<sub>F</sub><a class="headerlink" href="#anthropogenic-heat-flux-qf" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p>Two simple anthropogenic heat flux sub-models exist within SUEWS:</p>
 <ul class="simple">
-<li><p><span class="bibtex-citation" id="id4">Järvi <em>et al.</em> [<a class="reference internal" href="references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span> approach, based on heating and cooling degree days and population density (allows distinction between weekdays and weekends).</p></li>
-<li><p><span class="bibtex-citation" id="id5">Loridan <em>et al.</em> [<a class="reference internal" href="references.html#id18" title="Loridan, Thomas, Grimmond, C. S. B., Offerle, Brian D., Young, Duick T., Smith, Thomas E. L., Järvi, Leena, and Lindberg, Fredrik. Local-scale urban meteorological parameterization scheme (LUMPS): Longwave radiation parameterization and seasonality-related developments. J. Appl. Meteorol. Clim., 50(1):185-202, January 2011. doi:10.1175/2010jamc2474.1.">2011</a>]</span> approach, based on a linear piece-wise relation with air temperature.</p></li>
+<li><p><span class="bibtex-citation" id="id7">Järvi <em>et al.</em> [<a class="reference internal" href="references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span> approach, based on heating and cooling degree days and population density (allows distinction between weekdays and weekends).</p></li>
+<li><p><span class="bibtex-citation" id="id8">Loridan <em>et al.</em> [<a class="reference internal" href="references.html#id18" title="Loridan, Thomas, Grimmond, C. S. B., Offerle, Brian D., Young, Duick T., Smith, Thomas E. L., Järvi, Leena, and Lindberg, Fredrik. Local-scale urban meteorological parameterization scheme (LUMPS): Longwave radiation parameterization and seasonality-related developments. J. Appl. Meteorol. Clim., 50(1):185-202, January 2011. doi:10.1175/2010jamc2474.1.">2011</a>]</span> approach, based on a linear piece-wise relation with air temperature.</p></li>
 </ul>
 </li>
 <li><p>Pre-calculated values can be supplied with the meteorological forcing data, either derived from knowledge of the study site, or obtained from other models, for example:</p>
 <ul class="simple">
-<li><p><strong>LUCY</strong> <span class="bibtex-citation" id="id6">[<a class="reference internal" href="references.html#id16" title="Allen, L., Lindberg, F., and Grimmond, C. S. B. Global to city scale urban anthropogenic heat flux: Model and variability. Int. J. Climatol., 31(13):1990-2005, November 2011. doi:10.1002/joc.2210.">Allen <em>et al.</em>, 2011</a>, <a class="reference internal" href="references.html#id15" title="Lindberg, F., Grimmond, C.S.B., Yogeswaran, N., Kotthaus, S., and Allen, L. Impact of city changes and weather on anthropogenic heat flux in Europe 1995–2015. Urban Clim., 4:1-15, July 2013. doi:10.1016/j.uclim.2013.03.002.">Lindberg <em>et al.</em>, 2013</a>]</span>. A new version has been now included in UMEP. To distinguish it is referred to as <a class="reference external" href="http://umep-docs.readthedocs.io/en/latest/OtherManuals/LQF_Manual.html">LQF</a></p></li>
-<li><p><strong>GreaterQF</strong> <span class="bibtex-citation" id="id7">[<a class="reference internal" href="references.html#id17" title="Iamarino, Mario, Beevers, Sean, and Grimmond, C. S. B. High-resolution (space, time) anthropogenic heat emissions: London 1970-2025. Int. J. Climatol., 32(11):1754-1767, September 2012. doi:10.1002/joc.2390.">Iamarino <em>et al.</em>, 2012</a>]</span>. A new version has been now included in UMEP. To distinguish it is referred to as <a class="reference external" href="http://umep-docs.readthedocs.io/en/latest/OtherManuals/GQF_Manual.html">GQF</a></p></li>
+<li><p><strong>LUCY</strong> <span class="bibtex-citation" id="id9">[<a class="reference internal" href="references.html#id16" title="Allen, L., Lindberg, F., and Grimmond, C. S. B. Global to city scale urban anthropogenic heat flux: Model and variability. Int. J. Climatol., 31(13):1990-2005, November 2011. doi:10.1002/joc.2210.">Allen <em>et al.</em>, 2011</a>, <a class="reference internal" href="references.html#id15" title="Lindberg, F., Grimmond, C.S.B., Yogeswaran, N., Kotthaus, S., and Allen, L. Impact of city changes and weather on anthropogenic heat flux in Europe 1995–2015. Urban Clim., 4:1-15, July 2013. doi:10.1016/j.uclim.2013.03.002.">Lindberg <em>et al.</em>, 2013</a>]</span>. A new version has been now included in UMEP. To distinguish it is referred to as <a class="reference external" href="http://umep-docs.readthedocs.io/en/latest/OtherManuals/LQF_Manual.html">LQF</a></p></li>
+<li><p><strong>GreaterQF</strong> <span class="bibtex-citation" id="id10">[<a class="reference internal" href="references.html#id17" title="Iamarino, Mario, Beevers, Sean, and Grimmond, C. S. B. High-resolution (space, time) anthropogenic heat emissions: London 1970-2025. Int. J. Climatol., 32(11):1754-1767, September 2012. doi:10.1002/joc.2390.">Iamarino <em>et al.</em>, 2012</a>]</span>. A new version has been now included in UMEP. To distinguish it is referred to as <a class="reference external" href="http://umep-docs.readthedocs.io/en/latest/OtherManuals/GQF_Manual.html">GQF</a></p></li>
 </ul>
 </li>
 </ol>
@@ -882,9 +871,9 @@ should be assessed against suitable direct/diffuse observations.</p>
 <ol class="arabic">
 <li><p>Several sub-models are available to estimate the storage heat flux:</p>
 <ul class="simple">
-<li><p><strong>OHM</strong> (Objective Hysteresis Model) <span class="bibtex-citation" id="id8">[<a class="reference internal" href="references.html#id11" title="Grimmond, C. S. B. and Oke, T. R. Heat storage in urban areas: Local-scale observations and evaluation of a simple model. J. Appl. Meteor., 38(7):922-940, July 1999. doi:10.1175/1520-0450(1999)038&lt;0922:hsiual&gt;2.0.co;2.">Grimmond and Oke, 1999</a>, <a class="reference internal" href="references.html#id14" title="Grimmond, C. S. B. and Oke, T. R. Turbulent heat fluxes in urban areas: Observations and a local-scale urban meteorological parameterization scheme (LUMPS). J. Appl. Meteor., 41(7):792-810, July 2002. doi:10.1175/1520-0450(2002)041&lt;0792:thfiua&gt;2.0.co;2.">Grimmond and Oke, 2002</a>, <a class="reference internal" href="references.html#id9" title="Grimmond, C.S.B., Cleugh, H.A., and Oke, T.R. An objective urban heat storage model and its comparison with other schemes. Atmospheric Environment. Part B. Urban Atmosphere, 25(3):311-326, January 1991. doi:10.1016/0957-1272(91)90003-w.">Grimmond <em>et al.</em>, 1991</a>]</span>. Storage heat heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.</p></li>
-<li><p><strong>AnOHM</strong> (Analytical Objective Hysteresis Model) <span class="bibtex-citation" id="id9">[<a class="reference internal" href="references.html#id13" title="Sun, Ting, Wang, Zhi-Hua, Oechel, Walter C., and Grimmond, Sue. The analytical objective hysteresis model (AnOHM v1.0): Methodology to determine bulk storage heat flux coefficients. Geosci. Model Dev., 10(7):2875-2890, July 2017. doi:10.5194/gmd-10-2875-2017.">Sun <em>et al.</em>, 2017</a>]</span>. OHM approach using analytically-derived coefficients. <strong>Not recommended in this version.</strong></p></li>
-<li><p><strong>ESTM</strong> (Element Surface Temperature Method) <span class="bibtex-citation" id="id10">[<a class="reference internal" href="references.html#id12" title="Offerle, B., Grimmond, C. S. B., and Fortuniak, K. Heat storage and anthropogenic heat flux in relation to the energy balance of a central European city centre. Int. J. Climatol., 25(10):1405-1419, August 2005. doi:10.1002/joc.1198.">Offerle <em>et al.</em>, 2005</a>]</span>. Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. <strong>Not available in this version:</strong> the YAML interface carries no surface-temperature input for it, so selecting <code class="docutils literal notranslate"><span class="pre">storage_heat:</span> <span class="pre">4</span></code> is rejected at validation; use EHC or DyOHM.</p></li>
+<li><p><strong>OHM</strong> (Objective Hysteresis Model) <span class="bibtex-citation" id="id11">[<a class="reference internal" href="references.html#id11" title="Grimmond, C. S. B. and Oke, T. R. Heat storage in urban areas: Local-scale observations and evaluation of a simple model. J. Appl. Meteor., 38(7):922-940, July 1999. doi:10.1175/1520-0450(1999)038&lt;0922:hsiual&gt;2.0.co;2.">Grimmond and Oke, 1999</a>, <a class="reference internal" href="references.html#id14" title="Grimmond, C. S. B. and Oke, T. R. Turbulent heat fluxes in urban areas: Observations and a local-scale urban meteorological parameterization scheme (LUMPS). J. Appl. Meteor., 41(7):792-810, July 2002. doi:10.1175/1520-0450(2002)041&lt;0792:thfiua&gt;2.0.co;2.">Grimmond and Oke, 2002</a>, <a class="reference internal" href="references.html#id9" title="Grimmond, C.S.B., Cleugh, H.A., and Oke, T.R. An objective urban heat storage model and its comparison with other schemes. Atmospheric Environment. Part B. Urban Atmosphere, 25(3):311-326, January 1991. doi:10.1016/0957-1272(91)90003-w.">Grimmond <em>et al.</em>, 1991</a>]</span>. Storage heat heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.</p></li>
+<li><p><strong>AnOHM</strong> (Analytical Objective Hysteresis Model) <span class="bibtex-citation" id="id12">[<a class="reference internal" href="references.html#id13" title="Sun, Ting, Wang, Zhi-Hua, Oechel, Walter C., and Grimmond, Sue. The analytical objective hysteresis model (AnOHM v1.0): Methodology to determine bulk storage heat flux coefficients. Geosci. Model Dev., 10(7):2875-2890, July 2017. doi:10.5194/gmd-10-2875-2017.">Sun <em>et al.</em>, 2017</a>]</span>. OHM approach using analytically-derived coefficients. <strong>Not recommended in this version.</strong></p></li>
+<li><p><strong>ESTM</strong> (Element Surface Temperature Method) <span class="bibtex-citation" id="id13">[<a class="reference internal" href="references.html#id12" title="Offerle, B., Grimmond, C. S. B., and Fortuniak, K. Heat storage and anthropogenic heat flux in relation to the energy balance of a central European city centre. Int. J. Climatol., 25(10):1405-1419, August 2005. doi:10.1002/joc.1198.">Offerle <em>et al.</em>, 2005</a>]</span>. Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. <strong>Not available in this version:</strong> the YAML interface carries no surface-temperature input for it, so selecting <code class="docutils literal notranslate"><span class="pre">storage_heat:</span> <span class="pre">4</span></code> is rejected at validation; use EHC or DyOHM.</p></li>
 <li><p><strong>EHC</strong> (Explicit Heat Conduction). With SPARTACUS-Surface radiation (<code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> 1001–1003), calculates storage heat flux through roof, wall, and solid non-building land-cover facets using all five material layers and their <code class="docutils literal notranslate"><span class="pre">dz</span></code>, <code class="docutils literal notranslate"><span class="pre">k</span></code>, and <code class="docutils literal notranslate"><span class="pre">rho_cp</span></code> values; EHC resolves every configured roof and wall vertical layer, and the <code class="docutils literal notranslate"><span class="pre">land_cover.bldgs</span></code> and water thermal arrays are not used. With any other <code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> (for example NARP), EHC instead lumps all land covers with a positive fraction and valid thermal layers, buildings and water included, into one plan-area slab weighted by surface fraction using each land cover’s <code class="docutils literal notranslate"><span class="pre">thermal_layers</span></code>; roof and wall layers are not used.</p></li>
 <li><p><strong>DyOHM</strong> (Dynamic Objective Hysteresis Model) (Liu et al., in prep.). Calculates OHM coefficients dynamically from meteorological conditions and the outermost material layer. Method 6 applies DyOHM to all SUEWS land-cover surfaces: buildings use material layer 0 of <code class="docutils literal notranslate"><span class="pre">land_cover.bldgs</span></code>, and each non-building land cover uses its own material layer 0. Method 7 uses STEBBS storage heat and temperatures for buildings, does not use <code class="docutils literal notranslate"><span class="pre">land_cover.bldgs</span></code> material layers, and applies DyOHM to non-building surfaces. Method 8 uses material layer 0 of <code class="docutils literal notranslate"><span class="pre">land_cover.bldgs</span></code> for building DyOHM and ordinary OHM for non-building surfaces. Roof and wall material properties are not used by DyOHM.</p></li>
 </ul>
@@ -896,22 +885,22 @@ should be assessed against suitable direct/diffuse observations.</p>
 <section id="turbulent-heat-fluxes-qh-and-qe">
 <h2><span class="section-number">1.6. </span>Turbulent heat fluxes, Q<sub>H</sub> and Q<sub>E</sub><a class="headerlink" href="#turbulent-heat-fluxes-qh-and-qe" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p><strong>LUMPS</strong> (Local-scale Urban Meteorological Parameterization Scheme) <span class="bibtex-citation" id="id11">[<a class="reference internal" href="references.html#id14" title="Grimmond, C. S. B. and Oke, T. R. Turbulent heat fluxes in urban areas: Observations and a local-scale urban meteorological parameterization scheme (LUMPS). J. Appl. Meteor., 41(7):792-810, July 2002. doi:10.1175/1520-0450(2002)041&lt;0792:thfiua&gt;2.0.co;2.">Grimmond and Oke, 2002</a>]</span> provides a simple means of estimating sensible and latent heat fluxes based on the proportion of vegetation in the study area.</p></li>
+<li><p><strong>LUMPS</strong> (Local-scale Urban Meteorological Parameterization Scheme) <span class="bibtex-citation" id="id14">[<a class="reference internal" href="references.html#id14" title="Grimmond, C. S. B. and Oke, T. R. Turbulent heat fluxes in urban areas: Observations and a local-scale urban meteorological parameterization scheme (LUMPS). J. Appl. Meteor., 41(7):792-810, July 2002. doi:10.1175/1520-0450(2002)041&lt;0792:thfiua&gt;2.0.co;2.">Grimmond and Oke, 2002</a>]</span> provides a simple means of estimating sensible and latent heat fluxes based on the proportion of vegetation in the study area.</p></li>
 <li><p><strong>SUEWS</strong> adopts a more biophysical approach to calculate the latent heat flux; the sensible heat flux is then calculated as the residual of the energy balance.
 The initial estimate of stability is based on the LUMPS calculations of sensible and latent heat flux.
 Future versions will have alternative sensible heat and storage heat flux options.</p></li>
 </ol>
 <p>Sensible and latent heat fluxes from both LUMPS and SUEWS are provided in the <a class="reference internal" href="outputs/index.html#output-files"><span class="std std-ref">output files</span></a>.
 Whether the turbulent heat fluxes are calculated using LUMPS or SUEWS can have a major impact on the results.
-For SUEWS, an appropriate surface conductance parameterisation is also critical <span class="bibtex-citation" id="id12">[<a class="reference internal" href="references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">Järvi <em>et al.</em>, 2011</a>]</span> <span class="bibtex-citation" id="id13">[<a class="reference internal" href="references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">Ward <em>et al.</em>, 2016</a>]</span>.
+For SUEWS, an appropriate surface conductance parameterisation is also critical <span class="bibtex-citation" id="id15">[<a class="reference internal" href="references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">Järvi <em>et al.</em>, 2011</a>]</span> <span class="bibtex-citation" id="id16">[<a class="reference internal" href="references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">Ward <em>et al.</em>, 2016</a>]</span>.
 For more details see <code class="docutils literal notranslate"><span class="pre">Differences_between_SUEWS_LUMPS_and_FRAISE</span></code>.</p>
 </section>
 <section id="water-balance">
 <h2><span class="section-number">1.7. </span>Water balance<a class="headerlink" href="#water-balance" title="Link to this heading">#</a></h2>
-<p>The running water balance at each time step is based on the urban water balance model of <span class="bibtex-citation" id="id14">Grimmond <em>et al.</em> [<a class="reference internal" href="references.html#id10" title="Grimmond, C. S. B., Oke, T. R., and Steyn, D. G. Urban water balance: 1. a model for daily totals. Water Resour. Res., 22(10):1397-1403, September 1986. doi:10.1029/wr022i010p01397.">1986</a>]</span> and urban evaporation-interception scheme of <span class="bibtex-citation" id="id15">Grimmond and Oke [<a class="reference internal" href="references.html#id19" title="Grimmond, C. S. B. and Oke, T. R. An evapotranspiration-interception model for urban areas. Water Resour. Res., 27(7):1739-1755, July 1991. doi:10.1029/91wr00557.">1991</a>]</span>.</p>
+<p>The running water balance at each time step is based on the urban water balance model of <span class="bibtex-citation" id="id17">Grimmond <em>et al.</em> [<a class="reference internal" href="references.html#id10" title="Grimmond, C. S. B., Oke, T. R., and Steyn, D. G. Urban water balance: 1. a model for daily totals. Water Resour. Res., 22(10):1397-1403, September 1986. doi:10.1029/wr022i010p01397.">1986</a>]</span> and urban evaporation-interception scheme of <span class="bibtex-citation" id="id18">Grimmond and Oke [<a class="reference internal" href="references.html#id19" title="Grimmond, C. S. B. and Oke, T. R. An evapotranspiration-interception model for urban areas. Water Resour. Res., 27(7):1739-1755, July 1991. doi:10.1029/91wr00557.">1991</a>]</span>.</p>
 <ul class="simple">
 <li><p>Precipitation is a required variable in the meteorological forcing file.</p></li>
-<li><p>Irrigation can be modelled <span class="bibtex-citation" id="id16">[<a class="reference internal" href="references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">Järvi <em>et al.</em>, 2011</a>]</span> or observed values can be provided if data are available.</p></li>
+<li><p>Irrigation can be modelled <span class="bibtex-citation" id="id19">[<a class="reference internal" href="references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">Järvi <em>et al.</em>, 2011</a>]</span> or observed values can be provided if data are available.</p></li>
 <li><p>Drainage equations and coefficients to use must be specified in the input files.</p></li>
 <li><p>Soil moisture can be calculated by the model.</p></li>
 <li><p>Runoff is permitted:</p>
@@ -975,7 +964,7 @@ For more details see <code class="docutils literal notranslate"><span class="pre
 </section>
 <section id="snowmelt">
 <h2><span class="section-number">1.8. </span>Snowmelt<a class="headerlink" href="#snowmelt" title="Link to this heading">#</a></h2>
-<p>The snowmelt model is described in <span class="bibtex-citation" id="id17">Järvi <em>et al.</em> [<a class="reference internal" href="references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span>.
+<p>The snowmelt model is described in <span class="bibtex-citation" id="id20">Järvi <em>et al.</em> [<a class="reference internal" href="references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span>.
 Changes since v2016a:
 1) previously all surface states could freeze in 1-h time step, now the freezing surface state is
 calculated similarly as melt water and can freeze within the snow pack.
@@ -983,28 +972,25 @@ calculated similarly as melt water and can freeze within the snow pack.
 </section>
 <section id="convective-boundary-layer">
 <h2><span class="section-number">1.9. </span>Convective boundary layer<a class="headerlink" href="#convective-boundary-layer" title="Link to this heading">#</a></h2>
-<p>A convective boundary layer (CBL) slab model <span class="bibtex-citation" id="id18">[<a class="reference internal" href="references.html#id70" title="Cleugh, H. A. and Grimmond, C. S. B. Modelling regional scale surface energy exchanges and cbl growth in a heterogeneous, urban-rural landscape. Bound.-Layer Meteorol., 98(1):1-31, January 2001. doi:10.1023/a:1018798928158.">Cleugh and Grimmond, 2001</a>]</span> calculates the CBL height, temperature and humidity during daytime <span class="bibtex-citation" id="id19">[<a class="reference internal" href="references.html#id6" title="Onomura, S., Grimmond, C.S.B., Lindberg, F., Holmer, B., and Thorsson, S. Meteorological forcing data for urban outdoor thermal comfort models from a coupled convective boundary layer and surface energy balance scheme. Urban Clim., 11:1-23, March 2015. doi:10.1016/j.uclim.2014.11.001.">Onomura <em>et al.</em>, 2015</a>]</span>.</p>
+<p>A convective boundary layer (CBL) slab model <span class="bibtex-citation" id="id21">[<a class="reference internal" href="references.html#id70" title="Cleugh, H. A. and Grimmond, C. S. B. Modelling regional scale surface energy exchanges and cbl growth in a heterogeneous, urban-rural landscape. Bound.-Layer Meteorol., 98(1):1-31, January 2001. doi:10.1023/a:1018798928158.">Cleugh and Grimmond, 2001</a>]</span> calculates the CBL height, temperature and humidity during daytime <span class="bibtex-citation" id="id22">[<a class="reference internal" href="references.html#id6" title="Onomura, S., Grimmond, C.S.B., Lindberg, F., Holmer, B., and Thorsson, S. Meteorological forcing data for urban outdoor thermal comfort models from a coupled convective boundary layer and surface energy balance scheme. Urban Clim., 11:1-23, March 2015. doi:10.1016/j.uclim.2014.11.001.">Onomura <em>et al.</em>, 2015</a>]</span>.</p>
 </section>
 <section id="wind-temperature-and-humidity-profiles-in-the-roughness-sublayer">
 <span id="rsl-mod"></span><h2><span class="section-number">1.10. </span>Wind, Temperature and Humidity Profiles in the Roughness Sublayer<a class="headerlink" href="#wind-temperature-and-humidity-profiles-in-the-roughness-sublayer" title="Link to this heading">#</a></h2>
-<p>A dignostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following <span class="bibtex-citation" id="id20">Harman and Finnigan [<a class="reference internal" href="references.html#id38" title="Harman, Ian N. and Finnigan, John J. A simple unified theory for flow in the canopy and roughness sublayer. Boundary-Layer Meteorol, 123(2):339-363, March 2007. doi:10.1007/s10546-006-9145-6.">2007</a>], Harman and Finnigan [<a class="reference internal" href="references.html#id37" title="Harman, Ian N. and Finnigan, John J. Scalar concentration profiles in the canopy and roughness sublayer. Boundary-Layer Meteorol, 129(3):323-351, October 2008. doi:10.1007/s10546-008-9328-4.">2008</a>]</span> and <span class="bibtex-citation" id="id21">Theeuwes <em>et al.</em> [<a class="reference internal" href="references.html#id3" title="Theeuwes, Natalie E., Ronda, Reinder J., Harman, Ian N., Christen, Andreas, and Grimmond, C. Sue B. Parametrizing horizontally-averaged wind and temperature profiles in the urban roughness sublayer. Boundary-Layer Meteorol, 173(3):321-348, September 2019. doi:10.1007/s10546-019-00472-1.">2019</a>]</span>.
-An recent application of this RSL scheme can be found in <span class="bibtex-citation" id="id22">Tang <em>et al.</em> [<a class="reference internal" href="references.html#id32" title="Tang, Yihao, Sun, Ting, Luo, Zhiwen, Omidvar, Hamidreza, Theeuwes, Natalie, Xie, Xiaoxiong, Xiong, Jie, Yao, Runming, and Grimmond, Sue. Urban meteorological forcing data for building energy simulations. Building and Environment, 204:108088, October 2021. doi:10.1016/j.buildenv.2021.108088.">2021</a>]</span>.</p>
-<p>The diagnostic profiles are outputed in 30 uneven levels between the ground and forcing height, which are divided into two groups:</p>
+<p>A dignostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following <span class="bibtex-citation" id="id23">Harman and Finnigan [<a class="reference internal" href="references.html#id38" title="Harman, Ian N. and Finnigan, John J. A simple unified theory for flow in the canopy and roughness sublayer. Boundary-Layer Meteorol, 123(2):339-363, March 2007. doi:10.1007/s10546-006-9145-6.">2007</a>], Harman and Finnigan [<a class="reference internal" href="references.html#id37" title="Harman, Ian N. and Finnigan, John J. Scalar concentration profiles in the canopy and roughness sublayer. Boundary-Layer Meteorol, 129(3):323-351, October 2008. doi:10.1007/s10546-008-9328-4.">2008</a>]</span> and <span class="bibtex-citation" id="id24">Theeuwes <em>et al.</em> [<a class="reference internal" href="references.html#id3" title="Theeuwes, Natalie E., Ronda, Reinder J., Harman, Ian N., Christen, Andreas, and Grimmond, C. Sue B. Parametrizing horizontally-averaged wind and temperature profiles in the urban roughness sublayer. Boundary-Layer Meteorol, 173(3):321-348, September 2019. doi:10.1007/s10546-019-00472-1.">2019</a>]</span>.
+An recent application of this RSL scheme can be found in <span class="bibtex-citation" id="id25">Tang <em>et al.</em> [<a class="reference internal" href="references.html#id32" title="Tang, Yihao, Sun, Ting, Luo, Zhiwen, Omidvar, Hamidreza, Theeuwes, Natalie, Xie, Xiaoxiong, Xiong, Jie, Yao, Runming, and Grimmond, Sue. Urban meteorological forcing data for building energy simulations. Building and Environment, 204:108088, October 2021. doi:10.1016/j.buildenv.2021.108088.">2021</a>]</span>.</p>
+<p>The diagnostic profiles are output at 30 levels between the surface and the forcing height.
+Where the levels sit depends on the scheme selected by <a class="reference internal" href="inputs/yaml/config-reference/modelphysics.html#roughness-sublayer"><span class="std std-ref">roughness_sublayer</span></a>:</p>
 <ul class="simple">
-<li><p>One group of levels are evenly distributed within the urban canopy layer characterised by mean height of roughness elements (e.g. buildings, trees, etc.) <span class="math notranslate nohighlight">\(z_H\)</span>, which determines the number of layers within urban canopy <span class="math notranslate nohighlight">\(n_{can}\)</span>:</p></li>
+<li><p>With RST, the lowest 20 levels lie within the canopy and the other 10 above it, whatever the mean height of roughness elements (buildings and trees).
+The levels are placed on an effective canopy height <span class="math notranslate nohighlight">\(z_H = \max(\text{mean height}, 2\ \text{m})\)</span>, so over a canopy lower than 2 m they do not follow the actual height.
+Level 1 is at 1% of <span class="math notranslate nohighlight">\(z_H\)</span>, capped just below 2 m, levels 1 to 9 lie in the lower third of the canopy, level 10 is at <span class="math notranslate nohighlight">\(z_H/2\)</span>, and levels 11 to 20 close in on the canopy top.
+Levels 21 to 30 run from just above <span class="math notranslate nohighlight">\(z_H\)</span> to the forcing height and are also concentrated towards the canopy top.</p></li>
+<li><p>With MOST, the 30 levels are spaced logarithmically from just above <span class="math notranslate nohighlight">\(z_d + z_0\)</span> to the forcing height, where <span class="math notranslate nohighlight">\(z_d\)</span> is the zero-plane displacement height and <span class="math notranslate nohighlight">\(z_0\)</span> the roughness length for momentum.
+Where 2 m and 10 m fall within that range, the nearest levels are moved to exactly those heights.</p></li>
 </ul>
-<div class="math notranslate nohighlight">
-\[
-      n_{can} =
-\begin{cases}
-   3 &amp; \text{if } z_H \leq \text{2 m} \\
-   10 &amp; \text{if } \text{2 m} \lt z_H \leq \text{10 m} \\
-   15 &amp; \text{if } z_H \gt \text{10 m} \\
-
-\end{cases}
-\]</div><ul class="simple">
-<li><p>The other levels are evenly distributed between the urban canopy layer top and forcing height.</p></li>
-</ul>
+<p>With <code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code> set to <code class="docutils literal notranslate"><span class="pre">variable</span></code> (the default), RST is used when the plan area index of buildings and trees, with trees counted by their non-porous fraction, is between 0.1 and 0.68 and <span class="math notranslate nohighlight">\(z_H\)</span> exceeds 2 m; otherwise MOST is used.
+The frontal area index does not enter this choice.
+The <code class="docutils literal notranslate"><span class="pre">flag_RSL</span></code> column of the RSL output group records the outcome at each timestep: 1 when RST was used and 0 when MOST was used.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>All the diagnostic profiles (wind speed, temperature and humidity) are calculated
@@ -1015,13 +1001,24 @@ are above the blending height.</p>
 <p>Common near-surface diagnostics:</p>
 <blockquote>
 <div><ul class="simple">
-<li><p>T2: air temperature at 2 m agl</p></li>
-<li><p>Q2: air specific humidity at 2 m agl</p></li>
-<li><p>RH2: air relative humidity at 2 m agl</p></li>
-<li><p>U10: wind speed at 10 m agl</p></li>
+<li><p>T2: air temperature</p></li>
+<li><p>Q2: air specific humidity</p></li>
+<li><p>RH2: air relative humidity</p></li>
+<li><p>U10: wind speed</p></li>
 </ul>
 </div></blockquote>
-<p>are calculated by the <a class="reference internal" href="#rsl-mod"><span class="std std-ref">RSL scheme</span></a> by interpolating RSL profile results to the corresponding diagnostic heights.</p>
+<p>are calculated by the <a class="reference internal" href="#rsl-mod"><span class="std std-ref">RSL scheme</span></a> by interpolating the profiles to their reference heights, which differ between the two schemes.</p>
+<div class="admonition important" id="rsl-diag-heights">
+<p class="admonition-title">Important</p>
+<p><strong>Reference heights of the near-surface diagnostics.</strong>
+With RST, T2, Q2 and RH2 are taken at 2 m and U10 at 10 m above ground.
+With MOST, they are taken at 2 m and 10 m above <span class="math notranslate nohighlight">\(z_d + z_0\)</span>, the level at which the MOST wind profile falls to zero, that is at <span class="math notranslate nohighlight">\(2 + z_d + z_0\)</span> and <span class="math notranslate nohighlight">\(10 + z_d + z_0\)</span> above ground.
+Where <span class="math notranslate nohighlight">\(z_d + z_0\)</span> is small the two sets of reference heights nearly coincide, but over a tall, dense canopy the MOST values sit well above ground: where <span class="math notranslate nohighlight">\(z_d + z_0 = 16\)</span> m, for example, MOST reports T2, Q2 and RH2 at 18 m and U10 at 26 m above ground.
+Where such a height lies above the forcing height, the value at the forcing height is reported instead.
+The two schemes therefore report quantities at different heights under the same names.
+Bear this in mind when comparing runs with different <code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code> settings, or grid cells for which <code class="docutils literal notranslate"><span class="pre">variable</span></code> selected different schemes.
+The <span class="math notranslate nohighlight">\(z_d\)</span> and <span class="math notranslate nohighlight">\(z_0\)</span> used at each timestep are reported as <code class="docutils literal notranslate"><span class="pre">zd_RSL</span></code> and <code class="docutils literal notranslate"><span class="pre">z0_RSL</span></code> in the RSL output group.</p>
+</div>
 </section>
 <section id="spartacus-surface-ss">
 <h2><span class="section-number">1.11. </span>SPARTACUS-Surface (SS)<a class="headerlink" href="#spartacus-surface-ss" title="Link to this heading">#</a></h2>
@@ -1038,10 +1035,10 @@ are above the blending height.</p>
 </ul>
 </div>
 <p>The <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface module</a> computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation).</p>
-<figure class="align-default" id="id28">
+<figure class="align-default" id="id31">
 <span id="spartacus-surface"></span><img alt="Multi-layer structure of SS" src="_images/SUEWS002.jpg" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.1 </span><span class="caption-text">Multi-layer structure (horizontal dashed lines) used in SS to characterise differences in the canopy (Cyan building, Green – vegetation). Source: <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface GH page</a></span><a class="headerlink" href="#id28" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.1 </span><span class="caption-text">Multi-layer structure (horizontal dashed lines) used in SS to characterise differences in the canopy (Cyan building, Green – vegetation). Source: <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface GH page</a></span><a class="headerlink" href="#id31" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <p>It uses a multi-layer description of the canopy (<a class="reference internal" href="#spartacus-surface"><span class="std std-numref">Fig. 1.1</span></a>), with a statistical description of the horizontal distribution of trees and buildings.
@@ -1057,10 +1054,10 @@ Assumptions include:</p>
 <li><p>The rate of exchange of radiation between the clear and vegetated parts of a layer are assumed to be proportional to the length of the interface between them.</p></li>
 <li><p>Likewise for the rate of interception of radiation by building walls.</p></li>
 </ul>
-<figure class="align-default" id="id29">
+<figure class="align-default" id="id32">
 <span id="schematic-tree-canopy"></span><img alt="Areas between trees" src="_images/SUEWS003.jpg" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.2 </span><span class="caption-text">Areas between trees. Source: <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface GH page</a></span><a class="headerlink" href="#id29" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.2 </span><span class="caption-text">Areas between trees. Source: <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface GH page</a></span><a class="headerlink" href="#id32" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <p>Each time light is intercepted it can undergo diffuse or specular reflection, be absorbed or be transmitted (as diffuse radiation).
@@ -1086,33 +1083,33 @@ The probabilities for buildings and the ground are determined by albedos and emi
 <p class="sidebar-title"></p>
 <aside class="footnote-list brackets">
 <aside class="footnote brackets" id="ss-output" role="doc-footnote">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id23">1</a><span class="fn-bracket">]</span></span>
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id26">1</a><span class="fn-bracket">]</span></span>
 <p>this will be updated but requires other updates first as of December 2021</p>
 </aside>
 </aside>
 </aside>
 <ul class="simple">
-<li><p>Output variables (including multi-layer ones) are in SUEWS-SS output file <code class="docutils literal notranslate"><span class="pre">SSss_YYYY_SPARTACUS.txt</span></code>. <a class="footnote-reference brackets" href="#ss-output" id="id23" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></li>
+<li><p>Output variables (including multi-layer ones) are in SUEWS-SS output file <code class="docutils literal notranslate"><span class="pre">SSss_YYYY_SPARTACUS.txt</span></code>. <a class="footnote-reference brackets" href="#ss-output" id="id26" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></li>
 </ul>
 <ul class="simple">
 <li><p>The RSL diagnostic profile contains 30 height levels. When the RSL scheme is active, 20 levels are placed within the urban canopy and the remaining 10 levels extend from the canopy top to the forcing height.</p></li>
-<li><p>The RSL height levels are non-uniformly spaced, with extra resolution near the surface, around half canopy height, and near the canopy top (<a class="reference internal" href="#suews-rsl"><span class="std std-numref">Fig. 1.3</span></a>).</p></li>
+<li><p>The RSL height levels are non-uniformly spaced: nine levels lie in the lower third of the canopy, one at half canopy height, and the rest are packed increasingly closely towards the canopy top, from below and from above (<a class="reference internal" href="#suews-rsl"><span class="std std-numref">Fig. 1.3</span></a>).</p></li>
 <li><p>The RSL calculation uses a representative canopy height and morphology. This is separate from the SPARTACUS vertical-layer description, where building and vegetation fractions can vary by layer.</p></li>
 </ul>
-<figure class="align-default" id="id30">
+<figure class="align-default" id="id33">
 <span id="suews-rsl"></span><img alt="SUEWS-RSL" src="_images/SUEWS004.png" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.3 </span><span class="caption-text">SUEWS-RSL module assumes the RSL has 30 layers that are spread between the canopy and within the atmosphere above</span><a class="headerlink" href="#id30" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.3 </span><span class="caption-text">SUEWS-RSL module assumes the RSL has 30 layers that are spread between the canopy and within the atmosphere above</span><a class="headerlink" href="#id33" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <p>A maximum of 15 vertical layers can be used by SPARTACUS-Surface (<a class="reference internal" href="#vertial-layers-ss"><span class="std std-numref">Fig. 1.4</span></a>).
 Layer heights are user defined, and the top of the SPARTACUS domain is given by the final value in the <code class="docutils literal notranslate"><span class="pre">height</span></code> array.
 There is no fixed numeric maximum building height.
 Building and vegetation fractions can vary between vertical layers.</p>
-<figure class="align-default" id="id31">
+<figure class="align-default" id="id34">
 <span id="vertial-layers-ss"></span><img alt="Vertical layers used by SS" src="_images/SUEWS005.png" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.4 </span><span class="caption-text">Vertical layers used by SS</span><a class="headerlink" href="#id31" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.4 </span><span class="caption-text">Vertical layers used by SS</span><a class="headerlink" href="#id34" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <section id="inputs">
@@ -1137,7 +1134,7 @@ For example, LAI, albedos and emissivities are used by SUEWS-SS as explained in 
 </section>
 <section id="vegetation-single-scattering-albedo-ssa">
 <h3><span class="section-number">1.11.3. </span>Vegetation single scattering albedo (SSA)<a class="headerlink" href="#vegetation-single-scattering-albedo-ssa" title="Link to this heading">#</a></h3>
-<p>The <strong>shortwave</strong> broadband SSA is equal to the sum of the broadband reflectance <span class="math notranslate nohighlight">\(R\)</span> and broadband transmittance <span class="math notranslate nohighlight">\(T\)</span> <span class="bibtex-citation" id="id24">[<a class="reference internal" href="references.html#id107" title="Yang, Bin, He, Yuhao, and Chen, Wei. A simple method for estimation of leaf dry matter content in fresh leaves using leaf scattering albedo. Global Ecol. Conserv., 23:e01201, Sep 2020. doi:10.1016/j.gecco.2020.e01201.">Yang <em>et al.</em>, 2020</a>]</span>.
+<p>The <strong>shortwave</strong> broadband SSA is equal to the sum of the broadband reflectance <span class="math notranslate nohighlight">\(R\)</span> and broadband transmittance <span class="math notranslate nohighlight">\(T\)</span> <span class="bibtex-citation" id="id27">[<a class="reference internal" href="references.html#id107" title="Yang, Bin, He, Yuhao, and Chen, Wei. A simple method for estimation of leaf dry matter content in fresh leaves using leaf scattering albedo. Global Ecol. Conserv., 23:e01201, Sep 2020. doi:10.1016/j.gecco.2020.e01201.">Yang <em>et al.</em>, 2020</a>]</span>.
 Given reflectance <span class="math notranslate nohighlight">\(r\)</span> and transmittance <span class="math notranslate nohighlight">\(t\)</span> spectra the SSA is calculated to modify equation</p>
 <div class="math notranslate nohighlight">
 \[\text{SSA} = \ \frac{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}{r \times S}\text{dλ}}{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}S\text{dλ}} + \frac{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}{t \times S}\text{dλ}}{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}S\text{dλ}}\]</div>
@@ -1146,10 +1143,10 @@ Given reflectance <span class="math notranslate nohighlight">\(r\)</span> and tr
 This is a reasonable approximation since it is where the majority of incoming SW energy resides (as seen from the clear-sky surface spectrum in Fig. 6).</p>
 <p>Users can use the default value of 0.46, from RAMI5 Järvselja birch stand forest tree types or calculate their own SSA (<a class="reference internal" href="#rami5"><span class="std std-numref">Fig. 1.5</span></a>).
 There are more tree R and T profiles <a class="reference external" href="https://rami-benchmark.jrc.ec.europa.eu/_www/phase_descr.php?strPhase=RAMI5">here</a><sup>5</sup>,</p>
-<figure class="align-default" id="id32">
+<figure class="align-default" id="id35">
 <span id="rami5"></span><img alt="Overview of SUEWS" src="_images/SUEWS006.png" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.5 </span><span class="caption-text">RAMI5<sup>5</sup> data used to calculate R, T, and SSA, and R, T, and SSA values: (a) top-of-atmosphere incoming solar flux and clear-sky surface spectrum <span class="bibtex-citation" id="id25">[<a class="reference internal" href="references.html#id104" title="Hogan, Robin J. and Matricardi, Marco. Evaluating and improving the treatment of gases in radiation schemes: the Correlated K-Distribution Model Intercomparison Project (CKDMIP). Geosci. Model Dev., 13(12):6501–6521, Dec 2020. doi:10.5194/gmd-13-6501-2020.">Hogan and Matricardi, 2020</a>]</span> (b) RAMI5 r and t spectra, and (c) calculated broadband R, T, and SSA values.</span><a class="headerlink" href="#id32" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.5 </span><span class="caption-text">RAMI5<sup>5</sup> data used to calculate R, T, and SSA, and R, T, and SSA values: (a) top-of-atmosphere incoming solar flux and clear-sky surface spectrum <span class="bibtex-citation" id="id28">[<a class="reference internal" href="references.html#id104" title="Hogan, Robin J. and Matricardi, Marco. Evaluating and improving the treatment of gases in radiation schemes: the Correlated K-Distribution Model Intercomparison Project (CKDMIP). Geosci. Model Dev., 13(12):6501–6521, Dec 2020. doi:10.5194/gmd-13-6501-2020.">Hogan and Matricardi, 2020</a>]</span> (b) RAMI5 r and t spectra, and (c) calculated broadband R, T, and SSA values.</span><a class="headerlink" href="#id35" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <p>The <strong>longwave</strong> broadband SSA could be calculated in the same way but with the integral over the thermal infra-red (8-14 𝜇m), S replaced with the Plank function at Earth surface temperature, and r and t for the spectra for the thermal infra-red.
@@ -1160,7 +1157,7 @@ Based on inspection of r profiles for several tree species SSA=0.06 is the defau
 </section>
 <section id="building-albedo-and-emissivity">
 <h3><span class="section-number">1.11.4. </span>Building albedo and emissivity<a class="headerlink" href="#building-albedo-and-emissivity" title="Link to this heading">#</a></h3>
-<p>Use broadband values in Table C.1 of <span class="bibtex-citation" id="id26">Kotthaus <em>et al.</em> [<a class="reference internal" href="references.html#id105" title="Kotthaus, Simone, Smith, Thomas E. L., Wooster, Martin J., and Grimmond, C. S. B. Derivation of an urban materials spectral library through emittance and reflectance spectroscopy. ISPRS J. Photogramm. Remote Sens., 94:194–212, Aug 2014. doi:10.1016/j.isprsjprs.2014.05.005.">2014</a>]</span>.
+<p>Use broadband values in Table C.1 of <span class="bibtex-citation" id="id29">Kotthaus <em>et al.</em> [<a class="reference internal" href="references.html#id105" title="Kotthaus, Simone, Smith, Thomas E. L., Wooster, Martin J., and Grimmond, C. S. B. Derivation of an urban materials spectral library through emittance and reflectance spectroscopy. ISPRS J. Photogramm. Remote Sens., 94:194–212, Aug 2014. doi:10.1016/j.isprsjprs.2014.05.005.">2014</a>]</span>.
 Full spectra can be found in the <a class="reference external" href="http://micromet.reading.ac.uk/spectral-library/">spectral library documentation</a>.</p>
 </section>
 <section id="ground-albedo-and-emissivity">
@@ -1301,7 +1298,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-05.
+  Last updated on 2026-10-20.
   <br/>
 </p>
   </div>
@@ -1309,8 +1306,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.14.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2ffde7377024d58f5c3e46e61beea7c8164fdc7a">2ffde73</a> |
+  <p>Version: 2026.10.20.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/fdb986f6457676a7fa8b49aeaf2dd71d7aadbe76">fdb986f</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

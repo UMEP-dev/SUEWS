@@ -518,7 +518,7 @@ class RSLLevel(Enum):
 
     0: NONE - Forcing air temperature
     1: BASIC - Near-surface air temperature T2 diagnosed by the roughness_sublayer scheme, at that scheme's reference height
-    2: DETAILED - Air temperature at level 10 of the near-surface profile, which is half the mean roughness-element height when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used
+    2: DETAILED - Air temperature at level 10 of the near-surface profile, which is half the effective canopy height (the mean roughness-element height, at least 2 m) when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used
     """
 
     NONE = 0

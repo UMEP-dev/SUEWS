@@ -116,7 +116,7 @@ BEERS has no such input: it represents each grid cell by an idealised street can
 
 **When it runs:** BEERS has no on/off option.
 The driver calls it at every timestep, after the surface energy balance has been solved, for every grid cell with a non-zero building fraction.
-For a cell without buildings its outputs are missing values.
+For a cell without buildings BEERS is not calculated, and its outputs should not be used.
 The rest of SUEWS does not use its results, with one exception: when STEBBS is enabled with a net radiation option other than SPARTACUS-Surface, STEBBS takes its roof and wall irradiances from the BEERS fluxes of the previous timestep.
 
 **Canyon geometry:** The canyon height-to-width ratio is :math:`H/W = 2\lambda_F/(1-\lambda_P)`, which assumes square buildings.
@@ -137,7 +137,7 @@ Their excess over air temperature follows an empirical diurnal cycle taken from 
 The output contract classifies this group as provisional.
 Several variables hold something other than their names, or their descriptions in the output variable reference, suggest:
 
-- ``SH_Ground`` and ``SH_Walls`` are the sunlit fractions of the ground and of the walls (1 for fully sunlit), not shadow fractions. Both are 0 at night.
+- ``SH_Ground`` and ``SH_Walls`` are sunlit fractions, not shadow fractions, and both are 0 at night. ``SH_Ground`` runs from 0 to 1 (fully sunlit). ``SH_Walls`` is averaged over the two facing walls of the canyon, one of which is always in shade, so it never exceeds 0.5.
 - ``DiffuseRad`` holds the direct-beam irradiance on a surface normal to the sun, and ``DirectRad`` holds the diffuse irradiance on a horizontal surface.
 - ``Tg`` and ``Tw`` are the excesses of ground and wall surface temperature over air temperature, not absolute surface temperatures.
 - ``SVF_BdVeg`` equals ``SVF_Ground``, because the vegetation sky-view factor is fixed at 1.
@@ -311,8 +311,9 @@ An recent application of this RSL scheme can be found in :cite:t:`T21`.
 The diagnostic profiles are output at 30 levels between the surface and the forcing height.
 Where the levels sit depends on the scheme selected by :ref:`roughness_sublayer <roughness_sublayer>`:
 
-- With RST, the lowest 20 levels lie within the canopy and the other 10 above it, whatever the mean height of roughness elements (buildings and trees) :math:`z_H`, which for this purpose is at least 2 m.
-  Level 1 is at 1% of :math:`z_H` and always below 2 m, levels 1 to 9 lie in the lower third of the canopy, level 10 is at :math:`z_H/2`, and levels 11 to 20 close in on the canopy top.
+- With RST, the lowest 20 levels lie within the canopy and the other 10 above it, whatever the mean height of roughness elements (buildings and trees).
+  The levels are placed on an effective canopy height :math:`z_H = \max(\text{mean height}, 2\ \text{m})`, so over a canopy lower than 2 m they do not follow the actual height.
+  Level 1 is at 1% of :math:`z_H`, capped just below 2 m, levels 1 to 9 lie in the lower third of the canopy, level 10 is at :math:`z_H/2`, and levels 11 to 20 close in on the canopy top.
   Levels 21 to 30 run from just above :math:`z_H` to the forcing height and are also concentrated towards the canopy top.
 - With MOST, the 30 levels are spaced logarithmically from just above :math:`z_d + z_0` to the forcing height, where :math:`z_d` is the zero-plane displacement height and :math:`z_0` the roughness length for momentum.
   Where 2 m and 10 m fall within that range, the nearest levels are moved to exactly those heights.

@@ -25,17 +25,23 @@ skill bundle and sweeps the models you name (default: haiku):
 plugins/suews/evals/run_local.sh haiku sonnet opus
 ```
 
-It writes one JSON result and one HTML report per model under
-`plugins/suews/evals/results/<timestamp>/` (gitignored). The underlying command,
-if you want to run it by hand: build the skill bundle first (`make plugin`), then from the repository root:
+It runs each case as its own eval call and writes one JSON result and one HTML
+report per case under `plugins/suews/evals/results/<timestamp>/<model>/`
+(gitignored). The underlying command, if you want to run it by hand: build the
+skill bundle first (`make plugin`), then from the repository root:
 
 ```bash
-claude plugin eval plugins/suews \
+claude plugin eval plugins/suews --case b-new-site-config \
   --model haiku --judge-model opus \
   --mocks off --scaffold --trust-plugin \
   --allow-tools Bash Write Edit 'mcp__plugin_suews_suews__*' \
-  --max-cost-usd 20 --json plugins/suews/evals/results/haiku.json
+  --max-cost-usd 20 --json plugins/suews/evals/results/haiku-b.json
 ```
+
+Operator grants add to every case in a call, so never run
+`d-diagnose-bad-fractions` with Bash, Write or Edit granted: it is a read-only
+task, and the wrapper grants it only its three read-only MCP tools
+(`validate_config`, `inspect_config`, `diagnose_run`).
 
 `--mocks off` starts the real `suews-mcp` server (through `uvx`), and
 `--scaffold` runs `d-diagnose-bad-fractions/scaffold.sh`, which copies the

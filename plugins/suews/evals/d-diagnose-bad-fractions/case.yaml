@@ -4,8 +4,9 @@ description: >
   Group D (diagnosis). scaffold.sh plants one fault in a copy of the sample
   configuration: the building fraction is 0.58, so land-cover fractions sum
   to 1.2. The agent must find that fault, not a different one. Run with
-  --scaffold. The case grants no Bash, Write or Edit, so the agent cannot
-  change any file and the read-only request needs no trace check.
+  --scaffold. The case asks for no Bash, Write or Edit, and run_local.sh
+  grants it only the three read-only MCP tools below, so the agent
+  cannot change any file and the read-only request needs no trace check.
 tags: [group-d, diagnose]
 context:
   scaffold_script: scaffold.sh

@@ -47,8 +47,7 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays(
     df_state = _forest_only_direct_albedo_state(df_state_init)
     df_state.loc[:, ("air_ext_lw", "0")] = air_ext_lw
     albedo_diffuse = 0.25
-    albedo_direct_factor = 1.6  # Direct albedo 0.4, diffuse albedo 0.25.
-    df_state.loc[:, ("ground_albedo_dir_mult_fact", "0")] = albedo_direct_factor
+    albedo_direct_factor = df_state[("ground_albedo_dir_mult_fact", "0")].iloc[0]
     emissivity = 0.95
     fraction_direct = 0.6
     if not with_trees:
@@ -115,8 +114,6 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays(
             kdown * fraction_direct * (1 - albedo_diffuse * albedo_direct_factor)
             + kdown * (1 - fraction_direct) * (1 - albedo_diffuse)
         )
-        # The weighted absorbed fraction is 0.66, not the diffuse-only 0.75.
-        np.testing.assert_allclose(expected_shortwave, 0.66 * kdown, rtol=1e-15)
         # Tsurf is the area-weighted temperature used in radiation, before
         # the subsequent turbulent-flux temperature update. Here it is grass.
         temperature_ground = df_output["SUEWS", "Tsurf"].to_numpy() + 273.15

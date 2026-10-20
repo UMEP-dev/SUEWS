@@ -451,6 +451,14 @@ CONTAINS
       CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
+      CASE (W16)
+         ! W16 only has psi forms; its RSL phi formulation needs review (GH#1784).
+         CALL set_supy_error(108, &
+            'stab_phi_mom: stability=2 (W16) has no phi implementation for RSL; ' // &
+            'use stability=3 or 4, or roughness_sublayer=0 (MOST).')
+         phim = 1.0D0
+         RETURN
+
       CASE (J12)
          phim = phi_mom_J12(zl)
 
@@ -480,6 +488,14 @@ CONTAINS
       CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
+      CASE (W16)
+         ! W16 only has psi forms; its RSL phi formulation needs review (GH#1784).
+         CALL set_supy_error(108, &
+            'stab_phi_heat: stability=2 (W16) has no phi implementation for RSL; ' // &
+            'use stability=3 or 4, or roughness_sublayer=0 (MOST).')
+         phih = 1.0D0
+         RETURN
+
       CASE (J12)
          phih = phi_heat_J12(zl)
 

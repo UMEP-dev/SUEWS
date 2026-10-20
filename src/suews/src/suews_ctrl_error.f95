@@ -13,6 +13,7 @@
 !   105: DailyState - laimethod=0 requires non-missing lai >= 0 at every timestep (GH#1296)
 !   106: Storage heat - StorageHeatMethod value with no scheme behind it, e.g. the disabled ESTM (GH#1802)
 !   107: Stability - Reserved or unsupported psi/phi method (GH#1783)
+!   108: Stability - W16 phi functions are not implemented for RSL (GH#1784)
 !
 ! Thread Safety:
 !   Fatal errors live in thread-local storage provided by suews_ctrl_error_tls.c

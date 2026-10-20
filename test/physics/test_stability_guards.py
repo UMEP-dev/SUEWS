@@ -1,4 +1,4 @@
-"""Kernel stability dispatch must never return an unassigned result (GH#1783)."""
+"""Kernel stability dispatch must never return unassigned results (GH#1783/1784)."""
 
 import copy
 import gzip
@@ -8,8 +8,11 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pytest
+
+import supy as sp
 
 pytestmark = pytest.mark.physics
 
@@ -124,3 +127,43 @@ def test_unchecked_mapping_reports_kernel_error(method, bridge_inputs):
     with pytest.raises(RuntimeError, match=f"stability={method} is reserved or unsupported") as error:
         rust.run_suews_multi([json.dumps(config)], forcing, n_steps, 1)
     assert "(code 107)" in str(error.value)
+
+
+@pytest.mark.parametrize("selector", [1, 2, 3, 4])
+@pytest.mark.parametrize("zeta", [-0.1, 0.0, 0.1])
+def test_w16_psi_runs_but_phi_fails_explicitly(stability_probe, selector, zeta):
+    """W16's implemented integral forms remain usable outside the RSL path."""
+    value, code, message = stability_probe(2, selector, zeta)
+    assert np.isfinite(value)
+    if selector <= 2:
+        assert code == 0, message
+    else:
+        assert code == 108
+        assert "stability=2 (W16) has no phi implementation for RSL" in message
+        assert "roughness_sublayer=0 (MOST)" in message
+        assert value == 1.0
+
+
+@pytest.mark.parametrize("method", [2, 3, 4])
+@pytest.mark.parametrize("rsl", [0, 1, 2])
+def test_stability_profile_combinations(method, rsl, sample_config_loaded, sample_data_loaded):
+    """The public API refuses W16/RSL and retains finite working profiles."""
+    config = sample_config_loaded.model_copy(deep=True)
+    config.model.physics.stability = method
+    config.model.physics.roughness_sublayer = rsl
+    _, forcing = sample_data_loaded
+    forcing = forcing.iloc[:TIMESTEPS_PER_DAY]
+    simulation = sp.SUEWSSimulation()
+    simulation.update_config(config, auto_load_forcing=False)
+    simulation.update_forcing(forcing)
+    run_options = dict(start_date=forcing.index[0], end_date=forcing.index[-1], n_jobs=1)
+
+    if method == 2 and rsl != 0:
+        with pytest.raises(RuntimeError, match="has no phi implementation for RSL") as error:
+            simulation.run(**run_options)
+        assert "(code 108)" in str(error.value)
+    else:
+        output = simulation.run(**run_options).df
+        diagnostics = output.loc[:, ("SUEWS", ["T2", "RH2", "Q2", "U10"])]
+        assert len(diagnostics) == len(forcing)
+        assert np.isfinite(diagnostics.to_numpy(dtype=float)).all()

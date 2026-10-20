@@ -27,6 +27,8 @@ read_only_grants=(
   mcp__plugin_suews_suews__diagnose_run
 )
 
+failed=()
+
 # The eval loads the skill from plugins/suews/skills/, a gitignored build artefact.
 python3 scripts/build_plugin.py >/dev/null
 
@@ -50,8 +52,12 @@ for model in "${models[@]}"; do
       --threshold 0 \
       --json "$out/$model/$case_name.json" \
       --report "$out/$model/$case_name.html" \
-      || echo "   $case_name finished with exit $? (see $out/$model/$case_name.json)"
+      || { status=$?; echo "   $case_name failed with exit $status"; failed+=("$model/$case_name"); }
   done
 done
 
 echo "Results: $out"
+if ((${#failed[@]})); then
+  echo "Failed or incomplete: ${failed[*]}" >&2
+  exit 1
+fi

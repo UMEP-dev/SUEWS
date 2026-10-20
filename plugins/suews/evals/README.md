@@ -45,6 +45,11 @@ schema version matches the validator the agent calls) and plants the fault. The 
 plugin's score delta. Repeat with `--model sonnet` and `--model opus` to compare
 models.
 
+The `llm` graders with `focus: trace` in `b-new-site-config` and
+`c-run-july-fluxes` see only the first and last 12 messages of a long run, so a
+validation or simulation step in the middle can be missed. Treat those scores
+as a lower bound and check the trace in the HTML report when they look off.
+
 The expected value in `c-run-july-fluxes` comes from
 `test/fixtures/data_test/sample_output_2012-07.csv`; refresh its band whenever
 that reference output moves.

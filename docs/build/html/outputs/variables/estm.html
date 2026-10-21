@@ -10,7 +10,7 @@
 <meta content="SUEWS ESTM output variables" name="description" />
 <meta content="SUEWS, output, estm, variables" name="keywords" />
 
-    <title>5.3.4. ESTM Output Variables &#8212; SUEWS 2026.10.21.dev6 documentation</title>
+    <title>5.3.4. ESTM Output Variables &#8212; SUEWS 2026.10.21.dev7 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=dc99365b"></script>
+    <script src="../../_static/documentation_options.js?v=6765b446"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="5.3.3. snow Output Variables" href="snow.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.21.dev6" />
+  <meta name="docsearch:version" content="2026.10.21.dev7" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.21.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52" style="color: #31708f;">5280c61</a>).
+        (2026.10.21.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4bd44a2ce9e4e916305e4c87761aff268907d33a" style="color: #31708f;">4bd44a2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev7 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev7 documentation - Home"/>
   
   
 </a></div>
@@ -610,7 +610,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-1">
 <dt class="sig sig-object output" id="output-variable-QS">
 <span class="sig-name descname"><span class="pre">QS</span></span><a class="headerlink" href="#output-variable-QS" title="Link to this definition">#</a></dt>
-<dd><p>Total storage heat flux from ESTM (positive into storage)</p>
+<dd><p>Storage heat flux from ESTM: sum of QSWall, QSRoof, QSGround and QSIBld, excluding QSAir (positive into storage)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -624,7 +624,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-2">
 <dt class="sig sig-object output" id="output-variable-QSAir">
 <span class="sig-name descname"><span class="pre">QSAir</span></span><a class="headerlink" href="#output-variable-QSAir" title="Link to this definition">#</a></dt>
-<dd><p>Heat storage rate in canyon air volume</p>
+<dd><p>Heat storage rate in outdoor air below twice the mean building height, from the change in air temperature (not included in QS)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -694,7 +694,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-7">
 <dt class="sig sig-object output" id="output-variable-TWALL1">
 <span class="sig-name descname"><span class="pre">TWALL1</span></span><a class="headerlink" href="#output-variable-TWALL1" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in wall layer 1 (outermost, external surface)</p>
+<dd><p>Temperature in wall layer 1 (outermost, next to the outdoor surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -750,7 +750,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-11">
 <dt class="sig sig-object output" id="output-variable-TWALL5">
 <span class="sig-name descname"><span class="pre">TWALL5</span></span><a class="headerlink" href="#output-variable-TWALL5" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in wall layer 5 (innermost, internal surface)</p>
+<dd><p>Temperature in wall layer 5 (innermost, next to the indoor surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -764,7 +764,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-12">
 <dt class="sig sig-object output" id="output-variable-TROOF1">
 <span class="sig-name descname"><span class="pre">TROOF1</span></span><a class="headerlink" href="#output-variable-TROOF1" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in roof layer 1 (outermost, external surface)</p>
+<dd><p>Temperature in roof layer 1 (outermost, next to the outdoor surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -820,7 +820,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-16">
 <dt class="sig sig-object output" id="output-variable-TROOF5">
 <span class="sig-name descname"><span class="pre">TROOF5</span></span><a class="headerlink" href="#output-variable-TROOF5" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in roof layer 5 (innermost, internal surface)</p>
+<dd><p>Temperature in roof layer 5 (innermost, next to the indoor surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -834,7 +834,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-17">
 <dt class="sig sig-object output" id="output-variable-TGROUND1">
 <span class="sig-name descname"><span class="pre">TGROUND1</span></span><a class="headerlink" href="#output-variable-TGROUND1" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 1 (outermost, external surface)</p>
+<dd><p>Temperature in ground layer 1 (uppermost, next to the ground surface)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -848,7 +848,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-18">
 <dt class="sig sig-object output" id="output-variable-TGROUND2">
 <span class="sig-name descname"><span class="pre">TGROUND2</span></span><a class="headerlink" href="#output-variable-TGROUND2" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 2 (outer-middle)</p>
+<dd><p>Temperature in ground layer 2 (upper-middle)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -876,7 +876,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-20">
 <dt class="sig sig-object output" id="output-variable-TGROUND4">
 <span class="sig-name descname"><span class="pre">TGROUND4</span></span><a class="headerlink" href="#output-variable-TGROUND4" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 4 (inner-middle)</p>
+<dd><p>Temperature in ground layer 4 (lower-middle)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -890,7 +890,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-21">
 <dt class="sig sig-object output" id="output-variable-TGROUND5">
 <span class="sig-name descname"><span class="pre">TGROUND5</span></span><a class="headerlink" href="#output-variable-TGROUND5" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in ground layer 5 (innermost, internal surface)</p>
+<dd><p>Temperature in ground layer 5 (deepest, next to the lower soil boundary)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -904,7 +904,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-22">
 <dt class="sig sig-object output" id="output-variable-TiBLD1">
 <span class="sig-name descname"><span class="pre">TiBLD1</span></span><a class="headerlink" href="#output-variable-TiBLD1" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in internal building layer 1 (outermost, external surface)</p>
+<dd><p>Temperature in internal building element layer 1 (surface layer, facing indoor air)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -918,7 +918,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-23">
 <dt class="sig sig-object output" id="output-variable-TiBLD2">
 <span class="sig-name descname"><span class="pre">TiBLD2</span></span><a class="headerlink" href="#output-variable-TiBLD2" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in internal building layer 2 (outer-middle)</p>
+<dd><p>Temperature in internal building element layer 2 (between surface and centre)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -932,7 +932,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-24">
 <dt class="sig sig-object output" id="output-variable-TiBLD3">
 <span class="sig-name descname"><span class="pre">TiBLD3</span></span><a class="headerlink" href="#output-variable-TiBLD3" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in internal building layer 3 (middle)</p>
+<dd><p>Temperature in internal building element layer 3 (centre)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -946,7 +946,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-25">
 <dt class="sig sig-object output" id="output-variable-TiBLD4">
 <span class="sig-name descname"><span class="pre">TiBLD4</span></span><a class="headerlink" href="#output-variable-TiBLD4" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in internal building layer 4 (inner-middle)</p>
+<dd><p>Temperature in internal building element layer 4 (between surface and centre)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -960,7 +960,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-26">
 <dt class="sig sig-object output" id="output-variable-TiBLD5">
 <span class="sig-name descname"><span class="pre">TiBLD5</span></span><a class="headerlink" href="#output-variable-TiBLD5" title="Link to this definition">#</a></dt>
-<dd><p>Temperature in internal building layer 5 (innermost, internal surface)</p>
+<dd><p>Temperature in internal building element layer 5 (surface layer, facing indoor air)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degK</p>
@@ -1056,8 +1056,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.21.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52">5280c61</a> |
+  <p>Version: 2026.10.21.dev7 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4bd44a2ce9e4e916305e4c87761aff268907d33a">4bd44a2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-20T13:46:19+00:00" />
-    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.10.21.dev6 documentation</title>
+    <meta property="article:modified_time" content="2026-10-21T17:01:44+00:00" />
+    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.10.21.dev7 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=dc99365b"></script>
+    <script src="_static/documentation_options.js?v=6765b446"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="3. Acknowledgements" href="acknowledgement.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.21.dev6" />
-    <meta name="docbuild:last-update" content="2026-10-20"/>
+  <meta name="docsearch:version" content="2026.10.21.dev7" />
+    <meta name="docbuild:last-update" content="2026-10-21"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.21.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52" style="color: #31708f;">5280c61</a>).
+        (2026.10.21.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4bd44a2ce9e4e916305e4c87761aff268907d33a" style="color: #31708f;">4bd44a2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -201,8 +201,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev7 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev7 documentation - Home"/>
   
   
 </a></div>
@@ -840,7 +840,7 @@ Their excess over air temperature follows an empirical diurnal cycle taken from 
 The output contract classifies this group as provisional.
 Several variables hold something other than their names, or their descriptions in the output variable reference, suggest:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">SH_Ground</span></code> and <code class="docutils literal notranslate"><span class="pre">SH_Walls</span></code> are sunlit fractions, not shadow fractions, and both are 0 at night. <code class="docutils literal notranslate"><span class="pre">SH_Ground</span></code> runs from 0 to 1 (fully sunlit). <code class="docutils literal notranslate"><span class="pre">SH_Walls</span></code> is averaged over the two facing walls of the canyon, one of which is always in shade, so it never exceeds 0.5.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SH_Ground</span></code> and <code class="docutils literal notranslate"><span class="pre">SH_Walls</span></code> are sunlit fractions, not shadow fractions as their names suggest, and both are 0 at night. <code class="docutils literal notranslate"><span class="pre">SH_Ground</span></code> runs from 0 to 1 (fully sunlit). <code class="docutils literal notranslate"><span class="pre">SH_Walls</span></code> is averaged over the two facing walls of the canyon, one of which is always in shade, so it never exceeds 0.5.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">DiffuseRad</span></code> holds the direct-beam irradiance on a surface normal to the sun, and <code class="docutils literal notranslate"><span class="pre">DirectRad</span></code> holds the diffuse irradiance on a horizontal surface.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Tg</span></code> and <code class="docutils literal notranslate"><span class="pre">Tw</span></code> are the excesses of ground and wall surface temperature over air temperature, not absolute surface temperatures.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">SVF_BdVeg</span></code> equals <code class="docutils literal notranslate"><span class="pre">SVF_Ground</span></code>, because the vegetation sky-view factor is fixed at 1.</p></li>
@@ -976,27 +976,30 @@ calculated similarly as melt water and can freeze within the snow pack.
 </section>
 <section id="wind-temperature-and-humidity-profiles-in-the-roughness-sublayer">
 <span id="rsl-mod"></span><h2><span class="section-number">1.10. </span>Wind, Temperature and Humidity Profiles in the Roughness Sublayer<a class="headerlink" href="#wind-temperature-and-humidity-profiles-in-the-roughness-sublayer" title="Link to this heading">#</a></h2>
-<p>A dignostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following <span class="bibtex-citation" id="id23">Harman and Finnigan [<a class="reference internal" href="references.html#id38" title="Harman, Ian N. and Finnigan, John J. A simple unified theory for flow in the canopy and roughness sublayer. Boundary-Layer Meteorol, 123(2):339-363, March 2007. doi:10.1007/s10546-006-9145-6.">2007</a>], Harman and Finnigan [<a class="reference internal" href="references.html#id37" title="Harman, Ian N. and Finnigan, John J. Scalar concentration profiles in the canopy and roughness sublayer. Boundary-Layer Meteorol, 129(3):323-351, October 2008. doi:10.1007/s10546-008-9328-4.">2008</a>]</span> and <span class="bibtex-citation" id="id24">Theeuwes <em>et al.</em> [<a class="reference internal" href="references.html#id3" title="Theeuwes, Natalie E., Ronda, Reinder J., Harman, Ian N., Christen, Andreas, and Grimmond, C. Sue B. Parametrizing horizontally-averaged wind and temperature profiles in the urban roughness sublayer. Boundary-Layer Meteorol, 173(3):321-348, September 2019. doi:10.1007/s10546-019-00472-1.">2019</a>]</span>.
-An recent application of this RSL scheme can be found in <span class="bibtex-citation" id="id25">Tang <em>et al.</em> [<a class="reference internal" href="references.html#id32" title="Tang, Yihao, Sun, Ting, Luo, Zhiwen, Omidvar, Hamidreza, Theeuwes, Natalie, Xie, Xiaoxiong, Xiong, Jie, Yao, Runming, and Grimmond, Sue. Urban meteorological forcing data for building energy simulations. Building and Environment, 204:108088, October 2021. doi:10.1016/j.buildenv.2021.108088.">2021</a>]</span>.</p>
+<p>A diagnostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following <span class="bibtex-citation" id="id23">Harman and Finnigan [<a class="reference internal" href="references.html#id38" title="Harman, Ian N. and Finnigan, John J. A simple unified theory for flow in the canopy and roughness sublayer. Boundary-Layer Meteorol, 123(2):339-363, March 2007. doi:10.1007/s10546-006-9145-6.">2007</a>], Harman and Finnigan [<a class="reference internal" href="references.html#id37" title="Harman, Ian N. and Finnigan, John J. Scalar concentration profiles in the canopy and roughness sublayer. Boundary-Layer Meteorol, 129(3):323-351, October 2008. doi:10.1007/s10546-008-9328-4.">2008</a>]</span> and <span class="bibtex-citation" id="id24">Theeuwes <em>et al.</em> [<a class="reference internal" href="references.html#id3" title="Theeuwes, Natalie E., Ronda, Reinder J., Harman, Ian N., Christen, Andreas, and Grimmond, C. Sue B. Parametrizing horizontally-averaged wind and temperature profiles in the urban roughness sublayer. Boundary-Layer Meteorol, 173(3):321-348, September 2019. doi:10.1007/s10546-019-00472-1.">2019</a>]</span>.
+A recent application of this RSL scheme can be found in <span class="bibtex-citation" id="id25">Tang <em>et al.</em> [<a class="reference internal" href="references.html#id32" title="Tang, Yihao, Sun, Ting, Luo, Zhiwen, Omidvar, Hamidreza, Theeuwes, Natalie, Xie, Xiaoxiong, Xiong, Jie, Yao, Runming, and Grimmond, Sue. Urban meteorological forcing data for building energy simulations. Building and Environment, 204:108088, October 2021. doi:10.1016/j.buildenv.2021.108088.">2021</a>]</span>.</p>
 <p>The diagnostic profiles are output at 30 levels between the surface and the forcing height.
 Where the levels sit depends on the scheme selected by <a class="reference internal" href="inputs/yaml/config-reference/modelphysics.html#roughness-sublayer"><span class="std std-ref">roughness_sublayer</span></a>:</p>
 <ul class="simple">
-<li><p>With RST, the lowest 20 levels lie within the canopy and the other 10 above it, whatever the mean height of roughness elements (buildings and trees).
+<li><p>With RST, levels 1 to 19 lie within the canopy, level 20 at its top and the other 10 above it, whatever the mean height of roughness elements (buildings and trees, weighted by their plan area with trees counted by their non-porous fraction).
 The levels are placed on an effective canopy height <span class="math notranslate nohighlight">\(z_H = \max(\text{mean height}, 2\ \text{m})\)</span>, so over a canopy lower than 2 m they do not follow the actual height.
 Level 1 is at 1% of <span class="math notranslate nohighlight">\(z_H\)</span>, capped just below 2 m, levels 1 to 9 lie in the lower third of the canopy, level 10 is at <span class="math notranslate nohighlight">\(z_H/2\)</span>, and levels 11 to 20 close in on the canopy top.
 Levels 21 to 30 run from just above <span class="math notranslate nohighlight">\(z_H\)</span> to the forcing height and are also concentrated towards the canopy top.</p></li>
-<li><p>With MOST, the 30 levels are spaced logarithmically from just above <span class="math notranslate nohighlight">\(z_d + z_0\)</span> to the forcing height, where <span class="math notranslate nohighlight">\(z_d\)</span> is the zero-plane displacement height and <span class="math notranslate nohighlight">\(z_0\)</span> the roughness length for momentum.
+<li><p>With MOST, the 30 levels are spaced logarithmically from just above <span class="math notranslate nohighlight">\(z_d + z_0\)</span> (and at least 0.1 m) to the forcing height, where <span class="math notranslate nohighlight">\(z_d\)</span> is the zero-plane displacement height and <span class="math notranslate nohighlight">\(z_0\)</span> the roughness length for momentum.
 Where 2 m and 10 m fall within that range, the nearest levels are moved to exactly those heights.</p></li>
 </ul>
 <p>With <code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code> set to <code class="docutils literal notranslate"><span class="pre">variable</span></code> (the default), RST is used when the plan area index of buildings and trees, with trees counted by their non-porous fraction, is between 0.1 and 0.68 and <span class="math notranslate nohighlight">\(z_H\)</span> exceeds 2 m; otherwise MOST is used.
 The frontal area index does not enter this choice.
-The <code class="docutils literal notranslate"><span class="pre">flag_RSL</span></code> column of the RSL output group records the outcome at each timestep: 1 when RST was used and 0 when MOST was used.</p>
+The <code class="docutils literal notranslate"><span class="pre">flag_RSL</span></code> column of the RSL output group records the outcome at each timestep: 1 when RST was used and 0 when MOST was used.
+It is averaged when output is resampled, so a resampled value gives the fraction of timesteps that used RST.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>All the diagnostic profiles (wind speed, temperature and humidity) are calculated
 from the forcing data down into the canopy.
 Therefore it is assumed that the forcing temperature and humidity
-are above the blending height.</p>
+are above the blending height <span class="math notranslate nohighlight">\(z_R = z_H + 1.5\,(D_x - L_x)\)</span>, where
+<span class="math notranslate nohighlight">\(D_x\)</span> is the mean spacing of buildings and <span class="math notranslate nohighlight">\(L_x\)</span> their mean plan
+dimension; the RSL correction to the profiles vanishes above <span class="math notranslate nohighlight">\(z_R\)</span>.</p>
 </div>
 <p>Common near-surface diagnostics:</p>
 <blockquote>
@@ -1092,7 +1095,7 @@ The probabilities for buildings and the ground are determined by albedos and emi
 <li><p>Output variables (including multi-layer ones) are in SUEWS-SS output file <code class="docutils literal notranslate"><span class="pre">SSss_YYYY_SPARTACUS.txt</span></code>. <a class="footnote-reference brackets" href="#ss-output" id="id26" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></li>
 </ul>
 <ul class="simple">
-<li><p>The RSL diagnostic profile contains 30 height levels. When the RSL scheme is active, 20 levels are placed within the urban canopy and the remaining 10 levels extend from the canopy top to the forcing height.</p></li>
+<li><p>The RSL diagnostic profile contains 30 height levels. With RST, levels 1 to 19 lie within the urban canopy, level 20 at its top, and the remaining 10 levels run from just above the canopy top to the forcing height (see <a class="reference internal" href="#rsl-mod"><span class="std std-ref">Wind, Temperature and Humidity Profiles in the Roughness Sublayer</span></a> for the MOST layout).</p></li>
 <li><p>The RSL height levels are non-uniformly spaced: nine levels lie in the lower third of the canopy, one at half canopy height, and the rest are packed increasingly closely towards the canopy top, from below and from above (<a class="reference internal" href="#suews-rsl"><span class="std std-numref">Fig. 1.3</span></a>).</p></li>
 <li><p>The RSL calculation uses a representative canopy height and morphology. This is separate from the SPARTACUS vertical-layer description, where building and vegetation fractions can vary by layer.</p></li>
 </ul>
@@ -1298,7 +1301,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-20.
+  Last updated on 2026-10-21.
   <br/>
 </p>
   </div>
@@ -1306,8 +1309,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.21.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52">5280c61</a> |
+  <p>Version: 2026.10.21.dev7 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4bd44a2ce9e4e916305e4c87761aff268907d33a">4bd44a2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

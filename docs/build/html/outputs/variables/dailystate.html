@@ -10,7 +10,7 @@
 <meta content="SUEWS DailyState output variables" name="description" />
 <meta content="SUEWS, output, dailystate, variables" name="keywords" />
 
-    <title>5.3.6. DailyState Output Variables &#8212; SUEWS 2026.10.21.dev6 documentation</title>
+    <title>5.3.6. DailyState Output Variables &#8212; SUEWS 2026.10.21.dev7 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=dc99365b"></script>
+    <script src="../../_static/documentation_options.js?v=6765b446"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="5.3.5. RSL Output Variables" href="rsl.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.21.dev6" />
+  <meta name="docsearch:version" content="2026.10.21.dev7" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.21.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52" style="color: #31708f;">5280c61</a>).
+        (2026.10.21.dev7, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4bd44a2ce9e4e916305e4c87761aff268907d33a" style="color: #31708f;">4bd44a2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev7 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev7 documentation - Home"/>
   
   
 </a></div>
@@ -862,12 +862,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-19">
 <dt class="sig sig-object output" id="output-variable-DecidCap">
 <span class="sig-name descname"><span class="pre">DecidCap</span></span><a class="headerlink" href="#output-variable-DecidCap" title="Link to this definition">#</a></dt>
-<dd><p>Deciduous canopy water storage capacity fraction (0-1)</p>
+<dd><p>Water storage capacity of deciduous trees, varying with LAI between its minimum and maximum</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -878,7 +876,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-20">
 <dt class="sig sig-object output" id="output-variable-Porosity">
 <span class="sig-name descname"><span class="pre">Porosity</span></span><a class="headerlink" href="#output-variable-Porosity" title="Link to this definition">#</a></dt>
-<dd><p>Deciduous tree canopy porosity for radiation transmission (0-1)</p>
+<dd><p>Porosity of deciduous trees, varying inversely with LAI; used in the plan and frontal area indices</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -942,12 +940,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-24">
 <dt class="sig sig-object output" id="output-variable-WU_EveTr1">
 <span class="sig-name descname"><span class="pre">WU_EveTr1</span></span><a class="headerlink" href="#output-variable-WU_EveTr1" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient Ie_a (automatic irrigation) for evergreen trees</p>
+<dd><p>Modelled daily total irrigation water use for evergreen trees</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -958,12 +954,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-25">
 <dt class="sig sig-object output" id="output-variable-WU_EveTr2">
 <span class="sig-name descname"><span class="pre">WU_EveTr2</span></span><a class="headerlink" href="#output-variable-WU_EveTr2" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient Ie_m (manual irrigation) for evergreen trees</p>
+<dd><p>Modelled daily automatic irrigation water use for evergreen trees</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -974,12 +968,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-26">
 <dt class="sig sig-object output" id="output-variable-WU_EveTr3">
 <span class="sig-name descname"><span class="pre">WU_EveTr3</span></span><a class="headerlink" href="#output-variable-WU_EveTr3" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient (days since rain factor) for evergreen trees</p>
+<dd><p>Modelled daily manual irrigation water use for evergreen trees</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -990,12 +982,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-27">
 <dt class="sig sig-object output" id="output-variable-WU_DecTr1">
 <span class="sig-name descname"><span class="pre">WU_DecTr1</span></span><a class="headerlink" href="#output-variable-WU_DecTr1" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient Ie_a (automatic irrigation) for deciduous trees</p>
+<dd><p>Modelled daily total irrigation water use for deciduous trees</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -1006,12 +996,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-28">
 <dt class="sig sig-object output" id="output-variable-WU_DecTr2">
 <span class="sig-name descname"><span class="pre">WU_DecTr2</span></span><a class="headerlink" href="#output-variable-WU_DecTr2" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient Ie_m (manual irrigation) for deciduous trees</p>
+<dd><p>Modelled daily automatic irrigation water use for deciduous trees</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -1022,12 +1010,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-29">
 <dt class="sig sig-object output" id="output-variable-WU_DecTr3">
 <span class="sig-name descname"><span class="pre">WU_DecTr3</span></span><a class="headerlink" href="#output-variable-WU_DecTr3" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient (days since rain factor) for deciduous trees</p>
+<dd><p>Modelled daily manual irrigation water use for deciduous trees</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -1038,12 +1024,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-30">
 <dt class="sig sig-object output" id="output-variable-WU_Grass1">
 <span class="sig-name descname"><span class="pre">WU_Grass1</span></span><a class="headerlink" href="#output-variable-WU_Grass1" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient Ie_a (automatic irrigation) for grass</p>
+<dd><p>Modelled daily total irrigation water use for grass</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -1054,12 +1038,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-31">
 <dt class="sig sig-object output" id="output-variable-WU_Grass2">
 <span class="sig-name descname"><span class="pre">WU_Grass2</span></span><a class="headerlink" href="#output-variable-WU_Grass2" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient Ie_m (manual irrigation) for grass</p>
+<dd><p>Modelled daily automatic irrigation water use for grass</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -1070,12 +1052,10 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-32">
 <dt class="sig sig-object output" id="output-variable-WU_Grass3">
 <span class="sig-name descname"><span class="pre">WU_Grass3</span></span><a class="headerlink" href="#output-variable-WU_Grass3" title="Link to this definition">#</a></dt>
-<dd><p>Water use coefficient (days since rain factor) for grass</p>
+<dd><p>Modelled daily manual irrigation water use for grass</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li></li>
-</ul>
+<dd class="field-odd"><p>mm</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Last (final value in period)</p>
@@ -1214,7 +1194,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-42">
 <dt class="sig sig-object output" id="output-variable-a1">
 <span class="sig-name descname"><span class="pre">a1</span></span><a class="headerlink" href="#output-variable-a1" title="Link to this definition">#</a></dt>
-<dd><p>OHM coefficient a1: fraction of net radiation rate change</p>
+<dd><p>Surface-weighted OHM coefficient a1 (multiplies net all-wave radiation)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1230,7 +1210,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-43">
 <dt class="sig sig-object output" id="output-variable-a2">
 <span class="sig-name descname"><span class="pre">a2</span></span><a class="headerlink" href="#output-variable-a2" title="Link to this definition">#</a></dt>
-<dd><p>OHM coefficient a2: time lag for storage heat flux</p>
+<dd><p>Surface-weighted OHM coefficient a2 (multiplies the rate of change of net all-wave radiation)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>h</p>
@@ -1244,7 +1224,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-44">
 <dt class="sig sig-object output" id="output-variable-a3">
 <span class="sig-name descname"><span class="pre">a3</span></span><a class="headerlink" href="#output-variable-a3" title="Link to this definition">#</a></dt>
-<dd><p>OHM coefficient a3: constant offset for storage heat flux</p>
+<dd><p>Surface-weighted OHM coefficient a3 (constant term)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1258,7 +1238,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-45">
 <dt class="sig sig-object output" id="output-variable-a1_bldg">
 <span class="sig-name descname"><span class="pre">a1_bldg</span></span><a class="headerlink" href="#output-variable-a1_bldg" title="Link to this definition">#</a></dt>
-<dd><p>OHM coefficient a1 for buildings: fraction of net radiation rate change</p>
+<dd><p>Dynamic OHM coefficient a1 for buildings (multiplies net all-wave radiation); zero unless dynamic OHM is used</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1274,7 +1254,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-46">
 <dt class="sig sig-object output" id="output-variable-a2_bldg">
 <span class="sig-name descname"><span class="pre">a2_bldg</span></span><a class="headerlink" href="#output-variable-a2_bldg" title="Link to this definition">#</a></dt>
-<dd><p>OHM coefficient a2 for buildings: time lag for storage heat flux</p>
+<dd><p>Dynamic OHM coefficient a2 for buildings (multiplies the rate of change of net all-wave radiation); zero unless dynamic OHM is used</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>h</p>
@@ -1288,7 +1268,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-47">
 <dt class="sig sig-object output" id="output-variable-a3_bldg">
 <span class="sig-name descname"><span class="pre">a3_bldg</span></span><a class="headerlink" href="#output-variable-a3_bldg" title="Link to this definition">#</a></dt>
-<dd><p>OHM coefficient a3 for buildings: constant offset for storage heat flux</p>
+<dd><p>Dynamic OHM coefficient a3 for buildings (constant term); zero unless dynamic OHM is used</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1370,8 +1350,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.21.dev6 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52">5280c61</a> |
+  <p>Version: 2026.10.21.dev7 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4bd44a2ce9e4e916305e4c87761aff268907d33a">4bd44a2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

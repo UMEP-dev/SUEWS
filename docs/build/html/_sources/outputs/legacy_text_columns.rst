@@ -240,8 +240,8 @@ The ESTM model calculates detailed surface temperatures for different urban face
 **Temperature Layers (5 layers each):**
    - **Twall1-5**: Wall temperatures from outer-most (1) to inner-most (5) layer
    - **Troof1-5**: Roof temperatures from outer-most (1) to inner-most (5) layer  
-   - **Tground1-5**: Ground temperatures from outer-most (1) to inner-most (5) layer
-   - **Tibld1-5**: Internal building element temperatures
+   - **Tground1-5**: Ground temperatures from the uppermost (1) to the deepest (5) layer
+   - **Tibld1-5**: Internal building element temperatures (layers 1 and 5 face indoor air, layer 3 is the centre)
 
 **Key Temperature Variables:**
    - **Tabld**: Indoor air temperature within buildings
@@ -250,9 +250,9 @@ The ESTM model calculates detailed surface temperatures for different urban face
    **Surface Temperature Convention**: ESTM uses detailed layer-specific temperatures (Twall1-5, Troof1-5, etc.) rather than the bulk `Tsurf` variable found in main SUEWS output. The layer temperatures provide much more detailed thermal analysis of urban facets.
 
 **Storage Heat Fluxes:**
-   - **QSnet**: Net storage heat flux (sum of all components)
+   - **QSnet**: Storage heat flux, the sum of QSwall, QSroof, QSground and QSibld (QSair is excluded)
    - **QSwall/QSroof/QSground**: Component-specific storage fluxes
-   - **QSair**: Storage heat flux into air
+   - **QSair**: Heat storage rate in outdoor air below twice the mean building height
    - **QSibld**: Storage heat flux into internal building elements
 
 .. note::

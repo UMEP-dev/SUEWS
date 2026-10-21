@@ -1,3 +1,9 @@
+---
+paths:
+  - docs/source/assets/refs/*.bib
+  - docs/**/*
+---
+
 # Bibliography conventions
 
 Rules for entries in `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`.

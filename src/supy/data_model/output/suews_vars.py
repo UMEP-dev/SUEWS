@@ -144,8 +144,8 @@ SUEWS_VARIABLES = [
         name="Irr",
         unit="mm",
         description=(
-            "External water use: total water use minus internal water use and "
-            "any internal use carried over from the previous timestep, not below zero"
+            "External water use: total water use minus internal water use, "
+            "not below zero"
         ),
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,

@@ -1,3 +1,8 @@
+---
+paths:
+  - test/**/*.py
+---
+
 # Verification Methodology
 
 Rules for numerical comparisons, test validation, and diagnostic investigations.

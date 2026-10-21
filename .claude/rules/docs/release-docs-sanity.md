@@ -1,3 +1,8 @@
+---
+paths:
+  - docs/**/*
+---
+
 # Release-time docs sanity check
 
 Rules for verifying that the **published release documentation** carries no

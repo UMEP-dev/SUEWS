@@ -10,12 +10,14 @@ SURFACES = ["Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water"]
 GROUND = [0, 2, 3, 4, 5, 6]
 
 
-def run_surface_case(direct_albedo=False):
-    """Six daytime timesteps, SPARTACUS radiation and OHM storage."""
+def run_surface_case(direct_albedo=False, storage_heat=1):
+    """Six daytime timesteps with SPARTACUS and the selected storage scheme."""
     state, forcing = load_sample_frames()
     state = state.iloc[[0]].copy()
     state.loc[:, ("netradiationmethod", "0")] = 1003
-    state.loc[:, ("storageheatmethod", "0")] = 1
+    state.loc[:, ("storageheatmethod", "0")] = storage_heat
+    # This legacy frame toggle does not prove activation through the YAML
+    # bridge (#1858). The native probe tests the direct-albedo calculation.
     state.loc[:, ("use_sw_direct_albedo", "0")] = float(direct_albedo)
     state.loc[:, ("ground_albedo_dir_mult_fact", "0")] = 1.4 if direct_albedo else 1.0
     # Keep the canopy and land-cover ground areas identical.
@@ -34,16 +36,43 @@ def test_simulated_surface_ground_budget(direct_albedo):
     output, state, _ = run_surface_case(direct_albedo)
     fractions = state["sfr_surf"].iloc[0].to_numpy()
     qn_ground = output["SUEWS"][[f"QN_{SURFACES[i]}" for i in GROUND]].to_numpy()
+    vegetation_sw = output["SPARTACUS"][[f"KVegAbs_{i}" for i in range(1, 4)]].sum(axis=1)
     sw_ground = qn_ground @ fractions[GROUND] - output["SPARTACUS", "LNet_Grnd"]
     np.testing.assert_allclose(
-        sw_ground, output["SPARTACUS", "KNet_Grnd"], rtol=0, atol=1e-8,
-        err_msg="Surface absorption must conserve the solver's ground shortwave budget",
+        sw_ground, output["SPARTACUS", "KNet_Grnd"] + vegetation_sw, rtol=0, atol=1e-8,
+        err_msg="Surface absorption must conserve the solver's ground plus canopy shortwave budget",
     )
     building_budget = (
         output["SPARTACUS", "Qn"]
         - output["SPARTACUS", "KNet_Grnd"]
         - output["SPARTACUS", "LNet_Grnd"]
+        - vegetation_sw
     ) / fractions[1]
     np.testing.assert_allclose(
         output["SUEWS", "QN_Bldgs"], building_budget, rtol=0, atol=1e-8,
     )
+
+
+@pytest.mark.parametrize("storage_heat", [6, 8])
+def test_spartacus_dyohm_surface_energy_budget(storage_heat):
+    output, state, _ = run_surface_case(storage_heat=storage_heat)
+    fractions = state["sfr_surf"].iloc[0].to_numpy()
+    fluxes = output["SUEWS"]
+    columns = [f"{flux}_{surface}" for flux in ["QN", "QS"] for surface in SURFACES]
+    assert np.isfinite(fluxes[columns].to_numpy()).all()
+    turbulent = output["debug"]
+    assert np.isfinite(turbulent[[f"{flux}_{s}" for flux in ["QH", "QE"] for s in SURFACES]].to_numpy()).all()
+    for flux in ["QN", "QS"]:
+        weighted = fluxes[[f"{flux}_{surface}" for surface in SURFACES]].to_numpy() @ fractions
+        np.testing.assert_allclose(weighted, fluxes[flux], rtol=0, atol=1e-6)
+    # All active surface energy balances include the common anthropogenic
+    # heat source. Test the coupled turbulent/storage handoff, not just QN.
+    for i, surface in enumerate(SURFACES):
+        if fractions[i] == 0:
+            continue
+        residual = (fluxes[f"QN_{surface}"] + fluxes["QF"] - fluxes[f"QS_{surface}"]
+                    - turbulent[f"QH_{surface}"] - turbulent[f"QE_{surface}"])
+        np.testing.assert_allclose(residual, 0, rtol=0, atol=1e-6)
+    # DyOHM must actively change storage relative to ordinary OHM.
+    ohm, _, _ = run_surface_case()
+    assert np.max(np.abs(fluxes["QS"] - ohm["SUEWS", "QS"])) > 1e-3

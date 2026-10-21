@@ -40,6 +40,8 @@ MODULE module_phys_spartacus
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
    USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
    USE module_phys_beers, ONLY: diffusefraction
+   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_type, ONLY: error_state
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, IEEE_IS_FINITE
 
    IMPLICIT NONE
@@ -106,6 +108,55 @@ CONTAINS
       END IF
    END FUNCTION interp_profile_z
 
+   SUBROUTINE allocate_surface_shortwave(fractions, albedo, direct_albedo, multiplier, &
+      ground_direct, ground_down, ground_net, vegetation_net, surface_net, errors)
+      ! Map solver budgets (W m-2 of grid) to SUEWS category areas (GH#1857).
+      ! Ground beneath crowns has the same material mix as exposed ground.
+      ! Thus each non-tree category represents (1-building_frac)/ground_frac
+      ! times its SUEWS area. These are effective category fluxes, not local
+      ! irradiances. Tree albedos do not describe SPARTACUS leaf scattering.
+      REAL(KIND(1D0)), INTENT(IN) :: fractions(NSURF), albedo(NSURF), multiplier
+      REAL(KIND(1D0)), INTENT(IN) :: ground_direct, ground_down, ground_net, vegetation_net
+      LOGICAL, INTENT(IN) :: direct_albedo
+      REAL(KIND(1D0)), INTENT(OUT) :: surface_net(NSURF)
+      TYPE(error_state), INTENT(INOUT) :: errors
+      INTEGER, PARAMETER :: GROUND(4) = [PavSurf, GrassSurf, BSoilSurf, WaterSurf]
+      INTEGER, PARAMETER :: TREES(2) = [ConifSurf, DecidSurf]
+      REAL(KIND(1D0)), PARAMETER :: BUDGET_TOL = 1.0D-8 ! W m-2 of grid; round-off only
+      REAL(KIND(1D0)) :: ground_frac, tree_frac, direct_abs(4), absorbed(4), budget
+
+      surface_net = 0.0D0
+      ground_frac = SUM(fractions(GROUND))
+      tree_frac = SUM(fractions(TREES))
+      IF (tree_frac > eps_fp) surface_net(TREES) = vegetation_net/tree_frac
+      IF (ground_frac > eps_fp) THEN
+         direct_abs = 1.0D0 - albedo(GROUND)
+         IF (direct_albedo) direct_abs = 1.0D0 - albedo(GROUND)*multiplier
+         absorbed = ground_direct*direct_abs + (ground_down - ground_direct)*(1.0D0 - albedo(GROUND))
+         ! Dividing by the receiving area includes the under-crown ground.
+         surface_net(GROUND) = absorbed/ground_frac
+         budget = DOT_PRODUCT(surface_net(GROUND), fractions(GROUND))
+         IF (budget > eps_fp) THEN
+            ! Only reconcile solver round-off: the same material-weighted
+            ! albedo defines ground_net in SPARTACUS.
+            surface_net(GROUND) = surface_net(GROUND)*(ground_net/budget)
+         ELSE
+            surface_net(GROUND) = 0.0D0
+            IF (ABS(ground_net) > BUDGET_TOL) THEN
+               CALL errors%report(message='ground SW absorption has no positive surface weights; using uniform allocation', &
+                  location='SPARTACUS', is_fatal=.FALSE.)
+               surface_net(GROUND) = ground_net/ground_frac
+            END IF
+         END IF
+      ELSE IF (ABS(ground_net) > BUDGET_TOL .AND. tree_frac > eps_fp) THEN
+         ! Pure forest has no explicit ground category. Preserve its budget,
+         ! but expose the otherwise implicit understorey attribution.
+         CALL errors%report(message='ground SW has no non-tree surface area; assigning understorey absorption to trees', &
+            location='SPARTACUS', is_fatal=.FALSE.)
+         surface_net(TREES) = surface_net(TREES) + ground_net/tree_frac
+      END IF
+   END SUBROUTINE allocate_surface_shortwave
+
    SUBROUTINE SPARTACUS( &
       DiagQN, & !input:
       sfr_surf, zenith_deg, nlayer, & !input:
@@ -140,7 +191,6 @@ CONTAINS
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
       ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
-      USE module_ctrl_type, ONLY: error_state
 
       IMPLICIT NONE
 
@@ -191,14 +241,11 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(OUT) :: qn_roof
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(OUT) :: qn_wall
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(OUT) :: qn_surf
-      REAL(KIND(1D0)) :: sw_net_grnd_sum
       REAL(KIND(1D0)) :: lw_net_grnd
-      REAL(KIND(1D0)) :: sw_dn_grnd_dir, sw_dn_grnd_diff
+      REAL(KIND(1D0)) :: sw_surf(NSURF), veg_net_sw
       REAL(KIND(1D0)) :: lw_dn_grnd
       REAL(KIND(1D0)) :: lw_up_grnd
       REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: qn_grnd_ind
-      REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: alb_grnd_ind
-      REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: alb_grnd_dir_ind
       REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: emis_grnd_ind
       REAL(KIND(1D0)), DIMENSION(NSURF - 1) :: sfr_grnd_ind
       REAL(KIND(1D0)), DIMENSION(nsurf - 1) :: sw_net_grnd_ind
@@ -326,6 +373,41 @@ CONTAINS
       LOGICAL :: use_evetr
       LOGICAL :: use_dectr
       LOGICAL :: rsl_profile_valid
+      INTEGER :: surface
+      REAL(KIND(1D0)) :: albedo_direct
+
+      ! Safe outputs if validation fails before allocating solver objects.
+      qn = -999.0D0
+      kup = -999.0D0
+      lup = -999.0D0
+      qn_roof = -999.0D0
+      qn_wall = -999.0D0
+      qn_surf = -999.0D0
+      roof_in_sw_spc = -999.0D0
+      roof_in_lw_spc = -999.0D0
+      wall_in_sw_spc = -999.0D0
+      wall_in_lw_spc = -999.0D0
+      dataOutLineSPARTACUS = -999.0D0
+      IF (use_sw_direct_albedo) THEN
+         ! Trees use vegetation SSA, not the ground direct-albedo multiplier.
+         DO surface = 1, NSURF
+            IF (surface == BldgSurf .OR. surface == ConifSurf .OR. surface == DecidSurf) CYCLE
+            IF (sfr_surf(surface) <= eps_fp) CYCLE
+            albedo_direct = alb_surf(surface)*ground_albedo_dir_mult_fact
+            IF (.NOT. IEEE_IS_FINITE(albedo_direct) .OR. albedo_direct < 0D0 .OR. albedo_direct > 1D0) THEN
+               CALL set_supy_error(109, 'SPARTACUS: effective direct ground albedo must be finite and in [0,1]')
+               RETURN
+            END IF
+         END DO
+         DO surface = 1, nlayer
+            IF (sfr_roof(surface) <= eps_fp) CYCLE
+            albedo_direct = alb_roof(surface)*roof_albedo_dir_mult_fact(nspec, surface)
+            IF (.NOT. IEEE_IS_FINITE(albedo_direct) .OR. albedo_direct < 0D0 .OR. albedo_direct > 1D0) THEN
+               CALL set_supy_error(109, 'SPARTACUS: effective direct roof albedo must be finite and in [0,1]')
+               RETURN
+            END IF
+         END DO
+      END IF
       bldgH_use = bldgH
       IF (invalid_real(bldgH_use) .OR. bldgH_use <= 0D0) bldgH_use = height(nlayer + 1)
 
@@ -609,6 +691,13 @@ CONTAINS
       ELSE
          alb_no_tree_bldg = 0.0D0
       END IF
+      IF (use_sw_direct_albedo) THEN
+         albedo_direct = alb_no_tree_bldg*ground_albedo_dir_mult_fact
+         IF (.NOT. IEEE_IS_FINITE(albedo_direct) .OR. albedo_direct < 0D0 .OR. albedo_direct > 1D0) THEN
+            CALL set_supy_error(109, 'SPARTACUS: effective direct ground albedo must be finite and in [0,1]')
+            RETURN
+         END IF
+      END IF
       IF (invalid_real(alb_no_tree_bldg)) alb_no_tree_bldg = 0.0D0
       IF (config%do_urban .OR. config%do_vegetation) THEN
          sw_spectral_props%air_ext = air_ext_sw
@@ -867,8 +956,7 @@ CONTAINS
                DO jlay = 1, MIN(canopy_props%nlay(1), 15)
                   ! Use the scaled direct+diffuse components directly so this
                   ! diagnostic is independent of optional profile-flux storage.
-                  veg_abs_sw_spc(jlay) = sw_norm_dir%veg_abs(1, ilay + jlay - 1) &
-                                         + sw_norm_diff%veg_abs(1, ilay + jlay - 1)
+                  veg_abs_sw_spc(jlay) = sw_flux%veg_abs(1, ilay + jlay - 1)
                END DO
             END IF
          END IF
@@ -1128,33 +1216,20 @@ CONTAINS
       sfr_grnd_ind = sfr_surf([PavSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf])
       tsfc_grnd_ind_K = tsfc_surf_K([PavSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf])
       emis_grnd_ind = emis_surf([PavSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf])
-      alb_grnd_ind = alb_surf([PavSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf])
 
       ! note the ground here includes all surfaces that are not roof/wall
       ! de-normalise net radiation for ground surfaces - these will be used in other SUEWS calculations:
       lw_net_grnd = grnd_net_lw_spc/(1 - building_frac(1))
 
-      ! Absorb incident direct and diffuse SW once, using each surface's albedo.
-      ! All three solver ground fluxes are per grid area; use the same ground
-      ! area to convert the incident fluxes to W m-2 of ground.
-      sw_dn_grnd_dir = grnd_dn_dir_sw_spc/(1 - building_frac(1))
-      sw_dn_grnd_diff = (grnd_dn_sw_spc - grnd_dn_dir_sw_spc)/(1 - building_frac(1))
-      alb_grnd_dir_ind = alb_grnd_ind
-      IF (config%use_sw_direct_albedo) alb_grnd_dir_ind = alb_grnd_ind*ground_albedo_dir_mult_fact
-      sw_net_grnd_ind = sw_dn_grnd_dir*(1.0D0 - alb_grnd_dir_ind) &
-                        + sw_dn_grnd_diff*(1.0D0 - alb_grnd_ind)
-
-      ! The solver's effective ground albedo excludes trees, whereas these
-      ! surface fractions include them. Preserve relative absorption but
-      ! rescale to the solver's ground budget, not a residual on buildings.
-      sw_net_grnd_sum = DOT_PRODUCT(sw_net_grnd_ind, sfr_grnd_ind)
-      IF (sw_net_grnd_sum > eps_fp) THEN
-         sw_net_grnd_ind = sw_net_grnd_ind*(grnd_net_sw_spc/sw_net_grnd_sum)
-      ELSE
-         ! No resolved absorption (night or perfectly reflecting ground):
-         ! retain the budget without dividing by zero or a vanishing flux.
-         sw_net_grnd_ind = grnd_net_sw_spc/SUM(sfr_grnd_ind)
-      END IF
+      ! Vegetation absorption is already per grid area: do not multiply it
+      ! by veg_frac again. SPARTACUS has one optical tree population, so the
+      ! two SUEWS tree categories share it in proportion to their plan areas.
+      veg_net_sw = 0.0D0
+      IF (config%do_vegetation) veg_net_sw = SUM(veg_abs_sw_spc(:nlayer))
+      CALL allocate_surface_shortwave(sfr_surf, alb_surf, use_sw_direct_albedo, &
+         ground_albedo_dir_mult_fact, grnd_dn_dir_sw_spc, grnd_dn_sw_spc, &
+         grnd_net_sw_spc, veg_net_sw, sw_surf, errorState)
+      sw_net_grnd_ind = sw_surf([PavSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf])
 
       ! net longwave radiation for individual ground surfaces
       lw_up_grnd = SBConst*DOT_PRODUCT(emis_grnd_ind*tsfc_grnd_ind_K**4, sfr_grnd_ind)/SUM(sfr_grnd_ind)
@@ -1169,8 +1244,9 @@ CONTAINS
       ! combine with all surfaces
       qn_surf([PavSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf]) = qn_grnd_ind
 
-      ! average between roof and wall for the building surface: a simple treatment
-      ! qn_surf(BldgSurf) = (DOT_PRODUCT(qn_roof, sfr_roof)/SUM(sfr_roof) + DOT_PRODUCT(qn_wall, sfr_wall)/SUM(sfr_wall))
+      ! Residual after ground SW, canopy SW and the existing ground LW split.
+      ! This still includes canopy LW and air absorption; it is a pure facet
+      ! budget only for tree-free, non-absorbing air with matching geometry.
       IF (sfr_surf(BldgSurf) > eps_fp) THEN
          qn_surf(BldgSurf) = (qn_spc - DOT_PRODUCT(qn_grnd_ind, sfr_grnd_ind))/sfr_surf(BldgSurf)
       ELSE

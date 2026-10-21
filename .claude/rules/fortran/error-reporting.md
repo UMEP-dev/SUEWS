@@ -1,3 +1,8 @@
+---
+paths:
+  - src/suews/**/*.f9*
+---
+
 # Error Reporting in SUEWS Fortran
 
 Rules for raising fatal errors and warnings from Fortran code inside SUEWS.

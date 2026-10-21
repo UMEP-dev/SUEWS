@@ -28,25 +28,9 @@ Avoid British/American spelling variants (-ise/-ize) in identifiers. Use neutral
 
 ## Identifier Naming (Python)
 
-### Compound identifiers
-
-All **new** multi-word identifiers — Python field names, YAML config keys, method names — must use `snake_case` with underscore separation between every constituent word. Never fuse words into a single token.
-
-- `same_albedo_wall` not `samealbedo_wall`
-- `thermal_conductivity` not `thermalconductivity`
-- `snow_density_max` not `snowdensmax`
-- `soil_depth` not `soildepth`
-
-### Abbreviations in identifiers
-
-Domain abbreviations (OHM, RSL, FAI, SMD, LAI, GDD, SDD) are acceptable as single tokens but must be separated from other words by underscores:
-- `ohm_inc_qf` not `ohmincqf`
-- `rsl_method` not `rslmethod`
-- `lai_max` not `laimax`
-
-### Redundant suffixes
-
-Avoid appending `method` or `model` to field names when the enum type already conveys this. If both the field and the enum type exist, the redundancy is acceptable only in legacy code.
+Word separation, abbreviations, and redundant suffixes: see
+`.claude/rules/naming-convention.md` (Rules 1 and 6), the canonical
+reference that supersedes the tables formerly duplicated here.
 
 ### YAML surface is single-convention snake_case
 
@@ -87,12 +71,8 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
 
 ## Quick Start
 
-```bash
-uv venv && source .venv/bin/activate && make dev && make test-smoke
-```
-
-For platform-specific setup (macOS, Linux, Windows), see the `Makefile`
-recipes and the installation docs.
+See the Quick Start in `CLAUDE.md`. For platform-specific setup (macOS,
+Linux, Windows), see the `Makefile` recipes and the installation docs.
 
 ## Build System Notes
 
@@ -111,13 +91,3 @@ recipes and the installation docs.
 - After conversation compaction, re-activate: `source .venv/bin/activate`
 - Check for existing `.venv` with editable supy before rebuilding
 - Documentation generation: Only modify `generate_datamodel_rst.py`, not generated RST files
-
-## Key Directories
-
-| Directory | Purpose |
-|-----------|---------|
-| `src/suews/src/` | Fortran source (see `rules/fortran/`) |
-| `src/supy/` | Python wrapper (see `rules/python/`) |
-| `docs/` | Documentation (see `rules/docs/`) |
-| `test/` | Tests (see `rules/tests/`) |
-| `.github/workflows/` | CI/Actions (see `rules/ci/`) |

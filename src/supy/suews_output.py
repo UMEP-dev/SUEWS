@@ -423,6 +423,11 @@ class SUEWSOutput:
         - Accumulated variables: sum
         - State variables: last
 
+        Each value covers the left-open, right-closed interval
+        ``(t - freq, t]`` and is labelled by its end ``t``
+        (``closed="right", label="right"``); DailyState is labelled by the
+        start of each day. See :ref:`timestamp_convention`.
+
         Parameters
         ----------
         freq : str

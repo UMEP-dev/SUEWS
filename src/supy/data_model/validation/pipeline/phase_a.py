@@ -1567,6 +1567,80 @@ def forcing_file_is_runtime(config_data: object) -> bool:
     return present and value is None
 
 
+def _unwrap_ref(value):
+    """Return the bare value of a ``{"value": ...}`` RefValue mapping."""
+    if isinstance(value, dict) and "value" in value:
+        return value["value"]
+    return value
+
+
+def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> list:
+    """
+    Check that the forcing covers ``model.control.start_time`` / ``end_time``.
+
+    Loads the forcing the way ``SUEWSSimulation`` does (resampled to the model
+    timestep, several files merged) and applies the same coverage rule as
+    ``SUEWSSimulation.run`` (``supy._run_period.coverage_problem``), so
+    ``suews validate`` reports a period the run would reject.
+
+    Parameters
+    ----------
+    control : dict
+        The raw ``model.control`` mapping from the user YAML.
+    forcing_file_path : str or list
+        The forcing file entry, already unwrapped from any RefValue.
+    yaml_dir : Path
+        Directory used to resolve relative forcing paths.
+
+    Returns
+    -------
+    list of str
+        One error message when the forcing does not cover the period, an empty
+        list otherwise (including when neither bound is set).
+    """
+    start_time = _unwrap_ref(control.get("start_time"))
+    end_time = _unwrap_ref(control.get("end_time"))
+    if start_time is None and end_time is None:
+        return []
+
+    try:
+        tstep = int(_unwrap_ref(control.get("tstep", 300)))
+    except (TypeError, ValueError):
+        tstep = 300
+
+    try:
+        from supy._run_period import coverage_problem, resolve_run_period
+        from supy.suews_sim import SUEWSSimulation
+
+        def _resolve(item) -> Path:
+            path = Path(item).expanduser()
+            return path if path.is_absolute() else yaml_dir / path
+
+        if isinstance(forcing_file_path, list):
+            df_forcing = SUEWSSimulation._load_forcing_from_list(
+                [_resolve(item) for item in forcing_file_path], tstep_mod=tstep
+            )
+        else:
+            df_forcing = SUEWSSimulation._load_forcing_file(
+                _resolve(forcing_file_path), tstep_mod=tstep
+            )
+        index = df_forcing.index
+        period = resolve_run_period(start_time, end_time, index)
+        problem = coverage_problem(period, index, tstep)
+    except Exception as e:
+        return [
+            "Could not check the forcing against "
+            f"model.control.start_time/end_time: {str(e)}"
+        ]
+
+    if problem is None:
+        return []
+    return [
+        "Forcing does not cover model.control.start_time/end_time: "
+        f"{problem}. Supply forcing covering the period or change start_time/end_time."
+    ]
+
+
 def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
     """
     Validate forcing data file(s) referenced in the user YAML configuration.
@@ -1593,7 +1667,9 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
     `model.control.forcing.file` (or legacy `model.control.forcing_file`), and
     validates each file using SuPy's forcing checker.
     It supports both single file and list of files. Error messages are contextualized
-    and cleaned for user readability. An explicit null entry means forcing is
+    and cleaned for user readability. When the files themselves pass, the
+    forcing is also checked against ``model.control.start_time`` /
+    ``end_time`` (see :func:`check_forcing_period`). An explicit null entry means forcing is
     supplied at runtime: no file is checked and no error is returned (the caller
     reports it as a warning; see :func:`forcing_file_is_runtime`).
     """
@@ -1651,6 +1727,10 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
                 )
                 forcing_errors.extend(file_errors)
 
+            if not forcing_errors:
+                forcing_errors.extend(
+                    check_forcing_period(control, forcing_file_path, yaml_dir)
+                )
             return forcing_errors, forcing_file_paths
 
         # Single file case
@@ -1661,6 +1741,10 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
         )
         forcing_errors.extend(file_errors)
 
+        if not forcing_errors:
+            forcing_errors.extend(
+                check_forcing_period(control, forcing_file_path, yaml_dir)
+            )
         return forcing_errors, forcing_file_paths
 
     except Exception as e:

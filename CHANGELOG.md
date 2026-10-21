@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 21 Oct 2026
 
+- [doc] New "Timestamp convention" page stating, once and in interval notation, the pandas `closed="right", label="right"` rule SUEWS uses: a row stamped `t` holds `(t - dt, t]`, a day `D` is `(D 00:00, D+1 00:00]`, and a run covers `(D1 00:00, D2+1 00:00]` for date bounds or `(t1 - dt, t2]` for timestamp bounds (#1852)
+  - It contrasts the rule with the pandas default for daily data (`closed="left", label="left"`, as `.loc["2023-12-31"]` selects), covers the DailyState `label="left"` exception, and shows how to convert forcing stamped at the start of each interval
+  - The `start_time`/`end_time` field descriptions, the forcing and output pages, the `run()` and resample docstrings and the coverage error message point to it; row selection is unchanged
+- [bugfix] `suews validate` accepts a `start_time` with a time component instead of failing in Phase B with "unconverted data remains", and now reports forcing that does not cover `start_time`/`end_time`, using the same rule as `SUEWSSimulation.run()` (#1852)
 - [doc] Corrected output-variable descriptions and units that disagreed with the kernel, and published output contract `1.1.2` (#1863)
   - The descriptions rewritten in bulk in #1049 were checked against the Fortran that writes each column; those that were wrong or guessed are corrected.
   - `flag_RSL` read as an iteration status flag. It records the profile scheme used at the timestep: 1 for roughness-sublayer theory (RST), 0 for Monin-Obukhov similarity theory (MOST); resampled output gives the fraction of timesteps that used RST.

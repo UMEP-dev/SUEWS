@@ -4680,3 +4680,26 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
 if __name__ == "__main__":
     # Run the test suite
     pytest.main([__file__, "-v", "--tb=short", "--disable-warnings"])
+
+
+def test_precheck_start_end_date_accepts_timestamps():
+    """Timestamp bounds reduce to their calendar day for the prechecks (gh#1852)."""
+    yaml_input = {
+        "model": {
+            "control": {
+                "start_time": "2011-03-01 01:00",
+                "end_time": "2013-12-31 23:55:00",
+            }
+        }
+    }
+
+    _, model_year, start_date, end_date = precheck_start_end_date(yaml_input)
+
+    assert (model_year, start_date, end_date) == (2011, "2011-03-01", "2013-12-31")
+
+
+def test_precheck_start_end_date_rejects_unparseable_bound():
+    yaml_input = {"model": {"control": {"start_time": "spring", "end_time": "2013-12-31"}}}
+
+    with pytest.raises(ValueError, match="start_time"):
+        precheck_start_end_date(yaml_input)

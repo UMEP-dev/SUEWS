@@ -251,7 +251,7 @@ def test_shading_conditions_follow_the_shared_modes() -> None:
     for field, modes in STEBBS_SHADING_REQUIRED_MODES.items():
         condition = required_when("StebbsProperties", field)
         assert condition.startswith(
-            "``internal_shading`` is " + " or ".join(f"``{m}``" for m in modes) + ","
+            "``internal_shading`` is " + " or ".join(f"``{m}``" for m in modes) + ";"
         )
 
 
@@ -277,7 +277,7 @@ def test_message_strings_are_frozen() -> None:
 def test_required_when_returns_condition_or_empty() -> None:
     """The generator lookup answers for known fields and declines otherwise."""
     # ARRANGE / ACT / ASSERT
-    assert "modelled rather than observed" in required_when(
+    assert "``model.physics.laimethod`` is ``1`` (MODELLED)" in required_when(
         "LAIParams", "base_temperature_senescence"
     )
     assert required_when("BldgsProperties", "bldgh").startswith(

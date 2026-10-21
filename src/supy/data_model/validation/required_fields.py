@@ -36,8 +36,9 @@ Only requirements that a configuration can fail are recorded. A parameter that
 carries a default never has to be supplied, so a validator that merely rejects
 an explicit null on it is not a requirement on the reader; the shading
 parameters are listed because ``StebbsProperties`` demands they be given
-explicitly even though they carry defaults. Every parameter the generator finds
-neither required by its type nor recorded here is described as optional.
+explicitly even though they carry defaults. Every other parameter is described
+as optional when it carries a default, and otherwise as having no default and
+needing a value.
 
 .. warning::
 
@@ -222,18 +223,26 @@ _VEGETATION_PRESENT = (
     "a vegetated surface using these parameters is present "
     "(``sfr`` above zero for ``grass``, ``dectr`` or ``evetr``)"
 )
-_LAI_MODELLED = (
-    "leaf area index is modelled rather than observed "
-    "(``model.physics.laimethod`` is not ``0``)"
+_LAI_MODELLED = _option("model.physics.laimethod", (1,), ("MODELLED",))
+_PROVIDED_FAI = _option("model.physics.frontal_area_index", (0,), ("OBSERVED",))
+# _validate_rsl runs only when the option is set explicitly, and VARIABLE is
+# also the default, so the condition says "set explicitly".
+_RSL_VARIABLE = (
+    "``model.physics.roughness_sublayer`` is set explicitly to ``2`` (VARIABLE)"
 )
-_PROVIDED_FAI = "frontal area index is taken from site parameters " + (
-    f"({_option('model.physics.frontal_area_index', (0,), ('OBSERVED',))})"
-)
-_RSL_VARIABLE = _option("model.physics.roughness_sublayer", (2,), ("VARIABLE",))
 _DYOHM_BUILDING = _option(
     "model.physics.storage_heat", DYOHM_BUILDING_METHODS, ("DyOHM", "DyOHM_BUILDING")
 )
-_BUILDINGS_PRESENT = "buildings are present (``land_cover.bldgs.sfr`` above zero)"
+
+
+def _present(surface: str, label: str) -> str:
+    """Describe a land cover whose surface fraction is above zero."""
+    return f"{label} are present (``land_cover.{surface}.sfr`` above zero)"
+
+
+_BUILDINGS_PRESENT = _present("bldgs", "buildings")
+_EVERGREEN_PRESENT = _present("evetr", "evergreen trees")
+_DECIDUOUS_PRESENT = _present("dectr", "deciduous trees")
 # Mirrors two SUEWSConfig validators: validate_model_output_timestamp_reference
 # rejects a daylight output clock unless both ends of the DLS window are
 # supplied, and validate_dls_parameters rejects a window with only one end.
@@ -251,7 +260,8 @@ def _dls_condition(other_end: str) -> str:
 def _irrigation_condition(other_end: str) -> str:
     """Describe when one end of the irrigation window must be supplied."""
     return (
-        f"``{other_end}`` is set to a day of year: the irrigation window "
+        f"``{other_end}`` is set to a day of year (not ``0`` or null): the "
+        "irrigation window "
         "needs both ends, or neither"
     )
 
@@ -260,8 +270,8 @@ def _shading_condition(modes: tuple[int, ...]) -> str:
     """Describe the internal shading modes that need a field given explicitly."""
     choices = " or ".join(f"``{mode}``" for mode in modes)
     return (
-        f"``internal_shading`` is {choices}, and must then be given explicitly "
-        "rather than left to its default"
+        f"``internal_shading`` is {choices}; the default does not count, so give "
+        "a value explicitly"
     )
 
 
@@ -288,16 +298,16 @@ DOC_REQUIRED_WHEN: dict[str, dict[str, str]] = {
         "faibldg": _fai_condition(_BUILDINGS_PRESENT, rsl_applies=True),
     },
     "EvetrProperties": {
-        "height_evergreen_tree": "evergreen trees are present",
-        "fai_evergreen_tree": _fai_condition("evergreen trees are present"),
+        "height_evergreen_tree": _EVERGREEN_PRESENT,
+        "fai_evergreen_tree": _fai_condition(_EVERGREEN_PRESENT),
     },
     "DectrProperties": {
-        "height_deciduous_tree": "deciduous trees are present",
-        "fai_deciduous_tree": _fai_condition("deciduous trees are present"),
+        "height_deciduous_tree": _DECIDUOUS_PRESENT,
+        "fai_deciduous_tree": _fai_condition(_DECIDUOUS_PRESENT),
     },
     "ThermalLayers": dict.fromkeys(
         DYOHM_BUILDING_LAYERS_REQUIRED,
-        "these are the building layers (``land_cover.bldgs.thermal_layers``) "
+        "used as the building layers (``land_cover.bldgs.thermal_layers``) "
         f"and {_DYOHM_BUILDING}",
     ),
     "StebbsProperties": {

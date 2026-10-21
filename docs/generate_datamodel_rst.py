@@ -47,7 +47,7 @@ except ImportError:
         return ""
 
 
-# Every parameter entry carries one "Status" line holding a short state token:
+# Every parameter entry carries one "Status" line:
 # required by its type, required under a condition the validation layer
 # records (see supy.data_model.validation.required_fields), optional because a
 # default exists, or without a default and unchecked.
@@ -866,11 +866,11 @@ class RSTGenerator:
     def _format_status(field_doc: dict[str, Any], model_name: str = "") -> str | None:
         """Return the requirement status of a parameter.
 
-        - Fields with no default at all: ``"Required"``
+        - Fields declared without a default (Pydantic-required): ``"Required"``
         - Fields the validation layer requires under a recorded condition:
           ``"Required when ..."``, whether or not they carry a default
         - Other fields with a default: ``"Optional"``
-        - Other fields without a default: ``STATUS_NO_DEFAULT``
+        - Other fields with ``default=None``: ``STATUS_NO_DEFAULT``
         - Nested models: ``None``, as the structure link describes them
 
         Args:

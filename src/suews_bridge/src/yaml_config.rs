@@ -1475,7 +1475,7 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
-fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
+fn apply_config_overrides(config: &mut SuewsConfig, root: &Value, site_root: &Value) {
     if let Some(v) = read_i32(root, &["model", "physics", "rslmethod"]) {
         config.rsl_method = v;
     }
@@ -1541,6 +1541,15 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     }
     config.kdown_split_method =
         read_i32(root, &["model", "physics", "kdown_split_method"]).unwrap_or(3);
+    // The kernel reads this switch from the run configuration, but users set
+    // it per site under `properties.spartacus` (gh#1858). Same threshold as
+    // `SuewsConfig::from_flat`.
+    if let Some(v) = read_numeric(
+        site_root,
+        &["properties", "spartacus", "use_sw_direct_albedo"],
+    ) {
+        config.use_sw_direct_albedo = v >= 0.5;
+    }
 }
 
 fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {
@@ -2283,7 +2292,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let site_root = read_sites_indexed(root, 0)
         .ok_or_else(|| "config must contain at least one site under `sites`".to_string())?;
 
-    apply_config_overrides(&mut config, root);
+    apply_config_overrides(&mut config, root, site_root);
 
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
@@ -2903,6 +2912,32 @@ mod tests {
         assert_eq!(run_cfg.config.storage_heat_method, 7);
         assert_eq!(run_cfg.config.emissions_method, 2);
         assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn use_sw_direct_albedo_reaches_run_config() {
+        // gh#1858: the site-level SPARTACUS switch must reach the kernel's
+        // run configuration, not only the SPARTACUS parameter block.
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root.clone())
+            .expect("fixture YAML should parse without error");
+        assert!(!run_cfg.config.use_sw_direct_albedo);
+
+        let flag = first_site_mut(&mut root)
+            .and_then(|site| {
+                get_path_mut(
+                    site,
+                    &["properties", "spartacus", "use_sw_direct_albedo", "value"],
+                )
+            })
+            .expect("fixture should set properties.spartacus.use_sw_direct_albedo");
+        *flag = serde_yaml::from_str("1.0").unwrap();
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("YAML with the switch on should parse without error");
+        assert!(run_cfg.config.use_sw_direct_albedo);
+        assert!((run_cfg.site.spartacus.use_sw_direct_albedo - 1.0).abs() < 1.0e-12);
     }
 
     #[test]

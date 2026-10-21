@@ -190,10 +190,10 @@ Important Requirements
 
 - **Continuous data**: No gaps allowed - missing periods must be gap-filled
 - **Timestamps**: Label the **end** of each forcing interval; they are not
-  instantaneous sampling times
-  
-  - For hourly data at 13:00, the interval covers 12:00--13:00
-  - For 5-minute data at 10:05, the interval covers 10:00--10:05
+  instantaneous sampling times. For hourly data at 13:00, the interval
+  covers 12:00--13:00. See :ref:`timestamp_convention` for the full rule,
+  how it sets the run period, and how to convert forcing stamped at the
+  start of each interval
 
 - **Weather, radiation, and energy fluxes**: Values are means over the
   interval ending at the timestamp
@@ -626,7 +626,7 @@ Check your data for:
 - **"Division by zero"**: Wind speed below 0.01 m |s^-1|
 - **"Negative radiation"**: Check ``kdown`` is always :math:`\geq 0`
 - **"Time mismatch"**: Ensure timestamps match the declared reference and
-  interval-end convention (see note above)
+  the :ref:`interval-end convention <timestamp_convention>`
 - **"Missing data"**: Gap-fill baseline and active conditional inputs. Use
   ``-999`` only for optional or inactive conditional fields, never blanks or
   ``NaN``

@@ -764,6 +764,8 @@ class SUEWSSimulation:
             forcing rows are stamped at the end of each interval, so the run
             starts with the first row after that day's midnight. A value with
             a time component is an exact row timestamp and is inclusive.
+            The run covers a left-open, right-closed period; see
+            :ref:`timestamp_convention`.
         end_date : str, date or Timestamp, optional
             End of the simulation period. Defaults to
             ``model.control.end_time``, then to the last forcing row.

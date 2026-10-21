@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 21 Oct 2026
 
-- [doc] Corrected output-variable descriptions and units that disagreed with the kernel, and published output contract `1.1.2`
+- [doc] Corrected output-variable descriptions and units that disagreed with the kernel, and published output contract `1.1.2` (#1863)
   - The descriptions rewritten in bulk in #1049 were checked against the Fortran that writes each column; those that were wrong or guessed are corrected.
   - `flag_RSL` read as an iteration status flag. It records the profile scheme used at the timestep: 1 for roughness-sublayer theory (RST), 0 for Monin-Obukhov similarity theory (MOST); resampled output gives the fraction of timesteps that used RST.
   - RSL profiles `z_*`, `U_*`, `T_*`, `q_*` assumed the RST level layout (level 1 at the ground, levels 21-30 above the canopy); the layout depends on the scheme, so the descriptions no longer state it. `f` is a single roughness-sublayer parameter, not a set of functions, and `beta` is dimensionless, not in m.

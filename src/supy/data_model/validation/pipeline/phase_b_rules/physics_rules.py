@@ -6,6 +6,11 @@ from ...core.yaml_helpers import get_value_safe
 from ...core.yaml_helpers import unwrap_nested_value as _unwrap_nested_value
 from ...core.yaml_helpers import get_stebbs_block, get_stebbsmethod_value
 from ...core.yaml_helpers import read_physics_key
+from ...required_fields import (
+    BUILDING_PRESENT_SFR_TOL,
+    SPARTACUS_BUILDING_STORAGE_METHODS,
+    SPARTACUS_OBSERVED_STORAGE_METHOD,
+)
 from ....core.physics_families import resolve_scalar_name
 
 from collections.abc import Mapping
@@ -13,7 +18,6 @@ from numbers import Integral, Real
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 
-# Constants 
 SPARTACUS_METHODS = {1001, 1002, 1003}
 
 
@@ -26,170 +30,139 @@ def _as_float(x: Any) -> Optional[float]:
         return None
 
 
-def _are_buildings_present(yaml_data: Mapping, sfr_fraction_tol: float=1e-6) -> bool:
+def _are_buildings_present(
+    yaml_data: Mapping, sfr_fraction_tol: float = BUILDING_PRESENT_SFR_TOL
+) -> bool:
     """
     Determine whether buildings are present at any site in the YAML configuration.
 
     Parameters
     ----------
     yaml_data : Mapping
-        Parsed YAML configuration containing site definitions and their properties.
-        Building surface fraction is read from
-        `properties.land_cover.bldgs.sfr` for each site.
+        Parsed YAML configuration containing site definitions and their
+        properties. Building surface fraction is read from
+        ``properties.land_cover.bldgs.sfr`` for each site.
     sfr_fraction_tol : float, optional
-        Surface building fraction tolerance above which buildings are considered
-        present. Defaults to 1e-6.
+        Building surface fraction above which buildings are considered
+        present. Defaults to ``BUILDING_PRESENT_SFR_TOL``.
 
     Returns
     -------
     bool
-        `True` if the building surface fraction exceeds `sfr_fraction_tol` at
-        any site; otherwise `False`.
+        ``True`` if the building surface fraction exceeds ``sfr_fraction_tol``
+        at any site; otherwise ``False``.
 
     Notes
     -----
-    Sites for which the building surface fraction is missing or cannot be
-    converted to a float are ignored. Such missing values are expected to be
-    handled by other validation checks.
+    Sites whose building surface fraction is missing or not numeric are
+    ignored; other validation checks report them.
     """
-    
-    # initialise flag
-    bldgs_present = False
-    
-    # identify whether a non-zero buiding land cover at any site
-    for site_idx, site in enumerate(yaml_data.get("sites", [])):
-        
-        props = site.get("properties", {})
-
-        # extract building surface fraction
-        land_cover_raw = _unwrap_nested_value(props.get("land_cover") or {})
-        bldgs = _unwrap_nested_value(land_cover_raw.get("bldgs", {})) if isinstance(land_cover_raw, Mapping) else None
-        sfr = _as_float(_unwrap_nested_value(bldgs.get("sfr"))) if isinstance(bldgs, Mapping) else None
-        
-        # if surface fraction is missing then continue - these will be caught elsewhere
-        if sfr is None:
+    sites = yaml_data.get("sites", []) if isinstance(yaml_data, Mapping) else []
+    # ValidationContext freezes the YAML, so ``sites`` may be a tuple.
+    for site in sites if isinstance(sites, (list, tuple)) else []:
+        props = site.get("properties", {}) if isinstance(site, Mapping) else {}
+        if not isinstance(props, Mapping):
             continue
-        
-        # if buildings present then set to true and break the loop
-        if sfr > sfr_fraction_tol:
-            bldgs_present = True
-            break
-    
-    return bldgs_present
+        land_cover = _unwrap_nested_value(props.get("land_cover") or {})
+        bldgs = (
+            _unwrap_nested_value(land_cover.get("bldgs", {}))
+            if isinstance(land_cover, Mapping)
+            else None
+        )
+        sfr = (
+            _as_float(_unwrap_nested_value(bldgs.get("sfr")))
+            if isinstance(bldgs, Mapping)
+            else None
+        )
+        if sfr is not None and sfr > sfr_fraction_tol:
+            return True
+    return False
 
 
-def validate_spartacus_dependencies(bldgs_present: bool, netradiationmethod: int, storageheatmethod: int, stebbsmethod: int) -> List[ValidationResult]:
+def validate_spartacus_dependencies(
+    bldgs_present: bool, netradiationmethod, storageheatmethod
+) -> list[ValidationResult]:
     """
-        Validate dependencies between SPARTACUS, storage heat, and STEBBS options.
+    Validate the storage heat method chosen alongside SPARTACUS (gh#1834).
 
     Parameters
     ----------
     bldgs_present : bool
         Whether buildings are present at any site in the configuration, based
         on the building surface fraction.
-    netradiationmethod : int
-        Net radiation method identifier. SPARTACUS methods are identified by
-        membership in `SPARTACUS_METHODS`.
-    storageheatmethod : int
-        Storage heat flux method identifier. A value of 7 is required when
-        SPARTACUS is used with buildings. A value of 0, representing storage
-        heat fluxes supplied from a forcing file, is not currently supported
-        with SPARTACUS.
-    stebbsmethod : int
-        STEBBS method identifier. A value of 1 or 2 is required when SPARTACUS
-        is used with buildings.
+    netradiationmethod : int, str or Mapping
+        Net radiation method in any accepted input form.
+    storageheatmethod : int, str or Mapping
+        Storage heat method in any accepted input form.
 
     Returns
     -------
     List[ValidationResult]
-        Validation results describing whether the SPARTACUS, storage heat,
-        and STEBBS configuration is valid. Errors include a suggested value
-        where an incompatible configuration is detected.
+        Validation results for the SPARTACUS storage heat dependency; empty
+        when SPARTACUS is not selected.
 
     Notes
     -----
-    - If `netradiationmethod` is a SPARTACUS method and buildings are present,
-      `storageheatmethod` must be 7.
-    - If `netradiationmethod` is a SPARTACUS method and buildings are present,
-      `stebbsmethod` must be 1 or 2.
-    - If `netradiationmethod` is a SPARTACUS method, `storageheatmethod` must
-      not be 0, as SPARTACUS is not currently supported with observed storage
-      heat fluxes supplied from a forcing file.
-    - No validation results are returned when `netradiationmethod` is not a
-      SPARTACUS method.
-      
+    - Storage heat method 0 (observed storage heat fluxes supplied in the
+      forcing) is not supported with SPARTACUS.
+    - With buildings present, the storage heat method must resolve roof and
+      wall facets: one of ``SPARTACUS_BUILDING_STORAGE_METHODS`` (EHC or
+      STEBBS). The STEBBS requirement of method 7 is reported by
+      ``validate_storageheatmethod_dependencies``.
+    - ``SUEWSConfig._validate_spartacus_storage_heat_method_dependency``
+      enforces the same contract on every configuration load; this rule
+      reports it, with a suggested fix, through ``suews validate``.
     """
-    
-    results = []
-    
-    if netradiationmethod in SPARTACUS_METHODS:
-        
-        # if non-zero building fraction, enforce the use of STEBBS
-        if bldgs_present:
-        
-            if storageheatmethod != 7:
-                results.append(ValidationResult(
-                                status="ERROR",
-                                category="MODEL_OPTIONS",
-                                parameter="netradiationmethod-storageheatmethod-properties.land_cover.bldgs",
-                                message=(
-                                    "Using SPARTACUS with buildings requires use of STEBBS storage heat flux for buildings"
-                                ),
-                                suggested_value="Set model.physics.storage_heat=7",
-                            )
-                        )
-            else:
-                results.append(ValidationResult(
-                                status="PASS",
-                                category="MODEL_OPTIONS",
-                                parameter="netradiationmethod-storageheatmethod-properties.land_cover.bldgs",
-                                message="netradiationmethod-storageheatmethod-properties.land_cover.bldgs compatibility validated",
-                            )
-                        )
-            
-            if stebbsmethod not in {1, 2}:
-                results.append(ValidationResult(
-                                            status="ERROR",
-                                            category="MODEL_OPTIONS",
-                                            parameter="netradiationmethod-stebbsmethod",
-                                            message=(
-                                                "Using SPARTACUS with buildings requires use of STEBBS"
-                                            ),
-                                            suggested_value="Set model.physics.stebbs.enabled=true.",
-                                        )
-                        )
-            else:
-                results.append(ValidationResult(
-                                status="PASS",
-                                category="MODEL_OPTIONS",
-                                parameter="netradiationmethod-stebbsmethod",
-                                message="netradiationmethod-stebbsmethod compatibility validated",
-                            )
-                        )
-        
-        # seperate catch to prevent SPARTACUS being used where storage heat fluxes obtained from forcing file
-        if storageheatmethod == 0:
-            results.append(ValidationResult(
-                                        status="ERROR",
-                                        category="MODEL_OPTIONS",
-                                        parameter="netradiationmethod-storageheatmethod",
-                                        message=(
-                                            "Further model development is required for use of SPARTACUS with observed storage heat fluxes"
-                                        ),
-                                        suggested_value="Set model.physics.storage_heat=7 for modelled storage heat fluxes, using STEBBS for buildings"
-                                        " and dyOHM for other surface types",
-                                    )
-                        )
-        else:
-            results.append(ValidationResult(
-                                status="PASS",
-                                category="MODEL_OPTIONS",
-                                parameter="netradiationmethod-storageheatmethod-properties",
-                                message="netradiationmethod-storageheatmethod-properties compatibility validated",
-                            )
-                        )
+    netradiationmethod = _method_code(netradiationmethod, "net_radiation")
+    storageheatmethod = _method_code(storageheatmethod, "storage_heat")
 
-    return results       
+    if netradiationmethod not in SPARTACUS_METHODS or storageheatmethod is None:
+        return []
+
+    if storageheatmethod == SPARTACUS_OBSERVED_STORAGE_METHOD:
+        return [
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="netradiationmethod-storageheatmethod",
+                message=(
+                    "Observed storage heat fluxes (StorageHeatMethod=0) are "
+                    "not supported with SPARTACUS."
+                ),
+                suggested_value=(
+                    "Set model.physics.storage_heat=7 (STEBBS, with "
+                    "model.physics.stebbs.enabled=true) or 5 (EHC)."
+                ),
+            )
+        ]
+
+    if bldgs_present and storageheatmethod not in SPARTACUS_BUILDING_STORAGE_METHODS:
+        return [
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="netradiationmethod-storageheatmethod-bldgs",
+                message=(
+                    f"StorageHeatMethod={storageheatmethod} is not supported "
+                    "with SPARTACUS when buildings are present "
+                    "(land_cover.bldgs.sfr > 0 at a site): SPARTACUS needs a "
+                    "storage heat method that resolves roof and wall facets."
+                ),
+                suggested_value=(
+                    "Set model.physics.storage_heat=7 (STEBBS, with "
+                    "model.physics.stebbs.enabled=true) or 5 (EHC)."
+                ),
+            )
+        ]
+
+    return [
+        ValidationResult(
+            status="PASS",
+            category="MODEL_OPTIONS",
+            parameter="netradiationmethod-storageheatmethod-bldgs",
+            message="SPARTACUS storage heat method compatibility validated",
+        )
+    ]
 
 
 @RulesRegistry.add_rule("physics_params")
@@ -696,8 +669,9 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
         - Ensures that the selected RSL method is compatible with the chosen stability method.
         - Checks compatibility between the storage heat method and the OhmIncQf option.
         - Validates that the SMD method is consistent with the presence of required soil observation data.
-        - Vaidates that storage heat method 7 is employed whenever SPARTACUS is used and non-zero building 
-        fraction prescribed
+        - Validates that SPARTACUS is not combined with observed storage heat
+          and, where buildings are present, uses a facet-resolved storage
+          heat method (EHC or STEBBS).
 
     Parameters
     ----------
@@ -713,7 +687,7 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     """
 
     yaml_data = context.yaml_data
-    
+
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
     if not isinstance(physics, Mapping):
@@ -727,9 +701,6 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     netradiationmethod = read_physics_key(physics, "net_radiation")
     stebbsmethod = get_stebbsmethod_value(physics)
     rcmethod = get_value_safe(get_stebbs_block(physics), "capacitance")
-    
-    # flag for non-zero building fraction
-    bldgs_present = _are_buildings_present(yaml_data)
 
     # RSL method and stability method dependencies
     result = validate_rslmethod_dependency(rslmethod=rslmethod, stabilitymethod=stabilitymethod)
@@ -757,10 +728,15 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     # SMDMethod and soil_observation dependency
     results.extend(validate_smdmethod_dependency(smdmethod=smdmethod, yaml_data=yaml_data))
 
-    # SPARTACUS surface STEBBS dependency
-    results.extend(validate_spartacus_dependencies(bldgs_present=bldgs_present, stebbsmethod=stebbsmethod,
-                                                 storageheatmethod=storageheatmethod, netradiationmethod=netradiationmethod))
-    
+    # SPARTACUS and storage heat method dependency (gh#1834)
+    results.extend(
+        validate_spartacus_dependencies(
+            bldgs_present=_are_buildings_present(yaml_data),
+            netradiationmethod=netradiationmethod,
+            storageheatmethod=storageheatmethod,
+        )
+    )
+
     return results
 
 

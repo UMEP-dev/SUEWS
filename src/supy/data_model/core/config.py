@@ -40,6 +40,7 @@ from .type import SurfaceType
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
 from ..validation.required_fields import (
+    BUILDING_PRESENT_SFR_TOL,
     BUILDING_REQUIRED,
     BUILDING_REQUIRED_PROVIDED_FAI,
     CONDUCTANCE_REQUIRED,
@@ -52,6 +53,8 @@ from ..validation.required_fields import (
     LAI_CALCULATED_ONLY_REQUIRED,
     LAI_REQUIRED,
     RSL_VARIABLE_BLDGS_REQUIRED,
+    SPARTACUS_BUILDING_STORAGE_METHODS,
+    SPARTACUS_OBSERVED_STORAGE_METHOD,
     STEBBS_SHADING_REQUIRED_MODES,
     stebbs_shading_requirements,
 )
@@ -2874,17 +2877,16 @@ class SUEWSConfig(BaseModel):
                         )
         return issues
 
-    
-    ###############FA
-    
-    def _validate_spartacus_storage_heat_method_dependency(self, site: Site, site_index: int, sfr_tol: float=1E-6) -> List[str]:
+    def _validate_spartacus_storage_heat_method_dependency(
+        self, site: Site, site_index: int
+    ) -> list[str]:
         """
-        
         Validate storage heat method dependencies when SPARTACUS is employed.
 
-        This check ensures that observed storage heat fluxes are not used with
-        SPARTACUS and, where a non-zero building surface fraction is prescribed,
-        that STEBBS is enabled and storage heat method 7 is used.
+        Observed storage heat fluxes are not supported with SPARTACUS. Where a
+        site prescribes a non-zero building surface fraction, the storage heat
+        method must resolve roof and wall facets: EHC, or STEBBS with STEBBS
+        enabled (gh#1834).
 
         Parameters
         ----------
@@ -2892,69 +2894,76 @@ class SUEWSConfig(BaseModel):
             The site object to validate.
         site_index : int
             Index of the site in the configuration.
-        sfr_tol : float, optional
-            Tolerance above which the building surface fraction is considered
-            non-zero. Defaults to 1E-6.
 
         Returns
         -------
         issues : list of str
-                    List of issue messages if validation fails; empty if valid.
+            List of issue messages if validation fails; empty if valid.
 
         Notes
         -----
-        - Storage heat method 0, corresponding to observed storage heat fluxes,
-        is not currently supported when SPARTACUS is employed.
-        - Where the building surface fraction exceeds `sfr_tol`, STEBBS must be
-        enabled (`stebbsmethod=1`) and storage heat method 7 must be used.
-        - Missing or non-numeric storage heat and building surface fraction values
-        are not reported by this check and are expected to be handled by other
-        validation checks.
+        - Storage heat method 0 (observed storage heat fluxes) is rejected
+          whenever SPARTACUS is employed.
+        - Where ``land_cover.bldgs.sfr`` exceeds ``BUILDING_PRESENT_SFR_TOL``,
+          the storage heat method must be in
+          ``SPARTACUS_BUILDING_STORAGE_METHODS``; method 7 additionally needs
+          STEBBS enabled (composed ``stebbsmethod`` 1 or 2).
+        - Missing or non-numeric storage heat and building surface fraction
+          values are not reported here; other checks handle them.
+        - The Phase B rule ``validate_spartacus_dependencies`` reports the same
+          contract for ``suews validate``; this check is the one every
+          ``SUEWSConfig`` load passes through.
         """
-        
-        issues: List[str] = []
-        
-        # get  storage heat method and stebbs method flag (missing values etc. are dealt with elsewhere)
-        stebbs_method_val = self._composed_stebbsmethod()
+        issues: list[str] = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+
         physics = getattr(self.model, "physics", None)
-        storage_heat = getattr(physics, "storage_heat", None)
-        storage_heat_method = getattr(storage_heat, "value", storage_heat)
-        
-        # make sure that integer to enable proper comparison
+        storage_heat_method = _unwrap_value(getattr(physics, "storage_heat", None))
         try:
             storage_heat_method = int(storage_heat_method)
         except (TypeError, ValueError):
             storage_heat_method = None
-            
-        if storage_heat_method == 0:
-            issues.append('Use of observed storage heat fluxes (storage method 0) with SPARTACUS is currently not supported. Use alternative storage_heat method 7')
-        
-        # get building land cover fraction from site properties
-        props = getattr(site, "properties", None) 
+
+        if storage_heat_method == SPARTACUS_OBSERVED_STORAGE_METHOD:
+            issues.append(
+                f"{site_name}: observed storage heat fluxes (storage_heat 0) "
+                "are not supported with SPARTACUS; use storage_heat 5 (EHC) "
+                "or 7 (STEBBS)"
+            )
+
+        props = getattr(site, "properties", None)
         land_cover = getattr(props, "land_cover", None)
-        
-        # get surface building fraction
         bldgs = getattr(land_cover, "bldgs", None)
-        
-        # if non-zero building fraction, validate that STEBBS is employed with heat storage method 7
-        if bldgs is not None:
-            sfr_raw = getattr(bldgs, "sfr", None)
-            sfr_value = getattr(sfr_raw, "value", sfr_raw)
-            
-            # make sure float so does not fail upon comparison
-            try:
-                sfr_value = float(sfr_value)
-            except (TypeError, ValueError):
-                sfr_value = None
-            
-            if sfr_value is not None and sfr_value > sfr_tol:
-                
-                if storage_heat_method != 7 or stebbs_method_val != 1:
-                    issues.append('STEBBS must be employed (enabled=true), and storage_heat method 7 used where SPARTACUS is enabled and non-zero building surface fraction prescribed')
-                
+        sfr_value = _unwrap_value(getattr(bldgs, "sfr", None))
+        try:
+            sfr_value = float(sfr_value)
+        except (TypeError, ValueError):
+            sfr_value = None
+        if (
+            storage_heat_method is None
+            or sfr_value is None
+            or sfr_value <= BUILDING_PRESENT_SFR_TOL
+        ):
+            return issues
+
+        if storage_heat_method not in SPARTACUS_BUILDING_STORAGE_METHODS:
+            if storage_heat_method != SPARTACUS_OBSERVED_STORAGE_METHOD:
+                issues.append(
+                    f"{site_name}: SPARTACUS with buildings "
+                    f"(land_cover.bldgs.sfr={sfr_value}) requires a facet-resolved "
+                    "storage heat method: storage_heat 7 (STEBBS, with "
+                    "model.physics.stebbs.enabled=true) or 5 (EHC); got "
+                    f"storage_heat {storage_heat_method}"
+                )
+        elif storage_heat_method == 7 and self._composed_stebbsmethod() not in {1, 2}:
+            issues.append(
+                f"{site_name}: SPARTACUS with buildings and storage_heat 7 "
+                "requires STEBBS to be enabled "
+                "(model.physics.stebbs.enabled=true)"
+            )
+
         return issues
-    
-    
+
     def _validate_conditional_parameters(self) -> List[str]:
         """
         Run conditional, method-specific validations for all sites.
@@ -3102,14 +3111,14 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_veg_issues)
-                
-                spartacus_heat_storage_issues = self._validate_spartacus_storage_heat_method_dependency(site, idx)
-                if spartacus_heat_storage_issues:
-                    self._validation_summary['issue_types'].add('SPARTACUS heat storage method consistency')
+
+                spartacus_storage_issues = self._validate_spartacus_storage_heat_method_dependency(site, idx)
+                if spartacus_storage_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS storage heat method")
                     if site_name not in self._validation_summary["sites_with_issues"]:
-                                            self._validation_summary["sites_with_issues"].append(site_name)
-                    all_issues.extend(spartacus_heat_storage_issues)
-                    
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_storage_issues)
+
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:

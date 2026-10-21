@@ -215,6 +215,17 @@ RSL_VARIABLE_BLDGS_REQUIRED: tuple[str, ...] = ("faibldg",)
 DYOHM_BUILDING_METHODS: tuple[int, ...] = (6, 8)
 DYOHM_BUILDING_LAYERS_REQUIRED: tuple[str, ...] = ("dz", "k", "rho_cp")
 
+# SPARTACUS storage-heat compatibility (gh#1834), checked by both
+# SUEWSConfig._validate_spartacus_storage_heat_method_dependency and the
+# Phase B rule validate_spartacus_dependencies. Observed storage heat
+# (method 0) is never accepted with SPARTACUS. Where any building fraction
+# exceeds the tolerance, storage heat must resolve roof and wall facets:
+# EHC (5) or STEBBS (7); DyOHM (6) drives building surface temperatures to
+# unrealistic values with SPARTACUS.
+SPARTACUS_OBSERVED_STORAGE_METHOD: int = 0
+SPARTACUS_BUILDING_STORAGE_METHODS: tuple[int, ...] = (5, 7)
+BUILDING_PRESENT_SFR_TOL: float = 1e-6
+
 # Water-distribution destinations each surface must give when its waterdist
 # block is supplied; an omitted block takes surface-specific defaults. Keyed by
 # surface type value; the water surface has no distribution.

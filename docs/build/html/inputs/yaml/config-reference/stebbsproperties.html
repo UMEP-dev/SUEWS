@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for stebbs parameters" name="description" />
 <meta content="SUEWS, YAML, stebbsproperties, parameters, configuration" name="keywords" />
 
-    <title>4.5.47. STEBBS &#8212; SUEWS 2026.10.21.dev5 documentation</title>
+    <title>4.5.47. STEBBS &#8212; SUEWS 2026.10.21.dev6 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=cbedb63d"></script>
+    <script src="../../../_static/documentation_options.js?v=dc99365b"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.5.46. STEBBS Physics Methods" href="stebbsphysics.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.21.dev5" />
+  <meta name="docsearch:version" content="2026.10.21.dev6" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.21.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/045fab38eadba30f24079ab8fb45a5b4e154de22" style="color: #31708f;">045fab3</a>).
+        (2026.10.21.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52" style="color: #31708f;">5280c61</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev5 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev5 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -619,14 +619,17 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">wall_internal_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">7.69</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
 </dd>
-<dt class="field-even">Default Description<span class="colon">:</span></dt>
-<dd class="field-even"><p>Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176</p>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">7.69</span></code></p>
 </dd>
-<dt class="field-odd">Range Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Value must be greater than zero.</p>
+<dt class="field-odd">Default Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176</p>
+</dd>
+<dt class="field-even">Range Description<span class="colon">:</span></dt>
+<dd class="field-even"><p>Value must be greater than zero.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -642,8 +645,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">roof_internal_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -659,8 +665,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">internal_mass_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">7.69</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">7.69</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -676,8 +685,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">floor_internal_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">5.88</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">5.88</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -693,8 +705,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">window_internal_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">7.69</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">7.69</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -710,8 +725,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">wall_external_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">25.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">25.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -727,8 +745,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">roof_external_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">25.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">25.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -744,8 +765,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">window_external_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">25.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">25.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -761,8 +785,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">ground_depth</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">3.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">3.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -778,8 +805,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">external_ground_conductivity</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.193</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.193</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -795,8 +825,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">metabolism_threshold</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">74.3</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">74.3</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -812,8 +845,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">latent_sensible_ratio</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -829,8 +865,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">control_daylight</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -846,11 +885,14 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">InternalShading</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
 </dd>
-<dt class="field-even">Constraints<span class="colon">:</span></dt>
-<dd class="field-even"><p>Allowed values: <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">2</span></code></p>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
+</dd>
+<dt class="field-odd">Constraints<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Allowed values: <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">2</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -866,8 +908,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">ReductionFactorShading</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">1.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Required when <code class="docutils literal notranslate"><span class="pre">internal_shading</span></code> is <code class="docutils literal notranslate"><span class="pre">1</span></code> or <code class="docutils literal notranslate"><span class="pre">2</span></code>; the default does not count, so give a value explicitly</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -883,8 +928,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">TemperatureThresholdShading</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Required when <code class="docutils literal notranslate"><span class="pre">internal_shading</span></code> is <code class="docutils literal notranslate"><span class="pre">2</span></code>; the default does not count, so give a value explicitly</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -900,8 +948,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">RadiationThresholdShading</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Required when <code class="docutils literal notranslate"><span class="pre">internal_shading</span></code> is <code class="docutils literal notranslate"><span class="pre">2</span></code>; the default does not count, so give a value explicitly</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -917,8 +968,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">lighting_illuminance_threshold</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">300.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">300.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -934,8 +988,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">heating_system_efficiency</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.9</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.9</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -951,11 +1008,14 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">DestinationWasteHeat</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
 </dd>
-<dt class="field-even">Constraints<span class="colon">:</span></dt>
-<dd class="field-even"><p>Allowed values: <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">1</span></code></p>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
+</dd>
+<dt class="field-odd">Constraints<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Allowed values: <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">1</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -971,8 +1031,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">FractionConvectiveHeating</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">1.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -988,8 +1051,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">power_air_cooling_max</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1005,8 +1071,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">cooling_system_cop</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">3.4</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">3.4</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1022,8 +1091,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">ventilation_rate</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1039,8 +1111,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">initial_outdoor_temperature</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1056,8 +1131,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">initial_indoor_temperature</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1073,8 +1151,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">annual_mean_air_temperature</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1090,8 +1171,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">month_mean_air_temperature_diffmax</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1107,8 +1191,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_tank_wall_thickness</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.01</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.01</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1124,8 +1211,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">temperature_water_mains</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1141,8 +1231,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">area_hot_water_tank_surface</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1158,8 +1251,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">temperature_water_heating_setpoint</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">60.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">60.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1175,8 +1271,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_tank_wall_emissivity</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1192,8 +1291,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_vessel_wall_thickness</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.005</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.005</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1209,14 +1311,17 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_volume</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.05</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
 </dd>
-<dt class="field-even">Default Description<span class="colon">:</span></dt>
-<dd class="field-even"><p>Missing default explanation.</p>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.05</span></code></p>
 </dd>
-<dt class="field-odd">Range Description<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Missing range explanation.</p>
+<dt class="field-odd">Default Description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Missing default explanation.</p>
+</dd>
+<dt class="field-even">Range Description<span class="colon">:</span></dt>
+<dd class="field-even"><p>Missing range explanation.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1232,8 +1337,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">area_hot_water_surface</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1249,8 +1357,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">rate_hot_water_flow</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1281,8 +1392,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_specific_heat_capacity</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">4186.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">4186.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1298,8 +1412,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_tank_specific_heat_capacity</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">500.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">500.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1315,8 +1432,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_vessel_specific_heat_capacity</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">500.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">500.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1332,8 +1452,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_density</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">1000.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1000.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1349,8 +1472,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_tank_wall_density</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2500.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2500.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1366,8 +1492,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_vessel_density</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2500.0</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2500.0</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1383,8 +1512,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_tank_wall_conductivity</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1400,8 +1532,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_tank_internal_wall_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">7.7</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">7.7</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1417,8 +1552,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_tank_external_wall_convection_coefficient</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">7.7</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">7.7</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1434,8 +1572,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_vessel_wall_conductivity</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1451,8 +1592,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_vessel_wall_internal</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">7.7</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">7.7</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1468,8 +1612,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_vessel_wall_external</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">7.7</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">7.7</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1485,8 +1632,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_vessel_wall_emissivity</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.9</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.9</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1502,8 +1652,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">hot_water_heating_efficiency</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">0.9</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.9</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1534,8 +1687,11 @@ building materials properties, and thermal behaviour.</p>
 <dt class="field-even">Legacy name<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">lighting_power_density</span></code></p>
 </dd>
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1617,8 +1773,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.21.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/045fab38eadba30f24079ab8fb45a5b4e154de22">045fab3</a> |
+  <p>Version: 2026.10.21.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52">5280c61</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

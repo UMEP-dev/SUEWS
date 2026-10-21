@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for forcing control parameters" name="description" />
 <meta content="SUEWS, YAML, forcingcontrol, parameters, configuration" name="keywords" />
 
-    <title>4.5.13. Forcing Control &#8212; SUEWS 2026.10.21.dev5 documentation</title>
+    <title>4.5.13. Forcing Control &#8212; SUEWS 2026.10.21.dev6 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=cbedb63d"></script>
+    <script src="../../../_static/documentation_options.js?v=dc99365b"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.5.12. Evergreen Trees" href="evetrproperties.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.21.dev5" />
+  <meta name="docsearch:version" content="2026.10.21.dev6" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.21.dev5, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/045fab38eadba30f24079ab8fb45a5b4e154de22" style="color: #31708f;">045fab3</a>).
+        (2026.10.21.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52" style="color: #31708f;">5280c61</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -196,8 +196,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev5 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev5 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -614,8 +614,11 @@ resampling policy, under a stable home rather than accreting flat
 <span class="sig-name descname"><span class="pre">file</span></span><a class="headerlink" href="#input-option-file" title="Link to this definition">#</a></dt>
 <dd><p>Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., ‘forcing.txt’), or (2) A list of file paths (e.g., [‘forcing_2020.txt’, ‘forcing_2021.txt’]). When multiple files are provided, they are concatenated in chronological order. Set it explicitly to a bare <code class="docutils literal notranslate"><span class="pre">null</span></code> when forcing is supplied at runtime through <code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.update_forcing()</span></code> instead of from a file: the validator then skips the forcing-file checks and warns that forcing must be supplied before <code class="docutils literal notranslate"><span class="pre">run()</span></code>. Omitting the key is not the same as <code class="docutils literal notranslate"><span class="pre">null</span></code> and is still reported as an error. For details, see <a class="reference internal" href="../../tables/met_input.html#met-input"><span class="std std-ref">Meteorological Input File</span></a>.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'forcing.txt'</span></code></p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">'forcing.txt'</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -625,8 +628,11 @@ resampling policy, under a stable home rather than accreting flat
 <span class="sig-name descname"><span class="pre">timestamp_reference</span></span><a class="headerlink" href="#input-option-timestamp_reference" title="Link to this definition">#</a></dt>
 <dd><p>Clock used by the forcing timestamps. ‘local_standard_time’ preserves the historical fixed-offset, interval-end convention. With ‘utc’, forcing timestamps, output timestamps and daily state boundaries remain in UTC, while solar calculations and local diurnal profiles use the site’s derived fixed-offset standard time. Daylight-saving civil time is not supported.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Default<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">local_standard_time</span></code> (LOCAL_STANDARD_TIME)</p>
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional</p>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">local_standard_time</span></code> (LOCAL_STANDARD_TIME)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -702,8 +708,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.21.dev5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/045fab38eadba30f24079ab8fb45a5b4e154de22">045fab3</a> |
+  <p>Version: 2026.10.21.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5280c610db2778d938479624c36904fdc2be0b52">5280c61</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

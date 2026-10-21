@@ -273,7 +273,8 @@ def coverage_problem(
     )
     return (
         f"{period.describe()} needs {span}{first_row} to {last_row}; "
-        f"forcing available {available_start} to {available_end}"
+        f"forcing available {available_start} to {available_end}; see "
+        f"'Timestamp convention' in the SUEWS documentation"
     )
 
 

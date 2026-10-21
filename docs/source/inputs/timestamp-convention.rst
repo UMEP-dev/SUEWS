@@ -112,7 +112,7 @@ right-closed days but labels each by its **start** (pandas ``label="left"``),
 so the row labelled ``2012-01-15`` holds the state at the end of 15 January,
 ``(2012-01-15 00:00, 2012-01-16 00:00]``. When ``DailyState`` is combined with
 other output groups at daily resolution, for example with
-:meth:`~supy.SUEWSOutput.resample`, its dates therefore run one day earlier
+``SUEWSOutput.resample()``, its dates therefore run one day earlier
 than those of the other groups (see :ref:`output-dailystate`).
 
 Forcing stamped at the start of each interval

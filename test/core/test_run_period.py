@@ -127,7 +127,9 @@ class TestRightClosedDays:
         df = _forcing()  # 2012-01-01 00:05 .. 2012-01-04 00:00
         with pytest.raises(ValueError, match="does not cover") as excinfo:
             slice_forcing_to_period(df, _period("2012-01-01", "2012-01-10", df))
-        assert "(2012-01-01 00:00:00, 2012-01-11 00:00:00]" in str(excinfo.value)
+        message = str(excinfo.value)
+        assert "(2012-01-01 00:00:00, 2012-01-11 00:00:00]" in message
+        assert "Timestamp convention" in message
 
 
 class TestExplicitTimestampSemantics:

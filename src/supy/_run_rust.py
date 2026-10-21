@@ -63,6 +63,12 @@ OUTPUT_ALL_COLS = sum(ncols for _, ncols in OUTPUT_GROUP_LAYOUT)
 _GROUP_DATA_COLS_BY_NAME: dict[str, int] = {
     group_name: ncols - OUTPUT_TIME_COLS for group_name, ncols in OUTPUT_GROUP_LAYOUT
 }
+# Columns of the output frame: every group's data columns, no datetime prefixes.
+OUTPUT_DATA_COLS = sum(_GROUP_DATA_COLS_BY_NAME.values())
+
+# Columns per slab when replacing the -999 sentinel in place, which bounds the
+# temporary comparison mask to a slab rather than the whole table (gh#1849).
+_SENTINEL_SLAB_COLS = 64
 
 _RUST_ERROR_MSG = (
     "Rust backend not available in this build.\n"
@@ -82,9 +88,9 @@ def _load_rust_module():
 
 
 def _check_rust_available():
-    """Check suews_bridge.run_suews is available."""
+    """Check suews_bridge.run_suews_into is available."""
     module = _load_rust_module()
-    if not hasattr(module, "run_suews"):
+    if not hasattr(module, "run_suews_into"):
         raise RuntimeError(_RUST_ERROR_MSG)
     return module
 
@@ -413,13 +419,26 @@ def _parse_output_block(
     # Datetime from the first group (SUEWS)
     datetime_index = _build_datetime_index(output_block)
 
-    # Column bookkeeping for all groups up front, so the data columns can be
-    # gathered in ONE fancy-index copy (writable) instead of building eleven
-    # per-group frames and concatenating them - the frame pipeline previously
-    # held several whole-year copies at peak (GH-1718).
+    # Gather the data columns in ONE fancy-index copy (writable) instead of
+    # building eleven per-group frames and concatenating them - the frame
+    # pipeline previously held several whole-year copies at peak (GH-1718).
     list_col_idx: list[np.ndarray] = []
-    list_group_cols: list[pd.MultiIndex] = []
     col_offset = 0
+    for _, ncols in OUTPUT_GROUP_LAYOUT:
+        list_col_idx.append(
+            np.arange(col_offset + OUTPUT_TIME_COLS, col_offset + ncols)
+        )
+        col_offset += ncols
+    cols_all = _output_columns()
+
+    ar_data = output_block[:, np.concatenate(list_col_idx)]
+    _replace_sentinel_in_place(ar_data)
+    return _wrap_output_frame(ar_data, cols_all, datetime_index, grid_id)
+
+
+def _output_columns() -> pd.MultiIndex:
+    """Return the ``(group, var)`` columns of the output frame, in kernel order."""
+    list_group_cols: list[pd.MultiIndex] = []
     for group_name, ncols in OUTPUT_GROUP_LAYOUT:
         n_data = ncols - OUTPUT_TIME_COLS
         idx = gen_index(f"dataoutline{group_name.lower()}")
@@ -430,32 +449,170 @@ def _parse_output_block(
                 f"registry expects {len(idx)}. "
                 f"{_output_layout_update_hint(group_name)}"
             )
-        list_col_idx.append(
-            np.arange(col_offset + OUTPUT_TIME_COLS, col_offset + ncols)
-        )
         list_group_cols.append(idx)
-        col_offset += ncols
-
-    ar_data = output_block[:, np.concatenate(list_col_idx)]
-    # SUEWS uses -999 as missing-data sentinel; expose these as NaN in
-    # Python outputs so downstream filtering/resampling behaves correctly.
-    # In-place on the freshly copied array: no further whole-year copy.
-    ar_data[ar_data == -999.0] = np.nan
 
     cols_all = list_group_cols[0]
     for idx in list_group_cols[1:]:
         cols_all = cols_all.append(idx)
+    return cols_all
 
-    df_output = pd.DataFrame(
+
+def _replace_sentinel_in_place(ar_data: np.ndarray) -> None:
+    """Expose the kernel's -999 missing-data sentinel as NaN, in place.
+
+    Works a slab of columns at a time, so the comparison mask never spans
+    the whole table (gh#1849); with a Fortran-ordered array each slab is
+    contiguous.
+    """
+    for col_start in range(0, ar_data.shape[1], _SENTINEL_SLAB_COLS):
+        ar_slab = ar_data[:, col_start : col_start + _SENTINEL_SLAB_COLS]
+        ar_slab[ar_slab == -999.0] = np.nan
+
+
+def _wrap_output_frame(
+    ar_data: np.ndarray,
+    columns: pd.MultiIndex,
+    datetime_index: pd.DatetimeIndex,
+    grid_id: int,
+) -> pd.DataFrame:
+    """Wrap a 2-D float array as the output frame without copying it."""
+    return pd.DataFrame(
         ar_data,
-        columns=cols_all,
+        columns=columns,
         index=pd.MultiIndex.from_product(
             [[_normalise_grid_id(grid_id)], datetime_index],
             names=["grid", "datetime"],
         ),
         copy=False,
     )
-    return df_output
+
+
+def _alloc_output_buffers(len_sim: int) -> tuple[np.ndarray, np.ndarray]:
+    """Allocate the arrays the kernel writes one grid's output into (gh#1849).
+
+    Returns ``(ar_data, ar_datetime)``, shaped ``(len_sim, OUTPUT_DATA_COLS)``
+    and ``(len_sim, OUTPUT_TIME_COLS)``. Both are Fortran-ordered, the layout
+    the kernel writes, so ``ar_data`` becomes the output frame as it is:
+    the kernel, the bridge and pandas share this one full-size buffer.
+    ``np.zeros`` maps zeroed pages lazily, so memory is committed only as the
+    kernel writes it, and a row the kernel never reaches keeps year 0, which
+    :func:`_build_datetime_index` rejects.
+    """
+    ar_data = np.zeros((len_sim, OUTPUT_DATA_COLS), dtype=np.float64, order="F")
+    ar_datetime = np.zeros((len_sim, OUTPUT_TIME_COLS), dtype=np.float64, order="F")
+    return ar_data, ar_datetime
+
+
+def _frame_from_output_buffers(
+    ar_data: np.ndarray,
+    ar_datetime: np.ndarray,
+    grid_id: int,
+) -> pd.DataFrame:
+    """Turn kernel-filled output buffers into the multi-group output frame.
+
+    The frame takes ``ar_data`` as its storage: the -999 sentinel is replaced
+    in place and no copy is made.
+    """
+    datetime_index = _build_datetime_index(ar_datetime)
+    _replace_sentinel_in_place(ar_data)
+    return _wrap_output_frame(ar_data, _output_columns(), datetime_index, grid_id)
+
+
+def _run_grid_into(
+    rust_module: Any,
+    config_text: str,
+    forcing_flat: list[float],
+    len_forcing: int,
+    grid_id: int,
+    state_json: str | None = None,
+) -> tuple[pd.DataFrame, str | None, Any]:
+    """Run one grid with the kernel writing straight into its output frame.
+
+    Returns ``(df_output, state_json, raw_warnings)``. With *state_json*, the
+    run continues from that checkpoint.
+    """
+    ar_data, ar_datetime = _alloc_output_buffers(len_forcing)
+    state_json_out, len_sim, raw_warnings = rust_module.run_suews_into(
+        config_text,
+        forcing_flat,
+        len_forcing,
+        ar_data,
+        ar_datetime,
+        state_json,
+    )
+    if len_sim != len_forcing:
+        raise RuntimeError(
+            f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
+        )
+    df_output = _frame_from_output_buffers(ar_data, ar_datetime, grid_id)
+    return df_output, state_json_out, raw_warnings
+
+
+def _run_grids_into(
+    rust_module: Any,
+    list_config_jsons: list[str],
+    forcing_flat: list[float],
+    len_forcing: int,
+    list_grid_ids: list[int],
+    list_state_jsons: list[str] | None,
+    use_rayon: bool,
+    max_workers: int | None,
+) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
+    """Run every grid, each writing into its own preallocated output frame.
+
+    With *use_rayon* the grids run in parallel inside the bridge; otherwise
+    one after another. Returns ``(df_output, dict_state_json, warnings)``.
+    """
+    list_df_output: list[pd.DataFrame] = []
+    dict_state_json: dict[int, str] = {}
+    kernel_warnings = KernelWarningLog()
+
+    if use_rayon:
+        list_buffers = [_alloc_output_buffers(len_forcing) for _ in list_grid_ids]
+        raw_results = rust_module.run_suews_multi_into(
+            list_config_jsons,
+            forcing_flat,
+            len_forcing,
+            [ar_data for ar_data, _ in list_buffers],
+            [ar_datetime for _, ar_datetime in list_buffers],
+            list_state_jsons,
+            max_workers,
+        )
+        # raw_results: list of (grid_index, state_json, len_sim, warnings)
+        for idx, state_json, len_sim, raw_warnings in sorted(
+            raw_results, key=lambda r: r[0]
+        ):
+            if len_sim != len_forcing:
+                raise RuntimeError(
+                    f"Rust backend length mismatch: forcing={len_forcing}, "
+                    f"output={len_sim}"
+                )
+            grid_id = list_grid_ids[idx]
+            ar_data, ar_datetime = list_buffers[idx]
+            list_df_output.append(
+                _frame_from_output_buffers(ar_data, ar_datetime, grid_id)
+            )
+            if state_json is not None:
+                dict_state_json[grid_id] = state_json
+            kernel_warnings.add(grid_id, raw_warnings)
+    else:
+        for idx, config_json in enumerate(list_config_jsons):
+            grid_id = list_grid_ids[idx]
+            df_output, state_json, raw_warnings = _run_grid_into(
+                rust_module,
+                config_json,
+                forcing_flat,
+                len_forcing,
+                grid_id,
+                list_state_jsons[idx] if list_state_jsons is not None else None,
+            )
+            list_df_output.append(df_output)
+            if state_json is not None:
+                dict_state_json[grid_id] = state_json
+            kernel_warnings.add(grid_id, raw_warnings)
+
+    df_output_all = _concat_output_frames(list_df_output)
+    return df_output_all, dict_state_json or None, kernel_warnings
 
 
 def run_suews_rust(
@@ -484,20 +641,9 @@ def run_suews_rust(
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()
 
-    output_flat, state_json, len_sim, raw_warnings = _unpack_run_result(
-        rust_module.run_suews(
-            config_yaml,
-            forcing_flat,
-            len(df_forcing),
-        )
+    df_output, state_json, raw_warnings = _run_grid_into(
+        rust_module, config_yaml, forcing_flat, len(df_forcing), grid_id
     )
-
-    if len_sim != len(df_forcing):
-        raise RuntimeError(
-            f"Rust backend length mismatch: forcing={len(df_forcing)}, output={len_sim}"
-        )
-
-    df_output = _parse_output_block(output_flat, len_sim, grid_id)
     kernel_warnings = KernelWarningLog()
     kernel_warnings.add(grid_id, raw_warnings)
     return df_output, state_json, kernel_warnings
@@ -596,9 +742,7 @@ def run_suews_rust_multi(
     # Use Rust Rayon parallelism (shared memory, no IPC overhead) when
     # multiple grids are present and serial_mode is not forced.
     use_rayon = not serial_mode and len(sites) > 1
-    has_rayon = hasattr(rust_module, "run_suews_multi")
-
-    if use_rayon and has_rayon:
+    if use_rayon:
         if max_workers is None:
             logger_supy.info("Running %d grids in parallel (Rust/Rayon)", len(sites))
         else:
@@ -607,40 +751,16 @@ def run_suews_rust_multi(
                 len(sites),
                 max_workers,
             )
-        raw_results = rust_module.run_suews_multi(
-            list_config_jsons,
-            forcing_flat,
-            len_forcing,
-            max_workers,
-        )
-        # raw_results: list of (grid_index, output_flat, state_json, len_sim[, warnings])
-        # Sort by original index to preserve grid ordering
-        raw_results.sort(key=lambda r: r[0])
-        results = [
-            (list_grid_ids[r[0]], *_unpack_run_result(r[1:])) for r in raw_results
-        ]
-        # Drop the duplicate references so each buffer is owned only by
-        # `results` and freed as soon as its grid is parsed below (GH-1718).
-        del raw_results
-    else:
-        results = []
-        for idx, config_json in enumerate(list_config_jsons):
-            output_flat, state_json, len_sim, raw_warnings = _unpack_run_result(
-                rust_module.run_suews(
-                    config_json,
-                    forcing_flat,
-                    len_forcing,
-                )
-            )
-            results.append((
-                list_grid_ids[idx],
-                output_flat,
-                state_json,
-                len_sim,
-                raw_warnings,
-            ))
-
-    return _collect_grid_results(results, len_forcing)
+    return _run_grids_into(
+        rust_module,
+        list_config_jsons,
+        forcing_flat,
+        len_forcing,
+        list_grid_ids,
+        None,
+        use_rayon,
+        max_workers,
+    )
 
 
 def _concat_output_frames(list_df_output: list[pd.DataFrame]) -> pd.DataFrame:
@@ -657,36 +777,6 @@ def _concat_output_frames(list_df_output: list[pd.DataFrame]) -> pd.DataFrame:
     if not df_output_all.index.is_monotonic_increasing:
         df_output_all = df_output_all.sort_index()
     return df_output_all
-
-
-def _collect_grid_results(
-    results: list[tuple[int, Any, str | None, int, Any]],
-    len_forcing: int,
-) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
-    """Parse per-grid bridge results into one frame, states and warnings."""
-    list_df_output = []
-    dict_state_json: dict[int, str] = {}
-    kernel_warnings = KernelWarningLog()
-
-    # Consume from the tail so each grid's output buffer is released as soon
-    # as it has been parsed, instead of all buffers living until the loop ends
-    # (one whole-year block per grid, GH-1718).
-    results.reverse()
-    while results:
-        grid_id, output_flat, state_json, len_sim, raw_warnings = results.pop()
-        if len_sim != len_forcing:
-            raise RuntimeError(
-                f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
-            )
-        df_output = _parse_output_block(output_flat, len_sim, grid_id)
-        list_df_output.append(df_output)
-        if state_json is not None:
-            dict_state_json[grid_id] = state_json
-        kernel_warnings.add(grid_id, raw_warnings)
-
-    df_output_all = _concat_output_frames(list_df_output)
-
-    return df_output_all, dict_state_json or None, kernel_warnings
 
 
 def run_suews_rust_multi_with_state(
@@ -750,9 +840,7 @@ def run_suews_rust_multi_with_state(
         list_state_jsons.append(dict_state_json_by_grid[grid_id])
 
     use_rayon = not serial_mode and len(sites) > 1
-    has_rayon = hasattr(rust_module, "run_suews_multi_with_state")
-
-    if use_rayon and has_rayon:
+    if use_rayon:
         if max_workers is None:
             logger_supy.info(
                 "Running %d checkpointed grids in parallel (Rust/Rayon)", len(sites)
@@ -764,40 +852,16 @@ def run_suews_rust_multi_with_state(
                 len(sites),
                 max_workers,
             )
-        raw_results = rust_module.run_suews_multi_with_state(
-            list_config_jsons,
-            forcing_flat,
-            len_forcing,
-            list_state_jsons,
-            max_workers,
-        )
-        raw_results.sort(key=lambda r: r[0])
-        results = [
-            (list_grid_ids[r[0]], *_unpack_run_result(r[1:])) for r in raw_results
-        ]
-        # Drop the duplicate references so each buffer is owned only by
-        # `results` and freed as soon as its grid is parsed below (GH-1718).
-        del raw_results
-    else:
-        results = []
-        for idx, config_json in enumerate(list_config_jsons):
-            output_flat, state_json, len_sim, raw_warnings = _unpack_run_result(
-                rust_module.run_suews_with_state(
-                    config_json,
-                    forcing_flat,
-                    len_forcing,
-                    list_state_jsons[idx],
-                )
-            )
-            results.append((
-                list_grid_ids[idx],
-                output_flat,
-                state_json,
-                len_sim,
-                raw_warnings,
-            ))
-
-    return _collect_grid_results(results, len_forcing)
+    return _run_grids_into(
+        rust_module,
+        list_config_jsons,
+        forcing_flat,
+        len_forcing,
+        list_grid_ids,
+        list_state_jsons,
+        use_rayon,
+        max_workers,
+    )
 
 
 def run_suews_rust_with_state(
@@ -821,21 +885,9 @@ def run_suews_rust_with_state(
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()
 
-    output_flat, new_state_json, len_sim, raw_warnings = _unpack_run_result(
-        rust_module.run_suews_with_state(
-            config_yaml,
-            forcing_flat,
-            len(df_forcing),
-            state_json,
-        )
+    df_output, new_state_json, raw_warnings = _run_grid_into(
+        rust_module, config_yaml, forcing_flat, len(df_forcing), grid_id, state_json
     )
-
-    if len_sim != len(df_forcing):
-        raise RuntimeError(
-            f"Rust backend length mismatch: forcing={len(df_forcing)}, output={len_sim}"
-        )
-
-    df_output = _parse_output_block(output_flat, len_sim, grid_id)
     kernel_warnings = KernelWarningLog()
     kernel_warnings.add(grid_id, raw_warnings)
     return df_output, new_state_json, kernel_warnings

@@ -126,10 +126,12 @@ pub use phenology::*;
 pub use roughness::*;
 #[cfg(feature = "physics")]
 pub use sim::{
-    run_from_config_str_and_forcing, run_from_config_str_and_forcing_with_state, run_simulation,
-    KernelWarning, KernelWarnings, SimulationInput, SimulationOutput, SiteScalars,
-    KERNEL_WARNING_MAX, KERNEL_WARNING_TEXT_LEN, OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT,
-    OUTPUT_SUEWS_COLS,
+    run_from_config_str_and_forcing, run_from_config_str_and_forcing_into,
+    run_from_config_str_and_forcing_with_state, run_from_config_str_and_forcing_with_state_into,
+    run_simulation, run_simulation_into, KernelWarning, KernelWarnings, OutputBuffers,
+    SimulationInput, SimulationOutput, SimulationResult, SiteScalars, KERNEL_WARNING_MAX,
+    KERNEL_WARNING_TEXT_LEN, OUTPUT_ALL_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+    OUTPUT_GROUP_LAYOUT, OUTPUT_SUEWS_COLS,
 };
 pub use snow::*;
 pub use snow_prm::*;
@@ -151,6 +153,8 @@ pub use yaml_config::*;
 #[cfg(feature = "python")]
 mod python_bindings {
     use crate::*;
+    #[cfg(feature = "physics")]
+    use pyo3::buffer::PyBuffer;
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
     use pyo3::types::PyBytes;
@@ -4331,6 +4335,252 @@ mod python_bindings {
             })
     }
 
+    /// Check that `obj` is a writable, Fortran-contiguous, float64-aligned
+    /// buffer (a NumPy array allocated with `order="F"`) of `expected`
+    /// elements, so the kernel can write into it directly (gh#1849).
+    #[cfg(feature = "physics")]
+    fn lend_output_buffer(
+        obj: &Bound<'_, PyAny>,
+        expected: usize,
+        name: &str,
+    ) -> PyResult<PyBuffer<f64>> {
+        let buffer = PyBuffer::<f64>::get(obj)?;
+        if buffer.readonly() {
+            return Err(PyValueError::new_err(format!("{name} must be writable")));
+        }
+        if !buffer.is_fortran_contiguous() {
+            return Err(PyValueError::new_err(format!(
+                "{name} must be Fortran-contiguous (order=\"F\")"
+            )));
+        }
+        if buffer.item_count() != expected {
+            return Err(PyValueError::new_err(format!(
+                "{name} has {} elements, expected {expected}",
+                buffer.item_count()
+            )));
+        }
+        if !(buffer.buf_ptr() as usize).is_multiple_of(std::mem::align_of::<f64>()) {
+            return Err(PyValueError::new_err(format!(
+                "{name} is not aligned for float64"
+            )));
+        }
+        Ok(buffer)
+    }
+
+    /// Lend one grid's data and datetime output arrays, shaped
+    /// `(len_sim, OUTPUT_DATA_COLS)` and `(len_sim, OUTPUT_DATETIME_COLS)`.
+    #[cfg(feature = "physics")]
+    fn lend_output_pair(
+        out_data: &Bound<'_, PyAny>,
+        out_datetime: &Bound<'_, PyAny>,
+        len_sim: usize,
+    ) -> PyResult<(PyBuffer<f64>, PyBuffer<f64>)> {
+        let overflow = || PyValueError::new_err("output length overflow");
+        let data_len = len_sim.checked_mul(OUTPUT_DATA_COLS).ok_or_else(overflow)?;
+        let datetime_len = len_sim
+            .checked_mul(OUTPUT_DATETIME_COLS)
+            .ok_or_else(overflow)?;
+        Ok((
+            lend_output_buffer(out_data, data_len, "out_data")?,
+            lend_output_buffer(out_datetime, datetime_len, "out_datetime")?,
+        ))
+    }
+
+    /// Reject output buffers that share memory: each is handed to the kernel
+    /// as its own mutable slice, so no two may alias.
+    #[cfg(feature = "physics")]
+    fn check_disjoint(buffers: &[PyBuffer<f64>]) -> PyResult<()> {
+        let mut spans: Vec<(usize, usize)> = buffers
+            .iter()
+            .map(|b| {
+                let start = b.buf_ptr() as usize;
+                (start, start + b.len_bytes())
+            })
+            .collect();
+        spans.sort_unstable();
+        if spans.windows(2).any(|w| w[1].0 < w[0].1) {
+            return Err(PyValueError::new_err(
+                "output buffers must not share memory",
+            ));
+        }
+        Ok(())
+    }
+
+    /// View a lent buffer as the mutable slice the kernel writes into.
+    ///
+    /// # Safety
+    ///
+    /// `buffer` must have passed [`lend_output_buffer`] and, together with
+    /// every other slice in use, [`check_disjoint`]; the GIL must stay held
+    /// while the slice lives, so no Python code can touch the memory.
+    #[cfg(feature = "physics")]
+    #[allow(clippy::mut_from_ref)] // the slice borrows the array's memory, not `buffer`
+    unsafe fn output_slice(buffer: &PyBuffer<f64>) -> &mut [f64] {
+        std::slice::from_raw_parts_mut(buffer.buf_ptr().cast::<f64>(), buffer.item_count())
+    }
+
+    /// Run one grid, writing its output straight into caller-owned NumPy
+    /// arrays instead of returning a copy (gh#1849).
+    ///
+    /// `out_data` and `out_datetime` are float64 arrays with `order="F"`,
+    /// shaped `(len_sim, OUTPUT_DATA_COLS)` and `(len_sim, OUTPUT_DATETIME_COLS)`
+    /// (see `output_buffer_ncolumns`). With `state_json`, the run continues
+    /// from that checkpoint. Returns `(state_json, len_sim, warnings)`.
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "run_suews_into")]
+    #[pyo3(signature = (config_yaml, forcing_block, len_sim, out_data, out_datetime, state_json=None))]
+    fn run_suews_into_py(
+        config_yaml: &str,
+        forcing_block: Vec<f64>,
+        len_sim: usize,
+        out_data: &Bound<'_, PyAny>,
+        out_datetime: &Bound<'_, PyAny>,
+        state_json: Option<&str>,
+    ) -> PyResult<(String, usize, PyKernelWarnings)> {
+        let (data, datetime) = lend_output_pair(out_data, out_datetime, len_sim)?;
+        let lent = [data, datetime];
+        check_disjoint(&lent)?;
+        // SAFETY: both buffers passed lend_output_buffer and check_disjoint,
+        // outlive the run, and the GIL is held until this function returns.
+        let out = unsafe {
+            OutputBuffers {
+                data: output_slice(&lent[0]),
+                datetime: output_slice(&lent[1]),
+            }
+        };
+        let result = match state_json {
+            Some(state) => run_from_config_str_and_forcing_with_state_into(
+                config_yaml,
+                forcing_block,
+                len_sim,
+                state,
+                out,
+            ),
+            None => run_from_config_str_and_forcing_into(config_yaml, forcing_block, len_sim, out),
+        }
+        .map_err(map_bridge_error)?;
+        let state_json_out =
+            suews_checkpoint_to_json(&result.state, &result.timer).map_err(map_bridge_error)?;
+        Ok((
+            state_json_out,
+            len_sim,
+            kernel_warnings_to_py(&result.warnings),
+        ))
+    }
+
+    /// Run several grids in parallel (Rayon), each writing into its own
+    /// caller-owned NumPy arrays as in `run_suews_into` (gh#1849).
+    ///
+    /// `out_data[i]` / `out_datetime[i]` receive grid `i`'s output; with
+    /// `state_jsons`, grid `i` continues from `state_jsons[i]`.
+    /// Returns a list of `(grid_index, state_json, len_sim, warnings)`.
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "run_suews_multi_into")]
+    #[pyo3(signature = (config_jsons, forcing_block, len_sim, out_data, out_datetime, state_jsons=None, max_workers=None))]
+    fn run_suews_multi_into_py(
+        config_jsons: Vec<String>,
+        forcing_block: Vec<f64>,
+        len_sim: usize,
+        out_data: Vec<Bound<'_, PyAny>>,
+        out_datetime: Vec<Bound<'_, PyAny>>,
+        state_jsons: Option<Vec<String>>,
+        max_workers: Option<usize>,
+    ) -> PyResult<Vec<(usize, String, usize, PyKernelWarnings)>> {
+        use rayon::prelude::*;
+
+        if max_workers == Some(0) {
+            return Err(PyValueError::new_err(
+                "max_workers must be a positive integer",
+            ));
+        }
+        let n_grid = config_jsons.len();
+        if out_data.len() != n_grid
+            || out_datetime.len() != n_grid
+            || state_jsons.as_ref().is_some_and(|s| s.len() != n_grid)
+        {
+            return Err(PyValueError::new_err(
+                "config_jsons, out_data, out_datetime and state_jsons must have the same length",
+            ));
+        }
+
+        let mut lent = Vec::with_capacity(2 * n_grid);
+        for (data, datetime) in out_data.iter().zip(&out_datetime) {
+            let (data, datetime) = lend_output_pair(data, datetime, len_sim)?;
+            lent.push(data);
+            lent.push(datetime);
+        }
+        check_disjoint(&lent)?;
+        // SAFETY: every buffer passed lend_output_buffer and, across all
+        // grids, check_disjoint; `lent` outlives the run and the GIL is held
+        // until this function returns.
+        let outs: Vec<OutputBuffers<'_>> = lent
+            .chunks(2)
+            .map(|pair| unsafe {
+                OutputBuffers {
+                    data: output_slice(&pair[0]),
+                    datetime: output_slice(&pair[1]),
+                }
+            })
+            .collect();
+
+        let run_parallel = || {
+            outs.into_par_iter()
+                .enumerate()
+                .map(|(idx, out)| {
+                    // Each thread gets its own copy of forcing (Fortran mutates it)
+                    let forcing_copy = forcing_block.clone();
+                    let config_json = &config_jsons[idx];
+                    let result = match &state_jsons {
+                        Some(states) => run_from_config_str_and_forcing_with_state_into(
+                            config_json,
+                            forcing_copy,
+                            len_sim,
+                            &states[idx],
+                            out,
+                        ),
+                        None => run_from_config_str_and_forcing_into(
+                            config_json,
+                            forcing_copy,
+                            len_sim,
+                            out,
+                        ),
+                    }
+                    .map_err(|e| format!("grid {idx}: {e}"))?;
+                    let state_json = suews_checkpoint_to_json(&result.state, &result.timer)
+                        .map_err(|e| format!("grid {idx}: {e}"))?;
+                    Ok((
+                        idx,
+                        state_json,
+                        len_sim,
+                        kernel_warnings_to_py(&result.warnings),
+                    ))
+                })
+                .collect::<Vec<Result<_, String>>>()
+        };
+
+        let results = if let Some(workers) = max_workers {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(workers)
+                .build()
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                .install(run_parallel)
+        } else {
+            run_parallel()
+        };
+        results
+            .into_iter()
+            .collect::<Result<Vec<_>, String>>()
+            .map_err(PyRuntimeError::new_err)
+    }
+
+    /// Return `(OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS)`: the column counts of
+    /// the arrays `run_suews_into` and `run_suews_multi_into` write into.
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "output_buffer_ncolumns")]
+    fn output_buffer_ncolumns_py() -> (usize, usize) {
+        (OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS)
+    }
+
     /// Return the output group layout as a list of (name, ncols) tuples.
     /// Order matches the concatenated flat buffer from Fortran.
     #[cfg(feature = "physics")]
@@ -5567,6 +5817,12 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(run_suews_multi_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(run_suews_multi_with_state_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(run_suews_into_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(run_suews_multi_into_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(output_buffer_ncolumns_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(output_group_layout_py, m)?)?;
         #[cfg(feature = "physics")]

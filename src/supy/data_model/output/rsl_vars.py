@@ -1,7 +1,10 @@
 """RSL (Roughness Sublayer) output variables.
 
-These variables provide vertical profiles within the roughness sublayer,
-including heights, wind speed, temperature, and specific humidity at 30 levels.
+These variables provide diagnostic vertical profiles of height, wind speed,
+temperature and specific humidity at 30 levels between the surface and the
+forcing height, plus the diagnostics of the profile calculation. The profiles
+follow roughness-sublayer theory (RST) or Monin-Obukhov similarity theory
+(MOST) according to ``flag_RSL``.
 """
 
 from .variables import (
@@ -15,19 +18,20 @@ from .variables import (
 def make_profile_vars(base_name, unit, description_template):
     """Helper to create profile variables for 30 vertical levels.
 
-    Heights follow the Fortran `setup_RSL_heights` logic:
-    - Levels 1–20 are within the canopy (dense near surface up to canyon top)
-    - Levels 21–30 span above-canopy to the measurement height (zMeas)
+    The level layout depends on the profile scheme (Fortran
+    `setup_RSL_heights` and `setup_MOST_heights`):
+    - RST: level 1 at 1% of the effective canopy height (capped just below
+      2 m), levels 2-9 closing in on half the canopy height (level 10),
+      levels 11-20 closing in on the canopy top from below, levels 21-30
+      from just above the canopy top to the forcing height;
+    - MOST: 30 levels spaced logarithmically from just above zd + z0 to the
+      forcing height, with 2 m and 10 m included when in range.
     """
     return [
         OutputVariable(
             name=f"{base_name}_{i}",
             unit=unit,
-            description=description_template.format(
-                f"level {i} (within canopy, 1=ground to 20=canopy top)"
-                if i <= 20
-                else f"level {i} (above canopy, 21=canopy top to 30=measurement height)"
-            ),
+            description=description_template.format(i),
             aggregation=AggregationMethod.AVERAGE,
             group=OutputGroup.RSL,
             level=OutputLevel.DEFAULT,
@@ -37,16 +41,24 @@ def make_profile_vars(base_name, unit, description_template):
 
 
 # Height profiles (30 levels)
-Z_VARS = make_profile_vars("z", "m", "Height at {}")
+Z_VARS = make_profile_vars(
+    "z", "m", "Height above ground of profile level {0} (layout depends on flag_RSL)"
+)
 
 # Wind speed profiles (30 levels)
-U_VARS = make_profile_vars("U", "m s-1", "Wind speed at {}")
+U_VARS = make_profile_vars(
+    "U", "m s-1", "Wind speed at profile level {0} (height given by z_{0})"
+)
 
 # Temperature profiles (30 levels)
-T_VARS = make_profile_vars("T", "degC", "Air temperature at {}")
+T_VARS = make_profile_vars(
+    "T", "degC", "Air temperature at profile level {0} (height given by z_{0})"
+)
 
 # Specific humidity profiles (30 levels)
-Q_VARS = make_profile_vars("q", "g kg-1", "Specific humidity at {}")
+Q_VARS = make_profile_vars(
+    "q", "g kg-1", "Specific humidity at profile level {0} (height given by z_{0})"
+)
 
 # RSL diagnostic variables
 RSL_DIAG_VARS = [
@@ -76,7 +88,7 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="beta",
-        unit="m",
+        unit="-",
         description="Beta coefficient from Harman 2012",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
@@ -117,7 +129,11 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="f",
         unit="-",
-        description="RSL correction functions from Harman & Finnigan (2007, 2008)",
+        description=(
+            "Roughness-sublayer parameter f of Harman and Finnigan (2008), "
+            "derived from the Schmidt number Scc, setting the in-canopy decay "
+            "of temperature and humidity; missing when MOST is used"
+        ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -165,7 +181,12 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="flag_RSL",
         unit="-",
-        description="RSL calculation status flag (0=success, >0=iteration warning)",
+        description=(
+            "Profile scheme used at the timestep: 1 when roughness-sublayer "
+            "theory (RST) was used, 0 when Monin-Obukhov similarity theory "
+            "(MOST) was used; averaged on resampling, so the fraction of "
+            "timesteps that used RST"
+        ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,

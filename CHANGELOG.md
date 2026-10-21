@@ -57,6 +57,7 @@ EXAMPLES:
 ### 21 Oct 2026
 
 - [bugfix] SPARTACUS now honours `properties.spartacus.use_sw_direct_albedo` set in YAML, so `ground_albedo_dir_mult_fact` and `roof_albedo_dir_mult_fact` apply to direct shortwave when the switch is on; previously the kernel always used the diffuse albedos, for both `suews run` and SuPy (#1858)
+  - The data-model default for `use_sw_direct_albedo` is now `0.0` (off), matching the kernel, so a configuration that omits the key keeps the diffuse-albedo behaviour it had before.
 
 ### 20 Oct 2026
 

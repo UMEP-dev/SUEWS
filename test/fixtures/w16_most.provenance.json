@@ -1,0 +1,22 @@
+{
+  "description": "Pre-guard W16/MOST baseline for GH#1783, GH#1784 and PR#1853; no existing reference outputs were regenerated.",
+  "source_ref": "origin/master",
+  "source_commit": "2ffde7377024d58f5c3e46e61beea7c8164fdc7a",
+  "generated_date": "2026-10-20",
+  "platform": "Linux x86_64",
+  "compiler": "GNU Fortran (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)",
+  "python": "3.12.12",
+  "build_command": "make dev",
+  "configuration": "Bundled sample_config.yml, with model.physics.stability=2 and model.physics.roughness_sublayer=0; all other settings unchanged.",
+  "forcing": "First 288 five-minute rows from SUEWSSimulation.from_sample_data().forcing.df",
+  "execution": "SUEWSSimulation.update_config(config, auto_load_forcing=False), update_forcing(forcing), run(start_date=forcing.index[0], end_date=forcing.index[-1], n_jobs=1)",
+  "grid": 1,
+  "start": "2012-01-01 00:05:00",
+  "end": "2012-01-02 00:00:00",
+  "columns": ["QH", "QE", "T2", "U10"],
+  "units": ["W m-2", "W m-2", "degC", "m s-1"],
+  "csv_format": "output.df['SUEWS'][['QH', 'QE', 'T2', 'U10']].to_csv(path, float_format='%.17g')",
+  "sample_config_sha256": "dbf6d57acf4fa5222308999c58ae4e32303c0b0c567539577a2573f35aafa281",
+  "hourly_forcing_sha256": "952a1fd3422aad584e214e190c32688d9c2070c04e956835ecb1641e2d0aa029",
+  "csv_sha256": "291d6ad93c703d2a6e5a7f9e4b4b2ffd89631747a245c0e01d3272c20742a954"
+}

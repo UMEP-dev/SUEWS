@@ -18,8 +18,9 @@ Values the sample cannot support are not silently skipped. They fall into
 three declared tables, each with its reason:
 
 - `OPTION_VALUES_REFUSED` -- needs a forcing column or input block the sample
-  does not carry. The model refuses these with an explicit message, so the
-  sweep asserts the refusal rather than dropping the value.
+  does not carry, or a method combination the kernel cannot run. The model
+  refuses these with an explicit message, so the sweep asserts the refusal
+  rather than dropping the value.
 - `OPTION_VALUES_XFAIL` -- runs, but violates an invariant above. Recorded
   `xfail(strict=True)` against an open issue, so the entry fails the moment
   the defect is fixed.
@@ -54,8 +55,8 @@ WATER_CLOSURE_TOLERANCE_MM = 1e-4
 # missing for every option value; that is the input, not a defect.
 SUEWS_COLUMNS_ABSENT_FROM_SAMPLE = ("Fcld",)
 
-# Values needing a forcing column or input block the bundled sample does not
-# carry. Each maps to a fragment of the message the model refuses it with.
+# Values needing missing inputs or an implemented method combination.
+# Each maps to a fragment of the message the model refuses it with.
 OPTION_VALUES_REFUSED = {
     ("net_radiation", 0): "forcing column 'qn'",
     ("net_radiation", 1): "forcing column 'ldown'",
@@ -76,14 +77,12 @@ OPTION_VALUES_REFUSED = {
     ("soil_moisture_deficit", 2): "forcing column 'xsmd'",
     ("water_use", 1): "forcing column 'wuh'",
     ("laimethod", 0): "forcing column 'lai'",
+    # W16 has no phi implementation for the sample's RSL path (GH#1784).
+    ("stability", 2): "stability=2 (W16) has no phi implementation for RSL",
 }
 
 # Values that run and then violate one of the sweep's invariants.
 OPTION_VALUES_XFAIL = {
-    ("stability", 2): (
-        "RSL profile returns NaN T2/RH2/Q2/U10 while fluxes stay finite "
-        "(UMEP-dev/SUEWS#1784)"
-    ),
     ("snow_use", 1): (
         "snow state is never written back, so the water body dumps its "
         "store as ~19999.5 mm of runoff every timestep and the water "
@@ -248,13 +247,13 @@ def test_option_value_runs_finite_and_conserves_water(
 @pytest.mark.parametrize(
     ("field", "value", "message_fragment"), list(_refusal_params())
 )
-def test_option_value_needing_absent_input_is_refused(
+def test_option_value_unsupported_by_sample_is_refused(
     field, value, message_fragment, sample_config_loaded, sample_state_and_forcing
 ):
-    """A value needing input the sample lacks is refused, with a usable message.
+    """Missing inputs or unsupported combinations fail with a usable message.
 
     The sweep asserts the refusal rather than skipping the value: a clear
-    error naming the missing column is the contract for these options, and a
+    error naming the missing input or implementation is the contract, and a
     skip would give it no coverage at all.
     """
     # ARRANGE

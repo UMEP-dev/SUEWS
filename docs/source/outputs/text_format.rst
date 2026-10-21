@@ -178,7 +178,7 @@ Group Details
 
    - Boundary layer height
    - Mixed layer properties
-   - Entrainment fluxes
+   - Conditions just above the boundary-layer top
 
    Created for each day with the CBL model timestep.
 
@@ -196,12 +196,13 @@ Group Details
    *Temperature Layers (5 layers each):*
       - **Twall1-5**: Wall temperatures (outer to inner layer)
       - **Troof1-5**: Roof temperatures (outer to inner layer)
-      - **Tground1-5**: Ground temperatures (outer to inner layer)
+      - **Tground1-5**: Ground temperatures (uppermost to deepest layer)
       - **Tibld1-5**: Internal building element temperatures
 
    *Key Variables:*
       - **Tabld**: Indoor air temperature
-      - **QSnet**: Net storage heat flux
+      - **QSnet**: Storage heat flux, the sum of the wall, roof, ground and
+        internal-element fluxes (excludes the outdoor-air term QSair)
       - **QSwall/QSroof/QSground**: Component-specific storage fluxes
 
    .. note::

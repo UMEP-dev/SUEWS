@@ -17,15 +17,33 @@ This module contains:
 - The ``*_REQUIRED`` tables, which map a field name to the
   ``(message, fix)`` pair emitted in annotated-YAML feedback. These are
   consumed by ``SUEWSConfig._iter_critical_null_site_param_issues``.
+- ``RSL_VARIABLE_BLDGS_REQUIRED`` and the ``DYOHM_BUILDING_*`` constants,
+  which ``SUEWSConfig._validate_rsl`` and ``SUEWSConfig._validate_storage``
+  consume for their physics-dependent checks.
+- ``WATER_DISTRIBUTION_REQUIRED``, the destinations each surface must route
+  water to, consumed by ``WaterDistribution.validate_distribution``. A failure
+  there is reported as a warning while a configuration loads, but the missing
+  fractions then reach the model as nulls, so the reference documents them as
+  required.
 - ``DOC_REQUIRED_WHEN``, which maps a model class name to a reader-facing
   description of when each field is required. This is consumed by the
-  documentation generator. Most entries mirror the tables above; the
-  ``AnthropogenicEmissions`` entry mirrors the DLS checks in
+  documentation generator. Most entries are derived from the constants above;
+  the ``AnthropogenicEmissions`` entry mirrors the DLS checks in
   ``SUEWSConfig.validate_model_output_timestamp_reference`` and
-  ``SUEWSConfig.validate_dls_parameters`` instead.
+  ``SUEWSConfig.validate_dls_parameters`` instead, and the ``IrrigationParams``
+  entry mirrors the irrigation-window check in the Phase B validation pipeline
+  (``phase_b_rules.other_rules``).
 - ``STEBBS_SHADING_REQUIRED_MODES`` and ``stebbs_shading_requirements``,
   which share shading requirements across parameter models, full
   configurations and raw YAML diagnostics.
+
+Only requirements that a configuration can fail are recorded. A parameter that
+carries a default never has to be supplied, so a validator that merely rejects
+an explicit null on it is not a requirement on the reader; the shading
+parameters are listed because ``StebbsProperties`` demands they be given
+explicitly even though they carry defaults. Every other parameter is described
+as optional when it carries a default, and otherwise as having no default and
+needing a value.
 
 .. warning::
 
@@ -187,9 +205,79 @@ DECIDUOUS_REQUIRED_PROVIDED_FAI: RequirementTable = {
 }
 
 
-_VEGETATION_PRESENT = "a vegetated surface using these parameters is present"
-_LAI_MODELLED = "leaf area index is modelled rather than observed"
-_PROVIDED_FAI = "frontal area index is taken from site parameters"
+# Physics-dependent requirements checked by SUEWSConfig._validate_rsl: when
+# model.physics.roughness_sublayer is explicitly 2 (VARIABLE), a site with
+# buildings must give these BldgsProperties fields.
+RSL_VARIABLE_BLDGS_REQUIRED: tuple[str, ...] = ("faibldg",)
+
+# Physics-dependent requirements checked by SUEWSConfig._validate_storage: the
+# building DyOHM storage-heat methods need the building thermal layers.
+DYOHM_BUILDING_METHODS: tuple[int, ...] = (6, 8)
+DYOHM_BUILDING_LAYERS_REQUIRED: tuple[str, ...] = ("dz", "k", "rho_cp")
+
+# Water-distribution destinations each surface must give when its waterdist
+# block is supplied; an omitted block takes surface-specific defaults. Keyed by
+# surface type value; the water surface has no distribution.
+WATER_DISTRIBUTION_REQUIRED: dict[str, tuple[str, ...]] = {
+    "paved": (
+        "to_bldgs", "to_dectr", "to_evetr", "to_grass", "to_bsoil", "to_water",
+        "to_runoff",
+    ),
+    "bldgs": (
+        "to_paved", "to_dectr", "to_evetr", "to_grass", "to_bsoil", "to_water",
+        "to_runoff",
+    ),
+    "dectr": (
+        "to_paved", "to_bldgs", "to_evetr", "to_grass", "to_bsoil", "to_water",
+        "to_soilstore",
+    ),
+    "evetr": (
+        "to_paved", "to_bldgs", "to_dectr", "to_grass", "to_bsoil", "to_water",
+        "to_soilstore",
+    ),
+    "grass": (
+        "to_paved", "to_bldgs", "to_dectr", "to_evetr", "to_bsoil", "to_water",
+        "to_soilstore",
+    ),
+    "bsoil": (
+        "to_paved", "to_bldgs", "to_dectr", "to_evetr", "to_grass", "to_water",
+        "to_soilstore",
+    ),
+}
+
+
+def _option(path: str, codes: tuple[int, ...], names: tuple[str, ...]) -> str:
+    """Name a physics option and the codes that trigger a requirement."""
+    choices = " or ".join(
+        f"``{code}`` ({name})" for code, name in zip(codes, names)
+    )
+    return f"``{path}`` is {choices}"
+
+
+_VEGETATION_PRESENT = (
+    "a vegetated surface using these parameters is present "
+    "(``sfr`` above zero for ``grass``, ``dectr`` or ``evetr``)"
+)
+_LAI_MODELLED = _option("model.physics.laimethod", (1,), ("MODELLED",))
+_PROVIDED_FAI = _option("model.physics.frontal_area_index", (0,), ("OBSERVED",))
+# _validate_rsl runs only when the option is set explicitly, and VARIABLE is
+# also the default, so the condition says "set explicitly".
+_RSL_VARIABLE = (
+    "``model.physics.roughness_sublayer`` is set explicitly to ``2`` (VARIABLE)"
+)
+_DYOHM_BUILDING = _option(
+    "model.physics.storage_heat", DYOHM_BUILDING_METHODS, ("DyOHM", "DyOHM_BUILDING")
+)
+
+
+def _present(surface: str, label: str) -> str:
+    """Describe a land cover whose surface fraction is above zero."""
+    return f"{label} are present (``land_cover.{surface}.sfr`` above zero)"
+
+
+_BUILDINGS_PRESENT = _present("bldgs", "buildings")
+_EVERGREEN_PRESENT = _present("evetr", "evergreen trees")
+_DECIDUOUS_PRESENT = _present("dectr", "deciduous trees")
 # Mirrors two SUEWSConfig validators: validate_model_output_timestamp_reference
 # rejects a daylight output clock unless both ends of the DLS window are
 # supplied, and validate_dls_parameters rejects a window with only one end.
@@ -204,6 +292,53 @@ def _dls_condition(other_end: str) -> str:
     return f"{_DAYLIGHT_OUTPUT}, or when ``{other_end}`` is given"
 
 
+def _irrigation_condition(other_end: str) -> str:
+    """Describe when one end of the irrigation window must be supplied."""
+    return (
+        f"``{other_end}`` is set to a day of year (not ``0`` or null): the "
+        "irrigation window "
+        "needs both ends, or neither"
+    )
+
+
+def _shading_condition(modes: tuple[int, ...]) -> str:
+    """Describe the internal shading modes that need a field given explicitly."""
+    choices = " or ".join(f"``{mode}``" for mode in modes)
+    return (
+        f"``internal_shading`` is {choices}; the default does not count, so give "
+        "a value explicitly"
+    )
+
+
+def _water_distribution_conditions() -> dict[str, str]:
+    """Describe, per destination, the surfaces whose waterdist must give it."""
+    destinations = sorted(
+        {field for fields in WATER_DISTRIBUTION_REQUIRED.values() for field in fields}
+    )
+    conditions = {}
+    for field in destinations:
+        surfaces = [
+            f"``{surface}``"
+            for surface, fields in WATER_DISTRIBUTION_REQUIRED.items()
+            if field in fields
+        ]
+        listed = " or ".join(
+            filter(None, (", ".join(surfaces[:-1]), surfaces[-1]))
+        )
+        conditions[field] = (
+            f"``waterdist`` is given for a {listed} surface; an omitted "
+            "``waterdist`` block takes surface-specific defaults"
+        )
+    return conditions
+
+
+def _fai_condition(present: str, rsl_applies: bool = False) -> str:
+    """Describe when a frontal area index must be supplied."""
+    if rsl_applies:
+        return f"{present} and either {_PROVIDED_FAI} or {_RSL_VARIABLE}"
+    return f"{present} and {_PROVIDED_FAI}"
+
+
 # Reader-facing conditions, keyed by the model class that declares the field.
 # Consumed by the documentation generator; see docs/generate_datamodel_rst.py.
 DOC_REQUIRED_WHEN: dict[str, dict[str, str]] = {
@@ -216,16 +351,30 @@ DOC_REQUIRED_WHEN: dict[str, dict[str, str]] = {
         ),
     },
     "BldgsProperties": {
-        "bldgh": "buildings are present",
-        "faibldg": f"buildings are present and {_PROVIDED_FAI}",
+        "bldgh": _BUILDINGS_PRESENT,
+        "faibldg": _fai_condition(_BUILDINGS_PRESENT, rsl_applies=True),
     },
     "EvetrProperties": {
-        "height_evergreen_tree": "evergreen trees are present",
-        "fai_evergreen_tree": f"evergreen trees are present and {_PROVIDED_FAI}",
+        "height_evergreen_tree": _EVERGREEN_PRESENT,
+        "fai_evergreen_tree": _fai_condition(_EVERGREEN_PRESENT),
     },
     "DectrProperties": {
-        "height_deciduous_tree": "deciduous trees are present",
-        "fai_deciduous_tree": f"deciduous trees are present and {_PROVIDED_FAI}",
+        "height_deciduous_tree": _DECIDUOUS_PRESENT,
+        "fai_deciduous_tree": _fai_condition(_DECIDUOUS_PRESENT),
+    },
+    "ThermalLayers": dict.fromkeys(
+        DYOHM_BUILDING_LAYERS_REQUIRED,
+        "used as the building layers (``land_cover.bldgs.thermal_layers``) "
+        f"and {_DYOHM_BUILDING}",
+    ),
+    "StebbsProperties": {
+        field: _shading_condition(modes)
+        for field, modes in STEBBS_SHADING_REQUIRED_MODES.items()
+    },
+    "WaterDistribution": _water_distribution_conditions(),
+    "IrrigationParams": {
+        "ie_start": _irrigation_condition("ie_end"),
+        "ie_end": _irrigation_condition("ie_start"),
     },
     "AnthropogenicEmissions": {
         "startdls": _dls_condition("enddls"),

@@ -1,3 +1,11 @@
+---
+paths:
+  - src/supy/data_model/**/*
+  - src/supy/util/converter/**/*
+  - src/supy/sample_data/**/*
+  - docs/**/*
+---
+
 # YAML Schema Versioning
 
 Rules for bumping `CURRENT_SCHEMA_VERSION` in

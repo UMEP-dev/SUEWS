@@ -377,7 +377,7 @@ class StabilityMethod(Enum):
 
     0: NOT_USED - Reserved; not available (rejected at validation)
     1: NOT_USED2 - Reserved; not available (rejected at validation)
-    2: HOEGSTROM - Dyer (1974)/Högström (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)
+    2: HOEGSTROM - Dyer (1974)/Högström (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended). W16 in the kernel remains available with MOST (roughness_sublayer=0), but stops with error 108 when RSL requires its unimplemented phi functions, including roughness_sublayer=1 (RST) and roughness_sublayer=2 (variable) when site geometry selects RST. Use option 3 (recommended) or 4 for RSL.
     3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat
     4: BUSINGER_HOEGSTROM - Businger et al. (1971)/Högström (1988) formulations (not recommended)
     """

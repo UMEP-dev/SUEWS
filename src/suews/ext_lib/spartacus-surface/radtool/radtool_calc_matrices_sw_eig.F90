@@ -12,8 +12,14 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
+! SUEWS modification (2026, GH#1498): handle transparent spectral bands
+! without singular inverses; document the zero-absorption convention.
+! See ../SUEWS_PATCHES.md for scope and upstream follow-up.
+!
 
 module radtool_calc_matrices_sw_eig
+
+  implicit none
 
 contains
 
@@ -27,7 +33,7 @@ contains
   ! at once.  Equation numbers mentioned in the comments below are
   ! from Hogan (2019, Boundary Layer Meteorology: Flexible treatment
   ! of radiative transfer in complex urban canopies).
-  subroutine calc_matrices_sw_eig(nmat, ndiff, ndir, dz, mu0, &
+  recursive subroutine calc_matrices_sw_eig(nmat, ndiff, ndir, dz, mu0, &
        &  gamma0, gamma1, gamma2, gamma3, &
        &  reflectance, transmittance, s_up, s_dn, trans_dir, &
        &  int_dir, int_diff, int_dir_diff)
@@ -91,7 +97,12 @@ contains
     ! base, and s_conv is the convergence of direct fluxes into the
     ! layer, i.e. the direct flux at layer top minus the direct flux
     ! at layer base. Likewise, the integrated direct flux is 
-    !   int_diff * s_conv
+    !   int_dir * s_conv
+    ! Exception: for a fully transparent band, all three coefficients
+    ! are zero by an absorption convention, since flux convergence and
+    ! absorption are zero. This is not the analytical integrated-flux
+    ! limit: illuminated transparent layers have nonzero integrated flux,
+    ! which no finite coefficient multiplying zero convergence recovers.
     real(kind=jprb), intent(out), optional &
          &  :: int_diff(nmat,ndiff,ndiff), &
          &     int_dir(nmat,ndir,ndir), &
@@ -170,7 +181,54 @@ contains
     real(kind=jprb), dimension(nmat,ndiff,ndiff) :: tmp_mat
 
     ! Loop index over matrix elements
-    integer :: jd, jo
+    integer :: jd, jo, jspec
+    logical :: transparent(nmat)
+    real(kind=jprb) :: band_int_dir(1,ndir,ndir), band_int_diff(1,ndiff,ndiff)
+    real(kind=jprb) :: band_int_dir_diff(1,ndiff,ndir)
+
+    do jspec = 1,nmat
+      transparent(jspec) = all(gamma0(jspec,:,:) == 0.0_jprb) &
+           &         .and. all(gamma1(jspec,:,:) == 0.0_jprb) &
+           &         .and. all(gamma2(jspec,:,:) == 0.0_jprb) &
+           &         .and. all(gamma3(jspec,:,:) == 0.0_jprb)
+    end do
+    if (any(transparent)) then
+      ! Empty layers transmit every stream without scattering (GH#1498).
+      ! Avoid singular inverses in both the diffuse and direct solves.
+      do jspec = 1,nmat
+        if (transparent(jspec)) then
+          reflectance(jspec,:,:) = 0.0_jprb
+          transmittance(jspec,:,:) = 0.0_jprb
+          trans_dir(jspec,:,:) = 0.0_jprb
+          s_up(jspec,:,:) = 0.0_jprb
+          s_dn(jspec,:,:) = 0.0_jprb
+          do jo = 1,ndiff
+            transmittance(jspec,jo,jo) = 1.0_jprb
+          end do
+          do jo = 1,ndir
+            trans_dir(jspec,jo,jo) = 1.0_jprb
+          end do
+          ! These inverse-Gamma coefficients multiply flux convergence,
+          ! which is zero here. Zero is an absorption convention, not
+          ! the analytical integrated-flux limit. Unlike LW int_flux,
+          ! these coefficients do not multiply incoming flux.
+          band_int_dir = 0.0_jprb
+          band_int_diff = 0.0_jprb
+          band_int_dir_diff = 0.0_jprb
+        else
+          call calc_matrices_sw_eig(1, ndiff, ndir, dz, mu0, &
+               &  gamma0(jspec:jspec,:,:), gamma1(jspec:jspec,:,:), &
+               &  gamma2(jspec:jspec,:,:), gamma3(jspec:jspec,:,:), &
+               &  reflectance(jspec:jspec,:,:), transmittance(jspec:jspec,:,:), &
+               &  s_up(jspec:jspec,:,:), s_dn(jspec:jspec,:,:), trans_dir(jspec:jspec,:,:), &
+               &  band_int_dir, band_int_diff, band_int_dir_diff)
+        end if
+        if (present(int_dir)) int_dir(jspec,:,:) = band_int_dir(1,:,:)
+        if (present(int_diff)) int_diff(jspec,:,:) = band_int_diff(1,:,:)
+        if (present(int_dir_diff)) int_dir_diff(jspec,:,:) = band_int_dir_diff(1,:,:)
+      end do
+      return
+    end if
 
     
     ! Section 1: Compute the eigenvectors and eigenvalues of the

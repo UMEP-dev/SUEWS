@@ -12,8 +12,14 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
+! SUEWS modification (2026, GH#1498): handle transparent spectral bands
+! with analytical transmission, integrated flux and emission source terms.
+! See ../SUEWS_PATCHES.md for scope and upstream follow-up.
+!
 
 module radtool_calc_matrices_lw_eig
+
+  implicit none
 
 contains
 
@@ -29,7 +35,7 @@ contains
   ! are computed at once.  Equation numbers mentioned in the comments
   ! below are from Hogan (2019, Boundary Layer Meteorology: Flexible
   ! treatment of radiative transfer in complex urban canopies).
-  subroutine calc_matrices_lw_eig(nmat, norder, dz, gamma1, gamma2, &
+  recursive subroutine calc_matrices_lw_eig(nmat, norder, dz, gamma1, gamma2, &
        &  emiss_rate, &
        &  reflectance, transmittance, source, int_flux, int_flux_source)
 
@@ -131,7 +137,44 @@ contains
     real(kind=jprb), dimension(nmat,norder,norder) :: tmp_mat
 
     ! Loop index over matrix elements
-    integer :: jo
+    integer :: jo, jspec
+    logical :: transparent(nmat)
+    real(kind=jprb) :: band_int_flux(1,norder,norder), band_int_source(1,norder)
+
+    do jspec = 1,nmat
+      transparent(jspec) = all(gamma1(jspec,:,:) == 0.0_jprb) &
+           &         .and. all(gamma2(jspec,:,:) == 0.0_jprb)
+    end do
+    if (any(transparent)) then
+      ! A transparent layer has R=0 and T=I. The eigenvalue formulation
+      ! below instead tries to invert a zero matrix (GH#1498). Treat each
+      ! spectral interval independently, using the existing solver for
+      ! ordinary bands (multi-band optimisation may change the last bits).
+      do jspec = 1,nmat
+        if (transparent(jspec)) then
+          reflectance(jspec,:,:) = 0.0_jprb
+          transmittance(jspec,:,:) = 0.0_jprb
+          band_int_flux = 0.0_jprb
+          do jo = 1,norder
+            transmittance(jspec,jo,jo) = 1.0_jprb
+            band_int_flux(1,jo,jo) = dz
+          end do
+          ! Integrate the constant source exactly, including the zero
+          ! emission of physically transparent air.
+          source(jspec,:) = emiss_rate(jspec,:) * dz
+          band_int_source(1,:) = emiss_rate(jspec,:) * dz**2
+        else
+          call calc_matrices_lw_eig(1, norder, dz, &
+               &  gamma1(jspec:jspec,:,:), gamma2(jspec:jspec,:,:), &
+               &  emiss_rate(jspec:jspec,:), reflectance(jspec:jspec,:,:), &
+               &  transmittance(jspec:jspec,:,:), source(jspec:jspec,:), &
+               &  band_int_flux, band_int_source)
+        end if
+        if (present(int_flux)) int_flux(jspec,:,:) = band_int_flux(1,:,:)
+        if (present(int_flux_source)) int_flux_source(jspec,:) = band_int_source(1,:)
+      end do
+      return
+    end if
 
     
     ! Section 1: Compute the eigenvectors and eigenvalues of the full

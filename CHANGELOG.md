@@ -60,6 +60,26 @@ EXAMPLES:
   - Joining grid and chunk outputs no longer makes a sorted copy of output that is already in order.
   - `SUEWSOutput` no longer keeps its own full copy of the run output; `.df` and the group accessors still return independent copies.
   - Saving to text or parquet no longer copies the whole output first. Saved files are unchanged.
+- [doc] Corrected output-variable descriptions and units that disagreed with the kernel, and published output contract `1.1.2` (#1863)
+  - The descriptions rewritten in bulk in #1049 were checked against the Fortran that writes each column; those that were wrong or guessed are corrected.
+  - `flag_RSL` read as an iteration status flag. It records the profile scheme used at the timestep: 1 for roughness-sublayer theory (RST), 0 for Monin-Obukhov similarity theory (MOST); resampled output gives the fraction of timesteps that used RST.
+  - RSL profiles `z_*`, `U_*`, `T_*`, `q_*` assumed the RST level layout (level 1 at the ground, levels 21-30 above the canopy); the layout depends on the scheme, so the descriptions no longer state it. `f` is a single roughness-sublayer parameter, not a set of functions, and `beta` is dimensionless, not in m.
+  - DailyState `WU_*1/2/3` are the modelled daily total, automatic and manual irrigation water use in mm, not water-use coefficients; `DecidCap` is a storage capacity in mm, not a fraction; `Porosity` enters the plan and frontal area indices, not radiation; OHM `a1` multiplies net all-wave radiation and `a2` its rate of change, and the `*_bldg` coefficients are those of dynamic OHM.
+  - `SH_Ground` and `SH_Walls` are sunlit fractions (1 = sunlit), not shadow fractions; BL `theta+` and `q+` are values just above the boundary-layer top, not excesses; ESTM `QS` excludes `QSAir`, and the layer labels now differ between walls and roofs, ground, and internal elements.
+  - `QHinit` equals `QH` at output, `Rain` is the forcing precipitation, `Irr` is external water use on any surface, `RO` is runoff before routing rather than runoff leaving the grid, and `zL` uses the height above the displacement height.
+  - The descriptions and units are frozen in the output contract catalogue, so the corrections ship as a new release. `1.1.2` is proposed as a PATCH: no variable name, group, aggregation or column layout changes. The roughness-sublayer section of the parameterisations page and the legacy text-column tables were brought into line.
+- [doc] Every parameter in the configuration reference now states whether it must be supplied (#1856)
+  - The status reads `Required`, `Required when ...` naming the land cover, physics option or companion parameter that triggers it, `Optional` for a parameter with a default, or `No default; not checked by the validator - supply a value`.
+  - New conditions cover the building thermal layers under DyOHM storage heat (`storage_heat` 6 or 8), `faibldg` under the variable roughness sublayer (`roughness_sublayer` 2), the STEBBS shading parameters, the irrigation window ends and the water-distribution destinations each surface must give; existing conditions now name their option.
+  - A test fails when a required-field rule recorded by the validation layer is missing from the generated reference.
+- [bugfix] SPARTACUS now honours `properties.spartacus.use_sw_direct_albedo` set in YAML, so `ground_albedo_dir_mult_fact` and `roof_albedo_dir_mult_fact` apply to direct shortwave when the switch is on; previously the kernel always used the diffuse albedos, for both `suews run` and SuPy (#1858)
+  - The data-model default for `use_sw_direct_albedo` is now `0.0` (off), matching the kernel, so a configuration that omits the key keeps the diffuse-albedo behaviour it had before.
+
+### 20 Oct 2026
+
+- [bugfix] Reject reserved or unsupported stability selectors with error 107 and stop W16 (option 2) with error 108 when RSL requires its unimplemented phi functions (#1783, #1784, #1853).
+  - W16 remains available with MOST; variable roughness-sublayer selection can activate RST depending on site geometry.
+  - Phi error messages recommend only options 3 or 4; a one-day W16/MOST regression checks QH, QE, T2 and U10 against pre-change outputs.
 
 ### 13 Oct 2026
 

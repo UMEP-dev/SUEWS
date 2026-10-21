@@ -9531,7 +9531,7 @@
               "type": "number"
             }
           ],
-          "default": 1.0,
+          "default": 0.0,
           "description": "Flag to use direct albedo for shortwave radiation",
           "display_name": "Use Sw Direct Albedo",
           "title": "Use Sw Direct Albedo",

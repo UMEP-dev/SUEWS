@@ -37,6 +37,8 @@ unsafe extern "C" {
         state_out_len: c_int,
         output_flat: *mut c_double,
         output_len: c_int,
+        datetime_flat: *mut c_double,
+        datetime_len: c_int,
         sim_err_code: *mut c_int,
         sim_err_message: *mut c_char,
         sim_err_message_len: c_int,

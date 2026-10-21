@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 20 Oct 2026
+
+- [bugfix] Reject reserved or unsupported stability selectors with error 107 and stop W16 (option 2) with error 108 when RSL requires its unimplemented phi functions (#1783, #1784, #1853).
+  - W16 remains available with MOST; variable roughness-sublayer selection can activate RST depending on site geometry.
+  - Phi error messages recommend only options 3 or 4; a one-day W16/MOST regression checks QH, QE, T2 and U10 against pre-change outputs.
+
 ### 13 Oct 2026
 
 - [feature][experimental] A YAML configuration can declare that its forcing is supplied at runtime by setting `model.control.forcing.file` explicitly to `null` (#1722)

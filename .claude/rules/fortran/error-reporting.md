@@ -119,7 +119,7 @@ CALL ErrorHint(15, 'In compute_bar, input at lower bound', value, value2, notUse
 Fatal codes 100+ are maintained in the header of `suews_ctrl_error.f95`.
 When introducing a new error site:
 
-1. Pick the next free integer (last allocated was `106` for GH#1802 — storage-heat method with no scheme behind it).
+1. Pick the next free integer (last allocated was `108` for GH#1784 — W16 stability phi functions with no implementation).
 2. Add a one-line entry to the `Error Codes (GH#1035):` block at the top
    of `suews_ctrl_error.f95` describing the scope.
 3. Reference the issue number so the history is traceable.

@@ -643,6 +643,22 @@ def run_suews_rust_multi(
     return _collect_grid_results(results, len_forcing)
 
 
+def _concat_output_frames(list_df_output: list[pd.DataFrame]) -> pd.DataFrame:
+    """Join per-grid or per-chunk output frames into one sorted frame.
+
+    ``sort_index`` always returns a full copy, which for a multi-year run at
+    the model timestep is several GB (gh#1849). Sort only when the joined
+    index is out of order, and skip ``pd.concat`` for a single frame.
+    """
+    if len(list_df_output) == 1:
+        df_output_all = list_df_output[0]
+    else:
+        df_output_all = pd.concat(list_df_output)
+    if not df_output_all.index.is_monotonic_increasing:
+        df_output_all = df_output_all.sort_index()
+    return df_output_all
+
+
 def _collect_grid_results(
     results: list[tuple[int, Any, str | None, int, Any]],
     len_forcing: int,
@@ -668,7 +684,7 @@ def _collect_grid_results(
             dict_state_json[grid_id] = state_json
         kernel_warnings.add(grid_id, raw_warnings)
 
-    df_output_all = pd.concat(list_df_output).sort_index()
+    df_output_all = _concat_output_frames(list_df_output)
 
     return df_output_all, dict_state_json or None, kernel_warnings
 
@@ -926,5 +942,5 @@ def run_suews_rust_chunked(
         if dict_state_json_chunk:
             dict_state_json.update(dict_state_json_chunk)
 
-    df_output_all = pd.concat(list_df_output).sort_index()
+    df_output_all = _concat_output_frames(list_df_output)
     return df_output_all, dict_state_json or None, kernel_warnings

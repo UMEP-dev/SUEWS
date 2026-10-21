@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 21 Oct 2026
 
+- [bugfix] Long runs at a 5-minute timestep need less memory: a three-year single-grid run saving SUEWS, RSL, DailyState and debug output every step now peaks at 9.2 GB instead of 12.6 GB (#1849)
+  - Joining grid and chunk outputs no longer makes a sorted copy of output that is already in order.
+  - `SUEWSOutput` no longer keeps its own full copy of the run output; `.df` and the group accessors still return independent copies.
+  - Saving to text or parquet no longer copies the whole output first. Saved files are unchanged.
 - [doc] New "Timestamp convention" page stating, once and in interval notation, the pandas `closed="right", label="right"` rule SUEWS uses: a row stamped `t` holds `(t - dt, t]`, a day `D` is `(D 00:00, D+1 00:00]`, and a run covers `(D1 00:00, D2+1 00:00]` for date bounds or `(t1 - dt, t2]` for timestamp bounds (#1852)
   - It contrasts the rule with the pandas default for daily data (`closed="left", label="left"`, as `.loc["2023-12-31"]` selects), covers the DailyState `label="left"` exception, and shows how to convert forcing stamped at the start of each interval
   - The `start_time`/`end_time` field descriptions, the forcing and output pages, the `run()` and resample docstrings and the coverage error message point to it; row selection is unchanged

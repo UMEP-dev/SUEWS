@@ -91,6 +91,45 @@ class TestDateOnlySemantics:
         assert df_slice.index[-1] == pd.Timestamp("2012-01-03 00:00")
 
 
+class TestRightClosedDays:
+    """Date bounds select the right-closed days ``(D 00:00, D+1 00:00]``.
+
+    The selected rows are exactly those ``resample("D", closed="right",
+    label="right")`` assigns to the requested days (gh#1852).
+    """
+
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            ("2012-01-01", "2012-01-01"),
+            ("2012-01-02", "2012-01-03"),
+            (dt.date(2012, 1, 1), dt.date(2012, 1, 3)),
+        ],
+    )
+    def test_date_bounds_match_daily_resample_bins(self, start, end):
+        df = _forcing(start="2012-01-01 00:00", periods=STEPS_PER_DAY * 3 + 1)
+        df_slice, _ = slice_forcing_to_period(df, _period(start, end, df))
+
+        # label="right": the bin for day D is labelled D+1 00:00.
+        first_label = pd.Timestamp(start) + pd.Timedelta(days=1)
+        last_label = pd.Timestamp(end) + pd.Timedelta(days=1)
+        expected = [
+            ts
+            for label, group in pd.Series(df.index, index=df.index).resample(
+                "D", closed="right", label="right"
+            )
+            if first_label <= label <= last_label
+            for ts in group.index
+        ]
+        assert list(df_slice.index) == expected
+
+    def test_coverage_message_states_left_open_period(self):
+        df = _forcing()  # 2012-01-01 00:05 .. 2012-01-04 00:00
+        with pytest.raises(ValueError, match="does not cover") as excinfo:
+            slice_forcing_to_period(df, _period("2012-01-01", "2012-01-10", df))
+        assert "(2012-01-01 00:00:00, 2012-01-11 00:00:00]" in str(excinfo.value)
+
+
 class TestExplicitTimestampSemantics:
     def test_explicit_bounds_are_row_inclusive(self):
         df = _forcing()

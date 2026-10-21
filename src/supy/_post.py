@@ -271,24 +271,11 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     **Timestamp Convention**
 
-    The SUEWS convention uses right-closed intervals with right labels,
-    meaning timestamps represent the END of each period. For example,
-    hourly data at 13:00 covers the period 12:00-13:00.
-
-    **DailyState Labeling**
-
-    When resampling to daily frequency, the DailyState group uses a different
-    labeling convention (``label='left'``) compared to other groups
-    (``label='right'``). This is intentional:
-
-    - **SUEWS, snow, ESTM, etc.** (``label='right'``): Daily data is labeled
-      with the END of each day. Data for January 1st is labeled "Jan 2"
-      (the midnight timestamp at the end of Jan 1).
-
-    - **DailyState** (``label='left'``): Daily data is labeled with the
-      START of each day. Data for January 1st is labeled "Jan 1".
-      This makes the output more intuitive - the row "Jan 1" contains
-      the state at the end of January 1st.
+    Each resampled value covers the left-open, right-closed interval
+    ``(t - freq, t]`` and is labelled by its end ``t`` (``closed='right',
+    label='right'``), except DailyState, which uses ``label='left'``; see the
+    "Timestamp convention" page of the documentation
+    (``timestamp_convention``).
 
     As a result, when resampling 7 full days of simulation data to daily
     frequency, the combined output may contain 8 unique dates:

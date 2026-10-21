@@ -1603,20 +1603,26 @@ class ModelControl(BaseModel):
     start_time: Optional[str] = Field(
         default=None,
         description=(
-            "Start of the model run as a calendar date (YYYY-MM-DD). Forcing "
-            "rows are stamped at the end of each interval, so the run starts "
-            "with the first row after that day's midnight. The forcing must "
-            "cover the requested period; see SUEWSSimulation.run. If None use "
-            "forcing data bounds."
+            "Start of the model run: a date (YYYY-MM-DD) or a timestamp "
+            "(YYYY-MM-DD HH:MM). A forcing row stamped t covers (t - dt, t], "
+            "and a run always covers a left-open, right-closed period. A date "
+            "D1 starts it at D1 00:00, so the first row is D1 00:00 + dt; a "
+            "timestamp t1 names a row and includes it, so the period starts "
+            "at t1 - dt. See :ref:`timestamp_convention`. The forcing must "
+            "cover the requested period. If None use forcing data bounds."
         ),
     )
     end_time: Optional[str] = Field(
         default=None,
         description=(
-            "End of the model run as a calendar date (YYYY-MM-DD), inclusive "
-            "of the whole day, i.e. up to and including the row stamped at "
-            "the following midnight. The forcing must cover the requested "
-            "period; see SUEWSSimulation.run. If None use forcing data bounds."
+            "End of the model run: a date (YYYY-MM-DD) or a timestamp "
+            "(YYYY-MM-DD HH:MM). A date D2 runs the whole day "
+            "(D2 00:00, D2+1 00:00], up to and including the row stamped "
+            "D2+1 00:00; a timestamp t2 names a row and includes it. Date "
+            "bounds give the period (D1 00:00, D2+1 00:00] and timestamp "
+            "bounds give (t1 - dt, t2]. See :ref:`timestamp_convention`. The "
+            "forcing must cover the requested period. If None use forcing "
+            "data bounds."
         ),
     )
 

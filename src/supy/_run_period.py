@@ -1,7 +1,10 @@
 """Requested simulation period: resolution, slicing and coverage checks.
 
-SUEWS forcing rows are stamped at the *end* of each interval, so a calendar
-day ``D`` at a 5-minute timestep is the rows ``D 00:05`` .. ``D+1 00:00``.
+SUEWS forcing rows are stamped at the *end* of each interval: a row stamped
+``t`` holds ``(t - dt, t]`` (pandas ``closed="right", label="right"``), so a
+calendar day ``D`` is ``(D 00:00, D+1 00:00]``, the rows ``D 00:05`` ..
+``D+1 00:00`` at a 5-minute timestep. See the "Timestamp convention" page of
+the documentation.
 This module turns the ``start_date`` / ``end_date`` a user gives to
 :meth:`supy.SUEWSSimulation.run` (or ``model.control.start_time`` /
 ``end_time`` in the YAML) into an explicit row selection under that
@@ -245,6 +248,35 @@ def _select_rows(df_forcing: pd.DataFrame, period: RunPeriod) -> pd.DataFrame:
     return df_forcing.loc[mask.to_numpy()]
 
 
+def coverage_problem(
+    period: RunPeriod, index: pd.DatetimeIndex, tstep: Optional[int] = None
+) -> Optional[str]:
+    """Describe why the forcing does not cover ``period``, or return ``None``.
+
+    Shared by :meth:`supy.SUEWSSimulation.run` and the ``suews validate``
+    forcing check, so both apply the same rule.
+    """
+    first, last = required_rows(period, index, tstep)
+    available_start, available_end = index[0], index[-1]
+    covered = (first is None or available_start <= first) and (
+        last is None or available_end >= last
+    )
+    if covered:
+        return None
+    first_row = first if first is not None else available_start
+    last_row = last if last is not None else available_end
+    step = _forcing_step(index, tstep)
+    span = (
+        f"the period ({first_row - step}, {last_row}], i.e. forcing rows "
+        if step is not None
+        else "forcing rows "
+    )
+    return (
+        f"{period.describe()} needs {span}{first_row} to {last_row}; "
+        f"forcing available {available_start} to {available_end}"
+    )
+
+
 def _check_coverage(
     period: RunPeriod,
     index: pd.DatetimeIndex,
@@ -253,19 +285,9 @@ def _check_coverage(
     tstep: Optional[int] = None,
 ) -> bool:
     """Return True when the forcing covers ``period``; raise or warn otherwise."""
-    first, last = required_rows(period, index, tstep)
-    available_start, available_end = index[0], index[-1]
-    covered = (first is None or available_start <= first) and (
-        last is None or available_end >= last
-    )
-    if covered:
+    detail = coverage_problem(period, index, tstep)
+    if detail is None:
         return True
-    detail = (
-        f"{period.describe()}; needs forcing rows from "
-        f"{first if first is not None else available_start} to "
-        f"{last if last is not None else available_end}; "
-        f"forcing available {available_start} to {available_end}"
-    )
     if not clip_to_forcing:
         raise ValueError(
             f"Forcing does not cover the requested simulation period ({detail}). "

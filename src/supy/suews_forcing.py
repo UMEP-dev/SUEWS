@@ -797,7 +797,8 @@ class SUEWSForcing:
 
         Each output interval ``(t - freq, t]`` is labelled by its end
         time ``t`` (``closed="right", label="right"``), matching the
-        period-ending timestamps SUEWS uses. Values are aggregated by
+        period-ending timestamps SUEWS uses (see
+        :ref:`timestamp_convention`). Values are aggregated by
         variable type:
 
         - Accumulated variables (``rain``, ``Wuh``, ``wuh_<surface>``):

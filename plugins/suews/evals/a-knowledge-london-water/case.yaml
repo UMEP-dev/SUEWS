@@ -1,0 +1,46 @@
+schema_version: "1.1"
+name: a-knowledge-london-water
+description: >
+  Group A (knowledge Q&A). Sue Grimmond's canonical question B1
+  (test/mcp/fixtures/canonical_questions.yml): a London-specific answer
+  that cites the model's water-use evidence and caveats other cities.
+tags: [group-a, knowledge]
+execution:
+  prompt: |
+    What are the water implications of maintaining green infrastructure
+    in London? Do they differ by city? Answer for SUEWS users and say which
+    SUEWS parameters control this.
+  max_turns: 20
+  timeout_seconds: 600
+  allowed_tools:
+    - Skill
+    - Read
+    - Grep
+    - Glob
+    - mcp__plugin_suews_suews__query_knowledge
+    - mcp__plugin_suews_suews__search_schema
+    - mcp__plugin_suews_suews__read_knowledge_manifest
+runs: 3
+graders:
+  - type: regex
+    name: cites-irrigation-fraction
+    target: last_message
+    pattern: "irrigation_fraction"
+  - type: regex
+    name: names-water-use-physics
+    target: last_message
+    pattern: "water_use|water use"
+    flags: i
+  - type: llm
+    name: london-specific-and-caveated
+    criteria: >
+      Pass only if the answer (1) names London-specific drivers of
+      green-infrastructure water demand (climate, irrigation practice or the
+      site's irrigation parameters), (2) says explicitly that the answer does
+      not transfer unchanged to other cities, especially arid ones, and
+      (3) invents no numerical parameter values that it does not attribute to
+      a source. An answer that only says "it depends on the city" fails.
+  - type: tool_used
+    name: used-knowledge-pack
+    tool: mcp__plugin_suews_suews__query_knowledge
+    arm: with-only

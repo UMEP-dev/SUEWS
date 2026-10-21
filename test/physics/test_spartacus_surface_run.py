@@ -16,8 +16,7 @@ def run_surface_case(direct_albedo=False, storage_heat=1):
     state = state.iloc[[0]].copy()
     state.loc[:, ("netradiationmethod", "0")] = 1003
     state.loc[:, ("storageheatmethod", "0")] = storage_heat
-    # This legacy frame toggle does not prove activation through the YAML
-    # bridge (#1858). The native probe tests the direct-albedo calculation.
+    # Since #1858 this flag reaches the kernel; the test below checks it.
     state.loc[:, ("use_sw_direct_albedo", "0")] = float(direct_albedo)
     state.loc[:, ("ground_albedo_dir_mult_fact", "0")] = 1.4 if direct_albedo else 1.0
     # Keep the canopy and land-cover ground areas identical.
@@ -76,3 +75,13 @@ def test_spartacus_dyohm_surface_energy_budget(storage_heat):
     # DyOHM must actively change storage relative to ordinary OHM.
     ohm, _, _ = run_surface_case()
     assert np.max(np.abs(fluxes["QS"] - ohm["SUEWS", "QS"])) > 1e-3
+
+
+def test_direct_albedo_flag_reaches_the_kernel():
+    """A direct-albedo multiplier must change the ground shortwave the run reports."""
+    diffuse_only, _, _ = run_surface_case(direct_albedo=False)
+    with_direct, _, _ = run_surface_case(direct_albedo=True)
+    difference = (
+        with_direct["SPARTACUS", "KNet_Grnd"] - diffuse_only["SPARTACUS", "KNet_Grnd"]
+    ).abs()
+    assert difference.max() > 1e-3, "use_sw_direct_albedo had no effect on ground shortwave"

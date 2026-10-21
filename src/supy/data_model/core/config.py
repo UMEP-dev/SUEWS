@@ -45,10 +45,13 @@ from ..validation.required_fields import (
     CONDUCTANCE_REQUIRED,
     DECIDUOUS_REQUIRED,
     DECIDUOUS_REQUIRED_PROVIDED_FAI,
+    DYOHM_BUILDING_LAYERS_REQUIRED,
+    DYOHM_BUILDING_METHODS,
     EVERGREEN_REQUIRED,
     EVERGREEN_REQUIRED_PROVIDED_FAI,
     LAI_CALCULATED_ONLY_REQUIRED,
     LAI_REQUIRED,
+    RSL_VARIABLE_BLDGS_REQUIRED,
     STEBBS_SHADING_REQUIRED_MODES,
     stebbs_shading_requirements,
 )
@@ -2115,13 +2118,14 @@ class SUEWSConfig(BaseModel):
             sfr = 0.0
 
         if sfr > 0:
-            faibldg = getattr(bldgs, "faibldg", None)
-            val = getattr(faibldg, "value", faibldg) if faibldg is not None else None
-            if val is None:
-                site_name = getattr(site, "name", f"Site {site_index}")
-                issues.append(
-                    f"{site_name}: for rsl_method=2 and bldgs.sfr={sfr}, bldgs.faibldg must be set"
-                )
+            for field_name in RSL_VARIABLE_BLDGS_REQUIRED:
+                field = getattr(bldgs, field_name, None)
+                val = getattr(field, "value", field) if field is not None else None
+                if val is None:
+                    site_name = getattr(site, "name", f"Site {site_index}")
+                    issues.append(
+                        f"{site_name}: for rsl_method=2 and bldgs.sfr={sfr}, bldgs.{field_name} must be set"
+                    )
         return issues
 
     def _needs_storage_validation(self) -> bool:
@@ -2379,7 +2383,7 @@ class SUEWSConfig(BaseModel):
         land_cover = getattr(props, "land_cover", None)
         bldgs = getattr(land_cover, "bldgs", None) if land_cover else None
 
-        if storage_heat_method in {6, 8}:
+        if storage_heat_method in DYOHM_BUILDING_METHODS:
             if bldgs is None:
                 issues.append(
                     f"{site_name}: storage_heat_method {storage_heat_method} "
@@ -2388,7 +2392,7 @@ class SUEWSConfig(BaseModel):
                 )
             else:
                 th = getattr(bldgs, "thermal_layers", None)
-                for arr in ("dz", "k", "rho_cp"):
+                for arr in DYOHM_BUILDING_LAYERS_REQUIRED:
                     field = getattr(th, arr, None) if th else None
                     vals = getattr(field, "value", None) if field else None
                     if (
@@ -2428,7 +2432,7 @@ class SUEWSConfig(BaseModel):
                     "numeric values (no nulls, NaN, or infinities)"
                 )
 
-        if storage_heat_method in {6, 8}:
+        if storage_heat_method in DYOHM_BUILDING_METHODS:
             lam = getattr(getattr(props, "lambda_c", None), "value", None)
             if lam in (None, ""):
                 issues.append(

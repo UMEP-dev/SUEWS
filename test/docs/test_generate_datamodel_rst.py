@@ -17,6 +17,7 @@ from supy.data_model.parameter_examples import (
     get_all_parameter_examples,
     get_parameter_examples,
 )
+from supy.data_model.validation.required_fields import DOC_REQUIRED_WHEN
 
 pytestmark = pytest.mark.api
 
@@ -252,15 +253,16 @@ def test_modelphysics_selector_guide_choices_resolve() -> None:
         CHOICE_RESOLVERS[path](choice)
 
 
-def test_field_without_default_is_not_described_as_optional() -> None:
-    """A parameter carrying no default must not be labelled optional.
+def test_field_without_default_or_rule_is_not_called_optional(monkeypatch) -> None:
+    """A parameter with no default and no rule asks for a value, not "optional".
 
-    Most such parameters are declared ``Optional[...] = None`` only so a partial
-    configuration still loads; the science usually requires a value. Claiming
-    they are optional is the defect reported for the config reference.
+    Such parameters are declared ``Optional[...] = None`` only so a partial
+    configuration still loads; labelling them optional was the defect reported
+    for the configuration reference.
     """
     # ARRANGE
     module = _load_generator_module()
+    monkeypatch.setattr(module, "required_when", lambda model, field: "")
     field_doc = {
         "name": "store_cap",
         "type": "Optional[FlexibleRefValue(float)]",
@@ -268,17 +270,18 @@ def test_field_without_default_is_not_described_as_optional() -> None:
     }
 
     # ACT
-    label, value = module.RSTGenerator._format_default(field_doc)
+    status = module.RSTGenerator._format_status(field_doc, "StorageDrainParams")
+    default_line = module.RSTGenerator._format_default(field_doc)
 
     # ASSERT
-    assert "optional" not in value.lower()
-    assert (label, value) == (module.NO_DEFAULT_NOTE_LABEL, module.NO_DEFAULT_NOTE)
-    # "Status" stays reserved for the short state token, not a sentence of advice.
-    assert label != "Status"
+    assert status == module.STATUS_NO_DEFAULT
+    assert "optional" not in status.lower()
+    assert status.isascii()
+    assert default_line == (None, None)
 
 
 def test_conditionally_required_field_reports_its_condition(monkeypatch) -> None:
-    """A recorded condition is preferred over the generic note.
+    """A recorded condition becomes the status of a field without a default.
 
     The lookup is injected rather than relied upon, so this holds whether or
     not the installed supy carries the registry.
@@ -290,42 +293,146 @@ def test_conditionally_required_field_reports_its_condition(monkeypatch) -> None
         "required_when",
         lambda model, field: "buildings are present" if field == "bldgh" else "",
     )
+    field_doc = {"name": "bldgh", "default": None}
 
     # ACT
-    label, value = module.RSTGenerator._format_default(
-        {"name": "bldgh", "default": None}, "BldgsProperties"
-    )
+    status = module.RSTGenerator._format_status(field_doc, "BldgsProperties")
+    default_line = module.RSTGenerator._format_default(field_doc)
 
     # ASSERT
-    assert (label, value) == ("Status", "Required when buildings are present")
+    assert status == "Required when buildings are present"
+    assert default_line == (None, None)
 
 
-def test_field_without_recorded_condition_keeps_the_note(monkeypatch) -> None:
-    """Where nothing records a condition, no requirement may be claimed."""
+def test_condition_is_reported_beside_a_real_default(monkeypatch) -> None:
+    """A field that must be given explicitly keeps both its condition and default."""
+    # ARRANGE
+    module = _load_generator_module()
+    monkeypatch.setattr(
+        module, "required_when", lambda model, field: "``internal_shading`` is ``2``"
+    )
+    field_doc = {"name": "temperature_threshold_shading", "default": 0.0}
+
+    # ACT
+    status = module.RSTGenerator._format_status(field_doc, "StebbsProperties")
+    default_line = module.RSTGenerator._format_default(field_doc)
+
+    # ASSERT
+    assert status == "Required when ``internal_shading`` is ``2``"
+    assert default_line == ("Default", "``0.0``")
+
+
+def test_field_with_default_is_optional(monkeypatch) -> None:
+    """A default means the parameter never has to be supplied."""
     # ARRANGE
     module = _load_generator_module()
     monkeypatch.setattr(module, "required_when", lambda model, field: "")
 
     # ACT
-    label, value = module.RSTGenerator._format_default(
-        {"name": "store_cap", "default": None}, "StorageDrainParams"
+    status = module.RSTGenerator._format_status(
+        {"name": "emis", "default": 0.95}, "BldgsProperties"
     )
 
     # ASSERT
-    assert (label, value) == (module.NO_DEFAULT_NOTE_LABEL, module.NO_DEFAULT_NOTE)
-    assert "required" not in value.lower().split("may be required")[0]
+    assert status == module.STATUS_OPTIONAL
 
 
 def test_required_field_still_reports_required() -> None:
-    """The unconditionally required rendering must be left intact."""
+    """A field with no default at all is required, with no default line."""
+    # ARRANGE
+    module = _load_generator_module()
+    field_doc = {"default": "PydanticUndefined"}
+
+    # ACT
+    status = module.RSTGenerator._format_status(field_doc)
+    default_line = module.RSTGenerator._format_default(field_doc)
+
+    # ASSERT
+    assert status == module.STATUS_REQUIRED
+    assert default_line == (None, None)
+
+
+def test_nested_model_has_no_status() -> None:
+    """A nested structure is described by its own page, not a status line."""
     # ARRANGE
     module = _load_generator_module()
 
     # ACT
-    label, value = module.RSTGenerator._format_default({"default": "PydanticUndefined"})
+    status = module.RSTGenerator._format_status(
+        {"name": "lai", "default": None, "nested_model": "LAIParams"}
+    )
 
     # ASSERT
-    assert (label, value) == ("Status", "Required")
+    assert status is None
+
+
+@pytest.fixture(scope="module")
+def generated_reference(tmp_path_factory) -> tuple[Path, dict]:
+    """Generate the configuration reference once from the real data models."""
+    module = _load_generator_module()
+    output_dir = tmp_path_factory.mktemp("config-reference")
+    doc_data = module.ModelDocExtractor().extract_all_models()
+    module.RSTGenerator(doc_data).generate_all_rst(output_dir, style="hybrid")
+    return output_dir, doc_data
+
+
+def _option_blocks(page: str) -> dict[str, str]:
+    """Split a generated page into its ``input:option`` blocks, keyed by name."""
+    parts = re.split(r"^\.\. input:option:: (\S+)\n", page, flags=re.MULTILINE)
+    return {
+        name: re.split(r"^\S", body, maxsplit=1, flags=re.MULTILINE)[0]
+        for name, body in zip(parts[1::2], parts[2::2])
+    }
+
+
+def test_every_parameter_entry_states_its_status(generated_reference) -> None:
+    """Each parameter carries exactly one status; nested groups link instead."""
+    # ARRANGE
+    output_dir, doc_data = generated_reference
+    nested = {
+        (model_name.lower(), field["name"])
+        for model_name, model_doc in doc_data["models"].items()
+        for field in model_doc.get("fields", [])
+        if field.get("nested_model")
+    }
+    pages = sorted(output_dir.glob("*.rst"))
+
+    # ACT
+    problems = [
+        f"{path.name}:{name} has {block.count(':Status:')} status lines"
+        for path in pages
+        for name, block in _option_blocks(path.read_text(encoding="utf-8")).items()
+        if block.count(":Status:") != (0 if (path.stem, name) in nested else 1)
+    ]
+
+    # ASSERT
+    assert pages
+    assert not problems
+
+
+def test_every_recorded_requirement_reaches_the_reference(generated_reference) -> None:
+    """A required-field rule the validation layer records must be documented.
+
+    Adding a field to the registry without it appearing, with its condition,
+    on its model's page fails here.
+    """
+    # ARRANGE
+    output_dir, _ = generated_reference
+
+    # ACT
+    missing = []
+    for model_name, fields in DOC_REQUIRED_WHEN.items():
+        page = output_dir / f"{model_name.lower()}.rst"
+        blocks = (
+            _option_blocks(page.read_text(encoding="utf-8")) if page.exists() else {}
+        )
+        for field, condition in fields.items():
+            expected = f":Status: Required when {condition}"
+            if expected not in " ".join(blocks.get(field, "").split()):
+                missing.append(f"{model_name}.{field}")
+
+    # ASSERT
+    assert not missing
 
 
 @pytest.mark.parametrize(

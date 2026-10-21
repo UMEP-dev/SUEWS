@@ -1103,50 +1103,73 @@ def precheck_printing(data: dict) -> dict:
     return data
 
 
+_BOUND_FORMAT_HINT = "a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM)"
+
+
+def _bound_as_date(value, name: str, errors: List[str]) -> Optional[str]:
+    """Return ``value`` as a ``YYYY-MM-DD`` string, or record why it cannot be."""
+    if not isinstance(value, str) or not value.strip():
+        errors.append(
+            f"Missing or invalid '{name}' in model.control: must be {_BOUND_FORMAT_HINT}"
+        )
+        return None
+    try:
+        ts = pd.Timestamp(value)
+    except (TypeError, ValueError):
+        ts = None
+    if ts is None or pd.isna(ts):
+        errors.append(
+            f"Invalid '{name}' in model.control ({value!r}): must be {_BOUND_FORMAT_HINT}"
+        )
+        return None
+    return ts.strftime("%Y-%m-%d")
+
+
+def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
+    """Read ``model.control.start_time`` / ``end_time`` for the validators.
+
+    Both fields accept a date or a timestamp (see ``ModelControl``). The
+    validators only need the calendar day, so each bound is returned as a
+    ``YYYY-MM-DD`` string together with the model year taken from the start.
+
+    Returns
+    -------
+    tuple
+        ``(errors, model_year, start_date, end_date)``; ``errors`` is empty
+        when both bounds parse.
+    """
+    control = data.get("model", {}).get("control", {})
+    errors: List[str] = []
+    start_date = _bound_as_date(control.get("start_time"), "start_time", errors)
+    end_date = _bound_as_date(control.get("end_time"), "end_time", errors)
+    model_year = int(start_date[:4]) if start_date is not None else None
+    return errors, model_year, start_date, end_date
+
+
 def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
     """
     Extract model year, start date, and end date from YAML dict.
 
     This function reads the 'start_time' and 'end_time' fields from the input YAML dict
-    (under 'model.control'), validates that both exist and are in 'YYYY-MM-DD' format,
-    and extracts the model year from the start date.
+    (under 'model.control'), checks that each is a date or a timestamp, and
+    extracts the model year from the start.
 
     Args:
         data (dict): YAML configuration data loaded as a dictionary.
 
     Raises:
-        ValueError: If 'start_time' or 'end_time' is missing or has an invalid format.
+        ValueError: If 'start_time' or 'end_time' is missing or cannot be parsed.
 
     Returns:
         Tuple[dict, int, str, str]:
             - Unmodified input data (for chaining)
             - Model year (int, extracted from start date)
-            - Start date (str, in YYYY-MM-DD format)
-            - End date (str, in YYYY-MM-DD format)
+            - Start date (str, the calendar day in YYYY-MM-DD format)
+            - End date (str, the calendar day in YYYY-MM-DD format)
     """
-
-    control = data.get("model", {}).get("control", {})
-
-    start_date = control.get("start_time")
-    end_date = control.get("end_time")
-
-    if not isinstance(start_date, str) or "-" not in start_date:
-        raise ValueError(
-            "Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format."
-        )
-
-    if not isinstance(end_date, str) or "-" not in end_date:
-        raise ValueError(
-            "Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format."
-        )
-
-    try:
-        model_year = int(start_date.split("-")[0])
-    except Exception:
-        raise ValueError(
-            "Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format."
-        )
-
+    errors, model_year, start_date, end_date = parse_simulation_bounds(data)
+    if errors:
+        raise ValueError(errors[0])
     return data, model_year, start_date, end_date
 
 

@@ -277,7 +277,7 @@ src_f95_files = files(src_f95_files)
 # C helpers compiled into the same archives (thread-local error store, gh#1736)
 src_c_files = files(dir_src_suews / 'suews_ctrl_error_tls.c')
 
-makefile_deps = files(dir_suews / 'Makefile')
+makefile_deps = files(dir_suews / 'Makefile', dir_suews / 'Makefile.deps')
 
 build_suews = custom_target(
   'suews_objects',

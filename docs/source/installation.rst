@@ -47,7 +47,6 @@ One can install ``supy`` using ``pip``:
 
 
 .. _PyPI: https://pypi.org/project/supy/
-.. _SuPy: :ref:`supy_index`
 
 
 

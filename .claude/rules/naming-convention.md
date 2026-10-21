@@ -1,3 +1,11 @@
+---
+paths:
+  - src/supy/**/*.py
+  - src/supy/**/*.yml
+  - src/supy/**/*.yaml
+  - docs/**/*
+---
+
 # SUEWS Naming Convention
 
 Rules for naming user-facing identifiers in SUEWS — YAML parameters, YAML

@@ -1243,6 +1243,8 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
       output (with inner path -> dir, legacy string form dropped).
     * 2026.6.dev2 -> 2026.6.dev3 (gh#1688): the omitted CO2Params fields
       renamed to convention-compliant identifiers while preserving values.
+    * 2026.6.dev4 -> 2026.6.dev5 (#1832): the shortwave text selector
+      renamed to ``perez`` without changing numeric option 3.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The
@@ -1267,7 +1269,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_stebbs_physics_fold(cfg)
     _apply_fai_alias_canonicalisation(cfg)
     _apply_co2params_renames(cfg)
-    return cfg
+    return _migrate_2026_6_dev3_to_current(cfg)
 
 
 def _migrate_2026_5_to_2026_6_dev1(cfg: dict) -> dict:
@@ -1305,10 +1307,46 @@ def _migrate_2026_6_dev3_to_2026_6_dev4(cfg: dict) -> dict:
     return cfg
 
 
+def _migrate_2026_6_dev4_to_2026_6_dev5(cfg: dict) -> dict:
+    """Rename the retired shortwave selector, preserving its reference metadata."""
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return cfg
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return cfg
+    entry = physics.get("kdown_split_method")
+    wrapped = isinstance(entry, dict) and "value" in entry
+    raw = entry["value"] if wrapped else entry
+    if not isinstance(raw, str) or raw.strip().lower() != "epw":
+        return cfg
+    if wrapped:
+        entry["value"] = "perez"
+    else:
+        physics["kdown_split_method"] = "perez"
+    _log(
+        f"[yaml-upgrade]   kdown_split_method {raw!r} -> 'perez' "
+        "(renamed selector; numeric option 3 unchanged)"
+    )
+    return cfg
+
+
+def _migrate_2026_6_dev3_to_current(cfg: dict) -> dict:
+    """Chain the optional STEBBS controls and the shortwave selector rename."""
+    cfg = _migrate_2026_6_dev3_to_2026_6_dev4(cfg)
+    return _migrate_2026_6_dev4_to_2026_6_dev5(cfg)
+
+
+def _migrate_2026_6_dev2_to_current(cfg: dict) -> dict:
+    """Apply the CO2Params renames and all subsequent schema deltas."""
+    cfg = _migrate_2026_6_dev2_to_2026_6_dev3(cfg)
+    return _migrate_2026_6_dev3_to_current(cfg)
+
+
 def _migrate_2026_6_dev1_to_current(cfg: dict) -> dict:
-    """Chain the dev2 identity delta and the dev3 CO2Params renames."""
+    """Chain the dev2 identity delta and all subsequent schema deltas."""
     cfg = _migrate_2026_6_dev1_to_2026_6_dev2(cfg)
-    return _migrate_2026_6_dev2_to_2026_6_dev3(cfg)
+    return _migrate_2026_6_dev2_to_current(cfg)
 
 
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
@@ -1377,8 +1415,9 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
-    ("2026.6.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev3_to_2026_6_dev4,
-    ("2026.6.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev2_to_2026_6_dev3,
+    ("2026.6.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev4_to_2026_6_dev5,
+    ("2026.6.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev3_to_current,
+    ("2026.6.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev2_to_current,
     ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_current,
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,

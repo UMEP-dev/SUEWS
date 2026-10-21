@@ -19,7 +19,11 @@ from .ohm import OHM_Coefficient_season_wetness
 from .type import SurfaceType
 
 from .hydro import WaterDistribution, StorageDrainParams
-from .field_renames import SURFACEPROPERTIES_RENAMES, apply_field_renames
+from .field_renames import (
+    SURFACEPROPERTIES_ANOHM_RENAMES,
+    SURFACEPROPERTIES_RENAMES,
+    apply_field_renames,
+)
 
 
 class ThermalLayers(BaseModel):
@@ -181,7 +185,12 @@ class SurfaceProperties(BaseModel):
     @classmethod
     def _rename_surface_fields(cls, values):
         if isinstance(values, dict):
-            return apply_field_renames(values, SURFACEPROPERTIES_RENAMES, cls.__name__)
+            values = apply_field_renames(
+                values, SURFACEPROPERTIES_RENAMES, cls.__name__
+            )
+            return apply_field_renames(
+                values, SURFACEPROPERTIES_ANOHM_RENAMES, cls.__name__
+            )
         return values
 
     sfr: FlexibleRefValue(float) = Field(
@@ -207,7 +216,6 @@ class SurfaceProperties(BaseModel):
             "internal_only": True,
         },
     )
-    # ch_anohm is named as chanohm in sample_data/sample_config.yml, version 08/08/2025 - consider renaming to avoid issues
     rho_cp_anohm: Optional[FlexibleRefValue(float)] = Field(
         default=1200.0,
         description="Volumetric heat capacity for this surface to use in AnOHM",
@@ -217,7 +225,6 @@ class SurfaceProperties(BaseModel):
             "internal_only": True,
         },
     )
-    # rho_cp_anohm is named as cpanohm in sample_data/sample_config.yml, version 08/08/2025 - consider renaming to avoid issues
     k_anohm: Optional[FlexibleRefValue(float)] = Field(
         default=0.4,
         description="Thermal conductivity for this surface to use in AnOHM",
@@ -227,7 +234,6 @@ class SurfaceProperties(BaseModel):
             "internal_only": True,
         },
     )
-    # k_anohm is named as kkanohm in sample_data/sample_config.yml, version 08/08/2025 - consider renaming to avoid issues
     ohm_threshold_summer_winter: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Summer/winter threshold based on temperature for OHM calculation",

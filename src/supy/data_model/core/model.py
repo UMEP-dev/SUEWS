@@ -233,14 +233,16 @@ class KdownSplitMethod(Enum):
     """
     Method for partitioning global horizontal irradiance into direct and diffuse components.
 
-    1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid
+    1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid
     2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction
-    3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach
+    3: PEREZ - Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction
+    4: REINDL - Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS
     """
 
     FORCING = 1
     CONSTANT = 2
-    EPW = 3
+    PEREZ = 3
+    REINDL = 4
 
     def __int__(self):
         return self.value
@@ -373,9 +375,9 @@ class StabilityMethod(Enum):
     """
     Atmospheric stability correction functions for momentum and heat fluxes.
 
-    0: NOT_USED - Reserved
-    1: NOT_USED2 - Reserved
-    2: HOEGSTROM - Dyer (1974)/Högström (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)
+    0: NOT_USED - Reserved; not available (rejected at validation)
+    1: NOT_USED2 - Reserved; not available (rejected at validation)
+    2: HOEGSTROM - Dyer (1974)/Högström (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended). W16 in the kernel remains available with MOST (roughness_sublayer=0), but stops with error 108 when RSL requires its unimplemented phi functions, including roughness_sublayer=1 (RST) and roughness_sublayer=2 (variable) when site geometry selects RST. Use option 3 (recommended) or 4 for RSL.
     3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat
     4: BUSINGER_HOEGSTROM - Businger et al. (1971)/Högström (1988) formulations (not recommended)
     """
@@ -462,10 +464,12 @@ class LAIMethod(Enum):
 class RSLMethod(Enum):
     """
     Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
+    The two schemes report these diagnostics at different heights: RST at 2 m and 10 m above ground, MOST at 2 m and 10 m above the zero-plane displacement height plus the roughness length, which over a tall canopy is well above ground.
+    See :ref:`reference heights of the near-surface diagnostics <rsl_diag_heights>`.
 
-    0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces
-    1: RST (Roughness Sublayer Theory; Theeuwes et al. 2019) - Appropriate for heterogeneous urban surfaces with tall roughness elements
-    2: VARIABLE - Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)
+    0: MOST - Monin-Obukhov similarity theory, appropriate for relatively homogeneous, flat surfaces
+    1: RST - Roughness sublayer theory following Theeuwes et al. (2019), appropriate for heterogeneous urban surfaces with tall roughness elements
+    2: VARIABLE - Uses RST when the plan area index of buildings and trees is between 0.1 and 0.68 and the mean roughness-element height exceeds 2 m, otherwise MOST
     """
 
     MOST = 0
@@ -509,11 +513,12 @@ class FAIMethod(Enum):
 
 class RSLLevel(Enum):
     """
-    Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.
+    Air temperature passed to the calculations that respond to near-surface conditions: the daily state (daily temperature statistics and degree days, which drive leaf area index phenology, modelled irrigation and degree-day anthropogenic heat), the modelled anthropogenic heat flux (QF), the surface conductance that controls the latent heat flux (QE), and biogenic CO2 when it is modelled.
+    With a level above 0, a change in the diagnosed near-surface temperature therefore feeds into QF and QE.
 
-    0: NONE - No local climate adjustments; use forcing file meteorology directly
-    1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days
-    2: DETAILED - Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles
+    0: NONE - Forcing air temperature
+    1: BASIC - Near-surface air temperature T2 diagnosed by the roughness_sublayer scheme, at that scheme's reference height
+    2: DETAILED - Air temperature at level 10 of the near-surface profile, which is half the effective canopy height (the mean roughness-element height, at least 2 m) when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used
     """
 
     NONE = 0
@@ -926,6 +931,24 @@ class ModelPhysics(BaseModel):
             )
         return value
 
+    @field_validator("stability", mode="after")
+    @classmethod
+    def _reject_reserved_stability(cls, value):
+        # gh#1783: codes 0 and 1 are reserved placeholders with no stability
+        # function behind them, so the kernel's psi/phi functions return an
+        # undefined result and the roughness-sublayer profile yields NaN
+        # near-surface diagnostics without any warning. Refuse them on
+        # validated construction and direct field assignment, as for ESTM.
+        inner = value.value if isinstance(value, RefValue) else value
+        code = getattr(inner, "value", inner)
+        if code in {StabilityMethod.NOT_USED.value, StabilityMethod.NOT_USED2.value}:
+            raise ValueError(
+                f"stability={code} is a reserved code with no stability-function "
+                "implementation. Use 3 (Campbell & Norman, recommended), or 2 "
+                "(Hoegstrom) or 4 (Businger-Hoegstrom)."
+            )
+        return value
+
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
@@ -933,11 +956,11 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["snow_use"],
             "provides_to": ["storage_heat"],
-            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by EHC (5) and STEBBS (7) storage heat.",
+            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by STEBBS (7) storage heat; EHC (5) uses it to resolve roof and wall facets and otherwise lumps all land covers into one plan-area slab.",
         },
     )
     kdown_split_method: FlexibleRefValue(KdownSplitMethod) = Field(
-        default=KdownSplitMethod.EPW,
+        default=KdownSplitMethod.PEREZ,
         description=_enum_description(KdownSplitMethod),
         json_schema_extra={
             "unit": "dimensionless",
@@ -1071,7 +1094,7 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["roughness_sublayer"],
             "provides_to": ["surface_conductance"],
-            "note": "Uses near-surface values from roughness_sublayer to modify vegetation processes",
+            "note": "Selects the air temperature (forcing, diagnosed T2, or level-10 profile temperature) passed to the daily state, anthropogenic heat, surface conductance and biogenic CO2 calculations",
         },
     )
     surface_conductance: FlexibleRefValue(GSModel) = Field(
@@ -1226,7 +1249,7 @@ class ModelPhysics(BaseModel):
         # Keyed by (column name, field name) as above.
         optional_new_attrs_with_defaults = {
             ("laimethod", "laimethod"): LAIMethod.MODELLED,
-            ("kdown_split_method", "kdown_split_method"): KdownSplitMethod.EPW,
+            ("kdown_split_method", "kdown_split_method"): KdownSplitMethod.PEREZ,
         }
         optional_float_attrs_with_defaults = {
             "sw_dn_direct_frac": (("sw_dn_direct_frac",), 0.5),
@@ -1424,17 +1447,37 @@ class ForcingControl(BaseModel):
 
     model_config = ConfigDict(title="Forcing Control")
 
-    file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
+    file: Optional[Union[FlexibleRefValue(str), FlexibleRefValue(List[str])]] = Field(
         default="forcing.txt",
         description=(
             "Path(s) to meteorological forcing data file(s). This can be "
             "either: (1) A single file path as a string (e.g., 'forcing.txt'), "
             "or (2) A list of file paths (e.g., ['forcing_2020.txt', "
             "'forcing_2021.txt']). When multiple files are provided, they "
-            "are concatenated in chronological order. For details, see "
-            ":ref:`met_input`."
+            "are concatenated in chronological order. Set it explicitly to "
+            "a bare ``null`` when forcing is supplied at runtime through "
+            "``SUEWSSimulation.update_forcing()`` instead of from a file: "
+            "the validator then skips the forcing-file checks and warns "
+            "that forcing must be supplied before ``run()``. Omitting the "
+            "key is not the same as ``null`` and is still reported as an "
+            "error. For details, see :ref:`met_input`."
         ),
     )
+
+    @field_validator("file", mode="before")
+    @classmethod
+    def _collapse_null_ref_value(cls, value):
+        """Treat a RefValue whose value is null as a bare null (gh#1722).
+
+        ``update_config`` patches wrap scalars as ``{"value": ...}``, so a
+        ``None`` patch would otherwise arrive as ``RefValue(value=None)`` and
+        stop meaning "forcing supplied at runtime".
+        """
+        if isinstance(value, RefValue):
+            return None if value.value is None else value
+        if isinstance(value, dict) and "value" in value and value["value"] is None:
+            return None
+        return value
 
     timestamp_reference: FlexibleRefValue(ForcingTimestampReference) = Field(
         default=ForcingTimestampReference.LOCAL_STANDARD_TIME,
@@ -1560,20 +1603,26 @@ class ModelControl(BaseModel):
     start_time: Optional[str] = Field(
         default=None,
         description=(
-            "Start of the model run as a calendar date (YYYY-MM-DD). Forcing "
-            "rows are stamped at the end of each interval, so the run starts "
-            "with the first row after that day's midnight. The forcing must "
-            "cover the requested period; see SUEWSSimulation.run. If None use "
-            "forcing data bounds."
+            "Start of the model run: a date (YYYY-MM-DD) or a timestamp "
+            "(YYYY-MM-DD HH:MM). A forcing row stamped t covers (t - dt, t], "
+            "and a run always covers a left-open, right-closed period. A date "
+            "D1 starts it at D1 00:00, so the first row is D1 00:00 + dt; a "
+            "timestamp t1 names a row and includes it, so the period starts "
+            "at t1 - dt. See :ref:`timestamp_convention`. The forcing must "
+            "cover the requested period. If None use forcing data bounds."
         ),
     )
     end_time: Optional[str] = Field(
         default=None,
         description=(
-            "End of the model run as a calendar date (YYYY-MM-DD), inclusive "
-            "of the whole day, i.e. up to and including the row stamped at "
-            "the following midnight. The forcing must cover the requested "
-            "period; see SUEWSSimulation.run. If None use forcing data bounds."
+            "End of the model run: a date (YYYY-MM-DD) or a timestamp "
+            "(YYYY-MM-DD HH:MM). A date D2 runs the whole day "
+            "(D2 00:00, D2+1 00:00], up to and including the row stamped "
+            "D2+1 00:00; a timestamp t2 names a row and includes it. Date "
+            "bounds give the period (D1 00:00, D2+1 00:00] and timestamp "
+            "bounds give (t1 - dt, t2]. See :ref:`timestamp_convention`. The "
+            "forcing must cover the requested period. If None use forcing "
+            "data bounds."
         ),
     )
 

@@ -28,7 +28,7 @@ The ``soil_observation`` block describes the sensor installation and measurement
 
    model:
      physics:
-       smdmethod:
+       soil_moisture_deficit:
          value: 1  # 1=volumetric, 2=gravimetric
 
    sites:

@@ -307,7 +307,8 @@ bridge:
 # Format code
 format:
 	ruff format src test
-	fprettify --config .fprettify.rc src/suews/src/*.f95 2>/dev/null || true
+	@# fprettify finds .fprettify.rc by searching the parent directories of each file
+	fprettify src/suews/src/*.f95 || true
 
 # Regenerate the distributable plugin bundle (plugins/suews/skills/) from the
 # single source of truth (.claude/skills/). Run after editing a skill; the

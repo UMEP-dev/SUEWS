@@ -13,6 +13,11 @@ import sys
 BUILD_PROFILES = ("release", "checked")
 DEFAULT_BUILD_PROFILE = "release"
 BUILD_PROFILE_ENV = "SUEWS_BUILD_PROFILE"
+MAKE_JOBS_ENV = "SUEWS_MAKE_JOBS"
+# Cap on the default job count. The module dependency graph is mostly a
+# chain (types -> utilities -> physics -> driver), so jobs beyond this add
+# memory pressure on CI runners without shortening the build.
+MAX_DEFAULT_MAKE_JOBS = 8
 
 
 def build_profile_from_env(environ: Mapping[str, str] | None = None) -> str:
@@ -50,6 +55,31 @@ def make_args_for_profile(profile: str) -> list[str]:
     raise ValueError(f"unknown build profile {profile!r}")
 
 
+def make_jobs_from_env(
+    environ: Mapping[str, str] | None = None,
+    cpu_count: int | None = None,
+) -> int:
+    """Return the number of parallel ``make`` jobs for the Fortran build.
+
+    ``SUEWS_MAKE_JOBS`` sets it explicitly (``1`` restores a serial build);
+    otherwise it is the CPU count capped at ``MAX_DEFAULT_MAKE_JOBS``. Parallel
+    builds rely on the module dependency edges in ``src/suews/Makefile.deps``
+    (gh#1790).
+    """
+    source = os.environ if environ is None else environ
+    raw = source.get(MAKE_JOBS_ENV, "").strip()
+    if raw:
+        try:
+            jobs = int(raw)
+        except ValueError:
+            jobs = 0
+        if jobs < 1:
+            raise SystemExit(f"{MAKE_JOBS_ENV} must be a positive integer; got {raw!r}")
+        return jobs
+    cpus = os.cpu_count() if cpu_count is None else cpu_count
+    return max(1, min(cpus or 1, MAX_DEFAULT_MAKE_JOBS))
+
+
 def _pick_suews_fc() -> str | None:
     """Pick a Fortran compiler for building the legacy SUEWS Makefile targets.
 
@@ -73,8 +103,9 @@ def _run_make(
     args: list[str],
     suews_dir: Path,
     fc: str | None,
+    jobs: int = 1,
 ) -> subprocess.CompletedProcess[str]:
-    make_cmd = ["make", "-C", str(suews_dir)]
+    make_cmd = ["make", "-C", str(suews_dir), f"-j{jobs}"]
     if fc:
         make_cmd.append(f"FC={fc}")
     make_cmd.extend(args)
@@ -100,15 +131,17 @@ def main() -> None:
     fc = _pick_suews_fc()
     profile = build_profile_from_env()
     profile_args = make_args_for_profile(profile)
+    jobs = make_jobs_from_env()
     sys.stdout.write(
         f"SUEWS Fortran build profile: {profile} "
-        f"({BUILD_PROFILE_ENV}={os.environ.get(BUILD_PROFILE_ENV, '') or 'unset'})\n"
+        f"({BUILD_PROFILE_ENV}={os.environ.get(BUILD_PROFILE_ENV, '') or 'unset'}), "
+        f"make jobs: {jobs}\n"
     )
 
     # Run make and propagate failures so Meson can fail fast.
     # On macOS it is common for Homebrew to upgrade gfortran, which leaves stale
     # Fortran module files (*.mod) that cannot be read by the new compiler.
-    result = _run_make(profile_args, suews_dir, fc)
+    result = _run_make(profile_args, suews_dir, fc, jobs)
     if result.returncode != 0:
         output = result.stdout
         stale_mod_patterns = (
@@ -125,7 +158,7 @@ def main() -> None:
                     clean.returncode, clean.args, output=clean.stdout
                 )
 
-            retry = _run_make(profile_args, suews_dir, fc)
+            retry = _run_make(profile_args, suews_dir, fc, jobs)
             if retry.returncode != 0:
                 raise subprocess.CalledProcessError(
                     retry.returncode, retry.args, output=retry.stdout

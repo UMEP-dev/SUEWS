@@ -115,6 +115,23 @@ def _run_with_yaml(config_path):
         sim = SUEWSSimulation(str(config_path))
 
         # Check if forcing is loaded
+        if (
+            sim.forcing is None
+            and sim.config is not None
+            and sim.config.model.control.forcing.file is None
+        ):
+            click.echo(
+                "Error: 'forcing.file' is null in this configuration, which means "
+                "forcing is supplied at runtime. 'suews run' cannot supply it.",
+                err=True,
+            )
+            click.echo(
+                "Use the Python API instead: load the YAML with SUEWSSimulation, "
+                "call update_forcing() with your forcing data, then run(). "
+                "Or set 'forcing.file' to a forcing file path.",
+                err=True,
+            )
+            sys.exit(1)
         if sim.forcing is None:
             click.echo("Error: No forcing data found in configuration.", err=True)
             click.echo(

@@ -190,10 +190,10 @@ Important Requirements
 
 - **Continuous data**: No gaps allowed - missing periods must be gap-filled
 - **Timestamps**: Label the **end** of each forcing interval; they are not
-  instantaneous sampling times
-  
-  - For hourly data at 13:00, the interval covers 12:00--13:00
-  - For 5-minute data at 10:05, the interval covers 10:00--10:05
+  instantaneous sampling times. For hourly data at 13:00, the interval
+  covers 12:00--13:00. See :ref:`timestamp_convention` for the full rule,
+  how it sets the run period, and how to convert forcing stamped at the
+  start of each interval
 
 - **Weather, radiation, and energy fluxes**: Values are means over the
   interval ending at the timestamp
@@ -292,6 +292,48 @@ order):
            - "forcing/Kc_2021_data_60.txt"
            - "forcing/Kc_2022_data_60.txt"
 
+.. _forcing_runtime:
+
+Forcing supplied at runtime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the forcing is built in Python and passed to the model with
+``SUEWSSimulation.update_forcing()``, for example when SUEWS is coupled to
+another model or the forcing is assembled in memory, say so in the YAML by
+setting ``forcing.file`` explicitly to ``null``:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       forcing:
+         file: null
+
+With an explicit ``null``:
+
+* ``suews validate`` skips the forcing-file checks and reports a warning,
+  not an error, that forcing must be supplied before ``run()``;
+* ``SUEWSSimulation`` does not try to load forcing from the configuration;
+* ``run()`` raises ``RuntimeError`` if no forcing has been supplied by then;
+* ``suews run`` stops with a message pointing to the Python API, since the
+  command line has no way to supply the forcing.
+
+Then supply the forcing before running:
+
+.. code-block:: python
+
+   from supy import SUEWSSimulation
+
+   sim = SUEWSSimulation("config.yml")
+   sim.update_forcing(df_forcing)  # DataFrame, SUEWSForcing or file path(s)
+   output = sim.run()
+
+Only an explicit ``null`` has this meaning. Omitting the ``file`` key, or
+giving a path that does not exist, is still reported as an error, so a
+forgotten forcing file is not mistaken for runtime forcing. To skip
+forcing validation for a configuration that does name a file, use
+``suews validate --forcing off`` instead.
+
 .. _forcing_overlapping_files:
 
 Overlapping files
@@ -368,7 +410,7 @@ remote-sensing product is available, users can bypass the internal scheme by:
 
 .. important::
    Observed LAI values are clamped into each vegetation class's
-   ``[laimin, laimax]`` envelope at runtime. The same clamp is applied to the
+   ``[lai_min, lai_max]`` envelope at runtime. The same clamp is applied to the
    parameterised branch (``laimethod: 1``); the observed branch enforces it too
    for consistency and because the downstream conductance and active-vegetation
    fraction calculations (``LAI / laimax`` in ``suews_phys_resist`` and
@@ -378,8 +420,11 @@ remote-sensing product is available, users can bypass the internal scheme by:
 
    If you supply observations that should pass through unchanged -- e.g. a genuine
    winter dieback with ``LAI = 0`` -- configure the corresponding class's
-   ``laimin`` to zero in the site configuration. Similarly, widen ``laimax`` if
-   observations legitimately exceed the default site canopy capacity. The
+   ``lai_min`` to zero in the site configuration
+   (``sites[i].properties.land_cover.<veg>.lai.lai_min``, where ``<veg>`` is
+   ``evetr``, ``dectr`` or ``grass``). Similarly, widen ``lai_max`` (same
+   block) if observations legitimately exceed the default site canopy
+   capacity. The
    pre-flight validator (``check_forcing()``) issues a warning
    when any forcing value would be clamped, so the user sees once that
    observations are being modified rather than discovering it through
@@ -433,6 +478,18 @@ For model-level data or spatial grids, use the gridded dataset:
 - CDS API credentials configured (see `CDS API setup <https://cds.climate.copernicus.eu/api-how-to>`_)
 
 See :func:`~supy.util.gen_forcing_era5` API documentation for all options.
+
+Direct and diffuse shortwave components
+---------------------------------------
+
+When SPARTACUS-Surface is selected, ``model.physics.kdown_split_method``
+controls how global horizontal irradiance is partitioned. Use ``forcing``
+for measured direct-normal ``kdir`` and diffuse-horizontal ``kdiff``,
+``constant`` for a specified direct-horizontal fraction, ``perez`` for the
+default DISC/static-DIRINT estimate, or ``reindl`` for the Reindl et al.
+(1990) estimate. The ``reindl`` option needs no additional forcing columns:
+it uses ``kdown``, temperature, humidity and the model's solar position.
+See :ref:`shortwave_partition` for configuration, conventions and limitations.
 
 Using EPW Weather Files
 -----------------------
@@ -569,7 +626,7 @@ Check your data for:
 - **"Division by zero"**: Wind speed below 0.01 m |s^-1|
 - **"Negative radiation"**: Check ``kdown`` is always :math:`\geq 0`
 - **"Time mismatch"**: Ensure timestamps match the declared reference and
-  interval-end convention (see note above)
+  the :ref:`interval-end convention <timestamp_convention>`
 - **"Missing data"**: Gap-fill baseline and active conditional inputs. Use
   ``-999`` only for optional or inactive conditional fields, never blanks or
   ``NaN``
@@ -615,15 +672,19 @@ Basic validation from Python:
 
 **Automatic Validation**
 
-When using ``suews-validate``, forcing data validation runs automatically:
+When using ``suews validate``, forcing data validation runs automatically:
 
 .. code-block:: bash
 
    # Validates configuration AND forcing data
-   suews-validate config.yml
+   suews validate config.yml
 
    # Skip forcing validation if needed
-   suews-validate --forcing off config.yml
+   suews validate --forcing off config.yml
+
+A configuration whose ``forcing.file`` is set explicitly to ``null`` is
+validated without a forcing file and reports a warning instead (see
+:ref:`forcing_runtime`).
 
 The validation report shows any issues found:
 

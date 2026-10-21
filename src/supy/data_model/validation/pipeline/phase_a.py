@@ -21,9 +21,6 @@ RENAMED_PARAMS = {
     "cp": "rho_cp",
     "diagmethod": "roughness_sublayer",
     "localclimatemethod": "roughness_sublayer_level",
-    "chanohm": "ch_anohm",
-    "cpanohm": "rho_cp_anohm",
-    "kkanohm": "k_anohm",
     # Phase 2 + 3 renames: fused -> snake_case -> final (#1256, #1321)
     **RAW_YAML_FIELD_RENAMES,
 }
@@ -150,12 +147,18 @@ def _normalise_model_control_subobjects(
     legacy_forcing = control.pop("forcing_file", _MISSING)
     if legacy_forcing is not _MISSING:
         forcing = control.get("forcing")
-        if not isinstance(forcing, dict) or _is_nullish_tree(forcing):
+        if not isinstance(forcing, dict) or (
+            "file" not in forcing and _is_nullish_tree(forcing)
+        ):
             control["forcing"] = {"file": legacy_forcing}
-        elif "file" not in forcing or _is_nullish_tree(forcing.get("file")):
+        elif "file" not in forcing or (
+            forcing["file"] is not None and _is_nullish_tree(forcing["file"])
+        ):
             forcing["file"] = legacy_forcing
-        # else: current forcing.file is real; legacy value is dropped, but
-        # we still record the key migration so the user sees it.
+        # else: current forcing.file is set -- a real path, or an explicit
+        # null meaning forcing is supplied at runtime (gh#1722) -- and wins,
+        # matching ModelControl._coerce_legacy_forcing_file. The legacy value
+        # is dropped, but we still record the key migration so the user sees it.
         replacements.append(("forcing_file", "forcing.file"))
 
     legacy_output = control.pop("output_file", _MISSING)
@@ -1518,6 +1521,126 @@ def _validate_single_forcing_file(
     return forcing_errors
 
 
+RUNTIME_FORCING_WARNING = (
+    "model.control.forcing.file is null: forcing-file checks were skipped. "
+    "Supply forcing with SUEWSSimulation.update_forcing() before run()."
+)
+
+
+def _resolve_forcing_file_entry(control: object) -> tuple[bool, object]:
+    """Return ``(present, value)`` for the effective forcing-file entry.
+
+    Prefers the ``forcing.file`` shape (schema 2026.5.dev7+) and falls back to
+    legacy ``forcing_file``. An explicit ``forcing.file`` key wins even when it
+    is null, mirroring ``ModelControl._coerce_legacy_forcing_file`` and the Rust
+    raw-YAML reader (``yaml_config.rs::forcing_file_entry``). ``present`` is
+    False only when neither key exists, so callers can tell an explicit null
+    (forcing supplied at runtime, gh#1722) from an omitted entry.
+    """
+    if not isinstance(control, dict):
+        return False, None
+    forcing_block = control.get("forcing")
+    if isinstance(forcing_block, dict) and "file" in forcing_block:
+        entry = forcing_block["file"]
+    elif "forcing_file" in control:
+        entry = control["forcing_file"]
+    else:
+        return False, None
+    # A RefValue whose value is null is the same null (ForcingControl does
+    # the same collapse).
+    if isinstance(entry, dict) and "value" in entry and entry["value"] is None:
+        entry = None
+    return True, entry
+
+
+def forcing_file_is_runtime(config_data: object) -> bool:
+    """Return True when the forcing file is explicitly null in a raw config.
+
+    An explicit null declares that forcing is supplied at runtime through
+    ``SUEWSSimulation.update_forcing()``; a missing entry does not.
+    """
+    if not isinstance(config_data, dict):
+        return False
+    model = config_data.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    present, value = _resolve_forcing_file_entry(control)
+    return present and value is None
+
+
+def _unwrap_ref(value):
+    """Return the bare value of a ``{"value": ...}`` RefValue mapping."""
+    if isinstance(value, dict) and "value" in value:
+        return value["value"]
+    return value
+
+
+def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> list:
+    """
+    Check that the forcing covers ``model.control.start_time`` / ``end_time``.
+
+    Loads the forcing the way ``SUEWSSimulation`` does (resampled to the model
+    timestep, several files merged) and applies the same coverage rule as
+    ``SUEWSSimulation.run`` (``supy._run_period.coverage_problem``), so
+    ``suews validate`` reports a period the run would reject.
+
+    Parameters
+    ----------
+    control : dict
+        The raw ``model.control`` mapping from the user YAML.
+    forcing_file_path : str or list
+        The forcing file entry, already unwrapped from any RefValue.
+    yaml_dir : Path
+        Directory used to resolve relative forcing paths.
+
+    Returns
+    -------
+    list of str
+        One error message when the forcing does not cover the period, an empty
+        list otherwise (including when neither bound is set).
+    """
+    start_time = _unwrap_ref(control.get("start_time"))
+    end_time = _unwrap_ref(control.get("end_time"))
+    if start_time is None and end_time is None:
+        return []
+
+    try:
+        tstep = int(_unwrap_ref(control.get("tstep", 300)))
+    except (TypeError, ValueError):
+        tstep = 300
+
+    try:
+        from supy._run_period import coverage_problem, resolve_run_period
+        from supy.suews_sim import SUEWSSimulation
+
+        def _resolve(item) -> Path:
+            path = Path(item).expanduser()
+            return path if path.is_absolute() else yaml_dir / path
+
+        if isinstance(forcing_file_path, list):
+            df_forcing = SUEWSSimulation._load_forcing_from_list(
+                [_resolve(item) for item in forcing_file_path], tstep_mod=tstep
+            )
+        else:
+            df_forcing = SUEWSSimulation._load_forcing_file(
+                _resolve(forcing_file_path), tstep_mod=tstep
+            )
+        index = df_forcing.index
+        period = resolve_run_period(start_time, end_time, index)
+        problem = coverage_problem(period, index, tstep)
+    except Exception as e:
+        return [
+            "Could not check the forcing against "
+            f"model.control.start_time/end_time: {str(e)}"
+        ]
+
+    if problem is None:
+        return []
+    return [
+        "Forcing does not cover model.control.start_time/end_time: "
+        f"{problem}. Supply forcing covering the period or change start_time/end_time."
+    ]
+
+
 def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
     """
     Validate forcing data file(s) referenced in the user YAML configuration.
@@ -1541,9 +1664,14 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
     Notes
     -----
     This function loads the user YAML file, extracts the forcing file(s) path(s) from
-    `model.control.forcing_file`, and validates each file using SuPy's forcing checker.
+    `model.control.forcing.file` (or legacy `model.control.forcing_file`), and
+    validates each file using SuPy's forcing checker.
     It supports both single file and list of files. Error messages are contextualized
-    and cleaned for user readability.
+    and cleaned for user readability. When the files themselves pass, the
+    forcing is also checked against ``model.control.start_time`` /
+    ``end_time`` (see :func:`check_forcing_period`). An explicit null entry means forcing is
+    supplied at runtime: no file is checked and no error is returned (the caller
+    reports it as a warning; see :func:`forcing_file_is_runtime`).
     """
     forcing_errors = []
     forcing_file_paths = None
@@ -1565,16 +1693,11 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
         if not isinstance(control, dict):
             return forcing_errors, forcing_file_paths
 
-        # Prefer the new `forcing.file` shape (schema 2026.5.dev7+);
-        # fall back to legacy `forcing_file`. Mirrors the precedence used
-        # by the Rust raw-YAML reader (`yaml_config.rs::read_forcing_rel`)
-        # and the in-memory `ModelControl._coerce_legacy_forcing_file`.
-        forcing_file = None
-        forcing_block = control.get("forcing")
-        if isinstance(forcing_block, dict):
-            forcing_file = forcing_block.get("file")
-        if forcing_file is None:
-            forcing_file = control.get("forcing_file")
+        present, forcing_file = _resolve_forcing_file_entry(control)
+        if present and forcing_file is None:
+            # Explicit null: forcing is supplied at runtime (gh#1722). The
+            # caller reports this as a warning, not an error.
+            return forcing_errors, forcing_file_paths
         if forcing_file is None:
             forcing_errors.append(
                 "Forcing file path not found in model.control.forcing.file "
@@ -1604,6 +1727,10 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
                 )
                 forcing_errors.extend(file_errors)
 
+            if not forcing_errors:
+                forcing_errors.extend(
+                    check_forcing_period(control, forcing_file_path, yaml_dir)
+                )
             return forcing_errors, forcing_file_paths
 
         # Single file case
@@ -1614,6 +1741,10 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
         )
         forcing_errors.extend(file_errors)
 
+        if not forcing_errors:
+            forcing_errors.extend(
+                check_forcing_period(control, forcing_file_path, yaml_dir)
+            )
         return forcing_errors, forcing_file_paths
 
     except Exception as e:
@@ -1734,6 +1865,7 @@ def create_analysis_report(
     dimension_errors=None,
     forcing_errors=None,
     nlayer_limit_errors=None,
+    forcing_warnings=None,
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
@@ -1758,6 +1890,7 @@ def create_analysis_report(
     dimension_errors_count = len(dimension_errors) if dimension_errors else 0
     forcing_errors_count = len(forcing_errors) if forcing_errors else 0
     nlayer_limit_errors_count = len(nlayer_limit_errors) if nlayer_limit_errors else 0
+    forcing_warnings_count = len(forcing_warnings) if forcing_warnings else 0
 
     # ACTION NEEDED section - critical/urgent parameters, dimension errors, forcing errors, AND forbidden extra parameters
     # Categorise extra parameters to find forbidden ones
@@ -1941,10 +2074,20 @@ def create_analysis_report(
         or allowed_extras_count > 0
         or renamed_count > 0
         or nlayer_limit_errors_count > 0
+        or forcing_warnings_count > 0
     )
 
     if has_no_action_items:
         report_lines.append("## NO ACTION NEEDED")
+
+        # Forcing supplied at runtime (explicit null forcing.file, gh#1722)
+        if forcing_warnings_count > 0:
+            report_lines.append(
+                f"- Found ({forcing_warnings_count}) forcing data warning(s):"
+            )
+            for warning_msg in forcing_warnings:
+                report_lines.append(f"-- {warning_msg}")
+            report_lines.append("")
 
         # Updated optional missing parameters
         if optional_count > 0:
@@ -2092,6 +2235,9 @@ def annotate_missing_parameters(
         if user_data and "model" in user_data and "physics" in user_data["model"]:
             physics_config = user_data["model"]["physics"]
         forcing_errors, _ = validate_forcing_data(user_file, physics=physics_config)
+    forcing_warnings = []
+    if forcing == "on" and forcing_file_is_runtime(user_data):
+        forcing_warnings.append(RUNTIME_FORCING_WARNING)
 
     user_data_no_ref = _strip_ref_blocks(user_data)
     standard_data_no_ref = _strip_ref_blocks(standard_data)
@@ -2107,6 +2253,7 @@ def annotate_missing_parameters(
         or dimension_errors
         or forcing_errors
         or nlayer_limit_errors
+        or forcing_warnings
     ):
         # If dimension errors occurred, serialize the modified user_data with padded nulls
         if dimension_errors:
@@ -2140,6 +2287,7 @@ def annotate_missing_parameters(
             dimension_errors,
             forcing_errors,
             nlayer_limit_errors,
+            forcing_warnings,
         )
     else:
         print("No missing in standard or renamed in standard parameters found!")
@@ -2147,7 +2295,7 @@ def annotate_missing_parameters(
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
         report_content = create_analysis_report(
-            [], [], [], uptodate_filename, mode, phase, [], forcing_errors, []
+            [], [], [], uptodate_filename, mode, phase, [], forcing_errors, [], []
         )
 
     # Print clean terminal output based on critical parameters, dimension errors, and forcing errors
@@ -2193,6 +2341,12 @@ def annotate_missing_parameters(
     else:
         print("PHASE A -- PASSED")
 
+    if forcing_warnings:
+        print("Warning: forcing data supplied at runtime:")
+        for warning_msg in forcing_warnings:
+            print(f"  - {warning_msg}")
+        print("")
+
     if nlayer_limit_errors:
         print("Warning: NLAYERS exceeding recommended limit:")
         for path, nlayer_value, message in nlayer_limit_errors:
@@ -2226,6 +2380,7 @@ def annotate_missing_parameters(
         dimension_errors=dimension_errors,
         forcing_errors=forcing_errors,
         nlayer_limit_errors=nlayer_limit_errors,
+        forcing_warnings=forcing_warnings,
     )
     return PhaseReport(
         phase="A",
@@ -2270,6 +2425,7 @@ def _issues_from_phase_a_state(
     dimension_errors,
     forcing_errors,
     nlayer_limit_errors,
+    forcing_warnings=None,
 ):
     """Translate Phase A's accumulated lists into ``Issue`` objects.
 
@@ -2283,6 +2439,7 @@ def _issues_from_phase_a_state(
     - ``dimension_errors``: list of ``(path, expected_len, actual_len, nulls_added)``.
     - ``nlayer_limit_errors``: list of ``(path, nlayer_value, error_message)``.
     - ``forcing_errors``: list of plain message strings.
+    - ``forcing_warnings``: list of plain message strings (non-blocking).
     """
     from .report_schema import (
         Issue,
@@ -2359,6 +2516,16 @@ def _issues_from_phase_a_state(
             severity=SEVERITY_ERROR,
             code="A.FORCING",
             message=str(err_message),
+            category="FORCING",
+        ))
+
+    for warning_message in forcing_warnings or []:
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_WARNING,
+            code="A.FORCING.RUNTIME",
+            message=str(warning_message),
+            yaml_path="model.control.forcing.file",
             category="FORCING",
         ))
 

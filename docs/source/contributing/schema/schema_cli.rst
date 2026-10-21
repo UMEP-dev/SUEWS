@@ -84,7 +84,7 @@ Check or update schema versions in configuration files.
 
 - ``--update, -u``: Update schema version in files
 - ``--target-version``: Target version for update (default: current)
-- ``--backup, -b``: Create backup before updating (default: true)
+- ``--backup/--no-backup, -b``: Keep a timestamped copy (``<name>.backup-YYYYMMDD-HHMMSS.yml``) of each file before updating it (default: ``--backup``)
 
 migrate
 ~~~~~~~
@@ -115,8 +115,9 @@ Migrate configuration files between schema versions.
 
 - ``--target-version``: Target schema version (default: current)
 - ``--output-dir, -o``: Output directory for migrated files
-- ``--backup, -b``: Keep original files (default: true)
 - ``--dry-run, -n``: Show what would be done without doing it
+
+The input files are never modified: each migrated copy is written next to its original as ``<name>.migrated.yml``, or into ``--output-dir``.
 
 export
 ~~~~~~
@@ -307,6 +308,6 @@ Try step-by-step migration if jumping multiple versions:
 See Also
 --------
 
-- :ref:`yaml_config` - YAML configuration documentation
+- :ref:`yaml_config_reference` - YAML configuration documentation
 - :ref:`schema_versioning` - Schema versioning details
 - :ref:`validation` - Configuration validation guide

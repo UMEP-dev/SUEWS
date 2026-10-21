@@ -137,18 +137,10 @@ Group Details
 
       **Timestamp Convention for DailyState**
 
-      DailyState uses a different timestamp labelling convention than other output
-      groups to improve readability. While other groups label timestamps with the
-      END of each period (e.g., data for January 1st labelled as "Jan 2 00:00"),
-      DailyState labels with the START of each day (e.g., data for January 1st
-      labelled as "Jan 1").
-
-      This means the row labelled "2012-01-15" in DailyState contains the model
-      state at the end of January 15th, making the output more intuitive to read.
-
-      When combining DailyState with other groups (e.g., using
-      :meth:`SUEWSOutput.resample() <supy.SUEWSOutput.resample>`), the date
-      ranges may differ by one day at the boundaries.
+      DailyState labels each day by its start, unlike the other output groups,
+      which label every period by its end: the row labelled "2012-01-15" holds
+      the model state at the end of 15 January. See
+      :ref:`timestamp_convention`.
 
 .. _output-snow:
 
@@ -178,7 +170,7 @@ Group Details
 
    - Boundary layer height
    - Mixed layer properties
-   - Entrainment fluxes
+   - Conditions just above the boundary-layer top
 
    Created for each day with the CBL model timestep.
 
@@ -196,12 +188,13 @@ Group Details
    *Temperature Layers (5 layers each):*
       - **Twall1-5**: Wall temperatures (outer to inner layer)
       - **Troof1-5**: Roof temperatures (outer to inner layer)
-      - **Tground1-5**: Ground temperatures (outer to inner layer)
+      - **Tground1-5**: Ground temperatures (uppermost to deepest layer)
       - **Tibld1-5**: Internal building element temperatures
 
    *Key Variables:*
       - **Tabld**: Indoor air temperature
-      - **QSnet**: Net storage heat flux
+      - **QSnet**: Storage heat flux, the sum of the wall, roof, ground and
+        internal-element fluxes (excludes the outdoor-air term QSair)
       - **QSwall/QSroof/QSground**: Component-specific storage fluxes
 
    .. note::
@@ -265,7 +258,7 @@ Legacy Features (Deprecated)
 .. deprecated:: 2025.10.15
 
    The features in this section are deprecated and retained for backwards
-   compatibility only. Use the YAML-based :ref:`OutputConfig <outputconfig>` instead.
+   compatibility only. Use the YAML-based :ref:`OutputControl <outputcontrol>` instead.
 
 Legacy Supplementary Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

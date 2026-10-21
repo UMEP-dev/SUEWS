@@ -6742,11 +6742,12 @@
       "type": "object"
     },
     "KdownSplitMethod": {
-      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid\n2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction\n3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach",
+      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid\n2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction\n3: PEREZ - Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction\n4: REINDL - Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
       "enum": [
         1,
         2,
-        3
+        3,
+        4
       ],
       "title": "KdownSplitMethod",
       "type": "integer"
@@ -7168,7 +7169,7 @@
             }
           ],
           "default": null,
-          "description": "Start of the model run as a calendar date (YYYY-MM-DD). Forcing rows are stamped at the end of each interval, so the run starts with the first row after that day's midnight. The forcing must cover the requested period; see SUEWSSimulation.run. If None use forcing data bounds.",
+          "description": "Start of the model run: a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM). A forcing row stamped t covers (t - dt, t], and a run always covers a left-open, right-closed period. A date D1 starts it at D1 00:00, so the first row is D1 00:00 + dt; a timestamp t1 names a row and includes it, so the period starts at t1 - dt. See :ref:`timestamp_convention`. The forcing must cover the requested period. If None use forcing data bounds.",
           "title": "Start Time"
         },
         "end_time": {
@@ -7181,7 +7182,7 @@
             }
           ],
           "default": null,
-          "description": "End of the model run as a calendar date (YYYY-MM-DD), inclusive of the whole day, i.e. up to and including the row stamped at the following midnight. The forcing must cover the requested period; see SUEWSSimulation.run. If None use forcing data bounds.",
+          "description": "End of the model run: a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM). A date D2 runs the whole day (D2 00:00, D2+1 00:00], up to and including the row stamped D2+1 00:00; a timestamp t2 names a row and includes it. Date bounds give the period (D1 00:00, D2+1 00:00] and timestamp bounds give (t1 - dt, t2]. See :ref:`timestamp_convention`. The forcing must cover the requested period. If None use forcing data bounds.",
           "title": "End Time"
         },
         "ref": {
@@ -7216,7 +7217,7 @@
             "snow_use"
           ],
           "description": "Method for calculating net all-wave radiation (Q*). Options: 0 (OBSERVED) = Uses observed Q* values from forcing file; 1 (LDOWN_OBSERVED) = Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L\u2193) from forcing file; 2 (LDOWN_CLOUD) = Models Q* using NARP with L\u2193 estimated from cloud cover fraction; 3 (LDOWN_AIR) = Models Q* using NARP with L\u2193 estimated from air temperature and relative humidity; 11 (LDOWN_SURFACE) = Surface temperature variant of method 1 (not recommended); 12 (LDOWN_CLOUD_SURFACE) = Surface temperature variant of method 2 (not recommended); 13 (LDOWN_AIR_SURFACE) = Surface temperature variant of method 3 (not recommended); 100 (LDOWN_ZENITH) = Zenith angle correction variant of method 1 (not recommended); 200 (LDOWN_CLOUD_ZENITH) = Zenith angle correction variant of method 2 (not recommended); 300 (LDOWN_AIR_ZENITH) = Zenith angle correction variant of method 3 (not recommended); 1001 (LDOWN_SS_OBSERVED) = SPARTACUS-Surface integration with observed L\u2193 (experimental); 1002 (LDOWN_SS_CLOUD) = SPARTACUS-Surface integration with L\u2193 from cloud fraction (experimental); 1003 (LDOWN_SS_AIR) = SPARTACUS-Surface integration with L\u2193 from air temperature/humidity (experimental)",
-          "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by EHC (5) and STEBBS (7) storage heat.",
+          "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by STEBBS (7) storage heat; EHC (5) uses it to resolve roof and wall facets and otherwise lumps all land covers into one plan-area slab.",
           "provides_to": [
             "storage_heat"
           ],
@@ -7236,7 +7237,7 @@
           "depends_on": [
             "net_radiation"
           ],
-          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (EPW) = Uses the pressure-corrected DISC/static-DIRINT approach",
+          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with Perez fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (PEREZ) = Uses Perez et al. (1992), pressure-corrected DISC with static DIRINT correction; 4 (REINDL) = Uses the Reindl et al. (1990) diffuse-fraction correlation implemented in BEERS",
           "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
           "title": "Kdown Split Method",
           "unit": "dimensionless"
@@ -9530,7 +9531,7 @@
               "type": "number"
             }
           ],
-          "default": 1.0,
+          "default": 0.0,
           "description": "Flag to use direct albedo for shortwave radiation",
           "display_name": "Use Sw Direct Albedo",
           "title": "Use Sw Direct Albedo",
@@ -13401,7 +13402,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev4. Development schema adding STEBBS internal_shading, reduction_factor_shading, temperature_threshold_shading, radiation_threshold_shading, destination_waste_heat and fraction_convective_heating inputs. Defaults disable shading, retain space-heating waste heat indoors and deliver all useful heating to indoor air. Existing 2026.6.dev3 YAMLs remain compatible through a no-op content migration that preserves explicit settings.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev5. Development schema renaming the model.physics.kdown_split_method text selector from epw to perez (#1832). The migration rewrites bare and RefValue-wrapped selectors while preserving reference metadata. Numeric option 3 and its default calculation are unchanged. The optional reindl selector (option 4) adds no required inputs.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13454,20 +13455,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev4",
+  "title": "SUEWS Configuration Schema v2026.6.dev5",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev4.json",
-  "version": "2026.6.dev4",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev5.json",
+  "version": "2026.6.dev5",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev4"
+    "schema_version": "2026.6.dev5"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev4",
+      "schema_version": "2026.6.dev5",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

@@ -30,7 +30,11 @@ validated. Output contract `1.1.0` adds the supported saved-output timestamp
 references, with `follow` retaining the forcing clock by default. Output
 contract `1.1.1` corrects the descriptions of `Drainage`, `ROSoil`, `ROImp`,
 `ROVeg` and `ROWater` to match what the kernel computes, leaving every name,
-unit, group and layout unchanged. A group is covered when that group is
+unit, group and layout unchanged. Output contract `1.1.2` corrects further
+descriptions found to disagree with the kernel, among them `flag_RSL`, the RSL
+profiles, the BEERS sunlit fractions and the DailyState water use and OHM
+coefficients, and the units of `beta`, `DecidCap` and the DailyState water use,
+leaving every name, group, aggregation and layout unchanged. A group is covered when that group is
 present; the contract does not promise that every optional group is emitted by
 every run.
 

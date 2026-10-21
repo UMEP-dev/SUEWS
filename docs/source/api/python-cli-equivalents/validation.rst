@@ -8,7 +8,7 @@ CLI Command
 
 .. code-block:: bash
 
-    suews-validate config.yml
+    suews validate config.yml
 
 Python Equivalent (Simple Validation)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

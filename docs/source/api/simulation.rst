@@ -15,7 +15,7 @@ Key Features
 - **Forcing Management**: Load single files, lists of files, or DataFrames
 - **Checkpoint Restarts**: Continue YAML-based runs from typed checkpoint JSON
 - **Simple API**: Clean interface focused on essential functionality
-- **Format Support**: Save results in txt or parquet formats via OutputConfig
+- **Format Support**: Save results in txt or parquet formats via OutputControl (``model.control.output``)
 
 For usage examples and tutorials, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
 
@@ -171,11 +171,6 @@ Related Documentation
 ---------------------
 
 - :doc:`/sub-tutorials/suews-simulation-tutorial` - Comprehensive tutorial with examples
-
-.. only:: dts_available
-
-   - :doc:`dts` - DTS backend for performance-optimised execution
-
 - :doc:`/inputs/yaml/index` - YAML configuration guide
 - :ref:`suews_checkpoint` - Typed checkpoint restart artefact
 - :doc:`/data-structures/df_forcing` - Forcing data format

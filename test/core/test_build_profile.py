@@ -57,3 +57,25 @@ def test_release_profile_forces_debug_off(run_make):
     # An empty command-line DEBUG reaches the Makefile's ``ifndef DEBUG`` as
     # undefined and overrides its ``DEBUG ?= 1`` default.
     assert run_make.make_args_for_profile("release") == ["DEBUG="]
+
+
+def test_make_jobs_default_is_capped_cpu_count(run_make):
+    assert run_make.make_jobs_from_env({}, cpu_count=4) == 4
+    assert run_make.make_jobs_from_env({}, cpu_count=64) == (
+        run_make.MAX_DEFAULT_MAKE_JOBS
+    )
+    # os.cpu_count() may return None
+    assert run_make.make_jobs_from_env({}, cpu_count=None) >= 1
+
+
+def test_make_jobs_env_override(run_make):
+    env = {"SUEWS_MAKE_JOBS": " 1 "}
+    assert run_make.make_jobs_from_env(env, cpu_count=16) == 1
+    env = {"SUEWS_MAKE_JOBS": "32"}
+    assert run_make.make_jobs_from_env(env, cpu_count=4) == 32
+
+
+@pytest.mark.parametrize("raw", ["0", "-2", "many"])
+def test_make_jobs_rejects_invalid_override(run_make, raw):
+    with pytest.raises(SystemExit, match="SUEWS_MAKE_JOBS must be a positive"):
+        run_make.make_jobs_from_env({"SUEWS_MAKE_JOBS": raw})

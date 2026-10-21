@@ -8,15 +8,25 @@ the coupling is pinned here.
 
 from __future__ import annotations
 
-import pytest
+from pathlib import Path
 
+import pytest
+import yaml
+
+from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.human_activity import (
+    AnthropogenicEmissions,
+    IrrigationParams,
+)
+from supy.data_model.core.hydro import WaterDistribution
 from supy.data_model.core.site import (
     Conductance,
     DectrProperties,
     EvetrProperties,
     LAIParams,
+    StebbsProperties,
 )
-from supy.data_model.core.surface import BldgsProperties
+from supy.data_model.core.surface import BldgsProperties, ThermalLayers
 from supy.data_model.validation.required_fields import (
     BUILDING_REQUIRED,
     BUILDING_REQUIRED_PROVIDED_FAI,
@@ -24,10 +34,14 @@ from supy.data_model.validation.required_fields import (
     DECIDUOUS_REQUIRED,
     DECIDUOUS_REQUIRED_PROVIDED_FAI,
     DOC_REQUIRED_WHEN,
+    DYOHM_BUILDING_LAYERS_REQUIRED,
     EVERGREEN_REQUIRED,
     EVERGREEN_REQUIRED_PROVIDED_FAI,
     LAI_CALCULATED_ONLY_REQUIRED,
     LAI_REQUIRED,
+    RSL_VARIABLE_BLDGS_REQUIRED,
+    STEBBS_SHADING_REQUIRED_MODES,
+    WATER_DISTRIBUTION_REQUIRED,
     required_when,
 )
 
@@ -39,6 +53,22 @@ MODELS = {
     "BldgsProperties": BldgsProperties,
     "EvetrProperties": EvetrProperties,
     "DectrProperties": DectrProperties,
+    "AnthropogenicEmissions": AnthropogenicEmissions,
+    "ThermalLayers": ThermalLayers,
+    "StebbsProperties": StebbsProperties,
+    "IrrigationParams": IrrigationParams,
+    "WaterDistribution": WaterDistribution,
+}
+
+# Field lists the validators consume, keyed by the model that declares them.
+# A field added to any of these must also be described in DOC_REQUIRED_WHEN.
+RULE_FIELDS_BY_MODEL = {
+    "BldgsProperties": RSL_VARIABLE_BLDGS_REQUIRED,
+    "ThermalLayers": DYOHM_BUILDING_LAYERS_REQUIRED,
+    "StebbsProperties": tuple(STEBBS_SHADING_REQUIRED_MODES),
+    "WaterDistribution": tuple(
+        {field for fields in WATER_DISTRIBUTION_REQUIRED.values() for field in fields}
+    ),
 }
 
 ALL_TABLES = (
@@ -189,6 +219,59 @@ def test_every_required_field_has_a_documented_condition() -> None:
     assert not undocumented
 
 
+def test_every_physics_rule_field_has_a_documented_condition() -> None:
+    """Fields the physics-dependent validators demand are described on their model."""
+    # ARRANGE / ACT
+    undocumented = [
+        f"{model_name}.{field}"
+        for model_name, fields in RULE_FIELDS_BY_MODEL.items()
+        for field in fields
+        if field not in DOC_REQUIRED_WHEN.get(model_name, {})
+    ]
+
+    # ASSERT
+    assert not undocumented
+
+
+@pytest.mark.parametrize(
+    ("model_name", "field", "option"),
+    [
+        ("LAIParams", "gdd_full", "``model.physics.laimethod``"),
+        ("BldgsProperties", "faibldg", "``model.physics.frontal_area_index``"),
+        ("BldgsProperties", "faibldg", "``model.physics.roughness_sublayer``"),
+        ("ThermalLayers", "dz", "``model.physics.storage_heat``"),
+        ("StebbsProperties", "reduction_factor_shading", "``internal_shading``"),
+    ],
+)
+def test_physics_conditions_name_their_option(
+    model_name: str, field: str, option: str
+) -> None:
+    """A physics-dependent condition names the option that triggers it."""
+    # ARRANGE / ACT / ASSERT
+    assert option in required_when(model_name, field)
+
+
+def test_water_distribution_conditions_name_the_right_surfaces() -> None:
+    """Each destination's condition lists exactly the surfaces that need it."""
+    # ARRANGE / ACT / ASSERT
+    for surface, fields in WATER_DISTRIBUTION_REQUIRED.items():
+        for field in WaterDistribution.model_fields:
+            if not field.startswith("to_"):
+                continue
+            named = f"``{surface}``" in required_when("WaterDistribution", field)
+            assert named == (field in fields), (surface, field)
+
+
+def test_shading_conditions_follow_the_shared_modes() -> None:
+    """Documented shading modes are the ones the validators enforce."""
+    # ARRANGE / ACT / ASSERT
+    for field, modes in STEBBS_SHADING_REQUIRED_MODES.items():
+        condition = required_when("StebbsProperties", field)
+        assert condition.startswith(
+            "``internal_shading`` is " + " or ".join(f"``{m}``" for m in modes) + ";"
+        )
+
+
 def test_message_strings_are_frozen() -> None:
     """Pin every user-facing annotated-YAML message and fix string."""
     # ARRANGE
@@ -211,10 +294,50 @@ def test_message_strings_are_frozen() -> None:
 def test_required_when_returns_condition_or_empty() -> None:
     """The generator lookup answers for known fields and declines otherwise."""
     # ARRANGE / ACT / ASSERT
-    assert "modelled rather than observed" in required_when(
+    assert "``model.physics.laimethod`` is ``1`` (MODELLED)" in required_when(
         "LAIParams", "base_temperature_senescence"
     )
-    assert required_when("BldgsProperties", "bldgh") == "buildings are present"
+    assert required_when("BldgsProperties", "bldgh").startswith(
+        "buildings are present"
+    )
     # store_cap is in no validator, so nothing may be claimed about it.
     assert not required_when("StorageDrainParams", "store_cap")
     assert not required_when("LAIParams", "not_a_field")
+
+
+def _load_config(path_yaml: Path, clock: str, **dls: float) -> SUEWSConfig:
+    """Load a configuration through the public YAML path."""
+    config = {
+        "sites": [{"properties": {"anthropogenic_emissions": dls}}],
+        "model": {"control": {"output": {"timestamp_reference": clock}}},
+    }
+    path_yaml.write_text(yaml.safe_dump(config), encoding="utf-8")
+    return SUEWSConfig.from_yaml(str(path_yaml))
+
+
+@pytest.mark.parametrize(
+    ("missing", "given"), [("startdls", "enddls"), ("enddls", "startdls")]
+)
+def test_documented_dls_condition_matches_validator(
+    missing: str, given: str, tmp_path: Path
+) -> None:
+    """The documented DLS conditions are the ones the validator enforces."""
+    # ARRANGE
+    path_yaml = tmp_path / "config.yml"
+    window = {"startdls": 86.0, "enddls": 303.0}
+    condition = required_when("AnthropogenicEmissions", missing)
+
+    # ACT / ASSERT - the daylight output clock needs the whole window ...
+    assert "timestamp_reference: daylight" in condition
+    with pytest.raises(ValueError, match="timestamp_reference='daylight' requires"):
+        _load_config(path_yaml, "daylight", **{given: window[given]})
+    _load_config(path_yaml, "daylight", **window)
+
+    # ... and so does giving the other end, whatever the clock ...
+    assert f"``{given}`` is given" in condition
+    with pytest.raises(ValueError, match="must both be set or both be None"):
+        _load_config(path_yaml, "follow", **{given: window[given]})
+
+    # ... but otherwise the window may be omitted.
+    _load_config(path_yaml, "follow")
+    _load_config(path_yaml, "utc")

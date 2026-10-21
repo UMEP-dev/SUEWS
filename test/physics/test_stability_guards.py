@@ -1,0 +1,190 @@
+"""Kernel stability dispatch must never return unassigned results (GH#1783/1784)."""
+
+import copy
+import gzip
+from importlib import import_module
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+from conftest import TIMESTEPS_PER_DAY
+import numpy as np
+import pandas as pd
+import pytest
+
+import supy as sp
+
+pytestmark = pytest.mark.physics
+
+
+@pytest.fixture(scope="module")
+def stability_probe(tmp_path_factory):
+    """Call the actual Fortran selectors, including their thread-local errors."""
+    compiler = shutil.which("gfortran")
+    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
+    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
+        pytest.skip("Native checks need gfortran and source-build libraries; run tests cover wheels")
+    try:
+        with gzip.open(suews / "mod" / "module_phys_atmmoiststab.mod", "rb") as stream:
+            is_gnu = stream.readline().startswith(b"GFORTRAN")
+    except gzip.BadGzipFile:
+        is_gnu = False
+    if not is_gnu:
+        pytest.skip("Native harness needs GNU Fortran modules")
+    directory = tmp_path_factory.mktemp("stability")
+    source = directory / "probe.f95"
+    source.write_text(
+        """program probe
+use module_phys_atmmoiststab
+use module_ctrl_error_state, only: reset_supy_error, get_supy_error
+implicit none
+integer :: method, selector, code, status
+real(kind(1d0)) :: zeta, value
+character(len=512) :: message
+do
+  read(*, *, iostat=status) method, selector, zeta
+  if (status /= 0) exit
+  call reset_supy_error()
+  select case(selector)
+  case(1)
+    value = stab_psi_mom(method, zeta)
+  case(2)
+    value = stab_psi_heat(method, zeta)
+  case(3)
+    value = stab_phi_mom(method, zeta)
+  case(4)
+    value = stab_phi_heat(method, zeta)
+  end select
+  call get_supy_error(code, message)
+  write(*, '(ES24.16,1X,I0)') value, code
+  write(*, '(A)') trim(message)
+end do
+end program
+""",
+        encoding="ascii",
+    )
+    executable = directory / "probe"
+    compiled = subprocess.run(
+        [compiler, str(source), "-I", str(suews / "mod"),
+         "-L", str(suews / "lib"), "-lsuewsphys", "-lsuewsutil",
+         "-lspartacus", "-fopenmp", "-o", str(executable)],
+        check=False, capture_output=True, text=True,
+    )
+    assert compiled.returncode == 0, compiled.stderr
+
+    def run(method, selector, zeta):
+        result = subprocess.run(
+            [str(executable)], input=f"{method} {selector} {zeta}\n",
+            check=True, capture_output=True, text=True,
+        )
+        lines = result.stdout.splitlines()
+        value, code = lines[0].split()
+        return float(value), int(code), lines[1].strip()
+
+    return run
+
+
+@pytest.mark.parametrize("method", [0, 1, -1, -999, 99])
+@pytest.mark.parametrize("selector", [1, 2, 3, 4])
+def test_reserved_and_unknown_kernel_codes_fail(stability_probe, method, selector):
+    value, code, message = stability_probe(method, selector, -0.1)
+    assert code == 107
+    assert f"stability={method} is reserved or unsupported" in message
+    recommendation = "3 (recommended), 2 or 4" if selector <= 2 else "3 (recommended) or 4"
+    assert message.endswith(f"use {recommendation}.")
+    assert value == (0.0 if selector <= 2 else 1.0)
+
+
+@pytest.mark.parametrize("method", [3, 4, 5])
+@pytest.mark.parametrize("selector", [1, 2, 3, 4])
+@pytest.mark.parametrize("zeta", [-0.1, 0.0, 0.1])
+def test_implemented_kernel_methods_remain_finite(stability_probe, method, selector, zeta):
+    value, code, message = stability_probe(method, selector, zeta)
+    assert code == 0, message
+    assert np.isfinite(value)
+    if zeta == 0:
+        assert value == (0.0 if selector <= 2 else 1.0)
+
+
+@pytest.fixture(scope="module")
+def bridge_inputs(sample_config_loaded, sample_data_loaded):
+    """Use the direct bridge's mapping input, which bypasses Pydantic."""
+    run_rust = import_module("supy._run_rust")
+    _, forcing = sample_data_loaded
+    forcing = forcing.iloc[:2]
+    return (
+        run_rust._check_rust_available(),
+        sample_config_loaded.model_dump(exclude_none=True, mode="json"),
+        run_rust._prepare_forcing_block(forcing).ravel(order="C").tolist(),
+        len(forcing),
+    )
+
+
+@pytest.mark.parametrize("method", [0, 1, -1, -999, 99])
+def test_unchecked_mapping_reports_kernel_error(method, bridge_inputs):
+    """Direct bridge callers also receive GH#1783's fatal kernel error."""
+    rust, config, forcing, n_steps = bridge_inputs
+    config = copy.deepcopy(config)
+    config["model"]["physics"]["stability"] = {"value": method}
+    with pytest.raises(RuntimeError, match=f"stability={method} is reserved or unsupported") as error:
+        rust.run_suews_multi([json.dumps(config)], forcing, n_steps, 1)
+    assert "(code 107)" in str(error.value)
+
+
+@pytest.mark.parametrize("selector", [1, 2, 3, 4])
+@pytest.mark.parametrize("zeta", [-0.1, 0.0, 0.1])
+def test_w16_psi_runs_but_phi_fails_explicitly(stability_probe, selector, zeta):
+    """W16's implemented integral forms remain usable outside the RSL path."""
+    value, code, message = stability_probe(2, selector, zeta)
+    assert np.isfinite(value)
+    if selector <= 2:
+        assert code == 0, message
+    else:
+        assert code == 108
+        assert "stability=2 (W16) has no phi implementation for RSL" in message
+        assert "roughness_sublayer=0 (MOST)" in message
+        assert value == 1.0
+
+
+@pytest.mark.parametrize("method", [2, 3, 4])
+@pytest.mark.parametrize("rsl", [0, 1, 2])
+def test_stability_profile_combinations(method, rsl, sample_config_loaded, sample_data_loaded):
+    """The public API refuses W16/RSL and retains finite working profiles."""
+    config = sample_config_loaded.model_copy(deep=True)
+    config.model.physics.stability = method
+    config.model.physics.roughness_sublayer = rsl
+    _, forcing = sample_data_loaded
+    forcing = forcing.iloc[:TIMESTEPS_PER_DAY]
+    simulation = sp.SUEWSSimulation()
+    simulation.update_config(config, auto_load_forcing=False)
+    simulation.update_forcing(forcing)
+    run_options = dict(start_date=forcing.index[0], end_date=forcing.index[-1], n_jobs=1)
+
+    if method == 2 and rsl != 0:
+        with pytest.raises(RuntimeError, match="has no phi implementation for RSL") as error:
+            simulation.run(**run_options)
+        assert "(code 108)" in str(error.value)
+    else:
+        output = simulation.run(**run_options).df
+        diagnostics = output.loc[:, ("SUEWS", ["T2", "RH2", "Q2", "U10"])]
+        assert len(diagnostics) == len(forcing)
+        assert np.isfinite(diagnostics.to_numpy(dtype=float)).all()
+        if method == 2 and rsl == 0:
+            # Pre-guard origin/master: 2ffde7377024d58f5c3e46e61beea7c8164fdc7a.
+            # Same sample config, first 288 forcing rows, stability=2,
+            # roughness_sublayer=0 and n_jobs=1; see fixture provenance.
+            path_reference = Path(__file__).resolve().parents[1] / "fixtures" / "w16_most.csv"
+            df_expected = pd.read_csv(
+                path_reference, index_col=[0, 1], parse_dates=[1], float_precision="round_trip",
+            )
+            df_actual = output["SUEWS"][["QH", "QE", "T2", "U10"]]
+            pd.testing.assert_index_equal(df_actual.index, df_expected.index)
+            pd.testing.assert_index_equal(df_actual.columns, df_expected.columns, check_names=False)
+            # Numerical-noise allowance, much smaller than observational
+            # uncertainty; this guards unchanged equations, not physical skill.
+            np.testing.assert_allclose(
+                df_actual.to_numpy(dtype=float), df_expected.to_numpy(dtype=float),
+                rtol=1e-7, atol=1e-8, equal_nan=False,
+                err_msg="W16/MOST changed from the pre-guard master baseline",
+            )

@@ -43,6 +43,7 @@ from ..core.yaml_helpers import (
     get_stebbsmethod_value as _get_stebbsmethod_value,
     HAS_TIMEZONE_FINDER,
     load_user_yaml_normalised,
+    parse_simulation_bounds,
 )
 from ...core.field_renames import normalise_yaml_renames
 
@@ -336,7 +337,7 @@ def validate_phase_b_inputs(
 
 def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     """
-    Extracts simulation parameters for validation from a nested YAML data dictionary.
+    Extract model year, start date, and end date from YAML configuration.
 
     Parameters
     ----------
@@ -349,52 +350,24 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     Tuple[int, str, str]
         A tuple containing:
             - model_year (int): The year extracted from 'start_time'.
-            - start_date (str): The simulation start date in 'YYYY-MM-DD' format.
-            - end_date (str): The simulation end date in 'YYYY-MM-DD' format.
+            - start_date (str): The calendar day of 'start_time' as 'YYYY-MM-DD'.
+            - end_date (str): The calendar day of 'end_time' as 'YYYY-MM-DD'.
 
     Raises
     ------
     ValueError
-        If 'start_time' or 'end_time' are missing or not in the expected 'YYYY-MM-DD' format,
-        or if the model year cannot be extracted from 'start_time'.
+        If 'start_time' or 'end_time' is missing or is neither a date
+        (YYYY-MM-DD) nor a timestamp (YYYY-MM-DD HH:MM).
 
     Notes
     -----
-    All validation errors are collected and reported together in the exception message.
+    All validation errors are collected and reported together in the exception
+    message. A timestamp bound is reduced to its calendar day here, because the
+    seasonal and climatological adjustments only need the day.
     """
-    control = yaml_data.get("model", {}).get("control", {})
-
-    start_date = control.get("start_time")
-    end_date = control.get("end_time")
-
-    # Collect all validation errors instead of failing on first error
-    errors = []
-
-    if not isinstance(start_date, str) or "-" not in str(start_date):
-        errors.append(
-            "Missing or invalid 'start_time' in model.control - must be in 'YYYY-MM-DD' format"
-        )
-
-    if not isinstance(end_date, str) or "-" not in str(end_date):
-        errors.append(
-            "Missing or invalid 'end_time' in model.control - must be in 'YYYY-MM-DD' format"
-        )
-
-    # Try to extract model year if start_date looks valid
-    model_year = None
-    if isinstance(start_date, str) and "-" in str(start_date):
-        try:
-            model_year = int(start_date.split("-")[0])
-        except Exception:
-            errors.append(
-                "Could not extract model year from 'start_time' - ensure 'YYYY-MM-DD' format"
-            )
-
-    # If we have errors, combine them into a single error message
+    errors, model_year, start_date, end_date = parse_simulation_bounds(yaml_data)
     if errors:
-        error_msg = "; ".join(errors)
-        raise ValueError(error_msg)
-
+        raise ValueError("; ".join(errors))
     return model_year, start_date, end_date
 
 

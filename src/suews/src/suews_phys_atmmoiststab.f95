@@ -3,6 +3,7 @@ MODULE module_phys_atmmoiststab
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
    USE module_ctrl_const_physconst, ONLY: eps_fp
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
@@ -140,13 +141,13 @@ CONTAINS
       dq = spec_hum_def(vpd_hPa, Press_hPa) !Specific humidity deficit in g/kg
 
       !Vap density or absolute humidity         (kg/m3)
-      vap_dens = (Ea_hPa*100/((Temp_C + 273.16)*gas_ct_wv))
+      vap_dens = (Ea_hPa*100/((Temp_C + 273.15)*gas_ct_wv))
 
       !density Dry Air Beer(1990)        kg/m3
-      dens_dry = ((Press_hPa - Ea_hPa)*100)/(gas_ct_dry*(273.16 + Temp_C))
+      dens_dry = ((Press_hPa - Ea_hPa)*100)/(gas_ct_dry*(273.15 + Temp_C))
 
       !Air density in kg/m3
-      air_dens = (Press_hPa*100)/(gas_ct_dry*(Temp_C + 273.16))
+      air_dens = (Press_hPa*100)/(gas_ct_dry*(Temp_C + 273.15))
 
       !Calculate specific heat capacity in J kg-1 K-1
       avcp = spec_heat_beer(Temp_C, avRh, vap_dens, dens_dry)
@@ -235,7 +236,7 @@ CONTAINS
       H_init = QH_init/(avdens*avcp)
 
       IF (debug) WRITE (*, *) StabilityMethod, z0m, avU1, H_init, UStar, L_MOD
-      G_T_K = (Grav/(Temp_C + 273.16))*k !gravity constant/(Temperature*Von Karman Constant)
+      G_T_K = (Grav/(Temp_C + 273.15))*k !gravity constant/(Temperature*Von Karman Constant)
       KUZ = k*AvU1 !Von Karman constant*mean wind speed
       IF (zzd < 0) THEN
          CALL ErrorHint(32, &
@@ -383,6 +384,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: zl, psim
       INTEGER :: StabilityMethod
+      CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
       CASE (W16)
@@ -397,6 +399,13 @@ CONTAINS
       CASE (B71)
          psim = psi_mom_B71(ZL)
 
+      CASE DEFAULT
+         WRITE (message, '(A,I0,A)') 'stab_psi_mom: stability=', StabilityMethod, &
+            ' is reserved or unsupported; use 3 (recommended), 2 or 4.'
+         CALL set_supy_error(107, TRIM(message))
+         ! Neutral value keeps callers finite until the driver reports the error.
+         psim = 0.0D0
+         RETURN
       END SELECT
 
    END FUNCTION
@@ -407,6 +416,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: zl, psih
       INTEGER :: StabilityMethod
+      CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
       CASE (W16)
@@ -421,6 +431,13 @@ CONTAINS
       CASE (B71)
          psih = psi_heat_B71(ZL)
 
+      CASE DEFAULT
+         WRITE (message, '(A,I0,A)') 'stab_psi_heat: stability=', StabilityMethod, &
+            ' is reserved or unsupported; use 3 (recommended), 2 or 4.'
+         CALL set_supy_error(107, TRIM(message))
+         ! Neutral value keeps callers finite until the driver reports the error.
+         psih = 0.0D0
+         RETURN
       END SELECT
 
    END FUNCTION
@@ -431,8 +448,17 @@ CONTAINS
 
       REAL(KIND(1D0)) :: zl, phim
       INTEGER :: StabilityMethod
+      CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
+      CASE (W16)
+         ! W16 only has psi forms; its RSL phi formulation needs review (GH#1784).
+         CALL set_supy_error(108, &
+            'stab_phi_mom: stability=2 (W16) has no phi implementation for RSL; ' // &
+            'use stability=3 or 4, or roughness_sublayer=0 (MOST).')
+         phim = 1.0D0
+         RETURN
+
       CASE (J12)
          phim = phi_mom_J12(zl)
 
@@ -442,6 +468,13 @@ CONTAINS
       CASE (B71)
          phim = phi_mom_B71(zl)
 
+      CASE DEFAULT
+         WRITE (message, '(A,I0,A)') 'stab_phi_mom: stability=', StabilityMethod, &
+            ' is reserved or unsupported; use 3 (recommended) or 4.'
+         CALL set_supy_error(107, TRIM(message))
+         ! Neutral value keeps callers finite until the driver reports the error.
+         phim = 1.0D0
+         RETURN
       END SELECT
 
    END FUNCTION
@@ -452,8 +485,17 @@ CONTAINS
 
       REAL(KIND(1D0)) :: zl, phih
       INTEGER :: StabilityMethod
+      CHARACTER(LEN=160) :: message
 
       SELECT CASE (StabilityMethod)
+      CASE (W16)
+         ! W16 only has psi forms; its RSL phi formulation needs review (GH#1784).
+         CALL set_supy_error(108, &
+            'stab_phi_heat: stability=2 (W16) has no phi implementation for RSL; ' // &
+            'use stability=3 or 4, or roughness_sublayer=0 (MOST).')
+         phih = 1.0D0
+         RETURN
+
       CASE (J12)
          phih = phi_heat_J12(zl)
 
@@ -463,6 +505,13 @@ CONTAINS
       CASE (B71)
          phih = phi_heat_B71(zl)
 
+      CASE DEFAULT
+         WRITE (message, '(A,I0,A)') 'stab_phi_heat: stability=', StabilityMethod, &
+            ' is reserved or unsupported; use 3 (recommended) or 4.'
+         CALL set_supy_error(107, TRIM(message))
+         ! Neutral value keeps callers finite until the driver reports the error.
+         phih = 1.0D0
+         RETURN
       END SELECT
 
    END FUNCTION

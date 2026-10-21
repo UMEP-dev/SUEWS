@@ -1,3 +1,9 @@
+---
+paths:
+  - pyproject.toml
+  - .github/workflows/**/*
+---
+
 # Dependency Safety
 
 Rules for adding, upgrading, or auditing Python dependencies.

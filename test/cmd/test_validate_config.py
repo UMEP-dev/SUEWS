@@ -1207,3 +1207,116 @@ def test_emit_pipeline_result_clears_missing_phase_yaml_paths(
     assert by_phase["B"]["yaml_out"] is None
     # No phase falsely claims the surviving final YAML as its own output.
     assert all(p["yaml_out"] != str(existing_yaml) for p in payload["phases"])
+
+
+# ---------------------------------------------------------------------------
+# Runtime forcing: explicit null forcing.file (gh#1722)
+# ---------------------------------------------------------------------------
+
+_SAMPLE_FORCING_ENTRY = "      file:\n        value: Kc_2012_data_60.txt\n"
+
+
+def _forcing_issues(tmp_path: Path) -> list:
+    payload = json.loads(
+        (tmp_path / "report_sample_config.json").read_text(encoding="utf-8")
+    )
+    return [
+        issue
+        for phase in payload["phases"]
+        for issue in phase["issues"]
+        if issue["category"] == "FORCING"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("replacement", "exit_code", "expected"),
+    [
+        ("      file: null\n", 0, [("A.FORCING.RUNTIME", "WARNING")]),
+        ("", 1, [("A.FORCING", "ERROR")]),
+    ],
+    ids=["explicit-null", "absent-key"],
+)
+def test_validate_forcing_file_null_is_a_warning(
+    tmp_path: Path, replacement: str, exit_code: int, expected: list
+) -> None:
+    """``forcing.file: null`` validates with a warning; an absent key fails."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    config_path = _copy_sample_data(tmp_path)
+    original = config_path.read_text(encoding="utf-8")
+    assert original.count(_SAMPLE_FORCING_ENTRY) == 1, "fixture forcing entry moved"
+    config_path.write_text(
+        original.replace(_SAMPLE_FORCING_ENTRY, replacement), encoding="utf-8"
+    )
+
+    result = CliRunner().invoke(validate_cli, [str(config_path)])
+
+    assert result.exit_code == exit_code, result.output
+    found = [(i["code"], i["severity"]) for i in _forcing_issues(tmp_path)]
+    assert found == expected, found
+
+
+# ---------------------------------------------------------------------------
+# model.control.start_time / end_time: timestamps and forcing coverage
+# ---------------------------------------------------------------------------
+
+
+def _validate_sample_with_bounds(
+    tmp_path: Path, start_time: str, end_time: str
+) -> Dict[str, Any]:
+    """Run the full pipeline on the sample with new bounds; return the report."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    config_path = _copy_sample_data(tmp_path)
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    payload["model"]["control"]["start_time"] = start_time
+    payload["model"]["control"]["end_time"] = end_time
+    _write_yaml(config_path, payload)
+
+    result = CliRunner().invoke(
+        validate_cli, ["--pipeline", "ABC", "--format", "json", str(config_path)]
+    )
+    envelope = json.loads(result.stdout)
+    return envelope["data"]["validation_report"]
+
+
+def _issue_messages(report: Dict[str, Any]) -> list:
+    return [issue["message"] for phase in report["phases"] for issue in phase["issues"]]
+
+
+def test_validate_accepts_timestamp_bounds(tmp_path: Path) -> None:
+    """A ``start_time`` with a time component passes Phase B (gh#1852).
+
+    The run accepts timestamp bounds, but Phase B parsed ``start_time`` with
+    ``strptime("%Y-%m-%d")`` and failed with "unconverted data remains".
+    """
+    report = _validate_sample_with_bounds(
+        tmp_path, "2012-01-01 01:00", "2012-12-31 23:00"
+    )
+    messages = _issue_messages(report)
+    assert report["overall_status"] != "FAILED", messages
+    assert not any("unconverted data" in message for message in messages)
+
+
+def test_validate_reports_forcing_not_covering_period(tmp_path: Path) -> None:
+    """``suews validate`` rejects a period the sample forcing does not cover.
+
+    The sample forcing ends at 2013-01-01 00:00, so an ``end_time`` of
+    2013-01-05 (which runs to the row stamped 2013-01-06 00:00) needs rows
+    the file does not have; ``run()`` would raise.
+    """
+    report = _validate_sample_with_bounds(tmp_path, "2012-01-01", "2013-01-05")
+    messages = _issue_messages(report)
+    assert report["overall_status"] == "FAILED"
+    assert any(
+        "does not cover model.control.start_time/end_time" in message
+        and "2013-01-06 00:00:00" in message
+        for message in messages
+    ), messages
+
+
+def test_validate_sample_period_is_covered(tmp_path: Path) -> None:
+    """The sample's date-only bounds are covered by its own forcing."""
+    report = _validate_sample_with_bounds(tmp_path, "2012-01-01", "2012-12-31")
+    messages = _issue_messages(report)
+    assert not any("does not cover" in message for message in messages), messages

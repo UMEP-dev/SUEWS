@@ -2809,7 +2809,7 @@ class SPARTACUSParams(BaseModel):
         },
     )
     use_sw_direct_albedo: FlexibleRefValue(float) = Field(
-        default=1.0,
+        default=0.0,
         description="Flag to use direct albedo for shortwave radiation",
         json_schema_extra={
             "unit": "dimensionless",

@@ -72,6 +72,10 @@ class RefValue(BaseModel, Generic[T]):
         # Reject unknown keys as ValidationError so Pydantic's union fall-through
         # can try the other branch instead of bubbling up a TypeError (gh#1303).
         extra="forbid",
+        # Validate attribute assignment so `rv.ref = {"DOI": ...}` is coerced
+        # into a Reference instead of being stored as a raw dict, which made
+        # every later dump emit PydanticSerializationUnexpectedValue (gh#1095).
+        validate_assignment=True,
     )
 
     def __new__(cls, value=_REF_VALUE_UNSET, ref=None, **data):

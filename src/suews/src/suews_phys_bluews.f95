@@ -22,7 +22,7 @@ MODULE module_phys_bluews_cbl
               nEqn = 6, & !NT changed from 4 to 6
               iCBLcount, &
               nlineInData
-   REAL(KIND(1D0)) :: C2K = 273.16
+   REAL(KIND(1D0)) :: C2K = 273.15
 
    REAL(KIND(1D0)) :: usbl, ftbl, fqbl, fcbl, gamt, gamq, gamc, tpp, qpp, cp0 !,tk
 

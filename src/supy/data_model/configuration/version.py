@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev4"
+CURRENT_SCHEMA_VERSION = "2026.6.dev5"
 
 # Schema version history and descriptions.
 #
@@ -145,6 +145,13 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "space-heating waste heat indoors and deliver all useful heating to "
         "indoor air. Existing 2026.6.dev3 YAMLs remain compatible through "
         "a no-op content migration that preserves explicit settings."
+    ),
+    "2026.6.dev5": (
+        "Development schema renaming the model.physics.kdown_split_method "
+        "text selector from epw to perez (#1832). The migration rewrites "
+        "bare and RefValue-wrapped selectors while preserving reference "
+        "metadata. Numeric option 3 and its default calculation are unchanged. "
+        "The optional reindl selector (option 4) adds no required inputs."
     ),
 }
 

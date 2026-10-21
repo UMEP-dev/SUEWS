@@ -39,7 +39,8 @@ MODULE module_phys_spartacus
    USE module_ctrl_const_allocate, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
    USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
-   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
+   USE module_phys_beers, ONLY: diffusefraction
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, IEEE_IS_FINITE
 
    IMPLICIT NONE
 
@@ -449,9 +450,12 @@ CONTAINS
       ! calculate dz array
       ilay = 1
       DO jcol = 1, ncol
-         canopy_props%dz(ilay:ilay + canopy_props%nlay(jcol) - 1) &
+         ! Flat tiles have no canopy geometry (GH#1498).
+         IF (config%do_urban .OR. config%do_vegetation) THEN
+            canopy_props%dz(ilay:ilay + canopy_props%nlay(jcol) - 1) &
               &  = height(ilay + 1:ilay + canopy_props%nlay(jcol)) &
               &   - height(ilay:ilay + canopy_props%nlay(jcol) - 1)
+         END IF
          canopy_props%istartlay(jcol) = ilay
          ilay = ilay + canopy_props%nlay(jcol)
       END DO
@@ -481,7 +485,7 @@ CONTAINS
          ilay = canopy_props%istartlay(jcol)
          veg_depth(jcol) = 0.
          DO jlay = 0, nlay(jcol) - 1
-            IF (veg_frac(ilay + jlay) > 0.) THEN
+            IF (config%do_vegetation .AND. veg_frac(ilay + jlay) > 0.) THEN
                veg_depth(jcol) = veg_depth(jcol) + canopy_props%dz(ilay + jlay)
             END IF
          END DO
@@ -496,7 +500,7 @@ CONTAINS
             ! PRINT *, 'veg_frac(ilay + jlay)', veg_frac(ilay + jlay)
             ! PRINT *, 'LAI_av(jcol)', LAI_av(jcol)
             ! PRINT *, 'canopy_props%dz(ilay + jlay)', canopy_props%dz(ilay + jlay)
-            IF (veg_frac(ilay + jlay) > 0.) THEN
+            IF (config%do_vegetation .AND. veg_frac(ilay + jlay) > 0.) THEN
                LAI_av_z(ilay + jlay) = LAI_av(jcol)*canopy_props%dz(ilay + jlay)/veg_depth(jcol)
                veg_ext(ilay + jlay) = LAI_av_z(ilay + jlay)/(2*canopy_props%dz(ilay))
             END IF
@@ -526,7 +530,9 @@ CONTAINS
 
       canopy_props%roof_temperature = tsfc_roof_K
       canopy_props%wall_temperature = tsfc_wall_K
-      canopy_props%clear_air_temperature = tair_veg_K
+      IF (config%do_urban .OR. config%do_vegetation) THEN
+         canopy_props%clear_air_temperature = tair_veg_K
+      END IF
       ! allocate_canopy only allocates veg_* when do_vegetation=.TRUE.,
       ! but downstream radsurf code may still access them.  Ensure they
       ! exist (zeroed) so that assignments and reads are always valid.
@@ -603,8 +609,10 @@ CONTAINS
          alb_no_tree_bldg = 0.0D0
       END IF
       IF (invalid_real(alb_no_tree_bldg)) alb_no_tree_bldg = 0.0D0
-      sw_spectral_props%air_ext = air_ext_sw
-      sw_spectral_props%air_ssa = air_ssa_sw
+      IF (config%do_urban .OR. config%do_vegetation) THEN
+         sw_spectral_props%air_ext = air_ext_sw
+         sw_spectral_props%air_ssa = air_ssa_sw
+      END IF
       ! Ensure conditionally-allocated arrays exist for downstream radsurf.
       IF (.NOT. ALLOCATED(sw_spectral_props%veg_ssa)) &
          ALLOCATE(sw_spectral_props%veg_ssa(nspec, nlayer))
@@ -649,8 +657,10 @@ CONTAINS
          emis_no_tree_bldg = 1.0D0
       END IF
       IF (invalid_real(emis_no_tree_bldg)) emis_no_tree_bldg = 1.0D0
-      lw_spectral_props%air_ext = air_ext_lw
-      lw_spectral_props%air_ssa = air_ssa_lw
+      IF (config%do_urban .OR. config%do_vegetation) THEN
+         lw_spectral_props%air_ext = air_ext_lw
+         lw_spectral_props%air_ssa = air_ssa_lw
+      END IF
       ! Ensure conditionally-allocated veg arrays exist for downstream radsurf.
       IF (.NOT. ALLOCATED(lw_spectral_props%veg_ssa)) &
          ALLOCATE(lw_spectral_props%veg_ssa(nspec, nlayer))
@@ -1238,9 +1248,10 @@ CONTAINS
 
    END SUBROUTINE SPARTACUS
 
-   SUBROUTINE split_shortwave_epw_disc(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
+   SUBROUTINE split_shortwave_perez(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
       ! Estimate direct horizontal SW from global horizontal SW using the
-      ! DISC/Perez core used by the EPW writer through pvlib DIRINT.
+      ! Perez et al. (1992), Dynamic Global-to-Direct Irradiance Conversion Models.
+      ! Pressure-corrected DISC with the static DIRINT correction from pvlib.
       !
       ! Full pvlib DIRINT uses neighbouring timesteps to correct kt'.  Here
       ! SPARTACUS is called one timestep at a time, so we use pressure-corrected
@@ -1339,7 +1350,40 @@ CONTAINS
       kdir = MAX(0.0D0, kn*i0_normal*dirint_coeff)
       kdirect = MIN(kdown, MAX(0.0D0, kdir*cos_sza))
 
-   END SUBROUTINE split_shortwave_epw_disc
+   END SUBROUTINE split_shortwave_perez
+
+   SUBROUTINE split_shortwave_reindl(kdown, doy, zenith_deg, tair_c, rh, kdirect_horizontal)
+      ! Reindl, Beckman and Duffie (1990), Solar Energy 45(1), 1-7.
+      ! Reuse BEERS' four-predictor diffuse correlation (or its Kt-only
+      ! fallback). Use the same extraterrestrial irradiance as the Perez split.
+      ! Return direct HORIZONTAL irradiance, conserving the supplied Kdown;
+      ! BEERS' separate low-sun cap on direct NORMAL irradiance is not used.
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: doy
+      REAL(KIND(1D0)), INTENT(IN) :: kdown, zenith_deg, tair_c, rh
+      REAL(KIND(1D0)), INTENT(OUT) :: kdirect_horizontal ! [W m-2] direct horizontal irradiance
+      REAL(KIND(1D0)) :: altitude, cos_zenith, ecc, kt, kdiffuse, direct_normal
+      REAL(KIND(1D0)) :: temperature, humidity
+      REAL(KIND(1D0)), PARAMETER :: PI = 3.141592653589793D0
+
+      kdirect_horizontal = 0.0D0
+      IF (.NOT. IEEE_IS_FINITE(kdown) .OR. .NOT. IEEE_IS_FINITE(zenith_deg)) RETURN
+      IF (kdown <= 0.0D0) RETURN
+      altitude = 90.0D0 - zenith_deg
+      ! Match BEERS' daylight threshold and avoid its division by sin(0).
+      IF (altitude <= 0.1D0) RETURN
+
+      cos_zenith = COS(zenith_deg*PI/180.0D0)
+      CALL spartacus_spencer_eccentricity(doy, ecc)
+      kt = kdown/(1370.0D0*ecc*cos_zenith)
+      temperature = tair_c
+      humidity = rh
+      ! Missing/non-finite meteorology selects BEERS' reduced correlation.
+      IF (.NOT. IEEE_IS_FINITE(temperature)) temperature = -999.0D0
+      IF (.NOT. IEEE_IS_FINITE(humidity)) humidity = -999.0D0
+      CALL diffusefraction(kdown, altitude, kt, temperature, humidity, direct_normal, kdiffuse)
+      kdirect_horizontal = MAX(0.0D0, MIN(kdown, kdown - kdiffuse))
+   END SUBROUTINE split_shortwave_reindl
 
    SUBROUTINE split_shortwave_forcing(kdown, kdiff, kdir, zenith_deg, kdirect, kdiffuse, valid)
       ! Convert observed direct-normal and diffuse-horizontal forcing to energy-conserving horizontal

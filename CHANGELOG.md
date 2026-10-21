@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 88       | 33 | 86 | 42 | 330   |
+| 2026 | 81       | 89       | 34 | 86 | 42 | 333   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,70 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 21 Oct 2026
+
+- [bugfix] Long runs at a 5-minute timestep need less memory: a three-year single-grid run saving SUEWS, RSL, DailyState and debug output every step now peaks at 9.2 GB instead of 12.6 GB (#1849)
+  - Joining grid and chunk outputs no longer makes a sorted copy of output that is already in order.
+  - `SUEWSOutput` no longer keeps its own full copy of the run output; `.df` and the group accessors still return independent copies.
+  - Saving to text or parquet no longer copies the whole output first. Saved files are unchanged.
+- [doc] New "Timestamp convention" page stating, once and in interval notation, the pandas `closed="right", label="right"` rule SUEWS uses: a row stamped `t` holds `(t - dt, t]`, a day `D` is `(D 00:00, D+1 00:00]`, and a run covers `(D1 00:00, D2+1 00:00]` for date bounds or `(t1 - dt, t2]` for timestamp bounds (#1852)
+  - It contrasts the rule with the pandas default for daily data (`closed="left", label="left"`, as `.loc["2023-12-31"]` selects), covers the DailyState `label="left"` exception, and shows how to convert forcing stamped at the start of each interval
+  - The `start_time`/`end_time` field descriptions, the forcing and output pages, the `run()` and resample docstrings and the coverage error message point to it; row selection is unchanged
+- [bugfix] `suews validate` accepts a `start_time` with a time component instead of failing in Phase B with "unconverted data remains", and now reports forcing that does not cover `start_time`/`end_time`, using the same rule as `SUEWSSimulation.run()` (#1852)
+- [doc] Corrected output-variable descriptions and units that disagreed with the kernel, and published output contract `1.1.2` (#1863)
+  - The descriptions rewritten in bulk in #1049 were checked against the Fortran that writes each column; those that were wrong or guessed are corrected.
+  - `flag_RSL` read as an iteration status flag. It records the profile scheme used at the timestep: 1 for roughness-sublayer theory (RST), 0 for Monin-Obukhov similarity theory (MOST); resampled output gives the fraction of timesteps that used RST.
+  - RSL profiles `z_*`, `U_*`, `T_*`, `q_*` assumed the RST level layout (level 1 at the ground, levels 21-30 above the canopy); the layout depends on the scheme, so the descriptions no longer state it. `f` is a single roughness-sublayer parameter, not a set of functions, and `beta` is dimensionless, not in m.
+  - DailyState `WU_*1/2/3` are the modelled daily total, automatic and manual irrigation water use in mm, not water-use coefficients; `DecidCap` is a storage capacity in mm, not a fraction; `Porosity` enters the plan and frontal area indices, not radiation; OHM `a1` multiplies net all-wave radiation and `a2` its rate of change, and the `*_bldg` coefficients are those of dynamic OHM.
+  - `SH_Ground` and `SH_Walls` are sunlit fractions (1 = sunlit), not shadow fractions; BL `theta+` and `q+` are values just above the boundary-layer top, not excesses; ESTM `QS` excludes `QSAir`, and the layer labels now differ between walls and roofs, ground, and internal elements.
+  - `QHinit` equals `QH` at output, `Rain` is the forcing precipitation, `Irr` is external water use on any surface, `RO` is runoff before routing rather than runoff leaving the grid, and `zL` uses the height above the displacement height.
+  - The descriptions and units are frozen in the output contract catalogue, so the corrections ship as a new release. `1.1.2` is proposed as a PATCH: no variable name, group, aggregation or column layout changes. The roughness-sublayer section of the parameterisations page and the legacy text-column tables were brought into line.
+- [doc] Every parameter in the configuration reference now states whether it must be supplied (#1856)
+  - The status reads `Required`, `Required when ...` naming the land cover, physics option or companion parameter that triggers it, `Optional` for a parameter with a default, or `No default; not checked by the validator - supply a value`.
+  - New conditions cover the building thermal layers under DyOHM storage heat (`storage_heat` 6 or 8), `faibldg` under the variable roughness sublayer (`roughness_sublayer` 2), the STEBBS shading parameters, the irrigation window ends and the water-distribution destinations each surface must give; existing conditions now name their option.
+  - A test fails when a required-field rule recorded by the validation layer is missing from the generated reference.
+- [bugfix] SPARTACUS now honours `properties.spartacus.use_sw_direct_albedo` set in YAML, so `ground_albedo_dir_mult_fact` and `roof_albedo_dir_mult_fact` apply to direct shortwave when the switch is on; previously the kernel always used the diffuse albedos, for both `suews run` and SuPy (#1858)
+  - The data-model default for `use_sw_direct_albedo` is now `0.0` (off), matching the kernel, so a configuration that omits the key keeps the diffuse-albedo behaviour it had before.
+
+### 20 Oct 2026
+
+- [bugfix] Reject reserved or unsupported stability selectors with error 107 and stop W16 (option 2) with error 108 when RSL requires its unimplemented phi functions (#1783, #1784, #1853).
+  - W16 remains available with MOST; variable roughness-sublayer selection can activate RST depending on site geometry.
+  - Phi error messages recommend only options 3 or 4; a one-day W16/MOST regression checks QH, QE, T2 and U10 against pre-change outputs.
+
+### 13 Oct 2026
+
+- [feature][experimental] A YAML configuration can declare that its forcing is supplied at runtime by setting `model.control.forcing.file` explicitly to `null` (#1722)
+  - `suews validate` then skips the forcing-file checks and reports a warning instead of an error; an omitted key or a non-existent path is still an error.
+  - `SUEWSSimulation` does not try to load forcing for such a configuration, `run()` names the null in its error when no forcing was supplied with `update_forcing()`, and `suews run` stops with a message pointing to the Python API.
+  - The null survives `SUEWSConfig.to_yaml()` round trips and `update_config()` patches, and the Rust YAML reader reports it as runtime forcing rather than a missing key.
+
+### 6 Oct 2026
+
+- [maintenance] The Fortran library now builds with parallel `make` jobs, capped at 8 and set with `SUEWS_MAKE_JOBS` (#1790)
+  - Module dependency edges generated by `scripts/suews/gen_fortran_deps.py` into `src/suews/Makefile.deps` order each object after the modules it uses; a test fails when the file is stale.
+  - A rebuild with no source change no longer recompiles `suews_phys_spartacus.o` and `suews_ctrl_ver.o`, and an object is now rebuilt when a module it uses changes.
+- [bugfix] Assigning a plain dict to a parameter's `ref` (e.g. `site.properties.lat.ref = {"DOI": ...}`) now coerces it into a `Reference`, and assigning a raw code to an option's `value` coerces it into the option's enum, so dumping the config no longer floods `PydanticSerializationUnexpectedValue` warnings; an assignment that does not validate now raises `ValidationError` instead of being stored silently (#1095).
+- [bugfix] Rejected the reserved `model.physics.stability` codes 0 and 1 at validation (#1783)
+  - Neither code has a stability function behind it, so on the roughness-sublayer path the run returned NaN `T2`, `RH2`, `Q2` and `U10` on most timesteps without any warning. Both codes are now refused on validated construction and direct field assignment, in their numeric, `RefValue` and readable-name (`not_used`, `not_used2`) forms, with a message naming the implemented codes 2, 3 (recommended) and 4.
+- [bugfix] Legacy AnOHM field names `chanohm`, `cpanohm` and `kkanohm` now load on the run path with a deprecation warning, matching `suews validate`, which already renamed them to `ch_anohm`, `rho_cp_anohm` and `k_anohm`; previously the same YAML passed validation and then failed to load with `extra_forbidden` (#1723)
+- [doc] The YAML config reference now states when `anthropogenic_emissions.startdls` and `enddls` are required (#1677)
+  - Each now renders as required when saved output uses the daylight-saving clock, or when the other end of the DLS window is given, matching the validator: it rejects `model.control.output.timestamp_reference: daylight` unless the full window is supplied, and rejects a window with only one end. They previously carried only the generic no-default note.
+
+### 5 Oct 2026
+
+- [bugfix] `suews schema version --update` now accepts `--no-backup` to skip the timestamped backup copy; previously `--backup/-b` defaulted to on with no way to turn it off. `suews schema migrate` keeps `-b` only for compatibility, since it never modifies its input files.
+  - `suews validate` is now a plain command: the hidden `validate`/`migrate`/`version`/`export`/`schema` subcommands registered on it could never be reached, because its FILES argument consumed their names. Use `suews validate -p C --dry-run FILES...` for read-only checks and `suews schema` for schema lifecycle operations.
+
+### 1 Oct 2026
+
+- [change][experimental] Named shortwave split option 3 `perez` after Perez et al. (1992), using static DIRINT (#1832).
+  - The previous text selector is no longer accepted; use `perez` or numeric `3`. The numerical method and default selection are unchanged.
+  - Schema `2026.6.dev5` adds a migration from the previous text selector to `perez`, preserving wrapped reference metadata and existing numeric selections.
+
+- [feature][experimental] Added `model.physics.kdown_split_method: reindl` for SPARTACUS shortwave partitioning using the existing BEERS Reindl correlation(#1832)
+  - The driver supplies energy-conserving direct-horizontal and diffuse-horizontal components; Perez remains the default and BEERS behaviour is unchanged.
 
 ### 29 Sep 2026
 
@@ -316,7 +380,7 @@ EXAMPLES:
 - [feature][experimental] Added configurable partitioning of global horizontal irradiance into direct and diffuse components for SPARTACUS-Surface (#1567)
   - Wired forcing-file `kdir` (direct-normal irradiance) and `kdiff` (diffuse-horizontal irradiance) through the Python, Rust, C, and Fortran interfaces.
   - Moved the partition calculation outside SPARTACUS-Surface so it receives prepared direct-horizontal and diffuse-horizontal canopy-top forcing.
-  - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `epw`. (#1570)
+  - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `perez`. (#1570)
 
 - [feature][experimental] Expanded SPARTACUS radiation diagnostics and vegetation-control inputs (#1570)
   - Added layer-resolved SW/LW diagnostics, vegetation absorption diagnostics, layer top/base fluxes, and additional ground/top radiation outputs; the SuPy SPARTACUS output metadata now reflects the expanded output schema.

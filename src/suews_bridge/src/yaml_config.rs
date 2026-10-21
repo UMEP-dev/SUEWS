@@ -1475,7 +1475,7 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
-fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
+fn apply_config_overrides(config: &mut SuewsConfig, root: &Value, site_root: &Value) {
     if let Some(v) = read_i32(root, &["model", "physics", "rslmethod"]) {
         config.rsl_method = v;
     }
@@ -1541,6 +1541,15 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     }
     config.kdown_split_method =
         read_i32(root, &["model", "physics", "kdown_split_method"]).unwrap_or(3);
+    // The kernel reads this switch from the run configuration, but users set
+    // it per site under `properties.spartacus` (gh#1858). Same threshold as
+    // `SuewsConfig::from_flat`.
+    if let Some(v) = read_numeric(
+        site_root,
+        &["properties", "spartacus", "use_sw_direct_albedo"],
+    ) {
+        config.use_sw_direct_albedo = v >= 0.5;
+    }
 }
 
 fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {
@@ -2218,14 +2227,35 @@ fn read_sites_indexed(root: &Value, idx: usize) -> Option<&Value> {
     }
 }
 
+fn forcing_file_entry(root: &Value) -> Option<&Value> {
+    // Prefer the new `forcing.file` shape introduced in schema 2026.5.dev7
+    // (gh#1372); fall back to the legacy `forcing_file` so user YAMLs at either
+    // schema parse pre-migration. An explicit `forcing.file` key wins even when
+    // it is null, matching `ModelControl._coerce_legacy_forcing_file`.
+    get_path(root, &["model", "control", "forcing", "file"])
+        .or_else(|| get_path(root, &["model", "control", "forcing_file"]))
+}
+
 fn read_forcing_rel(root: &Value) -> Option<String> {
-    // Prefer the new `forcing.file` (and its RefValue `.value`) shape introduced
-    // in schema 2026.5.dev7 (gh#1372); fall back to the legacy `forcing_file`
-    // (and its RefValue `.value`) so user YAMLs at either schema parse pre-migration.
-    read_string(root, &["model", "control", "forcing", "file"])
-        .or_else(|| read_string(root, &["model", "control", "forcing", "file", "value"]))
-        .or_else(|| read_string(root, &["model", "control", "forcing_file"]))
-        .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
+    // A string, or a RefValue mapping whose `.value` is a string. A null entry
+    // (forcing supplied at runtime, gh#1722) yields no file.
+    match forcing_file_entry(root)? {
+        Value::String(s) => Some(s.clone()),
+        entry @ Value::Mapping(_) => match get_path(entry, &["value"])? {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn forcing_file_is_null(root: &Value) -> bool {
+    // A bare null, or a RefValue mapping whose `.value` is null.
+    match forcing_file_entry(root) {
+        Some(Value::Null) => true,
+        Some(entry @ Value::Mapping(_)) => matches!(get_path(entry, &["value"]), Some(Value::Null)),
+        _ => false,
+    }
 }
 
 fn read_forcing_timestamp_reference(root: &Value) -> Result<ForcingTimestampReference, String> {
@@ -2262,7 +2292,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let site_root = read_sites_indexed(root, 0)
         .ok_or_else(|| "config must contain at least one site under `sites`".to_string())?;
 
-    apply_config_overrides(&mut config, root);
+    apply_config_overrides(&mut config, root, site_root);
 
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
@@ -2317,10 +2347,16 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
         serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
     let mut run_cfg = load_run_config_from_value(&mut root)?;
 
-    let forcing_rel = read_forcing_rel(&root)
-        .ok_or_else(|| {
+    let forcing_rel = read_forcing_rel(&root).ok_or_else(|| {
+        if forcing_file_is_null(&root) {
+            "`model.control.forcing.file` is null, which means forcing is supplied at runtime; \
+             run this configuration through the Python API (`SUEWSSimulation.update_forcing()`) \
+             or set `forcing.file` to a forcing file path"
+                .to_string()
+        } else {
             "`model.control.forcing.file` is missing (also accepts legacy `model.control.forcing_file`)".to_string()
-        })?;
+        }
+    })?;
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     run_cfg.forcing_path = base_dir.join(forcing_rel);
     // Resolve output_dir relative to config file location
@@ -2409,6 +2445,82 @@ mod tests {
         match get_path_mut(root, &["sites"])? {
             Value::Sequence(items) => items.get_mut(0),
             _ => None,
+        }
+    }
+
+    #[test]
+    fn reads_forcing_file_entry_shapes() {
+        let cases = [
+            (
+                "model: {control: {forcing: {file: met.txt}}}",
+                Some("met.txt"),
+                false,
+            ),
+            (
+                "model: {control: {forcing: {file: {value: met.txt}}}}",
+                Some("met.txt"),
+                false,
+            ),
+            (
+                "model: {control: {forcing_file: legacy.txt}}",
+                Some("legacy.txt"),
+                false,
+            ),
+            ("model: {control: {forcing: {file: null}}}", None, true),
+            (
+                "model: {control: {forcing: {file: {value: null}}}}",
+                None,
+                true,
+            ),
+            // An explicit `forcing.file` key wins over the legacy key, even when null.
+            (
+                "model: {control: {forcing: {file: null}, forcing_file: legacy.txt}}",
+                None,
+                true,
+            ),
+            ("model: {control: {tstep: 300}}", None, false),
+        ];
+        for (yaml, expected, is_null) in cases {
+            let root: Value = serde_yaml::from_str(yaml).unwrap();
+            assert_eq!(read_forcing_rel(&root).as_deref(), expected, "{yaml}");
+            assert_eq!(forcing_file_is_null(&root), is_null, "{yaml}");
+        }
+    }
+
+    #[test]
+    fn load_run_config_reports_null_forcing_file() {
+        let yaml = include_str!("../../../src/supy/sample_data/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml).unwrap();
+        root["model"]["control"]["forcing"]["file"] = Value::Null;
+        let dir = std::env::temp_dir().join(format!("suews_gh1722_{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.yml");
+        fs::write(&path, serde_yaml::to_string(&root).unwrap()).unwrap();
+
+        let Err(err) = load_run_config(&path) else {
+            panic!("null forcing.file must not load");
+        };
+        fs::remove_dir_all(&dir).ok();
+        assert!(err.contains("is null"), "{err}");
+        assert!(err.contains("update_forcing"), "{err}");
+    }
+
+    #[test]
+    fn parses_shortwave_split_methods() {
+        let yaml = include_str!("../../../src/supy/sample_data/sample_config.yml");
+        for (selector, code) in [
+            ("perez", 3),
+            ("{value: perez}", 3),
+            ("{value: 3}", 3),
+            ("reindl", 4),
+            ("{value: reindl}", 4),
+            ("{value: 4}", 4),
+        ] {
+            let mut root: Value = serde_yaml::from_str(yaml).unwrap();
+            root["model"]["physics"]["kdown_split_method"] =
+                serde_yaml::from_str(selector).unwrap();
+            let run_cfg = load_run_config_from_value(&mut root).unwrap();
+            assert_eq!(run_cfg.config.kdown_split_method, code);
         }
     }
 
@@ -2800,6 +2912,32 @@ mod tests {
         assert_eq!(run_cfg.config.storage_heat_method, 7);
         assert_eq!(run_cfg.config.emissions_method, 2);
         assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn use_sw_direct_albedo_reaches_run_config() {
+        // gh#1858: the site-level SPARTACUS switch must reach the kernel's
+        // run configuration, not only the SPARTACUS parameter block.
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root.clone())
+            .expect("fixture YAML should parse without error");
+        assert!(!run_cfg.config.use_sw_direct_albedo);
+
+        let flag = first_site_mut(&mut root)
+            .and_then(|site| {
+                get_path_mut(
+                    site,
+                    &["properties", "spartacus", "use_sw_direct_albedo", "value"],
+                )
+            })
+            .expect("fixture should set properties.spartacus.use_sw_direct_albedo");
+        *flag = serde_yaml::from_str("1.0").unwrap();
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("YAML with the switch on should parse without error");
+        assert!(run_cfg.config.use_sw_direct_albedo);
+        assert!((run_cfg.site.spartacus.use_sw_direct_albedo - 1.0).abs() < 1.0e-12);
     }
 
     #[test]

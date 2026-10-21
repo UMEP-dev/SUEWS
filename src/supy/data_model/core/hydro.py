@@ -2,6 +2,7 @@ from pydantic import ConfigDict, BaseModel, Field, PrivateAttr
 from typing import Optional
 import pandas as pd
 from .type import RefValue, Reference, SurfaceType, FlexibleRefValue
+from ..validation.required_fields import WATER_DISTRIBUTION_REQUIRED
 import math
 
 
@@ -161,69 +162,10 @@ class WaterDistribution(BaseModel):
 
     def validate_distribution(self, surface_type: SurfaceType) -> None:
         """Validate water distribution based on surface type"""
-        # Define required fields for each surface type
-        required_fields = {
-            SurfaceType.PAVED: [
-                "to_bldgs",
-                "to_dectr",
-                "to_evetr",
-                "to_grass",
-                "to_bsoil",
-                "to_water",
-                "to_runoff",
-            ],
-            SurfaceType.BLDGS: [
-                "to_paved",
-                "to_dectr",
-                "to_evetr",
-                "to_grass",
-                "to_bsoil",
-                "to_water",
-                "to_runoff",
-            ],
-            SurfaceType.DECTR: [
-                "to_paved",
-                "to_bldgs",
-                "to_evetr",
-                "to_grass",
-                "to_bsoil",
-                "to_water",
-                "to_soilstore",
-            ],
-            SurfaceType.EVETR: [
-                "to_paved",
-                "to_bldgs",
-                "to_dectr",
-                "to_grass",
-                "to_bsoil",
-                "to_water",
-                "to_soilstore",
-            ],
-            SurfaceType.GRASS: [
-                "to_paved",
-                "to_bldgs",
-                "to_dectr",
-                "to_evetr",
-                "to_bsoil",
-                "to_water",
-                "to_soilstore",
-            ],
-            SurfaceType.BSOIL: [
-                "to_paved",
-                "to_bldgs",
-                "to_dectr",
-                "to_evetr",
-                "to_grass",
-                "to_water",
-                "to_soilstore",
-            ],
-            SurfaceType.WATER: None,  # Water surface doesn't have water distribution
-        }
-
         if surface_type == SurfaceType.WATER:
             raise ValueError("Water surface should not have water distribution")
 
-        fields = required_fields[surface_type]
+        fields = WATER_DISTRIBUTION_REQUIRED[surface_type.value]
         values = []
 
         # Check required fields are present and collect values

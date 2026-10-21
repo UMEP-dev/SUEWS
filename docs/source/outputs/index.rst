@@ -81,8 +81,8 @@ without the original session:
   to the available forcing; ``clipped`` and ``policy`` carry the verdict of
   the period-coverage check when it ran, and are ``null`` otherwise.
 - ``timestamps``: the labelling convention (``interval_end``; timestamps mark
-  the end of each interval) and the forcing and output ``timestamp_reference``
-  settings.
+  the end of each interval, see :ref:`timestamp_convention`) and the forcing
+  and output ``timestamp_reference`` settings.
 - ``run``: interface (``cli`` or ``python``), the ``suews run`` command line
   when applicable, wall-clock start and end, ``n_jobs``, ``chunk_day`` and
   whether the run continued from a checkpoint.

@@ -1,0 +1,928 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta property="article:modified_time" content="2026-10-21T20:13:45+00:00" />
+    <title>4.4. Timestamp Convention &#8212; SUEWS 2026.10.21.dev8 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
+    <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=bab574ae" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="../_static/documentation_options.js?v=2dc335b8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/timestamp-convention';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
+    <link rel="icon" href="../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="4.5. Preparing Surface Characteristics Data" href="surface-data-preparation.html" />
+    <link rel="prev" title="4.3. Meteorological Forcing Data" href="forcing-data.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="2026.10.21.dev8" />
+    <meta name="docbuild:last-update" content="2026-10-21"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.10.21.dev8, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/04674d45de1c143cc388883e633e45be6febc440" style="color: #31708f;">04674d4</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.21.dev8 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.21.dev8 documentation - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">4. Input Files</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="yaml/index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="yaml/layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="forcing-data.html">4.3. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">4.4. Timestamp Convention</a></li>
+<li class="toctree-l2"><a class="reference internal" href="surface-data-preparation.html">4.5. Preparing Surface Characteristics Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="yaml/config-reference/index.html">4.6. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/anthropogenicemissions.html">4.6.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/anthropogenicheat.html">4.6.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/archetypeproperties.html">4.6.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/bldgsproperties.html">4.6.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/bsoilproperties.html">4.6.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/buildinglayer.html">4.6.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/co2params.html">4.6.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/conductance.html">4.6.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/coolingsetpointprofile.html">4.6.9. Cooling Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/dayprofile.html">4.6.10. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/dectrproperties.html">4.6.11. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/evetrproperties.html">4.6.12. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/forcingcontrol.html">4.6.13. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/grassproperties.html">4.6.14. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/heatingsetpointprofile.html">4.6.15. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/hourlyprofile.html">4.6.16. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebldgs.html">4.6.17. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebsoil.html">4.6.18. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatedectr.html">4.6.19. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateevetr.html">4.6.20. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstategrass.html">4.6.21. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatepaved.html">4.6.22. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateveg.html">4.6.23. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatewater.html">4.6.24. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstates.html">4.6.25. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/irrigationparams.html">4.6.26. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laiparams.html">4.6.27. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laipowercoefficients.html">4.6.28. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/lumpsparams.html">4.6.29. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/landcover.html">4.6.30. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/model.html">4.6.31. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelcontrol.html">4.6.32. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelphysics.html">4.6.33. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/nonvegetatedsurfaceproperties.html">4.6.34. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohmcoefficients.html">4.6.35. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohm_coefficient_season_wetness.html">4.6.36. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/outputcontrol.html">4.6.37. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/pavedproperties.html">4.6.38. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/rooflayer.html">4.6.39. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/spartacusparams.html">4.6.40. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/suewsconfig.html">4.6.41. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/site.html">4.6.42. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/siteproperties.html">4.6.43. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/snowparams.html">4.6.44. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/soilobservationconfig.html">4.6.45. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/stebbsphysics.html">4.6.46. STEBBS Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/stebbsproperties.html">4.6.47. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/storagedrainparams.html">4.6.48. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceinitialstate.html">4.6.49. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceproperties.html">4.6.50. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/tenminuteprofile.html">4.6.51. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/thermallayers.html">4.6.52. Material Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetatedsurfaceproperties.html">4.6.53. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetationparams.html">4.6.54. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/verticallayers.html">4.6.55. SPARTACUS Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/walllayer.html">4.6.56. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterdistribution.html">4.6.57. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterproperties.html">4.6.58. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/weeklyprofile.html">4.6.59. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="converter.html">4.7. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="transition_guide.html">4.8. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="yaml/validation.html">4.9. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="tables/index.html">4.10. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="tables/met_input.html">4.10.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="tables/RunControl/RunControl.html">4.10.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/scheme_options.html">4.10.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/Time_related_options.html">4.10.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/File_related_options.html">4.10.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.10.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.10.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="tables/Initial_Conditions/Initial_Conditions.html">4.10.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Soil_moisture_states.html">4.10.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Vegetation_parameters.html">4.10.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Recent_meteorology.html">4.10.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Above_ground_state.html">4.10.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tables/Initial_Conditions/Snow_related_parameters.html">4.10.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../outputs/index.html">5. Output Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../outputs/variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/rsl.html">5.3.5. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/dailystate.html">5.3.6. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/beers.html">5.3.8. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/debug.html">5.3.9. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/ehc.html">5.3.10. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.attribute.html">6.3.7.1. supy.util.attribute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.diagnose.html">6.3.7.2. supy.util.diagnose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.attribute_t2.html">6.3.7.3. supy.util.attribute_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.attribute_q2.html">6.3.7.4. supy.util.attribute_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.attribute_u10.html">6.3.7.5. supy.util.attribute_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.diagnose_t2.html">6.3.7.6. supy.util.diagnose_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.diagnose_q2.html">6.3.7.7. supy.util.diagnose_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.diagnose_u10.html">6.3.7.8. supy.util.diagnose_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.AttributionResult.html">6.3.7.9. supy.util.AttributionResult</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/knowledge-pack.html">6.5. Knowledge Pack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/python-cli-equivalents.html">6.6. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../benchmark/drift.html">10. Cross-version drift</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notation.html">11. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../version-history/version-history.html">12. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2026.6.5.html">12.1. Version 2026.6.5 (released on 5 June 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2026.4.3.html">12.2. Version 2026.4.3 (released on 3 April 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2026.1.28.html">12.3. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2025.11.20.html">12.4. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2025.10.15.html">12.5. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2020a.html">12.6. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2019a.html">12.7. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018c.html">12.8. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018b.html">12.9. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018a.html">12.10. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2017b.html">12.11. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2017a.html">12.12. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2016a.html">12.13. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014b.html">12.14. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014a.1.html">12.15. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014a.html">12.16. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2013a.html">12.17. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2012b.html">12.18. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2012a.html">12.19. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2011b.html">12.20. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../contributing/schema/index.html">2. Schema and Data-interface Development</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/schema/schema-developer.html">2.1. Configuration Schema Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/schema/schema_versioning.html">2.2. YAML Configuration Schema Versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/schema/data_interface_versioning.html">2.3. Data-interface versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/schema/schema_cli.html">2.4. Schema Management CLI</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../acknowledgement.html">3. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/edit/master/docs/source/inputs/timestamp-convention.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new/choose" target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/inputs/timestamp-convention.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Timestamp Convention</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-rule">4.4.1. The rule</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#not-the-pandas-default">4.4.2. Not the pandas default</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-period">4.4.3. Run period</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dailystate-labels">4.4.4. DailyState labels</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-stamped-at-the-start-of-each-interval">4.4.5. Forcing stamped at the start of each interval</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<ol class="arabic simple">
+<li><p>Need help? Please let us know in the <a class="reference external" href="https://community.suews.io">SUEWS Community</a>.</p></li>
+<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Finputs%2Ftimestamp-convention.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Finputs%2Ftimestamp-convention.html%29%0A&amp;title=[Docs]inputs/timestamp-convention">Report Issue for This Page</a> for page-specific feedback).
+Opening issues is limited to existing contributors, so if GitHub says you cannot open one, post the report in the <a class="reference external" href="https://community.suews.io">SUEWS Community</a> instead: a maintainer will turn it into an issue and can add you as a contributor.</p></li>
+<li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
+</ol>
+</div>
+<section id="timestamp-convention">
+<span id="id1"></span><h1><span class="section-number">4.4. </span>Timestamp Convention<a class="headerlink" href="#timestamp-convention" title="Link to this heading">#</a></h1>
+<p>SUEWS uses one timestamp convention for forcing, model output and the run
+period. In pandas terms it is <code class="docutils literal notranslate"><span class="pre">closed=&quot;right&quot;,</span> <span class="pre">label=&quot;right&quot;</span></code>: every period
+is left-open and right-closed, and a timestamp marks the <strong>end</strong> of the
+period it describes. This page is the reference for that rule; other pages
+link here rather than restating it.</p>
+<section id="the-rule">
+<h2><span class="section-number">4.4.1. </span>The rule<a class="headerlink" href="#the-rule" title="Link to this heading">#</a></h2>
+<p>A row stamped <code class="docutils literal notranslate"><span class="pre">t</span></code> at a timestep <code class="docutils literal notranslate"><span class="pre">dt</span></code> holds the left-open, right-closed
+interval <code class="docutils literal notranslate"><span class="pre">(t</span> <span class="pre">-</span> <span class="pre">dt,</span> <span class="pre">t]</span></code>: its start is not included, its end is. For example:</p>
+<ul class="simple">
+<li><p>the <code class="docutils literal notranslate"><span class="pre">13:00</span></code> row of hourly data holds <code class="docutils literal notranslate"><span class="pre">(12:00,</span> <span class="pre">13:00]</span></code>;</p></li>
+<li><p>at a 5-minute timestep, the <code class="docutils literal notranslate"><span class="pre">00:05</span></code> row holds <code class="docutils literal notranslate"><span class="pre">(00:00,</span> <span class="pre">00:05]</span></code>;</p></li>
+<li><p>a day <code class="docutils literal notranslate"><span class="pre">D</span></code> is <code class="docutils literal notranslate"><span class="pre">(D</span> <span class="pre">00:00,</span> <span class="pre">D+1</span> <span class="pre">00:00]</span></code>, which at 5 minutes is the rows
+<code class="docutils literal notranslate"><span class="pre">D</span> <span class="pre">00:05</span></code> to <code class="docutils literal notranslate"><span class="pre">D+1</span> <span class="pre">00:00</span></code>, so the last row of 1 January is stamped
+<code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">January</span> <span class="pre">00:00</span></code>;</p></li>
+<li><p>daily output for 1 January is labelled <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">January</span> <span class="pre">00:00</span></code>.</p></li>
+</ul>
+<p>Forcing follows the same rule: values are means or totals over the interval
+ending at the timestamp, and state inputs (LAI, snow cover, soil moisture)
+apply at the interval end. When forcing is supplied at a coarser resolution
+than the model timestep, each forcing row is spread over the model timesteps
+inside its own interval: an hourly row stamped <code class="docutils literal notranslate"><span class="pre">01:00</span></code> supplies the
+5-minute rows <code class="docutils literal notranslate"><span class="pre">00:05</span></code> to <code class="docutils literal notranslate"><span class="pre">01:00</span></code>.</p>
+<p>The clock the timestamps are read on (local standard time or UTC) is a
+separate setting, <code class="docutils literal notranslate"><span class="pre">model.control.forcing.timestamp_reference</span></code>; see
+<a class="reference internal" href="forcing-data.html#met-forcing"><span class="std std-ref">Meteorological Forcing Data</span></a>. It does not change the labelling.</p>
+</section>
+<section id="not-the-pandas-default">
+<h2><span class="section-number">4.4.2. </span>Not the pandas default<a class="headerlink" href="#not-the-pandas-default" title="Link to this heading">#</a></h2>
+<p>This is not what pandas does by default for daily data. A plain
+<code class="docutils literal notranslate"><span class="pre">resample(&quot;D&quot;)</span></code> is <code class="docutils literal notranslate"><span class="pre">closed=&quot;left&quot;,</span> <span class="pre">label=&quot;left&quot;</span></code>, so each day is the
+left-closed, right-open interval <code class="docutils literal notranslate"><span class="pre">[D</span> <span class="pre">00:00,</span> <span class="pre">D+1</span> <span class="pre">00:00)</span></code>, labelled <code class="docutils literal notranslate"><span class="pre">D</span></code>.
+Partial-string selection follows the same calendar day:
+<code class="docutils literal notranslate"><span class="pre">df.loc[&quot;2023-12-31&quot;]</span></code> returns the rows <code class="docutils literal notranslate"><span class="pre">00:00</span></code> to <code class="docutils literal notranslate"><span class="pre">23:55</span></code>. Under the
+SUEWS convention the row stamped <code class="docutils literal notranslate"><span class="pre">2023-12-31</span> <span class="pre">00:00</span></code> closes the last interval
+of 30 December, and the day ends with the row stamped <code class="docutils literal notranslate"><span class="pre">2024-01-01</span> <span class="pre">00:00</span></code>.</p>
+<p>For two days of 5-minute rows, <code class="docutils literal notranslate"><span class="pre">2023-12-31</span> <span class="pre">00:00</span></code> to <code class="docutils literal notranslate"><span class="pre">2024-01-01</span> <span class="pre">00:00</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="n">idx</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="s2">"2023-12-31 00:00"</span><span class="p">,</span> <span class="s2">"2024-01-01 00:00"</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"5min"</span><span class="p">)</span>
+<span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
+
+<span class="c1"># pandas default: [D 00:00, D+1 00:00), labelled D</span>
+<span class="n">s</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"D"</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+<span class="c1"># 2023-12-31    288</span>
+<span class="c1"># 2024-01-01      1    &lt;- the 2024-01-01 00:00 row opens the next day</span>
+
+<span class="c1"># SUEWS: (D 00:00, D+1 00:00], labelled D+1 00:00</span>
+<span class="n">s</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"D"</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="s2">"right"</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+<span class="c1"># 2023-12-31      1    &lt;- the 2023-12-31 00:00 row closes 30 December</span>
+<span class="c1"># 2024-01-01    288    &lt;- the whole of 31 December</span>
+
+<span class="c1"># The rows of 31 December under each convention</span>
+<span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">"2023-12-31"</span><span class="p">]</span>                            <span class="c1"># 00:00 .. 23:55 (pandas)</span>
+<span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">"2023-12-31 00:05"</span><span class="p">:</span><span class="s2">"2024-01-01 00:00"</span><span class="p">]</span>   <span class="c1"># 00:05 .. 00:00 (SUEWS)</span>
+</pre></div>
+</div>
+<p>DailyState is the one group that uses <code class="docutils literal notranslate"><span class="pre">label=&quot;left&quot;</span></code> (see below).</p>
+</section>
+<section id="run-period">
+<h2><span class="section-number">4.4.3. </span>Run period<a class="headerlink" href="#run-period" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">model.control.start_time</span></code> and <code class="docutils literal notranslate"><span class="pre">model.control.end_time</span></code> (and the
+<code class="docutils literal notranslate"><span class="pre">start_date</span></code> / <code class="docutils literal notranslate"><span class="pre">end_date</span></code> arguments of
+<a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.run" title="supy.SUEWSSimulation.run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code></a>) take a date (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) or a timestamp
+(<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span> <span class="pre">HH:MM</span></code>). A run always covers a left-open, right-closed period.
+Dates name whole right-closed days, while a bound written with a time names a
+specific row and includes it:</p>
+<ul class="simple">
+<li><p>date bounds <code class="docutils literal notranslate"><span class="pre">start_time</span> <span class="pre">=</span> <span class="pre">D1</span></code>, <code class="docutils literal notranslate"><span class="pre">end_time</span> <span class="pre">=</span> <span class="pre">D2</span></code> give
+<code class="docutils literal notranslate"><span class="pre">(D1</span> <span class="pre">00:00,</span> <span class="pre">D2+1</span> <span class="pre">00:00]</span></code>: both days are run in full, which at a 5-minute
+timestep is the rows <code class="docutils literal notranslate"><span class="pre">D1</span> <span class="pre">00:05</span></code> to <code class="docutils literal notranslate"><span class="pre">D2+1</span> <span class="pre">00:00</span></code>;</p></li>
+<li><p>timestamp bounds <code class="docutils literal notranslate"><span class="pre">start_time</span> <span class="pre">=</span> <span class="pre">t1</span></code>, <code class="docutils literal notranslate"><span class="pre">end_time</span> <span class="pre">=</span> <span class="pre">t2</span></code> give
+<code class="docutils literal notranslate"><span class="pre">(t1</span> <span class="pre">-</span> <span class="pre">dt,</span> <span class="pre">t2]</span></code>: the run starts with the interval that ends at <code class="docutils literal notranslate"><span class="pre">t1</span></code> and
+ends with the interval that ends at <code class="docutils literal notranslate"><span class="pre">t2</span></code>, so the rows <code class="docutils literal notranslate"><span class="pre">t1</span></code> and <code class="docutils literal notranslate"><span class="pre">t2</span></code>
+are both included;</p></li>
+<li><p>a date and a timestamp combine in the same way, for example
+<code class="docutils literal notranslate"><span class="pre">(D1</span> <span class="pre">00:00,</span> <span class="pre">t2]</span></code>.</p></li>
+</ul>
+<p>So <code class="docutils literal notranslate"><span class="pre">start_time:</span> <span class="pre">&quot;2012-01-01&quot;</span></code> with <code class="docutils literal notranslate"><span class="pre">end_time:</span> <span class="pre">&quot;2012-12-31&quot;</span></code> runs every
+interval of 2012, <code class="docutils literal notranslate"><span class="pre">(2012-01-01</span> <span class="pre">00:00,</span> <span class="pre">2013-01-01</span> <span class="pre">00:00]</span></code>. A start written
+as <code class="docutils literal notranslate"><span class="pre">&quot;2012-01-01</span> <span class="pre">00:00&quot;</span></code> is not the same: it names the row stamped
+<code class="docutils literal notranslate"><span class="pre">2012-01-01</span> <span class="pre">00:00</span></code> and includes it, so the run begins one row earlier, with
+the last interval of 2011. To start a timestamp-bounded run at midnight, name
+the first row of the day, <code class="docutils literal notranslate"><span class="pre">&quot;2012-01-01</span> <span class="pre">00:05&quot;</span></code> at a 5-minute timestep. A
+timestamp between two rows selects the next row as a start and the previous
+row as an end.</p>
+<p>The forcing must cover the whole requested period: <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code> reports
+a gap, <a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.run" title="supy.SUEWSSimulation.run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code></a> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">run(clip_to_forcing=True)</span></code> runs on the overlap only. Leave both fields
+unset to run over the whole forcing file.</p>
+</section>
+<section id="dailystate-labels">
+<h2><span class="section-number">4.4.4. </span>DailyState labels<a class="headerlink" href="#dailystate-labels" title="Link to this heading">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">DailyState</span></code> output group is the exception. It covers the same
+right-closed days but labels each by its <strong>start</strong> (pandas <code class="docutils literal notranslate"><span class="pre">label=&quot;left&quot;</span></code>),
+so the row labelled <code class="docutils literal notranslate"><span class="pre">2012-01-15</span></code> holds the state at the end of 15 January,
+<code class="docutils literal notranslate"><span class="pre">(2012-01-15</span> <span class="pre">00:00,</span> <span class="pre">2012-01-16</span> <span class="pre">00:00]</span></code>. When <code class="docutils literal notranslate"><span class="pre">DailyState</span></code> is combined with
+other output groups at daily resolution, for example with
+<code class="docutils literal notranslate"><span class="pre">SUEWSOutput.resample()</span></code>, its dates therefore run one day earlier
+than those of the other groups (see <a class="reference internal" href="../outputs/text_format.html#output-dailystate"><span class="std std-ref">DailyState - SSss_DailyState.txt</span></a>).</p>
+</section>
+<section id="forcing-stamped-at-the-start-of-each-interval">
+<h2><span class="section-number">4.4.5. </span>Forcing stamped at the start of each interval<a class="headerlink" href="#forcing-stamped-at-the-start-of-each-interval" title="Link to this heading">#</a></h2>
+<p>Some data sources label each value with the start of its interval, so an
+hourly mean for <code class="docutils literal notranslate"><span class="pre">[00:00,</span> <span class="pre">01:00)</span></code> is stamped <code class="docutils literal notranslate"><span class="pre">00:00</span></code>. Before using such a
+file, shift its timestamps forward by one forcing timestep (the file’s own
+resolution, one hour in this example) so that each value is stamped at the
+end of its interval:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="c1"># df_raw: start-of-interval hourly data with a DatetimeIndex</span>
+<span class="n">df_raw</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">df_raw</span><span class="o">.</span><span class="n">index</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">"1h"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Rebuild the <code class="docutils literal notranslate"><span class="pre">iy</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">it</span></code> and <code class="docutils literal notranslate"><span class="pre">imin</span></code> columns from the shifted index
+before writing the forcing file. After the shift, a year of hourly data runs
+from <code class="docutils literal notranslate"><span class="pre">01:00</span></code> on 1 January to <code class="docutils literal notranslate"><span class="pre">00:00</span></code> on 1 January of the following year,
+which is exactly the period that <code class="docutils literal notranslate"><span class="pre">start_time</span></code> and <code class="docutils literal notranslate"><span class="pre">end_time</span></code> set to the
+first and last days of that year require.</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="forcing-data.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">4.3. </span>Meteorological Forcing Data</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="surface-data-preparation.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">4.5. </span>Preparing Surface Characteristics Data</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-rule">4.4.1. The rule</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#not-the-pandas-default">4.4.2. Not the pandas default</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-period">4.4.3. Run period</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dailystate-labels">4.4.4. DailyState labels</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-stamped-at-the-start-of-each-interval">4.4.5. Forcing stamped at the start of each interval</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on 2026-10-21.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.10.21.dev8 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/04674d45de1c143cc388883e633e45be6febc440">04674d4</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

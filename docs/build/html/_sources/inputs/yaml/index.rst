@@ -99,14 +99,11 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
 
 .. note::
 
-   ``start_time`` and ``end_time`` are calendar dates and both days are
-   included in full. Forcing rows are stamped at the end of each interval, so
-   a run from ``2020-01-01`` to ``2020-12-31`` uses the rows from
-   ``2020-01-01 01:00`` at the hourly timestep shown (``00:05`` at a
-   5-minute one) up to and including ``2021-01-01 00:00``. The forcing file must cover the whole requested
-   period: ``SUEWSSimulation.run()`` raises ``ValueError`` otherwise, and
-   ``run(clip_to_forcing=True)`` runs on the overlap only. Leave both fields
-   unset to run over the whole forcing file.
+   ``start_time`` and ``end_time`` are dates or timestamps, and a run from
+   ``2020-01-01`` to ``2020-12-31`` includes both days in full. How the bounds
+   map onto forcing rows, and what the forcing must cover, is set out in
+   :ref:`timestamp_convention`. Leave both fields unset to run over the whole
+   forcing file.
 
 .. important::
 

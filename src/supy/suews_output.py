@@ -92,7 +92,11 @@ class SUEWSOutput:
             Non-fatal warnings raised by the Fortran kernel (columns
             ``grid``, ``datetime``, ``location``, ``message``)
         """
-        self._df_output = df_output.copy()
+        # Shallow copy: a new frame object (index/columns edits on the caller's
+        # frame do not leak in) that shares the values buffer. A deep copy here
+        # held a second full-width output table for the life of the run
+        # (gh#1849); `.df` and the group accessors still hand out deep copies.
+        self._df_output = df_output.copy(deep=False)
         self._df_state_final = (
             df_state_final.copy() if df_state_final is not None else None
         )

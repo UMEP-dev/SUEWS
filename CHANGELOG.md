@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 21 Oct 2026
+
+- [bugfix] Long runs at a 5-minute timestep need less memory: a three-year single-grid run saving SUEWS, RSL, DailyState and debug output every step now peaks at 9.2 GB instead of 12.6 GB (#1849)
+  - Joining grid and chunk outputs no longer makes a sorted copy of output that is already in order.
+  - `SUEWSOutput` no longer keeps its own full copy of the run output; `.df` and the group accessors still return independent copies.
+  - Saving to text or parquet no longer copies the whole output first. Saved files are unchanged.
+
 ### 13 Oct 2026
 
 - [feature][experimental] A YAML configuration can declare that its forcing is supplied at runtime by setting `model.control.forcing.file` explicitly to `null` (#1722)

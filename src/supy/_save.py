@@ -526,8 +526,9 @@ def save_df_output(
     list
         a list of `Path` objects for saved txt files
     """
-    # save a local copy
-    df_save = df_output.copy()
+    # Shallow copy: the index and columns are reassigned below, but values
+    # are never written in place, so a full data copy is not needed (gh#1849).
+    df_save = df_output.copy(deep=False)
 
     # path list of files to save
     list_path_save = []
@@ -1012,8 +1013,8 @@ def save_df_output_parquet(
 
     from ._version import __version__
 
-    # Resample if needed
-    df_save = df_output.copy()
+    # Resample if needed; values are not written in place (gh#1849)
+    df_save = df_output.copy(deep=False)
     freq_save = pd.Timedelta(freq_s, "s")
 
     if not save_tstep:

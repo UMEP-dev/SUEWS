@@ -58,7 +58,7 @@ EXAMPLES:
 
 - [doc] Every parameter in the configuration reference now states whether it must be supplied (#1856)
   - The status reads `Required`, `Required when ...` naming the land cover, physics option or companion parameter that triggers it, `Optional` for a parameter with a default, or `No default; not checked by the validator - supply a value`.
-  - New conditions cover the building thermal layers under DyOHM storage heat (`storage_heat` 6 or 8), `faibldg` under the variable roughness sublayer (`roughness_sublayer` 2), the STEBBS shading parameters, and the irrigation window ends; existing conditions now name their option.
+  - New conditions cover the building thermal layers under DyOHM storage heat (`storage_heat` 6 or 8), `faibldg` under the variable roughness sublayer (`roughness_sublayer` 2), the STEBBS shading parameters, the irrigation window ends and the water-distribution destinations each surface must give; existing conditions now name their option.
   - A test fails when a required-field rule recorded by the validation layer is missing from the generated reference.
 
 ### 13 Oct 2026

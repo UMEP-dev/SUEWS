@@ -18,6 +18,7 @@ from supy.data_model.core.human_activity import (
     AnthropogenicEmissions,
     IrrigationParams,
 )
+from supy.data_model.core.hydro import WaterDistribution
 from supy.data_model.core.site import (
     Conductance,
     DectrProperties,
@@ -40,6 +41,7 @@ from supy.data_model.validation.required_fields import (
     LAI_REQUIRED,
     RSL_VARIABLE_BLDGS_REQUIRED,
     STEBBS_SHADING_REQUIRED_MODES,
+    WATER_DISTRIBUTION_REQUIRED,
     required_when,
 )
 
@@ -55,6 +57,7 @@ MODELS = {
     "ThermalLayers": ThermalLayers,
     "StebbsProperties": StebbsProperties,
     "IrrigationParams": IrrigationParams,
+    "WaterDistribution": WaterDistribution,
 }
 
 # Field lists the validators consume, keyed by the model that declares them.
@@ -63,6 +66,9 @@ RULE_FIELDS_BY_MODEL = {
     "BldgsProperties": RSL_VARIABLE_BLDGS_REQUIRED,
     "ThermalLayers": DYOHM_BUILDING_LAYERS_REQUIRED,
     "StebbsProperties": tuple(STEBBS_SHADING_REQUIRED_MODES),
+    "WaterDistribution": tuple(
+        {field for fields in WATER_DISTRIBUTION_REQUIRED.values() for field in fields}
+    ),
 }
 
 ALL_TABLES = (
@@ -243,6 +249,17 @@ def test_physics_conditions_name_their_option(
     """A physics-dependent condition names the option that triggers it."""
     # ARRANGE / ACT / ASSERT
     assert option in required_when(model_name, field)
+
+
+def test_water_distribution_conditions_name_the_right_surfaces() -> None:
+    """Each destination's condition lists exactly the surfaces that need it."""
+    # ARRANGE / ACT / ASSERT
+    for surface, fields in WATER_DISTRIBUTION_REQUIRED.items():
+        for field in WaterDistribution.model_fields:
+            if not field.startswith("to_"):
+                continue
+            named = f"``{surface}``" in required_when("WaterDistribution", field)
+            assert named == (field in fields), (surface, field)
 
 
 def test_shading_conditions_follow_the_shared_modes() -> None:

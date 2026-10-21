@@ -20,6 +20,11 @@ This module contains:
 - ``RSL_VARIABLE_BLDGS_REQUIRED`` and the ``DYOHM_BUILDING_*`` constants,
   which ``SUEWSConfig._validate_rsl`` and ``SUEWSConfig._validate_storage``
   consume for their physics-dependent checks.
+- ``WATER_DISTRIBUTION_REQUIRED``, the destinations each surface must route
+  water to, consumed by ``WaterDistribution.validate_distribution``. A failure
+  there is reported as a warning while a configuration loads, but the missing
+  fractions then reach the model as nulls, so the reference documents them as
+  required.
 - ``DOC_REQUIRED_WHEN``, which maps a model class name to a reader-facing
   description of when each field is required. This is consumed by the
   documentation generator. Most entries are derived from the constants above;
@@ -210,6 +215,36 @@ RSL_VARIABLE_BLDGS_REQUIRED: tuple[str, ...] = ("faibldg",)
 DYOHM_BUILDING_METHODS: tuple[int, ...] = (6, 8)
 DYOHM_BUILDING_LAYERS_REQUIRED: tuple[str, ...] = ("dz", "k", "rho_cp")
 
+# Water-distribution destinations each surface must give when its waterdist
+# block is supplied; an omitted block takes surface-specific defaults. Keyed by
+# surface type value; the water surface has no distribution.
+WATER_DISTRIBUTION_REQUIRED: dict[str, tuple[str, ...]] = {
+    "paved": (
+        "to_bldgs", "to_dectr", "to_evetr", "to_grass", "to_bsoil", "to_water",
+        "to_runoff",
+    ),
+    "bldgs": (
+        "to_paved", "to_dectr", "to_evetr", "to_grass", "to_bsoil", "to_water",
+        "to_runoff",
+    ),
+    "dectr": (
+        "to_paved", "to_bldgs", "to_evetr", "to_grass", "to_bsoil", "to_water",
+        "to_soilstore",
+    ),
+    "evetr": (
+        "to_paved", "to_bldgs", "to_dectr", "to_grass", "to_bsoil", "to_water",
+        "to_soilstore",
+    ),
+    "grass": (
+        "to_paved", "to_bldgs", "to_dectr", "to_evetr", "to_bsoil", "to_water",
+        "to_soilstore",
+    ),
+    "bsoil": (
+        "to_paved", "to_bldgs", "to_dectr", "to_evetr", "to_grass", "to_water",
+        "to_soilstore",
+    ),
+}
+
 
 def _option(path: str, codes: tuple[int, ...], names: tuple[str, ...]) -> str:
     """Name a physics option and the codes that trigger a requirement."""
@@ -275,6 +310,28 @@ def _shading_condition(modes: tuple[int, ...]) -> str:
     )
 
 
+def _water_distribution_conditions() -> dict[str, str]:
+    """Describe, per destination, the surfaces whose waterdist must give it."""
+    destinations = sorted(
+        {field for fields in WATER_DISTRIBUTION_REQUIRED.values() for field in fields}
+    )
+    conditions = {}
+    for field in destinations:
+        surfaces = [
+            f"``{surface}``"
+            for surface, fields in WATER_DISTRIBUTION_REQUIRED.items()
+            if field in fields
+        ]
+        listed = " or ".join(
+            filter(None, (", ".join(surfaces[:-1]), surfaces[-1]))
+        )
+        conditions[field] = (
+            f"``waterdist`` is given for a {listed} surface; an omitted "
+            "``waterdist`` block takes surface-specific defaults"
+        )
+    return conditions
+
+
 def _fai_condition(present: str, rsl_applies: bool = False) -> str:
     """Describe when a frontal area index must be supplied."""
     if rsl_applies:
@@ -314,6 +371,7 @@ DOC_REQUIRED_WHEN: dict[str, dict[str, str]] = {
         field: _shading_condition(modes)
         for field, modes in STEBBS_SHADING_REQUIRED_MODES.items()
     },
+    "WaterDistribution": _water_distribution_conditions(),
     "IrrigationParams": {
         "ie_start": _irrigation_condition("ie_end"),
         "ie_end": _irrigation_condition("ie_start"),

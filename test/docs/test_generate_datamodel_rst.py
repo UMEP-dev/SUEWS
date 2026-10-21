@@ -17,6 +17,7 @@ from supy.data_model.parameter_examples import (
     get_all_parameter_examples,
     get_parameter_examples,
 )
+from supy.data_model.validation.required_fields import DOC_REQUIRED_WHEN
 
 pytestmark = pytest.mark.api
 
@@ -416,8 +417,6 @@ def test_every_recorded_requirement_reaches_the_reference(generated_reference) -
     on its model's page fails here.
     """
     # ARRANGE
-    from supy.data_model.validation.required_fields import DOC_REQUIRED_WHEN
-
     output_dir, _ = generated_reference
 
     # ACT

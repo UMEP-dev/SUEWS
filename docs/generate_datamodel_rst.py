@@ -669,13 +669,8 @@ class RSTGenerator:
 
         lines.extend(self._format_unit_and_legacy_name(field_doc))
 
-        # Add requirement status, then the default value or the no-default note
-        status = self._format_status(field_doc, model_name)
-        if status is not None:
-            lines.append(f"   :{STATUS_LABEL}: {status}")
-        default_label, default_value = self._format_default(field_doc)
-        if default_label is not None and default_value is not None:
-            lines.append(f"   :{default_label}: {default_value}")
+        # Add requirement status, then the default value
+        lines.extend(self._format_status_and_default(field_doc, model_name))
 
         # Add default description if available
         default_desc = field_doc.get("default_description")
@@ -861,6 +856,20 @@ class RSTGenerator:
                 formatted.append(word)
 
         return " ".join(formatted)
+
+    @classmethod
+    def _format_status_and_default(
+        cls, field_doc: dict[str, Any], model_name: str
+    ) -> list[str]:
+        """Return the Status line, then the Default line where a default exists."""
+        lines = []
+        status = cls._format_status(field_doc, model_name)
+        if status is not None:
+            lines.append(f"   :{STATUS_LABEL}: {status}")
+        default_label, default_value = cls._format_default(field_doc)
+        if default_label is not None and default_value is not None:
+            lines.append(f"   :{default_label}: {default_value}")
+        return lines
 
     @staticmethod
     def _format_status(field_doc: dict[str, Any], model_name: str = "") -> str | None:

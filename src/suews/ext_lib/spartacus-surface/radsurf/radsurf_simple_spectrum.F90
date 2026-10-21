@@ -12,6 +12,10 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
+! SUEWS modification (2026, GH#1498): skip canopy emission arrays for
+! flat tiles with neither urban nor vegetation canopy enabled.
+! See ../SUEWS_PATCHES.md for scope and upstream follow-up.
+!
 
 module radsurf_simple_spectrum
 
@@ -48,7 +52,8 @@ contains
     lw_spectral_props%ground_emission(1,istartcol:iendcol) = StefanBoltzmann &
          &  * lw_spectral_props%ground_emissivity(1,istartcol:iendcol) &
          &  * canopy_props%ground_temperature(istartcol:iendcol) ** 4
-    if (ilay2 >= ilay1) then
+    ! Flat tiles only emit from the ground; canopy arrays are not allocated.
+    if (ilay2 >= ilay1 .and. (config%do_urban .or. config%do_vegetation)) then
           if (config%do_urban) then
                if (allocated(lw_spectral_props%roof_emission)) then
                lw_spectral_props%roof_emission(1,ilay1:ilay2) = StefanBoltzmann &

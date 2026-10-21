@@ -450,9 +450,12 @@ CONTAINS
       ! calculate dz array
       ilay = 1
       DO jcol = 1, ncol
-         canopy_props%dz(ilay:ilay + canopy_props%nlay(jcol) - 1) &
+         ! Flat tiles have no canopy geometry (GH#1498).
+         IF (config%do_urban .OR. config%do_vegetation) THEN
+            canopy_props%dz(ilay:ilay + canopy_props%nlay(jcol) - 1) &
               &  = height(ilay + 1:ilay + canopy_props%nlay(jcol)) &
               &   - height(ilay:ilay + canopy_props%nlay(jcol) - 1)
+         END IF
          canopy_props%istartlay(jcol) = ilay
          ilay = ilay + canopy_props%nlay(jcol)
       END DO
@@ -482,7 +485,7 @@ CONTAINS
          ilay = canopy_props%istartlay(jcol)
          veg_depth(jcol) = 0.
          DO jlay = 0, nlay(jcol) - 1
-            IF (veg_frac(ilay + jlay) > 0.) THEN
+            IF (config%do_vegetation .AND. veg_frac(ilay + jlay) > 0.) THEN
                veg_depth(jcol) = veg_depth(jcol) + canopy_props%dz(ilay + jlay)
             END IF
          END DO
@@ -497,7 +500,7 @@ CONTAINS
             ! PRINT *, 'veg_frac(ilay + jlay)', veg_frac(ilay + jlay)
             ! PRINT *, 'LAI_av(jcol)', LAI_av(jcol)
             ! PRINT *, 'canopy_props%dz(ilay + jlay)', canopy_props%dz(ilay + jlay)
-            IF (veg_frac(ilay + jlay) > 0.) THEN
+            IF (config%do_vegetation .AND. veg_frac(ilay + jlay) > 0.) THEN
                LAI_av_z(ilay + jlay) = LAI_av(jcol)*canopy_props%dz(ilay + jlay)/veg_depth(jcol)
                veg_ext(ilay + jlay) = LAI_av_z(ilay + jlay)/(2*canopy_props%dz(ilay))
             END IF
@@ -527,7 +530,9 @@ CONTAINS
 
       canopy_props%roof_temperature = tsfc_roof_K
       canopy_props%wall_temperature = tsfc_wall_K
-      canopy_props%clear_air_temperature = tair_veg_K
+      IF (config%do_urban .OR. config%do_vegetation) THEN
+         canopy_props%clear_air_temperature = tair_veg_K
+      END IF
       ! allocate_canopy only allocates veg_* when do_vegetation=.TRUE.,
       ! but downstream radsurf code may still access them.  Ensure they
       ! exist (zeroed) so that assignments and reads are always valid.
@@ -604,8 +609,10 @@ CONTAINS
          alb_no_tree_bldg = 0.0D0
       END IF
       IF (invalid_real(alb_no_tree_bldg)) alb_no_tree_bldg = 0.0D0
-      sw_spectral_props%air_ext = air_ext_sw
-      sw_spectral_props%air_ssa = air_ssa_sw
+      IF (config%do_urban .OR. config%do_vegetation) THEN
+         sw_spectral_props%air_ext = air_ext_sw
+         sw_spectral_props%air_ssa = air_ssa_sw
+      END IF
       ! Ensure conditionally-allocated arrays exist for downstream radsurf.
       IF (.NOT. ALLOCATED(sw_spectral_props%veg_ssa)) &
          ALLOCATE(sw_spectral_props%veg_ssa(nspec, nlayer))
@@ -650,8 +657,10 @@ CONTAINS
          emis_no_tree_bldg = 1.0D0
       END IF
       IF (invalid_real(emis_no_tree_bldg)) emis_no_tree_bldg = 1.0D0
-      lw_spectral_props%air_ext = air_ext_lw
-      lw_spectral_props%air_ssa = air_ssa_lw
+      IF (config%do_urban .OR. config%do_vegetation) THEN
+         lw_spectral_props%air_ext = air_ext_lw
+         lw_spectral_props%air_ssa = air_ssa_lw
+      END IF
       ! Ensure conditionally-allocated veg arrays exist for downstream radsurf.
       IF (.NOT. ALLOCATED(lw_spectral_props%veg_ssa)) &
          ALLOCATE(lw_spectral_props%veg_ssa(nspec, nlayer))

@@ -59,6 +59,7 @@ EXAMPLES:
 - [bugfix] DailyState daily means (`HDD1_h`, `HDD2_c`, `HDD3_Tmean`) now divide by the number of timesteps actually summed; the count was one short, so they were n/(n-1) too high (#1878)
   - The correction grows with the timestep: daily means drop by about 4.3% for hourly runs (24/23), against 0.35% at five minutes (288/287)
   - It matters most for the options driven by these means: the degree-day anthropogenic heat flux and modelled irrigation; it also reaches the 5-day mean temperature that OHM uses to weight its summer and winter coefficients
+- [bugfix] The debug column `x_exp` is now `G_sm*(vsmd - dsp)`, the argument of the soil-moisture conductance exponential; `S2` entered with the wrong sign. Output contract `1.1.7` carries the corrected description (#1877)
 - [bugfix] Saving long runs as text needs far less memory and time: a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output every step now peaks at 4.2 GB while saving instead of 9.2 GB, and saves in 20 s instead of 75 s (#1849)
   - `save()` no longer copies the run output to drop unrequested groups, split off DailyState or select each grid; it takes one group at a time as a view of the held output and copies only one group-year to write it.
   - Text files are formatted and written a block of rows at a time instead of turning the whole group-year into Python strings first.

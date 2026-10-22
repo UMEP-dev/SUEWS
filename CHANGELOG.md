@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [maintenance] CI now fails when a Fortran source gains a physical-constant or unit-conversion literal (273.15, Stefan-Boltzmann, pi, degree-radian and time factors, reference pressure, `cp` and `Lv` values): `scripts/lint/check_fortran_literals.py` compares per-file counts with a committed baseline, which clean-up PRs lower as they replace literals with named constants
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.

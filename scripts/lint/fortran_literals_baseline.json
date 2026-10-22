@@ -1,0 +1,108 @@
+{
+  "description": "Per-file counts of gated Fortran literal kinds; see scripts/lint/check_fortran_literals.py. Counts may only go down.",
+  "totals": {
+    "degree_radian": 74,
+    "kelvin_offset": 180,
+    "latent_heat_vaporisation": 11,
+    "minutes_per_day": 6,
+    "pi": 25,
+    "reference_pressure": 4,
+    "seconds_per_day": 16,
+    "seconds_per_hour": 18,
+    "specific_heat_air": 4,
+    "stefan_boltzmann": 6
+  },
+  "files": {
+    "src/suews/src/suews_ctrl_driver.f95": {
+      "kelvin_offset": 1,
+      "seconds_per_day": 1
+    },
+    "src/suews/src/suews_phys_anohm.f95": {
+      "kelvin_offset": 2,
+      "latent_heat_vaporisation": 1,
+      "seconds_per_day": 3,
+      "seconds_per_hour": 3,
+      "specific_heat_air": 1,
+      "stefan_boltzmann": 2
+    },
+    "src/suews/src/suews_phys_atmmoiststab.f95": {
+      "kelvin_offset": 5,
+      "seconds_per_day": 1
+    },
+    "src/suews/src/suews_phys_beers.f95": {
+      "degree_radian": 5,
+      "kelvin_offset": 36,
+      "minutes_per_day": 1,
+      "pi": 1,
+      "reference_pressure": 1,
+      "stefan_boltzmann": 1
+    },
+    "src/suews/src/suews_phys_bluews.f95": {
+      "kelvin_offset": 1,
+      "latent_heat_vaporisation": 7,
+      "seconds_per_hour": 1
+    },
+    "src/suews/src/suews_phys_dailystate.f95": {
+      "seconds_per_day": 1
+    },
+    "src/suews/src/suews_phys_narp.f95": {
+      "degree_radian": 48,
+      "kelvin_offset": 4,
+      "pi": 8,
+      "seconds_per_day": 2,
+      "seconds_per_hour": 3,
+      "stefan_boltzmann": 1
+    },
+    "src/suews/src/suews_phys_ohm.f95": {
+      "seconds_per_day": 3,
+      "seconds_per_hour": 2
+    },
+    "src/suews/src/suews_phys_snow.f95": {
+      "pi": 1,
+      "seconds_per_day": 3
+    },
+    "src/suews/src/suews_phys_solweig.f95": {
+      "degree_radian": 14,
+      "kelvin_offset": 36,
+      "pi": 8,
+      "reference_pressure": 1,
+      "stefan_boltzmann": 1
+    },
+    "src/suews/src/suews_phys_spartacus.f95": {
+      "degree_radian": 3,
+      "kelvin_offset": 5,
+      "pi": 5,
+      "reference_pressure": 2
+    },
+    "src/suews/src/suews_phys_stebbs.f95": {
+      "degree_radian": 1,
+      "kelvin_offset": 83,
+      "pi": 1,
+      "seconds_per_hour": 1,
+      "specific_heat_air": 1,
+      "stefan_boltzmann": 1
+    },
+    "src/suews/src/suews_phys_waterdist.f95": {
+      "seconds_per_hour": 2
+    },
+    "src/suews/src/suews_util_datetime.f95": {
+      "seconds_per_day": 2,
+      "seconds_per_hour": 2
+    },
+    "src/suews/src/suews_util_meteo.f95": {
+      "degree_radian": 2,
+      "kelvin_offset": 7,
+      "latent_heat_vaporisation": 3,
+      "specific_heat_air": 2
+    },
+    "src/suews/src/suews_util_profile.f95": {
+      "seconds_per_hour": 3
+    },
+    "src/suews/src/suews_util_time.f95": {
+      "degree_radian": 1,
+      "minutes_per_day": 5,
+      "pi": 1,
+      "seconds_per_hour": 1
+    }
+  }
+}

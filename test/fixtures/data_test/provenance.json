@@ -13,15 +13,16 @@
       }
     },
     "fortran_build_profile": "release",
-    "git_commit": "fcab99b03a",
+    "git_commit": "e588cb4",
     "supy_version": "2026.10.22.dev0"
   },
   "column_names_sha256": "1f6b28f98506b531b5c6531dd353feb033ee62d67e879e6dd941b7a63b26bc31",
   "columns": 113,
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-10-22T12:44:16Z",
+  "generated_utc": "2026-10-22T17:19:02Z",
   "platform": {
+    "libc": "glibc 2.17",
     "machine": "x86_64",
     "pandas": "2.3.2",
     "python": "3.12.12",

@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] DailyState daily means (`HDD1_h`, `HDD2_c`, `HDD3_Tmean`) now divide by the number of timesteps actually summed; the count was one short, making them 0.35% too high with five-minute steps and 4.3% with hourly ones, and the bias reached the 5-day mean temperature used by OHM, the modelled irrigation and the degree-day anthropogenic heat (#1878)
 - [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.

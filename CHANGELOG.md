@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
-- [bugfix] Long runs need about 0.4 GB less memory while the model runs: SuPy now hands the forcing to the Rust bridge as a NumPy array instead of a list of Python floats, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 3.7 GB instead of 4.1 GB during the run (#1849)
+- [bugfix] Long runs need about 0.4 GB less memory while the model runs: SuPy now hands the forcing to the Rust bridge as a NumPy array instead of a list of Python floats, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 3.8 GB instead of 4.1 GB during the run (#1849)
   - The list boxed every forcing value (32 per timestep) as a Python float, about four times the size of the array itself; the bridge now copies the array once into the buffer the kernel reads.
   - The bridge's `run_suews_into` and `run_suews_multi_into` take the forcing as a C-ordered float64 array of shape `(len_sim, 32)` and refuse any other dtype, shape or memory layout; the older list-taking `run_suews*` functions are unchanged.
   - Output values, columns and saved files are unchanged.

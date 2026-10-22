@@ -21,6 +21,15 @@ from .variables import (
 
 # Surface types for snow variables
 SURFACE_TYPES = ["Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water"]
+SURFACE_NAMES = {
+    "Paved": "paved surface",
+    "Bldgs": "building surface",
+    "EveTr": "evergreen tree surface",
+    "DecTr": "deciduous tree surface",
+    "Grass": "grass surface",
+    "BSoil": "bare soil surface",
+    "Water": "water surface",
+}
 
 
 def make_surface_vars(base_name, unit, description_template, aggregation):
@@ -35,21 +44,11 @@ def make_surface_vars(base_name, unit, description_template, aggregation):
     Returns:
         List of OutputVariable instances for all surface types
     """
-    surface_names = {
-        "Paved": "paved surface",
-        "Bldgs": "building surface",
-        "EveTr": "evergreen tree surface",
-        "DecTr": "deciduous tree surface",
-        "Grass": "grass surface",
-        "BSoil": "bare soil surface",
-        "Water": "water surface",
-    }
-
     return [
         OutputVariable(
             name=f"{base_name}_{surf}",
             unit=unit,
-            description=description_template.format(surface_names[surf]),
+            description=description_template.format(SURFACE_NAMES[surf]),
             aggregation=aggregation,
             group=OutputGroup.SNOW,
             level=OutputLevel.DEFAULT,
@@ -64,37 +63,37 @@ SWE_VARS = make_surface_vars(
 )
 
 # Meltwater by surface
-MW_VARS = make_surface_vars("Mw", "mm", "Meltwater for {}", AggregationMethod.SUM)
+MW_VARS = make_surface_vars("Mw", "mm", "Snow melted during the timestep on {}", AggregationMethod.SUM)
 
 # Snow-related heat exchange by surface
 QM_VARS = make_surface_vars(
     "Qm",
     "W m-2",
-    "Snow-related heat exchange for {}",
+    "Heat used to melt snow on {} (negative when meltwater refreezes)",
     AggregationMethod.AVERAGE,
 )
 
 # Advective heat by surface
 QA_VARS = make_surface_vars(
-    "Qa", "W m-2", "Advective heat for {}", AggregationMethod.AVERAGE
+    "Qa", "W m-2", "Heat carried into the snowpack by rain on {}", AggregationMethod.AVERAGE
 )
 
 # Heat related to freezing by surface
 QMFR_VARS = make_surface_vars(
     "QmFr",
     "W m-2",
-    "Heat related to freezing for {}",
+    "Heat released when surface water freezes on {}",
     AggregationMethod.AVERAGE,
 )
 
 # Fraction of snow by surface (excluding Water)
 FR_VARS = make_surface_vars(
-    "fr", "-", "Fraction of surface covered by snow for {}", AggregationMethod.AVERAGE
+    "fr", "-", "Fraction of {} covered by snow", AggregationMethod.AVERAGE
 )[:-1]  # No fr_Water
 
 # Rain on snow by surface
 RAINSN_VARS = make_surface_vars(
-    "RainSn", "mm", "Rain on snow for {}", AggregationMethod.SUM
+    "RainSn", "mm", "Rain falling on snow on {}", AggregationMethod.SUM
 )
 
 # Net radiation for snow surface
@@ -102,9 +101,7 @@ QN_SNOW_VARS = [
     OutputVariable(
         name=f"Qn_{surf}Snow",
         unit="W m-2",
-        description=f"Net all-wave radiation for snow {surf.lower()} surface"
-        if surf != "Bldgs"
-        else "Net all-wave radiation for snow building surface",
+        description=f"Net all-wave radiation for snow on {SURFACE_NAMES[surf]}",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SNOW,
         level=OutputLevel.DEFAULT,
@@ -117,9 +114,7 @@ KUP_SNOW_VARS = [
     OutputVariable(
         name=f"kup_{surf}Snow",
         unit="W m-2",
-        description=f"Reflected shortwave radiation for snow {surf.lower()} surface"
-        if surf != "Bldgs"
-        else "Reflected shortwave radiation for snow building surface",
+        description=f"Reflected shortwave radiation for snow on {SURFACE_NAMES[surf]}",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SNOW,
         level=OutputLevel.DEFAULT,
@@ -127,17 +122,17 @@ KUP_SNOW_VARS = [
     for surf in SURFACE_TYPES
 ]
 
-# Amount of freezing melt water by surface
+# Refrozen meltwater by surface
 FRMELT_VARS = make_surface_vars(
     "frMelt",
     "mm",
-    "Amount of freezing melt water for {}",
+    "Refrozen meltwater for {}",
     AggregationMethod.AVERAGE,
 )
 
 # Meltwater store by surface
 MWSTORE_VARS = make_surface_vars(
-    "MwStore", "mm", "Meltwater store for {}", AggregationMethod.AVERAGE
+    "MwStore", "mm", "Liquid water held in the snowpack on {}", AggregationMethod.AVERAGE
 )
 
 # Snow density by surface
@@ -161,7 +156,13 @@ SNOW_ALB_VAR = [
     OutputVariable(
         name="SnowAlb",
         unit="-",
-        description="Surface albedo for snow/ice",
+        description=(
+            "Albedo of the snowpack, one value shared by all snow-covered "
+            "surfaces: it decreases as the snow ages (linearly below 0 degC, "
+            "towards the minimum snow albedo at or above 0 degC), returns to "
+            "the maximum after enough fresh snowfall, and is 0 when no "
+            "surface has snow"
+        ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SNOW,
         level=OutputLevel.DEFAULT,

@@ -34,7 +34,10 @@ unit, group and layout unchanged. Output contract `1.1.2` corrects further
 descriptions found to disagree with the kernel, among them `flag_RSL`, the RSL
 profiles, the BEERS sunlit fractions and the DailyState water use and OHM
 coefficients, and the units of `beta`, `DecidCap` and the DailyState water use,
-leaving every name, group, aggregation and layout unchanged. A group is covered when that group is
+leaving every name, group, aggregation and layout unchanged. Output contract
+`1.1.3` rewords descriptions for clarity and consistency, among them the
+truncated-looking `flag_RSL` text, and corrects six that disagreed with the
+kernel (`HDD1_h` to `HDD4_T5d`, `UStar_heat`, debug `vsmd` and `dsp`). A group is covered when that group is
 present; the contract does not promise that every optional group is emitted by
 every run.
 

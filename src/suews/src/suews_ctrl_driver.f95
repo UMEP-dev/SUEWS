@@ -1946,6 +1946,7 @@ CONTAINS
                         wall_in_sw_spc, wall_in_lw_spc, &
                         dataOutLineSPARTACUS, &
                         modState%errorState)
+                     IF (supy_error_flag()) RETURN
                      IF (qn /= qn .OR. qn <= -999D0) THEN
                         WRITE (*, *) 'QN_DEBUG invalid qn after SPARTACUS:', &
                            ' netrad=', NetRadiationMethod, &

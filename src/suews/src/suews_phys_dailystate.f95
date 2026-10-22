@@ -615,7 +615,8 @@ CONTAINS
                WUDay_M = MERGE(WUDay_M, 0D0, WUDay_M > 0)
 
                ! ---- total irrigation
-               WUDay_total = WUDay_P + WUDay_A + WUDay_M
+               ! WUDay_A already includes the ponding demand WUDay_P (gh#1864)
+               WUDay_total = WUDay_A + WUDay_M
 
                ! transfer values to WUDay_id
                WUDay_id([((i - 1)*3 + 1, i=1, 3)]) = WUDay_total

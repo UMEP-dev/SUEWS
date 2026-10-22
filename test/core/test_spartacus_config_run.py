@@ -18,6 +18,9 @@ def test_spartacus_config_patch_runs_and_reports_radiation(
     config = sim.config.model_dump(exclude_none=True, mode="json")
     # The sample has no observed incoming longwave: select the air-derived mode.
     config["model"]["physics"]["net_radiation"] = {"value": 1003}
+    # SPARTACUS with buildings needs facet-resolved storage heat (gh#1834):
+    # EHC replaces the sample's OHM.
+    config["model"]["physics"]["storage_heat"] = {"value": 5}
     config["model"]["physics"]["kdown_split_method"] = split_method
     layers = config["sites"][0]["properties"]["vertical_layers"]
     # Its 15-22 m layer is above both 13.1 m tree crowns.

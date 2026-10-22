@@ -25,11 +25,17 @@ def _site_properties(data):
     return data["sites"][0]["properties"]
 
 
-def _enable_spartacus(data):
-    """Enable SPARTACUS while working around the sample-data issue in #1699."""
+def _enable_spartacus(data, storage_heat=StorageHeatMethod.EHC.value):
+    """Enable SPARTACUS while working around the sample-data issue in #1699.
+
+    SPARTACUS with buildings needs a facet-resolved storage heat method
+    (gh#1834), so the sample's OHM is replaced by ``storage_heat``: EHC by
+    default, which leaves the sample's STEBBS switch untouched.
+    """
     data["model"]["physics"]["net_radiation"] = {
         "value": NetRadiationMethod.LDOWN_SS_OBSERVED.value
     }
+    data["model"]["physics"]["storage_heat"] = {"value": storage_heat}
     vertical_layers = _site_properties(data)["vertical_layers"]
     for key in ("veg_frac", "veg_scale"):
         values = vertical_layers[key]["value"]
@@ -66,8 +72,11 @@ def test_stebbs_storage_heat_requires_spartacus_radiation():
 
 def test_stebbs_storage_heat_loads_with_spartacus_radiation():
     data = _sample_config()
-    data["model"]["physics"]["storage_heat"] = {"value": StorageHeatMethod.STEBBS.value}
-    _enable_spartacus(data)
+    _enable_spartacus(data, storage_heat=StorageHeatMethod.STEBBS.value)
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
 
     SUEWSConfig.from_dict(data)
 
@@ -540,3 +549,79 @@ def test_spartacus_rejects_nonzero_vegetation_above_tree_canopy(field):
     _site_properties(data)["vertical_layers"][field]["value"][2] = original
 
     _assert_public_rejection(data, f"{field}[2] should be zero")
+
+
+# SPARTACUS storage heat compatibility (gh#1834)
+
+
+def _remove_buildings(data):
+    """Move the building fraction to paved and drop buildings from the layers."""
+    land_cover = _site_properties(data)["land_cover"]
+    bldgs_sfr = land_cover["bldgs"]["sfr"]["value"]
+    land_cover["paved"]["sfr"]["value"] += bldgs_sfr
+    land_cover["bldgs"]["sfr"]["value"] = 0.0
+    vertical_layers = _site_properties(data)["vertical_layers"]
+    vertical_layers["building_frac"]["value"] = [
+        0.0 for _ in vertical_layers["building_frac"]["value"]
+    ]
+    vertical_layers["building_scale"]["value"] = [
+        0.0 for _ in vertical_layers["building_scale"]["value"]
+    ]
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        StorageHeatMethod.OHM_WITHOUT_QF.value,
+        StorageHeatMethod.DyOHM.value,
+        StorageHeatMethod.DyOHM_BUILDING.value,
+    ],
+)
+def test_spartacus_with_buildings_rejects_non_facet_storage_heat(method):
+    data = _sample_config()
+    _enable_spartacus(data, storage_heat=method)
+
+    _assert_public_rejection(
+        data,
+        "SPARTACUS with buildings",
+        f"got storage_heat {method}",
+    )
+
+
+def test_spartacus_with_buildings_rejects_sample_readable_ohm_form():
+    """The sample's own readable ``storage_heat: {ohm: ...}`` form is caught."""
+    data = _sample_config()
+    _enable_spartacus(data)
+    data["model"]["physics"]["storage_heat"] = {"ohm": {"include_qf": False}}
+
+    _assert_public_rejection(data, "SPARTACUS with buildings")
+
+
+def test_spartacus_rejects_observed_storage_heat():
+    data = _sample_config()
+    _enable_spartacus(data, storage_heat=StorageHeatMethod.OBSERVED.value)
+
+    _assert_public_rejection(data, "observed storage heat fluxes")
+
+
+def test_spartacus_stebbs_storage_heat_requires_stebbs_enabled():
+    data = _sample_config()
+    _enable_spartacus(data, storage_heat=StorageHeatMethod.STEBBS.value)
+
+    _assert_public_rejection(data, "requires STEBBS to be enabled")
+
+
+def test_spartacus_without_buildings_allows_non_facet_storage_heat():
+    data = _sample_config()
+    _enable_spartacus(data, storage_heat=StorageHeatMethod.OHM_WITHOUT_QF.value)
+    _remove_buildings(data)
+
+    SUEWSConfig.from_dict(data)
+
+
+def test_spartacus_without_buildings_still_rejects_observed_storage_heat():
+    data = _sample_config()
+    _enable_spartacus(data, storage_heat=StorageHeatMethod.OBSERVED.value)
+    _remove_buildings(data)
+
+    _assert_public_rejection(data, "observed storage heat fluxes")

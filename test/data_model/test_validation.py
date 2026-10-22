@@ -2044,6 +2044,8 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
     msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
     assert msgs == []
 
+
+
 def make_sample_physics(fields):
     obj = types.SimpleNamespace()
     obj.model_fields_set = set(fields)
@@ -2567,6 +2569,78 @@ def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
     ]
     assert len(radiation_results) == 1
     assert radiation_results[0].status == "PASS"
+
+
+def _spartacus_option_yaml(storage_heat, bldgs_sfr, stebbs_enabled=True):
+    """Two-site option-dependency payload; only the second site has buildings."""
+    return {
+        "model": {
+            "physics": {
+                "storage_heat": storage_heat,
+                "net_radiation": {"spartacus": {"ldown": "air"}},
+                "ohm_inc_qf": "exclude",
+                "stebbs": {"enabled": stebbs_enabled},
+            }
+        },
+        "sites": [
+            {"properties": {"land_cover": {"bldgs": {"sfr": {"value": 0.0}}}}},
+            {"properties": {"land_cover": {"bldgs": {"sfr": {"value": bldgs_sfr}}}}},
+        ],
+    }
+
+
+def _spartacus_storage_results(registry, yaml_data):
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data))
+    return [r for r in results if r.parameter.startswith("netradiationmethod-storageheatmethod")]
+
+
+@pytest.mark.parametrize("storage_heat", ["ohm", "dyohm", "dyohm_building", 6])
+def test_phase_b_spartacus_with_buildings_rejects_non_facet_storage(
+    registry, storage_heat
+):
+    """gh#1834: buildings at any site need EHC or STEBBS storage heat."""
+    results = _spartacus_storage_results(
+        registry, _spartacus_option_yaml(storage_heat, bldgs_sfr=0.4)
+    )
+
+    assert [r.status for r in results] == ["ERROR"]
+    assert "SPARTACUS when buildings are present" in results[0].message
+
+
+@pytest.mark.parametrize("storage_heat", ["ehc", "stebbs", 7])
+def test_phase_b_spartacus_with_buildings_accepts_facet_storage(
+    registry, storage_heat
+):
+    results = _spartacus_storage_results(
+        registry, _spartacus_option_yaml(storage_heat, bldgs_sfr=0.4)
+    )
+
+    assert [r.status for r in results] == ["PASS"]
+
+
+def test_phase_b_spartacus_without_buildings_accepts_any_modelled_storage(registry):
+    results = _spartacus_storage_results(
+        registry, _spartacus_option_yaml("dyohm", bldgs_sfr=0.0)
+    )
+
+    assert [r.status for r in results] == ["PASS"]
+
+
+@pytest.mark.parametrize("bldgs_sfr", [0.0, 0.4])
+def test_phase_b_spartacus_rejects_observed_storage(registry, bldgs_sfr):
+    results = _spartacus_storage_results(
+        registry, _spartacus_option_yaml("observed", bldgs_sfr=bldgs_sfr)
+    )
+
+    assert [r.status for r in results] == ["ERROR"]
+    assert "Observed storage heat fluxes" in results[0].message
+
+
+def test_phase_b_spartacus_storage_rule_ignores_narp(registry):
+    yaml_data = _spartacus_option_yaml("observed", bldgs_sfr=0.4)
+    yaml_data["model"]["physics"]["net_radiation"] = {"narp": {"ldown": "air"}}
+
+    assert _spartacus_storage_results(registry, yaml_data) == []
 
 
 def test_phase_b_storageheatmethod_stebbs_requires_spartacus(registry):

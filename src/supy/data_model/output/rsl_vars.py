@@ -73,7 +73,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="zH_RSL",
         unit="m",
-        description="Canyon depth",
+        description="Mean canyon height used in RSL",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -89,7 +89,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="beta",
         unit="-",
-        description="Beta coefficient from Harman 2012",
+        description="Beta coefficient of Harman (2012)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -97,7 +97,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="zd_RSL",
         unit="m",
-        description="Displacement height",
+        description="Zero-plane displacement height",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -131,8 +131,8 @@ RSL_DIAG_VARS = [
         unit="-",
         description=(
             "Roughness-sublayer parameter f of Harman and Finnigan (2008), "
-            "derived from the Schmidt number Scc, setting the in-canopy decay "
-            "of temperature and humidity; missing when MOST is used"
+            "derived from the Schmidt number Scc, which sets the in-canopy decay "
+            "of temperature and humidity. Missing when MOST is used."
         ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
@@ -157,7 +157,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="TStar_RSL",
         unit="K",
-        description="Friction temperature used in RSL",
+        description="Temperature scale used in RSL",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -184,8 +184,8 @@ RSL_DIAG_VARS = [
         description=(
             "Profile scheme used at the timestep: 1 when roughness-sublayer "
             "theory (RST) was used, 0 when Monin-Obukhov similarity theory "
-            "(MOST) was used; averaged on resampling, so the fraction of "
-            "timesteps that used RST"
+            "(MOST) was used. After resampling, the value is the fraction of "
+            "timesteps that used RST."
         ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,

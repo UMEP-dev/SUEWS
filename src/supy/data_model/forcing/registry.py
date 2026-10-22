@@ -299,7 +299,7 @@ class ForcingRegistry(BaseModel):
 
     @property
     def runtime_scaled_variables(self) -> tuple[ForcingVariable, ...]:
-        """Return legacy columns whose in-memory unit differs from the file unit."""
+        """Legacy columns whose in-memory unit differs from the file unit."""
         return tuple(
             variable
             for variable in self.legacy_variables

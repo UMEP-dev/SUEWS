@@ -1368,7 +1368,7 @@ def build_code_df(code, path_input, df_base):
                     f"{lib_code}: created uniform placeholder profile for missing "
                     f"code {missing_code}"
                 )
-            df_code0.sort_index(inplace=True)
+            df_code0 = df_code0.sort_index()
             df_code = df_code0.loc[list_code, list_keys]
         else:
             logger_supy.exception(f"Entries missing from {lib_code}")

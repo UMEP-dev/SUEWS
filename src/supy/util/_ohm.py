@@ -52,7 +52,7 @@ def derive_ohm_coef(ser_QS, ser_QN):
 
     # Reindex after dropping NaNs
     regression_df = regression_df.reset_index(drop=True)
-    regression_df.fillna(regression_df.mean(), inplace=True)
+    regression_df = regression_df.fillna(regression_df.mean())
 
     feature_cols = ["QN", "delta_QN_dt"]
 

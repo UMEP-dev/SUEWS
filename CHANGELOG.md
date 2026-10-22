@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] The roughness-sublayer humidity scale `qStar_RSL` now divides the latent heat flux by air density instead of multiplying by it, so the RSL humidity profile, `Q2` and `RH2` no longer depart from the forcing humidity by about 1.4 times too much; the sample reference output is refreshed (#1867)
 - [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.

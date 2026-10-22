@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 22 Oct 2026
+
+- [bugfix] Long runs need about half the memory while the model runs: the kernel now writes its output straight into the table SuPy returns, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 4.1 GB instead of 7.5 GB during the run (#1849)
+  - The Fortran kernel, the Rust bridge and pandas used to hold two full-width copies of the output at once (a Fortran block copied into a Rust buffer, that buffer copied into Python bytes, then the data columns gathered into a new array); one buffer, allocated by SuPy, now serves all three.
+  - Each output group's repeated 5-column datetime prefix is written once per row to a separate small array instead of into the table.
+  - Output values, columns and saved files are unchanged. The bridge's older `run_suews*` functions keep their flat-block return for existing callers.
+  - In that flat block, which the standalone bridge CLI writes, the NHood group's five datetime columns now carry the run's timestamp like every other group instead of -999; its data column is still -999.
+
 ### 21 Oct 2026
 
 - [bugfix] Long runs at a 5-minute timestep need less memory: a three-year single-grid run saving SUEWS, RSL, DailyState and debug output every step now peaks at 9.2 GB instead of 12.6 GB (#1849)

@@ -102,16 +102,19 @@ def test_checkpoint_continuation_calls_rust_state_path(short_sample_sim, monkeyp
 
     calls = {"count": 0}
     bridge_module = rust_module._check_rust_available()
-    original = bridge_module.run_suews_with_state
+    original = bridge_module.run_suews_into
 
-    def wrapped_run_suews_with_state(*args, **kwargs):
-        calls["count"] += 1
+    def wrapped_run_suews_into(*args, **kwargs):
+        # The sixth argument is the checkpoint state JSON (None for a fresh run).
+        state_json = args[5] if len(args) > 5 else kwargs.get("state_json")
+        if state_json is not None:
+            calls["count"] += 1
         return original(*args, **kwargs)
 
     monkeypatch.setattr(
         bridge_module,
-        "run_suews_with_state",
-        wrapped_run_suews_with_state,
+        "run_suews_into",
+        wrapped_run_suews_into,
     )
 
     sim2 = SUEWSSimulation.from_checkpoint(sim1.config, sim1.checkpoint)

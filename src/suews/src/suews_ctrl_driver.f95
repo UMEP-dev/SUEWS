@@ -700,15 +700,17 @@ CONTAINS
    ! Batch DTS execution subroutine - loops internally over timesteps for efficiency
    ! This avoids Python->Fortran call overhead when processing multiple timesteps
    !
-   ! Output layout: all 11 output groups concatenated per row in a single flat block.
+   ! Output layout: the data columns of all 11 output groups concatenated per row,
+   ! without each group's 5-column datetime prefix, which is written once per row
+   ! to datetimeBlock instead. The caller can then hand dataOutBlockData to Python
+   ! as the final output table with no gather or copy (gh#1849).
    ! Column order: SUEWS | Snow | BEERS | ESTM | EHC | DailyState | RSL | Debug | SPARTACUS | STEBBS | NHood
-   ! Each group retains its own 5-column datetime prefix.
-   ! Total columns = sum of all ncolumnsDataOut* constants; passed as ncols_all.
+   ! ncols_data = sum of all ncolumnsDataOut* constants minus 5 per group.
    SUBROUTINE SUEWS_cal_multitsteps_dts( &
       timer, MetForcingBlock, len_sim, &
       config, siteInfo, &
       modState, &
-      dataOutBlockAll, ncols_all)
+      dataOutBlockData, ncols_data, datetimeBlock)
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
                                   SUEWS_STATE, output_line
@@ -722,8 +724,9 @@ CONTAINS
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
-      INTEGER, INTENT(IN) :: ncols_all
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncols_all), INTENT(OUT) :: dataOutBlockAll
+      INTEGER, INTENT(IN) :: ncols_data
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncols_data), INTENT(OUT) :: dataOutBlockData
+      REAL(KIND(1D0)), DIMENSION(len_sim, 5), INTENT(OUT) :: datetimeBlock
 
       ! Local variables
       TYPE(SUEWS_FORCING) :: forcing
@@ -777,67 +780,38 @@ CONTAINS
             modState, &
             output_line_local)
 
-         ! === Store all output groups concatenated ===
+         ! === Store all output groups concatenated, datetime prefix once ===
+         datetimeBlock(ir, :) = output_line_local%dataOutLineSUEWS(1:5)
          col_offset = 0
-
-         ! 1. SUEWS
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSUEWS) = &
-            output_line_local%dataOutLineSUEWS
-         col_offset = col_offset + ncolumnsDataOutSUEWS
-
-         ! 2. Snow
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSnow) = &
-            output_line_local%dataOutLineSnow
-         col_offset = col_offset + ncolumnsDataOutSnow
-
-         ! 3. BEERS
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutBEERS) = &
-            output_line_local%dataOutLineBEERS
-         col_offset = col_offset + ncolumnsDataOutBEERS
-
-         ! 4. ESTM
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutESTM) = &
-            output_line_local%dataOutLineESTM
-         col_offset = col_offset + ncolumnsDataOutESTM
-
-         ! 5. EHC
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutEHC) = &
-            output_line_local%dataOutLineEHC
-         col_offset = col_offset + ncolumnsDataOutEHC
-
-         ! 6. DailyState
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutDailyState) = &
-            output_line_local%dataOutLineDailyState
-         col_offset = col_offset + ncolumnsDataOutDailyState
-
-         ! 7. RSL
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutRSL) = &
-            output_line_local%dataoutLineRSL
-         col_offset = col_offset + ncolumnsDataOutRSL
-
-         ! 8. Debug
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutDebug) = &
-            output_line_local%dataOutLineDebug
-         col_offset = col_offset + ncolumnsDataOutDebug
-
-         ! 9. SPARTACUS
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSPARTACUS) = &
-            output_line_local%dataOutLineSPARTACUS
-         col_offset = col_offset + ncolumnsDataOutSPARTACUS
-
-         ! 10. STEBBS
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSTEBBS) = &
-            output_line_local%dataOutLineSTEBBS
-         col_offset = col_offset + ncolumnsDataOutSTEBBS
-
-         ! 11. NHood
-         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutNHood) = &
-            output_line_local%dataOutLineNHood
+         CALL store_group(output_line_local%dataOutLineSUEWS)
+         CALL store_group(output_line_local%dataOutLineSnow)
+         CALL store_group(output_line_local%dataOutLineBEERS)
+         CALL store_group(output_line_local%dataOutLineESTM)
+         CALL store_group(output_line_local%dataOutLineEHC)
+         CALL store_group(output_line_local%dataOutLineDailyState)
+         CALL store_group(output_line_local%dataoutLineRSL)
+         CALL store_group(output_line_local%dataOutLineDebug)
+         CALL store_group(output_line_local%dataOutLineSPARTACUS)
+         CALL store_group(output_line_local%dataOutLineSTEBBS)
+         CALL store_group(output_line_local%dataOutLineNHood)
 
          ! === Update dt_since_start for next iteration ===
          timer%dt_since_start = timer%dt_since_start + timer%tstep
 
       END DO
+
+   CONTAINS
+
+      ! Copy one group's data columns (its line minus the datetime prefix) into
+      ! row ir of dataOutBlockData and advance col_offset past them.
+      SUBROUTINE store_group(line)
+         REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: line
+         INTEGER :: n_data
+
+         n_data = SIZE(line) - 5
+         dataOutBlockData(ir, col_offset + 1:col_offset + n_data) = line(6:)
+         col_offset = col_offset + n_data
+      END SUBROUTINE store_group
 
    END SUBROUTINE SUEWS_cal_multitsteps_dts
 ! ================================================================================

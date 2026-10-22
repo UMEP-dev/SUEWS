@@ -34,7 +34,6 @@ Style check: `/lint-code` | Docs check: `/audit-docs` | Build check: `/verify-bu
 
 - `/lint-code` - Check code style
 - `/audit-docs` - Docs sanity check (non-ASCII + bib topic-tags)
-- `/sync-docs` - Doc-code consistency
 - `/triage-issue` - Audit, rewrite, or split a GitHub issue (governance)
 - `/fix-issue` - Triage and implement a GitHub issue to PR-ready status
 - `/republish-docs` - Republish/revise released docs (move tag to clean anchor)
@@ -56,6 +55,7 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 - `.claude/README.md` - Full workspace documentation
 - `.claude/skills/` - Detailed skill workflows
 - `.claude/rules/` - Style conventions
+- `.claude/agents/` - Review subagents (`docs-reviewer` for doc-code drift and docs house style)
 
 ## Shared rule files
 

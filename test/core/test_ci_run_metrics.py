@@ -11,7 +11,8 @@ import re
 import pytest
 import yaml
 
-from scripts.suews.analyse_ci_run import analyse_run
+from scripts.suews import analyse_ci_run
+from scripts.suews.analyse_ci_run import TargetNotCompletedError, analyse_run
 
 pytestmark = pytest.mark.api
 
@@ -73,6 +74,68 @@ def test_analysis_separates_dependency_queue_and_execution_time() -> None:
         {"duration_seconds": 5.0, "name": "Checkout"},
         {"duration_seconds": 55.0, "name": "Build"},
     ]
+
+
+@pytest.mark.core
+def test_target_not_yet_completed_is_a_distinct_error() -> None:
+    """A target the Jobs API still reports in progress is not config drift."""
+    run = {"id": 42, "created_at": "2026-07-15T00:00:00Z"}
+    gate = _job("Gate", 108, 109, 114)
+    gate.update(status="in_progress", conclusion=None, completed_at=None)
+    jobs = {"jobs": [_job("Build", 0, 2, 100), gate]}
+
+    with pytest.raises(TargetNotCompletedError, match="'Gate' is 'in_progress'"):
+        analyse_run(run, jobs, declared_needs={"Gate": ["Build"]}, target_job_pattern="Gate")
+
+    # Marked completed but without a completion time yet: also still settling.
+    gate.update(status="completed", conclusion="success")
+    with pytest.raises(TargetNotCompletedError, match="'Gate' is 'completed'"):
+        analyse_run(run, jobs, declared_needs={"Gate": ["Build"]}, target_job_pattern="Gate")
+
+    # A missing target still fails: the workflow and the pattern have drifted.
+    with pytest.raises(ValueError, match="found 0") as missing:
+        analyse_run(
+            run,
+            {"jobs": [_job("Build", 0, 2, 100)]},
+            declared_needs={},
+            target_job_pattern="Gate",
+        )
+    assert not isinstance(missing.value, TargetNotCompletedError)
+
+
+@pytest.mark.core
+def test_cli_skips_cleanly_when_target_not_yet_completed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The summary job reports a skip, not a failure, for a lagging Jobs API."""
+    gate = _job("PR build validation", 108, 109, 114)
+    gate.update(status="in_progress", conclusion=None, completed_at=None)
+    payloads = {
+        "run.json": {"id": 42, "created_at": "2026-07-15T00:00:00Z"},
+        "jobs.json": {"jobs": [_job("Build", 0, 2, 100), gate]},
+        "needs.json": {"PR build validation": ["Build"]},
+    }
+    for name, payload in payloads.items():
+        (tmp_path / name).write_text(json.dumps(payload), encoding="utf-8")
+    output = tmp_path / "metrics.json"
+    summary = tmp_path / "summary.md"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "analyse_ci_run.py",
+            "--run-json", str(tmp_path / "run.json"),
+            "--jobs-json", str(tmp_path / "jobs.json"),
+            "--needs-json", str(tmp_path / "needs.json"),
+            "--output", str(output),
+            "--summary", str(summary),
+        ],
+    )
+
+    assert analyse_ci_run.main() == 0
+    assert not output.exists()
+    assert "Skipped: Target 'PR build validation' is 'in_progress'" in summary.read_text(
+        encoding="utf-8"
+    )
 
 
 @pytest.mark.core

@@ -57,6 +57,7 @@ EXAMPLES:
 ### 22 Oct 2026
 
 - [bugfix] `supy.util` saturation vapour pressure (`cal_vap_sat`, and through it the dry-air and vapour density helpers) now converts pressure from hPa to kPa for DataFrame (2-D) input as it already did for Series, array and scalar input; the 2-D fallback branch used the hPa value directly, which overstated the pressure term of the enhancement factor tenfold (about 0.3 % in the result at surface pressure)
+- [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
   - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.

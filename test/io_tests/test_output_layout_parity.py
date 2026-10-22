@@ -42,8 +42,15 @@ def test_text_layout_prefix_sentinel_and_filenames(tmp_path: Path):
 
 def test_parquet_layout_and_null_round_trip(tmp_path: Path):
     """Preserve ordered output identities and represent missing values as null."""
+    # Parquet does not store an index freq, so the expected index has none;
+    # pandas 3.1 warns that assert_index_equal will compare freq by default.
     index = pd.MultiIndex.from_product(
-        [[7], pd.date_range("2012-01-01 00:05", periods=2, freq="5min")],
+        [
+            [7],
+            pd.DatetimeIndex(
+                pd.date_range("2012-01-01 00:05", periods=2, freq="5min"), freq=None
+            ),
+        ],
         names=["grid", "datetime"],
     )
     columns = pd.MultiIndex.from_tuples(

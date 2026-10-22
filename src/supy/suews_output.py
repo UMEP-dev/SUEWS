@@ -6,9 +6,12 @@ Provides a structured interface for accessing and exporting SUEWS model output d
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
+from packaging.version import Version
 import pandas as pd
 
 from ._filename import safe_filename_component
@@ -34,6 +37,98 @@ def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
         "the output in memory. The checkpoint, final state and kernel "
         "warnings are still available."
     )
+
+
+def _copy_on_write_active() -> bool:
+    """Whether pandas copy-on-write protects a shallow copy from writes.
+
+    Always on from pandas 3. On pandas 2 it is the user's opt-in
+    ``mode.copy_on_write`` option (only ``True`` counts: ``"warn"`` still
+    writes through). The option is read, never set; on pandas 3 it is not
+    read at all, because reading it there emits a deprecation warning.
+    """
+    if Version(pd.__version__).major >= 3:
+        return True
+    try:
+        return pd.get_option("mode.copy_on_write") is True
+    except (KeyError, pd.errors.OptionError):
+        return False
+
+
+def _frame_for_caller(df: pd.DataFrame) -> pd.DataFrame:
+    """Hand *df* to a caller without copying it and without exposing it to writes.
+
+    A deep copy on every access cost the full size of the output table, the
+    largest single allocation of a long run (gh#1849). Instead:
+
+    - Under copy-on-write, a shallow copy is enough: the first write to the
+      returned frame copies the touched data, so the caller still sees an
+      independent frame and *df* never changes.
+    - Without copy-on-write (pandas 2 by default), the returned frame shares
+      *df*'s buffer through a read-only view. Partial in-place writes
+      (``.loc``/``.iloc``/``.at`` on part of a column, ``fillna``/``ffill``
+      with ``inplace=True``, ...) raise ``ValueError`` instead of changing
+      *df*, as do in-place writes into any part of the returned frame pandas
+      hands out as a view (a column, a row slice, ``xs`` on a level), e.g.
+      ``df[col] += x``. Adding, replacing or dropping whole columns and every
+      operation that returns a new frame work as before. ``.copy()`` on the
+      returned frame gives a writable copy.
+
+    The axes are handed out as new ``Index`` objects, so renaming levels on the
+    returned frame does not rename *df*'s. A frame whose values are not one
+    shared array (several dtypes, or several blocks, e.g. after resampling)
+    is returned as an independent copy, as before.
+    """
+    if _copy_on_write_active():
+        return df.copy(deep=False)
+    set_dtypes = set(df.dtypes)
+    if (
+        df.shape[1] == 0
+        or len(set_dtypes) != 1
+        or not isinstance(set_dtypes.pop(), np.dtype)
+    ):
+        # Several dtypes, or an extension dtype `to_numpy` would convert.
+        return df.copy()
+    ar_values = df.to_numpy()
+    if np.may_share_memory(ar_values, df.iloc[:, 0].to_numpy()):
+        # One block: `to_numpy` returned a view; make it read-only. A view of
+        # the array, not the array itself, so `df` stays writable for SuPy.
+        ar_values = ar_values.view()
+        ar_values.flags.writeable = False
+    # Otherwise `to_numpy` already built an independent array of the one dtype.
+    df_caller = pd.DataFrame(
+        ar_values, index=df.index.view(), columns=df.columns.view(), copy=False
+    )
+    if df.attrs:
+        df_caller.attrs = copy.deepcopy(df.attrs)
+    return df_caller
+
+
+def _group_for_caller(df: pd.DataFrame, group: str) -> pd.DataFrame:
+    """Hand the columns of output *group* to a caller as an independent frame.
+
+    The group is selected from *df* itself, so the cost is group-sized
+    whatever the layout of *df* (gh#1849); going through `_frame_for_caller`
+    first would copy the whole table when *df* is not one block, e.g. after
+    resampling. On every pandas version the returned frame is writable and
+    no write to it reaches *df*:
+
+    - Under copy-on-write the selection is handed out as a shallow copy, so
+      nothing is copied until the caller writes to it.
+    - Without copy-on-write (pandas 2) the group's columns are taken into a
+      new array. ``df[group]`` would instead return a view of *df* or a copy
+      depending on the order of the groups in *df*.
+
+    The axes are new ``Index`` objects, so renaming levels on the returned
+    frame does not rename *df*'s.
+    """
+    if _copy_on_write_active():
+        return df[group].copy(deep=False)
+    ar_positions = np.flatnonzero(df.columns.get_level_values("group") == group)
+    df_group = df.take(ar_positions, axis=1)
+    df_group.columns = df_group.columns.droplevel("group")
+    df_group.index = df_group.index.view()
+    return df_group
 
 
 class SUEWSOutput:
@@ -125,7 +220,9 @@ class SUEWSOutput:
         # Shallow copy: a new frame object (index/columns edits on the caller's
         # frame do not leak in) that shares the values buffer. A deep copy here
         # held a second full-width output table for the life of the run
-        # (gh#1849); `.df` and the group accessors still hand out deep copies.
+        # (gh#1849). `.df` hands the table out through `_frame_for_caller`,
+        # which shares it without exposing it to writes, and the group
+        # accessors through `_group_for_caller`.
         self._df_output = df_output.copy(deep=False)
         self._df_state_final = (
             df_state_final.copy() if df_state_final is not None else None
@@ -161,9 +258,26 @@ class SUEWSOutput:
 
     @property
     def df(self) -> pd.DataFrame:
-        """Access underlying output DataFrame."""
+        """Output DataFrame, shared with this object rather than copied.
+
+        No access copies the table (gh#1849), and no write to the returned
+        frame reaches the output held here:
+
+        - with pandas copy-on-write (always on from pandas 3), the returned
+          frame behaves as an independent copy;
+        - without it (pandas 2), the returned frame is a read-only view, and
+          so is any part of it pandas hands out as a view (a column, a row
+          slice, ``xs`` on an index level): writing into it in place (for
+          example ``df.loc[mask, col] = x``, ``df[col] += x`` or
+          ``df.fillna(0, inplace=True)``) raises ``ValueError``. Call
+          ``output.df.copy()`` for a writable copy. Adding, replacing or
+          dropping whole columns works on the view.
+
+        ``get_group`` and group attributes (``output.SUEWS``) return a
+        writable frame on every pandas version.
+        """
         self._require_rows()
-        return self._df_output.copy()
+        return _frame_for_caller(self._df_output)
 
     @property
     def empty(self) -> bool:
@@ -341,7 +455,8 @@ class SUEWSOutput:
         Returns
         -------
         pd.DataFrame
-            All variables in the group
+            All variables in the group, as a frame independent of this
+            object: writing to it does not change the stored output.
         """
         self._require_rows()
         # Case-insensitive group lookup
@@ -357,7 +472,7 @@ class SUEWSOutput:
                     f"Group '{group}' not found. Available groups: {self.groups}"
                 )
             group = matched_group
-        return self._df_output[group].copy()
+        return _group_for_caller(self._df_output, group)
 
     def get_variable(
         self,

@@ -58,6 +58,11 @@ EXAMPLES:
 
 - [bugfix] The roughness-sublayer humidity scale `qStar_RSL` now divides the latent heat flux by air density instead of multiplying by it, so the RSL humidity profile, `Q2` and `RH2` no longer depart from the forcing humidity by about 1.4 times too much; the sample reference output is refreshed (#1867)
 - [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
+- [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
+  - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
+  - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.
+  - Output timestamps are built from year and day of year by date arithmetic rather than by parsing integers with a format, keeping the resolution pandas used before (nanoseconds on pandas 2, microseconds on pandas 3); initial-condition columns are added under full MultiIndex keys.
+  - No change in results: the full test suite passes on pandas 2.3 (Python 3.12) and pandas 3.1 (Python 3.14).
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.

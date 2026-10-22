@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [feature][internal] New `supy.units` module: the SUEWS unit vocabulary, a strict subset of CF (UDUNITS-2) syntax with a dimension, scale and offset for each symbol, `parse_unit`, a `Unit` type, a `NO_UNIT` marker for flags and selectors, and `convert` for boundary conversions; no registry uses it yet
+  - `scripts/lint/report_unit_strings.py` lists the current registry unit strings the vocabulary rejects (272 input, 0 forcing and 107 output entries), the work for the notation sweeps
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
   - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.

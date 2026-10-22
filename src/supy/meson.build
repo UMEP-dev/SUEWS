@@ -21,6 +21,7 @@ py.install_sources(
         'suews_forcing.py',
         'suews_output.py',
         'suews_sim.py',
+        'units.py',
         'validation.py',
         'code2file.json',
         'checker_rules_indiv.json',

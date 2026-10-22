@@ -155,7 +155,7 @@ mod python_bindings {
     use crate::*;
     #[cfg(feature = "physics")]
     use pyo3::buffer::PyBuffer;
-    use pyo3::exceptions::{PyRuntimeError, PyValueError};
+    use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
     use pyo3::prelude::*;
     use pyo3::types::PyBytes;
     use std::collections::{BTreeMap, HashMap};
@@ -4364,6 +4364,31 @@ mod python_bindings {
         Ok(buffer)
     }
 
+    /// Copy the caller's forcing array into the row-major vector the kernel
+    /// reads (gh#1849). `obj` must be a C-contiguous float64 buffer (a NumPy
+    /// array with `order="C"`) of shape `(len_sim, MET_FORCING_COLS)`; it may
+    /// be read-only, since the kernel works on this copy. Taking the array
+    /// instead of a list avoids boxing every forcing value as a Python float.
+    #[cfg(feature = "physics")]
+    fn copy_forcing_buffer(obj: &Bound<'_, PyAny>, len_sim: usize) -> PyResult<Vec<f64>> {
+        let buffer = PyBuffer::<f64>::get(obj).map_err(|e| {
+            PyTypeError::new_err(format!("forcing_block must be a float64 array: {e}"))
+        })?;
+        if !buffer.is_c_contiguous() {
+            return Err(PyValueError::new_err(
+                "forcing_block must be C-contiguous (order=\"C\")",
+            ));
+        }
+        if buffer.shape() != [len_sim, crate::sim::MET_FORCING_COLS] {
+            return Err(PyValueError::new_err(format!(
+                "forcing_block has shape {:?}, expected [{len_sim}, {}]",
+                buffer.shape(),
+                crate::sim::MET_FORCING_COLS
+            )));
+        }
+        buffer.to_vec(obj.py())
+    }
+
     /// Lend one grid's data and datetime output arrays, shaped
     /// `(len_sim, OUTPUT_DATA_COLS)` and `(len_sim, OUTPUT_DATETIME_COLS)`.
     #[cfg(feature = "physics")]
@@ -4414,6 +4439,8 @@ mod python_bindings {
     /// Run one grid, writing its output straight into caller-owned NumPy
     /// arrays instead of returning a copy (gh#1849).
     ///
+    /// `forcing_block` is a float64 array with `order="C"`, shaped
+    /// `(len_sim, MET_FORCING_COLS)`, and is copied once for the kernel.
     /// `out_data` and `out_datetime` are float64 arrays with `order="F"`,
     /// shaped `(len_sim, OUTPUT_DATA_COLS)` and `(len_sim, OUTPUT_DATETIME_COLS)`
     /// (see `output_buffer_ncolumns`). With `state_json`, the run continues
@@ -4423,12 +4450,13 @@ mod python_bindings {
     #[pyo3(signature = (config_yaml, forcing_block, len_sim, out_data, out_datetime, state_json=None))]
     fn run_suews_into_py(
         config_yaml: &str,
-        forcing_block: Vec<f64>,
+        forcing_block: &Bound<'_, PyAny>,
         len_sim: usize,
         out_data: &Bound<'_, PyAny>,
         out_datetime: &Bound<'_, PyAny>,
         state_json: Option<&str>,
     ) -> PyResult<(String, usize, PyKernelWarnings)> {
+        let forcing_block = copy_forcing_buffer(forcing_block, len_sim)?;
         let (data, datetime) = lend_output_pair(out_data, out_datetime, len_sim)?;
         let lent = [data, datetime];
         check_disjoint(&lent)?;
@@ -4463,6 +4491,8 @@ mod python_bindings {
     /// Run several grids in parallel (Rayon), each writing into its own
     /// caller-owned NumPy arrays as in `run_suews_into` (gh#1849).
     ///
+    /// `forcing_block` is shared by all grids and copied once more per grid,
+    /// since the kernel modifies its forcing while it runs.
     /// `out_data[i]` / `out_datetime[i]` receive grid `i`'s output; with
     /// `state_jsons`, grid `i` continues from `state_jsons[i]`.
     /// Returns a list of `(grid_index, state_json, len_sim, warnings)`.
@@ -4471,7 +4501,7 @@ mod python_bindings {
     #[pyo3(signature = (config_jsons, forcing_block, len_sim, out_data, out_datetime, state_jsons=None, max_workers=None))]
     fn run_suews_multi_into_py(
         config_jsons: Vec<String>,
-        forcing_block: Vec<f64>,
+        forcing_block: &Bound<'_, PyAny>,
         len_sim: usize,
         out_data: Vec<Bound<'_, PyAny>>,
         out_datetime: Vec<Bound<'_, PyAny>>,
@@ -4495,6 +4525,7 @@ mod python_bindings {
             ));
         }
 
+        let forcing_block = copy_forcing_buffer(forcing_block, len_sim)?;
         let mut lent = Vec::with_capacity(2 * n_grid);
         for (data, datetime) in out_data.iter().zip(&out_datetime) {
             let (data, datetime) = lend_output_pair(data, datetime, len_sim)?;

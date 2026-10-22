@@ -1,10 +1,12 @@
-"""The kernel writes run output straight into caller-owned arrays (gh#1849).
+"""The kernel exchanges forcing and output with SuPy as arrays (gh#1849).
 
-``run_suews_into`` and ``run_suews_multi_into`` hand the Fortran kernel the
-memory of two NumPy arrays, which then become the output frame without a
+``run_suews_into`` and ``run_suews_multi_into`` take the forcing as a NumPy
+array rather than a list of Python floats, and hand the Fortran kernel the
+memory of two output arrays, which then become the output frame without a
 copy. These tests pin the contract: the frame built that way is exactly the
-frame parsed from the legacy flat block, it shares the kernel's buffer, and
-unsuitable buffers are refused before the kernel can write into them.
+frame parsed from the legacy list-in, flat-block-out path, it shares the
+kernel's buffer, and unsuitable forcing or output arrays are refused before
+the kernel runs.
 """
 
 from importlib.resources import as_file
@@ -44,10 +46,12 @@ def native_inputs():
         simulation.config.model_dump(exclude_none=True, mode="json")
     )
     df_forcing = simulation.forcing.df.iloc[:SHORT_RUN_STEPS]
+    forcing_block = _prepare_forcing_block(df_forcing)
     return {
         "rust": _load_rust_module(),
         "config_json": config_json,
-        "forcing_flat": _prepare_forcing_block(df_forcing).ravel(order="C").tolist(),
+        "forcing_block": forcing_block,
+        "forcing_flat": forcing_block.ravel(order="C").tolist(),
         "len_sim": len(df_forcing),
     }
 
@@ -67,7 +71,7 @@ def _run_into(inputs, state_json=None):
     ar_data, ar_datetime = _alloc_output_buffers(inputs["len_sim"])
     state_out, len_sim, _ = inputs["rust"].run_suews_into(
         inputs["config_json"],
-        inputs["forcing_flat"],
+        inputs["forcing_block"],
         inputs["len_sim"],
         ar_data,
         ar_datetime,
@@ -115,7 +119,7 @@ def test_parallel_grids_match_serial_runs(native_inputs):
 
     results = native_inputs["rust"].run_suews_multi_into(
         list_config_jsons,
-        native_inputs["forcing_flat"],
+        native_inputs["forcing_block"],
         native_inputs["len_sim"],
         [ar_data for ar_data, _ in list_buffers],
         [ar_datetime for _, ar_datetime in list_buffers],
@@ -159,7 +163,7 @@ def test_unsuitable_buffers_are_refused(native_inputs, make_buffers, message):
     with pytest.raises(ValueError, match=message):
         native_inputs["rust"].run_suews_into(
             native_inputs["config_json"],
-            native_inputs["forcing_flat"],
+            native_inputs["forcing_block"],
             native_inputs["len_sim"],
             ar_data,
             ar_datetime,
@@ -173,10 +177,72 @@ def test_grids_sharing_a_buffer_are_refused(native_inputs):
     with pytest.raises(ValueError, match="share memory"):
         native_inputs["rust"].run_suews_multi_into(
             [native_inputs["config_json"]] * 2,
-            native_inputs["forcing_flat"],
+            native_inputs["forcing_block"],
             native_inputs["len_sim"],
             [ar_data, ar_data],
             [ar_datetime, ar_datetime.copy(order="F")],
+        )
+
+
+def test_read_only_forcing_is_accepted(native_inputs):
+    """The bridge copies the forcing for the kernel, so it may be read-only."""
+    forcing_block = native_inputs["forcing_block"].copy()
+    _read_only(forcing_block)
+    df_into, _, _ = _run_into(native_inputs)
+
+    df_read_only, _, _ = _run_into({**native_inputs, "forcing_block": forcing_block})
+
+    pd.testing.assert_frame_equal(df_read_only, df_into, check_exact=True)
+    np.testing.assert_array_equal(forcing_block, native_inputs["forcing_block"])
+
+
+@pytest.mark.parametrize(
+    ("make_forcing", "error", "message"),
+    [
+        (lambda f: f.astype(np.float32), TypeError, "float64"),
+        (lambda f: f.astype(np.int64), TypeError, "float64"),
+        (lambda f: f.ravel().tolist(), TypeError, "float64"),
+        (np.asfortranarray, ValueError, "C-contiguous"),
+        (
+            lambda f: np.zeros((f.shape[0], 2 * f.shape[1]))[:, ::2],
+            ValueError,
+            "C-contiguous",
+        ),
+        (lambda f: f[:-1], ValueError, "shape"),
+        (lambda f: np.ascontiguousarray(f.T), ValueError, "shape"),
+        (lambda f: f.ravel(), ValueError, "shape"),
+    ],
+    ids=[
+        "float32",
+        "int64",
+        "list",
+        "f-order",
+        "strided",
+        "short",
+        "transposed",
+        "flat",
+    ],
+)
+def test_unsuitable_forcing_is_refused(native_inputs, make_forcing, error, message):
+    """Both bridge entry points refuse forcing the kernel cannot read as is."""
+    forcing_block = make_forcing(native_inputs["forcing_block"])
+    ar_data, ar_datetime = _alloc_output_buffers(native_inputs["len_sim"])
+
+    with pytest.raises(error, match=message):
+        native_inputs["rust"].run_suews_into(
+            native_inputs["config_json"],
+            forcing_block,
+            native_inputs["len_sim"],
+            ar_data,
+            ar_datetime,
+        )
+    with pytest.raises(error, match=message):
+        native_inputs["rust"].run_suews_multi_into(
+            [native_inputs["config_json"]],
+            forcing_block,
+            native_inputs["len_sim"],
+            [ar_data],
+            [ar_datetime],
         )
 
 

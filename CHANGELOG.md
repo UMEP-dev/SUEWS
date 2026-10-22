@@ -57,6 +57,10 @@ EXAMPLES:
 ### 22 Oct 2026
 
 - [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.8` carries the clarified descriptions (#1866)
+- [bugfix] Text output saved every model step (`save_tstep=True`) at a save frequency equal to the model timestep is now written once: without DailyState it is labelled by the end of each step like every other saved output and a run starting at 00:05 on 1 January keeps its first step, and with or without DailyState each file is written and listed once (#1849)
+  - Both save passes used to write the same table, and the second started from the timestamps the first had already moved back one step, so the surviving files carried every row one model step early (the 00:05 values under 00:00) and the returned list named each file twice, or three times for a run starting at 00:05 on 1 January, which also lost its first step.
+  - Files written with this option set change: every row is labelled one step later, no file is listed twice and the first step is kept. All other option sets write the same files and file lists as before.
+  - With DailyState also saved, the same option set wrote the non-daily files twice (identical bytes) and listed each twice; they are now written and listed once, with unchanged contents.
 - [bugfix] The debug column `x_exp` is now `G_sm*(vsmd - dsp)`, the argument of the soil-moisture conductance exponential; `S2` entered with the wrong sign. Output contract `1.1.7` carries the corrected description (#1877)
 - [bugfix] Saving long runs as text needs far less memory and time: a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output every step now peaks at 4.2 GB while saving instead of 9.2 GB, and saves in 20 s instead of 75 s (#1849)
   - `save()` no longer copies the run output to drop unrequested groups, split off DailyState or select each grid; it takes one group at a time as a view of the held output and copies only one group-year to write it.

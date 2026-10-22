@@ -297,6 +297,56 @@ def test_destination_waste_heat_does_not_change_heating_energy_consumption(
     assert indoor["QEC_heating_FA"] == pytest.approx(indoor["QHload_heating_FA"] / 0.8)
 
 
+def _run_hot_water_heating_probe(water_heater_efficiency):
+    """Run one-second STEBBS updates with the water heater on.
+
+    The tank starts at its setpoint, so hot water is drawn to let mains water
+    cool it and bring the heater on.
+    """
+    simulation = sp.SUEWSSimulation(STEBBS_CONFIG)
+    simulation.config.model.control.tstep = 1
+    stebbs = simulation.config.sites[0].properties.stebbs
+    stebbs.efficiency_heating_system_water.value = water_heater_efficiency
+    stebbs.rate_flow_hot_water.value = 1.0e-4
+    profile = stebbs.profile_flow_hot_water
+    for day in (profile.working_day, profile.holiday):
+        for slot in day:
+            day[slot] = 1.0
+    simulation._df_state_init = simulation.config.to_df_state()
+
+    forcing = simulation.forcing.df.loc["2017-08-26"].iloc[:3].copy()
+    simulation._df_forcing = forcing
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        output = simulation.run(
+            start_date=forcing.index[0],
+            end_date=forcing.index[-1],
+            n_jobs=1,
+            _validate_forcing=False,
+        )
+    return output.df.STEBBS.iloc[-1], stebbs
+
+
+@pytest.mark.skipif(
+    not _rust_library_available(),
+    reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+)
+def test_hot_water_energy_consumption_uses_water_heater_efficiency():
+    """Hot-water energy consumption is the heater load over the heater's efficiency.
+
+    The space-heating efficiency is left at the fixture's 0.8 so that using it
+    for hot water would give a different answer.
+    """
+    output, stebbs = _run_hot_water_heating_probe(water_heater_efficiency=0.9)
+
+    assert stebbs.efficiency_heating_system_air.value == pytest.approx(0.8)
+    assert output["QHload_dhw_FA"] > 0.0
+    assert output["QEC_dhw_FA"] == pytest.approx(output["QHload_dhw_FA"] / 0.9)
+    assert output["QEC_dhw_FA"] == pytest.approx(
+        output["QHload_dhw_FA"] + output["QHwaste_dhw_FA"]
+    )
+
+
 @pytest.fixture(scope="module", params=[0, 1], ids=["indoor_waste", "outdoor_waste"])
 def heating_fraction_outputs(request):
     return {

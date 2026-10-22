@@ -132,9 +132,8 @@ the branch must end up with:
   `docs/source/inputs/yaml/layer-conventions.rst`,
   `docs/source/inputs/transition_guide.rst`,
   `docs/source/outputs/legacy_text_columns.rst`,
-  `docs/source/outputs/text_format.rst`; the ESTM row in
-  `.claude/skills/sync-docs/references/data-model-checks.md` (and the row
-  #1809 dropped from `areas-to-check.md`, to reinstate); the code-106 comment
+  `docs/source/outputs/text_format.rst`; the ESTM note in
+  the output-variable row of `.claude/agents/docs-reviewer.md`; the code-106 comment
   in `suews_ctrl_error.f95`; and this page, which should then be deleted.
 - A reference fixture for a multi-grid ESTM run, since no fixture ever
   exercised the scheme, and a `## Scientific evidence` section in the PR

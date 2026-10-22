@@ -24,7 +24,7 @@ This workflow is **workspace-independent** - run from any worktree.
 4. **Benchmark gate (PREREQUISITE)** - Build supy from the release candidate (the selected dev tag / release branch via the `build-suews` artefact or `make dev` — NOT PyPI, which has nothing yet) and run the multi-version benchmark: require a reproducible fingerprint and **no energy-balance regression vs the previous release**. This **gates the release** — do NOT proceed to deposit (PR merge, tag, PyPI, GitHub Release, Zenodo) on an unreviewed regression. See `## Benchmark gate`.
 5. **CHANGELOG analysis** - Use log-changes or manual (current format)
 6. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
-6a. **Docs sanity check** - Regenerate `docs/source/inputs/tables/schema.json` (`suews schema export -o ...`) and scan for stray `.dev` schema labels per `.claude/rules/docs/release-docs-sanity.md`. The banner-free `stable` build is produced post-tag by `release-docs-anchor.yml` (step 11a).
+6a. **Docs sanity check** - Regenerate `docs/source/inputs/tables/schema.json` (`suews schema export -o ...`) and scan for stray `.dev` schema labels per `.claude/rules/docs/release-docs-sanity.md` (or dispatch the `docs-reviewer` agent in release mode, which runs the same scan plus a house-style pass). The banner-free `stable` build is produced post-tag by `release-docs-anchor.yml` (step 11a).
 7. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
 8. **Issue tracking** - Update the release issue, create sub-issues for manual steps
 9. **Submit PR** - Create PR, wait for CI, merge to master

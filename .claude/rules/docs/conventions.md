@@ -7,196 +7,70 @@ paths:
 
 # Documentation Conventions
 
-Conventions for SUEWS documentation (Sphinx, RST, Markdown).
+House style for SUEWS documentation (Sphinx, RST, Markdown). Build with
+`make docs`; live reload with `make livehtml`.
 
----
+## Links to docs.suews.io
 
-## Links to docs.suews.io — URL format
+Use `/stable/` (production) or `/latest/` (development), e.g.
+`https://docs.suews.io/stable/getting-started.html`. Never `/en/latest/`: that
+old language-prefixed layout 404s, so block it in review. The bare domain
+redirects to `/stable/`.
 
-**Always** use the `/stable/` or `/latest/` prefix. **Never** use `/en/latest/`.
+## Generated files (do not hand-edit)
 
-- Correct: `https://docs.suews.io/stable/acknowledgement.html`, `https://docs.suews.io/stable/getting-started.html`
-- Correct (dev version): `https://docs.suews.io/latest/acknowledgement.html`
-- Wrong (stale, 404s today): `https://docs.suews.io/en/latest/acknowledgement.html`
+| Output | Tracked? | Source and regeneration |
+|--------|----------|-------------------------|
+| `docs/source/inputs/yaml/config-reference/` | no | `docs/generate_datamodel_rst.py`, from the Pydantic models |
+| `docs/source/outputs/variables/*.rst` | no | `docs/generate_output_variable_rst.py`, from `OUTPUT_REGISTRY` |
+| `docs/source/data-structures/df_forcing.rst` | yes | `docs/generate_forcing_variable_rst.py`, from `FORCING_REGISTRY`; CI runs it with `--check` |
+| `docs/source/inputs/tables/schema.json` | yes | `suews schema export -o docs/source/inputs/tables/schema.json` |
 
-The `en/latest/` pattern is an old ReadTheDocs language-prefixed layout. The SUEWS docs site now serves at `/stable/` (production) and `/latest/` (development). `https://docs.suews.io/` itself 302-redirects to `/stable/`.
+The two untracked sets rebuild on `make docs` (`make generate-rst` in
+`docs/`). `schema.json` is not refreshed by `make generate-rst`; regenerate it
+explicitly (see `release-docs-sanity.md`). To change generated content, change
+the generator or its source registry, never the output.
 
-All known `/en/latest/` occurrences in the repo were swept to `/stable/` on 2026-04-19. If this pattern reappears in a PR, block it — it will 404 for users.
+## RST
 
----
-
-## Build Commands
-
-```bash
-make docs                    # Build HTML documentation
-cd docs && make livehtml     # Live-reload development server
-```
-
----
-
-## Auto-Generated Files (DO NOT EDIT)
-
-- `docs/source/inputs/yaml/config-reference/` - RST from Pydantic models
-- Rebuilt automatically when running `make docs`
-- To change: modify `docs/generate_datamodel_rst.py`
-
----
-
-## RST Heading Hierarchy (MAX 3 LEVELS)
-
-| Level | Marker | Usage |
-|-------|--------|-------|
-| 1 | `=` overline+underline | Document title only |
-| 2 | `=` underline only | Major sections |
-| 3 | `-` underline | Subsections |
-
-- **NO Level 4+**: Do not use `~`, `^`, or deeper nesting
-- OK: 3.2.2 | NOT OK: 2.3.4.5
-- Underline length must match title length
-
----
-
-## Critical RST Rules
-
-1. **No nested markup**: Cannot combine `**` with `:doc:`, `:ref:`, `:sub:`, `:math:`
-   ```rst
-   .. WRONG
-   **:doc:`link text <target>`**
-   **Q\ :sub:`F` model**
-
-   .. CORRECT
-   :doc:`link text <target>`
-   :math:`Q_F` model
-   ```
-
-2. **Units and powers**: Use the project substitution macros defined in
-   ``docs/source/conf.py`` (``rst_prolog``). **Never** write Unicode superscripts
-   (``m²``, ``m³``, ``km⁻¹``) in prose or option descriptions — they render
-   inconsistently across Sphinx themes and break the docs' house style.
-
-   Available substitutions (see `conf.py` `rst_prolog` for the full list):
-
-   - Lengths/areas/volumes: ``|m^2|``, ``|m^3|``, ``|m^-1|``, ``|m^-2|``, ``|m^-3|``
-   - Other units: ``|km^-1|``, ``|mm^-1|``, ``|s^-1|``, ``|kg^-1|``, ``|K^-1|``, ``|J^-1|``, ``|W^-1|``, ``|h^-1|``, ``|day^-1|``, ``|d^-1|``, ``|d^-2|``, ``|cap^-1|``, ``|ha^-1|``
-   - Variables: ``|QF|``, ``|Qstar|``
-
-   ```rst
-   .. WRONG
-   Observed LAI values in m²/m².
-   Radiation in W m⁻².
-
-   .. CORRECT
-   Observed LAI values in |m^2| |m^-2|.
-   Radiation in W |m^-2|.
-   ```
-
-   If a needed substitution is missing, add it to ``rst_prolog`` in
-   ``docs/source/conf.py`` rather than inlining ``\ :sup:`` or Unicode.
-
-3. **Scientific notation** (prose): Use `:math:` role for subscripts, compound
-   symbols, or expressions that don't fit a unit substitution
-   - `:math:`Q_F`` renders properly as Q with subscript F
-   - Works in all contexts (lists, paragraphs, headings)
-   - Avoid `Q\ :sub:`F`` which breaks in nested contexts
-
-4. **Images require `:alt:`**: All figures must have alt text
-
-5. **Image path**: Must be `/assets/img/` (absolute from docs/source)
-
----
-
-## RST Style
-
-- **Admonitions**: Only `note`, `warning`, `tip`, `important`
-- **Code blocks**: Always specify language (`python`, `bash`, `fortran`, `yaml`)
-- **Cross-references**: `:ref:` for sections, `:doc:` for documents, `:option:` for parameters
-- **British English**: organise, analyse, colour, behaviour
-- **User-facing issue references**: Do not put GitHub issue/PR shorthand such
-  as `gh#1372`, `GH#1372`, `issue #1372`, or `PR #1372` in page titles,
-  section headings, option descriptions, or explanatory prose. Use descriptive
-  reader-facing wording instead. Keep issue numbers in GitHub discussions,
-  changelogs where a formal PR link is part of release metadata, or internal
-  maintainer notes such as `.claude/rules/**`.
-
-### API References (Classes and Methods)
-
-Use Sphinx roles for proper linking to API documentation:
-
-- **Classes**: `:class:`~supy.SUEWSSimulation`` (tilde hides module path)
-- **Methods**: `:meth:`~supy.SUEWSSimulation.from_sample_data``
-- **Functions**: `:func:`~supy.check_forcing``
-- **Attributes**: `:attr:`~supy.SUEWSSimulation.state_init``
-
-Examples:
-```rst
-The :class:`~supy.SUEWSSimulation` class provides the main interface.
-Use :meth:`~supy.SUEWSSimulation.run` to execute simulations.
-Results are returned as :class:`~supy.SUEWSOutput` objects.
-```
-
-**DO NOT** use backticks alone for API references:
-```rst
-.. WRONG
-``SUEWSSimulation`` or `SUEWSSimulation`
-
-.. CORRECT
-:class:`~supy.SUEWSSimulation`
-```
-
----
+- **Headings**: at most three levels, adorned `=`, `-`, `~` in that order
+  (title, section, subsection); underline length matches the title. The
+  pre-commit hook rejects `^` and `"`. A few older pages use an overlined `=`
+  title with `=` sections; there `-` is the third level.
+- **No nested inline markup**: ``**:doc:`...`**`` and ``**Q\ :sub:`F`**`` do not
+  render.
+- **Units**: use the substitution macros in `rst_prolog` of
+  `docs/source/conf.py` (e.g. `|m^2|`, `|m^-2|`, `|s^-1|`, `|W^-1|`, `|QF|`,
+  `|Qstar|`; read the file for the full set). Never Unicode superscripts and
+  never inline ``\ :sup:``; if a macro is missing, add it to `rst_prolog`.
+- **Symbols and expressions** that no macro covers: `:math:` (e.g.
+  ``:math:`Q_F` ``), which also works inside lists and headings.
+- **Figures**: `:alt:` text is required; paths are absolute from
+  `docs/source`, under `/assets/img/`.
+- **Admonitions**: only `note`, `warning`, `tip`, `important`.
+- **Code blocks** always name a language.
+- **Cross-references**: `:ref:` for sections, `:doc:` for documents,
+  `:option:` for parameters.
+- **API references** use roles, never bare backticks:
+  ``:class:`~supy.SUEWSSimulation` ``, ``:meth:`~supy.SUEWSSimulation.run` ``,
+  ``:func:`~supy.check_forcing` ``, ``:attr:`~supy.SUEWSSimulation.state_init` ``.
+- **No GitHub shorthand in reader-facing text**: no `gh#1372`, `issue #1372`
+  or `PR #1372` in titles, headings, option descriptions or prose. Issue
+  numbers belong in GitHub, release-metadata changelog links and maintainer
+  notes such as `.claude/rules/**`.
 
 ## Terminology
 
-| Term | Correct | Wrong |
-|------|---------|-------|
-| Project name | SUEWS | Suews, suews |
-| Python wrapper | SuPy | supy, SUPY |
-| First mention | "SUEWS (Surface Urban Energy and Water Balance Scheme)" | Just "SUEWS" |
+`SUEWS` (the model, never `Suews`/`suews` in prose) and `SuPy` (the Python
+wrapper, never `supy`/`SUPY` in prose). First mention on a page: "SUEWS
+(Surface Urban Energy and Water Balance Scheme)".
 
----
+## Tutorials
 
-## RST Example
-
-```rst
-===============
-Document Title
-===============
-
-Major Section
-=============
-
-Content here.
-
-Subsection
-----------
-
-More content.
-
-.. figure:: /assets/img/SUEWS_Overview_s.png
-   :alt: Overview of SUEWS model structure
-
-   Caption text describing the figure.
-
-.. note::
-   Important information for the reader.
-```
-
----
-
-## Tutorial API Approach
-
-Tutorials must use the :class:`~supy.SUEWSSimulation` class as the primary interface.
-See `rules/python/api-approach.md` for full guidance.
-
-### Required Patterns
-
-- **Pure OOP**: Quick-start tutorials use only :class:`~supy.SUEWSSimulation` methods
-- **Config-level**: Impact study tutorials modify ``sim.config`` directly for scenario construction
-- **Hybrid with context**: Tutorials extracting DataFrames must include a docstring note
-
-### Docstring Notes for Hybrid Tutorials
-
-When a tutorial uses DataFrame extraction (for scenarios, coupling, etc.), include:
+Tutorials use ``:class:`~supy.SUEWSSimulation` `` as the primary interface (full
+guidance: `rules/python/api-approach.md`). Quick-start tutorials are pure OOP;
+impact-study tutorials modify `sim.config` directly. A tutorial that extracts
+DataFrames states why in its module docstring:
 
 ```python
 """
@@ -212,3 +86,6 @@ coupling/programmatic configuration]. For simpler use cases, prefer pure OOP
 or YAML configuration.
 """
 ```
+
+Sphinx-gallery tutorials must stay ASCII-only; the `audit-docs` skill holds the
+per-context replacements (RST comment, docstring, `print`, matplotlib).

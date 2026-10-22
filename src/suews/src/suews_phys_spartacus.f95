@@ -157,6 +157,30 @@ CONTAINS
       END IF
    END SUBROUTINE allocate_surface_shortwave
 
+   FUNCTION vegetation_shortwave(veg_abs, do_sw, do_vegetation, first_layer, layer_count, errorState) RESULT(net_sw)
+      ! Sum the solver's complete canopy budget, independently of diagnostic storage.
+      REAL(KIND(1D0)), ALLOCATABLE, INTENT(IN) :: veg_abs(:, :)
+      LOGICAL, INTENT(IN) :: do_sw, do_vegetation
+      INTEGER, INTENT(IN) :: first_layer, layer_count
+      TYPE(error_state), INTENT(INOUT) :: errorState
+      REAL(KIND(1D0)) :: net_sw
+      INTEGER :: last_layer
+
+      net_sw = 0.0D0
+      IF (.NOT. do_sw .OR. .NOT. do_vegetation .OR. layer_count <= 0) RETURN
+      last_layer = first_layer + layer_count - 1
+      ! Separate allocation and size checks: Fortran need not short-circuit.
+      IF (ALLOCATED(veg_abs)) THEN
+         IF (SIZE(veg_abs, 1) >= nspec .AND. first_layer >= 1 .AND. SIZE(veg_abs, 2) >= last_layer) THEN
+            net_sw = SUM(veg_abs(nspec, first_layer:last_layer))
+            RETURN
+         END IF
+      END IF
+      CALL errorState%report( &
+         message='vegetation SW absorption missing or too short for canopy layers; using zero tree SW', &
+         location='SPARTACUS', is_fatal=.FALSE.)
+   END FUNCTION vegetation_shortwave
+
    SUBROUTINE SPARTACUS( &
       DiagQN, & !input:
       sfr_surf, zenith_deg, nlayer, & !input:
@@ -954,8 +978,8 @@ CONTAINS
             IF (nlay_veg >= max_idx) THEN
                ilay = canopy_props%istartlay(1)
                DO jlay = 1, MIN(canopy_props%nlay(1), 15)
-                  ! Use the scaled direct+diffuse components directly so this
-                  ! diagnostic is independent of optional profile-flux storage.
+                  ! Copy combined direct+diffuse absorption from optional
+                  ! solver storage, capped at 15 diagnostic layers.
                   veg_abs_sw_spc(jlay) = sw_flux%veg_abs(1, ilay + jlay - 1)
                END DO
             END IF
@@ -1224,8 +1248,8 @@ CONTAINS
       ! Vegetation absorption is already per grid area: do not multiply it
       ! by veg_frac again. SPARTACUS has one optical tree population, so the
       ! two SUEWS tree categories share it in proportion to their plan areas.
-      veg_net_sw = 0.0D0
-      IF (config%do_vegetation) veg_net_sw = SUM(veg_abs_sw_spc(:nlayer))
+      veg_net_sw = vegetation_shortwave(sw_flux%veg_abs, config%do_sw, config%do_vegetation, &
+         canopy_props%istartlay(1), canopy_props%nlay(1), errorState)
       CALL allocate_surface_shortwave(sfr_surf, alb_surf, use_sw_direct_albedo, &
          ground_albedo_dir_mult_fact, grnd_dn_dir_sw_spc, grnd_dn_sw_spc, &
          grnd_net_sw_spc, veg_net_sw, sw_surf, errorState)

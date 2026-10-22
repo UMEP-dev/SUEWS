@@ -47,12 +47,16 @@ def ground_radiation(tmp_path_factory):
 
     def run(fractions, albedo=ALBEDO, incoming=500.0, direct_fraction=0.6,
             direct_albedo=False, multiplier=1.0, expected_error=0, expected_warnings=0,
-            allocation_only=False, ground_budget=0.0, roof_multiplier=1.0):
+            allocation_only=False, ground_budget=0.0, roof_multiplier=1.0,
+            canopy_storage=None):
         rows = [
             " ".join(map(str, fractions)), " ".join(map(str, albedo)),
             f"{incoming} {direct_fraction} {int(direct_albedo)} {multiplier} {roof_multiplier}",
             f"{int(allocation_only)} {ground_budget}",
         ]
+        if canopy_storage is not None:
+            rows[-1] = f"2 {ground_budget}"
+            rows.append(" ".join(map(str, canopy_storage)))
         result = subprocess.run(
             [str(executable)], input="\n".join(rows) + "\n",
             capture_output=True, text=True, check=False,
@@ -77,12 +81,47 @@ def ground_radiation(tmp_path_factory):
             assert "SPARTACUS: effective direct" in lines[2]
             np.testing.assert_array_equal(values[:14], -999.0)
         if expected_warnings:
-            assert "ground SW" in result.stdout
+            assert ("vegetation SW" if canopy_storage is not None else "ground SW") in result.stdout
+            assert lines[-1] == "SPARTACUS"
         assert values.size == 21, result.stdout
         assert np.isfinite(values).all()
         return values
 
     return run
+
+
+@pytest.mark.parametrize(
+    "canopy_storage,expected_tree_sw,warnings",
+    [
+        ((2, 2, 5, 2), 25.0, 0),  # Offset canopy; surrounding slots/spectrum are -999.
+        ((16, 2, 18, 2), 200.0, 0),  # Complete budget extends beyond 15 diagnostics.
+        ((2, 1, -1, 1), 0.0, 1),  # Unallocated absorption.
+        ((2, 2, 2, 1), 0.0, 1),  # Storage ends before the canopy does.
+        ((2, 1, 2, 0), 0.0, 1),  # Missing spectral component.
+        ((0, 1, -1, 1), 0.0, 0),  # No canopy layers require no absorption storage.
+    ],
+)
+def test_tree_shortwave_uses_complete_solver_canopy(
+    ground_radiation, canopy_storage, expected_tree_sw, warnings
+):
+    values = ground_radiation(
+        MIXED, canopy_storage=canopy_storage, ground_budget=100.0,
+        expected_warnings=warnings,
+    )
+    # No LW in this probe mode: QN is the mapped SW. Missing tree absorption
+    # must not contaminate tree QN or the independently supplied ground budget.
+    np.testing.assert_allclose(values[14], expected_tree_sw, rtol=0, atol=FLUX_ATOL)
+    np.testing.assert_allclose(
+        values[TREES], expected_tree_sw / MIXED[TREES].sum(), rtol=0, atol=FLUX_ATOL
+    )
+    np.testing.assert_allclose(values[GROUND] @ MIXED[GROUND], 100.0, rtol=0, atol=FLUX_ATOL)
+    np.testing.assert_allclose(values[:7] @ MIXED, 100.0 + expected_tree_sw, rtol=0, atol=FLUX_ATOL)
+    assert np.all(values[TREES] != -999.0)
+
+
+def test_inactive_shortwave_needs_no_canopy_absorption(ground_radiation):
+    values = ground_radiation(MIXED, incoming=0.0, canopy_storage=(2, 1, -1, 1))
+    np.testing.assert_array_equal(values[:7], 0.0)
 
 
 def test_uniform_flat_ground_surface_matches_bulk(ground_radiation):

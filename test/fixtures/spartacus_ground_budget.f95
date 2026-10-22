@@ -1,7 +1,7 @@
 ! One-layer radiation probe: run the production routine at fixed temperatures.
 PROGRAM ground_budget
-   USE module_phys_spartacus, ONLY: SPARTACUS, allocate_surface_shortwave
-   USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
+   USE module_phys_spartacus, ONLY: SPARTACUS, allocate_surface_shortwave, vegetation_shortwave
+   USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS, nspec
    USE module_ctrl_type, ONLY: error_state
    USE module_ctrl_error_state, ONLY: reset_supy_error, get_supy_error, supy_error_flag
    IMPLICIT NONE
@@ -13,6 +13,9 @@ PROGRAM ground_budget
    REAL(KIND(1D0)) :: multiplier, incoming, direct_fraction, roof_multiplier
    INTEGER :: direct_albedo, allocation_only, error_code
    REAL(KIND(1D0)) :: ground_budget_input
+   REAL(KIND(1D0)), ALLOCATABLE :: veg_abs(:, :)
+   REAL(KIND(1D0)) :: tree_sw
+   INTEGER :: canopy_layers, first_layer, stored_layers, stored_spectra, j
    CHARACTER(LEN=512) :: error_message
 
    READ (*, *) fractions
@@ -23,13 +26,29 @@ PROGRAM ground_budget
    CALL errors%reset()
    temperature = 20.0D0
    emissivity = 0.95D0
-   IF (allocation_only == 1) THEN
+   IF (allocation_only > 0) THEN
       diagnostic = 0.0D0
       qn = 0.0D0
       qn_roof = 0.0D0
       qn_wall = 0.0D0
+      tree_sw = 0.0D0
+      IF (allocation_only == 2) THEN
+         READ (*, *) canopy_layers, first_layer, stored_layers, stored_spectra
+         IF (stored_layers >= 0) THEN
+            ALLOCATE (veg_abs(stored_spectra, stored_layers))
+            veg_abs = -999.0D0
+            IF (stored_spectra >= nspec) THEN
+               DO j = first_layer, MIN(first_layer + canopy_layers - 1, stored_layers)
+                  veg_abs(nspec, j) = 12.5D0
+               END DO
+            END IF
+         END IF
+         tree_sw = vegetation_shortwave(veg_abs, incoming > 0.0D0, SUM(fractions(3:4)) > 0.0D0, &
+            first_layer, canopy_layers, errors)
+         diagnostic(379) = tree_sw
+      END IF
       CALL allocate_surface_shortwave(fractions, albedo, direct_albedo == 1, multiplier, &
-         incoming*direct_fraction, incoming, ground_budget_input, 0.0D0, qn_surf, errors)
+         incoming*direct_fraction, incoming, ground_budget_input, tree_sw, qn_surf, errors)
    ELSE
       CALL SPARTACUS( &
          DiagQN=0, sfr_surf=fractions, zenith_deg=45.0D0, nlayer=1, &
@@ -62,5 +81,8 @@ PROGRAM ground_budget
       diagnostic(9:10), diagnostic(63), diagnostic(123), diagnostic(138), diagnostic(243)
    WRITE (*, '(3(I0,1X))') MERGE(1, 0, supy_error_flag()), error_code, errors%count
    WRITE (*, '(A)') TRIM(error_message)
-   IF (errors%count > 0) WRITE (*, '(A)') TRIM(errors%log(1)%message)
+   IF (errors%count > 0) THEN
+      WRITE (*, '(A)') TRIM(errors%log(1)%message)
+      WRITE (*, '(A)') TRIM(errors%log(1)%location)
+   END IF
 END PROGRAM ground_budget

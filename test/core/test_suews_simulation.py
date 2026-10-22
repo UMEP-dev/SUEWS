@@ -938,11 +938,13 @@ class TestRun:
         captured = {}
 
         class FakeRustModule:
-            def run_suews_multi_with_state(
+            def run_suews_multi_into(
                 self,
                 list_config_jsons,
                 forcing_flat,
                 len_forcing,
+                list_out_data,
+                list_out_datetime,
                 list_state_jsons,
                 max_workers,
             ):
@@ -951,13 +953,13 @@ class TestRun:
                 captured["list_state_jsons"] = list_state_jsons
                 captured["max_workers"] = max_workers
                 return [
-                    (idx, [], f"new-state-{idx}", len_forcing)
+                    (idx, f"new-state-{idx}", len_forcing, None)
                     for idx in range(len(list_config_jsons))
                 ]
 
-        def fake_parse_output_block(output_flat, len_sim, grid_id):
+        def fake_frame_from_output_buffers(ar_data, ar_datetime, grid_id):
             index = pd.MultiIndex.from_product(
-                [[grid_id], df_forcing.index[:len_sim]],
+                [[grid_id], df_forcing.index[: len(ar_data)]],
                 names=["grid", "datetime"],
             )
             return pd.DataFrame({"QH": 0.0}, index=index)
@@ -969,7 +971,9 @@ class TestRun:
             run_rust_module, "_validate_output_layout", lambda rust_module: None
         )
         monkeypatch.setattr(
-            run_rust_module, "_parse_output_block", fake_parse_output_block
+            run_rust_module,
+            "_frame_from_output_buffers",
+            fake_frame_from_output_buffers,
         )
 
         _, dict_state_json, _ = run_rust_module.run_suews_rust_multi_with_state(

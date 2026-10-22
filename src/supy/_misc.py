@@ -15,6 +15,9 @@ def infer_freq_offset(index):
     directly, through the ``future.infer_freq_returns_offset`` option where
     pandas has it (set only for this call), and converts the string where it
     does not, so callers see the same type on every pandas version.
+
+    The option is process-global while the call runs, so another thread
+    calling :func:`pandas.infer_freq` at that moment would also get an offset.
     """
     try:
         pd.get_option("future.infer_freq_returns_offset")

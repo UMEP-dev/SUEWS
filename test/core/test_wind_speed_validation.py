@@ -26,7 +26,7 @@ class TestWindSpeedValidation:
         df_forcing = pd.DataFrame(
             {
                 "iy": dates.year,
-                "id": dates.dayofyear,
+                "id": dates.day_of_year,
                 "it": dates.hour,
                 "imin": dates.minute,
                 "isec": 0,
@@ -59,7 +59,7 @@ class TestWindSpeedValidation:
         df_forcing = pd.DataFrame(
             {
                 "iy": dates.year,
-                "id": dates.dayofyear,
+                "id": dates.day_of_year,
                 "it": dates.hour,
                 "imin": dates.minute,
                 "isec": 0,
@@ -95,7 +95,7 @@ class TestWindSpeedValidation:
         df_forcing = pd.DataFrame(
             {
                 "iy": dates.year,
-                "id": dates.dayofyear,
+                "id": dates.day_of_year,
                 "it": dates.hour,
                 "imin": dates.minute,
                 "isec": 0,
@@ -147,7 +147,7 @@ class TestWindSpeedValidation:
         df_forcing = pd.DataFrame(
             {
                 "iy": dates.year,
-                "id": dates.dayofyear,
+                "id": dates.day_of_year,
                 "it": dates.hour,
                 "imin": dates.minute,
                 "qn": -999,  # Optional
@@ -195,7 +195,7 @@ class TestWindSpeedValidation:
         df_forcing = pd.DataFrame(
             {
                 "iy": dates.year,
-                "id": dates.dayofyear,
+                "id": dates.day_of_year,
                 "it": dates.hour,
                 "imin": dates.minute,
                 "isec": 0,
@@ -239,7 +239,7 @@ class TestPhysicsSpecificValidation:
         df = pd.DataFrame(
             {
                 "iy": dates.year,
-                "id": dates.dayofyear,
+                "id": dates.day_of_year,
                 "it": dates.hour,
                 "imin": dates.minute,
                 "qn": -999,

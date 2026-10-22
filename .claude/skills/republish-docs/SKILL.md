@@ -10,52 +10,19 @@ Docs pages (`/stable/` and the numbered `/X.Y.Z/`) without cutting a new code
 release. The published release tag is moved onto a freshly-built, banner-free
 docs **anchor** commit; PyPI and Zenodo are untouched.
 
-## When to use
-
-- `/stable/` shows a "Development Version" banner (it was pointed at HTML built
-  with a `.dev` version).
-- A published release's docs cite a stale `.dev` schema label
-  (e.g. `2026.5.dev7`) or need a prose/typo fix.
-- Any doc change that should reach an already-shipped release, not just
-  `latest`.
-
-## When NOT to use
-
-- **Cutting a brand-new release** -> use `prep-release` (it already calls the
-  same anchor step at step 11a).
-- **Doc-vs-code content consistency** -> use `sync-docs`.
-- **RST / Markdown formatting / ASCII** -> use `lint-code` / `audit-docs`.
-
-## Background (how docs are served)
-
-- **`latest`** comes from the **`rtd` branch**: `docs-sync.yml` merges `master`
-  into `rtd`, builds the HTML with `SUEWS_DOCS_VERSION_REF=origin/master`
-  (a `.dev` version, so the banner is present and CORRECT there), and commits
-  the pre-built HTML for RTD to copy.
-- **`stable` and numbered `X.Y.Z`** come from the **release tag**, which must
-  sit on an off-master **docs anchor commit** whose HTML was built with
-  `SUEWS_DOCS_VERSION_REF=<tag>` -> the version resolves clean -> no banner.
-  `release-docs-anchor.yml` builds that anchor and moves the tag.
-
-See `dev-ref/RELEASE_MANUAL.md` ("Documentation on Read the Docs") and
-`.claude/rules/docs/release-docs-sanity.md`.
+A new release uses `prep-release` instead (its step 11a runs the same anchor
+workflow). How `latest`, `stable` and the numbered versions are built, and why
+`stable` must not show the banner, is in
+`.claude/rules/docs/release-docs-sanity.md`; read it first.
 
 ## Procedure
 
 ### 1. Fix the docs on master (PR)
 
 Make the content fix on a normal branch and merge to `master`, so `latest` and
-all future releases inherit it. Include, where the change touches schema labels:
-
-- Regenerate the committed schema artefact (it is NOT refreshed by
-  `make generate-rst`):
-  ```bash
-  suews schema export -o docs/source/inputs/tables/schema.json
-  # or: python -m supy.cmd.schema_cli export -o docs/source/inputs/tables/schema.json
-  ```
-- Run the stray-dev-label scan from `.claude/rules/docs/release-docs-sanity.md`
-  (keep legitimate "collapsing dev1..dev14" narration; fix only labels presented
-  as a current user-facing schema version).
+all future releases inherit it. If the fix touches schema labels, regenerate
+`schema.json` and run the stray-dev-label scan, both as given in
+`release-docs-sanity.md`.
 
 ### 2. Let docs-sync refresh the rtd branch
 
@@ -120,9 +87,6 @@ curl -fsSL https://docs.suews.io/stable/inputs/forcing-data.html \
 
 ## References
 
-- `.github/workflows/release-docs-anchor.yml` -- the automation this skill drives.
-- `.github/workflows/docs-sync.yml` -- the rolling `latest` build (banner expected there).
-- `.claude/rules/docs/release-docs-sanity.md` -- the release-time docs sanity check.
-- `.claude/rules/python/schema-versioning.md` -- schema-label collapse rules.
+- `.github/workflows/release-docs-anchor.yml` and `docs-sync.yml` -- the automation.
 - `dev-ref/RELEASE_MANUAL.md` -- "Documentation on Read the Docs (release docs & revisions)".
-- `.claude/skills/prep-release/SKILL.md` -- at-release-time path (step 11a calls the same anchor workflow).
+- `.claude/rules/python/schema-versioning.md` -- schema-label collapse rules.

@@ -16,7 +16,7 @@ from packaging import version
 
 
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
-from ._misc import path_insensitive
+from ._misc import infer_freq_offset, path_insensitive
 from .data_model.forcing import FORCING_REGISTRY
 
 # choose different second representation to accommodate different pandas versions
@@ -453,7 +453,7 @@ def func_parse_date_row(row):
 # calculate decimal time
 def dectime(timestamp):
     t = timestamp
-    time_dec = (t.dayofyear - 1) + (t.hour + (t.minute + t.second / 60.0) / 60.0) / 24
+    time_dec = (t.day_of_year - 1) + (t.hour + (t.minute + t.second / 60.0) / 60.0) / 24
     return time_dec
 
 
@@ -709,7 +709,7 @@ def resample_forcing_met(
 
     # assign temporal info
     data_met_tstep["iy"] = data_met_tstep.index.year
-    data_met_tstep["id"] = data_met_tstep.index.dayofyear
+    data_met_tstep["id"] = data_met_tstep.index.day_of_year
     data_met_tstep["it"] = data_met_tstep.index.hour
     data_met_tstep["imin"] = data_met_tstep.index.minute
     data_met_tstep["isec"] = data_met_tstep.index.second
@@ -999,7 +999,7 @@ def _with_inferred_freq(df):
     """Restore a regular ``freq`` that ``concat``/masking discards."""
     if len(df.index) >= 3 and df.index.freq is None:
         try:
-            df.index.freq = pd.infer_freq(df.index)
+            df.index.freq = infer_freq_offset(df.index)
         except (TypeError, ValueError):
             pass
     return df
@@ -1967,8 +1967,20 @@ def load_SUEWS_InitialCond_df(path_runcontrol):
 
     # initialise df_InitialCond_grid with default values
     logger_supy.debug("adding initial condition namelists")
-    dict_mod = {k: v for k, v in dict_InitCond_default.items()}
-    df_init = df_init.assign(**dict_mod)
+    # New columns are added under full (var, "") keys: pandas 3.1 deprecates
+    # creating a column of a MultiIndex frame from a partial key, which is
+    # what ``assign(**dict_InitCond_default)`` did.
+    set_var_existing = set(df_init.columns.get_level_values(0))
+    dict_mod_new = {}
+    for k, v in dict_InitCond_default.items():
+        if k in set_var_existing:
+            df_init[k] = v
+        else:
+            dict_mod_new[(k, "")] = v
+    if dict_mod_new:
+        df_init = pd.concat(
+            [df_init, pd.DataFrame(dict_mod_new, index=df_init.index)], axis=1
+        )
     # print(df_init.iloc[:,-10:].head())
     # rename columns to conform to multi-index convention
     dict_key_mod = {(k, ""): (k, "0") for k in dict_InitCond_default.keys()}

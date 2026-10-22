@@ -96,7 +96,7 @@ def show_version(mode="simple", as_json=False):
             assert isinstance(as_json, str)  # needed for mypy
             pd.show_versions(as_json=as_json)
             path_json = Path(as_json)
-            ser_json = pd.read_json(path_json, typ="series", convert_dates=False)
+            ser_json = pd.Series(json.loads(path_json.read_text(encoding="utf-8")))
             ser_info_supy = pd.Series(dict_info_supy)
             ser_json = pd.concat([ser_info_supy, ser_json], axis=0)
             ser_json.to_json(path_json, orient="index")

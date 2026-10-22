@@ -92,6 +92,8 @@ macro_rules! suews_fields {
         }
 
         impl SuewsField {
+            /// Column of this field in the forcing block passed to the driver.
+            /// The flat codec below uses list position instead.
             pub const fn index(self) -> usize {
                 self as usize
             }
@@ -148,10 +150,10 @@ macro_rules! suews_fields {
                     ..Default::default()
                 };
 
-                for desc in FIELD_DESCRIPTORS {
-                    let idx = desc.field.index();
-                    let value = flat[idx];
-                    (desc.set)(&mut state, value);
+                // Flat position is the descriptor's position in the list, not
+                // `field.index()`, which is the column in the forcing block.
+                for (pos, desc) in FIELD_DESCRIPTORS.iter().enumerate() {
+                    (desc.set)(&mut state, flat[pos]);
                 }
 
                 Ok(state)
@@ -170,8 +172,8 @@ macro_rules! suews_fields {
                 let total_len = SUEWS_FORCING_BASE_FLAT_LEN + self.ts5mindata_ir.len();
                 let mut flat = vec![0.0_f64; total_len];
 
-                for desc in FIELD_DESCRIPTORS {
-                    flat[desc.field.index()] = (desc.get)(self);
+                for (pos, desc) in FIELD_DESCRIPTORS.iter().enumerate() {
+                    flat[pos] = (desc.get)(self);
                 }
                 flat[SUEWS_FORCING_BASE_FLAT_LEN..].copy_from_slice(&self.ts5mindata_ir);
 
@@ -466,6 +468,22 @@ mod tests {
         let (flat_len, ts5mindata_ir_len) =
             suews_forcing_schema().expect("schema call should succeed");
         assert_eq!(flat_len, SUEWS_FORCING_BASE_FLAT_LEN + ts5mindata_ir_len);
+    }
+
+    #[test]
+    fn flat_layout_follows_descriptor_order() {
+        let mut state = SuewsForcing::default();
+        for (pos, desc) in FIELD_DESCRIPTORS.iter().enumerate() {
+            (desc.set)(&mut state, pos as f64 + 1.0);
+        }
+        let flat = state.to_flat();
+        assert_eq!(flat.len(), SUEWS_FORCING_BASE_FLAT_LEN);
+        for (pos, value) in flat.iter().enumerate() {
+            assert_eq!(*value, pos as f64 + 1.0);
+        }
+        let decoded =
+            SuewsForcing::from_flat_with_ts_len(&flat, 0).expect("flat decode should succeed");
+        assert_eq!(decoded, state);
     }
 
     #[test]

@@ -116,8 +116,8 @@ SUEWS_VARIABLES = [
         unit="W m-2",
         description=(
             "Sensible heat flux used to seed the stability calculation "
-            "(LUMPS estimate on the first iteration, then QH of the previous "
-            "iteration); equals QH at output"
+            "(the LUMPS estimate on the first iteration, then QH from the previous "
+            "iteration). At output it equals QH."
         ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
@@ -145,7 +145,7 @@ SUEWS_VARIABLES = [
         unit="mm",
         description=(
             "External water use: total water use minus internal water use, "
-            "not below zero"
+            "never negative"
         ),
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
@@ -173,7 +173,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="TotCh",
         unit="mm",
-        description="Surface and soil moisture change",
+        description="Change in surface and soil water storage",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -181,7 +181,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="SurfCh",
         unit="mm",
-        description="Surface moisture change",
+        description="Change in surface water storage",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -189,7 +189,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="State",
         unit="mm",
-        description="Surface wetness state",
+        description="Surface wetness state, area-weighted over all surfaces including water",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -197,7 +197,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="NWtrState",
         unit="mm",
-        description="Surface wetness state (non-water surfaces)",
+        description="Surface wetness state of the non-water surfaces (per unit non-water area)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -225,7 +225,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="FlowCh",
         unit="mm",
-        description="Additional flow into water body",
+        description="Additional flow into the water surface, from the site flow-change parameter",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -243,7 +243,7 @@ SUEWS_VARIABLES = [
         unit="mm",
         description=(
             "Overflow from full soil stores during lateral soil-water exchange "
-            "between surfaces, lost outside RO (per unit non-water area)"
+            "between surfaces, not included in RO (per unit non-water area)"
         ),
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
@@ -506,7 +506,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="TStar",
         unit="K",
-        description="Temperature scale",
+        description="Temperature scale (friction temperature)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -587,7 +587,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="FcPoint",
         unit="umol m-2 s-1",
-        description="CO2 flux from point source",
+        description="CO2 flux from point sources",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -596,7 +596,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QNSnowFr",
         unit="W m-2",
-        description="Net all-wave radiation for non-snow area",
+        description="Net all-wave radiation for the snow-free area",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
@@ -604,7 +604,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QNSnow",
         unit="W m-2",
-        description="Net all-wave radiation for snow area",
+        description="Net all-wave radiation for the snow-covered area",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
@@ -620,7 +620,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QM",
         unit="W m-2",
-        description="Snow-related heat exchange",
+        description="Heat used to melt snow (negative when meltwater refreezes)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
@@ -652,7 +652,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="MeltWater",
         unit="mm",
-        description="Meltwater",
+        description="Snow melted during the timestep",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
@@ -660,7 +660,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="MeltWStore",
         unit="mm",
-        description="Meltwater store",
+        description="Liquid water held in the snowpack",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
@@ -668,7 +668,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="SnowCh",
         unit="mm",
-        description="Change in snowpack",
+        description="Change in snowpack water, ice and held liquid water together",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
@@ -791,7 +791,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Ts_Paved_dyohm",
         unit="degC",
-        description="Surface temperature (dynamic OHM) for paved surface",
+        description="Surface temperature for paved surface from the dynamic OHM ground temperature profile",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -799,7 +799,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Ts_Bldgs_dyohm",
         unit="degC",
-        description="Surface temperature (dynamic OHM) for building surface",
+        description="Surface temperature for building surface from the dynamic OHM ground temperature profile",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -807,7 +807,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Ts_EveTr_dyohm",
         unit="degC",
-        description="Surface temperature (dynamic OHM) for evergreen tree surface",
+        description="Surface temperature for evergreen tree surface from the dynamic OHM ground temperature profile",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -815,7 +815,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Ts_DecTr_dyohm",
         unit="degC",
-        description="Surface temperature (dynamic OHM) for deciduous tree surface",
+        description="Surface temperature for deciduous tree surface from the dynamic OHM ground temperature profile",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -823,7 +823,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Ts_Grass_dyohm",
         unit="degC",
-        description="Surface temperature (dynamic OHM) for grass surface",
+        description="Surface temperature for grass surface from the dynamic OHM ground temperature profile",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -831,7 +831,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Ts_BSoil_dyohm",
         unit="degC",
-        description="Surface temperature (dynamic OHM) for bare soil surface",
+        description="Surface temperature for bare soil surface from the dynamic OHM ground temperature profile",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -839,7 +839,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Ts_Water_dyohm",
         unit="degC",
-        description="Surface temperature (dynamic OHM) for water surface",
+        description="Surface temperature for water surface from the dynamic OHM ground temperature profile",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,

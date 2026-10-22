@@ -32,7 +32,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="GlobalRad",
         unit="W m-2",
-        description="Global radiation",
+        description="Global shortwave radiation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -40,7 +40,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="DiffuseRad",
         unit="W m-2",
-        description="Diffuse radiation",
+        description="Diffuse shortwave radiation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -48,7 +48,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="DirectRad",
         unit="W m-2",
-        description="Direct radiation",
+        description="Direct shortwave radiation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -160,7 +160,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="I0",
         unit="W m-2",
-        description="Theoretical maximum incoming solar radiation",
+        description="Clear-sky incoming shortwave radiation at the surface",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -168,7 +168,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="CI",
         unit="-",
-        description="Clearness index used to estimate Ldown",
+        description="Clearness index (global over clear-sky shortwave radiation), used to estimate Ldown",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -197,7 +197,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="SVF_Ground",
         unit="-",
-        description="Sky view factor from ground",
+        description="Sky view factor at the ground, from the canyon height-to-width ratio",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -205,7 +205,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="SVF_Roof",
         unit="-",
-        description="Sky view factor from roof",
+        description="Sky view factor at the roof, from the canyon height-to-width ratio",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -213,7 +213,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="SVF_BdVeg",
         unit="-",
-        description="Sky view factor from buildings and vegetation",
+        description="Sky view factor at the ground accounting for both buildings and vegetation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -229,7 +229,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Ta",
         unit="degC",
-        description="Air temperature",
+        description="Air temperature from the forcing",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,

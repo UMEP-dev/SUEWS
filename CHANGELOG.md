@@ -56,8 +56,8 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
-- [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.5` carries the clarified descriptions (#1866)
-- [bugfix] The debug column `x_exp` is now `G_sm*(vsmd - dsp)`, the argument of the soil-moisture conductance exponential; `S2` entered with the wrong sign. Output contract `1.1.4` carries the corrected description (#1877)
+- [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.8` carries the clarified descriptions (#1866)
+- [bugfix] The debug column `x_exp` is now `G_sm*(vsmd - dsp)`, the argument of the soil-moisture conductance exponential; `S2` entered with the wrong sign. Output contract `1.1.7` carries the corrected description (#1877)
 - [bugfix] Saving long runs as text needs far less memory and time: a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output every step now peaks at 4.2 GB while saving instead of 9.2 GB, and saves in 20 s instead of 75 s (#1849)
   - `save()` no longer copies the run output to drop unrequested groups, split off DailyState or select each grid; it takes one group at a time as a view of the held output and copies only one group-year to write it.
   - Text files are formatted and written a block of rows at a time instead of turning the whole group-year into Python strings first.

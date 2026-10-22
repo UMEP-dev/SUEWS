@@ -60,6 +60,7 @@ EXAMPLES:
   - The Fortran kernel, the Rust bridge and pandas used to hold two full-width copies of the output at once (a Fortran block copied into a Rust buffer, that buffer copied into Python bytes, then the data columns gathered into a new array); one buffer, allocated by SuPy, now serves all three.
   - Each output group's repeated 5-column datetime prefix is written once per row to a separate small array instead of into the table.
   - Output values, columns and saved files are unchanged. The bridge's older `run_suews*` functions keep their flat-block return for existing callers.
+  - In that flat block, which the standalone bridge CLI writes, the NHood group's five datetime columns now carry the run's timestamp like every other group instead of -999; its data column is still -999.
 
 ### 21 Oct 2026
 

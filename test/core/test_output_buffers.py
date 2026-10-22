@@ -98,12 +98,23 @@ def test_output_frame_is_the_kernel_buffer(native_inputs):
 
 
 def test_parallel_grids_match_serial_runs(native_inputs):
-    """Each grid of a Rayon run fills its own buffers as a serial run would."""
-    df_serial, state_serial, _ = _run_into(native_inputs)
+    """Each grid of a Rayon run fills its own buffers as a serial run would.
+
+    The two grids differ in latitude, so their outputs differ and a grid
+    written into the other grid's buffers would not go unnoticed.
+    """
+    dict_config = json.loads(native_inputs["config_json"])
+    dict_config["sites"][0]["properties"]["lat"]["value"] += 10.0
+    list_config_jsons = [native_inputs["config_json"], json.dumps(dict_config)]
+    list_serial = [
+        _run_into({**native_inputs, "config_json": config_json})
+        for config_json in list_config_jsons
+    ]
+    assert not list_serial[0][0].equals(list_serial[1][0])
     list_buffers = [_alloc_output_buffers(native_inputs["len_sim"]) for _ in range(2)]
 
     results = native_inputs["rust"].run_suews_multi_into(
-        [native_inputs["config_json"]] * 2,
+        list_config_jsons,
         native_inputs["forcing_flat"],
         native_inputs["len_sim"],
         [ar_data for ar_data, _ in list_buffers],
@@ -112,6 +123,7 @@ def test_parallel_grids_match_serial_runs(native_inputs):
 
     assert sorted(idx for idx, *_ in results) == [0, 1]
     for idx, state_json, len_sim, _ in results:
+        df_serial, state_serial, _ = list_serial[idx]
         assert len_sim == native_inputs["len_sim"]
         assert state_json == state_serial
         df_grid = _frame_from_output_buffers(*list_buffers[idx], GRID_ID)
@@ -127,15 +139,16 @@ def test_parallel_grids_match_serial_runs(native_inputs):
         ),
         (
             lambda d, t: (np.zeros((d.shape[0] - 1, d.shape[1]), order="F"), t),
-            "elements",
+            "shape",
         ),
         (
             lambda d, t: (d, np.zeros((t.shape[0], t.shape[1] + 1), order="F")),
-            "elements",
+            "shape",
         ),
+        (lambda d, t: (np.zeros(d.shape[::-1], order="F"), t), "shape"),
         (lambda d, t: (_read_only(d), t), "writable"),
     ],
-    ids=["c-order", "short-data", "wide-datetime", "read-only"],
+    ids=["c-order", "short-data", "wide-datetime", "transposed-data", "read-only"],
 )
 def test_unsuitable_buffers_are_refused(native_inputs, make_buffers, message):
     """The bridge refuses buffers the kernel cannot safely write into."""

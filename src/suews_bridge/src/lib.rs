@@ -4335,13 +4335,15 @@ mod python_bindings {
             })
     }
 
-    /// Check that `obj` is a writable, Fortran-contiguous, float64-aligned
-    /// buffer (a NumPy array allocated with `order="F"`) of `expected`
-    /// elements, so the kernel can write into it directly (gh#1849).
+    /// Check that `obj` is a writable, Fortran-contiguous float64 buffer (a
+    /// NumPy array allocated with `order="F"`) of shape `(nrows, ncols)`, so
+    /// the kernel can write into it directly (gh#1849). `PyBuffer::get`
+    /// already refuses a buffer whose item type or alignment is not f64's.
     #[cfg(feature = "physics")]
     fn lend_output_buffer(
         obj: &Bound<'_, PyAny>,
-        expected: usize,
+        nrows: usize,
+        ncols: usize,
         name: &str,
     ) -> PyResult<PyBuffer<f64>> {
         let buffer = PyBuffer::<f64>::get(obj)?;
@@ -4353,15 +4355,10 @@ mod python_bindings {
                 "{name} must be Fortran-contiguous (order=\"F\")"
             )));
         }
-        if buffer.item_count() != expected {
+        if buffer.shape() != [nrows, ncols] {
             return Err(PyValueError::new_err(format!(
-                "{name} has {} elements, expected {expected}",
-                buffer.item_count()
-            )));
-        }
-        if !(buffer.buf_ptr() as usize).is_multiple_of(std::mem::align_of::<f64>()) {
-            return Err(PyValueError::new_err(format!(
-                "{name} is not aligned for float64"
+                "{name} has shape {:?}, expected [{nrows}, {ncols}]",
+                buffer.shape()
             )));
         }
         Ok(buffer)
@@ -4375,14 +4372,9 @@ mod python_bindings {
         out_datetime: &Bound<'_, PyAny>,
         len_sim: usize,
     ) -> PyResult<(PyBuffer<f64>, PyBuffer<f64>)> {
-        let overflow = || PyValueError::new_err("output length overflow");
-        let data_len = len_sim.checked_mul(OUTPUT_DATA_COLS).ok_or_else(overflow)?;
-        let datetime_len = len_sim
-            .checked_mul(OUTPUT_DATETIME_COLS)
-            .ok_or_else(overflow)?;
         Ok((
-            lend_output_buffer(out_data, data_len, "out_data")?,
-            lend_output_buffer(out_datetime, datetime_len, "out_datetime")?,
+            lend_output_buffer(out_data, len_sim, OUTPUT_DATA_COLS, "out_data")?,
+            lend_output_buffer(out_datetime, len_sim, OUTPUT_DATETIME_COLS, "out_datetime")?,
         ))
     }
 

@@ -14,6 +14,16 @@ SCHEMA_VERSION = 1
 DEFAULT_EXCLUDED_JOB_PATTERNS = ("CI observability summary",)
 
 
+class TargetNotCompletedError(ValueError):
+    """The target job exists but the Jobs API does not yet report it completed.
+
+    The summary job starts seconds after its target finishes, and the Jobs REST
+    API can still report the target as in progress at that point. This is
+    distinct from a missing or duplicated target, which means the workflow and
+    the target pattern have drifted apart.
+    """
+
+
 def _timestamp(value: str) -> datetime:
     """Parse a GitHub UTC timestamp."""
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -203,6 +213,22 @@ def analyse_run(
     }
 
     target_jobs = [job for job in jobs if fnmatchcase(job["name"], target_job_pattern)]
+    if not target_jobs:
+        pending = [
+            raw_job
+            for raw_job in jobs_payload.get("jobs", [])
+            if fnmatchcase(raw_job["name"], target_job_pattern)
+            and raw_job.get("conclusion") != "skipped"
+            and (
+                raw_job.get("status") != "completed"
+                or not raw_job.get("completed_at")
+            )
+        ]
+        if len(pending) == 1:
+            raise TargetNotCompletedError(
+                f"Target {pending[0]['name']!r} is {pending[0].get('status')!r} "
+                "in the Jobs API, with no completion time yet."
+            )
     if len(target_jobs) != 1:
         raise ValueError(
             f"Expected one completed target matching {target_job_pattern!r}; "
@@ -289,6 +315,19 @@ def _append_summary(path: Path, metrics: dict[str, Any]) -> None:
         summary.write("\n".join(lines))
 
 
+def _append_skip_summary(path: Path, reason: str) -> None:
+    """Record in the step summary why no critical-path view was produced."""
+    lines = [
+        "## Workflow CI observability",
+        "",
+        f"Skipped: {reason}",
+        "",
+    ]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as summary:
+        summary.write("\n".join(lines))
+
+
 def _parser() -> argparse.ArgumentParser:
     """Build the command-line parser."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -307,12 +346,20 @@ def main() -> int:
     run = json.loads(args.run_json.read_text(encoding="utf-8"))
     jobs = json.loads(args.jobs_json.read_text(encoding="utf-8"))
     needs = json.loads(args.needs_json.read_text(encoding="utf-8"))
-    metrics = analyse_run(
-        run,
-        jobs,
-        declared_needs=needs,
-        target_job_pattern=args.target_job,
-    )
+    try:
+        metrics = analyse_run(
+            run,
+            jobs,
+            declared_needs=needs,
+            target_job_pattern=args.target_job,
+        )
+    except TargetNotCompletedError as error:
+        # Observability is informational: a Jobs API that has not caught up
+        # with the target is reported, not turned into a failed check.
+        print(f"Skipping workflow CI metrics: {error}")
+        if args.summary:
+            _append_skip_summary(args.summary, str(error))
+        return 0
     _write_json(args.output, metrics)
     if args.summary:
         _append_summary(args.summary, metrics)

@@ -10,10 +10,7 @@ stray development (`.dev`) markers. Run this check whenever cutting a release
 (see `.claude/skills/prep-release/SKILL.md`) and whenever revising the docs of
 an already-released version.
 
-Motivated by the post-2026.6.5 gap: the released schema was `2026.5` in code,
-but `/stable/` showed a "Development Version" banner and two docs artefacts
-still cited a dev schema label. Both are user-visible and both passed every
-existing gate.
+Both failures below shipped after 2026.6.5 despite passing every other gate.
 
 ---
 
@@ -37,7 +34,7 @@ page when the resolved version string contains `.dev`
 
 **How it is produced:** the `release-docs-anchor.yml` workflow
 (`workflow_dispatch`, input `release_tag`) rebuilds the HTML with the tag as the
-version ref, asserts the built HTML contains no "Development Version" string,
+version ref, asserts the built HTML lacks the banner sentence,
 creates an off-master anchor commit, and force-moves the tag onto it. Do **not**
 point a release tag at the `rtd` branch HEAD directly — its HTML carries the
 dev banner.
@@ -106,15 +103,8 @@ Any line this prints is a stray dev label to fix.
 
 ---
 
-## When this runs
-
-- **At release** (`prep-release` skill checklist): regenerate `schema.json`,
-  run the scan above, and after the tag is cut run `release-docs-anchor.yml` so
-  `stable` is banner-free. See the checklist item and step note in
-  `.claude/skills/prep-release/SKILL.md`.
-- **When revising released docs** (no new code): make the doc fix on `master`
-  (so `latest` and future releases inherit it), let `docs-sync.yml` refresh the
-  `rtd` branch, then re-run `release-docs-anchor.yml` for the affected tag.
+Procedures that apply this check: `prep-release` (steps 6a and 11a) at
+release time, and `republish-docs` when revising an already-released version.
 
 ## Related
 

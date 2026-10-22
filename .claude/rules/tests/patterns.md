@@ -53,6 +53,14 @@ that spread (a documented multiple of it, floored by the table above) and must c
 the artefacts they came from; a tolerance loosened without a spread artefact behind
 it is a bare number and should be flagged in review.
 
+**Tolerances absorb platforms; the exact gate catches drift.** Do not tighten
+the sample-output tolerances to catch small physics changes: macOS arm64 and
+Linux x86_64 builds of one commit already differ in the last stored digit of
+about half the values. Small changes are caught instead by
+`test/core/test_sample_output_exact.py`, which compares the full-year run with
+the shards byte for byte on the build that generated them (see "Exact reference
+gate" in `.claude/rules/physics-change-evidence.md`).
+
 ---
 
 ## Assertions

@@ -220,7 +220,7 @@ class TestDailyStateOutput:
         gdd = df_dailystate["GDD_DecTr"].dropna()
         sdd = df_dailystate["SDD_DecTr"].dropna()
 
-        doy = df_dailystate.loc[gdd.index].index.get_level_values("datetime").dayofyear
+        doy = df_dailystate.loc[gdd.index].index.get_level_values("datetime").day_of_year
 
         # Northern hemisphere seasonal transition day.
         transition_day = doy == 140
@@ -246,7 +246,7 @@ class TestDailyStateOutput:
         gdd = df_dailystate["GDD_DecTr"].dropna()
         sdd = df_dailystate["SDD_DecTr"].dropna()
 
-        doy = df_dailystate.loc[gdd.index].index.get_level_values("datetime").dayofyear
+        doy = df_dailystate.loc[gdd.index].index.get_level_values("datetime").day_of_year
 
         # ---------------------------------------------------------------
         # SDD reset during summer.
@@ -351,7 +351,7 @@ class TestDailyStateOutput:
         df_forcing = df_forcing.copy()
 
         # Autumn window: SDD accumulates and the senescence branch fires.
-        day_of_year = df_forcing.index.dayofyear
+        day_of_year = df_forcing.index.day_of_year
         df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
 
         sim.update_forcing(df_forcing)
@@ -432,7 +432,7 @@ class TestDailyStateOutput:
         _, df_forcing = sample_data_loaded
         df_forcing = df_forcing.copy()
 
-        day_of_year = df_forcing.index.dayofyear
+        day_of_year = df_forcing.index.day_of_year
         df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
 
         sim.update_forcing(df_forcing)
@@ -520,7 +520,7 @@ class TestDailyStateOutput:
 
         # Only simulate Southern Hemisphere summer, before the generic
         # transition-day reset at sdd_reset_day.
-        day_of_year = df_forcing.index.dayofyear
+        day_of_year = df_forcing.index.day_of_year
         df_forcing = df_forcing[
             (day_of_year >= summer_day)
             & (day_of_year < sdd_reset_day)
@@ -546,7 +546,7 @@ class TestDailyStateOutput:
         previous_sdd = previous_sdd.iloc[1:]
 
         day_of_year = (
-            df_dailystate.index.get_level_values("datetime").dayofyear[1:]
+            df_dailystate.index.get_level_values("datetime").day_of_year[1:]
         )
 
         sdd_reset = (
@@ -614,7 +614,7 @@ class TestDailyStateOutput:
         )
 
         day_of_year = (
-            df_dailystate.index.get_level_values("datetime").dayofyear
+            df_dailystate.index.get_level_values("datetime").day_of_year
         )
 
         gdd = df_dailystate["GDD_DecTr"]

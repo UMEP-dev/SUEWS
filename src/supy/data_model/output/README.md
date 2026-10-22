@@ -37,7 +37,10 @@ coefficients, and the units of `beta`, `DecidCap` and the DailyState water use,
 leaving every name, group, aggregation and layout unchanged. Output contract
 `1.1.3` rewords descriptions for clarity and consistency, among them the
 truncated-looking `flag_RSL` text, and corrects six that disagreed with the
-kernel (`HDD1_h` to `HDD4_T5d`, `UStar_heat`, debug `vsmd` and `dsp`). A group is covered when that group is
+kernel (`HDD1_h` to `HDD4_T5d`, `UStar_heat`, debug `vsmd` and `dsp`). Output contract `1.1.6` corrects the units of
+`Sd_*` (m), `Tsnow_*` (K) and `LAIlumps` (-), and the descriptions of `Ts`, `Tsurf`, the
+BEERS `Tg`, `Tw` and `SVF_BdVeg`, `AddWater`, NHood `iter_count` and the RSL
+parameters missing under MOST. A group is covered when that group is
 present; the contract does not promise that every optional group is emitted by
 every run.
 

@@ -512,6 +512,14 @@ html_theme_options = dict(
     extra_footer=f"""<p>Version: {git_version_string} |
     Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}">{git_commit_short}</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>""",
+    # Keep the PyData top navbar empty, as sphinx_book_theme intends. When this
+    # key is absent, pydata-sphinx-theme 0.20 adds a search field to it, which
+    # renders a hidden navbar carrying its own sidebar toggles; the theme JS
+    # then binds to those hidden buttons and the visible toggles stop opening
+    # the sidebars on mobile. Fixed upstream in
+    # executablebooks/sphinx-book-theme#987 (unreleased as of 1.4.0); drop this
+    # once a release carrying that fix is pinned.
+    navbar_persistent=[],
     # twitter_url="https://twitter.com/xarray_devs",
 )
 

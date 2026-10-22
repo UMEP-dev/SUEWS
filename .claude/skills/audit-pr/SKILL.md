@@ -40,7 +40,11 @@ recommendation instead of spending the review on an unreviewable diff:
 - **Code Style**: lint-code
 - **Scientific**: Physics validation (if applicable)
 - **Testing**: Coverage, FIRST principles
-- **Docs**: CHANGELOG, PR description
+- **Docs**: CHANGELOG, PR description; if the diff touches the user-facing
+  surface (`src/supy/data_model/`, physics options, output or forcing
+  registries, `src/supy/util/converter/`, the public API or CLI), dispatch the
+  `docs-reviewer` agent in drift mode **findings-only** (it must not edit the
+  author's branch) and fold its report into the Docs row
 - **Governance**: Check feature status tags (see below)
 - **Suggested reviewers**: Derive reviewer suggestions from changed files,
   `dev-ref/SCIENTIFIC_REVIEWERS.md`, and `dev-ref/REVIEW_PROCESS.md`; include

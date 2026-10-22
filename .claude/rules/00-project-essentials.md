@@ -90,4 +90,5 @@ Linux, Windows), see the `Makefile` recipes and the installation docs.
 
 - After conversation compaction, re-activate: `source .venv/bin/activate`
 - Check for existing `.venv` with editable supy before rebuilding
-- Documentation generation: Only modify `generate_datamodel_rst.py`, not generated RST files
+- Documentation generation: change the generator, never its output (the generated
+  files are listed in `.claude/rules/docs/conventions.md`)

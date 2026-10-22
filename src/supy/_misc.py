@@ -1,9 +1,30 @@
+import contextlib
 import urllib
 import os
 
 import pandas as pd
 
 from ._env import logger_supy
+
+
+def infer_freq_offset(index):
+    """Infer the regular cadence of ``index`` as a pandas offset, or None.
+
+    :func:`pandas.infer_freq` returns a string, and pandas 3.1 warns that a
+    future version will return an offset instead. This asks for the offset
+    directly, through the ``future.infer_freq_returns_offset`` option where
+    pandas has it (set only for this call), and converts the string where it
+    does not, so callers see the same type on every pandas version.
+    """
+    try:
+        pd.get_option("future.infer_freq_returns_offset")
+    except pd.errors.OptionError:
+        context = contextlib.nullcontext()
+    else:
+        context = pd.option_context("future.infer_freq_returns_offset", True)
+    with context:
+        freq = pd.infer_freq(index)
+    return None if freq is None else pd.tseries.frequencies.to_offset(freq)
 
 
 ##############################################################################

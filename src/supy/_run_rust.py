@@ -268,8 +268,10 @@ def _kernel_timestamp(iy: int, id_: int, it: int, imin: int):
     if int(iy) <= 0 or int(id_) <= 0:
         return pd.NaT
     try:
-        return pd.to_datetime(int(iy) * 1000 + int(id_), format="%Y%j") + pd.Timedelta(
-            hours=int(it), minutes=int(imin)
+        # A string, not an integer: pandas 3.1 deprecates parsing numbers
+        # with a format.
+        return pd.to_datetime(f"{int(iy):04d}{int(id_):03d}", format="%Y%j") + (
+            pd.Timedelta(hours=int(it), minutes=int(imin))
         )
     except (ValueError, OverflowError):
         return pd.NaT
@@ -312,7 +314,17 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
             "timestep. Check stderr for OHM_DEBUG or SPARTACUS diagnostics."
         )
 
-    date_part = pd.to_datetime(year * 1000 + day_of_year, format="%Y%j")
+    # Midnight of each row's date from (year, day of year) by numpy date
+    # arithmetic: pandas 3.1 deprecates parsing the integer year * 1000 + doy
+    # with format "%Y%j". The result keeps the resolution that parse gives on
+    # the installed pandas (ns on pandas 2, us on pandas 3).
+    unit = pd.to_datetime(["2000001"], format="%Y%j").unit
+    date_part = pd.DatetimeIndex(
+        (
+            (year - 1970).astype("datetime64[Y]").astype("datetime64[D]")
+            + (day_of_year - 1).astype("timedelta64[D]")
+        ).astype(f"datetime64[{unit}]")
+    )
     return (
         date_part + pd.to_timedelta(hour, unit="h") + pd.to_timedelta(minute, unit="m")
     )
@@ -347,7 +359,7 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     block = np.zeros((len_sim, MET_FORCING_COLS), dtype=np.float64, order="F")
 
     block[:, 0] = df_forcing.index.year
-    block[:, 1] = df_forcing.index.dayofyear
+    block[:, 1] = df_forcing.index.day_of_year
     block[:, 2] = df_forcing.index.hour
     block[:, 3] = df_forcing.index.minute
 

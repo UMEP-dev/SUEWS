@@ -965,6 +965,12 @@ class TestSTEBBSOutput(TestCase):
         # Define STEBBS-specific variables to test with tolerances
         # Higher tolerances for building energy due to complex thermal dynamics
         stebbs_variables = {
+            # Energy-budget regressions: use the repository's energy-flux
+            # floor (0.8%, 1 W m-2), tighter than the load-control checks.
+            # No cross-platform spread evidence justifies relaxing this floor.
+            "QN_bldg_FA": {"rtol": 0.008, "atol": 1.0},
+            "QS_total_FA": {"rtol": 0.008, "atol": 1.0},
+            "QH_bldg_FA": {"rtol": 0.008, "atol": 1.0},
             # water mains temperature
             "Twater_mains": {"rtol": 0.02, "atol": 0.5},  # 2% / 0.5K tolerance
             # Indoor conditions - affected by complex heat transfer

@@ -90,7 +90,15 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays(
     spartacus_warnings = kernel_warnings[
         kernel_warnings["location"].str.contains("SPARTACUS", case=False, na=False)
     ]
-    assert spartacus_warnings.empty, spartacus_warnings.to_string(index=False)
+    # A pure forest has no non-tree ground, so the allocation reports that it
+    # gives the understorey absorption to the trees; that is expected here.
+    # Any other SPARTACUS warning, notably a NaN fallback, fails the test.
+    understorey = spartacus_warnings["message"].str.contains(
+        "no non-tree surface area", na=False
+    )
+    unexpected = spartacus_warnings[~understorey]
+    assert unexpected.empty, unexpected.to_string(index=False)
+    assert understorey.any() == with_trees
     df_output = output.df
 
     assert "SPARTACUS" in df_output.columns.get_level_values(0)

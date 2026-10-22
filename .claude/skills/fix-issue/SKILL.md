@@ -109,7 +109,9 @@ skills directly.
 2. Select supporting skills as needed:
    - `suews` for configuration, simulation, validation, or diagnostics.
    - `lint-code` for style and file-type conventions.
-   - `sync-docs` when behaviour, config, outputs, APIs, or docs may drift.
+   - the `docs-reviewer` agent (drift mode, edits allowed) when the diff touches
+     the user-facing surface: `src/supy/data_model/`, physics options, output or
+     forcing registries, `src/supy/util/converter/`, the public API or CLI.
    - `verify-build` for source inclusion, packaging, schema, CI, or build metadata.
    - `log-changes` when the fix is user-facing and should be recorded.
 3. Use the current branch only if it is already issue-scoped AND fix-issue created
@@ -137,12 +139,12 @@ Run validation appropriate to the touched files, with `make test-smoke` as the
 pre-commit baseline. Escalate to the full `make test` when the fix touches test
 files, core physics modules, or `src/supy/data_model/` (per
 `.claude/rules/00-project-essentials.md`). Add targeted checks as needed:
-`pytest`, `ruff check`, `fprettify --diff`, `sync-docs`, `verify-build`, or SUEWS
-validate/diagnose tools. If validation fails because of the fix, repair and
-rerun. If validation is blocked by environment setup, record a public-safe
-description of the blocker in the PR body, with any absolute local paths, host
-names, or internal references replaced by neutral phrasing (e.g. "the editable
-build step failed in the local toolchain").
+`pytest`, `ruff check`, `fprettify --diff`, the `docs-reviewer` agent,
+`verify-build`, or SUEWS validate/diagnose tools. If validation fails because
+of the fix, repair and rerun. If validation is blocked by environment setup,
+record a public-safe description of the blocker in the PR body, with any
+absolute local paths, host names, or internal references replaced by neutral
+phrasing (e.g. "the editable build step failed in the local toolchain").
 
 ### 4. Commit And Open/Update PR
 

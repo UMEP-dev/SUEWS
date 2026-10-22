@@ -61,19 +61,6 @@ When adding a new slug:
 2. Update the header comment of both bib files.
 3. Update `VOCAB` in `.claude/skills/audit-docs/scripts/audit.py`.
 4. Add a new topic section in `docs/source/related_publications.rst` with a `.. _pub-<slug>:` anchor and filtered bibliography directive.
-5. Rerun `/audit-docs` (refs mode) to confirm all entries still pass.
+5. Rerun `/audit-docs refs` to confirm all entries still pass.
 
-## Programmatic enforcement
-
-Run before committing any bib change:
-
-```
-/audit-docs
-```
-
-The skill documentation at `.claude/skills/audit-docs/SKILL.md` covers:
-
-- Base audit (no network, no API key required) — convention check only.
-- `/audit-docs` refs-mode enrichment — optionally fetch missing `abstract` fields via WoS/Crossref cascade (requires `WOS_EXPANDED_API_KEY` or `WOS_API_KEY`; `--crossref-only` fallback for collaborators without a WoS key).
-
-The existing user-level `refs-checker` skill handles DOI-to-metadata verification against Crossref/WoS — complementary and different purpose.
+Run `/audit-docs refs` before committing any bib change; the `check-bib-tags.sh` hook also runs it on edits. It checks the convention only; DOI-to-paper correctness is the user-level `refs-checker` skill's job.

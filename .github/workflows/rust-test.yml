@@ -1,0 +1,69 @@
+name: Rust test
+
+# Run the Rust bridge's own unit tests (cargo test in src/suews_bridge/).
+#
+# Motivation: the clippy gate (rust-clippy.yml) only type-checks the bridge, and
+# the Python suites exercise it through the built wheel, so nothing ran the
+# bridge's Rust tests. A Fortran C API facade that wrote past the end of a
+# Rust-allocated buffer, and a test left stale by a behaviour change, both went
+# unnoticed on master until someone ran cargo test by hand (gh#1873).
+#
+# Unlike clippy, cargo test links, so it needs the SUEWS Fortran static
+# libraries and .mod files: the job builds them with `make -C src/suews all`
+# before testing with the `physics` feature, which is how the bridge is built
+# for SuPy. Only the SHA-pinned actions/checkout is used (satisfies
+# workflow-security.yml); gfortran comes from apt and Rust from the runner's
+# preinstalled rustup.
+
+on:
+  pull_request:
+    paths:
+      - 'src/suews_bridge/**'
+      - 'src/suews/src/**'
+      - 'src/suews/ext_lib/**'
+      - 'src/suews/Makefile'
+      - 'src/suews/Makefile.deps'
+      - 'src/suews/Makefile.gfortran'
+      - '.github/workflows/rust-test.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: cargo test (suews_bridge)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Install gfortran
+        run: |
+          set -eu
+          sudo apt-get update
+          sudo apt-get install -y gfortran
+          gfortran --version
+          rustc --version
+          cargo --version
+
+      - name: Build SUEWS Fortran libraries
+        run: make -C src/suews all -j"$(nproc)"
+
+      - name: Run cargo test
+        run: |
+          set -eu
+          if ! cargo test \
+                --manifest-path src/suews_bridge/Cargo.toml \
+                --features physics; then
+            echo "::error::cargo test failed in src/suews_bridge/."
+            echo "Reproduce locally:"
+            echo "    make -C src/suews all"
+            echo "    cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics"
+            exit 1
+          fi

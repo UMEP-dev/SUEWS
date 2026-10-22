@@ -6,19 +6,36 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
+// Group widths come from the ncolumnsDataOut* constants that build.rs parses
+// out of suews_ctrl_const.f95, so they cannot drift from the Fortran facade.
+mod output_cols {
+    include!(concat!(env!("OUT_DIR"), "/output_cols.rs"));
+}
+
 pub const OUTPUT_LINE_DATETIME_LEN: usize = 5;
-pub const OUTPUT_LINE_SUEWS_LEN: usize = 118;
-pub const OUTPUT_LINE_SNOW_LEN: usize = 103;
-pub const OUTPUT_LINE_ESTM_LEN: usize = 32;
-pub const OUTPUT_LINE_EHC_LEN: usize = 229;
-pub const OUTPUT_LINE_RSL_LEN: usize = 140;
-pub const OUTPUT_LINE_BEERS_LEN: usize = 34;
-pub const OUTPUT_LINE_DEBUG_LEN: usize = 136;
-pub const OUTPUT_LINE_SPARTACUS_LEN: usize = 259;
-pub const OUTPUT_LINE_DAILYSTATE_LEN: usize = 52;
-pub const OUTPUT_LINE_STEBBS_LEN: usize = 87;
-pub const OUTPUT_LINE_NHOOD_LEN: usize = 6;
-pub const OUTPUT_LINE_FLAT_LEN: usize = 1201;
+pub const OUTPUT_LINE_SUEWS_LEN: usize = output_cols::OUTPUT_SUEWS_COLS;
+pub const OUTPUT_LINE_SNOW_LEN: usize = output_cols::OUTPUT_SNOW_COLS;
+pub const OUTPUT_LINE_ESTM_LEN: usize = output_cols::OUTPUT_ESTM_COLS;
+pub const OUTPUT_LINE_EHC_LEN: usize = output_cols::OUTPUT_EHC_COLS;
+pub const OUTPUT_LINE_RSL_LEN: usize = output_cols::OUTPUT_RSL_COLS;
+pub const OUTPUT_LINE_BEERS_LEN: usize = output_cols::OUTPUT_BEERS_COLS;
+pub const OUTPUT_LINE_DEBUG_LEN: usize = output_cols::OUTPUT_DEBUG_COLS;
+pub const OUTPUT_LINE_SPARTACUS_LEN: usize = output_cols::OUTPUT_SPARTACUS_COLS;
+pub const OUTPUT_LINE_DAILYSTATE_LEN: usize = output_cols::OUTPUT_DAILYSTATE_COLS;
+pub const OUTPUT_LINE_STEBBS_LEN: usize = output_cols::OUTPUT_STEBBS_COLS;
+pub const OUTPUT_LINE_NHOOD_LEN: usize = output_cols::OUTPUT_NHOOD_COLS;
+pub const OUTPUT_LINE_FLAT_LEN: usize = OUTPUT_LINE_DATETIME_LEN
+    + OUTPUT_LINE_SUEWS_LEN
+    + OUTPUT_LINE_SNOW_LEN
+    + OUTPUT_LINE_ESTM_LEN
+    + OUTPUT_LINE_EHC_LEN
+    + OUTPUT_LINE_RSL_LEN
+    + OUTPUT_LINE_BEERS_LEN
+    + OUTPUT_LINE_DEBUG_LEN
+    + OUTPUT_LINE_SPARTACUS_LEN
+    + OUTPUT_LINE_DAILYSTATE_LEN
+    + OUTPUT_LINE_STEBBS_LEN
+    + OUTPUT_LINE_NHOOD_LEN;
 pub const OUTPUT_LINE_SCHEMA_VERSION: u32 = 2;
 
 pub type OutputLineSchema = crate::codec::SimpleSchema;

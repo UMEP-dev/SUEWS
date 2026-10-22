@@ -300,7 +300,13 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="AlbSnow",
         unit="-",
-        description="Snow albedo",
+        description=(
+            "Albedo of the snowpack, one value shared by all snow-covered "
+            "surfaces: it decreases as the snow ages (linearly below 0 degC, "
+            "towards the minimum snow albedo at or above 0 degC), returns to "
+            "the maximum after enough fresh snowfall, and is 0 when no "
+            "surface has snow"
+        ),
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,

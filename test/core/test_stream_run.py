@@ -56,10 +56,10 @@ def _year_crossing_sim(short_sample_sim, path_out, freq_s):
     sim = short_sample_sim()
     forcing = sim.forcing.df.copy()
     forcing.index -= pd.Timedelta(days=16)
-    forcing.index.freq = pd.infer_freq(forcing.index[:10])
+    forcing.index.freq = forcing.index[1] - forcing.index[0]
     for col, values in (
         ("iy", forcing.index.year),
-        ("id", forcing.index.dayofyear),
+        ("id", forcing.index.day_of_year),
         ("it", forcing.index.hour),
         ("imin", forcing.index.minute),
     ):

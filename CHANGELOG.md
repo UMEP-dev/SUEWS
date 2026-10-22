@@ -57,6 +57,7 @@ EXAMPLES:
 ### 22 Oct 2026
 
 - [bugfix] DailyState daily means (`HDD1_h`, `HDD2_c`, `HDD3_Tmean`) now divide by the number of timesteps actually summed; the count was one short, making them 0.35% too high with five-minute steps and 4.3% with hourly ones, and the bias reached the 5-day mean temperature used by OHM, the modelled irrigation and the degree-day anthropogenic heat (#1878)
+- [maintenance] Added an exact sample-output reference gate: on the CI build that generates the reference (cp312 manylinux x86_64), the full-year sample run must reproduce the stored shards digit for digit, and a PR that changes a stored reference without the `0-physics:change` label fails `pr-gate`; physics source changed without the label is a warning. A change such as #1848 can no longer move the output unnoticed
 - [bugfix] Long runs need about 0.4 GB less memory while the model runs: SuPy now hands the forcing to the Rust bridge as a NumPy array instead of a list of Python floats, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 3.8 GB instead of 4.1 GB during the run (#1849)
   - The list boxed every forcing value (32 per timestep) as a Python float, about four times the size of the array itself; the bridge now copies the array once into the buffer the kernel reads.
   - The bridge's `run_suews_into` and `run_suews_multi_into` take the forcing as a C-ordered float64 array of shape `(len_sim, 32)` and refuse any other dtype, shape or memory layout; the older list-taking `run_suews*` functions are unchanged.

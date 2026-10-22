@@ -22,7 +22,7 @@ def _synthetic_forcing(index: pd.DatetimeIndex, seed: int = 0) -> SUEWSForcing:
     n = len(index)
     df = pd.DataFrame(index=index)
     df["iy"] = index.year
-    df["id"] = index.dayofyear
+    df["id"] = index.day_of_year
     df["it"] = index.hour
     df["imin"] = index.minute
     df["isec"] = 0

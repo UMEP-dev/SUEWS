@@ -428,7 +428,7 @@ class TemplateSystem:
 
         # Create DataFrame from template
         df = pd.DataFrame(template["rows"], columns=template["header"])
-        df.set_index("Code", inplace=True)
+        df = df.set_index("Code")
 
         # Write to file
         with open(output_path, "w", encoding="utf-8") as f:
@@ -547,7 +547,7 @@ class UniversalCodeManager:
 
         # Create DataFrame and save
         df = pd.DataFrame(rows, columns=fields)
-        df.set_index("Code", inplace=True)
+        df = df.set_index("Code")
 
         # Write to file
         with open(file_path, "w", encoding="utf-8") as f:

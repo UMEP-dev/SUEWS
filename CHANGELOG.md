@@ -59,6 +59,7 @@ EXAMPLES:
 - [feature][experimental] Proposal (draft): `SUEWSSimulation.run(keep_groups=[...])` keeps only the named output groups in memory (#1849)
   - Each chunk's full-width kernel output is copied group by group into storage sized for the kept groups and then released; the kept columns are bit-identical to a run without `keep_groups` at the same `chunk_day`, and the default (`keep_groups=None`) path is unchanged
   - Combine with a smaller `chunk_day` to bound the peak as well as the memory held after the run; dropped groups are absent from `output.df` and parquet output, and `run()` refuses a selection that would drop a group the txt output saves
+- [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
   - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.

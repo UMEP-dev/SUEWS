@@ -757,10 +757,13 @@ def save_df_output(
             # Preserve the historical five-minute singleton fallback when the
             # native cadence cannot be inferred from more than one timestamp.
             list_df_save.append((df_output, list_group_save, 300))
-        # At the native timestep without DailyState the "resampled" table is
-        # the native table and its groups are the ones the first pass saves,
-        # so saving it again would only rewrite the same files (gh#1849).
-        is_native_repeat = df_rsmp is df_output and "DailyState" not in list_group_save
+        # At the native timestep the "resampled" table is the native table and
+        # its groups are among the ones the first pass saves, so saving it
+        # again would only rewrite the same files and list them twice
+        # (gh#1849).
+        is_native_repeat = df_rsmp is df_output and set(list_group_rsmp) <= set(
+            list_group_save
+        )
         if df_rsmp is not None and list_group_rsmp and not is_native_repeat:
             list_df_save.append((df_rsmp, list_group_rsmp, freq_s))
     else:

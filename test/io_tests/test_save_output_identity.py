@@ -5,11 +5,13 @@ views, one index shift per table, one grid-group-year at a time). The
 expected hashes below were produced by the saver as it stood before that
 rewrite, on a small deterministic output table, so these tests pin both the
 saved bytes and the returned file list (order and duplicates included)
-across the main option sets. The exception is the two ``index_shared``
-cases (``save_tstep`` at the native timestep without DailyState): the old
-saver wrote those files with every row one step early and listed them
+across the main option sets. The exceptions are the ``save_tstep`` cases
+at the native timestep: without DailyState (the two ``index_shared`` cases)
+the old saver wrote the files with every row one step early and listed them
 repeatedly, so their hashes were regenerated deliberately when that was
-fixed, and ``test_save_tstep_native_step`` checks their rows directly.
+fixed; with DailyState (``native_with_dailystate``) it wrote and listed the
+non-daily files twice with identical bytes, and now does so once.
+``test_save_tstep_native_step`` checks their rows directly.
 
 The table is synthetic rather than a model run, so the hashes do not move
 with the platform-dependent kernel. Values are multiples of 1/8, so
@@ -111,6 +113,16 @@ _CASES = {
     "index_shared_jan1": (
         {"start": "2013-01-01 00:05", "n_day": 2},
         {"output_groups": ["SUEWS", "RSL"], "save_tstep": True, "freq_s": 300},
+    ),
+    # the same with DailyState: the non-daily files used to be written and
+    # listed twice (identical bytes); now each is written and listed once
+    "native_with_dailystate": (
+        {},
+        {
+            "output_groups": ["SUEWS", "RSL", "DailyState"],
+            "save_tstep": True,
+            "freq_s": 300,
+        },
     ),
 }
 
@@ -219,6 +231,9 @@ _EXPECTED = {
     ],
 }
 # fmt: on
+# One pass at the native timestep writes exactly the native-pass files of
+# all_groups_save_tstep (its first twelve entries), each listed once.
+_EXPECTED["native_with_dailystate"] = _EXPECTED["all_groups_save_tstep"][:12]
 
 
 @pytest.mark.parametrize("case", list(_CASES))
@@ -245,7 +260,9 @@ def _read_rows(path: Path) -> pd.DataFrame:
     return df_file.drop(columns=["Year", "DOY", "Hour", "Min", "Dectime"])
 
 
-@pytest.mark.parametrize("case", ["index_shared", "index_shared_jan1"])
+@pytest.mark.parametrize(
+    "case", ["index_shared", "index_shared_jan1", "native_with_dailystate"]
+)
 def test_save_tstep_native_step(case, tmp_path):
     """``save_tstep`` at the native timestep saves every step once, end-labelled.
 

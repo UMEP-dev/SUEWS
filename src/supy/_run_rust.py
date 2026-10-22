@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cache
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
@@ -518,18 +519,144 @@ def _frame_from_output_buffers(
     return _wrap_output_frame(ar_data, _output_columns(), datetime_index, grid_id)
 
 
-def _run_grid_into(
+def _kept_output_slices(
+    keep_groups: Sequence[str],
+) -> tuple[list[tuple[int, int]], pd.MultiIndex]:
+    """Locate the kept groups' data columns in the kernel output buffer.
+
+    Returns ``(list_slice, columns)``: one ``(start, stop)`` column range per
+    kept group, in kernel order, and the ``(group, var)`` labels of the kept
+    columns, which are those of the full output frame restricted to the kept
+    groups. Names are matched case-insensitively to the kernel group names.
+    """
+    dict_canonical = {name.lower(): name for name in _GROUP_ORDER}
+    set_keep: set[str] = set()
+    list_unknown: list[str] = []
+    for name in keep_groups:
+        canonical = dict_canonical.get(str(name).lower())
+        if canonical is None:
+            list_unknown.append(str(name))
+        else:
+            set_keep.add(canonical)
+    if list_unknown:
+        raise ValueError(
+            f"keep_groups names unknown output groups {list_unknown}; "
+            f"the kernel writes {list(_GROUP_ORDER)}"
+        )
+    if not set_keep:
+        raise ValueError("keep_groups must name at least one output group")
+
+    cols_all = _output_columns()
+    list_slice: list[tuple[int, int]] = []
+    list_pos: list[np.ndarray] = []
+    col_offset = 0
+    for group_name, n_data in _GROUP_DATA_COLS_BY_NAME.items():
+        if group_name in set_keep:
+            list_slice.append((col_offset, col_offset + n_data))
+            list_pos.append(np.arange(col_offset, col_offset + n_data))
+        col_offset += n_data
+    return list_slice, cols_all[np.concatenate(list_pos)]
+
+
+class _KeptOutputStore:
+    """Output frame storage that holds only the kept groups (gh#1849).
+
+    Allocated once for the whole run: one row block per grid, grids in
+    ascending ID order, which is the row order of the frame a full run
+    returns. Each chunk's kernel buffer is copied in group by group with
+    :meth:`take` and can then be released, so a run holds the kept columns
+    plus one chunk's full-width buffer rather than every group for every
+    row. :meth:`to_frame` returns a frame whose values and labels equal the
+    kept columns of the full frame.
+    """
+
+    def __init__(
+        self, keep_groups: Sequence[str], list_grid_ids: Sequence[int], len_run: int
+    ) -> None:
+        self.list_slice, self.columns = _kept_output_slices(keep_groups)
+        self.list_grid_ids = sorted(_normalise_grid_id(g) for g in list_grid_ids)
+        self.len_run = len_run
+        self._row_base = {
+            grid_id: pos * len_run for pos, grid_id in enumerate(self.list_grid_ids)
+        }
+        self._row_next = dict.fromkeys(self.list_grid_ids, 0)
+        n_rows = len(self.list_grid_ids) * len_run
+        self.ar_data = np.empty(
+            (n_rows, len(self.columns)), dtype=np.float64, order="F"
+        )
+        # Zeros so a row never written keeps year 0, which
+        # _build_datetime_index rejects.
+        self.ar_datetime = np.zeros(
+            (n_rows, OUTPUT_TIME_COLS), dtype=np.float64, order="F"
+        )
+
+    @classmethod
+    def for_run(
+        cls,
+        keep_groups: Sequence[str] | None,
+        config: SUEWSConfig,
+        df_forcing: pd.DataFrame,
+    ) -> _KeptOutputStore | None:
+        """Return a store for this run, or ``None`` to keep every group."""
+        if keep_groups is None:
+            return None
+        return cls(keep_groups, [s.gridiv for s in config.sites], len(df_forcing))
+
+    def take(self, grid_id: int, ar_data: np.ndarray, ar_datetime: np.ndarray) -> None:
+        """Copy one grid's chunk buffers into the next rows of its block."""
+        grid_id = _normalise_grid_id(grid_id)
+        n_chunk = ar_data.shape[0]
+        if self._row_next[grid_id] + n_chunk > self.len_run:
+            raise RuntimeError(
+                f"Kept output for grid {grid_id} overflows the run length "
+                f"{self.len_run}"
+            )
+        row_start = self._row_base[grid_id] + self._row_next[grid_id]
+        rows = slice(row_start, row_start + n_chunk)
+        col_dest = 0
+        for col_start, col_stop in self.list_slice:
+            n_cols = col_stop - col_start
+            self.ar_data[rows, col_dest : col_dest + n_cols] = ar_data[
+                :, col_start:col_stop
+            ]
+            col_dest += n_cols
+        self.ar_datetime[rows] = ar_datetime
+        self._row_next[grid_id] += n_chunk
+
+    def to_frame(self) -> pd.DataFrame:
+        """Return the kept-groups output frame, wrapping the store's array."""
+        list_short = [g for g, n in self._row_next.items() if n != self.len_run]
+        if list_short:
+            raise RuntimeError(f"Kept output is incomplete for grids {list_short}")
+        _replace_sentinel_in_place(self.ar_data)
+        list_index = []
+        for grid_id in self.list_grid_ids:
+            row_base = self._row_base[grid_id]
+            datetime_index = _build_datetime_index(
+                self.ar_datetime[row_base : row_base + self.len_run]
+            )
+            list_index.append(
+                pd.MultiIndex.from_product(
+                    [[grid_id], datetime_index], names=["grid", "datetime"]
+                )
+            )
+        index = list_index[0]
+        if len(list_index) > 1:
+            index = index.append(list_index[1:])
+        return pd.DataFrame(self.ar_data, columns=self.columns, index=index, copy=False)
+
+
+def _run_grid_buffers(
     rust_module: Any,
     config_text: str,
     forcing_flat: list[float],
     len_forcing: int,
-    grid_id: int,
     state_json: str | None = None,
-) -> tuple[pd.DataFrame, str | None, Any]:
-    """Run one grid with the kernel writing straight into its output frame.
+) -> tuple[np.ndarray, np.ndarray, str | None, Any]:
+    """Run one grid with the kernel writing into freshly allocated buffers.
 
-    Returns ``(df_output, state_json, raw_warnings)``. With *state_json*, the
-    run continues from that checkpoint.
+    Returns ``(ar_data, ar_datetime, state_json, raw_warnings)``. With
+    *state_json*, the run continues from that checkpoint.
     """
     ar_data, ar_datetime = _alloc_output_buffers(len_forcing)
     state_json_out, len_sim, raw_warnings = rust_module.run_suews_into(
@@ -544,6 +671,25 @@ def _run_grid_into(
         raise RuntimeError(
             f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
         )
+    return ar_data, ar_datetime, state_json_out, raw_warnings
+
+
+def _run_grid_into(
+    rust_module: Any,
+    config_text: str,
+    forcing_flat: list[float],
+    len_forcing: int,
+    grid_id: int,
+    state_json: str | None = None,
+) -> tuple[pd.DataFrame, str | None, Any]:
+    """Run one grid with the kernel writing straight into its output frame.
+
+    Returns ``(df_output, state_json, raw_warnings)``. With *state_json*, the
+    run continues from that checkpoint.
+    """
+    ar_data, ar_datetime, state_json_out, raw_warnings = _run_grid_buffers(
+        rust_module, config_text, forcing_flat, len_forcing, state_json
+    )
     df_output = _frame_from_output_buffers(ar_data, ar_datetime, grid_id)
     return df_output, state_json_out, raw_warnings
 
@@ -557,11 +703,14 @@ def _run_grids_into(
     list_state_jsons: list[str] | None,
     use_rayon: bool,
     max_workers: int | None,
-) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
+    store: _KeptOutputStore | None = None,
+) -> tuple[pd.DataFrame | None, dict[int, str] | None, KernelWarningLog]:
     """Run every grid, each writing into its own preallocated output frame.
 
     With *use_rayon* the grids run in parallel inside the bridge; otherwise
     one after another. Returns ``(df_output, dict_state_json, warnings)``.
+    With *store*, each grid's kept groups are copied into it and its full
+    buffer released, and ``df_output`` is ``None``.
     """
     list_df_output: list[pd.DataFrame] = []
     dict_state_json: dict[int, str] = {}
@@ -589,28 +738,45 @@ def _run_grids_into(
                 )
             grid_id = list_grid_ids[idx]
             ar_data, ar_datetime = list_buffers[idx]
-            list_df_output.append(
-                _frame_from_output_buffers(ar_data, ar_datetime, grid_id)
-            )
+            if store is not None:
+                store.take(grid_id, ar_data, ar_datetime)
+                list_buffers[idx] = None
+                del ar_data, ar_datetime
+            else:
+                list_df_output.append(
+                    _frame_from_output_buffers(ar_data, ar_datetime, grid_id)
+                )
             if state_json is not None:
                 dict_state_json[grid_id] = state_json
             kernel_warnings.add(grid_id, raw_warnings)
     else:
         for idx, config_json in enumerate(list_config_jsons):
             grid_id = list_grid_ids[idx]
-            df_output, state_json, raw_warnings = _run_grid_into(
-                rust_module,
-                config_json,
-                forcing_flat,
-                len_forcing,
-                grid_id,
-                list_state_jsons[idx] if list_state_jsons is not None else None,
+            state_json_in = (
+                list_state_jsons[idx] if list_state_jsons is not None else None
             )
-            list_df_output.append(df_output)
+            if store is not None:
+                ar_data, ar_datetime, state_json, raw_warnings = _run_grid_buffers(
+                    rust_module, config_json, forcing_flat, len_forcing, state_json_in
+                )
+                store.take(grid_id, ar_data, ar_datetime)
+                del ar_data, ar_datetime
+            else:
+                df_output, state_json, raw_warnings = _run_grid_into(
+                    rust_module,
+                    config_json,
+                    forcing_flat,
+                    len_forcing,
+                    grid_id,
+                    state_json_in,
+                )
+                list_df_output.append(df_output)
             if state_json is not None:
                 dict_state_json[grid_id] = state_json
             kernel_warnings.add(grid_id, raw_warnings)
 
+    if store is not None:
+        return None, dict_state_json or None, kernel_warnings
     df_output_all = _concat_output_frames(list_df_output)
     return df_output_all, dict_state_json or None, kernel_warnings
 
@@ -683,7 +849,8 @@ def run_suews_rust_multi(
     df_forcing: pd.DataFrame,
     serial_mode: bool = False,
     max_workers: int | None = None,
-) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
+    store: _KeptOutputStore | None = None,
+) -> tuple[pd.DataFrame | None, dict[int, str] | None, KernelWarningLog]:
     """Run SUEWS via Rust bridge for all sites in configuration.
 
     Iterates over ``config.sites``, patches the serialised config dict
@@ -698,7 +865,8 @@ def run_suews_rust_multi(
     Returns ``(df_output, dict_state_json, kernel_warnings)`` where
     *dict_state_json* maps each grid ID to its post-simulation state JSON
     string and *kernel_warnings* collects the non-fatal warnings raised by
-    the Fortran kernel for every grid (GH#1737).
+    the Fortran kernel for every grid (GH#1737). With *store*, the output
+    goes into it and ``df_output`` is ``None`` (see :class:`_KeptOutputStore`).
     """
     sites = config.sites
 
@@ -760,6 +928,7 @@ def run_suews_rust_multi(
         None,
         use_rayon,
         max_workers,
+        store,
     )
 
 
@@ -785,8 +954,12 @@ def run_suews_rust_multi_with_state(
     dict_state_json_by_grid: dict[int, str],
     serial_mode: bool = False,
     max_workers: int | None = None,
-) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
-    """Run SUEWS via Rust bridge for all sites with injected states."""
+    store: _KeptOutputStore | None = None,
+) -> tuple[pd.DataFrame | None, dict[int, str] | None, KernelWarningLog]:
+    """Run SUEWS via Rust bridge for all sites with injected states.
+
+    With *store*, the output goes into it and ``df_output`` is ``None``.
+    """
     sites = config.sites
 
     list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
@@ -861,6 +1034,7 @@ def run_suews_rust_multi_with_state(
         list_state_jsons,
         use_rayon,
         max_workers,
+        store,
     )
 
 
@@ -900,6 +1074,7 @@ def run_suews_rust_chunked(
     serial_mode: bool = False,
     max_workers: int | None = None,
     initial_state_json_by_grid: dict[int, str] | None = None,
+    keep_groups: Sequence[str] | None = None,
 ) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
     """Run SUEWS via Rust bridge with multi-chunk state chaining.
 
@@ -907,6 +1082,13 @@ def run_suews_rust_chunked(
     sequentially, and threads the final state of chunk N into chunk N+1
     for every grid.  When *initial_state_json_by_grid* is provided, the first
     chunk also runs through ``run_suews_with_state`` for those grids.
+
+    With *keep_groups*, the returned frame holds only those output groups:
+    each chunk's kernel buffer is copied group by group into storage
+    allocated once for the run and then released (gh#1849), so the run
+    holds the kept columns plus one chunk's full-width buffer. The kept
+    columns equal those of a run without *keep_groups* at the same
+    *chunk_day*.
     """
     initial_state_json_by_grid = {
         _normalise_grid_id(grid_id): state_json
@@ -921,10 +1103,19 @@ def run_suews_rust_chunked(
     )
 
     n_chunk = len(grp_forcing_chunk)
+    store = _KeptOutputStore.for_run(keep_groups, config, df_forcing)
+    # Only pass the store when there is one, so the default call is unchanged.
+    dict_store_kw = {"store": store} if store is not None else {}
     if n_chunk <= 1 and not initial_state_json_by_grid:
-        return run_suews_rust_multi(
-            config, df_forcing, serial_mode=serial_mode, max_workers=max_workers
+        df_output, dict_state_json, kernel_warnings = run_suews_rust_multi(
+            config,
+            df_forcing,
+            serial_mode=serial_mode,
+            max_workers=max_workers,
+            **dict_store_kw,
         )
+        df_output = store.to_frame() if store is not None else df_output
+        return df_output, dict_state_json, kernel_warnings
 
     if n_chunk > 1:
         logger_supy.info(
@@ -977,6 +1168,7 @@ def run_suews_rust_chunked(
                     dict_state_json_by_grid=dict_state_json,
                     serial_mode=serial_mode,
                     max_workers=max_workers,
+                    **dict_store_kw,
                 )
             )
         else:
@@ -986,13 +1178,17 @@ def run_suews_rust_chunked(
                     df_forcing=df_forcing_chunk,
                     serial_mode=serial_mode,
                     max_workers=max_workers,
+                    **dict_store_kw,
                 )
             )
 
-        list_df_output.append(df_output_chunk)
+        if df_output_chunk is not None:
+            list_df_output.append(df_output_chunk)
         kernel_warnings.extend(warnings_chunk)
         if dict_state_json_chunk:
             dict_state_json.update(dict_state_json_chunk)
 
-    df_output_all = _concat_output_frames(list_df_output)
+    df_output_all = (
+        store.to_frame() if store is not None else _concat_output_frames(list_df_output)
+    )
     return df_output_all, dict_state_json or None, kernel_warnings

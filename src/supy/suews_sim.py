@@ -5,6 +5,7 @@ Modern, object-oriented interface for SUEWS urban climate model simulations.
 Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
+from collections.abc import Sequence
 import copy
 from enum import Enum
 from pathlib import Path, PurePosixPath
@@ -32,12 +33,15 @@ from ._provenance import (
 )
 from ._run_period import resolve_run_period, slice_forcing_to_period
 from ._run_rust import (
+    OUTPUT_GROUP_LAYOUT,
     KernelWarningLog,
     _check_rust_available,
+    _kept_output_slices,
     run_suews_rust_chunked,
 )
 
 # Import SuPy components directly
+from ._save import DEFAULT_OUTPUT_GROUPS
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
@@ -750,6 +754,7 @@ class SUEWSSimulation:
         chunk_day: int = 3660,
         n_jobs: int = -1,
         clip_to_forcing: bool = False,
+        keep_groups: Sequence[str] | None = None,
         **run_kwargs,
     ) -> SUEWSOutput:
         """
@@ -786,6 +791,19 @@ class SUEWSSimulation:
             Parallel worker control for multi-grid runs. ``-1`` (default) uses
             Rayon default parallelism, ``1`` forces serial execution, and
             values greater than ``1`` cap Rayon to that many threads.
+        keep_groups : sequence of str, optional
+            Proposal (gh#1849): keep only these output groups (e.g.
+            ``["SUEWS", "DailyState"]``) in memory. The kernel still computes
+            every group, but each chunk's full-width output is copied group
+            by group into storage sized for the kept groups and then
+            released, so the run holds the kept columns plus one chunk's
+            full-width buffer. The kept columns equal those of a run without
+            ``keep_groups`` at the same ``chunk_day``; pass a smaller
+            ``chunk_day`` as well to bound the peak. Dropped groups are absent
+            from ``output.df`` and from parquet output, and asking for them
+            raises. ``None`` (the default) keeps every group. When the txt
+            output names groups to save (``model.control.output.groups``,
+            default SUEWS and DailyState), each must be kept.
 
         Returns
         -------
@@ -886,6 +904,9 @@ class SUEWSSimulation:
         run_metadata = self._start_run_metadata(
             start_date, end_date, df_forcing_slice, n_jobs, chunk_day
         )
+        if keep_groups is not None:
+            keep_groups = self._check_keep_groups(keep_groups)
+            run_metadata["keep_groups"] = list(keep_groups)
 
         # A checkpoint continuation must pick up exactly one timestep after
         # the checkpointed period; this runs regardless of _validate_forcing.
@@ -966,6 +987,8 @@ class SUEWSSimulation:
         initial_state_json_by_grid = (
             self._checkpoint.grid_states if self._checkpoint is not None else None
         )
+        # Pass keep_groups only when set, so the default call is unchanged.
+        dict_keep_kw = {"keep_groups": keep_groups} if keep_groups is not None else {}
         df_output, dict_state_json, kernel_warnings = run_suews_rust_chunked(
             config=self._config,
             df_forcing=df_forcing_slice,
@@ -973,6 +996,7 @@ class SUEWSSimulation:
             serial_mode=serial_mode,
             max_workers=max_workers,
             initial_state_json_by_grid=initial_state_json_by_grid,
+            **dict_keep_kw,
         )
         self._df_output = df_output
         # Surface non-fatal kernel warnings (physics fallbacks) that were
@@ -1165,6 +1189,44 @@ class SUEWSSimulation:
         list_path_save.append(write_provenance(output_path, payload))
 
         return list_path_save
+
+    def _check_keep_groups(self, keep_groups: Sequence[str]) -> list[str]:
+        """Validate ``run(keep_groups=...)`` before the kernel starts.
+
+        Returns the kept group names in kernel spelling and order. Raises
+        when a name is not a kernel output group, or when the txt output
+        would save a kernel group that the run is about to drop: without
+        this check ``save()`` would silently write fewer files.
+        """
+        if isinstance(keep_groups, str):
+            keep_groups = [keep_groups]
+        _, columns = _kept_output_slices(list(keep_groups))
+        list_keep = columns.get_level_values("group").unique().tolist()
+
+        output_control = getattr(
+            getattr(getattr(self._config, "model", None), "control", None),
+            "output",
+            None,
+        )
+        output_format = str(getattr(output_control, "format", "txt") or "txt")
+        if output_format == "txt":
+            list_save = getattr(output_control, "groups", None) or list(
+                DEFAULT_OUTPUT_GROUPS
+            )
+            set_kernel = {name.lower() for name, _ in OUTPUT_GROUP_LAYOUT}
+            set_keep = {name.lower() for name in list_keep}
+            list_dropped = [
+                name
+                for name in list_save
+                if name.lower() in set_kernel and name.lower() not in set_keep
+            ]
+            if list_dropped:
+                raise ValueError(
+                    f"model.control.output.groups saves {list_dropped}, which "
+                    f"keep_groups={list_keep} would drop; add them to "
+                    "keep_groups or remove them from the saved groups"
+                )
+        return list_keep
 
     def _start_run_metadata(
         self, start_date, end_date, df_forcing_slice: pd.DataFrame, n_jobs, chunk_day

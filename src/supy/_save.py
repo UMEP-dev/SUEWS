@@ -477,6 +477,10 @@ dict_level_var = {
 
 
 # save output files
+# Groups ``save_df_output`` writes when no ``output_groups`` are given.
+DEFAULT_OUTPUT_GROUPS: tuple[str, ...] = ("SUEWS", "DailyState")
+
+
 def save_df_output(
     df_output: pd.DataFrame,
     freq_s: int = 3600,
@@ -539,7 +543,7 @@ def save_df_output(
     # Handle output groups filtering
     if output_groups is None:
         # Default groups
-        output_groups = ["SUEWS", "DailyState"]
+        output_groups = list(DEFAULT_OUTPUT_GROUPS)
 
     # Get all available groups
     all_groups = df_save.columns.get_level_values("group").unique().tolist()

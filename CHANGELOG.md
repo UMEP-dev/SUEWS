@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [feature][experimental] Proposal (draft): `SUEWSSimulation.run(keep_groups=[...])` keeps only the named output groups in memory (#1849)
+  - Each chunk's full-width kernel output is copied group by group into storage sized for the kept groups and then released; the kept columns are bit-identical to a run without `keep_groups` at the same `chunk_day`, and the default (`keep_groups=None`) path is unchanged
+  - Combine with a smaller `chunk_day` to bound the peak as well as the memory held after the run; dropped groups are absent from `output.df` and parquet output, and `run()` refuses a selection that would drop a group the txt output saves
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.

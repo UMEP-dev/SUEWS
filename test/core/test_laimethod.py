@@ -51,7 +51,7 @@ def _base_forcing_df(n_timesteps: int = 24) -> pd.DataFrame:
     return pd.DataFrame(
         {
             "iy": dates.year,
-            "id": dates.dayofyear,
+            "id": dates.day_of_year,
             "it": dates.hour,
             "imin": dates.minute,
             "qn": -999,
@@ -257,7 +257,7 @@ class TestLAIMethodRuntime:
 
     def _seasonal_lai(self, index: pd.DatetimeIndex) -> np.ndarray:
         """Build a seasonal LAI curve spanning LAI_OBS_LOW .. LAI_OBS_HIGH."""
-        doy = index.dayofyear.values
+        doy = index.day_of_year.values
         phase = 2 * np.pi * (doy - 1) / 365.0
         amp = (self.LAI_OBS_HIGH - self.LAI_OBS_LOW) / 2
         mid = (self.LAI_OBS_HIGH + self.LAI_OBS_LOW) / 2

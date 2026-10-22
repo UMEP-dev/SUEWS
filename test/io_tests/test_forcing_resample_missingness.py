@@ -23,7 +23,7 @@ def _forcing(columns, start="2024-01-01 00:05", freq="5min", extras=None):
     idx = pd.date_range(start, periods=n, freq=freq)
     data = {
         "iy": idx.year,
-        "id": idx.dayofyear,
+        "id": idx.day_of_year,
         "it": idx.hour,
         "imin": idx.minute,
         **{name: np.asarray(values, dtype=float) for name, values in columns.items()},
@@ -100,7 +100,7 @@ class TestCoverageRules:
             pd.Timestamp("2025-01-01 01:00"),
         ]
         assert (out["iy"] == idx.year).all()
-        assert (out["id"] == idx.dayofyear).all()
+        assert (out["id"] == idx.day_of_year).all()
         assert (out["it"] == idx.hour).all()
         assert (out["imin"] == idx.minute).all()
         assert out["iy"].dtype.kind == "i"

@@ -748,6 +748,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    env:
+      TARGET_JOB: PR build validation
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -757,6 +759,10 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
+      # This job starts seconds after PR build validation finishes, and the
+      # Jobs REST API can still report that job as in progress then. Poll
+      # (bounded: 12 x 5 s) until it reads as completed; if it never does,
+      # analyse_ci_run.py reports a skip instead of failing the check.
       - name: Download workflow and Jobs REST data
         shell: bash
         env:
@@ -764,8 +770,20 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           mkdir -p ci-metrics-workflow
+          for attempt in $(seq 1 12); do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" > ci-metrics-workflow/jobs.json
+            status=$(jq -r --arg name "$TARGET_JOB" \
+              '[.jobs[] | select(.name == $name)
+                | if .status == "completed" and (.completed_at | not) then "settling" else .status end]
+                | first // "absent"' \
+              ci-metrics-workflow/jobs.json)
+            if [ "$status" = completed ]; then
+              break
+            fi
+            echo "Attempt ${attempt}: '${TARGET_JOB}' is '${status}' in the Jobs API; retrying in 5 s"
+            sleep 5
+          done
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" > ci-metrics-workflow/run.json
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" > ci-metrics-workflow/jobs.json
 
       - name: Analyse declared workflow critical path
         shell: bash
@@ -774,7 +792,7 @@ jobs:
           --run-json ci-metrics-workflow/run.json
           --jobs-json ci-metrics-workflow/jobs.json
           --needs-json .github/ci-metrics-needs.json
-          --target-job "PR build validation"
+          --target-job "$TARGET_JOB"
           --output ci-metrics-workflow/workflow-ci-metrics.json
           --summary "$GITHUB_STEP_SUMMARY"
 

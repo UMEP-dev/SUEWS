@@ -27,7 +27,6 @@ Check code against project conventions in `.claude/rules/`.
 |------|-------|
 | Fortran | `.claude/rules/fortran/conventions.md` |
 | Python | `.claude/rules/python/conventions.md` |
-| RST | `.claude/rules/docs/conventions.md` |
 | CHANGELOG | `.claude/rules/changelog/format.md` |
 
 ## Output Format
@@ -55,6 +54,7 @@ cleaning it and remove its entry from that table, or (b) leave it alone (existin
 
 - `.claude/rules/` - Full conventions (auto-loaded)
 - `references/quick-checks.md` - Common issues
-- For non-ASCII characters in sphinx-gallery `.py` tutorials (comment -> RST,
-  print -> terminal, matplotlib -> LaTeX), use the `audit-docs` skill, which
-  carries the context-specific replacement rules.
+- Documentation is out of scope: house style auto-loads from
+  `.claude/rules/docs/conventions.md` on docs paths, the pre-commit hook checks
+  RST heading depth, `audit-docs` fixes non-ASCII, and the `docs-reviewer`
+  agent reviews doc-code drift.

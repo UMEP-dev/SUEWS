@@ -34,7 +34,12 @@ from ._run_period import resolve_run_period, slice_forcing_to_period
 from ._run_rust import (
     KernelWarningLog,
     _check_rust_available,
+    iter_suews_rust_by_year,
     run_suews_rust_chunked,
+)
+from ._save import (
+    _normalise_forcing_timestamp_reference,
+    _normalise_output_timestamp_reference,
 )
 
 # Import SuPy components directly
@@ -50,6 +55,7 @@ from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
+STREAM_CHOICES = ("year",)  # Accepted values of ``run(stream=...)``
 DEFAULT_FORCING_FILE_PATTERNS = [
     "*.txt",
     "*.csv",
@@ -118,6 +124,8 @@ class SUEWSSimulation:
         self._check_continuity = True
         self._run_period = None
         self._run_completed = False
+        # Files written during a streamed run (``run(stream="year")``).
+        self._streamed_paths = None
         # Provenance bookkeeping (see ``_provenance.py``); private, best effort.
         self._config_identity = None
         self._forcing_sources = None
@@ -750,6 +758,7 @@ class SUEWSSimulation:
         chunk_day: int = 3660,
         n_jobs: int = -1,
         clip_to_forcing: bool = False,
+        stream: str | None = None,
         **run_kwargs,
     ) -> SUEWSOutput:
         """
@@ -786,13 +795,30 @@ class SUEWSSimulation:
             Parallel worker control for multi-grid runs. ``-1`` (default) uses
             Rayon default parallelism, ``1`` forces serial execution, and
             values greater than ``1`` cap Rayon to that many threads.
+        stream : {None, "year"}, optional
+            Opt-in, experimental. ``"year"`` runs one calendar year at a time
+            (years follow the right-closed convention, so the row stamped
+            ``1 January 00:00`` closes the previous year), writes each year's
+            output files with the same machinery as :meth:`save` into the
+            configured output directory, drops that year's output and
+            carries the model state into the next year. Memory then stays at
+            about one year of output however long the run. The checkpoint
+            and ``provenance.json`` are written once at the end, so the
+            directory holds the same files as ``run()`` followed by
+            ``save()``. Requires text output, an output frequency that
+            divides one day and output timestamps on the forcing clock.
+            ``chunk_day`` is ignored. Default ``None`` keeps the whole
+            output in memory as before.
 
         Returns
         -------
         SUEWSOutput
             Simulation results wrapped in an OOP interface with analysis
             and plotting convenience methods. Access raw DataFrame via
-            ``.to_dataframe()`` or ``.df``.
+            ``.to_dataframe()`` or ``.df``. After a streamed run the
+            output frame has the full column layout but no rows (the
+            values are in the written files); the checkpoint, final state
+            and kernel warnings are kept as usual.
 
         Raises
         ------
@@ -820,6 +846,10 @@ class SUEWSSimulation:
                 f"Remove the backend parameter or use backend='rust'."
             )
         validate_forcing = run_kwargs.pop("_validate_forcing", True)
+        if stream is not None and stream not in STREAM_CHOICES:
+            raise ValueError(
+                f"stream must be None or one of {STREAM_CHOICES}, got {stream!r}"
+            )
 
         max_workers = _validate_n_jobs(n_jobs)
         serial_mode = n_jobs == 1
@@ -853,6 +883,13 @@ class SUEWSSimulation:
                         grid_vals = df_state_for_cfg.index.get_level_values(0)
                     df_state_for_cfg.index = pd.Index(grid_vals, name="grid")
                 self._config = SUEWSConfig.from_df_state(df_state_for_cfg)
+
+        # A streamed run writes as it goes: reject output settings it cannot
+        # reproduce before any work is done.
+        save_settings = None
+        if stream is not None:
+            save_settings = self._resolve_save_settings(None, {})
+            self._check_streamable(save_settings)
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -966,14 +1003,35 @@ class SUEWSSimulation:
         initial_state_json_by_grid = (
             self._checkpoint.grid_states if self._checkpoint is not None else None
         )
-        df_output, dict_state_json, kernel_warnings = run_suews_rust_chunked(
-            config=self._config,
-            df_forcing=df_forcing_slice,
-            chunk_day=chunk_day,
-            serial_mode=serial_mode,
-            max_workers=max_workers,
-            initial_state_json_by_grid=initial_state_json_by_grid,
-        )
+        # Keep a legacy DFState-shaped final state for compatibility only.
+        from ._version import __version__
+
+        df_state_final = self._df_state_init.copy()
+        df_state_final[("version", "0")] = __version__
+
+        self._streamed_paths = None
+        if stream is None:
+            df_output, dict_state_json, kernel_warnings = run_suews_rust_chunked(
+                config=self._config,
+                df_forcing=df_forcing_slice,
+                chunk_day=chunk_day,
+                serial_mode=serial_mode,
+                max_workers=max_workers,
+                initial_state_json_by_grid=initial_state_json_by_grid,
+            )
+        else:
+            list_path_streamed, df_output, dict_state_json, kernel_warnings = (
+                self._run_streamed_by_year(
+                    df_forcing_slice,
+                    tstep_cfg,
+                    serial_mode,
+                    max_workers,
+                    initial_state_json_by_grid,
+                    df_state_final,
+                    save_settings,
+                )
+            )
+            run_metadata["stream"] = stream
         self._df_output = df_output
         # Surface non-fatal kernel warnings (physics fallbacks) that were
         # previously discarded inside the Fortran layer (GH#1737).
@@ -991,16 +1049,22 @@ class SUEWSSimulation:
         # same instance is an implicit continuation and is always checked.
         self._check_continuity = True
 
-        # Keep a legacy DFState-shaped final state for compatibility only.
-        from ._version import __version__
-
-        df_state_final = self._df_state_init.copy()
-        df_state_final[("version", "0")] = __version__
         self._df_state_final = df_state_final
 
         run_metadata["ended_at"] = now_utc_iso()
         self._run_metadata = run_metadata
         self._run_completed = True
+
+        if save_settings is not None:
+            # Same sidecars as save(), written once the run is complete.
+            self._streamed_paths = self._write_save_sidecars(
+                list_path_streamed, save_settings, command=None
+            )
+            logger_supy.info(
+                "Streamed output to %s (%d files); the returned output holds no rows.",
+                save_settings["output_path"],
+                len(self._streamed_paths),
+            )
 
         # Wrap results in SUEWSOutput
         return SUEWSOutput(
@@ -1075,6 +1139,39 @@ class SUEWSSimulation:
                 "Access results directly via sim.output.df_output"
             )
 
+        settings = self._resolve_save_settings(output_path, save_kwargs)
+
+        if self._streamed_paths is not None:
+            # A streamed run has already written every file; the frame is
+            # gone, so nothing can be written again somewhere else.
+            streamed_dir = Path(self._streamed_paths[0]).parent
+            same_dir = settings["output_path"].resolve() == streamed_dir.resolve()
+            as_text = settings["output_format"] in {None, "txt"}
+            if not (same_dir and as_text):
+                raise ValueError(
+                    "This run streamed its output to "
+                    f"{streamed_dir} as text during run(stream=...); its "
+                    "output is not held in memory, so it cannot be saved "
+                    "again elsewhere or in another format. Rerun without "
+                    "stream to save differently."
+                )
+            return list(self._streamed_paths)
+
+        list_path_save = self._write_output_frame(
+            self._df_output, self._df_state_final, settings
+        )
+        return self._write_save_sidecars(
+            list_path_save, settings, command=save_kwargs.get("command")
+        )
+
+    def _resolve_save_settings(
+        self, output_path: str | Path | None, save_kwargs: dict
+    ) -> dict:
+        """Resolve where and how :meth:`save` writes, from arguments and config.
+
+        Shared by :meth:`save` and the streamed path of :meth:`run`, so both
+        write with the same settings.
+        """
         # Set default path with priority: parameter > config > current directory
         if output_path is None:
             # Check if dir is specified in config
@@ -1119,24 +1216,44 @@ class SUEWSSimulation:
             # Get site name from first site
             if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                 site = self._config.sites[0].name
-        site_filename = safe_filename_component(site)
         if "format" in save_kwargs:  # TODO: When yaml format working, make elif
             output_format = save_kwargs["format"]
 
+        return {
+            "output_path": output_path,
+            "output_format": output_format,
+            "output_config": output_config,
+            "forcing_timestamp_reference": forcing_timestamp_reference,
+            "freq_s": int(freq_s),
+            "site": site,
+        }
+
+    @staticmethod
+    def _write_output_frame(
+        df_output: pd.DataFrame, df_state_final: pd.DataFrame, settings: dict
+    ) -> list:
+        """Write one output frame as :meth:`save` does; return the file paths."""
         # Use internal save helper for all formats
-        list_path_save = _save_supy(
-            df_output=self._df_output,
-            df_state_final=self._df_state_final,
-            freq_s=int(freq_s),
-            site=site,
-            path_dir_save=str(output_path),
+        return _save_supy(
+            df_output=df_output,
+            df_state_final=df_state_final,
+            freq_s=settings["freq_s"],
+            site=settings["site"],
+            path_dir_save=str(settings["output_path"]),
             # **save_kwargs # The shared save backend expects explicit arguments
-            output_config=output_config,
-            output_format=output_format,
+            output_config=settings["output_config"],
+            output_format=settings["output_format"],
             save_state=False,
-            forcing_timestamp_reference=forcing_timestamp_reference,
+            forcing_timestamp_reference=settings["forcing_timestamp_reference"],
         )
 
+    def _write_save_sidecars(
+        self, list_path_save: list, settings: dict, command: str | None
+    ) -> list:
+        """Append the checkpoint and the provenance sidecar to saved files."""
+        list_path_save = list(list_path_save)
+        output_path = settings["output_path"]
+        site_filename = safe_filename_component(settings["site"])
         if self._checkpoint is not None:
             checkpoint_name = (
                 f"{site_filename}_SUEWS_checkpoint.json"
@@ -1157,14 +1274,98 @@ class SUEWSSimulation:
         payload = self._build_provenance(
             list_path_save,
             output_format=written_format,
-            freq_s=int(freq_s),
-            forcing_timestamp_reference=forcing_timestamp_reference,
-            output_config=output_config,
-            command=save_kwargs.get("command"),
+            freq_s=settings["freq_s"],
+            forcing_timestamp_reference=settings["forcing_timestamp_reference"],
+            output_config=settings["output_config"],
+            command=command,
         )
         list_path_save.append(write_provenance(output_path, payload))
 
         return list_path_save
+
+    @staticmethod
+    def _check_streamable(settings: dict) -> None:
+        """Reject output settings that a year-by-year stream cannot reproduce.
+
+        Each year's files must be exactly what :meth:`save` writes for that
+        year from an unchunked run: one file per grid, group and year (text
+        only; Parquet writes one file for the whole run), resampling bins
+        that never straddle a year boundary (the output frequency divides
+        one day), and years read on the forcing clock (a UTC or
+        daylight-saving relabelling moves rows across the boundary).
+        """
+        output_config = settings["output_config"]
+        output_format = settings["output_format"]
+        if output_format is None and output_config is not None:
+            output_format = str(output_config.format)
+        if output_format not in {None, "txt"}:
+            raise ValueError(
+                "run(stream='year') writes text output only; "
+                f"the configured output format is {output_format!r}."
+            )
+        freq_s = settings["freq_s"]
+        if freq_s <= 0 or 86400 % freq_s != 0:
+            raise ValueError(
+                "run(stream='year') needs an output frequency that divides one "
+                f"day (86400 s); got {freq_s} s."
+            )
+        target = _normalise_output_timestamp_reference(
+            getattr(output_config, "timestamp_reference", "follow")
+            if output_config is not None
+            else "follow"
+        )
+        source = _normalise_forcing_timestamp_reference(
+            settings["forcing_timestamp_reference"]
+        )
+        if target not in {"follow", source}:
+            raise ValueError(
+                "run(stream='year') keeps output timestamps on the forcing "
+                f"clock; output.timestamp_reference={target!r} is not supported."
+            )
+
+    def _run_streamed_by_year(
+        self,
+        df_forcing: pd.DataFrame,
+        tstep_s: int,
+        serial_mode: bool,
+        max_workers: int | None,
+        initial_state_json_by_grid: dict | None,
+        df_state_final: pd.DataFrame,
+        settings: dict,
+    ) -> tuple:
+        """Run year by year, writing and dropping each year's output.
+
+        Returns ``(list_path_save, df_empty, dict_state_json,
+        kernel_warnings)``; ``df_empty`` has the output columns and no rows.
+        """
+        list_path_save: list = []
+        kernel_warnings = KernelWarningLog()
+        dict_state_json = None
+        df_empty = None
+        # _save_supy sets the SuPy logger level on every call; keep the
+        # caller's level so later years and the end-of-run summaries still log.
+        log_level = logger_supy.level
+        for df_year, dict_state_year, warnings_year in iter_suews_rust_by_year(
+            config=self._config,
+            df_forcing=df_forcing,
+            tstep_s=tstep_s,
+            serial_mode=serial_mode,
+            max_workers=max_workers,
+            initial_state_json_by_grid=initial_state_json_by_grid,
+        ):
+            kernel_warnings.extend(warnings_year)
+            dict_state_json = dict_state_year
+            list_path_save += self._write_output_frame(
+                df_year, df_state_final, settings
+            )
+            logger_supy.setLevel(log_level)
+            if df_empty is None:
+                # A deep copy, so the empty frame does not keep the year's
+                # buffer alive.
+                df_empty = df_year.iloc[:0].copy()
+            # Drop this year's frame before the next year is allocated.
+            del df_year
+        return list_path_save, df_empty, dict_state_json, kernel_warnings
 
     def _start_run_metadata(
         self, start_date, end_date, df_forcing_slice: pd.DataFrame, n_jobs, chunk_day
@@ -1329,6 +1530,8 @@ class SUEWSSimulation:
                 "continued_from_checkpoint", False
             ),
         }
+        if run_metadata.get("stream"):
+            run_block["stream"] = run_metadata["stream"]
         return {
             "format_version": PROVENANCE_FORMAT_VERSION,
             "generator": "supy.SUEWSSimulation.save",
@@ -1372,6 +1575,7 @@ class SUEWSSimulation:
         self._run_period = None
         self._run_completed = False
         self._run_metadata = None
+        self._streamed_paths = None
         return self
 
     def _validate_continuation_forcing(self, df_forcing: pd.DataFrame) -> None:
@@ -1533,6 +1737,7 @@ class SUEWSSimulation:
         self._df_state_final = None
         self._kernel_warnings = KernelWarningLog()
         self._run_completed = False
+        self._streamed_paths = None
         return self
 
     @classmethod

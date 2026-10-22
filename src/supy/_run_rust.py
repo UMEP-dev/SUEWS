@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from functools import cache
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
@@ -893,6 +894,87 @@ def run_suews_rust_with_state(
     return df_output, new_state_json, kernel_warnings
 
 
+def _check_chunk_grid_ids(
+    config: SUEWSConfig, initial_state_json_by_grid: dict[int, str]
+) -> None:
+    """Reject duplicate grid IDs and checkpoints that do not match the sites."""
+    list_gridiv = [_normalise_grid_id(s.gridiv) for s in config.sites]
+    list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
+    if list_dupes:
+        raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
+
+    if initial_state_json_by_grid:
+        checkpoint_grid_ids = set(initial_state_json_by_grid)
+        config_grid_ids = set(list_gridiv)
+        if checkpoint_grid_ids != config_grid_ids:
+            parts = []
+            missing = sorted(config_grid_ids - checkpoint_grid_ids)
+            unexpected = sorted(checkpoint_grid_ids - config_grid_ids)
+            if missing:
+                parts.append(f"missing checkpoint states for grids {missing}")
+            if unexpected:
+                parts.append(f"unexpected checkpoint states for grids {unexpected}")
+            raise ValueError(
+                "Checkpoint grid IDs do not match config.sites: " + "; ".join(parts)
+            )
+
+
+def _iter_suews_rust_chunks(
+    config: SUEWSConfig,
+    grp_forcing_chunk: Any,
+    serial_mode: bool,
+    max_workers: int | None,
+    initial_state_json_by_grid: dict[int, str],
+) -> Iterator[tuple[pd.DataFrame, dict[int, str], KernelWarningLog]]:
+    """Run forcing chunks in order, threading each grid's state forward.
+
+    *grp_forcing_chunk* is a pandas ``GroupBy`` over the forcing rows, one
+    group per chunk in time order. Yields ``(df_output_chunk,
+    dict_state_json, warnings_chunk)`` per chunk, where *dict_state_json* is
+    the state reached at the end of that chunk. The caller decides whether
+    to keep or drop each chunk's frame.
+    """
+    n_chunk = len(grp_forcing_chunk)
+    dict_state_json: dict[int, str] = dict(initial_state_json_by_grid)
+    for chunk_idx, grp in enumerate(grp_forcing_chunk.groups):
+        df_forcing_chunk = grp_forcing_chunk.get_group(grp)
+        logger_supy.debug(
+            "Rust backend: chunk %d/%d  (%s -> %s, %d rows)",
+            chunk_idx + 1,
+            n_chunk,
+            df_forcing_chunk.index[0],
+            df_forcing_chunk.index[-1],
+            len(df_forcing_chunk),
+        )
+
+        if dict_state_json:
+            df_output_chunk, dict_state_json_chunk, warnings_chunk = (
+                run_suews_rust_multi_with_state(
+                    config=config,
+                    df_forcing=df_forcing_chunk,
+                    dict_state_json_by_grid=dict_state_json,
+                    serial_mode=serial_mode,
+                    max_workers=max_workers,
+                )
+            )
+        else:
+            df_output_chunk, dict_state_json_chunk, warnings_chunk = (
+                run_suews_rust_multi(
+                    config=config,
+                    df_forcing=df_forcing_chunk,
+                    serial_mode=serial_mode,
+                    max_workers=max_workers,
+                )
+            )
+
+        if dict_state_json_chunk:
+            dict_state_json.update(dict_state_json_chunk)
+        yield df_output_chunk, dict(dict_state_json), warnings_chunk
+        # Release this chunk before the next one is allocated, so a caller
+        # that drops each chunk holds one chunk at a time.
+        del df_output_chunk
+
+
 def run_suews_rust_chunked(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,
@@ -933,66 +1015,81 @@ def run_suews_rust_chunked(
             chunk_day,
         )
 
-    sites = config.sites
-    list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
-    list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
-    if list_dupes:
-        raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
-
-    if initial_state_json_by_grid:
-        checkpoint_grid_ids = set(initial_state_json_by_grid)
-        config_grid_ids = set(list_gridiv)
-        if checkpoint_grid_ids != config_grid_ids:
-            parts = []
-            missing = sorted(config_grid_ids - checkpoint_grid_ids)
-            unexpected = sorted(checkpoint_grid_ids - config_grid_ids)
-            if missing:
-                parts.append(f"missing checkpoint states for grids {missing}")
-            if unexpected:
-                parts.append(f"unexpected checkpoint states for grids {unexpected}")
-            raise ValueError(
-                "Checkpoint grid IDs do not match config.sites: " + "; ".join(parts)
-            )
+    _check_chunk_grid_ids(config, initial_state_json_by_grid)
 
     dict_state_json: dict[int, str] = dict(initial_state_json_by_grid)
     list_df_output: list[pd.DataFrame] = []
     kernel_warnings = KernelWarningLog()
-
-    for chunk_idx, grp in enumerate(grp_forcing_chunk.groups):
-        df_forcing_chunk = grp_forcing_chunk.get_group(grp)
-        logger_supy.debug(
-            "Rust backend: chunk %d/%d  (%s -> %s, %d rows)",
-            chunk_idx + 1,
-            n_chunk,
-            df_forcing_chunk.index[0],
-            df_forcing_chunk.index[-1],
-            len(df_forcing_chunk),
-        )
-
-        if dict_state_json:
-            df_output_chunk, dict_state_json_chunk, warnings_chunk = (
-                run_suews_rust_multi_with_state(
-                    config=config,
-                    df_forcing=df_forcing_chunk,
-                    dict_state_json_by_grid=dict_state_json,
-                    serial_mode=serial_mode,
-                    max_workers=max_workers,
-                )
-            )
-        else:
-            df_output_chunk, dict_state_json_chunk, warnings_chunk = (
-                run_suews_rust_multi(
-                    config=config,
-                    df_forcing=df_forcing_chunk,
-                    serial_mode=serial_mode,
-                    max_workers=max_workers,
-                )
-            )
-
+    for df_output_chunk, dict_state_chunk, warnings_chunk in _iter_suews_rust_chunks(
+        config,
+        grp_forcing_chunk,
+        serial_mode,
+        max_workers,
+        initial_state_json_by_grid,
+    ):
         list_df_output.append(df_output_chunk)
         kernel_warnings.extend(warnings_chunk)
-        if dict_state_json_chunk:
-            dict_state_json.update(dict_state_json_chunk)
+        dict_state_json = dict_state_chunk
 
     df_output_all = _concat_output_frames(list_df_output)
     return df_output_all, dict_state_json or None, kernel_warnings
+
+
+def forcing_year_keys(index: pd.DatetimeIndex, tstep_s: int) -> np.ndarray:
+    """Return the calendar year of each forcing row's interval.
+
+    Under the right-closed timestamp convention a row stamped ``t`` holds
+    ``(t - tstep, t]``, so the row stamped ``Y+1-01-01 00:00`` is the last
+    interval of year ``Y``. Rows are therefore keyed by the year of their
+    interval start, ``t - tstep``: the rows ``Y-01-01 00:00 + tstep`` to
+    ``Y+1-01-01 00:00`` share the key ``Y``, which is exactly the set of rows
+    that ``save()`` writes into the year-``Y`` files.
+
+    A leading key shorter than one day (for example a run that starts with
+    the single row ``Y-01-01 00:00``, the last interval of ``Y-1``) is
+    folded into the next year, so that no chunk is a stub of fewer than one
+    day; ``save()`` then writes that stub exactly as an unchunked run does.
+    """
+    ar_year = (index - pd.Timedelta(seconds=int(tstep_s))).year.to_numpy()
+    if len(ar_year) and (ar_year != ar_year[0]).any():
+        n_first = int((ar_year == ar_year[0]).sum())
+        if n_first * int(tstep_s) < 86400:
+            ar_year = np.where(ar_year == ar_year[0], ar_year[n_first], ar_year)
+    return ar_year
+
+
+def iter_suews_rust_by_year(
+    config: SUEWSConfig,
+    df_forcing: pd.DataFrame,
+    tstep_s: int,
+    serial_mode: bool = False,
+    max_workers: int | None = None,
+    initial_state_json_by_grid: dict[int, str] | None = None,
+) -> Iterator[tuple[pd.DataFrame, dict[int, str], KernelWarningLog]]:
+    """Run SUEWS one calendar year at a time, yielding each year's output.
+
+    Same state chaining as :func:`run_suews_rust_chunked`, but chunks follow
+    calendar years under the right-closed convention (see
+    :func:`forcing_year_keys`) and no chunk is kept: the caller receives
+    ``(df_output_year, dict_state_json, warnings_year)`` per year and can
+    write and drop the frame before the next year runs, so memory no longer
+    grows with run length.
+    """
+    if df_forcing.empty:
+        raise ValueError("forcing data is empty")
+    initial_state_json_by_grid = {
+        _normalise_grid_id(grid_id): state_json
+        for grid_id, state_json in (initial_state_json_by_grid or {}).items()
+    }
+    _check_chunk_grid_ids(config, initial_state_json_by_grid)
+    grp_forcing_chunk = df_forcing.groupby(forcing_year_keys(df_forcing.index, tstep_s))
+    logger_supy.info(
+        "Rust backend: streaming %d calendar-year chunks.", len(grp_forcing_chunk)
+    )
+    yield from _iter_suews_rust_chunks(
+        config,
+        grp_forcing_chunk,
+        serial_mode,
+        max_workers,
+        initial_state_json_by_grid,
+    )

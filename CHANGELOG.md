@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [feature][experimental] Long runs can stream their output to disk year by year: `SUEWSSimulation.run(stream="year")` runs one calendar year at a time, writes that year's text files with the same machinery as `save()`, drops the year from memory and carries the model state into the next year, so memory stays at about one year of output however long the run; opt-in, and the default run is unchanged (#1849)
+  - The streamed files match `run()` followed by `save()` file for file; values can differ in the last printed digit because state chained across a year boundary agrees with an uninterrupted run to round-off (about 1e-11), not bit for bit.
 - [bugfix] Long runs need about half the memory while the model runs: the kernel now writes its output straight into the table SuPy returns, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 4.1 GB instead of 7.5 GB during the run (#1849)
   - The Fortran kernel, the Rust bridge and pandas used to hold two full-width copies of the output at once (a Fortran block copied into a Rust buffer, that buffer copied into Python bytes, then the data columns gathered into a new array); one buffer, allocated by SuPy, now serves all three.
   - Each output group's repeated 5-column datetime prefix is written once per row to a separate small array instead of into the table.

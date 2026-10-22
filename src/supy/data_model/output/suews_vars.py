@@ -49,7 +49,10 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Tsurf",
         unit="degC",
-        description="Bulk surface temperature",
+        description=(
+            "Bulk surface temperature from the net radiation scheme, area-weighted "
+            "over the surfaces (snow-covered parts at the snow surface temperature)"
+        ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -234,7 +237,10 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="AddWater",
         unit="mm",
-        description="Additional water from other grids",
+        description=(
+            "Additional water from other grids; not computed in this version, so "
+            "0 unless set in the initial state"
+        ),
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -700,7 +706,11 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Ts",
         unit="degC",
-        description="Skin temperature",
+        description=(
+            "Surface temperature diagnosed from the sensible heat flux: air "
+            "temperature plus QH times the aerodynamic resistance over the "
+            "volumetric heat capacity of air"
+        ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,

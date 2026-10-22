@@ -213,7 +213,10 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="SVF_BdVeg",
         unit="-",
-        description="Sky view factor at the ground accounting for both buildings and vegetation",
+        description=(
+            "Sky view factor at the ground accounting for both buildings and "
+            "vegetation; vegetation is not yet represented, so it equals SVF_Ground"
+        ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -237,7 +240,10 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Tg",
         unit="degC",
-        description="Ground surface temperature",
+        description=(
+            "Excess of the ground surface temperature over the air temperature Ta, "
+            "from the BEERS daytime surface-temperature parameterisation; 0 at night"
+        ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -245,7 +251,10 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Tw",
         unit="degC",
-        description="Wall surface temperature",
+        description=(
+            "Excess of the wall surface temperature over the air temperature Ta, "
+            "from the BEERS daytime surface-temperature parameterisation; 0 at night"
+        ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,

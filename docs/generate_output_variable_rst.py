@@ -322,13 +322,13 @@ class OutputVariableRSTGenerator:
             "ESTM": "Element Surface Temperature Model outputs.",
             "EHC": "Element Heat Capacity model outputs for building thermal layers.",
             "RSL": "Roughness Sublayer vertical profile outputs.",
-            "BL": "Boundary Layer model outputs.",
+            "BL": "Convective boundary layer model outputs. The boundary layer model is not called in this version, so this group is not produced.",
             "debug": "Debug and diagnostic outputs for model development.",
             "BEERS": "BEERS radiation model outputs.",
             "DailyState": "Daily accumulated state variables.",
             "SPARTACUS": "SPARTACUS radiation model outputs (experimental).",
             "STEBBS": "STEBBS model outputs (experimental).",
-            "NHood": "Neighbourhood-scale outputs (experimental).",
+            "NHood": "Neighbourhood-scale outputs (experimental; not yet written by the kernel).",
         }
         return descriptions.get(group_val, "")
 

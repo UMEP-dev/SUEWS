@@ -38,6 +38,7 @@ import hashlib
 import json
 from pathlib import Path
 import platform
+import re
 import subprocess
 import sys
 from typing import Any
@@ -75,6 +76,25 @@ REFERENCE_FLOAT_FORMAT = "%.7g"
 
 PROVENANCE_FILENAME = "provenance.json"
 PROVENANCE_FORMAT_VERSION = 1
+
+
+def run_sample_reference() -> pd.DataFrame:
+    """Run the one-year sample simulation the reference is made from.
+
+    Returns the SUEWS output group with its ``(grid, datetime)`` index. The
+    generator (``scripts/suews/gen_sample_output.py``) and the exact check
+    (``test/core/test_sample_output_exact.py``) both call this, so the run the
+    reference is written from and the run it is checked against are the same
+    code path: the library, not the CLI engine, whose output agrees with it
+    only to about 1e-8 relative and so differs in the stored last digit of a
+    few thousand values.
+    """
+    import supy as sp
+
+    simulation = sp.SUEWSSimulation.from_sample_data()
+    df_forcing = simulation.forcing.df.iloc[: 288 * 366]  # 2012 is a leap year
+    simulation.update_forcing(df_forcing)
+    return simulation.run().df.SUEWS
 
 
 def write_sample_output_shards(df: pd.DataFrame, data_dir: Path) -> list[Path]:
@@ -236,6 +256,30 @@ def _meson_compilers(repo_root: Path) -> dict[str, Any] | None:
     }
 
 
+def _gfortran_on_path() -> dict[str, Any] | None:
+    """Return the identity of the ``gfortran`` on PATH, in meson's shape.
+
+    The fallback for a build with no meson directory to introspect: a wheel
+    built in isolation (CI, cibuildwheel) leaves none behind, but inside the
+    build image the ``gfortran`` on PATH is the compiler that built it.
+    ``None`` when there is no ``gfortran`` to ask.
+    """
+    try:
+        result = subprocess.run(
+            ["gfortran", "--version"], capture_output=True, text=True, check=True
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    lines = result.stdout.splitlines()
+    full_version = lines[0].strip() if lines else ""
+    match = re.search(r"\)\s+(\d+(?:\.\d+)+)", full_version)
+    return {
+        "id": "gcc",
+        "version": match.group(1) if match else None,
+        "full_version": full_version,
+    }
+
+
 def _fortran_build_profile(repo_root: Path) -> str | None:
     """Return the Fortran build profile, resolved by the build's own code.
 
@@ -269,8 +313,22 @@ def build_identity(repo_root: Path) -> dict[str, Any]:
     # src/suews/Makefile.gfortran, keyed on this profile, and are deliberately
     # not copied here: a copy goes stale the first time they are tuned.
     identity["fortran_build_profile"] = _fortran_build_profile(repo_root)
-    identity["compilers"] = _meson_compilers(repo_root)
+    compilers = _meson_compilers(repo_root)
+    if compilers is None:
+        fortran = _gfortran_on_path()
+        compilers = {"fortran": fortran} if fortran else None
+    identity["compilers"] = compilers
     return identity
+
+
+def _libc() -> str | None:
+    """Return the C library and version (``glibc 2.17``), ``None`` off Linux.
+
+    Recorded because the transcendental functions the kernel calls come from
+    it, so it is part of what makes a run reproduce to the last digit.
+    """
+    name, version = platform.libc_ver()
+    return f"{name} {version}" if name and version else None
 
 
 def platform_identity() -> dict[str, Any]:
@@ -278,9 +336,50 @@ def platform_identity() -> dict[str, Any]:
     return {
         "system": platform.system(),
         "machine": platform.machine(),
+        "libc": _libc(),
         "python": ".".join(map(str, sys.version_info[:3])),
         "pandas": pd.__version__,
     }
+
+
+def reference_environment_mismatch(
+    provenance: dict[str, Any], repo_root: Path
+) -> str | None:
+    """Say why this build cannot reproduce the reference exactly, or ``None``.
+
+    The exact comparison in ``test/core/test_sample_output_exact.py`` holds
+    only where the build matches the one recorded in the sidecar: the same
+    system, machine and C library, the same Fortran compiler and the same
+    build profile. Anything else moves stored values in their last digit
+    without any change to the physics.
+    """
+    recorded_platform = provenance.get("platform", {})
+    current_platform = platform_identity()
+    for key in ("system", "machine", "libc"):
+        if recorded_platform.get(key) != current_platform[key]:
+            return (
+                f"platform {key} is {current_platform[key]!r}, the reference "
+                f"was generated on {recorded_platform.get(key)!r}"
+            )
+
+    recorded_build = provenance.get("build", {})
+    profile = _fortran_build_profile(repo_root)
+    if recorded_build.get("fortran_build_profile") != profile:
+        return (
+            f"Fortran build profile is {profile!r}, the reference was "
+            f"generated with {recorded_build.get('fortran_build_profile')!r}"
+        )
+
+    recorded_fortran = (recorded_build.get("compilers") or {}).get("fortran") or {}
+    current_fortran = _gfortran_on_path() or {}
+    if not recorded_fortran.get("full_version"):
+        return "the reference records no Fortran compiler"
+    if recorded_fortran.get("full_version") != current_fortran.get("full_version"):
+        return (
+            f"Fortran compiler is {current_fortran.get('full_version')!r}, the "
+            f"reference was generated with {recorded_fortran.get('full_version')!r}"
+        )
+    return None
 
 
 def write_reference_provenance(

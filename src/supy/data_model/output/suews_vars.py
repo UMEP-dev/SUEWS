@@ -117,7 +117,8 @@ SUEWS_VARIABLES = [
         description=(
             "Sensible heat flux used to seed the stability calculation "
             "(the LUMPS estimate on the first iteration, then QH from the previous "
-            "iteration). At output it equals QH."
+            "iteration). Deprecated: it always equals QH at output and will be "
+            "removed in a future release; use QH."
         ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,

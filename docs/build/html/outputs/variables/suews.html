@@ -10,7 +10,7 @@
 <meta content="SUEWS SUEWS output variables" name="description" />
 <meta content="SUEWS, output, suews, variables" name="keywords" />
 
-    <title>5.3.2. SUEWS Output Variables &#8212; SUEWS 2026.10.22.dev3 documentation</title>
+    <title>5.3.2. SUEWS Output Variables &#8212; SUEWS 2026.10.22.dev4 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=4854c63d"></script>
+    <script src="../../_static/documentation_options.js?v=dd4144ec"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="5.3.1. datetime Output Variables" href="datetime.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.22.dev3" />
+  <meta name="docsearch:version" content="2026.10.22.dev4" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.22.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/abf1d931f7e6fe690de91b127b7be4c62ee5aeb9" style="color: #31708f;">abf1d93</a>).
+        (2026.10.22.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1a35e69a6e6c3cc6db0f0722f22900cce85559b5" style="color: #31708f;">1a35e69</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.22.dev3 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.22.dev3 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.22.dev4 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.22.dev4 documentation - Home"/>
   
   
 </a></div>
@@ -711,7 +711,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-11">
 <dt class="sig sig-object output" id="output-variable-QHlumps">
 <span class="sig-name descname"><span class="pre">QHlumps</span></span><a class="headerlink" href="#output-variable-QHlumps" title="Link to this definition">#</a></dt>
-<dd><p>Sensible heat flux (using LUMPS)</p>
+<dd><p>Sensible heat flux (LUMPS method)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -725,7 +725,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-12">
 <dt class="sig sig-object output" id="output-variable-QElumps">
 <span class="sig-name descname"><span class="pre">QElumps</span></span><a class="headerlink" href="#output-variable-QElumps" title="Link to this definition">#</a></dt>
-<dd><p>Latent heat flux (using LUMPS)</p>
+<dd><p>Latent heat flux (LUMPS method)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -739,7 +739,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-13">
 <dt class="sig sig-object output" id="output-variable-QHinit">
 <span class="sig-name descname"><span class="pre">QHinit</span></span><a class="headerlink" href="#output-variable-QHinit" title="Link to this definition">#</a></dt>
-<dd><p>Sensible heat flux used to seed the stability calculation (LUMPS estimate on the first iteration, then QH of the previous iteration); equals QH at output</p>
+<dd><p>Sensible heat flux used to seed the stability calculation (the LUMPS estimate on the first iteration, then QH from the previous iteration). Deprecated: it always equals QH at output and will be removed in a future release; use QH.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -781,7 +781,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-16">
 <dt class="sig sig-object output" id="output-variable-Irr">
 <span class="sig-name descname"><span class="pre">Irr</span></span><a class="headerlink" href="#output-variable-Irr" title="Link to this definition">#</a></dt>
-<dd><p>External water use: total water use minus internal water use, not below zero</p>
+<dd><p>External water use: total water use minus internal water use, never negative</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -823,7 +823,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-19">
 <dt class="sig sig-object output" id="output-variable-TotCh">
 <span class="sig-name descname"><span class="pre">TotCh</span></span><a class="headerlink" href="#output-variable-TotCh" title="Link to this definition">#</a></dt>
-<dd><p>Surface and soil moisture change</p>
+<dd><p>Change in surface and soil water storage</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -837,7 +837,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-20">
 <dt class="sig sig-object output" id="output-variable-SurfCh">
 <span class="sig-name descname"><span class="pre">SurfCh</span></span><a class="headerlink" href="#output-variable-SurfCh" title="Link to this definition">#</a></dt>
-<dd><p>Surface moisture change</p>
+<dd><p>Change in surface water storage</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -851,7 +851,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-21">
 <dt class="sig sig-object output" id="output-variable-State">
 <span class="sig-name descname"><span class="pre">State</span></span><a class="headerlink" href="#output-variable-State" title="Link to this definition">#</a></dt>
-<dd><p>Surface Wetness State</p>
+<dd><p>Surface wetness state, area-weighted over all surfaces including water</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -865,7 +865,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-22">
 <dt class="sig sig-object output" id="output-variable-NWtrState">
 <span class="sig-name descname"><span class="pre">NWtrState</span></span><a class="headerlink" href="#output-variable-NWtrState" title="Link to this definition">#</a></dt>
-<dd><p>Surface wetness state (non-water surfaces)</p>
+<dd><p>Surface wetness state of the non-water surfaces (per unit non-water area)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -893,7 +893,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-24">
 <dt class="sig sig-object output" id="output-variable-SMD">
 <span class="sig-name descname"><span class="pre">SMD</span></span><a class="headerlink" href="#output-variable-SMD" title="Link to this definition">#</a></dt>
-<dd><p>Soil Moisture Deficit</p>
+<dd><p>Soil moisture deficit</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -907,7 +907,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-25">
 <dt class="sig sig-object output" id="output-variable-FlowCh">
 <span class="sig-name descname"><span class="pre">FlowCh</span></span><a class="headerlink" href="#output-variable-FlowCh" title="Link to this definition">#</a></dt>
-<dd><p>Additional flow into water body</p>
+<dd><p>Additional flow into the water surface, from the site flow-change parameter</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -935,7 +935,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-27">
 <dt class="sig sig-object output" id="output-variable-ROSoil">
 <span class="sig-name descname"><span class="pre">ROSoil</span></span><a class="headerlink" href="#output-variable-ROSoil" title="Link to this definition">#</a></dt>
-<dd><p>Overflow from full soil stores during lateral soil-water exchange between surfaces, lost outside RO (per unit non-water area)</p>
+<dd><p>Overflow from full soil stores during lateral soil-water exchange between surfaces, not included in RO (per unit non-water area)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1375,7 +1375,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-58">
 <dt class="sig sig-object output" id="output-variable-TStar">
 <span class="sig-name descname"><span class="pre">TStar</span></span><a class="headerlink" href="#output-variable-TStar" title="Link to this definition">#</a></dt>
-<dd><p>Temperature scale</p>
+<dd><p>Temperature scale (friction temperature)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>K</p>
@@ -1515,7 +1515,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-68">
 <dt class="sig sig-object output" id="output-variable-FcPoint">
 <span class="sig-name descname"><span class="pre">FcPoint</span></span><a class="headerlink" href="#output-variable-FcPoint" title="Link to this definition">#</a></dt>
-<dd><p>CO2 flux from point source</p>
+<dd><p>CO2 flux from point sources</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>umol m<sup>-2</sup> s<sup>-1</sup></p>
@@ -1529,7 +1529,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-69">
 <dt class="sig sig-object output" id="output-variable-QNSnowFr">
 <span class="sig-name descname"><span class="pre">QNSnowFr</span></span><a class="headerlink" href="#output-variable-QNSnowFr" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for non-snow area</p>
+<dd><p>Net all-wave radiation for the snow-free area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1543,7 +1543,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-70">
 <dt class="sig sig-object output" id="output-variable-QNSnow">
 <span class="sig-name descname"><span class="pre">QNSnow</span></span><a class="headerlink" href="#output-variable-QNSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow area</p>
+<dd><p>Net all-wave radiation for the snow-covered area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1557,7 +1557,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-71">
 <dt class="sig sig-object output" id="output-variable-AlbSnow">
 <span class="sig-name descname"><span class="pre">AlbSnow</span></span><a class="headerlink" href="#output-variable-AlbSnow" title="Link to this definition">#</a></dt>
-<dd><p>Snow albedo</p>
+<dd><p>Albedo of the snowpack, one value shared by all snow-covered surfaces: it decreases as the snow ages (linearly below 0 degC, towards the minimum snow albedo at or above 0 degC), returns to the maximum after enough fresh snowfall, and is 0 when no surface has snow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1573,7 +1573,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-72">
 <dt class="sig sig-object output" id="output-variable-QM">
 <span class="sig-name descname"><span class="pre">QM</span></span><a class="headerlink" href="#output-variable-QM" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange</p>
+<dd><p>Heat used to melt snow (negative when meltwater refreezes)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1587,7 +1587,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-73">
 <dt class="sig sig-object output" id="output-variable-QMFreeze">
 <span class="sig-name descname"><span class="pre">QMFreeze</span></span><a class="headerlink" href="#output-variable-QMFreeze" title="Link to this definition">#</a></dt>
-<dd><p>Internal energy change</p>
+<dd><p>Heat related to freezing of water (internal energy change)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1629,7 +1629,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-76">
 <dt class="sig sig-object output" id="output-variable-MeltWater">
 <span class="sig-name descname"><span class="pre">MeltWater</span></span><a class="headerlink" href="#output-variable-MeltWater" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater</p>
+<dd><p>Snow melted during the timestep</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1643,7 +1643,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-77">
 <dt class="sig sig-object output" id="output-variable-MeltWStore">
 <span class="sig-name descname"><span class="pre">MeltWStore</span></span><a class="headerlink" href="#output-variable-MeltWStore" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store</p>
+<dd><p>Liquid water held in the snowpack</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1657,7 +1657,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-78">
 <dt class="sig sig-object output" id="output-variable-SnowCh">
 <span class="sig-name descname"><span class="pre">SnowCh</span></span><a class="headerlink" href="#output-variable-SnowCh" title="Link to this definition">#</a></dt>
-<dd><p>Change in snow pack</p>
+<dd><p>Change in snowpack water, ice and held liquid water together</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1867,7 +1867,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-93">
 <dt class="sig sig-object output" id="output-variable-Ts_Paved_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Paved_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Paved_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for paved surface</p>
+<dd><p>Surface temperature for paved surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1881,7 +1881,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-94">
 <dt class="sig sig-object output" id="output-variable-Ts_Bldgs_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Bldgs_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Bldgs_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for building surface</p>
+<dd><p>Surface temperature for building surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1895,7 +1895,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-95">
 <dt class="sig sig-object output" id="output-variable-Ts_EveTr_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_EveTr_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_EveTr_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for evergreen tree surface</p>
+<dd><p>Surface temperature for evergreen tree surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1909,7 +1909,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-96">
 <dt class="sig sig-object output" id="output-variable-Ts_DecTr_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_DecTr_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_DecTr_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for deciduous tree surface</p>
+<dd><p>Surface temperature for deciduous tree surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1923,7 +1923,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-97">
 <dt class="sig sig-object output" id="output-variable-Ts_Grass_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Grass_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Grass_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for grass surface</p>
+<dd><p>Surface temperature for grass surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1937,7 +1937,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-98">
 <dt class="sig sig-object output" id="output-variable-Ts_BSoil_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_BSoil_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_BSoil_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for bare soil surface</p>
+<dd><p>Surface temperature for bare soil surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1951,7 +1951,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-99">
 <dt class="sig sig-object output" id="output-variable-Ts_Water_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Water_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Water_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for water surface</p>
+<dd><p>Surface temperature for water surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -2229,8 +2229,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.22.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/abf1d931f7e6fe690de91b127b7be4c62ee5aeb9">abf1d93</a> |
+  <p>Version: 2026.10.22.dev4 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1a35e69a6e6c3cc6db0f0722f22900cce85559b5">1a35e69</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

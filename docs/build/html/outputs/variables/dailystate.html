@@ -10,7 +10,7 @@
 <meta content="SUEWS DailyState output variables" name="description" />
 <meta content="SUEWS, output, dailystate, variables" name="keywords" />
 
-    <title>5.3.6. DailyState Output Variables &#8212; SUEWS 2026.10.22.dev3 documentation</title>
+    <title>5.3.6. DailyState Output Variables &#8212; SUEWS 2026.10.22.dev4 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=4854c63d"></script>
+    <script src="../../_static/documentation_options.js?v=dd4144ec"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="5.3.5. RSL Output Variables" href="rsl.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.22.dev3" />
+  <meta name="docsearch:version" content="2026.10.22.dev4" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.22.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/abf1d931f7e6fe690de91b127b7be4c62ee5aeb9" style="color: #31708f;">abf1d93</a>).
+        (2026.10.22.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1a35e69a6e6c3cc6db0f0722f22900cce85559b5" style="color: #31708f;">1a35e69</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.22.dev3 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.22.dev3 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.22.dev4 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.22.dev4 documentation - Home"/>
   
   
 </a></div>
@@ -571,7 +571,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-1">
 <dt class="sig sig-object output" id="output-variable-HDD1_h">
 <span class="sig-name descname"><span class="pre">HDD1_h</span></span><a class="headerlink" href="#output-variable-HDD1_h" title="Link to this definition">#</a></dt>
-<dd><p>Heating degree days (accumulation during calculation)</p>
+<dd><p>Heating degree days: daily mean of the amount by which air temperature falls below the heating base temperature; air temperature is the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -585,7 +585,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-2">
 <dt class="sig sig-object output" id="output-variable-HDD2_c">
 <span class="sig-name descname"><span class="pre">HDD2_c</span></span><a class="headerlink" href="#output-variable-HDD2_c" title="Link to this definition">#</a></dt>
-<dd><p>Cooling degree days</p>
+<dd><p>Cooling degree days: daily mean of the amount by which air temperature exceeds the cooling base temperature; air temperature is the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -599,7 +599,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-3">
 <dt class="sig sig-object output" id="output-variable-HDD3_Tmean">
 <span class="sig-name descname"><span class="pre">HDD3_Tmean</span></span><a class="headerlink" href="#output-variable-HDD3_Tmean" title="Link to this definition">#</a></dt>
-<dd><p>Heating degree days based on mean temperature</p>
+<dd><p>Daily mean air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -613,7 +613,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-4">
 <dt class="sig sig-object output" id="output-variable-HDD4_T5d">
 <span class="sig-name descname"><span class="pre">HDD4_T5d</span></span><a class="headerlink" href="#output-variable-HDD4_T5d" title="Link to this definition">#</a></dt>
-<dd><p>Heating degree days based on 5-day running mean temperature</p>
+<dd><p>5-day running mean of the daily mean air temperature in HDD3_Tmean (fewer days at the start of a run)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -627,7 +627,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-5">
 <dt class="sig sig-object output" id="output-variable-P_day">
 <span class="sig-name descname"><span class="pre">P_day</span></span><a class="headerlink" href="#output-variable-P_day" title="Link to this definition">#</a></dt>
-<dd><p>Daily precipitation</p>
+<dd><p>Daily total precipitation</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -655,7 +655,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-7">
 <dt class="sig sig-object output" id="output-variable-GDD_EveTr">
 <span class="sig-name descname"><span class="pre">GDD_EveTr</span></span><a class="headerlink" href="#output-variable-GDD_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Growing degree days for evergreen trees</p>
+<dd><p>Growing degree days for evergreen trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -669,7 +669,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-8">
 <dt class="sig sig-object output" id="output-variable-GDD_DecTr">
 <span class="sig-name descname"><span class="pre">GDD_DecTr</span></span><a class="headerlink" href="#output-variable-GDD_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Growing degree days for deciduous trees</p>
+<dd><p>Growing degree days for deciduous trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -683,7 +683,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-9">
 <dt class="sig sig-object output" id="output-variable-GDD_Grass">
 <span class="sig-name descname"><span class="pre">GDD_Grass</span></span><a class="headerlink" href="#output-variable-GDD_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Growing degree days for grass</p>
+<dd><p>Growing degree days for grass, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -697,7 +697,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-10">
 <dt class="sig sig-object output" id="output-variable-SDD_EveTr">
 <span class="sig-name descname"><span class="pre">SDD_EveTr</span></span><a class="headerlink" href="#output-variable-SDD_EveTr" title="Link to this definition">#</a></dt>
-<dd><p>Senescence degree days for evergreen trees</p>
+<dd><p>Senescence degree days for evergreen trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -711,7 +711,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-11">
 <dt class="sig sig-object output" id="output-variable-SDD_DecTr">
 <span class="sig-name descname"><span class="pre">SDD_DecTr</span></span><a class="headerlink" href="#output-variable-SDD_DecTr" title="Link to this definition">#</a></dt>
-<dd><p>Senescence degree days for deciduous trees</p>
+<dd><p>Senescence degree days for deciduous trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -725,7 +725,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-12">
 <dt class="sig sig-object output" id="output-variable-SDD_Grass">
 <span class="sig-name descname"><span class="pre">SDD_Grass</span></span><a class="headerlink" href="#output-variable-SDD_Grass" title="Link to this definition">#</a></dt>
-<dd><p>Senescence degree days for grass</p>
+<dd><p>Senescence degree days for grass, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -739,7 +739,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-13">
 <dt class="sig sig-object output" id="output-variable-Tmin">
 <span class="sig-name descname"><span class="pre">Tmin</span></span><a class="headerlink" href="#output-variable-Tmin" title="Link to this definition">#</a></dt>
-<dd><p>Daily minimum temperature</p>
+<dd><p>Daily minimum air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -753,7 +753,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-14">
 <dt class="sig sig-object output" id="output-variable-Tmax">
 <span class="sig-name descname"><span class="pre">Tmax</span></span><a class="headerlink" href="#output-variable-Tmax" title="Link to this definition">#</a></dt>
-<dd><p>Daily maximum temperature</p>
+<dd><p>Daily maximum air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -767,7 +767,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-15">
 <dt class="sig sig-object output" id="output-variable-DLHrs">
 <span class="sig-name descname"><span class="pre">DLHrs</span></span><a class="headerlink" href="#output-variable-DLHrs" title="Link to this definition">#</a></dt>
-<dd><p>Daylight hours</p>
+<dd><p>Day length: hours with incoming shortwave radiation above 10 W m-2</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>hours</p>
@@ -1041,7 +1041,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dl class="output variable" id="index-34">
 <dt class="sig sig-object output" id="output-variable-AlbSnow">
 <span class="sig-name descname"><span class="pre">AlbSnow</span></span><a class="headerlink" href="#output-variable-AlbSnow" title="Link to this definition">#</a></dt>
-<dd><p>Snow albedo</p>
+<dd><p>Albedo of the snowpack, one value shared by all snow-covered surfaces: it decreases as the snow ages (linearly below 0 degC, towards the minimum snow albedo at or above 0 degC), returns to the maximum after enough fresh snowfall, and is 0 when no surface has snow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1311,8 +1311,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.22.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/abf1d931f7e6fe690de91b127b7be4c62ee5aeb9">abf1d93</a> |
+  <p>Version: 2026.10.22.dev4 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1a35e69a6e6c3cc6db0f0722f22900cce85559b5">1a35e69</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

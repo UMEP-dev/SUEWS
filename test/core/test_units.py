@@ -54,7 +54,7 @@ def test_house_spellings_parse(text, scale, dimension):
     assert unit.text == text
     assert unit.scale == pytest.approx(scale, rel=1e-12)
     assert unit.dimension == dimension
-    assert unit.offset == 0.0
+    assert not unit.offset
 
 
 def test_equivalent_units_share_a_dimension():

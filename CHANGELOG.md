@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] Saving long runs as text needs far less memory and time: a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output every step now peaks at 4.2 GB while saving instead of 9.2 GB, and saves in 20 s instead of 75 s (#1849)
+  - `save()` no longer copies the run output to drop unrequested groups, split off DailyState or select each grid; it takes one group at a time as a view of the held output and copies only one group-year to write it.
+  - Text files are formatted and written a block of rows at a time instead of turning the whole group-year into Python strings first.
+  - Saved files are byte-identical to before.
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.

@@ -1,3 +1,6 @@
+import csv
+import os
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -158,20 +161,21 @@ def _relabel_datetime_index(
     raise AssertionError(f"Unhandled output timestamp reference: {target}")
 
 
-def relabel_output_timestamps(
-    df_output: pd.DataFrame,
+def _relabel_output_index(
+    index: pd.Index,
     timestamp_reference: object,
     forcing_timestamp_reference: object,
     df_state_final: Optional[pd.DataFrame],
-) -> pd.DataFrame:
-    """Relabel output timestamps without changing computed values."""
+) -> pd.Index:
+    """Return ``index`` with its datetimes relabelled to the saved clock.
+
+    The index itself is returned when no relabelling is needed, so callers
+    can relabel a table without touching its values.
+    """
     target = _normalise_output_timestamp_reference(timestamp_reference)
     source = _normalise_forcing_timestamp_reference(forcing_timestamp_reference)
     if target in {"follow", source}:
-        return df_output
-
-    df_relabelled = df_output.copy()
-    index = df_relabelled.index
+        return index
 
     if isinstance(index, pd.MultiIndex):
         if "datetime" not in index.names:
@@ -219,12 +223,11 @@ def relabel_output_timestamps(
             new_dt if level == datetime_level else index.get_level_values(level)
             for level in range(index.nlevels)
         ]
-        df_relabelled.index = pd.MultiIndex.from_arrays(arrays, names=index.names)
-        return df_relabelled
+        return pd.MultiIndex.from_arrays(arrays, names=index.names)
 
     if isinstance(index, pd.DatetimeIndex):
         grid = df_state_final.index[0] if df_state_final is not None else None
-        df_relabelled.index = _relabel_datetime_index(
+        return _relabel_datetime_index(
             index,
             target,
             source,
@@ -236,27 +239,92 @@ def relabel_output_timestamps(
             if target == "daylight"
             else None,
         )
-        return df_relabelled
 
     raise ValueError("Cannot relabel output timestamps: index is not datetime-like.")
 
 
+def relabel_output_timestamps(
+    df_output: pd.DataFrame,
+    timestamp_reference: object,
+    forcing_timestamp_reference: object,
+    df_state_final: Optional[pd.DataFrame],
+) -> pd.DataFrame:
+    """Relabel output timestamps without changing computed values."""
+    index = _relabel_output_index(
+        df_output.index,
+        timestamp_reference,
+        forcing_timestamp_reference,
+        df_state_final,
+    )
+    if index is df_output.index:
+        return df_output
+
+    df_relabelled = df_output.copy()
+    df_relabelled.index = index
+    return df_relabelled
+
+
+# Cells handled per chunk when scanning or writing output tables: bounds the
+# temporary arrays and Python objects to tens of MB whatever the table size.
+_CHUNK_CELLS = 1 << 20
+
+
+def _rows_with_data(df_data: pd.DataFrame) -> np.ndarray:
+    """Return a mask of the rows that hold at least one non-missing value.
+
+    The mask equals the one ``df_data.dropna(how="all")`` keeps, but float
+    tables are scanned a chunk of rows at a time, so a view of the held run
+    output is never copied whole (gh#1849).
+    """
+    n_row, n_col = df_data.shape
+    if n_col == 0:
+        return np.zeros(n_row, dtype=bool)
+    if not (df_data.dtypes == np.float64).all():
+        return df_data.notna().any(axis=1).to_numpy()
+    ar_value = df_data.to_numpy()
+    mask = np.empty(n_row, dtype=bool)
+    n_row_chunk = max(1, _CHUNK_CELLS // n_col)
+    for start in range(0, n_row, n_row_chunk):
+        stop = start + n_row_chunk
+        np.any(~np.isnan(ar_value[start:stop]), axis=1, out=mask[start:stop])
+    return mask
+
+
+def _drop_empty_rows(df_data: pd.DataFrame) -> pd.DataFrame:
+    """Drop all-missing rows, as ``dropna(how="all")``, without a full copy.
+
+    ``df_data`` itself is returned when every row holds data.
+    """
+    mask = _rows_with_data(df_data)
+    if mask.all():
+        return df_data
+    return df_data.iloc[np.flatnonzero(mask)]
+
+
 def _output_group_frequencies(
-    df_output: pd.DataFrame, fallback_frequency_s: int
+    df_output: pd.DataFrame, fallback_frequency_s: int, groups=None
 ) -> dict:
-    """Return each output group's nominal source-clock frequency in seconds."""
+    """Return each output group's nominal source-clock frequency in seconds.
+
+    ``groups`` restricts the result to those groups (default: every group in
+    ``df_output``).
+    """
+    if groups is None:
+        groups = df_output.columns.get_level_values("group").unique()
     dict_group_frequency_s = {}
-    for group in df_output.columns.get_level_values("group").unique():
-        df_group = df_output[group].dropna(how="all")
-        if df_group.empty:
+    for group in groups:
+        df_group = df_output[group]
+        mask = _rows_with_data(df_group)
+        if not mask.any():
             continue
-        if isinstance(df_group.index, pd.MultiIndex) and "grid" in df_group.index.names:
-            grid = df_group.index.get_level_values("grid")[0]
-            df_group = df_group.xs(grid, level="grid")
+        idx_group = df_group.index[mask]
+        if isinstance(idx_group, pd.MultiIndex) and "grid" in idx_group.names:
+            grids = idx_group.get_level_values("grid")
+            idx_group = idx_group[grids == grids[0]].droplevel("grid")
         idx_group = pd.DatetimeIndex(
-            df_group.index.get_level_values("datetime")
-            if isinstance(df_group.index, pd.MultiIndex)
-            else df_group.index
+            idx_group.get_level_values("datetime")
+            if isinstance(idx_group, pd.MultiIndex)
+            else idx_group
         ).drop_duplicates()
         if len(idx_group) < 2:
             dict_group_frequency_s[group] = (
@@ -272,21 +340,8 @@ def _output_group_frequencies(
     return dict_group_frequency_s
 
 
-def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
-    """generate a dataframe for saving
-
-    Parameters
-    ----------
-    df_grid_group : pd.DataFrame
-        an output dataframe of a single group and grid
-
-    Returns
-    -------
-    pd.DataFrame
-        a dataframe with date time info prepended for saving
-    """
-    # generate df_datetime for prepending
-    idx_dt = df_grid_group.index
+def _gen_df_datetime(idx_dt: pd.DatetimeIndex) -> pd.DataFrame:
+    """Return the Year, DOY, Hour, Min and Dectime columns of a saved table."""
     ser_year = pd.Series(idx_dt.year, index=idx_dt, name="Year")
     ser_DOY = pd.Series(idx_dt.dayofyear, index=idx_dt, name="DOY")
     ser_hour = pd.Series(idx_dt.hour, index=idx_dt, name="Hour")
@@ -303,84 +358,121 @@ def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
     # "D" not "d": pandas 3 deprecates the lowercase day alias.
     dt_delta = idx_dt - idx_dt.to_period("D").to_timestamp()
     df_datetime["Dectime"] = ser_DOY - 1 + dt_delta.total_seconds() / (24 * 60 * 60)
-    df_save = pd.concat([df_datetime, df_grid_group], axis=1)
-    return df_save
+    return df_datetime
 
 
-def format_df_save(df_save):
-    # format datetime columns
-    for var in df_save.columns[:4]:
-        width_var_name = max([3, len(var)])
-        df_save[var] = df_save[var].map(
-            lambda s: "{s:{c}>{n}}".format(s=s, n=width_var_name, c=" ")
+def _write_df_txt(df_year: pd.DataFrame, path_out: Path) -> None:
+    r"""Write one grid-group-year table as SUEWS tab-separated text.
+
+    The layout is the one SuPy has always written: the date columns, then
+    every value as ``%.4f`` right-justified to ``max(8, len(name))`` with
+    missing values as -999. Rows are formatted and written a block at a
+    time, so no string copy of the whole table is built (gh#1849). The bytes
+    match formatting every cell to a ``str`` and writing the table with
+    ``pandas.DataFrame.to_csv(sep="\\t", index=False)``: ``'%W.4f'`` and
+    ``format(value, '>W.4f')`` share CPython's float formatting, and the
+    header goes through the same csv writer settings pandas uses.
+    """
+    df_datetime = _gen_df_datetime(df_year.index)
+    list_name_dt = [str(name) for name in df_datetime.columns]
+    list_name_var = list(df_year.columns)
+    list_header = list_name_dt[:4] + [
+        f"{name:>{max(8, len(name))}}" for name in list_name_dt[4:] + list_name_var
+    ]
+    fmt_dt = "\t".join(
+        [f"%{max(3, len(name))}d" for name in list_name_dt[:4]] + ["%8.4f"]
+    )
+    fmt_var = "\t".join(f"%{max(8, len(name))}.4f" for name in list_name_var)
+
+    list_dt = list(zip(*(df_datetime[name].tolist() for name in df_datetime.columns)))
+    ar_value = df_year.to_numpy(dtype=np.float64)
+    n_row, n_col = ar_value.shape
+    n_row_chunk = max(1, _CHUNK_CELLS // max(1, n_col))
+    linesep = os.linesep
+    with open(path_out, "w", encoding="utf-8", newline="") as file_out:
+        csv.writer(file_out, delimiter="\t", lineterminator=linesep).writerow(
+            list_header
         )
-
-    df_save.Dectime = df_save.Dectime.map(
-        lambda s: "{s:{c}>{n}.4f}".format(s=s, n=8, c=" ")
-    )
-    # fill nan values
-    df_save = df_save.fillna(-999.0)
-    # format value columns
-
-    for var in df_save.columns[5:]:
-        width_var_name = max([8, len(var)])
-        df_save[var] = df_save[var].map(lambda s: f"{s:{' '}>{width_var_name}.4f}")
-
-    # format column names
-    col_fmt = df_save.columns.to_series()
-    col_fmt[4:] = col_fmt[4:].map(
-        lambda s: "{s:{c}>{n}}".format(s=s, n=max([8, len(s)]), c=" ")
-    )
-    df_save.columns = col_fmt
-
-    return df_save
+        for start in range(0, n_row, n_row_chunk):
+            stop = start + n_row_chunk
+            if n_col:
+                ar_chunk = ar_value[start:stop]
+                ar_chunk = np.where(np.isnan(ar_chunk), -999.0, ar_chunk)
+                list_line = [
+                    fmt_dt % dt + "\t" + fmt_var % tuple(row)
+                    for dt, row in zip(list_dt[start:stop], ar_chunk.tolist())
+                ]
+            else:
+                list_line = [fmt_dt % dt for dt in list_dt[start:stop]]
+            file_out.write(linesep.join(list_line))
+            file_out.write(linesep)
 
 
-# def save_df_grid_group_year(
-#     df_save, grid, group, year, output_level=1, site="test", dir_save=".",
-# ):
-#     df_year = gen_df_year(df_save, year, grid, group, output_level)
+def _asfreq_frame(df_data: pd.DataFrame, freq) -> pd.DataFrame:
+    """Return ``df_data.asfreq(freq)``, without a copy when no row changes.
 
-#     path_out = save_df_grid_group(df_year, grid, group, dir_save, site)
-#     return path_out
+    The target index comes from pandas' own ``asfreq`` applied to the index
+    alone; when it holds the same timestamps, only the index is swapped.
+    """
+    idx_asfreq = pd.DataFrame(index=df_data.index).asfreq(freq).index
+    if idx_asfreq.equals(df_data.index):
+        df_out = df_data.copy(deep=False)
+        df_out.index = idx_asfreq
+        return df_out
+    return df_data.reindex(idx_asfreq)
 
 
-def gen_df_year(
-    df_save,
-    year,
-    grid,
-    group,
-    output_level,
-    timestamps_are_final=False,
-    allow_irregular_timestamps=False,
-):
-    # retrieve dataframe of grid for `group`
-    # First filter by grid from the index
-    df_grid = df_save.xs(grid, level="grid")
-    # Then select the group from columns
-    df_grid_group = df_grid[group].copy()
-    # get temporal index
-    idx_dt = df_grid_group.index
+def _grid_asfreq_index(
+    idx_dt: pd.DatetimeIndex, allow_irregular_timestamps: bool
+) -> Optional[pd.DatetimeIndex]:
+    """Return the regular index one grid's output is reindexed to for saving.
+
+    ``None`` when the index is kept as it is: a single timestamp, an
+    undefined last interval, or irregular daylight timestamps.
+    """
     if len(idx_dt) > 1 and not allow_irregular_timestamps:
         freq = idx_dt.to_series().diff().iloc[-1]
         if pd.notna(freq):
-            df_grid_group = df_grid_group.asfreq(freq)
-    # select output variables in `SUEWS` based on output level
+            return pd.DataFrame(index=idx_dt).asfreq(freq).index
+    return None
+
+
+def _gen_df_year(
+    df_grid_group: pd.DataFrame,
+    group: str,
+    year,
+    output_level: int,
+    idx_asfreq: Optional[pd.DatetimeIndex],
+    timestamps_are_final: bool,
+) -> pd.DataFrame:
+    """Return one year of one grid's group, ready for saving.
+
+    ``df_grid_group`` is the whole run of the group for one grid and may be a
+    view of the held output; only the rows and columns of ``year`` are
+    copied. ``idx_asfreq`` is the grid's regular index from
+    :func:`_grid_asfreq_index`, or ``None`` to keep the timestamps as they
+    are.
+    """
+    columns = None
     if group == "SUEWS":
-        # Filter to only variables that exist in the dataframe
+        # select output variables in `SUEWS` based on output level
         vars_to_keep = [
             v for v in dict_level_var[output_level] if v in df_grid_group.columns
         ]
         if vars_to_keep:
-            df_grid_group = df_grid_group[vars_to_keep]
-    # select data from year of interest and shift back to align with SUEWS convention
-    df_year = df_grid_group.loc[f"{year}"]
-    # Skip timestamp shift for DailyState as it contains end-of-day values
+            columns = vars_to_keep
+    if idx_asfreq is not None:
+        idx_year = pd.DataFrame(index=idx_asfreq).loc[f"{year}"].index
+        df_year = df_grid_group.reindex(index=idx_year, columns=columns)
+        df_year.index = idx_year
+    else:
+        df_year = df_grid_group if columns is None else df_grid_group[columns]
+        df_year = df_year.loc[f"{year}"].copy(deep=False)
+    # shift back to align with SUEWS convention; DailyState holds
+    # end-of-day values and is not shifted
     if group != "DailyState" and not timestamps_are_final:
         df_year.index = df_year.index.shift(1)
-    # remove `nan`s
-    df_year = df_year.dropna(how="all", axis=0)
-    return df_year
+    return _drop_empty_rows(df_year)
 
 
 def save_df_grid_group(
@@ -399,7 +491,7 @@ def save_df_grid_group(
     if freq_s is not None:
         freq = pd.Timedelta(freq_s, unit="s")
         if not allow_irregular_timestamps:
-            df_year = df_year.asfreq(freq)
+            df_year = _asfreq_frame(df_year, freq)
     elif allow_irregular_timestamps:
         raise ValueError(
             "An output frequency is required for irregular daylight timestamps."
@@ -407,10 +499,10 @@ def save_df_grid_group(
     elif df_year.shape[0] > 0 and df_year.index.size >= 2:
         ind = df_year.index
         freq_cal = ind[1] - ind[0]
-        df_year = df_year.asfreq(freq_cal)
+        df_year = _asfreq_frame(df_year, freq_cal)
         freq = pd.Timedelta(df_year.index.freq)
     else:
-        df_year = df_year.asfreq("5min")
+        df_year = _asfreq_frame(df_year, "5min")
         freq = pd.Timedelta(df_year.index.freq)
     # output frequency in min
     freq_min = int(freq.total_seconds() / 60)
@@ -427,24 +519,8 @@ def save_df_grid_group(
     file_out = file_out.replace("DailyState_1440", "DailyState")
     path_out = path_dir / file_out
     logger_supy.debug(f"writing out: {path_out}")
-    import time
-
     t_start = time.time()
-    # generate df_save with datetime info prepended to each row
-    df_save = gen_df_save(df_year)
-    t_end = time.time()
-    logger_supy.debug(
-        f"df_save for {path_out.name} is generated in {t_end - t_start:.2f} s"
-    )
-    # format df_save with right-justified view
-    df_save = format_df_save(df_save)
-    t_start = time.time()
-    # save to txt file
-    df_save.to_csv(
-        path_out,
-        index=False,
-        sep="\t",
-    )
+    _write_df_txt(df_year, path_out)
     t_end = time.time()
     # remove freq info from `DailyState` file
     if "DailyState" in path_out.name:
@@ -453,13 +529,6 @@ def save_df_grid_group(
         path_out = Path(str_fn_dd)
     logger_supy.debug(f"{path_out} saved in {t_end - t_start:.2f} s")
     return path_out
-
-
-# @ray.remote
-# def save_df_year(df_year, grid, group, year, output_level, site, dir_save):
-#     return save_df_grid_group_year(
-#         df_year, grid, group, year, output_level, site, dir_save
-#     )
 
 
 # a pd.Series of variables of different output levels
@@ -474,6 +543,119 @@ dict_level_var = {
     # minimal set of variables
     2: ser_level_var.loc[ser_level_var == 0].index,
 }
+
+
+def _dailystate_rows(df_output: pd.DataFrame) -> pd.DataFrame:
+    """Return the DailyState columns of the rows that hold daily values.
+
+    Equals ``df_output.loc[:, ["DailyState"]].dropna(how="all")``; only the
+    (sparse) daily rows are copied.
+    """
+    df_daily = df_output.iloc[:, df_output.columns.get_loc("DailyState")]
+    return df_daily.iloc[np.flatnonzero(_rows_with_data(df_daily))]
+
+
+def _save_row_index(
+    index: pd.MultiIndex,
+    shift_to_period_start: bool,
+    timestamp_reference: object,
+    forcing_timestamp_reference: object,
+    df_state_final: Optional[pd.DataFrame],
+) -> pd.MultiIndex:
+    """Return the row index a table is saved under.
+
+    With ``shift_to_period_start`` the datetime level is moved back one step
+    so timestamps mark the start of each period (each year's rows are moved
+    forward again in :func:`_gen_df_year`); the result is then relabelled to
+    the requested clock.
+    """
+    if shift_to_period_start:
+        idx_dt = index.get_level_values("datetime").drop_duplicates()
+
+        # cast freq to index if not associated
+        if idx_dt.freq is None:
+            ser_idx = idx_dt.to_series()
+            if len(ser_idx) > 1:
+                freq = ser_idx.diff().iloc[-1]
+                idx_dt = ser_idx.asfreq(freq).index
+            else:
+                idx_dt = ser_idx.index
+
+        if len(idx_dt) > 1:
+            idx_dt = idx_dt.shift(-1)
+
+        index = index.set_levels(idx_dt, level="datetime")
+    return _relabel_output_index(
+        index, timestamp_reference, forcing_timestamp_reference, df_state_final
+    )
+
+
+def _save_groups(
+    df_save: pd.DataFrame,
+    list_group: list,
+    index: pd.MultiIndex,
+    path_dir_save,
+    site,
+    output_level,
+    timestamp_reference="follow",
+    timestamps_are_final=False,
+    dict_group_frequency_s=None,
+) -> list:
+    """Save ``list_group`` of ``df_save`` one grid, group and year at a time.
+
+    ``index`` replaces the row index of ``df_save`` (same length and order).
+    Each group is taken as a view of ``df_save``, so the working set is one
+    group-year rather than a copy of the table (gh#1849).
+    """
+    list_grid = index.get_level_values("grid").unique()
+    is_dailystate_only = len(list_group) == 1 and list_group[0] == "DailyState"
+    idx_year = index.get_level_values("datetime").year
+    if is_dailystate_only or timestamps_are_final:
+        list_year = idx_year.unique()
+    else:
+        # the last index value is dropped as supy uses starting timestamp of each year
+        # for naming files
+        list_year = idx_year[:-1].unique()
+    allow_irregular_timestamps = (
+        _normalise_output_timestamp_reference(timestamp_reference) == "daylight"
+    )
+    list_path_save = []
+    for grid in list_grid:
+        for group in list_group:
+            df_group = df_save[group]
+            df_group.index = index
+            df_grid_group = df_group.xs(grid, level="grid")
+            idx_asfreq = _grid_asfreq_index(
+                df_grid_group.index, allow_irregular_timestamps
+            )
+            for year in list_year:
+                df_year = _gen_df_year(
+                    df_grid_group,
+                    group,
+                    year,
+                    output_level,
+                    idx_asfreq,
+                    timestamps_are_final,
+                )
+                if df_year.shape[0] > 0:
+                    group_frequency_s = (
+                        dict_group_frequency_s.get(group)
+                        if dict_group_frequency_s is not None
+                        else None
+                    )
+                    path_save = save_df_grid_group(
+                        df_year,
+                        grid,
+                        group,
+                        path_dir_save,
+                        site,
+                        timestamp_reference,
+                        freq_s=group_frequency_s,
+                        allow_irregular_timestamps=allow_irregular_timestamps,
+                    )
+                    list_path_save.append(path_save)
+                del df_year
+    return list_path_save
 
 
 # save output files
@@ -525,14 +707,12 @@ def save_df_output(
     -------
     list
         a list of `Path` objects for saved txt files
+
+    Notes
+    -----
+    ``df_output`` is never copied whole: groups are selected, resampled,
+    relabelled and written one (grid, group) at a time (gh#1849).
     """
-    # Shallow copy: the index and columns are reassigned below, but values
-    # are never written in place, so a full data copy is not needed (gh#1849).
-    df_save = df_output.copy(deep=False)
-
-    # path list of files to save
-    list_path_save = []
-
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
 
@@ -541,117 +721,93 @@ def save_df_output(
         # Default groups
         output_groups = ["SUEWS", "DailyState"]
 
-    # Get all available groups
-    all_groups = df_save.columns.get_level_values("group").unique().tolist()
-
-    # Filter to only requested groups
-    groups_to_drop = [g for g in all_groups if g not in output_groups]
-    for group in groups_to_drop:
-        if group in df_save.columns.get_level_values("group"):
-            df_save = df_save.drop(group, axis=1, level="group")
+    # requested groups present in the output, in output order
+    all_groups = df_output.columns.get_level_values("group").unique().tolist()
+    list_group_save = [g for g in all_groups if g in output_groups]
 
     # drop snow related group from output groups if not requested
-    if not save_snow and "snow" in df_save.columns.get_level_values("group"):
-        df_save = df_save.drop("snow", axis=1, level="group")
+    if not save_snow:
+        list_group_save = [g for g in list_group_save if g != "snow"]
 
     # Extract DailyState before resampling (it contains daily variables only written at last timestep of each day)
     df_dailystate = None
-    if "DailyState" in df_save.columns.get_level_values("group"):
-        df_dailystate = df_save.loc[:, ["DailyState"]].copy()
-        # Remove all NaN rows from DailyState (keep only the daily values)
-        df_dailystate = df_dailystate.dropna(how="all")
-        # Drop DailyState from df_save before resampling
-        df_save_no_daily = df_save.drop("DailyState", axis=1, level="group")
-    else:
-        df_save_no_daily = df_save
+    if "DailyState" in list_group_save:
+        df_dailystate = _dailystate_rows(df_output)
+    list_group_no_daily = [g for g in list_group_save if g != "DailyState"]
 
-    # resample `df_output` at `freq_save` (excluding DailyState)
-    if len(df_save_no_daily.columns) > 0:
-        df_rsmp = _resample_output(df_save_no_daily, freq_save)
-    else:
-        df_rsmp = None
+    # resample `df_output` at `freq_save` (excluding DailyState); at the
+    # native timestep `df_output` itself comes back, unresampled
+    df_rsmp = None
+    list_group_rsmp = []
+    if list_group_no_daily:
+        df_rsmp = _resample_output(df_output, freq_save, groups=list_group_no_daily)
+        list_group_rsmp = [
+            g
+            for g in df_rsmp.columns.get_level_values("group").unique()
+            if g in list_group_no_daily
+        ]
 
-    # dataframes to save
+    # tables to save: (table, its groups to save, fallback frequency)
     if save_tstep:
         # both original and resampled output dataframes
         list_df_save = []
-        if len(df_save.columns) > 0:
+        if list_group_save:
             # Preserve the historical five-minute singleton fallback when the
             # native cadence cannot be inferred from more than one timestamp.
-            list_df_save.append((df_save, 300))
-        if df_rsmp is not None and len(df_rsmp.columns) > 0:
-            list_df_save.append((df_rsmp, freq_s))
+            list_df_save.append((df_output, list_group_save, 300))
+        if df_rsmp is not None and list_group_rsmp:
+            list_df_save.append((df_rsmp, list_group_rsmp, freq_s))
+        # Without DailyState at the native timestep both tables are the same
+        # table, whose index the first pass used to shift in place; the
+        # second pass starts from that shifted index, as it always has. This
+        # keeps the saved files unchanged (both passes write the same names;
+        # relabelling never touched the shared index).
+        index_shared = df_rsmp is df_output and "DailyState" not in list_group_save
     else:
-        # combine resampled data with DailyState (if it exists)
+        # resampled data with DailyState (if it exists)
+        index_shared = False
         list_df_save = []
         if df_dailystate is not None:
-            list_df_save.append((df_dailystate, 86400))
+            list_df_save.append((df_dailystate, ["DailyState"], 86400))
         if df_rsmp is not None:
-            list_df_save.append((df_rsmp, freq_s))
+            list_df_save.append((df_rsmp, list_group_rsmp, freq_s))
 
     # save output at the resampling frequency
     output_timestamp_reference = _normalise_output_timestamp_reference(
         timestamp_reference
     )
     timestamps_are_final = output_timestamp_reference != "follow"
-    for df_save, fallback_frequency_s in list_df_save:
+    list_path_save = []
+    index_save = None
+    for df_save, list_group, fallback_frequency_s in list_df_save:
         dict_group_frequency_s = (
-            _output_group_frequencies(df_save, fallback_frequency_s)
+            _output_group_frequencies(df_save, fallback_frequency_s, groups=list_group)
             if timestamps_are_final
             else None
         )
         # Check if this is DailyState-only data
-        is_dailystate_only = len(df_save.columns) > 0 and all(
-            df_save.columns.get_level_values("group") == "DailyState"
+        is_dailystate_only = len(list_group) > 0 and all(
+            group == "DailyState" for group in list_group
         )
-
-        if not is_dailystate_only and not timestamps_are_final:
-            # For regular output data, shift temporal index to make timestamps indicating the start of periods
-            idx_dt = df_save.index.get_level_values("datetime").drop_duplicates()
-
-            # cast freq to index if not associated
-            if idx_dt.freq is None:
-                ser_idx = idx_dt.to_series()
-                if len(ser_idx) > 1:
-                    freq = ser_idx.diff().iloc[-1]
-                    idx_dt = ser_idx.asfreq(freq).index
-                else:
-                    idx_dt = ser_idx.index
-
-            # Shift timestamps for non-DailyState data
-            if len(idx_dt) > 1:
-                idx_dt = idx_dt.shift(-1)
-
-            # Update the index
-            df_save.index = df_save.index.set_levels(idx_dt, level="datetime")
-        # For DailyState data, we don't need to shift the index as it already represents daily values
-        df_save = relabel_output_timestamps(
-            df_save,
+        # For regular output data, shift temporal index to make timestamps
+        # indicating the start of periods; DailyState already represents
+        # daily values and is not shifted
+        index_base = (
+            index_save
+            if index_shared and index_save is not None and not timestamps_are_final
+            else df_save.index
+        )
+        index_save = _save_row_index(
+            index_base,
+            not is_dailystate_only and not timestamps_are_final,
             timestamp_reference,
             forcing_timestamp_reference,
             df_state_final,
         )
-        # tidy up columns so only necessary groups are included in the output
-        df_save.columns = df_save.columns.remove_unused_levels()
-        # import os
-        # if os.name != "nt" and not debug:
-        #
-        #     try:
-        #         # PARALLEL mode:
-        #         # supported by ray: only used on Linux/macOS; Windows is not supported yet.
-        #         ray.shutdown()
-        #         ray.init(object_store_memory=4 * 1000 ** 3)
-        #         list_path_save_df = save_df_par(df_save, path_dir_save, site, output_level)
-        #         ray.shutdown()
-        #     except:
-        #         # fallback to SERIAL mode
-        #         logger_supy.warning('falling back to serial mode for writing out results.')
-        #         list_path_save_df = save_df_ser(df_save, path_dir_save, site, output_level)
-        #
-        # else:
-        # SERIAL mode: only on Windows
-        list_path_save_df = save_df_ser(
+        list_path_save += _save_groups(
             df_save,
+            list_group,
+            index_save,
             path_dir_save,
             site,
             output_level,
@@ -659,123 +815,7 @@ def save_df_output(
             timestamps_are_final=timestamps_are_final,
             dict_group_frequency_s=dict_group_frequency_s,
         )
-
-        # add up path list
-        list_path_save += list_path_save_df
     return list_path_save
-
-
-# def save_df_year_par(df_year, output_level, site, dir_save):
-#     ray.shutdown()
-#     info_ray = ray.init(object_store_memory=1 * 1000 ** 3)
-#     list_path = []
-#     id_df_year = ray.put(df_year)
-#     list_grid = df_year.index.levels[0]
-#     list_group = df_year.columns.levels[0]
-#     for grid in list_grid:
-#         for group in list_group:
-#             list_path.append(
-#                 save_df_year.remote(
-#                     id_df_year, grid, group, year, output_level, site, dir_save
-#                 )
-#             )
-#     list_path = ray.get(list_path)
-#     ray.shutdown()
-#     return list_path
-
-
-# # save `df_save` in serial mode
-# def save_df_par(df_save, path_dir_save, site, output_level):
-#     # number of years for grouping
-#     n_yr = 5
-#     idx_yr = df_save.index.get_level_values("datetime").year
-#     grp_year = df_save.groupby((idx_yr - idx_yr.min()) // n_yr,)
-#
-#     list_path = []
-#     for grp in grp_year.groups:
-#         df_grp = grp_year.get_group(grp)
-#         list_grid = df_grp.index.get_level_values("grid").unique()
-#         list_group = df_grp.columns.get_level_values("group").unique()
-#         list_year = df_grp.index.get_level_values("datetime").year[-1].unique()
-#         # put large df as common data object for parallel mode
-#         id_df_grp = ray.put(df_grp)
-#
-#         # the below runs in parallel by `ray.remote`
-#         for year in list_year:
-#             for grid in list_grid:
-#                 for group in list_group:
-#                     list_path.append(
-#                         save_df_year.remote(
-#                             id_df_grp,
-#                             grid,
-#                             group,
-#                             year,
-#                             output_level,
-#                             site,
-#                             path_dir_save,
-#                         )
-#                     )
-#
-#     list_path = ray.get(list_path)
-#
-#     return list_path
-
-
-# save `df_save` in serial mode
-def save_df_ser(
-    df_save,
-    path_dir_save,
-    site,
-    output_level,
-    timestamp_reference="follow",
-    timestamps_are_final=False,
-    dict_group_frequency_s=None,
-):
-    list_grid = df_save.index.get_level_values("grid").unique()
-    list_group = df_save.columns.get_level_values("group").unique()
-    is_dailystate_only = len(list_group) == 1 and list_group[0] == "DailyState"
-    idx_year = df_save.index.get_level_values("datetime").year
-    if is_dailystate_only or timestamps_are_final:
-        list_year = idx_year.unique()
-    else:
-        # the last index value is dropped as supy uses starting timestamp of each year
-        # for naming files
-        list_year = idx_year[:-1].unique()
-    list_path_save_df = []
-    for grid in list_grid:
-        for group in list_group:
-            for year in list_year:
-                allow_irregular_timestamps = (
-                    _normalise_output_timestamp_reference(timestamp_reference)
-                    == "daylight"
-                )
-                df_year = gen_df_year(
-                    df_save,
-                    year,
-                    grid,
-                    group,
-                    output_level,
-                    timestamps_are_final=timestamps_are_final,
-                    allow_irregular_timestamps=allow_irregular_timestamps,
-                )
-                if df_year.shape[0] > 0:
-                    group_frequency_s = (
-                        dict_group_frequency_s.get(group)
-                        if dict_group_frequency_s is not None
-                        else None
-                    )
-                    path_save = save_df_grid_group(
-                        df_year,
-                        grid,
-                        group,
-                        path_dir_save,
-                        site,
-                        timestamp_reference,
-                        freq_s=group_frequency_s,
-                        allow_irregular_timestamps=allow_irregular_timestamps,
-                    )
-                    list_path_save_df.append(path_save)
-    return list_path_save_df
 
 
 # save model state for restart runs

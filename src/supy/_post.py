@@ -224,7 +224,7 @@ def _index_freq_matches(df_output, freq):
         return to_offset(inferred) == target_offset
 
 
-def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
+def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=None):
     """Resample SUEWS simulation output to a different temporal frequency.
 
     This function resamples time series data using variable-appropriate
@@ -247,6 +247,11 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     dict_aggm : dict, optional
         Custom aggregation rules. Default uses OUTPUT_REGISTRY rules.
         Format: {group: {variable: agg_function}}
+    groups : list, optional
+        Output groups to resample, in any order; the result keeps the order
+        of ``df_output``. Default (None) resamples every group. When
+        ``df_output`` is already at ``freq`` it is returned unchanged, with
+        all its groups.
 
     Returns
     -------
@@ -349,6 +354,8 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()
     list_group = df_output.columns.get_level_values("group").unique()
+    if groups is not None:
+        list_group = [group for group in list_group if group in groups]
 
     # resampling output according to different rules defined in dict_aggm
     # note the setting in .resample: (closed='right',label='right')
@@ -359,7 +366,9 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
             grid: pd.concat(
                 {
                     group: _resample_group(
-                        df_output.xs(grid, level="grid")[group],
+                        # select the group before the grid, so only the
+                        # group's columns are sliced (gh#1849)
+                        df_output[group].xs(grid, level="grid"),
                         freq,
                         "right"
                         if group != "DailyState"

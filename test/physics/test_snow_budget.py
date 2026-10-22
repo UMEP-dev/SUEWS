@@ -48,11 +48,13 @@ DAY_SNOWFALL = 1
 DAY_HOLD = 2
 DAYS_MELT = (3, 4)
 FIRST_SNOW_FREE_DAY = 5
+DAY_WARM_RAIN = 6  # used only by the ``wet_run`` scenario
 
 T_COLD_C = -5.0
 T_WARM_C = 5.0
 SNOWFALL_RATE_MM_H = 1.0
 SNOWFALL_TOTAL_MM = SNOWFALL_RATE_MM_H * 24.0
+WARM_RAIN_MM_H = 2.0
 TSTEP_H = 24.0 / TIMESTEPS_PER_DAY  # 5 min in hours
 
 # Physical constants as used by ``suews_phys_snow.f95``
@@ -78,7 +80,12 @@ LAND_COVER_KEYS = {
 class SnowRun:
     """Container for one synthetic snow-event run and its derived series."""
 
-    def __init__(self, configure: Callable[[SUEWSConfig], None] | None = None) -> None:
+    def __init__(
+        self,
+        configure: Callable[[SUEWSConfig], None] | None = None,
+        *,
+        warm_rain_mm_h: float = 0.0,
+    ) -> None:
         sim = SUEWSSimulation.from_sample_data()
         cfg = sim._config
         cfg.model.physics.snow_use = SnowUse.ENABLED
@@ -123,6 +130,9 @@ class SnowRun:
         forcing["rain"] = np.where(
             day == DAY_SNOWFALL, SNOWFALL_RATE_MM_H * TSTEP_H, 0.0
         )
+        # Optional liquid rain once the pack has gone, falling on snow-free
+        # surfaces while the snow path is still running.
+        forcing.loc[day == DAY_WARM_RAIN, "rain"] = warm_rain_mm_h * TSTEP_H
         forcing["RH"] = 80.0
         forcing["U"] = 3.0
         forcing["pres"] = 1013.0
@@ -132,6 +142,7 @@ class SnowRun:
         out = sim.run(n_jobs=1).df
         self.suews = out.xs("SUEWS", level="group", axis=1).xs(1, level="grid")
         self.snow = out.xs("snow", level="group", axis=1).xs(1, level="grid")
+        self.debug = out.xs("debug", level="group", axis=1).xs(1, level="grid")
         self.day = pd.Series(
             ((self.suews.index - self.suews.index[0]).total_seconds() // 86400).astype(
                 int
@@ -182,6 +193,12 @@ class SnowRun:
 @pytest.fixture(scope="module")
 def run() -> SnowRun:
     return SnowRun()
+
+
+@pytest.fixture(scope="module")
+def wet_run() -> SnowRun:
+    """The same event followed by a day of warm rain on the snow-free surfaces."""
+    return SnowRun(warm_rain_mm_h=WARM_RAIN_MM_H)
 
 
 # Regression tests for the kernel defects ------------------------------------
@@ -420,6 +437,50 @@ def test_total_change_adds_the_soil_store_change(run: SnowRun):
         rtol=0,
         atol=1e-6,
     )
+
+
+@pytest.mark.core
+def test_warm_rain_on_snow_free_surfaces_is_conserved(wet_run: SnowRun):
+    """Rain on snow-free surfaces must be evaporated, run off or stored.
+
+    Regression for gh#1905: with snow enabled, ``SnowCalc`` does no
+    hydrology on a surface where ``snowCalcSwitch`` is 0 (no pack, no
+    snowfall, no freezing), and no other routine handled it, so rain on a
+    warm, snow-free land surface vanished: of 48 mm of rain, 41 mm left no
+    trace. Such surfaces now take the snow-free evaporation and water
+    balance. The budget is closed per step from the debug start- and
+    end-of-step surface and soil stores and the snow stores.
+    """
+    s, d = wet_run.suews, wet_run.debug
+    surface_change = sum(
+        (d[f"st_{surf}_next"] - d[f"st_{surf}_prev"]) * wet_run.sfr[surf]
+        for surf in SURFACES
+    )
+    soil_change = sum(
+        (d[f"ss_{surf}_next"] - d[f"ss_{surf}_prev"]) * wet_run.sfr[surf]
+        for surf in SURFACES
+        if surf != "Water"
+    )
+    # the water body may still hold snow; its pack and melt water are stores too
+    snow_change = (
+        wet_run.area_weighted_pack(exclude_water=False)
+        + wet_run.area_weighted("MwStore")
+    ).diff()
+    residual = (
+        s["Rain"] - s["Evap"] - s["RO"] - surface_change - soil_change - snow_change
+    )
+
+    rain_day = wet_run.on_days(DAY_WARM_RAIN)
+    assert wet_run.area_weighted_pack(exclude_water=True)[rain_day].max() == 0.0
+    assert s["Rain"][rain_day].sum() == pytest.approx(WARM_RAIN_MM_H * 24.0)
+    # the land surfaces get wet and the soil takes up water
+    non_water = [surf for surf in SURFACES if surf != "Water"]
+    assert max(s[f"St{surf}"][rain_day].max() for surf in non_water) > 0.0
+    assert soil_change[rain_day].sum() > 0.0
+    # One step, where the rain starts and the water body's pack takes it up,
+    # leaves about 9e-4 mm; every other step closes to below 1e-4 mm.
+    assert residual[rain_day].abs().max() < 5e-3
+    assert abs(residual[rain_day].sum()) < 0.01
 
 
 # Melt law ------------------------------------------------------------------

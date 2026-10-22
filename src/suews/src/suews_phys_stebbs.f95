@@ -2388,7 +2388,7 @@ SUBROUTINE tstep( &
       !energy consumption components (including sensible metabolism)
       QEC_heating_tstepFA = QHload_heating_tstepFA / heating_efficiency_air
       QEC_cooling_tstepFA = QHload_cooling_tstepFA / coeff_performance_cooling
-      QEC_dhw_tstepFA = QHload_dhw_tstepFA / heating_efficiency_air
+      QEC_dhw_tstepFA = QHload_dhw_tstepFA / heating_efficiency_water
       QEC_bldg_tstepFA = QEC_heating_tstepFA + QEC_cooling_tstepFA + QEC_dhw_tstepFA + QH_metabolism_tstepFA + QH_appliance_tstepFA + QH_lighting_tstepFA
       !Convection
       QH_bldg_tstepFA = QHconv_extwall_to_outair_tstepFA + QHconv_extroof_to_outair_tstepFA + QHconv_extwindow_to_outair_tstepFA

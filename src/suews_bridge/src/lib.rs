@@ -5757,7 +5757,9 @@ mod python_bindings {
         nhood_state_field_names()
     }
 
-    #[pymodule]
+    // The run_suews*_into functions write into caller-owned NumPy buffers and rely on
+    // the GIL being held for the whole run, so the module is not free-threaded (gh#1849).
+    #[pymodule(gil_used = true)]
     fn suews_bridge(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_class::<PyOhmModel>()?;
         m.add_class::<PyOhmState>()?;

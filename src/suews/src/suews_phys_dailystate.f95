@@ -643,8 +643,10 @@ CONTAINS
       INTEGER :: days_prev
       REAL(KIND(1D0)) :: tstepcount
 
-      ! count of timesteps performed during day
-      tstepcount = (it*60 + imin)*60/tstep*1.
+      ! count of timesteps performed during day: the sums are reset at 00:00 and
+      ! accumulate every step from 00:00 to the current (last) step inclusive,
+      ! hence the +1 (gh#1878)
+      tstepcount = ((it*60 + imin)*60/tstep + 1)*1.
       ! Heating degree days (HDD) -------------
       HDD_id(1) = HDD_id(1)/tstepcount !Heating
       HDD_id(2) = HDD_id(2)/tstepcount !Cooling

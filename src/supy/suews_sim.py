@@ -7,6 +7,7 @@ Provides a user-friendly wrapper around the existing SuPy infrastructure.
 
 import copy
 from enum import Enum
+import os
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
@@ -50,7 +51,7 @@ from .data_model.core import SUEWSConfig
 # Import new OOP classes
 from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
-from .suews_output import SUEWSOutput
+from .suews_output import SUEWSOutput, streamed_output_error
 from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
@@ -802,13 +803,16 @@ class SUEWSSimulation:
             output files with the same machinery as :meth:`save` into the
             configured output directory, drops that year's output and
             carries the model state into the next year. Memory then stays at
-            about one year of output however long the run. The checkpoint
-            and ``provenance.json`` are written once at the end, so the
-            directory holds the same files as ``run()`` followed by
-            ``save()``. Requires text output, an output frequency that
-            divides one day and output timestamps on the forcing clock.
-            ``chunk_day`` is ignored. Default ``None`` keeps the whole
-            output in memory as before.
+            about one year of output however long the run. After each year
+            the checkpoint file that :meth:`save` writes
+            (``<site>_SUEWS_checkpoint.json``) is replaced by the state at
+            the end of that year, so a run that stops part-way can resume
+            from the last completed year (see Notes); ``provenance.json`` is
+            written once at the end, so a completed run leaves the same
+            files as ``run()`` followed by ``save()``. Requires text output,
+            an output frequency that divides one day and output timestamps
+            on the forcing clock. ``chunk_day`` is ignored. Default ``None``
+            keeps the whole output in memory as before.
 
         Returns
         -------
@@ -816,9 +820,11 @@ class SUEWSSimulation:
             Simulation results wrapped in an OOP interface with analysis
             and plotting convenience methods. Access raw DataFrame via
             ``.to_dataframe()`` or ``.df``. After a streamed run the
-            output frame has the full column layout but no rows (the
-            values are in the written files); the checkpoint, final state
-            and kernel warnings are kept as usual.
+            output holds the column layout but no rows (the values are in
+            the written files): ``.df``, the group and variable accessors,
+            ``resample()`` and ``save()`` raise ``RuntimeError`` naming the
+            output folder, while ``checkpoint``, ``state_final``,
+            ``kernel_warnings``, ``columns`` and ``groups`` work as usual.
 
         Raises
         ------
@@ -828,6 +834,29 @@ class SUEWSSimulation:
             If the forcing does not cover the requested period and
             ``clip_to_forcing`` is False, or if the request and the forcing
             do not overlap at all.
+
+        Notes
+        -----
+        A streamed run that stops part-way (an error, or the process being
+        killed) leaves the files of every completed year and a checkpoint
+        whose ``last_timestamp`` is the last forcing row of the last
+        completed year; ``provenance.json`` is only written by a run that
+        completes. To resume, continue from that checkpoint and start one
+        model timestep after it, streaming into the same directory
+        (``path_checkpoint`` is ``<output dir>/<site>_SUEWS_checkpoint.json``
+        and ``tstep`` the model timestep in seconds)::
+
+            ckpt = SUEWSCheckpoint.from_file(path_checkpoint)
+            sim = SUEWSSimulation.from_checkpoint("config.yml", ckpt)
+            sim.update_forcing(forcing)  # the same forcing as before
+            start = pd.Timestamp(ckpt.last_timestamp) + pd.Timedelta(seconds=tstep)
+            sim.run(start_date=start, stream="year")
+
+        The resumed run rewrites the year files from the resume point on
+        and replaces the checkpoint as it goes; its ``provenance.json``
+        describes the resumed segment (``continued_from_checkpoint`` is
+        true). The continuity check refuses a ``start_date`` that does not
+        follow the checkpoint, so no completed year is rewritten by mistake.
 
         Examples
         --------
@@ -1073,6 +1102,7 @@ class SUEWSSimulation:
             config=self._config,
             checkpoint=self._checkpoint,
             kernel_warnings=self._kernel_warnings.to_frame(),
+            streamed_paths=self._streamed_paths,
         )
 
     def save(
@@ -1253,13 +1283,8 @@ class SUEWSSimulation:
         """Append the checkpoint and the provenance sidecar to saved files."""
         list_path_save = list(list_path_save)
         output_path = settings["output_path"]
-        site_filename = safe_filename_component(settings["site"])
         if self._checkpoint is not None:
-            checkpoint_name = (
-                f"{site_filename}_SUEWS_checkpoint.json"
-                if site_filename
-                else "SUEWS_checkpoint.json"
-            )
+            checkpoint_name = self._checkpoint_filename(settings["site"])
             checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
             list_path_save.append(checkpoint_path)
 
@@ -1282,6 +1307,37 @@ class SUEWSSimulation:
         list_path_save.append(write_provenance(output_path, payload))
 
         return list_path_save
+
+    @staticmethod
+    def _checkpoint_filename(site: str) -> str:
+        """Name of the checkpoint file :meth:`save` writes for *site*."""
+        site_filename = safe_filename_component(site)
+        return (
+            f"{site_filename}_SUEWS_checkpoint.json"
+            if site_filename
+            else "SUEWS_checkpoint.json"
+        )
+
+    @classmethod
+    def _write_year_checkpoint(
+        cls, dict_state_json: dict, last_timestamp, settings: dict
+    ) -> Path:
+        """Write the checkpoint reached at the end of one streamed year.
+
+        Same file name as the checkpoint :meth:`save` writes, so the last
+        completed year's state is always at one known path. The file is
+        written beside it and then renamed over it, so a run killed while
+        writing leaves the previous year's checkpoint intact.
+        """
+        name = cls._checkpoint_filename(settings["site"])
+        path = Path(settings["output_path"]) / name
+        path_tmp = path.with_name(path.name + ".tmp")
+        checkpoint = SUEWSCheckpoint.from_grid_states(
+            dict_state_json, last_timestamp=last_timestamp
+        )
+        checkpoint.to_file(path_tmp)
+        os.replace(path_tmp, path)
+        return path
 
     @staticmethod
     def _check_streamable(settings: dict) -> None:
@@ -1335,6 +1391,10 @@ class SUEWSSimulation:
     ) -> tuple:
         """Run year by year, writing and dropping each year's output.
 
+        After each year's files are written, the checkpoint file is replaced
+        by the state at the end of that year, so a run that stops part-way
+        can resume from the last completed year.
+
         Returns ``(list_path_save, df_empty, dict_state_json,
         kernel_warnings)``; ``df_empty`` has the output columns and no rows.
         """
@@ -1342,29 +1402,55 @@ class SUEWSSimulation:
         kernel_warnings = KernelWarningLog()
         dict_state_json = None
         df_empty = None
+        last_done = None
         # _save_supy sets the SuPy logger level on every call; keep the
         # caller's level so later years and the end-of-run summaries still log.
         log_level = logger_supy.level
-        for df_year, dict_state_year, warnings_year in iter_suews_rust_by_year(
-            config=self._config,
-            df_forcing=df_forcing,
-            tstep_s=tstep_s,
-            serial_mode=serial_mode,
-            max_workers=max_workers,
-            initial_state_json_by_grid=initial_state_json_by_grid,
-        ):
-            kernel_warnings.extend(warnings_year)
-            dict_state_json = dict_state_year
-            list_path_save += self._write_output_frame(
-                df_year, df_state_final, settings
-            )
-            logger_supy.setLevel(log_level)
-            if df_empty is None:
-                # A deep copy, so the empty frame does not keep the year's
-                # buffer alive.
-                df_empty = df_year.iloc[:0].copy()
-            # Drop this year's frame before the next year is allocated.
-            del df_year
+        try:
+            for (
+                df_year,
+                dict_state_year,
+                warnings_year,
+                last_timestamp,
+            ) in iter_suews_rust_by_year(
+                config=self._config,
+                df_forcing=df_forcing,
+                tstep_s=tstep_s,
+                serial_mode=serial_mode,
+                max_workers=max_workers,
+                initial_state_json_by_grid=initial_state_json_by_grid,
+            ):
+                kernel_warnings.extend(warnings_year)
+                dict_state_json = dict_state_year
+                list_path_save += self._write_output_frame(
+                    df_year, df_state_final, settings
+                )
+                logger_supy.setLevel(log_level)
+                if df_empty is None:
+                    # A deep copy, so the empty frame does not keep the year's
+                    # buffer alive.
+                    df_empty = df_year.iloc[:0].copy()
+                # Drop this year's frame before the next year is allocated.
+                del df_year
+                # The year's files are on disk; record the state reached at
+                # its end so a later failure can resume from here.
+                if dict_state_year:
+                    path_checkpoint = self._write_year_checkpoint(
+                        dict_state_year, last_timestamp, settings
+                    )
+                    last_done = (last_timestamp, path_checkpoint)
+        except Exception:
+            if last_done is not None:
+                logger_supy.setLevel(log_level)
+                logger_supy.warning(
+                    "Streamed run stopped; output up to %s is written and its "
+                    "checkpoint is %s. Resume with "
+                    "SUEWSSimulation.from_checkpoint(config, checkpoint) and "
+                    "run(start_date=<last_timestamp + tstep>, stream='year').",
+                    last_done[0],
+                    last_done[1],
+                )
+            raise
         return list_path_save, df_empty, dict_state_json, kernel_warnings
 
     def _start_run_metadata(
@@ -1959,6 +2045,9 @@ class SUEWSSimulation:
         SUEWSSimulation(Complete: 105408 results)
         """
         if self._run_completed:
+            if self._streamed_paths is not None:
+                folder = Path(self._streamed_paths[0]).resolve().parent
+                return f"SUEWSSimulation(Complete: streamed to {folder})"
             n_results = len(self._df_output) if self._df_output is not None else 0
             return f"SUEWSSimulation(Complete: {n_results} results)"
         elif self._df_state_init is not None and self._df_forcing is not None:
@@ -2070,6 +2159,9 @@ class SUEWSSimulation:
 
         if self._df_output is None:
             raise RuntimeError("Results DataFrame is None")
+
+        if self._streamed_paths is not None:
+            raise streamed_output_error(self._streamed_paths)
 
         # Check if variable exists in results
         all_vars = self._df_output.columns.get_level_values("var").unique()
@@ -2204,6 +2296,8 @@ class SUEWSSimulation:
             DeprecationWarning,
             stacklevel=2,
         )
+        if self._streamed_paths is not None:
+            raise streamed_output_error(self._streamed_paths)
         return self._df_output
 
     @property
@@ -2249,6 +2343,7 @@ class SUEWSSimulation:
             config=self._config,
             checkpoint=self._checkpoint,
             kernel_warnings=self._kernel_warnings.to_frame(),
+            streamed_paths=self._streamed_paths,
         )
 
     @property

@@ -1077,15 +1077,16 @@ def iter_suews_rust_by_year(
     serial_mode: bool = False,
     max_workers: int | None = None,
     initial_state_json_by_grid: dict[int, str] | None = None,
-) -> Iterator[tuple[pd.DataFrame, dict[int, str], KernelWarningLog]]:
+) -> Iterator[tuple[pd.DataFrame, dict[int, str], KernelWarningLog, pd.Timestamp]]:
     """Run SUEWS one calendar year at a time, yielding each year's output.
 
     Same state chaining as :func:`run_suews_rust_chunked`, but chunks follow
     calendar years under the right-closed convention (see
     :func:`forcing_year_keys`) and no chunk is kept: the caller receives
-    ``(df_output_year, dict_state_json, warnings_year)`` per year and can
-    write and drop the frame before the next year runs, so memory no longer
-    grows with run length.
+    ``(df_output_year, dict_state_json, warnings_year, last_timestamp)`` per
+    year, where *dict_state_json* is the state reached at *last_timestamp*
+    (the year's last forcing row), and can write and drop the frame before
+    the next year runs, so memory no longer grows with run length.
     """
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
@@ -1094,14 +1095,23 @@ def iter_suews_rust_by_year(
         for grid_id, state_json in (initial_state_json_by_grid or {}).items()
     }
     _check_chunk_grid_ids(config, initial_state_json_by_grid)
-    grp_forcing_chunk = df_forcing.groupby(forcing_year_keys(df_forcing.index, tstep_s))
+    ar_year = forcing_year_keys(df_forcing.index, tstep_s)
+    grp_forcing_chunk = df_forcing.groupby(ar_year)
+    # Last forcing row of each year, in the group order the chunks run in.
+    ser_last = pd.Series(df_forcing.index).groupby(ar_year).max()
     logger_supy.info(
         "Rust backend: streaming %d calendar-year chunks.", len(grp_forcing_chunk)
     )
-    yield from _iter_suews_rust_chunks(
+    iter_chunk = _iter_suews_rust_chunks(
         config,
         grp_forcing_chunk,
         serial_mode,
         max_workers,
         initial_state_json_by_grid,
     )
+    for last_timestamp in ser_last:
+        df_output_year, dict_state_json, warnings_year = next(iter_chunk)
+        yield df_output_year, dict_state_json, warnings_year, last_timestamp
+        # Drop this frame before the next year is run, as the chunk
+        # generator does, so only one year is held at a time.
+        del df_output_year

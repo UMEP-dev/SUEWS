@@ -31,8 +31,6 @@ import sys
 
 import numpy as np
 
-import supy as sp
-
 # Resolve the fixture directory from the repository root, not from this file's own
 # directory: the fixtures live under test/, while this script lives under scripts/suews/.
 repo_root = Path(__file__).resolve().parents[2]
@@ -45,6 +43,7 @@ sys.path.insert(0, str(test_data_dir))
 from sample_output_io import (  # noqa: E402
     REFERENCE_FLOAT_FORMAT,
     load_sample_output,
+    run_sample_reference,
     write_reference_provenance,
     write_sample_output_shards,
 )
@@ -57,15 +56,7 @@ ROUND_TRIP_RTOL = 5e-7
 
 print("\n========================================")
 print("Generating sample output for testing")
-simulation = sp.SUEWSSimulation.from_sample_data()
-df_forcing_tstep = simulation.forcing.df
-df_forcing_part = df_forcing_tstep.iloc[: 288 * 366]  # One year (2012 is a leap year)
-
-# single-step results
-simulation.update_forcing(df_forcing_part)
-df_output_s = simulation.run().df
-
-df_output = df_output_s.SUEWS
+df_output = run_sample_reference()
 print(f"Saving sample output shards to: {test_data_dir.as_posix()}")
 written = write_sample_output_shards(df_output, test_data_dir)
 

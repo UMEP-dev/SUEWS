@@ -202,3 +202,50 @@ class TestIrrigationConfigPropagation:
                 "changed), update the positive test alongside this baseline."
             ),
         )
+
+
+class TestDailyStateWaterUseTotal:
+    """The DailyState total water use is the sum of its two parts (gh#1864).
+
+    ``update_WaterUse`` folds the ponding demand into the automatic part
+    (``WUDay_A = WUDay_A + WUDay_P``). The total written to ``WU_<veg>1``
+    used to add the ponding demand again, so whenever ``h_maintain``
+    produced a positive demand the reported total exceeded automatic plus
+    manual (``WU_<veg>2 + WU_<veg>3``) by that demand. ``h_maintain = 10``
+    in ``_enable_modelled_irrigation`` keeps the demand positive here.
+    """
+
+    N_DAYS = 5
+
+    @pytest.mark.core
+    def test_total_equals_automatic_plus_manual(self):
+        sim = SUEWSSimulation.from_sample_data()
+        _enable_modelled_irrigation(sim)
+        df_forcing = sim.forcing.df.copy().iloc[: TIMESTEPS_PER_DAY * self.N_DAYS]
+        sim.update_forcing(df_forcing)
+
+        results = sim.run(end_date=df_forcing.index[-1])
+
+        df_daily = (
+            results.xs("DailyState", level="group", axis=1)
+            .xs(1, level="grid")
+            .dropna(how="all")
+        )
+        assert len(df_daily) >= self.N_DAYS - 1
+        for veg in ("EveTr", "DecTr", "Grass"):
+            ser_total = df_daily[f"WU_{veg}1"]
+            ser_auto = df_daily[f"WU_{veg}2"]
+            ser_manual = df_daily[f"WU_{veg}3"]
+            # the automatic part carries the ponding demand, so it is positive
+            assert (ser_auto > 0).all(), f"WU_{veg}2 should be positive"
+            np.testing.assert_allclose(
+                ser_total.to_numpy(),
+                (ser_auto + ser_manual).to_numpy(),
+                rtol=1e-12,
+                atol=1e-12,
+                err_msg=(
+                    f"WU_{veg}1 differs from WU_{veg}2 + WU_{veg}3: the "
+                    "ponding demand is counted twice in the daily total "
+                    "(regression of gh#1864)"
+                ),
+            )

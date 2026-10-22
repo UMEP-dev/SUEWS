@@ -21,6 +21,15 @@ from .variables import (
 
 # Surface types for snow variables
 SURFACE_TYPES = ["Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water"]
+SURFACE_NAMES = {
+    "Paved": "paved surface",
+    "Bldgs": "building surface",
+    "EveTr": "evergreen tree surface",
+    "DecTr": "deciduous tree surface",
+    "Grass": "grass surface",
+    "BSoil": "bare soil surface",
+    "Water": "water surface",
+}
 
 
 def make_surface_vars(base_name, unit, description_template, aggregation):
@@ -35,21 +44,11 @@ def make_surface_vars(base_name, unit, description_template, aggregation):
     Returns:
         List of OutputVariable instances for all surface types
     """
-    surface_names = {
-        "Paved": "paved surface",
-        "Bldgs": "building surface",
-        "EveTr": "evergreen tree surface",
-        "DecTr": "deciduous tree surface",
-        "Grass": "grass surface",
-        "BSoil": "bare soil surface",
-        "Water": "water surface",
-    }
-
     return [
         OutputVariable(
             name=f"{base_name}_{surf}",
             unit=unit,
-            description=description_template.format(surface_names[surf]),
+            description=description_template.format(SURFACE_NAMES[surf]),
             aggregation=aggregation,
             group=OutputGroup.SNOW,
             level=OutputLevel.DEFAULT,
@@ -89,7 +88,7 @@ QMFR_VARS = make_surface_vars(
 
 # Fraction of snow by surface (excluding Water)
 FR_VARS = make_surface_vars(
-    "fr", "-", "Fraction of surface covered by snow for {}", AggregationMethod.AVERAGE
+    "fr", "-", "Fraction of {} covered by snow", AggregationMethod.AVERAGE
 )[:-1]  # No fr_Water
 
 # Rain on snow by surface
@@ -102,9 +101,7 @@ QN_SNOW_VARS = [
     OutputVariable(
         name=f"Qn_{surf}Snow",
         unit="W m-2",
-        description=f"Net all-wave radiation for snow {surf.lower()} surface"
-        if surf != "Bldgs"
-        else "Net all-wave radiation for snow building surface",
+        description=f"Net all-wave radiation for snow on {SURFACE_NAMES[surf]}",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SNOW,
         level=OutputLevel.DEFAULT,
@@ -117,9 +114,7 @@ KUP_SNOW_VARS = [
     OutputVariable(
         name=f"kup_{surf}Snow",
         unit="W m-2",
-        description=f"Reflected shortwave radiation for snow {surf.lower()} surface"
-        if surf != "Bldgs"
-        else "Reflected shortwave radiation for snow building surface",
+        description=f"Reflected shortwave radiation for snow on {SURFACE_NAMES[surf]}",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SNOW,
         level=OutputLevel.DEFAULT,
@@ -127,11 +122,11 @@ KUP_SNOW_VARS = [
     for surf in SURFACE_TYPES
 ]
 
-# Amount of freezing melt water by surface
+# Refrozen meltwater by surface
 FRMELT_VARS = make_surface_vars(
     "frMelt",
     "mm",
-    "Amount of freezing melt water for {}",
+    "Refrozen meltwater for {}",
     AggregationMethod.AVERAGE,
 )
 
@@ -161,7 +156,7 @@ SNOW_ALB_VAR = [
     OutputVariable(
         name="SnowAlb",
         unit="-",
-        description="Surface albedo for snow/ice",
+        description="Snow albedo",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SNOW,
         level=OutputLevel.DEFAULT,

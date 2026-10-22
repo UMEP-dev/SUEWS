@@ -32,7 +32,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="GlobalRad",
         unit="W m-2",
-        description="Global irradiance",
+        description="Global radiation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -56,7 +56,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Kdown2d",
         unit="W m-2",
-        description="Incoming shortwave radiation at POI",
+        description="Incoming shortwave radiation at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -64,7 +64,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Kup2d",
         unit="W m-2",
-        description="Outgoing shortwave radiation at POI",
+        description="Outgoing shortwave radiation at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -72,7 +72,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Ksouth",
         unit="W m-2",
-        description="Shortwave radiation from south at POI",
+        description="Shortwave radiation from the south at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -80,7 +80,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Kwest",
         unit="W m-2",
-        description="Shortwave radiation from west at POI",
+        description="Shortwave radiation from the west at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -88,7 +88,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Knorth",
         unit="W m-2",
-        description="Shortwave radiation from north at POI",
+        description="Shortwave radiation from the north at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -96,7 +96,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Keast",
         unit="W m-2",
-        description="Shortwave radiation from east at POI",
+        description="Shortwave radiation from the east at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -104,7 +104,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Ldown2d",
         unit="W m-2",
-        description="Incoming longwave radiation at POI",
+        description="Incoming longwave radiation at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -112,7 +112,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Lup2d",
         unit="W m-2",
-        description="Outgoing longwave radiation at POI",
+        description="Outgoing longwave radiation at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -120,7 +120,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Lsouth",
         unit="W m-2",
-        description="Longwave radiation from south at POI",
+        description="Longwave radiation from the south at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -128,7 +128,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Lwest",
         unit="W m-2",
-        description="Longwave radiation from west at POI",
+        description="Longwave radiation from the west at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -136,7 +136,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Lnorth",
         unit="W m-2",
-        description="Longwave radiation from north at POI",
+        description="Longwave radiation from the north at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -144,7 +144,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="Least",
         unit="W m-2",
-        description="Longwave radiation from east at POI",
+        description="Longwave radiation from the east at the point of interest",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -160,7 +160,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="I0",
         unit="W m-2",
-        description="Theoretical value of maximum incoming solar radiation",
+        description="Theoretical maximum incoming solar radiation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -168,7 +168,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="CI",
         unit="-",
-        description="Clearness index for Ldown",
+        description="Clearness index used to estimate Ldown",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,

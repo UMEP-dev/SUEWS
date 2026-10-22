@@ -15,7 +15,7 @@ NHOOD_VARIABLES = [
     OutputVariable(
         name="iter_count",
         unit="-",
-        description="iteration count of convergence loop",
+        description="Iteration count of the convergence loop",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.NHOOD,
         level=OutputLevel.DEFAULT,

@@ -98,7 +98,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QHlumps",
         unit="W m-2",
-        description="Sensible heat flux (using LUMPS)",
+        description="Sensible heat flux (LUMPS method)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -106,7 +106,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QElumps",
         unit="W m-2",
-        description="Latent heat flux (using LUMPS)",
+        description="Latent heat flux (LUMPS method)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -189,7 +189,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="State",
         unit="mm",
-        description="Surface Wetness State",
+        description="Surface wetness state",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -216,7 +216,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="SMD",
         unit="mm",
-        description="Soil Moisture Deficit",
+        description="Soil moisture deficit",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -628,7 +628,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QMFreeze",
         unit="W m-2",
-        description="Internal energy change",
+        description="Heat related to freezing of water (internal energy change)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
@@ -668,7 +668,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="SnowCh",
         unit="mm",
-        description="Change in snow pack",
+        description="Change in snowpack",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,

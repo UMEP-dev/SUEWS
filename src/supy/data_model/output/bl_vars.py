@@ -15,7 +15,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="z",
         unit="m",
-        description="Height",
+        description="Boundary-layer height",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -23,7 +23,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="theta",
         unit="K",
-        description="Potential temperature",
+        description="Potential temperature of the mixed layer",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -31,7 +31,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="q",
         unit="g kg-1",
-        description="Specific humidity",
+        description="Specific humidity of the mixed layer",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -55,7 +55,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="Temp_C",
         unit="degC",
-        description="Temperature in Celsius",
+        description="Air temperature of the mixed layer",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -63,7 +63,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="rh",
         unit="%",
-        description="Relative humidity",
+        description="Relative humidity of the mixed layer",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -71,7 +71,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="QH_use",
         unit="W m-2",
-        description="Sensible heat flux used",
+        description="Sensible heat flux used by the boundary-layer model",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -79,7 +79,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="QE_use",
         unit="W m-2",
-        description="Latent heat flux used",
+        description="Latent heat flux used by the boundary-layer model",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -87,7 +87,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="Press_hPa",
         unit="hPa",
-        description="Pressure",
+        description="Air pressure",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -111,7 +111,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="avdens",
         unit="kg m-3",
-        description="Average density",
+        description="Air density",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -127,7 +127,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="avcp",
         unit="J kg-1 K-1",
-        description="Average specific heat capacity",
+        description="Specific heat capacity of air",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,

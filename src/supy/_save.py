@@ -757,17 +757,17 @@ def save_df_output(
             # Preserve the historical five-minute singleton fallback when the
             # native cadence cannot be inferred from more than one timestamp.
             list_df_save.append((df_output, list_group_save, 300))
-        if df_rsmp is not None and list_group_rsmp:
+        # At the native timestep the "resampled" table is the native table and
+        # its groups are among the ones the first pass saves, so saving it
+        # again would only rewrite the same files and list them twice
+        # (gh#1849).
+        is_native_repeat = df_rsmp is df_output and set(list_group_rsmp) <= set(
+            list_group_save
+        )
+        if df_rsmp is not None and list_group_rsmp and not is_native_repeat:
             list_df_save.append((df_rsmp, list_group_rsmp, freq_s))
-        # Without DailyState at the native timestep both tables are the same
-        # table, whose index the first pass used to shift in place; the
-        # second pass starts from that shifted index, as it always has. This
-        # keeps the saved files unchanged (both passes write the same names;
-        # relabelling never touched the shared index).
-        index_shared = df_rsmp is df_output and "DailyState" not in list_group_save
     else:
         # resampled data with DailyState (if it exists)
-        index_shared = False
         list_df_save = []
         if df_dailystate is not None:
             list_df_save.append((df_dailystate, ["DailyState"], 86400))
@@ -780,7 +780,6 @@ def save_df_output(
     )
     timestamps_are_final = output_timestamp_reference != "follow"
     list_path_save = []
-    index_save = None
     for df_save, list_group, fallback_frequency_s in list_df_save:
         dict_group_frequency_s = (
             _output_group_frequencies(df_save, fallback_frequency_s, groups=list_group)
@@ -794,13 +793,8 @@ def save_df_output(
         # For regular output data, shift temporal index to make timestamps
         # indicating the start of periods; DailyState already represents
         # daily values and is not shifted
-        index_base = (
-            index_save
-            if index_shared and index_save is not None and not timestamps_are_final
-            else df_save.index
-        )
         index_save = _save_row_index(
-            index_base,
+            df_save.index,
             not is_dailystate_only and not timestamps_are_final,
             timestamp_reference,
             forcing_timestamp_reference,

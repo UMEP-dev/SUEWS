@@ -56,6 +56,11 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [change][experimental] `SUEWSOutput.df` no longer copies the whole output table on every access, so reading it no longer doubles the memory a long run holds (#1849)
+  - With pandas copy-on-write (always on from pandas 3) `.df` behaves as before: the returned frame acts as an independent copy.
+  - Without it (pandas 2, the default on Linux with Python 3.12) `.df` is a read-only view of the stored table: writing into part of it in place (`df.loc[mask, col] = x`, `df.fillna(0, inplace=True)`) now raises `ValueError` instead of working on a private copy. Use `output.df.copy()` for a writable copy. Adding, replacing or dropping whole columns and every operation that returns a new frame work as before.
+  - Group access (`output.get_group("SUEWS")`, `output.SUEWS`) selects from the shared table instead of selecting and then copying.
+  - Output values and saved files are unchanged.
 - [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.

@@ -1,23 +1,32 @@
 """Output copies stay independent after the gh#1849 memory changes.
 
 The run output is no longer deep-copied on the way into ``SUEWSOutput``, on
-entry to the text and parquet savers, or by an unconditional ``sort_index``
-after joining grids and chunks. These tests pin the contracts that the deep
-copies used to guarantee: what users receive is still their own copy, saving
-leaves the stored table untouched, and joined output is still sorted.
+each ``.df`` or group access, on entry to the text and parquet savers, or by an
+unconditional ``sort_index`` after joining grids and chunks. These tests pin
+the contracts that the deep copies used to guarantee: nothing a user does to
+what they receive reaches the stored table, saving leaves the stored table
+untouched, and joined output is still sorted.
+
+``.df`` shares the stored table instead of copying it. With pandas
+copy-on-write (always on from pandas 3) the shared frame behaves as a copy;
+without it (pandas 2) it is a read-only view, so a partial in-place write
+raises ``ValueError`` instead of changing the stored table.
 """
 
 from pathlib import Path
 
 import numpy as np
+from packaging.version import Version
 import pandas as pd
 import pytest
 
 from supy._run_rust import _concat_output_frames
 from supy._save import save_df_output
-from supy.suews_output import SUEWSOutput
+from supy.suews_output import SUEWSOutput, _copy_on_write_active
 
 pytestmark = pytest.mark.api
+
+COW = _copy_on_write_active()
 
 
 def _make_df_output(n_steps: int = 48, grid: int = 1) -> pd.DataFrame:
@@ -34,25 +43,136 @@ def _make_df_output(n_steps: int = 48, grid: int = 1) -> pd.DataFrame:
     return pd.DataFrame(values, index=index, columns=columns)
 
 
-class TestSUEWSOutputCopies:
-    def test_df_is_independent_of_stored_table(self):
+def _partial_writes():
+    """In-place writes into part of a frame, each as (id, function)."""
+    return [
+        ("iloc_cell", lambda df: df.iloc.__setitem__((0, 0), -1.0)),
+        ("loc_mask", lambda df: df.loc.__setitem__(df["SUEWS", "QH"] > 0.5, -1.0)),
+        ("at", lambda df: df.at.__setitem__((df.index[0], ("SUEWS", "QE")), -1.0)),
+        ("fillna_inplace", lambda df: df.fillna(-1.0, inplace=True)),
+        ("bfill_inplace", lambda df: df.bfill(inplace=True)),
+    ]
+
+
+class TestSUEWSOutputSharedFrame:
+    def test_df_shares_the_stored_table(self):
         output = SUEWSOutput(df_output=_make_df_output(), df_state_final=None)
-        df_before = output.df
+
+        assert np.shares_memory(output.df.to_numpy(), output._df_output.to_numpy())
+
+    def test_df_of_a_real_run_shares_the_stored_table(self, short_sample_sim):
+        """The kernel's output is one buffer, so `.df` costs no copy of it."""
+        output = short_sample_sim().run()
+
+        assert np.shares_memory(output.df.to_numpy(), output._df_output.to_numpy())
+
+    @pytest.mark.parametrize(
+        "write",
+        [w for _, w in _partial_writes()],
+        ids=[i for i, _ in _partial_writes()],
+    )
+    def test_partial_write_never_reaches_stored_table(self, write):
+        output = SUEWSOutput(df_output=_make_df_output(), df_state_final=None)
+        df_stored = output._df_output.copy()
+
+        df_user = output.df
+        if COW:
+            write(df_user)
+            assert not df_user.equals(df_stored)
+        else:
+            with pytest.raises(ValueError, match="read-only"):
+                write(df_user)
+
+        pd.testing.assert_frame_equal(output._df_output, df_stored)
+
+    # pandas 2 reports the read-only buffer as a dtype problem, then replaces
+    # the column: the assignment works and the stored table is untouched.
+    @pytest.mark.filterwarnings(
+        "ignore:Setting an item of incompatible dtype:FutureWarning"
+    )
+    def test_whole_column_assignment_never_reaches_stored_table(self):
+        output = SUEWSOutput(df_output=_make_df_output(), df_state_final=None)
+        df_stored = output._df_output.copy()
 
         df_user = output.df
         df_user.iloc[:, 0] = -1.0
+        df_user["SUEWS", "QE"] = -2.0
+        df_user["SUEWS", "new"] = -3.0
 
-        pd.testing.assert_frame_equal(output.df, df_before)
+        np.testing.assert_array_equal(df_user.iloc[:, 0].to_numpy(), -1.0)
+        np.testing.assert_array_equal(df_user["SUEWS", "QE"].to_numpy(), -2.0)
+        pd.testing.assert_frame_equal(output._df_output, df_stored)
 
-    def test_group_accessor_is_independent_of_stored_table(self):
+    def test_copy_of_df_is_writable_and_independent(self):
         output = SUEWSOutput(df_output=_make_df_output(), df_state_final=None)
-        df_before = output.df
+        df_stored = output._df_output.copy()
+
+        df_user = output.df.copy()
+        df_user.iloc[0, 0] = -1.0
+        df_user.fillna(-1.0, inplace=True)
+
+        assert df_user.iloc[0, 0] == pytest.approx(-1.0)
+        pd.testing.assert_frame_equal(output._df_output, df_stored)
+
+    def test_axis_renaming_never_reaches_stored_table(self):
+        output = SUEWSOutput(df_output=_make_df_output(), df_state_final=None)
+
+        df_user = output.df
+        df_user.index.names = ["g", "t"]
+        df_user.columns.names = ["a", "b"]
+
+        assert list(output._df_output.index.names) == ["grid", "datetime"]
+        assert list(output._df_output.columns.names) == ["group", "var"]
+        assert len(output.times) == len(output._df_output)
+
+    def test_group_accessor_never_reaches_stored_table(self):
+        output = SUEWSOutput(df_output=_make_df_output(), df_state_final=None)
+        df_stored = output._df_output.copy()
 
         df_group = output.get_group("SUEWS")
-        df_group.iloc[:, 0] = -1.0
+        try:
+            df_group.iloc[0, 0] = -1.0
+        except ValueError:
+            # pandas 2 may select the group as a read-only view
+            assert not COW
 
-        pd.testing.assert_frame_equal(output.df, df_before)
+        pd.testing.assert_frame_equal(output._df_output, df_stored)
 
+    @pytest.mark.parametrize("dtype_extra", [float, int], ids=["two_blocks", "mixed"])
+    def test_frame_not_in_one_buffer_is_returned_as_copy(self, dtype_extra):
+        """Without one shared buffer (e.g. after resampling) `.df` copies."""
+        df_output = _make_df_output()
+        df_output["snow", "SWE"] = np.ones(len(df_output), dtype=dtype_extra)
+        output = SUEWSOutput(df_output=df_output, df_state_final=None)
+        df_stored = output._df_output.copy()
+
+        df_user = output.df
+        df_user.iloc[0, 0] = -1.0
+
+        assert df_user.iloc[0, 0] == pytest.approx(-1.0)
+        pd.testing.assert_frame_equal(output._df_output, df_stored)
+
+    def test_extension_dtype_is_kept(self):
+        output = SUEWSOutput(
+            df_output=_make_df_output().astype("Float64"), df_state_final=None
+        )
+        df_stored = output._df_output.copy()
+
+        df_user = output.df
+        df_user.iloc[0, 0] = -1.0
+
+        assert (df_user.dtypes == "Float64").all()
+        pd.testing.assert_frame_equal(output._df_output, df_stored)
+
+    def test_copy_on_write_is_detected(self):
+        if Version(pd.__version__).major >= 3:
+            assert COW
+        else:
+            cow_option = pd.get_option("mode.copy_on_write")
+            assert (cow_option is True) is COW
+
+
+class TestSUEWSOutputCallerFrame:
     def test_caller_relabelling_does_not_reach_stored_table(self):
         df_output = _make_df_output()
         output = SUEWSOutput(df_output=df_output, df_state_final=None)

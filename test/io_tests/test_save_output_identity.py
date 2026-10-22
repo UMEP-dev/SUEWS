@@ -5,7 +5,13 @@ views, one index shift per table, one grid-group-year at a time). The
 expected hashes below were produced by the saver as it stood before that
 rewrite, on a small deterministic output table, so these tests pin both the
 saved bytes and the returned file list (order and duplicates included)
-across the main option sets.
+across the main option sets. The exceptions are the ``save_tstep`` cases
+at the native timestep: without DailyState (the two ``index_shared`` cases)
+the old saver wrote the files with every row one step early and listed them
+repeatedly, so their hashes were regenerated deliberately when that was
+fixed; with DailyState (``native_with_dailystate``) it wrote and listed the
+non-daily files twice with identical bytes, and now does so once.
+``test_save_tstep_native_step`` checks their rows directly.
 
 The table is synthetic rather than a model run, so the hashes do not move
 with the platform-dependent kernel. Values are multiples of 1/8, so
@@ -95,11 +101,11 @@ _CASES = {
     "utc": ({}, {"timestamp_reference": "utc"}),
     "daylight": ({}, {"timestamp_reference": "daylight"}),
     # save_tstep at the native timestep without DailyState: the native and
-    # "resampled" tables are the same table, and the second pass starts from
-    # the index the first pass already shifted (see save_df_output). These
-    # two cases pin that long-standing behaviour as it is (rows labelled one
-    # step early, files written more than once, repeated list entries); a
-    # deliberate fix changes their hashes.
+    # "resampled" tables are the same table, which is saved once, with
+    # end-of-period labels like every other path. Before the fix the second
+    # pass started from the index the first pass had already shifted, so the
+    # files carried every row one step early and were listed repeatedly; a
+    # run starting 00:05 on 1 January lost its first step.
     "index_shared": (
         {},
         {"output_groups": ["SUEWS", "RSL"], "save_tstep": True, "freq_s": 300},
@@ -107,6 +113,16 @@ _CASES = {
     "index_shared_jan1": (
         {"start": "2013-01-01 00:05", "n_day": 2},
         {"output_groups": ["SUEWS", "RSL"], "save_tstep": True, "freq_s": 300},
+    ),
+    # the same with DailyState: the non-daily files used to be written and
+    # listed twice (identical bytes); now each is written and listed once
+    "native_with_dailystate": (
+        {},
+        {
+            "output_groups": ["SUEWS", "RSL", "DailyState"],
+            "save_tstep": True,
+            "freq_s": 300,
+        },
     ),
 }
 
@@ -133,7 +149,10 @@ def _save_case(case: str, dir_save: Path) -> list:
     return [(Path(p).name, _sha256_text(dir_save / Path(p).name)) for p in list_path]
 
 
-# hashes from the saver before gh#1849 (pandas 2.3.3, Linux)
+# hashes from the saver before gh#1849 (pandas 2.3.3, Linux); the two
+# index_shared cases from the fixed saver. index_shared repeats the 5-min
+# hashes of all_groups_save_tstep (same rows, same pass), and repeated hashes
+# across cases are expected: values depend only on the global row number.
 # fmt: off
 _EXPECTED = {
     "default": [
@@ -195,39 +214,26 @@ _EXPECTED = {
         ("T2_2013_SUEWS_60_DAYLIGHT.txt", "86a0a35c7dc20095b9f27a6684825eb01291cd6c3fa91e9998854973be5bafc6"),
     ],
     "index_shared": [
-        ("T1_2012_SUEWS_5.txt", "5ecc57e90831bd1217eb536de384fecff36cb090fcc8b9b4eaf54936f3c43102"),
-        ("T1_2013_SUEWS_5.txt", "e72a3678bdfbb3659f7c1940dc82941f264147edc03abda72f037048c0c5a887"),
-        ("T1_2012_RSL_5.txt", "77db84da475bf5ea70eceafb673301c0c29a053f9ba93b5f07634173974acb63"),
-        ("T1_2013_RSL_5.txt", "7cb02ada2598bb19772c9dde66ab9c38278eacd6a4d6443bb05b3bf60e0d6261"),
-        ("T2_2012_SUEWS_5.txt", "946741d92084a013a0696ec871cf31c85a8ccfcdfce239280a447e68049de395"),
-        ("T2_2013_SUEWS_5.txt", "1ccc58d6a732e727d1b7dd3e7873d76566f4e8fb8649933d39c20ee65b388ac4"),
-        ("T2_2012_RSL_5.txt", "c8d5d3a2f0a59c674e4a7482a7e1477c8b7528f5dd27da4b2d679f356244785a"),
-        ("T2_2013_RSL_5.txt", "2a3ae6d6c9022d1a13ee340c2c56b40860063e141a2a139452d55099705701ed"),
-        ("T1_2012_SUEWS_5.txt", "5ecc57e90831bd1217eb536de384fecff36cb090fcc8b9b4eaf54936f3c43102"),
-        ("T1_2013_SUEWS_5.txt", "e72a3678bdfbb3659f7c1940dc82941f264147edc03abda72f037048c0c5a887"),
-        ("T1_2012_RSL_5.txt", "77db84da475bf5ea70eceafb673301c0c29a053f9ba93b5f07634173974acb63"),
-        ("T1_2013_RSL_5.txt", "7cb02ada2598bb19772c9dde66ab9c38278eacd6a4d6443bb05b3bf60e0d6261"),
-        ("T2_2012_SUEWS_5.txt", "946741d92084a013a0696ec871cf31c85a8ccfcdfce239280a447e68049de395"),
-        ("T2_2013_SUEWS_5.txt", "1ccc58d6a732e727d1b7dd3e7873d76566f4e8fb8649933d39c20ee65b388ac4"),
-        ("T2_2012_RSL_5.txt", "c8d5d3a2f0a59c674e4a7482a7e1477c8b7528f5dd27da4b2d679f356244785a"),
-        ("T2_2013_RSL_5.txt", "2a3ae6d6c9022d1a13ee340c2c56b40860063e141a2a139452d55099705701ed"),
+        ("T1_2012_SUEWS_5.txt", "ef093d637d425fc6ea21467c2c5d16006dfcb5a65ce0e8da1ca03b87563e80b2"),
+        ("T1_2013_SUEWS_5.txt", "5e0ee063e09713653b12df4a85e3dc00b76c688d81d9cbe78f8034a32027561e"),
+        ("T1_2012_RSL_5.txt", "0fca5f847bfad86aa24b68605b603ca80fcd3d428778bd24fad5ca6ae0aa5d10"),
+        ("T1_2013_RSL_5.txt", "37c82fca44ab4cfaf12007a9410ee20f4f9f5d3571b22ddc5e35d189a685b172"),
+        ("T2_2012_SUEWS_5.txt", "986892d61c58657ac1f5ca73d5deb91f6463a99e18b012089e5ccc596d73dc07"),
+        ("T2_2013_SUEWS_5.txt", "7ca0e8a4250da91a410c9b1a0c88ecd7c34b28f70e37cd5166b99a53fab11d9a"),
+        ("T2_2012_RSL_5.txt", "fc2375189bc35b80409736ca2767e40c65d5c912b786e3119596cc1e0f30f1f9"),
+        ("T2_2013_RSL_5.txt", "a46da013c725b421a9df081d80553e07d59df4e4be06d9c7ab6ad35fa5b0b443"),
     ],
     "index_shared_jan1": [
-        ("T1_2013_SUEWS_5.txt", "8033b951be6047e8e2eb488d184bff4149278063a5317dca7f58eaf11394b2f4"),
-        ("T1_2013_RSL_5.txt", "85fc6518a72689e3b6067c8c6d250c5ef989828b1e4f0bf0c4b24c817bc5d95f"),
-        ("T2_2013_SUEWS_5.txt", "e72a3678bdfbb3659f7c1940dc82941f264147edc03abda72f037048c0c5a887"),
-        ("T2_2013_RSL_5.txt", "7cb02ada2598bb19772c9dde66ab9c38278eacd6a4d6443bb05b3bf60e0d6261"),
-        ("T1_2013_SUEWS_5.txt", "8033b951be6047e8e2eb488d184bff4149278063a5317dca7f58eaf11394b2f4"),
-        ("T1_2013_SUEWS_5.txt", "8033b951be6047e8e2eb488d184bff4149278063a5317dca7f58eaf11394b2f4"),
-        ("T1_2013_RSL_5.txt", "85fc6518a72689e3b6067c8c6d250c5ef989828b1e4f0bf0c4b24c817bc5d95f"),
-        ("T1_2013_RSL_5.txt", "85fc6518a72689e3b6067c8c6d250c5ef989828b1e4f0bf0c4b24c817bc5d95f"),
-        ("T2_2013_SUEWS_5.txt", "e72a3678bdfbb3659f7c1940dc82941f264147edc03abda72f037048c0c5a887"),
-        ("T2_2013_SUEWS_5.txt", "e72a3678bdfbb3659f7c1940dc82941f264147edc03abda72f037048c0c5a887"),
-        ("T2_2013_RSL_5.txt", "7cb02ada2598bb19772c9dde66ab9c38278eacd6a4d6443bb05b3bf60e0d6261"),
-        ("T2_2013_RSL_5.txt", "7cb02ada2598bb19772c9dde66ab9c38278eacd6a4d6443bb05b3bf60e0d6261"),
+        ("T1_2013_SUEWS_5.txt", "1d2ab420a521ede55518dab9561e8776ddfd872f5658533777eb864a35a25f9d"),
+        ("T1_2013_RSL_5.txt", "71d49d55b80582d01ee41e771c5981eed81d5186182c2ec27effbf97b99010ad"),
+        ("T2_2013_SUEWS_5.txt", "5e0ee063e09713653b12df4a85e3dc00b76c688d81d9cbe78f8034a32027561e"),
+        ("T2_2013_RSL_5.txt", "37c82fca44ab4cfaf12007a9410ee20f4f9f5d3571b22ddc5e35d189a685b172"),
     ],
 }
 # fmt: on
+# One pass at the native timestep writes exactly the native-pass files of
+# all_groups_save_tstep (its first twelve entries), each listed once.
+_EXPECTED["native_with_dailystate"] = _EXPECTED["all_groups_save_tstep"][:12]
 
 
 @pytest.mark.parametrize("case", list(_CASES))
@@ -241,6 +247,50 @@ def test_save_df_output_files_unchanged(case, tmp_path):
     })
 
 
+def _read_rows(path: Path) -> pd.DataFrame:
+    """Return a saved text file's rows indexed by their timestamps."""
+    df_file = pd.read_csv(path, sep=r"\s+")
+    idx_dt = (
+        pd.to_datetime(df_file["Year"].astype(str), format="%Y")
+        + pd.to_timedelta(df_file["DOY"] - 1, unit="D")
+        + pd.to_timedelta(df_file["Hour"], unit="h")
+        + pd.to_timedelta(df_file["Min"], unit="min")
+    )
+    df_file.index = pd.DatetimeIndex(idx_dt, name="datetime")
+    return df_file.drop(columns=["Year", "DOY", "Hour", "Min", "Dectime"])
+
+
+@pytest.mark.parametrize(
+    "case", ["index_shared", "index_shared_jan1", "native_with_dailystate"]
+)
+def test_save_tstep_native_step(case, tmp_path):
+    """``save_tstep`` at the native timestep saves every step once, end-labelled.
+
+    Each file is listed once, and each grid's rows, read back from its files,
+    carry exactly the output timestamps (the end of each step, as every other
+    save path labels them) with the output values, the first step included.
+    """
+    kwargs_frame, _ = _CASES[case]
+    df_output = _make_df_output(**kwargs_frame)
+    list_saved = _save_case(case, tmp_path)
+    list_name = [name for name, _ in list_saved]
+    assert len(list_name) == len(set(list_name))
+
+    for grid in (1, 2):
+        df_expected = df_output.xs(grid, level="grid")["RSL"].fillna(-999.0)
+        list_path = sorted(tmp_path.glob(f"T{grid}_*_RSL_5.txt"))
+        assert list_path
+        df_saved = pd.concat([_read_rows(path) for path in list_path])
+        assert df_saved.index.equals(df_expected.index)
+        np.testing.assert_array_equal(
+            df_saved[df_expected.columns].to_numpy(), df_expected.to_numpy()
+        )
+        idx_suews = pd.concat([
+            _read_rows(path) for path in sorted(tmp_path.glob(f"T{grid}_*_SUEWS_5.txt"))
+        ]).index
+        assert idx_suews.equals(df_expected.index)
+
+
 if __name__ == "__main__" and "--generate" in sys.argv:
     dict_out = {}
     for case_name in _CASES:
@@ -248,7 +298,9 @@ if __name__ == "__main__" and "--generate" in sys.argv:
             dict_out[case_name] = _save_case(case_name, Path(dir_tmp))
             if "--show" in sys.argv:
                 for name, _ in dict.fromkeys(dict_out[case_name]):
-                    lines = (Path(dir_tmp) / name).read_text(encoding="utf-8").splitlines()
+                    lines = (
+                        (Path(dir_tmp) / name).read_text(encoding="utf-8").splitlines()
+                    )
                     print(f"# {case_name} {name}: {lines[1][:40]!r}", file=sys.stderr)
     print("_EXPECTED = {")
     for case_name, list_saved in dict_out.items():

@@ -116,8 +116,11 @@ outside its five stages. Structure:
 - Record the children as a checklist on the parent (`- [ ] #N <task-id>: <title>`)
   and group them into dependency-ordered waves: each wave is a set of children
   with no unmet dependency on a later wave.
-- Label each child by work nature (for example a mechanical vs design-sensitive
-  distinction) and mark any child that must pause the sweep before its wave runs.
+- Label each child with the repo's tiered labels only (`1-` type, `2-` area,
+  `3-` priority, `4-` status, and `0-` automation labels where a rule calls for
+  them). Mark a child that needs scientific or design judgement with
+  `4-needs-science` or `4-needs-discussion`, and note in the checklist any child
+  that must pause the sweep before its wave runs.
 - A status diagram (for example a mermaid graph with todo/wip/done/blocked
   classes) on the parent is optional but helps track wave progress.
 

@@ -15,7 +15,7 @@ from ._filename import safe_filename_component
 from .suews_checkpoint import SUEWSCheckpoint
 
 
-def streamed_output_error(streamed_paths: List[Union[str, Path]]) -> RuntimeError:
+def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
     """Build the error raised when rows of a streamed run's output are requested.
 
     A run with ``stream="year"`` writes its output files during the run and
@@ -93,7 +93,7 @@ class SUEWSOutput:
         metadata: Optional[Dict[str, Any]] = None,
         checkpoint: Optional[SUEWSCheckpoint] = None,
         kernel_warnings: Optional[pd.DataFrame] = None,
-        streamed_paths: Optional[List[Union[str, Path]]] = None,
+        streamed_paths: list[str | Path] | None = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -149,7 +149,7 @@ class SUEWSOutput:
             raise streamed_output_error(self._streamed_paths)
 
     @property
-    def streamed_paths(self) -> Optional[List[str]]:
+    def streamed_paths(self) -> list[str] | None:
         """Files written by a streamed run, or ``None`` for an in-memory run.
 
         After ``run(stream="year")`` the output rows live only in these

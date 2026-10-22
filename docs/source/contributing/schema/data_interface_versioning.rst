@@ -23,7 +23,7 @@ Current status
 --------------
 
 The forcing contract is published at ``1.2.0`` and the output contract at
-``1.1.2``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
+``1.1.3``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
 requiredness to reflect its physics-dependent use. Output ``1.1.0`` adds
 configurable saved-output timestamp references while retaining the forcing
@@ -31,7 +31,8 @@ clock by default; ``1.1.1`` corrects the descriptions of five water-balance
 variables to match what the kernel computes, leaving every name, unit, group
 and layout unchanged; ``1.1.2`` corrects further descriptions, and the units of
 ``beta``, ``DecidCap`` and the DailyState water use, again leaving every name,
-group, aggregation and layout unchanged. Each forcing release is stored as an immutable canonical
+group, aggregation and layout unchanged; ``1.1.3`` rewords descriptions for
+clarity and consistency and corrects six that disagreed with the kernel. Each forcing release is stored as an immutable canonical
 registry projection under ``src/supy/data_model/forcing/artefacts/``. The
 output contract's immutable bundles are stored under
 ``src/supy/data_model/output/artefacts/`` after the registry projection and

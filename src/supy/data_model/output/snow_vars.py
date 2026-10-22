@@ -63,26 +63,26 @@ SWE_VARS = make_surface_vars(
 )
 
 # Meltwater by surface
-MW_VARS = make_surface_vars("Mw", "mm", "Meltwater for {}", AggregationMethod.SUM)
+MW_VARS = make_surface_vars("Mw", "mm", "Snow melted during the timestep on {}", AggregationMethod.SUM)
 
 # Snow-related heat exchange by surface
 QM_VARS = make_surface_vars(
     "Qm",
     "W m-2",
-    "Snow-related heat exchange for {}",
+    "Heat used to melt snow on {} (negative when meltwater refreezes)",
     AggregationMethod.AVERAGE,
 )
 
 # Advective heat by surface
 QA_VARS = make_surface_vars(
-    "Qa", "W m-2", "Advective heat for {}", AggregationMethod.AVERAGE
+    "Qa", "W m-2", "Heat carried into the snowpack by rain on {}", AggregationMethod.AVERAGE
 )
 
 # Heat related to freezing by surface
 QMFR_VARS = make_surface_vars(
     "QmFr",
     "W m-2",
-    "Heat related to freezing for {}",
+    "Heat released when surface water freezes on {}",
     AggregationMethod.AVERAGE,
 )
 
@@ -93,7 +93,7 @@ FR_VARS = make_surface_vars(
 
 # Rain on snow by surface
 RAINSN_VARS = make_surface_vars(
-    "RainSn", "mm", "Rain on snow for {}", AggregationMethod.SUM
+    "RainSn", "mm", "Rain falling on snow on {}", AggregationMethod.SUM
 )
 
 # Net radiation for snow surface
@@ -132,7 +132,7 @@ FRMELT_VARS = make_surface_vars(
 
 # Meltwater store by surface
 MWSTORE_VARS = make_surface_vars(
-    "MwStore", "mm", "Meltwater store for {}", AggregationMethod.AVERAGE
+    "MwStore", "mm", "Liquid water held in the snowpack on {}", AggregationMethod.AVERAGE
 )
 
 # Snow density by surface

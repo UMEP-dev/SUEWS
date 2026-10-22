@@ -32,7 +32,7 @@ variables to match what the kernel computes, leaving every name, unit, group
 and layout unchanged; ``1.1.2`` corrects further descriptions, and the units of
 ``beta``, ``DecidCap`` and the DailyState water use, again leaving every name,
 group, aggregation and layout unchanged; ``1.1.3`` rewords descriptions for
-clarity and consistency without changing their meaning. Each forcing release is stored as an immutable canonical
+clarity and consistency and corrects six that disagreed with the kernel. Each forcing release is stored as an immutable canonical
 registry projection under ``src/supy/data_model/forcing/artefacts/``. The
 output contract's immutable bundles are stored under
 ``src/supy/data_model/output/artefacts/`` after the registry projection and

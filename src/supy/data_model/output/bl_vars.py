@@ -95,7 +95,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="avu1",
         unit="m s-1",
-        description="Average wind speed",
+        description="Wind speed used by the boundary-layer model",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,

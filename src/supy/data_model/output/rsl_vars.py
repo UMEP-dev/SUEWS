@@ -42,7 +42,7 @@ def make_profile_vars(base_name, unit, description_template):
 
 # Height profiles (30 levels)
 Z_VARS = make_profile_vars(
-    "z", "m", "Height above ground of profile level {0} (layout depends on flag_RSL)"
+    "z", "m", "Height above ground of profile level {0}; the level heights differ between the RST and MOST schemes (see flag_RSL)"
 )
 
 # Wind speed profiles (30 levels)
@@ -65,7 +65,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="L_MOD_RSL",
         unit="m",
-        description="Obukhov length",
+        description="Obukhov length used in the RSL profile calculation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -73,7 +73,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="zH_RSL",
         unit="m",
-        description="Mean canyon height used in RSL",
+        description="Mean canyon height used in the RSL profile calculation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -81,7 +81,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="Lc",
         unit="m",
-        description="Canopy drag length scale",
+        description="Canopy drag length scale. Missing when MOST is used.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -89,7 +89,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="beta",
         unit="-",
-        description="Beta coefficient of Harman (2012)",
+        description="Roughness-sublayer attenuation coefficient beta of Harman (2012). Missing when MOST is used.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -97,7 +97,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="zd_RSL",
         unit="m",
-        description="Zero-plane displacement height",
+        description="Zero-plane displacement height from the RSL scheme (the SUEWS value when MOST is used)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -105,7 +105,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="z0_RSL",
         unit="m",
-        description="Roughness length",
+        description="Roughness length for momentum from the RSL scheme (the SUEWS value when MOST is used)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -113,7 +113,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="elm",
         unit="m",
-        description="Mixing length",
+        description="Mixing length at the canopy top, used for the in-canopy profiles. Missing when MOST is used.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -121,7 +121,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="Scc",
         unit="-",
-        description="Schmidt number for temperature and humidity",
+        description="Schmidt number for temperature and humidity. Missing when MOST is used.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -141,7 +141,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="UStar_RSL",
         unit="m s-1",
-        description="Friction velocity used in RSL",
+        description="Friction velocity used in the RSL profile calculation",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -149,7 +149,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="UStar_heat",
         unit="m s-1",
-        description="Friction velocity implied by RA_h",
+        description="Friction velocity used for the temperature and humidity profiles: implied by the aerodynamic resistance for heat when MOST is used, and UStar_RSL with a floor of 0.15 m s-1 when RST is used",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -157,7 +157,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="TStar_RSL",
         unit="K",
-        description="Temperature scale used in RSL",
+        description="Temperature scale (friction temperature) used in the RSL profile calculation, from QH and UStar_heat",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,

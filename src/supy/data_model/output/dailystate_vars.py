@@ -17,7 +17,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="HDD1_h",
         unit="degC",
-        description="Heating degree days (accumulation during calculation)",
+        description="Heating degree days: daily mean of the amount by which air temperature falls below the heating base temperature",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -25,7 +25,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="HDD2_c",
         unit="degC",
-        description="Cooling degree days",
+        description="Cooling degree days: daily mean of the amount by which air temperature exceeds the cooling base temperature",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -33,7 +33,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="HDD3_Tmean",
         unit="degC",
-        description="Heating degree days based on mean temperature",
+        description="Daily mean air temperature",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -41,7 +41,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="HDD4_T5d",
         unit="degC",
-        description="Heating degree days based on 5-day running mean temperature",
+        description="5-day running mean of the daily mean air temperature (fewer days at the start of a run)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -50,7 +50,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="P_day",
         unit="mm",
-        description="Daily precipitation",
+        description="Daily total precipitation",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -117,7 +117,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="Tmin",
         unit="degC",
-        description="Daily minimum temperature",
+        description="Daily minimum air temperature",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -125,7 +125,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="Tmax",
         unit="degC",
-        description="Daily maximum temperature",
+        description="Daily maximum air temperature",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -134,7 +134,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="DLHrs",
         unit="hours",
-        description="Daylight hours",
+        description="Day length: hours with incoming shortwave radiation above 10 W m-2",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,

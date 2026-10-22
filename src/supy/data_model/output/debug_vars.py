@@ -16,7 +16,7 @@ from .variables import (
 # aggregation_code: A=AVERAGE, S=SUM
 DEBUG_VARIABLE_DEFS = [
     # Test flag
-    ("flag_test", "-", "A", "Debug test flag"),
+    ("flag_test", "-", "A", "Debug flag: 1 when state snapshots between modules are saved"),
     # Surface temperature by surface type (7)
     ("Ts_Paved", "degC", "A", "Surface temperature for paved surface"),
     ("Ts_Bldgs", "degC", "A", "Surface temperature for building surface"),
@@ -42,13 +42,13 @@ DEBUG_VARIABLE_DEFS = [
     ("QS_BSoil", "W m-2", "A", "Storage heat flux for bare soil surface"),
     ("QS_Water", "W m-2", "A", "Storage heat flux for water surface"),
     # Initial latent heat flux by surface type (7)
-    ("QE0_Paved", "W m-2", "A", "Initial latent heat flux for paved surface"),
-    ("QE0_Bldgs", "W m-2", "A", "Initial latent heat flux for building surface"),
-    ("QE0_EveTr", "W m-2", "A", "Initial latent heat flux for evergreen tree surface"),
-    ("QE0_DecTr", "W m-2", "A", "Initial latent heat flux for deciduous tree surface"),
-    ("QE0_Grass", "W m-2", "A", "Initial latent heat flux for grass surface"),
-    ("QE0_BSoil", "W m-2", "A", "Initial latent heat flux for bare soil surface"),
-    ("QE0_Water", "W m-2", "A", "Initial latent heat flux for water surface"),
+    ("QE0_Paved", "W m-2", "A", "Latent heat flux for paved surface before the water-availability limit"),
+    ("QE0_Bldgs", "W m-2", "A", "Latent heat flux for building surface before the water-availability limit"),
+    ("QE0_EveTr", "W m-2", "A", "Latent heat flux for evergreen tree surface before the water-availability limit"),
+    ("QE0_DecTr", "W m-2", "A", "Latent heat flux for deciduous tree surface before the water-availability limit"),
+    ("QE0_Grass", "W m-2", "A", "Latent heat flux for grass surface before the water-availability limit"),
+    ("QE0_BSoil", "W m-2", "A", "Latent heat flux for bare soil surface before the water-availability limit"),
+    ("QE0_Water", "W m-2", "A", "Latent heat flux for water surface before the water-availability limit"),
     # Latent heat flux by surface type (7)
     ("QE_Paved", "W m-2", "A", "Latent heat flux for paved surface"),
     ("QE_Bldgs", "W m-2", "A", "Latent heat flux for building surface"),
@@ -74,13 +74,13 @@ DEBUG_VARIABLE_DEFS = [
     ("wu_BSoil", "mm", "A", "Water use for bare soil surface"),
     ("wu_Water", "mm", "A", "Water use for water surface"),
     # Initial evaporation by surface type (7)
-    ("ev0_Paved", "mm", "A", "Initial evaporation for paved surface"),
-    ("ev0_Bldgs", "mm", "A", "Initial evaporation for building surface"),
-    ("ev0_EveTr", "mm", "A", "Initial evaporation for evergreen tree surface"),
-    ("ev0_DecTr", "mm", "A", "Initial evaporation for deciduous tree surface"),
-    ("ev0_Grass", "mm", "A", "Initial evaporation for grass surface"),
-    ("ev0_BSoil", "mm", "A", "Initial evaporation for bare soil surface"),
-    ("ev0_Water", "mm", "A", "Initial evaporation for water surface"),
+    ("ev0_Paved", "mm", "A", "Evaporation for paved surface before the water-availability limit"),
+    ("ev0_Bldgs", "mm", "A", "Evaporation for building surface before the water-availability limit"),
+    ("ev0_EveTr", "mm", "A", "Evaporation for evergreen tree surface before the water-availability limit"),
+    ("ev0_DecTr", "mm", "A", "Evaporation for deciduous tree surface before the water-availability limit"),
+    ("ev0_Grass", "mm", "A", "Evaporation for grass surface before the water-availability limit"),
+    ("ev0_BSoil", "mm", "A", "Evaporation for bare soil surface before the water-availability limit"),
+    ("ev0_Water", "mm", "A", "Evaporation for water surface before the water-availability limit"),
     # Evaporation by surface type (7)
     ("ev_Paved", "mm", "A", "Evaporation for paved surface"),
     ("ev_Bldgs", "mm", "A", "Evaporation for building surface"),
@@ -132,7 +132,7 @@ DEBUG_VARIABLE_DEFS = [
     # Resistance terms (4)
     ("RS", "s m-1", "A", "Surface resistance"),
     ("RA", "s m-1", "A", "Aerodynamic resistance"),
-    ("RB", "s m-1", "A", "Boundary-layer resistance"),
+    ("RB", "s m-1", "A", "Leaf boundary-layer resistance"),
     ("RAsnow", "s m-1", "A", "Aerodynamic resistance for snow"),
     # Surface resistance by surface type (7)
     ("RSS_Paved", "s m-1", "A", "Surface resistance for paved surface"),
@@ -143,10 +143,10 @@ DEBUG_VARIABLE_DEFS = [
     ("RSS_BSoil", "s m-1", "A", "Surface resistance for bare soil surface"),
     ("RSS_Water", "s m-1", "A", "Surface resistance for water surface"),
     # Additional debug variables (9)
-    ("vsmd", "mm", "A", "Volumetric soil moisture deficit"),
-    ("dsp", "mm", "A", "Depression storage ponding"),
-    ("G_sm", "-", "A", "Soil moisture conductance factor"),
-    ("x_exp", "-", "A", "Exponential factor"),
+    ("vsmd", "mm", "A", "Soil moisture deficit of the vegetated surfaces"),
+    ("dsp", "mm", "A", "Soil moisture deficit threshold in the soil-moisture conductance function"),
+    ("G_sm", "-", "A", "Conductance parameter for soil moisture (G_sm, from the site configuration)"),
+    ("x_exp", "-", "A", "Argument of the exponential in the soil-moisture conductance function: G_sm times (vsmd minus dsp)"),
     ("g_kdown", "-", "A", "Conductance factor for incoming shortwave radiation"),
     ("g_dq", "-", "A", "Conductance factor for humidity deficit"),
     ("g_ta", "-", "A", "Conductance factor for air temperature"),
@@ -160,12 +160,12 @@ DEBUG_VARIABLE_DEFS = [
     ("s_hPa", "hPa K-1", "A", "Slope of the saturation vapour pressure curve"),
     ("psyc_hPa", "hPa K-1", "A", "Psychrometric constant"),
     # Iteration counter (uses SUM aggregation)
-    ("iter", "-", "S", "Iteration counter"),
+    ("iter", "-", "S", "Number of iterations of the surface temperature and QH convergence loop"),
     # FAI variables (5)
-    ("FAIBldg_use", "-", "A", "Frontal area index of buildings, as used by the model"),
-    ("FAIEveTree_use", "-", "A", "Frontal area index of evergreen trees, as used by the model"),
-    ("FAIDecTree_use", "-", "A", "Frontal area index of deciduous trees, as used by the model"),
-    ("FAI", "-", "A", "Total frontal area index"),
+    ("FAIBldg_use", "-", "A", "Frontal area index of buildings used by the model, after the frontal area index option is applied"),
+    ("FAIEveTree_use", "-", "A", "Frontal area index of evergreen trees used by the model, after the frontal area index option is applied"),
+    ("FAIDecTree_use", "-", "A", "Frontal area index of deciduous trees used by the model, after the frontal area index option is applied"),
+    ("FAI", "-", "A", "Total frontal area index of buildings and trees"),
     ("dqndt", "W m-2", "A", "Rate of change of net all-wave radiation"),
 ]
 

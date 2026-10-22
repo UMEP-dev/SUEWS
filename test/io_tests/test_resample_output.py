@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 
 import supy as sp
+from supy._misc import infer_freq_offset
 from supy._post import _resample_output, dict_var_aggm
 
 pytestmark = pytest.mark.api
@@ -72,8 +73,9 @@ class TestResampleOutput:
 
         # native cadence of the run (5 min for the sample data)
         idx_dt = df_output.index.get_level_values("datetime").unique().sort_values()
-        native_freq = pd.infer_freq(idx_dt)
-        assert native_freq is not None
+        native_offset = infer_freq_offset(idx_dt)
+        assert native_offset is not None
+        native_freq = native_offset.freqstr
 
         # both a string alias and the equivalent Timedelta (as the save path
         # passes) must be recognised and skipped

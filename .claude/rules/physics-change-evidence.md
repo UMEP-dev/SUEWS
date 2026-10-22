@@ -140,6 +140,12 @@ produced any other way will not match the committed reference's shape.
 `test_reference_provenance_matches_shards` fails when the sidecar and the shards
 disagree, so a refresh without it does not merge.
 
+The main reference is generated in the CI build that checks it exactly (see
+"Exact reference gate" below). Take a refresh from that build's
+`reference-regenerated-cp312-manylinux-x86_64` artefact, or run the generator
+inside the same `manylinux2014` image; a refresh made on any other machine
+fails the exact check in CI.
+
 ### 4. The full `-m physics` tier runs before merge
 
 The `slow` physics regression tests must run as a required check on a
@@ -198,6 +204,45 @@ When a PR carries `0-physics:change`, the same script selects
 `test_tier=physics-full` instead, in both contexts, so the `slow` physics tests
 run as a required check before merge. The physics axis then runs `-m physics`
 (`.github/actions/build-suews/action.yml`); the api axis is unchanged.
+
+## Exact reference gate
+
+The tolerance test (`test_sample_output_validation_full_year`) is sized for
+cross-platform noise, so it cannot see a change like #1848 (273.16 -> 273.15 K),
+which moved QS by up to 0.08 W m-2 and was merged without a refresh or the
+label. `test/core/test_sample_output_exact.py` closes that gap:
+
+- On the build that generated the reference (system, machine, C library,
+  Fortran compiler and build profile as recorded in `provenance.json`), the
+  full-year sample run is written at `%.7g` and must equal the committed shards
+  byte for byte. Any moved value fails, listing the columns, their largest
+  change and how to refresh.
+- CI's cp312 manylinux x86_64 release lane sets `SUEWS_REFERENCE_LANE=1`. There
+  the check always runs, and a reference generated elsewhere is a failure, so a
+  refresh made on another machine cannot switch the gate off. Elsewhere the
+  check skips with the reason when the build does not match.
+- A change to that lane's build environment (a cibuildwheel bump that moves
+  the pinned `manylinux2014` image, or a different compiler in it) therefore
+  fails the check until the reference is refreshed from the lane's
+  `reference-regenerated` artefact, even when no physics changed. Such a refresh
+  still carries `0-physics:change`, with an evidence section saying the stored
+  values moved only through the build environment.
+- On a mismatch the lane uploads the regenerated shards and sidecar as the
+  `reference-regenerated-cp312-manylinux-x86_64` artefact: the refresh for an
+  intended change.
+- It is `core` and `medium`, so it runs on draft PRs as well as ready PRs and
+  the merge queue.
+- The `Physics-change label` job fails a PR (through `pr-gate`) that changes a
+  stored reference (the sample-output shards or `provenance.json`, the STEBBS
+  and benchmark fixtures, `w16_most.csv`) without `0-physics:change`. It warns,
+  without failing, when `suews_phys_*.f95` changes without the label: a
+  bit-identical refactor legitimately carries none, and one that moves the
+  output already fails the exact check. Labels are read from the API, so
+  labelling the PR and re-running the job is enough.
+
+Together: an output-moving change cannot merge without a refresh, and a refresh
+cannot merge without the label, which in turn requires the evidence section
+and the `physics-full` tier above.
 
 ## What `physics-full` adds over `standard`
 

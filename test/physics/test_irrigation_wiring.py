@@ -238,6 +238,7 @@ class TestIrrigationConfigPropagation:
         )
         assert ser_total["WUGrass"] == 0.0
 
+
 class TestDailyStateWaterUseTotal:
     """The DailyState total water use is the sum of its two parts (gh#1864).
 

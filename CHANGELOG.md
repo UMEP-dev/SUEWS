@@ -57,6 +57,10 @@ EXAMPLES:
 ### 22 Oct 2026
 
 - [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)
+- [bugfix] Saving long runs as text needs far less memory and time: a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output every step now peaks at 4.2 GB while saving instead of 9.2 GB, and saves in 20 s instead of 75 s (#1849)
+  - `save()` no longer copies the run output to drop unrequested groups, split off DailyState or select each grid; it takes one group at a time as a view of the held output and copies only one group-year to write it.
+  - Text files are formatted and written a block of rows at a time instead of turning the whole group-year into Python strings first.
+  - Saved files are byte-identical to before.
 - [bugfix] DailyState total modelled water use (`WU_EveTr1`, `WU_DecTr1`, `WU_Grass1`) no longer counts the ponding demand twice; it is now the automatic plus manual parts. Irrigation applied to the surfaces was not affected (#1864)
 - [change][experimental] `SUEWSOutput.df` no longer copies the whole output table on every access, so reading it no longer doubles the memory a long run holds (#1849)
   - With pandas copy-on-write (always on from pandas 3) `.df` behaves as before: the returned frame acts as an independent copy.

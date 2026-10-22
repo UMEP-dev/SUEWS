@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from ._env import logger_supy
+from ._misc import infer_freq_offset
 from .data_model.output import OUTPUT_REGISTRY
 
 
@@ -169,7 +170,8 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 def _index_freq_matches(df_output, freq):
     """Return True when ``df_output`` is already at the target frequency ``freq``.
 
-    Uses :func:`pandas.infer_freq`, which returns ``None`` for an irregular or
+    Uses :func:`pandas.infer_freq` (through :func:`infer_freq_offset`), which
+    returns ``None`` for an irregular or
     ambiguous index; such an index therefore never matches and always falls
     through to a real resample (avoiding the false positives a median-of-diffs
     reconstruction could produce). ``freq`` may be a pandas offset alias
@@ -213,15 +215,15 @@ def _index_freq_matches(df_output, freq):
         # timezone-aware indexes on the full check because a valid calendar
         # cadence can span a 23- or 25-hour daylight-saving transition.
         return False
-    inferred = pd.infer_freq(idx_dt)
+    inferred = infer_freq_offset(idx_dt)
     if inferred is None:
         return False
     try:
-        return pd.Timedelta(to_offset(inferred)) == target_delta
+        return pd.Timedelta(inferred) == target_delta
     except ValueError:
         # Non-fixed frequencies (e.g. month-end) cannot become a Timedelta;
         # compare the offsets directly instead.
-        return to_offset(inferred) == target_offset
+        return inferred == target_offset
 
 
 def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=None):

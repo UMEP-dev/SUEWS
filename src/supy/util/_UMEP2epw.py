@@ -200,7 +200,7 @@ def convert_UMEPf2epw(
     from ._missing import to_nan
 
     df_data = to_nan(df_data)
-    df_data.dropna(axis=1, inplace=True)
+    df_data = df_data.dropna(axis=1)
 
     # (4) Match units with SUEWS (kPa > hPa)
     # NOTE: This value is not used by supy.util.gen_epw and units used for atmos. pressure in epw is Pa.

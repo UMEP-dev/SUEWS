@@ -60,6 +60,11 @@ EXAMPLES:
   - `save()` no longer copies the run output to drop unrequested groups, split off DailyState or select each grid; it takes one group at a time as a view of the held output and copies only one group-year to write it.
   - Text files are formatted and written a block of rows at a time instead of turning the whole group-year into Python strings first.
   - Saved files are byte-identical to before.
+- [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
+  - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
+  - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.
+  - Output timestamps are built from year and day of year by date arithmetic rather than by parsing integers with a format, keeping the resolution pandas used before (nanoseconds on pandas 2, microseconds on pandas 3); initial-condition columns are added under full MultiIndex keys.
+  - No change in results: the full test suite passes on pandas 2.3 (Python 3.12) and pandas 3.1 (Python 3.14).
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.

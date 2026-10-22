@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from supy import _save  # noqa: PLC2701
-from supy._save import _write_df_txt, save_df_grid_group  # noqa: PLC2701
+from supy import _save  # ruff: ignore[import-private-name]
+from supy._save import _write_df_txt, save_df_grid_group  # ruff: ignore[import-private-name]
 
 pytestmark = pytest.mark.api
 

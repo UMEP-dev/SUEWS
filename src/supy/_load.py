@@ -1,4 +1,5 @@
 import functools
+import json
 from datetime import timedelta
 from pathlib import Path
 from typing import Optional
@@ -78,19 +79,11 @@ dict_libVar2File = {
 # this is described in SUEWS online manual:
 # https://docs.suews.io/stable/inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html
 path_code2file = trv_supy_module.joinpath("code2file.json")
-dict_Code2File = pd.read_json(
-    path_code2file,
-    typ="series",
-    convert_dates=False,
-).to_dict()
+dict_Code2File = json.loads(path_code2file.read_text(encoding="utf-8"))
 
 # variable translation as done in Fortran-SUEWS
 path_var2siteselect = trv_supy_module.joinpath("var2siteselect.json")
-dict_var2SiteSelect = pd.read_json(
-    path_var2siteselect,
-    typ="series",
-    convert_dates=False,
-).to_dict()
+dict_var2SiteSelect = json.loads(path_var2siteselect.read_text(encoding="utf-8"))
 
 # expand dict_Code2File for retrieving surface characteristics
 dict_varSiteSelect2File = {

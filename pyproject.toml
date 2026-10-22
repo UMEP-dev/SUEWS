@@ -134,7 +134,11 @@ docs = [
     # Documentation - Essential only (based on conf.py usage)
     "sphinx>=7,<9",
     "sphinx-autobuild",
-    "sphinx-book-theme",        # Active theme in conf.py
+    # Active theme in conf.py. Pinned exactly: it pins pydata-sphinx-theme
+    # (==0.20.0 for 1.4.0), and a theme bump can change the header and sidebar
+    # markup the mobile toggles rely on, so upgrade deliberately and recheck
+    # the sidebars at phone width (see navbar_persistent in conf.py).
+    "sphinx-book-theme==1.4.0",
     "pybtex",                   # Bibliography processing
     "sphinxcontrib-bibtex>=2.6,<3", # Bibliography support (heavily customised)
     # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)

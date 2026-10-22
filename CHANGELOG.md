@@ -61,8 +61,14 @@ EXAMPLES:
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.
   - Descriptions now share one style: sentence case, spelt-out shortwave and longwave in SPARTACUS, "for <surface> surface" in the debug and EHC groups, one term per quantity (net all-wave radiation, surface wetness state, soil water store), and mangled snow surface names (`evetr`, `dectr`, `bsoil`) replaced.
   - Six descriptions were wrong and are corrected: `HDD3_Tmean` is the daily mean air temperature and `HDD4_T5d` its 5-day running mean, not degree days; `HDD1_h` and `HDD2_c` state what the daily value is; `UStar_heat` is implied by the heat resistance only under MOST; debug `vsmd` is the soil moisture deficit of the vegetated surfaces and `dsp` the deficit threshold of the soil-moisture conductance function.
+  - The DailyState temperature columns say which air temperature they use (the forcing value, or `T2` or `T_10` under `roughness_sublayer_level` basic or detailed), and the snow-albedo columns say how the albedo evolves.
   - `QHinit` is marked deprecated: it always equals `QH` at output and will be removed in a future release.
   - No variable name, unit, group, aggregation or column layout changes, so `1.1.3` is proposed as a PATCH.
+- [bugfix] Long runs need about half the memory while the model runs: the kernel now writes its output straight into the table SuPy returns, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 4.1 GB instead of 7.5 GB during the run (#1849)
+  - The Fortran kernel, the Rust bridge and pandas used to hold two full-width copies of the output at once (a Fortran block copied into a Rust buffer, that buffer copied into Python bytes, then the data columns gathered into a new array); one buffer, allocated by SuPy, now serves all three.
+  - Each output group's repeated 5-column datetime prefix is written once per row to a separate small array instead of into the table.
+  - Output values, columns and saved files are unchanged. The bridge's older `run_suews*` functions keep their flat-block return for existing callers.
+  - In that flat block, which the standalone bridge CLI writes, the NHood group's five datetime columns now carry the run's timestamp like every other group instead of -999; its data column is still -999.
 
 ### 21 Oct 2026
 

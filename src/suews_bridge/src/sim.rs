@@ -59,6 +59,14 @@ pub const OUTPUT_ALL_COLS: usize = OUTPUT_SUEWS_COLS
     + OUTPUT_STEBBS_COLS
     + OUTPUT_NHOOD_COLS;
 
+/// Datetime columns that prefix every output group in the legacy flat layout.
+pub const OUTPUT_DATETIME_COLS: usize = 5;
+
+/// Data columns across all output groups, excluding the per-group datetime
+/// prefixes: the column count of the table SuPy builds (gh#1849).
+pub const OUTPUT_DATA_COLS: usize =
+    OUTPUT_ALL_COLS - OUTPUT_DATETIME_COLS * OUTPUT_GROUP_LAYOUT.len();
+
 /// Ordered list of (group_name, column_count) for all output groups.
 /// Order matches the Fortran concatenation layout.
 pub const OUTPUT_GROUP_LAYOUT: &[(&str, usize)] = &[
@@ -177,6 +185,26 @@ pub struct SimulationOutput {
     pub timer: SuewsTimer,
     pub state: SuewsState,
     pub output_block: Vec<f64>,
+    pub warnings: KernelWarnings,
+}
+
+/// Caller-owned destination the kernel writes its output into (gh#1849).
+///
+/// Both slices are column-major, i.e. column `c` of row `r` lives at
+/// `c * len_sim + r`, so a caller can lend the memory of a Fortran-ordered
+/// array and use it as the final output table without a copy.
+pub struct OutputBuffers<'a> {
+    /// Data columns of all output groups, shape `(len_sim, OUTPUT_DATA_COLS)`.
+    pub data: &'a mut [f64],
+    /// Datetime prefix shared by the groups, shape `(len_sim, OUTPUT_DATETIME_COLS)`.
+    pub datetime: &'a mut [f64],
+}
+
+/// Everything a run returns apart from the output written to [`OutputBuffers`].
+#[derive(Debug, Clone)]
+pub struct SimulationResult {
+    pub timer: SuewsTimer,
+    pub state: SuewsState,
     pub warnings: KernelWarnings,
 }
 
@@ -722,6 +750,36 @@ pub fn run_from_config_str_and_forcing(
     forcing_block: Vec<f64>,
     len_sim: usize,
 ) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize, KernelWarnings), BridgeError> {
+    let sim_out = run_simulation(prepare_fresh_input(config_yaml, forcing_block, len_sim)?)?;
+    Ok((
+        sim_out.output_block,
+        sim_out.state,
+        sim_out.timer,
+        len_sim,
+        sim_out.warnings,
+    ))
+}
+
+/// Like [`run_from_config_str_and_forcing`] but writes the output into
+/// caller-owned buffers instead of returning the legacy flat block.
+pub fn run_from_config_str_and_forcing_into(
+    config_yaml: &str,
+    forcing_block: Vec<f64>,
+    len_sim: usize,
+    out: OutputBuffers<'_>,
+) -> Result<SimulationResult, BridgeError> {
+    run_simulation_into(
+        prepare_fresh_input(config_yaml, forcing_block, len_sim)?,
+        out,
+    )
+}
+
+/// Build the simulation input for a fresh run from YAML config and forcing.
+fn prepare_fresh_input(
+    config_yaml: &str,
+    forcing_block: Vec<f64>,
+    len_sim: usize,
+) -> Result<SimulationInput, BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -807,7 +865,7 @@ pub fn run_from_config_str_and_forcing(
     }
     run_cfg.state.ohm_state.ws_rav = 2.0;
 
-    let sim_out = run_simulation(SimulationInput {
+    Ok(SimulationInput {
         timer: run_cfg.timer,
         config: run_cfg.config,
         site: run_cfg.site,
@@ -817,15 +875,7 @@ pub fn run_from_config_str_and_forcing(
         len_sim,
         nlayer: run_cfg.nlayer,
         ndepth: run_cfg.ndepth,
-    })?;
-
-    Ok((
-        sim_out.output_block,
-        sim_out.state,
-        sim_out.timer,
-        len_sim,
-        sim_out.warnings,
-    ))
+    })
 }
 
 /// Like [`run_from_config_str_and_forcing`] but replaces the config-derived
@@ -836,6 +886,43 @@ pub fn run_from_config_str_and_forcing_with_state(
     len_sim: usize,
     state_json: &str,
 ) -> Result<(Vec<f64>, SuewsState, SuewsTimer, usize, KernelWarnings), BridgeError> {
+    let sim_out = run_simulation(prepare_checkpoint_input(
+        config_yaml,
+        forcing_block,
+        len_sim,
+        state_json,
+    )?)?;
+    Ok((
+        sim_out.output_block,
+        sim_out.state,
+        sim_out.timer,
+        len_sim,
+        sim_out.warnings,
+    ))
+}
+
+/// Like [`run_from_config_str_and_forcing_with_state`] but writes the output
+/// into caller-owned buffers instead of returning the legacy flat block.
+pub fn run_from_config_str_and_forcing_with_state_into(
+    config_yaml: &str,
+    forcing_block: Vec<f64>,
+    len_sim: usize,
+    state_json: &str,
+    out: OutputBuffers<'_>,
+) -> Result<SimulationResult, BridgeError> {
+    run_simulation_into(
+        prepare_checkpoint_input(config_yaml, forcing_block, len_sim, state_json)?,
+        out,
+    )
+}
+
+/// Build the simulation input for a run continuing from a checkpoint.
+fn prepare_checkpoint_input(
+    config_yaml: &str,
+    forcing_block: Vec<f64>,
+    len_sim: usize,
+    state_json: &str,
+) -> Result<SimulationInput, BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -921,7 +1008,7 @@ pub fn run_from_config_str_and_forcing_with_state(
     // NOTE: Do NOT override temp_surf_dyohm / tsfc_surf_dyohm / ws_rav
     // here — the injected state already carries correct evolved values.
 
-    let sim_out = run_simulation(SimulationInput {
+    Ok(SimulationInput {
         timer: run_cfg.timer,
         config: run_cfg.config,
         site: run_cfg.site,
@@ -931,18 +1018,66 @@ pub fn run_from_config_str_and_forcing_with_state(
         len_sim,
         nlayer: run_cfg.nlayer,
         ndepth: run_cfg.ndepth,
-    })?;
-
-    Ok((
-        sim_out.output_block,
-        sim_out.state,
-        sim_out.timer,
-        len_sim,
-        sim_out.warnings,
-    ))
+    })
 }
 
+/// Run the kernel and return its output as the legacy row-major flat block:
+/// `len_sim` rows of `OUTPUT_ALL_COLS`, each group with its datetime prefix.
 pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, BridgeError> {
+    let len_sim = input.len_sim;
+    let data_len = output_len(len_sim, OUTPUT_DATA_COLS)?;
+    let datetime_len = output_len(len_sim, OUTPUT_DATETIME_COLS)?;
+    let mut data = vec![0.0_f64; data_len];
+    let mut datetime = vec![0.0_f64; datetime_len];
+    let result = run_simulation_into(
+        input,
+        OutputBuffers {
+            data: &mut data,
+            datetime: &mut datetime,
+        },
+    )?;
+    Ok(SimulationOutput {
+        timer: result.timer,
+        state: result.state,
+        output_block: interleave_output_block(&data, &datetime, len_sim),
+        warnings: result.warnings,
+    })
+}
+
+fn output_len(len_sim: usize, ncols: usize) -> Result<usize, BridgeError> {
+    len_sim
+        .checked_mul(ncols)
+        .ok_or_else(|| simulation_error("output block length overflow"))
+}
+
+/// Rebuild the legacy row-major layout from column-major data and datetime
+/// buffers, repeating the datetime prefix in front of every group.
+///
+/// The kernel never fills the NHood output line, so that group's prefix,
+/// -999 when the kernel wrote the full layout itself, now carries the shared
+/// timestamp like every other group; its data column is still -999.
+fn interleave_output_block(data: &[f64], datetime: &[f64], len_sim: usize) -> Vec<f64> {
+    let mut block = Vec::with_capacity(len_sim * OUTPUT_ALL_COLS);
+    for row in 0..len_sim {
+        let mut data_col = 0;
+        for &(_, ncols) in OUTPUT_GROUP_LAYOUT {
+            for col in 0..OUTPUT_DATETIME_COLS {
+                block.push(datetime[col * len_sim + row]);
+            }
+            for _ in OUTPUT_DATETIME_COLS..ncols {
+                block.push(data[data_col * len_sim + row]);
+                data_col += 1;
+            }
+        }
+    }
+    block
+}
+
+/// Run the kernel, writing its output straight into the caller's buffers.
+pub fn run_simulation_into(
+    input: SimulationInput,
+    out: OutputBuffers<'_>,
+) -> Result<SimulationResult, BridgeError> {
     if input.len_sim == 0 {
         return Err(BridgeError::SimulationError {
             code: -1,
@@ -994,15 +1129,17 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
 
     let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
     let mut state_out = vec![0.0_f64; state_members.flat.len()];
-    let output_len =
-        input
-            .len_sim
-            .checked_mul(OUTPUT_ALL_COLS)
-            .ok_or_else(|| BridgeError::SimulationError {
-                code: -1,
-                message: "output block length overflow".to_string(),
-            })?;
-    let mut output_block = vec![0.0_f64; output_len];
+    let data_len = output_len(input.len_sim, OUTPUT_DATA_COLS)?;
+    let datetime_len = output_len(input.len_sim, OUTPUT_DATETIME_COLS)?;
+    if out.data.len() != data_len || out.datetime.len() != datetime_len {
+        return Err(simulation_error(format!(
+            "output buffer length mismatch: got data {} and datetime {}, expected {} and {}",
+            out.data.len(),
+            out.datetime.len(),
+            data_len,
+            datetime_len
+        )));
+    }
 
     let mut sim_err_code = 0_i32;
     let mut sim_err_message = vec![0 as c_char; 1024];
@@ -1024,7 +1161,8 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
     let len_sim_i32 = i32_len(input.len_sim, "len_sim")?;
     let forcing_cols_i32 = i32_len(MET_FORCING_COLS, "forcing column count")?;
     let state_out_len_i32 = i32_len(state_out.len(), "state output length")?;
-    let output_len_i32 = i32_len(output_block.len(), "output length")?;
+    let output_len_i32 = i32_len(out.data.len(), "output length")?;
+    let datetime_len_i32 = i32_len(out.datetime.len(), "datetime output length")?;
     let sim_err_message_len_i32 = i32_len(sim_err_message.len(), "error message length")?;
     let warn_max_i32 = i32_len(KERNEL_WARNING_MAX, "warning record count")?;
     let warn_text_len_i32 = i32_len(KERNEL_WARNING_TEXT_LEN, "warning text length")?;
@@ -1056,8 +1194,10 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
             timer_len_i32,
             state_out.as_mut_ptr(),
             state_out_len_i32,
-            output_block.as_mut_ptr(),
+            out.data.as_mut_ptr(),
             output_len_i32,
+            out.datetime.as_mut_ptr(),
+            datetime_len_i32,
             &mut sim_err_code as *mut i32,
             sim_err_message.as_mut_ptr(),
             sim_err_message_len_i32,
@@ -1103,10 +1243,9 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         KERNEL_WARNING_TEXT_LEN,
     );
 
-    Ok(SimulationOutput {
+    Ok(SimulationResult {
         timer,
         state,
-        output_block,
         warnings,
     })
 }

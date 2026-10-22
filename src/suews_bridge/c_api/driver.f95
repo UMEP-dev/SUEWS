@@ -127,6 +127,7 @@ subroutine suews_cal_multitsteps_c( &
    timer_out, timer_out_len, &
    state_out_flat, state_out_len, &
    output_flat, output_len, &
+   datetime_flat, datetime_len, &
    sim_err_code, sim_err_message, sim_err_message_len, &
    warn_total, warn_stored, warn_max, warn_timer, warn_text, warn_text_len, &
    err) bind(C, name='suews_cal_multitsteps_c')
@@ -162,8 +163,14 @@ subroutine suews_cal_multitsteps_c( &
    integer(c_int), value, intent(in) :: timer_out_len
    real(c_double), intent(out) :: state_out_flat(*)
    integer(c_int), value, intent(in) :: state_out_len
+   ! Output (gh#1849): output_flat receives the data columns of every output
+   ! group with no datetime prefixes, column-major (len_sim, ncols_data), and
+   ! datetime_flat the shared (len_sim, 5) datetime prefix. The kernel writes
+   ! into both directly, so the caller's buffers are the only full-size copy.
    real(c_double), intent(out) :: output_flat(*)
    integer(c_int), value, intent(in) :: output_len
+   real(c_double), intent(out) :: datetime_flat(*)
+   integer(c_int), value, intent(in) :: datetime_len
 
    integer(c_int), intent(out) :: sim_err_code
    character(c_char), intent(out) :: sim_err_message(*)
@@ -188,7 +195,6 @@ subroutine suews_cal_multitsteps_c( &
    type(SUEWS_STATE) :: state_local
 
    real(c_double), dimension(:, :), allocatable :: metforcing_block
-   real(c_double), dimension(:, :), allocatable :: dataout_block
 
    integer :: len_sim_i
    integer :: forcing_cols_i
@@ -197,7 +203,11 @@ subroutine suews_cal_multitsteps_c( &
    integer :: ir
    integer :: ic
    integer :: idx
-   integer :: ncols_all
+   integer :: ncols_data
+   ! 11 output groups, each with a 5-column datetime prefix that the kernel
+   ! writes once per row to datetime_flat rather than into output_flat.
+   integer, parameter :: n_output_groups = 11
+   integer, parameter :: n_datetime_cols = 5
    integer(c_int) :: local_err
 
    sim_err_code = 0_c_int
@@ -264,11 +274,11 @@ subroutine suews_cal_multitsteps_c( &
       return
    end if
 
-   ncols_all = ncolumnsDataOutSUEWS + ncolumnsDataOutSnow + ncolumnsDataOutBEERS &
+   ncols_data = ncolumnsDataOutSUEWS + ncolumnsDataOutSnow + ncolumnsDataOutBEERS &
       + ncolumnsDataOutESTM + ncolumnsDataOutEHC + ncolumnsDataOutDailyState &
       + ncolumnsDataOutRSL + ncolumnsDataOutDebug + ncolumnsDataOutSPARTACUS &
-      + ncolumnsDataOutSTEBBS + ncolumnsDataOutNHood
-   if (output_len<len_sim * ncols_all) then
+      + ncolumnsDataOutSTEBBS + ncolumnsDataOutNHood - n_datetime_cols * n_output_groups
+   if (output_len<len_sim * ncols_data .or. datetime_len<len_sim * n_datetime_cols) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
@@ -286,7 +296,6 @@ subroutine suews_cal_multitsteps_c( &
    end if
 
    allocate (metforcing_block(len_sim_i, forcing_cols_i), source=0.0d0)
-   allocate (dataout_block(len_sim_i, ncols_all), source=0.0d0)
 
    idx = 1
    do ir = 1, len_sim_i
@@ -318,21 +327,13 @@ subroutine suews_cal_multitsteps_c( &
    call SUEWS_cal_multitsteps_dts( &
       timer_local, metforcing_block, len_sim_i, &
       config_local, site_local, &
-      state_local, dataout_block, ncols_all)
+      state_local, output_flat, ncols_data, datetime_flat)
 
    call pack_timer(timer_local, timer_out, timer_out_len, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
       err = local_err
       return
    end if
-
-   idx = 1
-   do ir = 1, len_sim_i
-      do ic = 1, ncols_all
-         output_flat(idx) = dataout_block(ir, ic)
-         idx = idx + 1
-      end do
-   end do
 
    if (state_local%errorState%flag) then
       sim_err_code = int(state_local%errorState%code, c_int)

@@ -290,8 +290,12 @@ DAILYSTATE_VARIABLES = [
     # LUMPS LAI
     OutputVariable(
         name="LAIlumps",
-        unit="m2 m-2",
-        description="Leaf area index (LUMPS calculation)",
+        unit="-",
+        description=(
+            "Vegetation phenology factor for LUMPS (0 to 1): the "
+            "surface-weighted leaf area index of the vegetated surfaces over their "
+            "surface-weighted maximum leaf area index"
+        ),
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,

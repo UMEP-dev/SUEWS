@@ -40,7 +40,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="DiffuseRad",
         unit="W m-2",
-        description="Diffuse shortwave radiation",
+        description="Diffuse shortwave radiation on a horizontal surface",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -48,7 +48,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="DirectRad",
         unit="W m-2",
-        description="Direct shortwave radiation",
+        description="Direct-beam shortwave radiation on a surface normal to the sun; can exceed GlobalRad at low sun",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,

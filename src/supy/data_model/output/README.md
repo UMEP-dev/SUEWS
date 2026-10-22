@@ -39,7 +39,10 @@ leaving every name, group, aggregation and layout unchanged. Output contract
 truncated-looking `flag_RSL` text, and corrects six that disagreed with the
 kernel (`HDD1_h` to `HDD4_T5d`, `UStar_heat`, debug `vsmd` and `dsp`). Output
 contract `1.1.4` describes the debug `x_exp` column as `G_sm*(vsmd - dsp)`, the
-expression the kernel now writes after a sign error in `S2` was corrected. A group is covered when that group is
+expression the kernel now writes after a sign error in `S2` was corrected.
+Output contract `1.1.5` describes the BEERS `DirectRad` (direct beam normal to
+the sun) and `DiffuseRad` (diffuse on the horizontal) columns as the kernel now
+writes them, after their values were found swapped. A group is covered when that group is
 present; the contract does not promise that every optional group is emitted by
 every run.
 

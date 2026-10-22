@@ -23,7 +23,7 @@ Current status
 --------------
 
 The forcing contract is published at ``1.2.0`` and the output contract at
-``1.1.4``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
+``1.1.5``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
 requiredness to reflect its physics-dependent use. Output ``1.1.0`` adds
 configurable saved-output timestamp references while retaining the forcing
@@ -34,7 +34,9 @@ and layout unchanged; ``1.1.2`` corrects further descriptions, and the units of
 group, aggregation and layout unchanged; ``1.1.3`` rewords descriptions for
 clarity and consistency and corrects six that disagreed with the kernel;
 ``1.1.4`` describes the debug ``x_exp`` column as ``G_sm*(vsmd - dsp)``, the
-expression the kernel now writes. Each forcing release is stored as an immutable canonical
+expression the kernel now writes; ``1.1.5`` describes the BEERS ``DirectRad``
+and ``DiffuseRad`` columns as the kernel now writes them, after their values
+were found swapped. Each forcing release is stored as an immutable canonical
 registry projection under ``src/supy/data_model/forcing/artefacts/``. The
 output contract's immutable bundles are stored under
 ``src/supy/data_model/output/artefacts/`` after the registry projection and

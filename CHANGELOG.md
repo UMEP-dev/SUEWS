@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.5` carries the clarified descriptions (#1866)
 - [bugfix] The debug column `x_exp` is now `G_sm*(vsmd - dsp)`, the argument of the soil-moisture conductance exponential; `S2` entered with the wrong sign. Output contract `1.1.4` carries the corrected description (#1877)
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.

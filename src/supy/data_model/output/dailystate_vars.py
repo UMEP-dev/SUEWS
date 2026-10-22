@@ -17,7 +17,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="HDD1_h",
         unit="degC",
-        description="Heating degree days (accumulation during calculation)",
+        description="Heating degree days: daily mean of the amount by which air temperature falls below the heating base temperature; air temperature is the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -25,7 +25,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="HDD2_c",
         unit="degC",
-        description="Cooling degree days",
+        description="Cooling degree days: daily mean of the amount by which air temperature exceeds the cooling base temperature; air temperature is the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -33,7 +33,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="HDD3_Tmean",
         unit="degC",
-        description="Heating degree days based on mean temperature",
+        description="Daily mean air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -41,7 +41,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="HDD4_T5d",
         unit="degC",
-        description="Heating degree days based on 5-day running mean temperature",
+        description="5-day running mean of the daily mean air temperature in HDD3_Tmean (fewer days at the start of a run)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -50,7 +50,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="P_day",
         unit="mm",
-        description="Daily precipitation",
+        description="Daily total precipitation",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -67,7 +67,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="GDD_EveTr",
         unit="degC",
-        description="Growing degree days for evergreen trees",
+        description="Growing degree days for evergreen trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -75,7 +75,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="GDD_DecTr",
         unit="degC",
-        description="Growing degree days for deciduous trees",
+        description="Growing degree days for deciduous trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -83,7 +83,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="GDD_Grass",
         unit="degC",
-        description="Growing degree days for grass",
+        description="Growing degree days for grass, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -92,7 +92,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="SDD_EveTr",
         unit="degC",
-        description="Senescence degree days for evergreen trees",
+        description="Senescence degree days for evergreen trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -100,7 +100,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="SDD_DecTr",
         unit="degC",
-        description="Senescence degree days for deciduous trees",
+        description="Senescence degree days for deciduous trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -108,7 +108,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="SDD_Grass",
         unit="degC",
-        description="Senescence degree days for grass",
+        description="Senescence degree days for grass, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -117,7 +117,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="Tmin",
         unit="degC",
-        description="Daily minimum temperature",
+        description="Daily minimum air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -125,7 +125,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="Tmax",
         unit="degC",
-        description="Daily maximum temperature",
+        description="Daily maximum air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -134,7 +134,7 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="DLHrs",
         unit="hours",
-        description="Daylight hours",
+        description="Day length: hours with incoming shortwave radiation above 10 W m-2",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -300,7 +300,13 @@ DAILYSTATE_VARIABLES = [
     OutputVariable(
         name="AlbSnow",
         unit="-",
-        description="Snow albedo",
+        description=(
+            "Albedo of the snowpack, one value shared by all snow-covered "
+            "surfaces: it decreases as the snow ages (linearly below 0 degC, "
+            "towards the minimum snow albedo at or above 0 degC), returns to "
+            "the maximum after enough fresh snowfall, and is 0 when no "
+            "surface has snow"
+        ),
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,

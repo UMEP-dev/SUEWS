@@ -12,6 +12,7 @@ from .._load import (
     resample_forcing_met,
     set_index_dt,
 )
+from ..data_model.forcing import FORCING_REGISTRY
 from ._missing import from_nan
 
 # Surface air pressure is never below ~300 hPa (that altitude is well into
@@ -19,8 +20,16 @@ from ._missing import from_nan
 # pressure falls below this almost certainly carries kPa values that were
 # never converted to the hPa the model expects -- the conversion that file
 # loading applies but direct DataFrame assignment historically bypassed
-# (gh#1537).
+# (gh#1537). The floor sits between the registry's file-unit range (68 to
+# 130 kPa) and its in-memory range (680 to 1300 hPa), so it separates the two
+# units without overlapping either; the units and the factor come from the
+# registry (gh#1547).
 _PRESSURE_HPA_FLOOR = 300.0
+_PRESSURE = next(
+    variable
+    for variable in FORCING_REGISTRY.runtime_scaled_variables
+    if variable.name == "pres"
+)
 
 
 def read_suews(path_suews_file: str) -> pd.DataFrame:
@@ -70,7 +79,8 @@ def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error") -> pd
     Returns
     -------
     pd.DataFrame
-        datetime-aware DataFrame
+        datetime-aware DataFrame in the in-memory units: pressure (``pres``)
+        is held in kPa in a forcing file and returned in hPa.
 
     See Also
     --------
@@ -192,11 +202,15 @@ def prepare_dataframe_forcing(
     ser_pres = df_forcing["pres"]
     ser_pres_valid = ser_pres[ser_pres > FORCING_OPTIONAL_FILL / 2]
     if ser_pres_valid.size and ser_pres_valid.median() < _PRESSURE_HPA_FLOOR:
+        file_unit, memory_unit = _PRESSURE.unit, _PRESSURE.runtime_unit
         raise ValueError(
-            "DataFrame forcing pressure (`pres`) looks like kPa, not hPa "
-            f"(median {ser_pres_valid.median():.1f}). SUEWS expects surface "
-            "pressure in hPa; multiply by 10 if your data are in kPa, or use "
-            "supy.util.read_forcing, which applies the conversion."
+            f"DataFrame forcing pressure (`pres`) looks like {file_unit}, not "
+            f"{memory_unit} (median {ser_pres_valid.median():.1f}). A forcing "
+            f"file holds pressure in {file_unit}, but an in-memory DataFrame "
+            f"must hold it in {memory_unit}, as supy.util.read_forcing and "
+            f"SUEWSSimulation.forcing return it; multiply by "
+            f"{_PRESSURE.runtime_scale:g} if your data are in {file_unit}, or "
+            "load the file with supy.util.read_forcing, which converts it."
         )
 
     df_forcing = resample_forcing_df(df_forcing.copy(), tstep_mod=tstep_mod)

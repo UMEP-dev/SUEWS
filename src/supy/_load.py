@@ -1189,7 +1189,12 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
 
     # 6) Existing post-processing.
     _validate_wuh_values(df_canonical)
-    df_canonical["pres"] *= 10  # kPa -> hPa
+    # File units -> in-memory units (pressure: kPa -> hPa), as declared by the
+    # forcing registry rather than repeated here (gh#1547).
+    for variable in FORCING_REGISTRY.runtime_scaled_variables:
+        df_canonical[variable.name] = variable.to_runtime_unit(
+            df_canonical[variable.name]
+        )
     df_canonical["isec"] = 0
     complete_dt_columns = list(BASELINE_DATETIME_FORCING_COLUMNS) + ["isec"]
     _validate_integer_timestamp_columns(df_canonical, complete_dt_columns)

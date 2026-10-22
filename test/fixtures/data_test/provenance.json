@@ -1,11 +1,6 @@
 {
   "build": {
     "compilers": {
-      "c": {
-        "full_version": "cc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
-        "id": "gcc",
-        "version": "10.2.1"
-      },
       "fortran": {
         "full_version": "GNU Fortran (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
         "id": "gcc",
@@ -20,8 +15,9 @@
   "columns": 113,
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-10-22T12:39:43Z",
+  "generated_utc": "2026-10-22T12:57:57Z",
   "platform": {
+    "libc": "glibc 2.17",
     "machine": "x86_64",
     "pandas": "2.3.2",
     "python": "3.12.12",

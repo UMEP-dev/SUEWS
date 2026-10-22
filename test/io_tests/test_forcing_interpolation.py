@@ -60,7 +60,7 @@ class TestForcingInterpolation:
             "rain": np.zeros(24),
             # Time columns
             "iy": time_index.year,
-            "id": time_index.dayofyear,
+            "id": time_index.day_of_year,
             "it": time_index.hour,
             "imin": time_index.minute,
             "isec": time_index.second,
@@ -131,7 +131,7 @@ class TestForcingInterpolation:
             "rain": np.zeros(12),
             # Time columns
             "iy": time_index.year,
-            "id": time_index.dayofyear,
+            "id": time_index.day_of_year,
             "it": time_index.hour,
             "imin": time_index.minute,
             "isec": time_index.second,
@@ -180,7 +180,7 @@ class TestForcingInterpolation:
                 "Wuh": np.array([-999.0, 12.0, -999.0]),
                 "wuh_paved": np.array([-999.0, 12.0, -999.0]),
                 "iy": time_index.year,
-                "id": time_index.dayofyear,
+                "id": time_index.day_of_year,
                 "it": time_index.hour,
                 "imin": time_index.minute,
                 "isec": time_index.second,
@@ -212,7 +212,7 @@ class TestForcingInterpolation:
             "Tair": np.full(6, 20.0),  # Instantaneous variable
             "rain": np.zeros(6),  # Sum variable
             "iy": time_index.year,
-            "id": time_index.dayofyear,
+            "id": time_index.day_of_year,
             "it": time_index.hour,
             "imin": time_index.minute,
             "isec": time_index.second,

@@ -38,14 +38,14 @@ MODULE SUEWS_Driver
    USE module_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
    USE module_phys_dailystate, ONLY: update_DailyStateLine, SUEWS_cal_DailyState
    USE module_phys_waterdist, ONLY: &
-      drainage, cal_water_storage_surf, &
+      drainage, cal_water_storage, cal_water_storage_surf, &
       cal_water_storage_building, &
       SUEWS_cal_SoilState, &
       SUEWS_update_SoilMoist, &
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_WaterUse
    USE module_phys_lumps, ONLY: LUMPS_cal_QHQE
-   USE module_phys_evap, ONLY: cal_evap_multi
+   USE module_phys_evap, ONLY: cal_evap, cal_evap_multi
    USE module_phys_rslprof, ONLY: RSLProfile
    USE module_phys_anthro, ONLY: AnthropogenicEmissions
    USE module_phys_biogenco2, ONLY: CO2_biogen
@@ -2862,6 +2862,12 @@ CONTAINS
       REAL(KIND(1D0)) :: surf_chang_tot !total change in state_id(excluding snowpack) for all surfaces [mm]
       REAL(KIND(1D0)) :: runoff_tot !total runoff for all surfaces [mm]
       REAL(KIND(1D0)) :: chSnow_tot !total change state_id of snow and surface [mm]
+      REAL(KIND(1D0)) :: ev_free !evaporation from a snow-free surface [mm]
+      REAL(KIND(1D0)) :: qe_free !latent heat flux from a snow-free surface [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: state_free !surface state from the snow-free water balance [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: runoff_free !runoff from the snow-free water balance [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: state_snowfree !surface state of the surfaces handled as snow-free [mm]
+      LOGICAL, DIMENSION(nsurf) :: is_snowfree !surface handled by the snow-free water balance this timestep
 
       REAL(KIND(1D0)), DIMENSION(7) :: capStore_surf ! current storage capacity [mm]
 
@@ -2952,6 +2958,8 @@ CONTAINS
             drain => hydroState%drain_surf, &
             AddWater => hydroState%add_water, &
             frac_water2runoff => hydroState%frac_water2runoff, &
+            WU_surf => hydroState%WU_surf, &
+            addWaterBody => hydroState%add_water_body, &
             state_per_tstep => hydroState%state_per_tstep, &
             ev_per_tstep => hydroState%ev_per_tstep, &
             runoff_per_tstep => hydroState%runoff_per_tstep, &
@@ -2981,6 +2989,8 @@ CONTAINS
                SoilStoreCap => [pavedPrm%soil%soil_store_capacity, bldgPrm%soil%soil_store_capacity, &
                                 evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
                                 grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
+               StateLimit_surf => [pavedPrm%state_limit, bldgPrm%state_limit, evetrPrm%state_limit, &
+                                   dectrPrm%state_limit, grassPrm%state_limit, bsoilPrm%state_limit, waterPrm%state_limit], &
                tau_r => snowPrm%tau_r, &
                CRWmin => snowPrm%water_holding_capacity_min, &
                CRWmax => snowPrm%water_holding_capacity_max, &
@@ -3074,6 +3084,8 @@ CONTAINS
                   Qm_melt, Qm_freezState, Qm_rain, FreezMelt, FreezState, FreezStateVol, &
                   rainOnSnow, SnowDepth, mw_ind)
 
+               is_snowfree = .FALSE.
+               state_snowfree = state_id_in
                DO is = 1, nsurf !For each surface in turn
                   qe_tot = 0
                   ev_tot = 0
@@ -3083,7 +3095,7 @@ CONTAINS
                   chSnow_tot = 0
                   runoffPipes = 0
                   runoffwaterbody = 0
-                  IF (sfr_surf(is) > 0) THEN
+                  IF (sfr_surf(is) > 0 .AND. (snowCalcSwitch(is) == 1 .OR. is == WaterSurf)) THEN
                      ! IF (Diagnose == 1) WRITE (*, *) 'Calling SnowCalc...'
 
                      CALL SnowCalc( &
@@ -3108,6 +3120,33 @@ CONTAINS
                         SnowRemoval, swe, &
                         runoffPipes, mwstore, runoffwaterbody)
 
+                  ELSEIF (sfr_surf(is) > 0) THEN
+                     ! A land surface with no snow, no snowfall and no freezing water takes the
+                     ! snow-free evaporation and water balance, as before the 2018 restructuring
+                     ! (#1905). SnowCalc does no hydrology when snowCalcSwitch is 0, so rain,
+                     ! drainage and evaporation on such a surface were otherwise lost.
+                     CALL cal_evap( &
+                        EvapMethod, state_id_in(is), WetThresh_surf(is), StoreDrainPrm(6, is), & !input
+                        vpd_hPa, avdens, avcp, qn_e, s_hPa, psyc_hPa, RS, RA_h, RB, tlv, &
+                        rss_surf(is), ev_free, qe_free) !output
+                     CALL cal_water_storage( &
+                        is, sfr_surf, PipeCapacity, RunoffToWater, pin, & ! input:
+                        WU_surf, &
+                        drain, AddWater, addimpervious, nsh_real, state_id_in, frac_water2runoff, &
+                        PervFraction, addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit_surf, &
+                        runoffAGimpervious, runoffAGveg, runoffPipes, ev_free, soilstore_id, & ! inout:
+                        surplusWaterBody, SurplusEvap, runoffwaterbody, & ! inout:
+                        runoff_free, state_free, & !output:
+                        modState)
+                     ! kept aside: SnowCalc, called for later surfaces on the same array,
+                     ! resets every surface's state to its value at the start of the timestep
+                     is_snowfree(is) = .TRUE.
+                     state_snowfree(is) = state_free(is)
+                     runoff_surf(is) = runoff_free(is)
+                     ev_tot = ev_free*sfr_surf(is)
+                     qe_tot = ev_free*tlv*sfr_surf(is)
+                     runoff_tot = runoff_free(is)*sfr_surf(is)
+                     surf_chang_tot = (state_free(is) - state_id_in(is))*sfr_surf(is)
                   ELSE
                      SnowFrac(is) = 0
                      SnowDens(is) = 0
@@ -3124,6 +3163,7 @@ CONTAINS
                   ev_surf(is) = ev_tot
 
                END DO
+               WHERE (is_snowfree) state_id_surf = state_snowfree
 
                qe = qe_per_tstep
 

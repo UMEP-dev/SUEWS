@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] With snow enabled, land surfaces without snow now take the snow-free evaporation and water balance again; rain, irrigation and drainage on them were lost, because `SnowCalc` does no hydrology where no snow is present or forming (#1905)
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
   - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.

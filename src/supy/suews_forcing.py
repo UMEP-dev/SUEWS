@@ -785,7 +785,7 @@ class SUEWSForcing:
         """Return the SUEWS temporal columns derived from ``index``."""
         return {
             "iy": index.year.to_numpy().astype("int64"),
-            "id": index.dayofyear.to_numpy().astype("int64"),
+            "id": index.day_of_year.to_numpy().astype("int64"),
             "it": index.hour.to_numpy().astype("int64"),
             "imin": index.minute.to_numpy().astype("int64"),
             "isec": index.second.to_numpy().astype("int64"),
@@ -1072,7 +1072,7 @@ class SUEWSForcing:
         n_rows = len(data)
         out: Dict[str, np.ndarray] = {}
         out["iy"] = idx.year.to_numpy(dtype=np.int64)
-        out["id"] = idx.dayofyear.to_numpy(dtype=np.int64)
+        out["id"] = idx.day_of_year.to_numpy(dtype=np.int64)
         out["it"] = idx.hour.to_numpy(dtype=np.int64)
         out["imin"] = idx.minute.to_numpy(dtype=np.int64)
 

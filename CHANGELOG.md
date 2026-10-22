@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] With snow enabled, the water body is now limited by its state limit, as when snow is off, instead of by the storage capacity of the drainage equation; on the first snow timestep the sample's 20000 mm water body drained to 0.5 mm and about 2800 mm (grid average) left as runoff (#1906)
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
   - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.

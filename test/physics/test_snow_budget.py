@@ -100,6 +100,7 @@ class SnowRun:
         self.snow_density_min = snow_prm.snow_density_min.value
         self.snow_density_max = snow_prm.snow_density_max.value
         land_cover = cfg.sites[0].properties.land_cover
+        self.water_state_init = cfg.sites[0].initial_states.water.state.value
         self.sfr = {
             surf: getattr(land_cover, key).sfr.value
             for surf, key in LAND_COVER_KEYS.items()
@@ -281,6 +282,23 @@ def test_water_budget_closes_over_the_snow_event(run: SnowRun):
     event = run.on_days(DAY_SNOWFALL, DAY_HOLD, *DAYS_MELT)
     assert abs(residual[event].sum()) < 0.01 * SNOWFALL_TOTAL_MM
     assert s["Rain"][event].sum() == pytest.approx(SNOWFALL_TOTAL_MM, rel=1e-9)
+
+
+@pytest.mark.core
+def test_water_body_keeps_its_depth_under_snow(run: SnowRun):
+    """The water body must keep its depth on the snow path.
+
+    Regression for gh#1906: ``SnowCalc`` capped the water-body state at the
+    storage capacity of the drainage equation (``StoreDrainPrm(5)``, 0.5 mm
+    in the sample) instead of its state limit (30000 mm), as the snow-free
+    path does. On the first snow timestep the 20000 mm water body drained to
+    0.5 mm, a ``SurfCh`` of about -2800 mm for the grid. The water body may
+    only gain the snow that falls and melts on it, and lose what evaporates.
+    """
+    st_water = run.suews["StWater"]
+    assert st_water.min() > run.water_state_init - 1.0
+    assert st_water.max() < run.water_state_init + SNOWFALL_TOTAL_MM + 1.0
+    assert run.suews["SurfCh"].abs().max() < 5.0
 
 
 # Melt law ------------------------------------------------------------------

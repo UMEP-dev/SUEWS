@@ -222,6 +222,7 @@ runs:
           SUEWS_CI_PHASES=/ci-metrics/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json
           SUEWS_CI_METRICS_DIR=/ci-metrics
           SUEWS_CI_METRICS_NAME=physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+          SUEWS_REFERENCE_LANE=${{ (inputs.python == 'cp312' && inputs.buildplat_arch == 'x86_64' && inputs.build_profile != 'checked') && '1' || '0' }}
           PATH="/cargo-cache/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
           python "{package}/scripts/suews/ci_phase_metrics.py" start toolchain_setup &&
@@ -372,6 +373,19 @@ runs:
         name: ${{ inputs.artifact_prefix }}ci-metrics-physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
         path: ${{ inputs.metrics_host_dir }}/*.json
         if-no-files-found: error
+        retention-days: 14
+
+    # The exact sample-output check (test/core/test_sample_output_exact.py)
+    # writes the regenerated reference here when the run no longer reproduces
+    # the committed shards, so an intended physics change is refreshed from the
+    # CI build itself. Nothing is written when the reference reproduces.
+    - name: Upload regenerated sample-output reference
+      if: always()
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      with:
+        name: ${{ inputs.artifact_prefix }}reference-regenerated-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+        path: ${{ inputs.metrics_host_dir }}/reference-regenerated/
+        if-no-files-found: ignore
         retention-days: 14
 
     - name: Verify wheel licence metadata

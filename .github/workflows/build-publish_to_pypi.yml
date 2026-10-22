@@ -700,12 +700,79 @@ jobs:
         shell: bash
         run: python scripts/lint/check_saved_fortran_locals.py
 
+  # A change to the stored reference outputs must declare itself as a physics
+  # change (.claude/rules/physics-change-evidence.md). The exact sample-output
+  # check (test/core/test_sample_output_exact.py) fails any PR whose run moves a
+  # stored value, so the only way to land such a change is to refresh the
+  # reference in the same PR; this job then requires the 0-physics:change
+  # label on that refresh. A physics source change without the label is only a
+  # warning: a bit-identical refactor legitimately carries no label, and one
+  # that moves the output is already caught by the exact check.
+  #
+  # Labels are read from the API, not from the event payload: a re-run reuses
+  # the original payload, so labelling the PR and re-running this job would
+  # otherwise still see the old labels. The PR number of a merge-queue entry
+  # comes from its queue ref, as in determine_matrix.
+  check_physics_label:
+    name: Physics-change label
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    steps:
+      - name: Check reference and physics changes against the label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          LABEL: '0-physics:change'
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            pr_num="$PR_NUMBER"
+            files="$(gh api --paginate "repos/${REPO}/pulls/${pr_num}/files" --jq '.[].filename')"
+          else
+            pr_num="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
+            files="$(gh api "repos/${REPO}/compare/${MERGE_BASE_SHA}...${MERGE_HEAD_SHA}" --jq '.files[].filename')"
+          fi
+
+          found=false
+          if [[ "$pr_num" =~ ^[0-9]+$ ]]; then
+            if gh api "repos/${REPO}/issues/${pr_num}/labels" --jq '[.[].name]' \
+                 | jq -e --arg l "$LABEL" 'any(.[]; . == $l)' >/dev/null; then
+              found=true
+            fi
+          else
+            echo "::notice::merge_group PR number not parsed from queue ref; label check passed as a safe default"
+            found=true
+          fi
+          echo "${LABEL} present: ${found}"
+
+          reference="$(printf '%s\n' "$files" | grep -E '^test/fixtures/(data_test/(sample_output_2012-[0-9]{2}\.csv|provenance\.json|stebbs_test/.+)|benchmark1/.+|w16_most\.csv)$' || true)"
+          physics="$(printf '%s\n' "$files" | grep -E '^src/suews/src/suews_phys_[^/]+\.f9[05]$' || true)"
+
+          status=0
+          if [[ -n "$reference" && "$found" != "true" ]]; then
+            echo "::error::This PR changes stored reference outputs but is not labelled ${LABEL}. Add the label, the Scientific evidence section (.claude/rules/physics-change-evidence.md), then re-run this job."
+            printf '  %s\n' $reference
+            status=1
+          fi
+          if [[ -n "$physics" && "$found" != "true" ]]; then
+            echo "::warning::This PR touches physics source without ${LABEL}. Fine for a bit-identical refactor (the exact sample-output check confirms it); otherwise label it and refresh the reference."
+            printf '  %s\n' $physics
+          fi
+          [[ "$found" == "true" && ( -n "$reference" || -n "$physics" ) ]] && echo "[OK] Reference and physics changes carry the label"
+          [[ -z "$reference" && -z "$physics" ]] && echo "[OK] No reference outputs or physics source changed"
+          exit $status
+
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:
     name: PR build validation
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, build_mcp, check_test_markers, detect-changes]
+    needs: [build_wheels, build_mcp, check_test_markers, check_physics_label, detect-changes]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -726,6 +793,7 @@ jobs:
           BUILD_MCP_RESULT: ${{ needs.build_mcp.result }}
           TEST_BRIDGE_RESULT: ${{ needs.build_wheels.result }}
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
+          PHYSICS_LABEL_RESULT: ${{ needs.check_physics_label.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
         run: bash .github/scripts/pr-gate.sh
 

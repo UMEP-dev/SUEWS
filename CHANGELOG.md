@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [maintenance] Added an exact sample-output reference gate: on the CI build that generates the reference (cp312 manylinux x86_64), the full-year sample run must reproduce the stored shards digit for digit, and a PR that changes a stored reference without the `0-physics:change` label fails `pr-gate`; physics source changed without the label is a warning. A change such as #1848 can no longer move the output unnoticed
 - [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.

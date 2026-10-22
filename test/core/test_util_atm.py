@@ -19,6 +19,7 @@ from supy.util._atm import (
     cal_lat_vap,
     cal_qa,
     cal_rh,
+    cal_vap_sat,
     correct_wind_height,
 )
 
@@ -371,6 +372,46 @@ class TestWindHeightCorrection(TestCase):
         print(f"✓ Wind speed at 10 m: {ws_10m:.2f} m/s")
         print(f"✓ Wind speed at 50 m (urban, z0m=1.0): {ws_50m_urban:.2f} m/s")
         print(f"✓ Wind speed at 50 m (grass, z0m=0.01): {ws_50m_grass:.2f} m/s")
+
+
+class TestVapSatPressureUnit:
+    """`cal_vap_sat` must convert pressure the same way for every input shape.
+
+    One-dimensional inputs go through ``pd.Series``; 2-D inputs (a DataFrame)
+    cannot, and take the fallback branch. Both must apply the same hPa -> kPa
+    conversion, so a DataFrame column gives the same result as that column
+    passed as a Series.
+    """
+
+    TEMP_C = np.array([-20.0, -5.0, 5.0, 20.0, 35.0])
+    PRES_HPA = np.array([1013.25, 950.0, 1000.0, 870.0, 700.0])
+
+    def test_dataframe_matches_series(self):
+        """The 2-D fallback branch gives the 1-D result, column by column."""
+        expected = cal_vap_sat(pd.Series(self.TEMP_C), pd.Series(self.PRES_HPA))
+
+        df_temp = pd.DataFrame({"a": self.TEMP_C, "b": self.TEMP_C[::-1]})
+        df_pres = pd.DataFrame({"a": self.PRES_HPA, "b": self.PRES_HPA[::-1]})
+        result = cal_vap_sat(df_temp, df_pres)
+
+        assert isinstance(result, pd.DataFrame)
+        np.testing.assert_allclose(result["a"], expected, rtol=1e-12)
+        np.testing.assert_allclose(result["b"], expected[::-1], rtol=1e-12)
+
+    def test_one_dimensional_inputs_agree(self):
+        """Series, ndarray, list and scalar inputs share one conversion."""
+        expected = cal_vap_sat(pd.Series(self.TEMP_C), pd.Series(self.PRES_HPA))
+
+        np.testing.assert_allclose(
+            cal_vap_sat(self.TEMP_C, self.PRES_HPA), expected, rtol=1e-12
+        )
+        np.testing.assert_allclose(
+            cal_vap_sat(list(self.TEMP_C), list(self.PRES_HPA)), expected, rtol=1e-12
+        )
+        for temp_c, pres_hpa, es_hpa in zip(self.TEMP_C, self.PRES_HPA, expected):
+            assert cal_vap_sat(temp_c, pres_hpa).iloc[0] == pytest.approx(
+                es_hpa, rel=1e-12
+            )
 
 
 if __name__ == "__main__":

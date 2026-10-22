@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] `supy.util` saturation vapour pressure (`cal_vap_sat`, and through it the dry-air and vapour density helpers) now converts pressure from hPa to kPa for DataFrame (2-D) input as it already did for Series, array and scalar input; the 2-D fallback branch used the hPa value directly, which overstated the pressure term of the enhancement factor tenfold (about 0.3 % in the result at surface pressure)
 - [bugfix] Long runs need about half the memory while the model runs: the kernel now writes its output straight into the table SuPy returns, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 4.1 GB instead of 7.5 GB during the run (#1849)
   - The Fortran kernel, the Rust bridge and pandas used to hold two full-width copies of the output at once (a Fortran block copied into a Rust buffer, that buffer copied into Python bytes, then the data columns gathered into a new array); one buffer, allocated by SuPy, now serves all three.
   - Each output group's repeated 5-column datetime prefix is written once per row to a separate small array instead of into the table.

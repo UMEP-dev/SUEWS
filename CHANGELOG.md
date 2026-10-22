@@ -56,6 +56,11 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [change][experimental] `SUEWSOutput.df` no longer copies the whole output table on every access, so reading it no longer doubles the memory a long run holds (#1849)
+  - With pandas copy-on-write (always on from pandas 3) `.df` behaves as before: the returned frame acts as an independent copy.
+  - Behaviour change for pandas 2 users: without copy-on-write (pandas 2, the default on Linux with Python 3.12) `.df` is a read-only view of the stored table, and so is any part of it pandas hands out as a view (a single column, a row slice, `xs` on an index level). Writing into it in place now raises `ValueError` instead of working on a private copy: for example `df.loc[mask, col] = x`, `df[col] += x`, `s = df[col]; s += x` and `df.fillna(0, inplace=True)`. Use `output.df.copy()` for a writable copy. Adding, replacing or dropping whole columns, arithmetic on the whole frame such as `df += 1`, and every operation that returns a new frame work as before.
+  - Group access (`output.get_group("SUEWS")`, `output.SUEWS`) still returns an independent, writable frame on every pandas version, now selected straight from the stored table: with copy-on-write nothing is copied until the frame is written to, and without it one group-sized copy is made where there used to be up to two.
+  - Output values and saved files are unchanged.
 - [doc] Corrected output units and descriptions left from the description audit, and published output contract `1.1.6` (#1875)
   - Units: snow `Sd_*` is snow depth in m, not mm; snow `Tsnow_*` is in K, not degC, and 0 where there is no snow; DailyState `LAIlumps` is a 0-1 phenology factor (unit `-`), not a leaf area index.
   - BEERS `Tg` and `Tw` are excesses of the ground and wall surface temperature over the air temperature, not surface temperatures, and `SVF_BdVeg` currently equals `SVF_Ground`.

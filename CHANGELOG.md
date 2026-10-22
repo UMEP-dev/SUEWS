@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
-- [doc] Proofread every output-variable description and published output contract `1.1.3`
+- [doc] Proofread every output-variable description and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
   - Descriptions now share one style: sentence case (EHC, SPARTACUS and NHood started lower case), spelt-out shortwave and longwave in SPARTACUS, "for <surface> surface" in the debug and EHC groups, one term per quantity (net all-wave radiation, surface wetness state, soil water store), and mangled snow surface names (`evetr`, `dectr`, `bsoil`) replaced.
   - Bare BL labels such as "Height" and "Potential temperature" now name the boundary-layer height and mixed-layer quantities they hold.

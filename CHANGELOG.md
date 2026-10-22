@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] With snow enabled, `State`, `NWtrState`, `TotCh` and the per-surface `SMD*` columns are now updated every timestep: `State` and `NWtrState` read 0, `TotCh` and `SMD*` kept their last snow-free values, and `SMD` lagged one timestep (#1879)
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.

@@ -3152,6 +3152,22 @@ CONTAINS
                snowState%qm_rain = QmRain
                snowState%mwh = mwh
 
+               ! Grid totals of surface wetness and the soil water balance, as at the
+               ! end of SUEWS_cal_QE. Without them State and NWtrState stayed at the
+               ! zero set above and TotCh and smd_surf kept the values of the last
+               ! snow-free timestep (#1879).
+               state_per_tstep = DOT_PRODUCT(state_id_surf, sfr_surf)
+               IF (siteInfo%NonWaterFraction /= 0) THEN
+                  NWstate_per_tstep = DOT_PRODUCT(state_id_surf(1:nsurf - 1), sfr_surf(1:nsurf - 1)) &
+                                      /siteInfo%NonWaterFraction
+               END IF
+               CALL SUEWS_cal_SoilState( &
+                  config%SMDMethod, forcing%xsmd, siteInfo%NonWaterFraction, hydroState%soil_moist_cap, & !input
+                  SoilStoreCap, surf_chang_per_tstep, &
+                  soilstore_id, soilstore_id_in, sfr_surf, &
+                  hydroState%smd, hydroState%smd_surf, hydroState%tot_chang_per_tstep, hydroState%soil_state, & !output
+                  modState)
+
                dataOutLineSnow = [ &
                                  snowState%snow_pack(1:nsurf), mw_ind(1:nsurf), Qm_melt(1:nsurf), & !26
                                  Qm_rain(1:nsurf), Qm_freezState(1:nsurf), snowState%snow_fraction(1:(nsurf - 1)), & !46

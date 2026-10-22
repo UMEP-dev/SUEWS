@@ -56,6 +56,14 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [doc] Corrected output units and descriptions left from the description audit, and published output contract `1.1.6` (#1875)
+  - Units: snow `Sd_*` is snow depth in m, not mm; snow `Tsnow_*` is in K, not degC, and 0 where there is no snow; DailyState `LAIlumps` is a 0-1 phenology factor (unit `-`), not a leaf area index.
+  - BEERS `Tg` and `Tw` are excesses of the ground and wall surface temperature over the air temperature, not surface temperatures, and `SVF_BdVeg` currently equals `SVF_Ground`.
+  - `Ts` is the surface temperature diagnosed from QH and `Tsurf` the bulk surface temperature of the net radiation scheme, which removes the "skin" versus "bulk" contradiction.
+  - `AddWater` is 0 unless set in the initial state, and NHood `iter_count` is not yet written; the boundary-layer group is noted as not produced.
+  - RSL `Lc`, `beta`, `Scc`, `f` and `elm`, missing under MOST, average over the RST timesteps only when resampled; the descriptions now say so.
+  - No variable name, group, aggregation or column layout changes.
+
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
   - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.

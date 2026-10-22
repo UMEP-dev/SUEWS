@@ -57,6 +57,13 @@ EXAMPLES:
 ### 22 Oct 2026
 
 - [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)
+- [doc] Corrected output units and descriptions left from the description audit, and published output contract `1.1.6` (#1875)
+  - Units: snow `Sd_*` is snow depth in m, not mm; snow `Tsnow_*` is in K, not degC, and 0 where there is no snow; DailyState `LAIlumps` is a 0-1 phenology factor (unit `-`), not a leaf area index.
+  - BEERS `Tg` and `Tw` are excesses of the ground and wall surface temperature over the air temperature, not surface temperatures, and `SVF_BdVeg` currently equals `SVF_Ground`.
+  - `Ts` is the surface temperature diagnosed from QH and `Tsurf` the bulk surface temperature of the net radiation scheme, which removes the "skin" versus "bulk" contradiction.
+  - `AddWater` is 0 unless set in the initial state, and NHood `iter_count` is not yet written; the boundary-layer group is noted as not produced.
+  - RSL `Lc`, `beta`, `Scc`, `f` and `elm`, missing under MOST, average over the RST timesteps only when resampled; the descriptions now say so.
+  - No variable name, group, aggregation or column layout changes.
 - [maintenance] Added an exact sample-output reference gate: on the CI build that generates the reference (cp312 manylinux x86_64), the full-year sample run must reproduce the stored shards digit for digit, and a PR that changes a stored reference without the `0-physics:change` label fails `pr-gate`; physics source changed without the label is a warning. A change such as #1848 can no longer move the output unnoticed
 - [bugfix] Long runs need about 0.4 GB less memory while the model runs: SuPy now hands the forcing to the Rust bridge as a NumPy array instead of a list of Python floats, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 3.8 GB instead of 4.1 GB during the run (#1849)
   - The list boxed every forcing value (32 per timestep) as a Python float, about four times the size of the array itself; the bridge now copies the array once into the buffer the kernel reads.

@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 
+import numpy as np
 from pydantic import ValidationError
 import pytest
 
@@ -165,6 +166,33 @@ def test_registry_projects_python_forcing_metadata() -> None:
         1300.0,
         "hPa",
     )
+    assert FORCING_REGISTRY.runtime_scaled_variables == (
+        FORCING_REGISTRY.by_file_name("pres"),
+    )
+
+
+def test_runtime_unit_conversion_round_trips() -> None:
+    """File-to-memory and memory-to-file conversions are inverse (gh#1547)."""
+    pres = FORCING_REGISTRY.by_file_name("pres")
+    values = np.array([68.0, 101.325, 130.0])
+
+    np.testing.assert_allclose(
+        pres.to_file_unit(pres.to_runtime_unit(values)), values, rtol=1e-15
+    )
+    assert pres.to_runtime_unit(101.325) == pytest.approx(1013.25)
+
+
+def test_static_pressure_rule_matches_registry() -> None:
+    """The static checker-rules entry for ``pres`` repeats the registry's
+    in-memory range, so it cannot drift from it (gh#1547)."""
+    checker_path = (
+        Path(__file__).resolve().parents[2] / "src/supy/checker_rules_indiv.json"
+    )
+    checker_rule = json.loads(checker_path.read_text(encoding="utf-8"))["pres"]
+    lower, upper, unit = FORCING_REGISTRY.runtime_validation_ranges["pres"]
+
+    assert checker_rule["param"] == {"min": lower, "max": upper}
+    assert checker_rule["unit"] == unit
 
 
 def test_file_and_accessor_aliases_are_separate_namespaces() -> None:

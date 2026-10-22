@@ -108,7 +108,7 @@ def _dls_mask(
         + idx_standard.second
         + idx_standard.microsecond / 1_000_000
     )
-    decimal_doy = idx_standard.dayofyear.to_numpy(dtype=float) + seconds / 86400
+    decimal_doy = idx_standard.day_of_year.to_numpy(dtype=float) + seconds / 86400
     if startdls <= enddls:
         return (decimal_doy >= startdls) & (decimal_doy < enddls)
     return (decimal_doy >= startdls) | (decimal_doy < enddls)
@@ -288,7 +288,7 @@ def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
     # generate df_datetime for prepending
     idx_dt = df_grid_group.index
     ser_year = pd.Series(idx_dt.year, index=idx_dt, name="Year")
-    ser_DOY = pd.Series(idx_dt.dayofyear, index=idx_dt, name="DOY")
+    ser_DOY = pd.Series(idx_dt.day_of_year, index=idx_dt, name="DOY")
     ser_hour = pd.Series(idx_dt.hour, index=idx_dt, name="Hour")
     ser_min = pd.Series(idx_dt.minute, index=idx_dt, name="Min")
     df_datetime = pd.concat(

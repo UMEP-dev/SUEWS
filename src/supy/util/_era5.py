@@ -577,7 +577,7 @@ def format_df_forcing(df_forcing_raw):
 
     df_forcing_grid = df_forcing_grid.assign(
         iy=df_forcing_grid.index.year,
-        id=df_forcing_grid.index.dayofyear,
+        id=df_forcing_grid.index.day_of_year,
         it=df_forcing_grid.index.hour,
         imin=df_forcing_grid.index.minute,
     )

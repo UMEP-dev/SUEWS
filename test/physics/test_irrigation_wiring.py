@@ -202,3 +202,38 @@ class TestIrrigationConfigPropagation:
                 "changed), update the positive test alongside this baseline."
             ),
         )
+
+    @pytest.mark.core
+    def test_tree_water_use_lands_in_matching_column(self):
+        """Water applied to evergreen trees must be reported as ``WUEveTr``.
+
+        Regression for gh#1865: the output line filled ``WUDecTr`` from
+        ``wu_surf(3)`` (the evergreen surface, ``ConifSurf``) and ``WUEveTr``
+        from ``wu_surf(4)`` (the deciduous surface, ``DecidSurf``), so each
+        tree column carried the other tree type's water use. Irrigating only
+        the evergreen trees separates the two: ``WUEveTr`` must carry all
+        of the tree water use and ``WUDecTr`` none of it.
+        """
+        sim = SUEWSSimulation.from_sample_data()
+        _enable_modelled_irrigation(sim)
+        land_cover = sim._config.sites[0].properties.land_cover
+        land_cover.evetr.irrigation_fraction.value = 1.0
+        land_cover.dectr.irrigation_fraction.value = 0.0
+        land_cover.grass.irrigation_fraction.value = 0.0
+        sim._df_state_init = sim._config.to_df_state()
+
+        df_forcing = self._slice_forcing(sim)
+        sim.update_forcing(df_forcing)
+        results = sim.run(end_date=df_forcing.index[-1])
+
+        ser_total = self._suews_water_use(results).sum()
+
+        assert ser_total["WUEveTr"] > 0.0, (
+            "Evergreen-tree irrigation is missing from 'WUEveTr' (gh#1865). "
+            f"Column totals:\n{ser_total.to_dict()}"
+        )
+        assert ser_total["WUDecTr"] == 0.0, (
+            "'WUDecTr' carries water although only evergreen trees are "
+            f"irrigated (gh#1865). Column totals:\n{ser_total.to_dict()}"
+        )
+        assert ser_total["WUGrass"] == 0.0

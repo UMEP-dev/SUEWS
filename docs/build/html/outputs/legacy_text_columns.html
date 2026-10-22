@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-21T17:01:44+00:00" />
-    <title>5.5. Legacy Text Column Reference &#8212; SUEWS 2026.10.22.dev12 documentation</title>
+    <meta property="article:modified_time" content="2026-10-22T18:29:20+00:00" />
+    <title>5.5. Legacy Text Column Reference &#8212; SUEWS 2026.10.22.dev14 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=fa1848f6"></script>
+    <script src="../_static/documentation_options.js?v=d4f1483a"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="5.4. Legacy Diagnostics" href="legacy_diagnostics.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.22.dev12" />
-    <meta name="docbuild:last-update" content="2026-10-21"/>
+  <meta name="docsearch:version" content="2026.10.22.dev14" />
+    <meta name="docbuild:last-update" content="2026-10-22"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.22.dev12, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8067a0cce25e0d54dac6aac0491cf91581f6ddb3" style="color: #31708f;">8067a0c</a>).
+        (2026.10.22.dev14, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7b750886bbd3505bc261fad263288668647d4a36" style="color: #31708f;">7b75088</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.22.dev12 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.22.dev12 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.22.dev14 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.22.dev14 documentation - Home"/>
   
   
 </a></div>
@@ -1208,7 +1208,7 @@ forcing/main clock.</p>
 <tr class="row-even"><td><p>83</p></td>
 <td><p>Ts</p></td>
 <td><p>0,1,2</p></td>
-<td><p>Skin temperature [°C]</p></td>
+<td><p>Surface temperature diagnosed from QH and the aerodynamic resistance [°C]</p></td>
 </tr>
 <tr class="row-odd"><td><p>84</p></td>
 <td><p>T2</p></td>
@@ -1813,59 +1813,59 @@ written for each grid so it may contain multiple years.</p>
 </tr>
 <tr class="row-even"><td><p>89</p></td>
 <td><p>Sd_Paved</p></td>
-<td><p>Snow depth – paved surface [mm]</p></td>
+<td><p>Snow depth – paved surface [m]</p></td>
 </tr>
 <tr class="row-odd"><td><p>90</p></td>
 <td><p>Sd_Bldgs</p></td>
-<td><p>Snow depth – building surface [mm]</p></td>
+<td><p>Snow depth – building surface [m]</p></td>
 </tr>
 <tr class="row-even"><td><p>91</p></td>
 <td><p>Sd_EveTr</p></td>
-<td><p>Snow depth – evergreen surface [mm]</p></td>
+<td><p>Snow depth – evergreen surface [m]</p></td>
 </tr>
 <tr class="row-odd"><td><p>92</p></td>
 <td><p>Sd_DecTr</p></td>
-<td><p>Snow depth – deciduous surface [mm]</p></td>
+<td><p>Snow depth – deciduous surface [m]</p></td>
 </tr>
 <tr class="row-even"><td><p>93</p></td>
 <td><p>Sd_Grass</p></td>
-<td><p>Snow depth – grass surface [mm]</p></td>
+<td><p>Snow depth – grass surface [m]</p></td>
 </tr>
 <tr class="row-odd"><td><p>94</p></td>
 <td><p>Sd_BSoil</p></td>
-<td><p>Snow depth – bare soil surface [mm]</p></td>
+<td><p>Snow depth – bare soil surface [m]</p></td>
 </tr>
 <tr class="row-even"><td><p>95</p></td>
 <td><p>Sd_Water</p></td>
-<td><p>Snow depth – water surface [mm]</p></td>
+<td><p>Snow depth – water surface [m]</p></td>
 </tr>
 <tr class="row-odd"><td><p>96</p></td>
 <td><p>Tsnow_Paved</p></td>
-<td><p>Snow surface temperature – paved surface [°C]</p></td>
+<td><p>Snow surface temperature – paved surface, 0 where there is no snow [K]</p></td>
 </tr>
 <tr class="row-even"><td><p>97</p></td>
 <td><p>Tsnow_Bldgs</p></td>
-<td><p>Snow surface temperature – building surface [°C]</p></td>
+<td><p>Snow surface temperature – building surface, 0 where there is no snow [K]</p></td>
 </tr>
 <tr class="row-odd"><td><p>98</p></td>
 <td><p>Tsnow_EveTr</p></td>
-<td><p>Snow surface temperature – evergreen surface [°C]</p></td>
+<td><p>Snow surface temperature – evergreen surface, 0 where there is no snow [K]</p></td>
 </tr>
 <tr class="row-even"><td><p>99</p></td>
 <td><p>Tsnow_DecTr</p></td>
-<td><p>Snow surface temperature – deciduous surface [°C]</p></td>
+<td><p>Snow surface temperature – deciduous surface, 0 where there is no snow [K]</p></td>
 </tr>
 <tr class="row-odd"><td><p>100</p></td>
 <td><p>Tsnow_Grass</p></td>
-<td><p>Snow surface temperature – grass surface [°C]</p></td>
+<td><p>Snow surface temperature – grass surface, 0 where there is no snow [K]</p></td>
 </tr>
 <tr class="row-even"><td><p>101</p></td>
 <td><p>Tsnow_BSoil</p></td>
-<td><p>Snow surface temperature – bare soil surface [°C]</p></td>
+<td><p>Snow surface temperature – bare soil surface, 0 where there is no snow [K]</p></td>
 </tr>
 <tr class="row-odd"><td><p>102</p></td>
 <td><p>Tsnow_Water</p></td>
-<td><p>Snow surface temperature – water surface [°C]</p></td>
+<td><p>Snow surface temperature – water surface, 0 where there is no snow [K]</p></td>
 </tr>
 </tbody>
 </table>
@@ -3544,7 +3544,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-21.
+  Last updated on 2026-10-22.
   <br/>
 </p>
   </div>
@@ -3552,8 +3552,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.22.dev12 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8067a0cce25e0d54dac6aac0491cf91581f6ddb3">8067a0c</a> |
+  <p>Version: 2026.10.22.dev14 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7b750886bbd3505bc261fad263288668647d4a36">7b75088</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

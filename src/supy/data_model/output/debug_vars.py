@@ -146,7 +146,7 @@ DEBUG_VARIABLE_DEFS = [
     ("vsmd", "mm", "A", "Soil moisture deficit of the vegetated surfaces"),
     ("dsp", "mm", "A", "Soil moisture deficit threshold in the soil-moisture conductance function"),
     ("G_sm", "-", "A", "Conductance parameter for soil moisture (G_sm, from the site configuration)"),
-    ("x_exp", "-", "A", "Argument of the exponential in the soil-moisture conductance function: G_sm times (vsmd minus dsp)"),
+    ("x_exp", "-", "A", "Argument of the exponential in the soil-moisture conductance function, as written: G_sm*(vsmd - S1/G_sm + S2)"),
     ("g_kdown", "-", "A", "Conductance factor for incoming shortwave radiation"),
     ("g_dq", "-", "A", "Conductance factor for humidity deficit"),
     ("g_ta", "-", "A", "Conductance factor for air temperature"),
@@ -160,7 +160,7 @@ DEBUG_VARIABLE_DEFS = [
     ("s_hPa", "hPa K-1", "A", "Slope of the saturation vapour pressure curve"),
     ("psyc_hPa", "hPa K-1", "A", "Psychrometric constant"),
     # Iteration counter (uses SUM aggregation)
-    ("iter", "-", "S", "Number of iterations of the surface temperature and QH convergence loop"),
+    ("iter", "-", "S", "Iteration counter of the surface temperature and QH convergence loop"),
     # FAI variables (5)
     ("FAIBldg_use", "-", "A", "Frontal area index of buildings used by the model, after the frontal area index option is applied"),
     ("FAIEveTree_use", "-", "A", "Frontal area index of evergreen trees used by the model, after the frontal area index option is applied"),

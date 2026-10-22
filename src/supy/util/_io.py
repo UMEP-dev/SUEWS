@@ -205,7 +205,7 @@ def prepare_dataframe_forcing(
     # stay consistent with the data -- in particular `isec`, which a
     # hand-built DataFrame may omit (gh#1537).
     df_forcing["iy"] = df_forcing.index.year
-    df_forcing["id"] = df_forcing.index.dayofyear
+    df_forcing["id"] = df_forcing.index.day_of_year
     df_forcing["it"] = df_forcing.index.hour
     df_forcing["imin"] = df_forcing.index.minute
     df_forcing["isec"] = df_forcing.index.second

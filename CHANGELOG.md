@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] Multi-grid runs need about half the memory while the model runs: every grid now writes its output into its own rows of one shared table, instead of into a table of its own that was then copied into a joined table at the end, so a ten-year eight-grid run at a 5-minute timestep peaks at 87 GB instead of 164 GB during the run (#1849)
+  - The kernel and the Rust bridge accept a block of rows of a larger column-major array as a grid's output table, and refuse blocks that overlap.
+  - The shared table's leading dimension is kept odd, so the kernel's row-by-row writes do not crowd into a few cache sets; multi-grid runs are as fast as before or slightly faster.
+  - Output values, row order, columns and saved files are unchanged; single-grid runs are unaffected. Chunked runs (`chunk_day`) still join their chunks.
 - [maintenance] Added an exact sample-output reference gate: on the CI build that generates the reference (cp312 manylinux x86_64), the full-year sample run must reproduce the stored shards digit for digit, and a PR that changes a stored reference without the `0-physics:change` label fails `pr-gate`; physics source changed without the label is a warning. A change such as #1848 can no longer move the output unnoticed
 - [bugfix] Long runs need about 0.4 GB less memory while the model runs: SuPy now hands the forcing to the Rust bridge as a NumPy array instead of a list of Python floats, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 3.8 GB instead of 4.1 GB during the run (#1849)
   - The list boxed every forcing value (32 per timestep) as a Python float, about four times the size of the array itself; the bridge now copies the array once into the buffer the kernel reads.

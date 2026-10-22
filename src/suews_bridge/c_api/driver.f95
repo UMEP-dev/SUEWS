@@ -8,7 +8,7 @@
 !   back into the flat output buffer for Rust codec round-trip.
 ! -----------------------------------------------------------------------------
 module module_c_api_driver
-use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double, c_char
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer
@@ -126,8 +126,8 @@ subroutine suews_cal_multitsteps_c( &
    nlayer, ndepth, &
    timer_out, timer_out_len, &
    state_out_flat, state_out_len, &
-   output_flat, output_len, &
-   datetime_flat, datetime_len, &
+   output_flat, output_len, output_ld, &
+   datetime_flat, datetime_len, datetime_ld, &
    sim_err_code, sim_err_message, sim_err_message_len, &
    warn_total, warn_stored, warn_max, warn_timer, warn_text, warn_text_len, &
    err) bind(C, name='suews_cal_multitsteps_c')
@@ -167,10 +167,20 @@ subroutine suews_cal_multitsteps_c( &
    ! group with no datetime prefixes, column-major (len_sim, ncols_data), and
    ! datetime_flat the shared (len_sim, 5) datetime prefix. The kernel writes
    ! into both directly, so the caller's buffers are the only full-size copy.
-   real(c_double), intent(out) :: output_flat(*)
-   integer(c_int), value, intent(in) :: output_len
-   real(c_double), intent(out) :: datetime_flat(*)
-   integer(c_int), value, intent(in) :: datetime_len
+   !
+   ! Each block may be a row block of a larger column-major array: output_ld
+   ! and datetime_ld are the leading dimensions (the distance, in elements,
+   ! between the starts of two adjacent columns), at least len_sim, and
+   ! output_len and datetime_len the number of elements reachable from the
+   ! block's first element, (ncols - 1) * ld + len_sim. Rows outside the
+   ! block may belong to other grids running at the same time, so the arrays
+   ! are intent(inout) and only the block is written.
+   integer(c_int), value, intent(in) :: output_ld
+   integer(c_int64_t), value, intent(in) :: output_len
+   real(c_double), intent(inout) :: output_flat(output_ld, *)
+   integer(c_int), value, intent(in) :: datetime_ld
+   integer(c_int64_t), value, intent(in) :: datetime_len
+   real(c_double), intent(inout) :: datetime_flat(datetime_ld, *)
 
    integer(c_int), intent(out) :: sim_err_code
    character(c_char), intent(out) :: sim_err_message(*)
@@ -278,7 +288,14 @@ subroutine suews_cal_multitsteps_c( &
       + ncolumnsDataOutESTM + ncolumnsDataOutEHC + ncolumnsDataOutDailyState &
       + ncolumnsDataOutRSL + ncolumnsDataOutDebug + ncolumnsDataOutSPARTACUS &
       + ncolumnsDataOutSTEBBS + ncolumnsDataOutNHood - n_datetime_cols * n_output_groups
-   if (output_len<len_sim * ncols_data .or. datetime_len<len_sim * n_datetime_cols) then
+   if (output_ld<len_sim .or. datetime_ld<len_sim) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   if (output_len<int(ncols_data - 1, c_int64_t) * int(output_ld, c_int64_t) + int(len_sim, c_int64_t) &
+       .or. datetime_len<int(n_datetime_cols - 1, c_int64_t) * int(datetime_ld, c_int64_t) &
+       + int(len_sim, c_int64_t)) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
@@ -327,7 +344,8 @@ subroutine suews_cal_multitsteps_c( &
    call SUEWS_cal_multitsteps_dts( &
       timer_local, metforcing_block, len_sim_i, &
       config_local, site_local, &
-      state_local, output_flat, ncols_data, datetime_flat)
+      state_local, output_flat(1:len_sim_i, 1:ncols_data), &
+      datetime_flat(1:len_sim_i, 1:n_datetime_cols))
 
    call pack_timer(timer_local, timer_out, timer_out_len, local_err)
    if (local_err/=SUEWS_CAPI_OK) then

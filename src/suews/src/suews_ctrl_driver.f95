@@ -705,12 +705,20 @@ CONTAINS
    ! to datetimeBlock instead. The caller can then hand dataOutBlockData to Python
    ! as the final output table with no gather or copy (gh#1849).
    ! Column order: SUEWS | Snow | BEERS | ESTM | EHC | DailyState | RSL | Debug | SPARTACUS | STEBBS | NHood
-   ! ncols_data = sum of all ncolumnsDataOut* constants minus 5 per group.
+   ! dataOutBlockData is (len_sim, ncols_data), where ncols_data is the sum of
+   ! all ncolumnsDataOut* constants minus 5 per group; datetimeBlock is (len_sim, 5).
+   !
+   ! Both blocks are assumed-shape, so the caller may pass a row block of a
+   ! larger column-major array (several grids sharing one output table): the
+   ! descriptor carries the column stride and no temporary copy is made. They
+   ! are INTENT(INOUT) because the rows outside this block belong to other
+   ! grids, possibly written by other threads during this call, and must be
+   ! left as they are.
    SUBROUTINE SUEWS_cal_multitsteps_dts( &
       timer, MetForcingBlock, len_sim, &
       config, siteInfo, &
       modState, &
-      dataOutBlockData, ncols_data, datetimeBlock)
+      dataOutBlockData, datetimeBlock)
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
                                   SUEWS_STATE, output_line
@@ -724,9 +732,8 @@ CONTAINS
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
-      INTEGER, INTENT(IN) :: ncols_data
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncols_data), INTENT(OUT) :: dataOutBlockData
-      REAL(KIND(1D0)), DIMENSION(len_sim, 5), INTENT(OUT) :: datetimeBlock
+      REAL(KIND(1D0)), DIMENSION(:, :), INTENT(INOUT) :: dataOutBlockData
+      REAL(KIND(1D0)), DIMENSION(:, :), INTENT(INOUT) :: datetimeBlock
 
       ! Local variables
       TYPE(SUEWS_FORCING) :: forcing

@@ -56,7 +56,9 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
-- [bugfix] DailyState daily means (`HDD1_h`, `HDD2_c`, `HDD3_Tmean`) now divide by the number of timesteps actually summed; the count was one short, making them 0.35% too high with five-minute steps and 4.3% with hourly ones, and the bias reached the 5-day mean temperature used by OHM, the modelled irrigation and the degree-day anthropogenic heat (#1878)
+- [bugfix] DailyState daily means (`HDD1_h`, `HDD2_c`, `HDD3_Tmean`) now divide by the number of timesteps actually summed; the count was one short, so they were n/(n-1) too high (#1878)
+  - The correction grows with the timestep: daily means drop by about 4.3% for hourly runs (24/23), against 0.35% at five minutes (288/287)
+  - It matters most for the options driven by these means: the degree-day anthropogenic heat flux and modelled irrigation; it also reaches the 5-day mean temperature that OHM uses to weight its summer and winter coefficients
 - [bugfix] DailyState total modelled water use (`WU_EveTr1`, `WU_DecTr1`, `WU_Grass1`) no longer counts the ponding demand twice; it is now the automatic plus manual parts. Irrigation applied to the surfaces was not affected (#1864)
 - [change][experimental] `SUEWSOutput.df` no longer copies the whole output table on every access, so reading it no longer doubles the memory a long run holds (#1849)
   - With pandas copy-on-write (always on from pandas 3) `.df` behaves as before: the returned frame acts as an independent copy.

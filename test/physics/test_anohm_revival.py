@@ -116,14 +116,11 @@ def _ohm_checkpoint_state(sim: sp.SUEWSSimulation):
 
 
 def _assert_ohm_state_close(actual: dict, expected: dict) -> None:
-    """Assert codec-visible OHM state equivalence at restart tolerance."""
+    """Assert codec-visible OHM state is identical after a restart (gh#1849)."""
     assert actual.keys() == expected.keys()
-    np.testing.assert_allclose(
+    np.testing.assert_array_equal(
         list(actual.values()),
         list(expected.values()),
-        rtol=PARITY_RTOL,
-        atol=PARITY_ATOL,
-        equal_nan=True,
     )
 
 
@@ -245,9 +242,7 @@ def test_anohm_external_restart_matches_uninterrupted_state_path_and_output():
     pd.testing.assert_frame_equal(
         output_second.df,
         expected_second,
-        check_exact=False,
-        rtol=PARITY_RTOL,
-        atol=PARITY_ATOL,
+        check_exact=True,
     )
 
     _, state_full = _ohm_checkpoint_state(sim_full)
@@ -267,9 +262,7 @@ def test_anohm_chunked_run_matches_uninterrupted_state_path_and_output():
     pd.testing.assert_frame_equal(
         output_chunked.df,
         output_full.df,
-        check_exact=False,
-        rtol=PARITY_RTOL,
-        atol=PARITY_ATOL,
+        check_exact=True,
     )
 
     _, state_full = _ohm_checkpoint_state(sim_full)

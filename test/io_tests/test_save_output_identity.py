@@ -248,7 +248,7 @@ if __name__ == "__main__" and "--generate" in sys.argv:
             dict_out[case_name] = _save_case(case_name, Path(dir_tmp))
             if "--show" in sys.argv:
                 for name, _ in dict.fromkeys(dict_out[case_name]):
-                    lines = (Path(dir_tmp) / name).read_text("utf-8").splitlines()
+                    lines = (Path(dir_tmp) / name).read_text(encoding="utf-8").splitlines()
                     print(f"# {case_name} {name}: {lines[1][:40]!r}", file=sys.stderr)
     print("_EXPECTED = {")
     for case_name, list_saved in dict_out.items():

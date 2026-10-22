@@ -902,7 +902,7 @@ CONTAINS
                 RS, RA_h, RB, RAsnow, rss_surf, & ! for debugging QE
                 vsmd, conductancePrm%S1/conductancePrm%G_sm + conductancePrm%S2, &
                 conductancePrm%G_sm, &
-                conductancePrm%G_sm*(vsmd - conductancePrm%S1/conductancePrm%G_sm + conductancePrm%S2), & ! debug g_smd
+                conductancePrm%G_sm*(vsmd - (conductancePrm%S1/conductancePrm%G_sm + conductancePrm%S2)), & ! debug g_smd
                 g_kdown, g_dq, g_ta, g_smd, g_lai, & ! for debugging RS: surface resistance
                 vpd_hPa, lv_J_kg, avdens, avcp, s_hPa, psyc_hPa, & ! for debugging QE
                 i_iter*1D0, &

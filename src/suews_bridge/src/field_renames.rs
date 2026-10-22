@@ -2862,10 +2862,20 @@ model:
 
     #[test]
     fn multiple_family_tags_rejected() {
-        let yaml = "model:\n  physics:\n    net_radiation:\n      narp: {value: 3}\n      spartacus: {value: 1001}\n";
+        let yaml = "model:\n  physics:\n    storage_heat:\n      ohm: {value: 1}\n      estm: {value: 4}\n";
         let mut root: Value = from_str(yaml).unwrap();
         let err = normalize_field_names(&mut root).expect_err("multi-tag must fail");
         assert!(err.contains("multiple family tags"), "error was: {err}");
+    }
+
+    #[test]
+    fn multiple_net_radiation_scheme_keys_rejected() {
+        // net_radiation scheme keys double as family tags; the orthogonal
+        // collapse sees them first, as it does on the Python side.
+        let yaml = "model:\n  physics:\n    net_radiation:\n      narp: {value: 3}\n      spartacus: {value: 1001}\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("multi-scheme must fail");
+        assert!(err.contains("multiple scheme keys"), "error was: {err}");
     }
 
     #[test]

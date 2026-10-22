@@ -8,6 +8,7 @@ timestep, so a 300 s model never reached the ``23:55`` daily-write point and
 ``DailyState`` stopped being saved. These tests pin the normalised behaviour.
 """
 
+import numpy as np
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
 import pytest
@@ -18,8 +19,14 @@ except ImportError:  # pragma: no cover - Python < 3.9 fallback
     from importlib_resources import files
 
 from supy._misc import infer_freq_offset
+# ruff: disable[import-private-name]
+from supy._check import check_forcing
+from supy.data_model.forcing import FORCING_REGISTRY
 from supy.suews_sim import SUEWSSimulation
 from supy.util import read_forcing
+from supy.util._io import _PRESSURE_HPA_FLOOR
+
+# ruff: enable[import-private-name]
 
 pytestmark = pytest.mark.api
 
@@ -116,6 +123,41 @@ class TestPressureUnitContract:
         sim.update_config(str(sample_paths["config"]), auto_load_forcing=False)
         sim.update_forcing(hourly_forcing)  # already hPa
         assert sim._df_forcing["pres"].median() > 300
+
+    @pytest.mark.core
+    def test_kpa_file_loads_as_hpa(self, sample_paths, hourly_forcing):
+        """The file's kPa values are held in hPa once loaded, scaled by the
+        factor the forcing registry declares (gh#1547)."""
+        pres = FORCING_REGISTRY.by_file_name("pres")
+        assert (pres.unit, pres.runtime_unit) == ("kPa", "hPa")
+        df_file = pd.read_csv(sample_paths["forcing"], sep=r"\s+")
+
+        np.testing.assert_allclose(
+            hourly_forcing["pres"].to_numpy(),
+            df_file["pres"].to_numpy() * pres.runtime_scale,
+            rtol=1e-12,
+        )
+
+    def test_kpa_detection_floor_separates_the_two_ranges(self):
+        """The kPa-detection floor lies above the file-unit range and below
+        the in-memory range, so it misreads neither unit."""
+        pres = FORCING_REGISTRY.by_file_name("pres")
+        file_max = pres.validation_range[1]
+        memory_min = pres.to_runtime_unit(pres.validation_range[0])
+
+        assert file_max < _PRESSURE_HPA_FLOOR < memory_min
+
+    def test_out_of_range_message_states_both_units(self, hourly_forcing):
+        """A pressure outlier is reported in hPa (what the DataFrame holds)
+        and in kPa (what a forcing file holds)."""
+        df_bad = hourly_forcing.copy()
+        df_bad.iloc[5, df_bad.columns.get_loc("pres")] = 500.0  # hPa, too low
+
+        issues = check_forcing(df_bad, fix=False)
+
+        message = next(issue for issue in issues if "`pres`" in issue)
+        assert "[680, 1300] hPa in memory" in message
+        assert "[68, 130] kPa in a forcing file" in message
 
 
 class TestTemporalColumns:

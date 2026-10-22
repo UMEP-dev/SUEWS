@@ -80,6 +80,12 @@ _FORCING_RUNTIME_RULES.update({
 })
 
 
+_RUNTIME_SCALED_VARIABLES = {
+    variable.name.casefold(): variable
+    for variable in FORCING_REGISTRY.runtime_scaled_variables
+}
+
+
 # checking the range of each parameter
 def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
     var = ser_to_check.name.lower()
@@ -117,8 +123,11 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
         ind = ser_flag.index[ser_flag]
         ind = [ser_flag.index.get_loc(x) for x in ind]
 
-        # NOTE: `pres` is in kPa in forcing files, converted to hPa in _load.py,
-        # so all checks here operate on hPa. Error messages must make units explicit.
+        # Variables whose file unit differs from the in-memory unit (pressure:
+        # kPa in a file, hPa here) are checked in the in-memory unit; the
+        # message states both so a file author and a DataFrame author can each
+        # read it (gh#1547).
+        runtime_scaled = _RUNTIME_SCALED_VARIABLES.get(var)
 
         # Special message for wind speed
         if var == "u":
@@ -131,13 +140,15 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
                 f"Set all wind speed values < {min_v} m/s to {min_v} m/s. "
                 f"This is required for numerical stability in SUEWS."
             )
-        elif var == "pres":
-            # min_v and max_v here are in hPa (after conversion in _load.py)
-            min_hpa, max_hpa = min_v, max_v
-            min_kpa, max_kpa = min_hpa / 10, max_hpa / 10
+        elif runtime_scaled is not None:
+            file_min, file_max = (
+                runtime_scaled.to_file_unit(bound) for bound in (min_v, max_v)
+            )
             description = (
-                f"`pres` should be between [{min_kpa:.1f}, {max_kpa:.1f}] kPa; "
-                f"{n_flag} outliers are found at:\n {ind}"
+                f"`{var}` should be between [{min_v:g}, {max_v:g}] "
+                f"{runtime_scaled.runtime_unit} in memory, which is "
+                f"[{file_min:g}, {file_max:g}] {runtime_scaled.unit} in a forcing "
+                f"file (converted on load); {n_flag} outliers are found at:\n {ind}"
             )
         else:
             description = (

@@ -202,9 +202,14 @@ def convert_UMEPf2epw(
     df_data = to_nan(df_data)
     df_data = df_data.dropna(axis=1)
 
-    # (4) Match units with SUEWS (kPa > hPa)
+    # (4) Match units with SUEWS: the UMEP file holds forcing-file units (kPa);
+    # convert to the in-memory unit (hPa) declared by the forcing registry.
     # NOTE: This value is not used by supy.util.gen_epw and units used for atmos. pressure in epw is Pa.
-    df_data["pres"] = df_data["pres"] * 10
+    from ..data_model.forcing import FORCING_REGISTRY
+
+    for variable in FORCING_REGISTRY.runtime_scaled_variables:
+        if variable.name in df_data.columns:
+            df_data[variable.name] = variable.to_runtime_unit(df_data[variable.name])
 
     # (5) Calculate specific humidity (Q2) for supy.util.gen_epw
     temperature = df_data["T2"].values * units.degC

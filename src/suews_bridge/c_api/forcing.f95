@@ -15,35 +15,40 @@ MODULE module_c_api_forcing
    PUBLIC :: SUEWS_CAPI_BAD_BUFFER
    PUBLIC :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_BASE_LEN = 18_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_BASE_LEN = 28_c_int
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_SCHEMA_VERSION = 2_c_int
 
+   ! Scalar members mirror FIELD_DESCRIPTORS in src/forcing.rs, in the same
+   ! order: that order is the flat layout both sides pack and unpack.
    TYPE :: suews_forcing_shadow
-      REAL(c_double) :: kdown = 0.0_c_double
-      REAL(c_double) :: l_down = 0.0_c_double
-      REAL(c_double) :: rh = 0.0_c_double
-      REAL(c_double) :: pres = 0.0_c_double
-      REAL(c_double) :: tair_av_5d = 0.0_c_double
+      REAL(c_double) :: qn1_obs = 0.0_c_double
+      REAL(c_double) :: qh = 0.0_c_double
+      REAL(c_double) :: qe = 0.0_c_double
+      REAL(c_double) :: qs_obs = 0.0_c_double
+      REAL(c_double) :: qf_obs = 0.0_c_double
       REAL(c_double) :: u = 0.0_c_double
+      REAL(c_double) :: rh = 0.0_c_double
+      REAL(c_double) :: temp_c = 0.0_c_double
+      REAL(c_double) :: pres = 0.0_c_double
       REAL(c_double) :: rain = 0.0_c_double
-      REAL(c_double) :: wu_m3 = 0.0_c_double
-      REAL(c_double) :: f_cloud = 0.0_c_double
+      REAL(c_double) :: kdown = 0.0_c_double
+      REAL(c_double) :: snowfrac = 0.0_c_double
+      REAL(c_double) :: ldown = 0.0_c_double
+      REAL(c_double) :: fcld = 0.0_c_double
+      REAL(c_double) :: wu_mm = 0.0_c_double
+      REAL(c_double) :: xsmd = 0.0_c_double
       REAL(c_double) :: lai_evetr = 0.0_c_double
       REAL(c_double) :: lai_dectr = 0.0_c_double
       REAL(c_double) :: lai_grass = 0.0_c_double
-      REAL(c_double) :: wuh_paved = 0.0_c_double
-      REAL(c_double) :: wuh_bldgs = 0.0_c_double
-      REAL(c_double) :: wuh_evetr = 0.0_c_double
-      REAL(c_double) :: wuh_dectr = 0.0_c_double
-      REAL(c_double) :: wuh_grass = 0.0_c_double
-      REAL(c_double) :: wuh_bsoil = 0.0_c_double
-      REAL(c_double) :: wuh_water = 0.0_c_double
-      REAL(c_double) :: snow_fraction = 0.0_c_double
-      REAL(c_double) :: xsmd = 0.0_c_double
-      REAL(c_double) :: qf_obs = 0.0_c_double
-      REAL(c_double) :: qn1_obs = 0.0_c_double
-      REAL(c_double) :: qs_obs = 0.0_c_double
-      REAL(c_double) :: temp_c = 0.0_c_double
+      REAL(c_double) :: wu_mm_paved = 0.0_c_double
+      REAL(c_double) :: wu_mm_bldgs = 0.0_c_double
+      REAL(c_double) :: wu_mm_evetr = 0.0_c_double
+      REAL(c_double) :: wu_mm_dectr = 0.0_c_double
+      REAL(c_double) :: wu_mm_grass = 0.0_c_double
+      REAL(c_double) :: wu_mm_bsoil = 0.0_c_double
+      REAL(c_double) :: wu_mm_water = 0.0_c_double
+      REAL(c_double) :: kdiff = 0.0_c_double
+      REAL(c_double) :: kdir = 0.0_c_double
       REAL(c_double), DIMENSION(:), ALLOCATABLE :: ts5mindata_ir
    END TYPE suews_forcing_shadow
 
@@ -124,6 +129,7 @@ CONTAINS
       INTEGER(c_int), INTENT(out) :: err
 
       INTEGER(c_int) :: n_expected
+      REAL(c_double) :: base(SUEWS_CAPI_FORCING_BASE_LEN)
       INTEGER :: idx
       INTEGER :: i
 
@@ -137,32 +143,39 @@ CONTAINS
          RETURN
       END IF
 
-      idx = 1
-      flat(idx) = state%kdown; idx = idx + 1
-      flat(idx) = state%l_down; idx = idx + 1
-      flat(idx) = state%rh; idx = idx + 1
-      flat(idx) = state%pres; idx = idx + 1
-      flat(idx) = state%tair_av_5d; idx = idx + 1
-      flat(idx) = state%u; idx = idx + 1
-      flat(idx) = state%rain; idx = idx + 1
-      flat(idx) = state%wu_m3; idx = idx + 1
-      flat(idx) = state%f_cloud; idx = idx + 1
-      flat(idx) = state%snow_fraction; idx = idx + 1
-      flat(idx) = state%xsmd; idx = idx + 1
-      flat(idx) = state%qf_obs; idx = idx + 1
-      flat(idx) = state%qn1_obs; idx = idx + 1
-      flat(idx) = state%qs_obs; idx = idx + 1
-      flat(idx) = state%temp_c; idx = idx + 1
-      flat(idx) = state%lai_evetr; idx = idx + 1
-      flat(idx) = state%lai_dectr; idx = idx + 1
-      flat(idx) = state%lai_grass; idx = idx + 1
-      flat(idx) = state%wuh_paved; idx = idx + 1
-      flat(idx) = state%wuh_bldgs; idx = idx + 1
-      flat(idx) = state%wuh_evetr; idx = idx + 1
-      flat(idx) = state%wuh_dectr; idx = idx + 1
-      flat(idx) = state%wuh_grass; idx = idx + 1
-      flat(idx) = state%wuh_bsoil; idx = idx + 1
-      flat(idx) = state%wuh_water; idx = idx + 1
+      ! The constructor must have exactly SUEWS_CAPI_FORCING_BASE_LEN
+      ! elements; gfortran rejects a mismatch at compile time, so the
+      ! advertised length cannot drift from what is written into flat.
+      base = [state%qn1_obs, &
+              state%qh, &
+              state%qe, &
+              state%qs_obs, &
+              state%qf_obs, &
+              state%u, &
+              state%rh, &
+              state%temp_c, &
+              state%pres, &
+              state%rain, &
+              state%kdown, &
+              state%snowfrac, &
+              state%ldown, &
+              state%fcld, &
+              state%wu_mm, &
+              state%xsmd, &
+              state%lai_evetr, &
+              state%lai_dectr, &
+              state%lai_grass, &
+              state%wu_mm_paved, &
+              state%wu_mm_bldgs, &
+              state%wu_mm_evetr, &
+              state%wu_mm_dectr, &
+              state%wu_mm_grass, &
+              state%wu_mm_bsoil, &
+              state%wu_mm_water, &
+              state%kdiff, &
+              state%kdir]
+      flat(1:SUEWS_CAPI_FORCING_BASE_LEN) = base
+      idx = SUEWS_CAPI_FORCING_BASE_LEN + 1
 
       IF (ts5mindata_ir_len > 0_c_int) THEN
          DO i = 1, INT(ts5mindata_ir_len)

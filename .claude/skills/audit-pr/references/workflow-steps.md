@@ -66,7 +66,9 @@ Check: FIRST principles, AAA pattern, tolerance assertions.
 
 - **CHANGELOG** — entry with correct category
 - **PR description** — scientific rationale (if physics)
-- **User docs** — updated if user-facing
+- **User docs** — updated if user-facing; the `docs-reviewer` agent's
+  findings-only drift report (see SKILL.md "Docs") lists the pages that should
+  have moved
 - **Schema bump trigger** — if `src/supy/data_model/configuration/version.py`
   moved `CURRENT_SCHEMA_VERSION`, the PR must also touch
   `docs/source/contributing/schema/schema_versioning.rst` and

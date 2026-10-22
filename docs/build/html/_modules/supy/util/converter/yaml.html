@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/converter/yaml';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../../_static/searchtools.js"></script>
+    <script src="../../../../_static/language_data.js"></script>
+    <script src="../../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -524,7 +538,7 @@
                 <article class="bd-article">
                   
   <h1>Source code for supy.util.converter.yaml</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;YAML conversion functionality for SUEWS configuration.&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""YAML conversion functionality for SUEWS configuration."""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
@@ -546,18 +560,18 @@
     <span class="n">debug_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
     <span class="n">validate_profiles</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Prepare processing directory, converting tables if needed.</span>
+<span class="w">    </span><span class="sd">"""Prepare processing directory, converting tables if needed.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">        Tuple of (processing_dir, temp_dir_obj)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">from_ver</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">input_path</span><span class="p">,</span> <span class="kc">None</span>
 
     <span class="c1"># Convert to 2025a table format first</span>
-    <span class="n">to_ver</span> <span class="o">=</span> <span class="s2">&quot;2025a&quot;</span>
-    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step 1: Converting tables from version </span><span class="si">{</span><span class="n">from_ver</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">to_ver</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+    <span class="n">to_ver</span> <span class="o">=</span> <span class="s2">"2025a"</span>
+    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Step 1: Converting tables from version </span><span class="si">{</span><span class="n">from_ver</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">to_ver</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
     <span class="n">temp_dir_obj</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span>
     <span class="n">temp_dir_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">temp_dir_obj</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
     <span class="n">convert_table</span><span class="p">(</span>
@@ -568,7 +582,7 @@
         <span class="n">debug_dir</span><span class="o">=</span><span class="n">debug_dir</span><span class="p">,</span>
         <span class="n">validate_profiles</span><span class="o">=</span><span class="n">validate_profiles</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Table conversion complete. Using converted tables in: </span><span class="si">{</span><span class="n">temp_dir_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Table conversion complete. Using converted tables in: </span><span class="si">{</span><span class="n">temp_dir_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">temp_dir_path</span><span class="p">,</span> <span class="n">temp_dir_obj</span>
 
 
@@ -578,16 +592,16 @@
     <span class="n">input_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">output_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configure forcing file and output settings based on RunControl.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Configure forcing file and output settings based on RunControl."""</span>
     <span class="n">runcontrol_data</span> <span class="o">=</span> <span class="n">f90nml</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path_runcontrol</span><span class="p">))</span>
-    <span class="k">if</span> <span class="s2">&quot;runcontrol&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">runcontrol_data</span><span class="p">:</span>
+    <span class="k">if</span> <span class="s2">"runcontrol"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">runcontrol_data</span><span class="p">:</span>
         <span class="k">return</span>
 
-    <span class="n">runcontrol</span> <span class="o">=</span> <span class="n">runcontrol_data</span><span class="p">[</span><span class="s2">&quot;runcontrol&quot;</span><span class="p">]</span>
-    <span class="n">filecode</span> <span class="o">=</span> <span class="n">runcontrol</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;filecode&quot;</span><span class="p">,</span> <span class="s2">&quot;forcing&quot;</span><span class="p">)</span>
+    <span class="n">runcontrol</span> <span class="o">=</span> <span class="n">runcontrol_data</span><span class="p">[</span><span class="s2">"runcontrol"</span><span class="p">]</span>
+    <span class="n">filecode</span> <span class="o">=</span> <span class="n">runcontrol</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"filecode"</span><span class="p">,</span> <span class="s2">"forcing"</span><span class="p">)</span>
 
     <span class="c1"># Look for forcing files matching the pattern</span>
-    <span class="n">fileinputpath</span> <span class="o">=</span> <span class="n">runcontrol</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fileinputpath&quot;</span><span class="p">,</span> <span class="s2">&quot;./Input/&quot;</span><span class="p">)</span>
+    <span class="n">fileinputpath</span> <span class="o">=</span> <span class="n">runcontrol</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fileinputpath"</span><span class="p">,</span> <span class="s2">"./Input/"</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_search_dir</span><span class="p">(</span><span class="n">base</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">fileinputpath</span><span class="p">):</span>
@@ -599,7 +613,7 @@
     <span class="k">for</span> <span class="n">base</span> <span class="ow">in</span> <span class="p">{</span><span class="n">input_path</span><span class="o">.</span><span class="n">resolve</span><span class="p">(),</span> <span class="n">path_runcontrol</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">resolve</span><span class="p">()}:</span>
         <span class="n">search_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
         <span class="n">search_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_resolve_search_dir</span><span class="p">(</span><span class="n">base</span><span class="p">))</span>
-        <span class="n">default_input</span> <span class="o">=</span> <span class="n">base</span> <span class="o">/</span> <span class="s2">&quot;Input&quot;</span>
+        <span class="n">default_input</span> <span class="o">=</span> <span class="n">base</span> <span class="o">/</span> <span class="s2">"Input"</span>
         <span class="k">if</span> <span class="n">default_input</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
             <span class="n">search_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">default_input</span><span class="o">.</span><span class="n">resolve</span><span class="p">())</span>
 
@@ -614,14 +628,14 @@
     <span class="c1"># Pattern: {filecode}_{year}_data_{resolution}.txt</span>
     <span class="n">forcing_files</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">directory</span> <span class="ow">in</span> <span class="n">unique_search_dirs</span><span class="p">:</span>
-        <span class="n">forcing_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">directory</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">filecode</span><span class="si">}</span><span class="s2">_*_data_*.txt&quot;</span><span class="p">)))</span>
+        <span class="n">forcing_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">directory</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">filecode</span><span class="si">}</span><span class="s2">_*_data_*.txt"</span><span class="p">)))</span>
         <span class="k">if</span> <span class="n">forcing_files</span><span class="p">:</span>
             <span class="k">break</span>
 
     <span class="k">if</span> <span class="n">forcing_files</span><span class="p">:</span>
         <span class="c1"># Prefer non-ESTM forcing files if available</span>
         <span class="n">forcing_file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">forcing_files</span> <span class="k">if</span> <span class="s2">&quot;ESTM&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()),</span>
+            <span class="p">(</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">forcing_files</span> <span class="k">if</span> <span class="s2">"ESTM"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()),</span>
             <span class="n">forcing_files</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
         <span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
@@ -630,19 +644,19 @@
             <span class="n">rel_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">forcing_file</span><span class="p">)</span>
         <span class="n">config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">rel_path</span>
         <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;  - Set forcing file to: </span><span class="si">{</span><span class="n">forcing_file</span><span class="si">}</span><span class="s2"> (from FileCode=&#39;</span><span class="si">{</span><span class="n">filecode</span><span class="si">}</span><span class="s2">&#39;)&quot;</span>
+            <span class="sa">f</span><span class="s2">"  - Set forcing file to: </span><span class="si">{</span><span class="n">forcing_file</span><span class="si">}</span><span class="s2"> (from FileCode='</span><span class="si">{</span><span class="n">filecode</span><span class="si">}</span><span class="s2">')"</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># If no matching files found, construct expected name</span>
         <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;  - Warning: No forcing file found matching pattern </span><span class="si">{</span><span class="n">filecode</span><span class="si">}</span><span class="s2">_*_data_*.txt&quot;</span>
+            <span class="sa">f</span><span class="s2">"  - Warning: No forcing file found matching pattern </span><span class="si">{</span><span class="n">filecode</span><span class="si">}</span><span class="s2">_*_data_*.txt"</span>
         <span class="p">)</span>
 
     <span class="c1"># Set proper output configuration</span>
-    <span class="n">resolutionfilesout</span> <span class="o">=</span> <span class="n">runcontrol</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;resolutionfilesout&quot;</span><span class="p">,</span> <span class="mi">3600</span><span class="p">)</span>
+    <span class="n">resolutionfilesout</span> <span class="o">=</span> <span class="n">runcontrol</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"resolutionfilesout"</span><span class="p">,</span> <span class="mi">3600</span><span class="p">)</span>
 
     <span class="c1"># Create OutputControl based on RunControl settings</span>
-    <span class="n">output_path_setting</span> <span class="o">=</span> <span class="n">runcontrol</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fileoutputpath&quot;</span><span class="p">,</span> <span class="s2">&quot;./Output/&quot;</span><span class="p">)</span>
+    <span class="n">output_path_setting</span> <span class="o">=</span> <span class="n">runcontrol</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fileoutputpath"</span><span class="p">,</span> <span class="s2">"./Output/"</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_output_dir</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
@@ -656,15 +670,15 @@
         <span class="n">output_path_relative</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">resolved_output_dir</span><span class="p">)</span>
 
     <span class="n">output_control</span> <span class="o">=</span> <span class="n">OutputControl</span><span class="p">(</span>
-        <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;txt&quot;</span><span class="p">,</span>  <span class="c1"># Default to txt format for compatibility</span>
+        <span class="nb">format</span><span class="o">=</span><span class="s2">"txt"</span><span class="p">,</span>  <span class="c1"># Default to txt format for compatibility</span>
         <span class="n">freq</span><span class="o">=</span><span class="n">resolutionfilesout</span> <span class="k">if</span> <span class="n">resolutionfilesout</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">3600</span><span class="p">,</span>
-        <span class="n">groups</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;SUEWS&quot;</span><span class="p">,</span> <span class="s2">&quot;DailyState&quot;</span><span class="p">],</span>  <span class="c1"># Default groups</span>
+        <span class="n">groups</span><span class="o">=</span><span class="p">[</span><span class="s2">"SUEWS"</span><span class="p">,</span> <span class="s2">"DailyState"</span><span class="p">],</span>  <span class="c1"># Default groups</span>
         <span class="nb">dir</span><span class="o">=</span><span class="n">output_path_relative</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">output_control</span>
     <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s2">&quot;  - Set output configuration: format=</span><span class="si">{</span><span class="n">output_control</span><span class="o">.</span><span class="n">format</span><span class="si">}</span><span class="s2">, freq=</span><span class="si">{</span><span class="n">output_control</span><span class="o">.</span><span class="n">freq</span><span class="si">}</span><span class="s2">s&quot;</span>
+        <span class="sa">f</span><span class="s2">"  - Set output configuration: format=</span><span class="si">{</span><span class="n">output_control</span><span class="o">.</span><span class="n">format</span><span class="si">}</span><span class="s2">, freq=</span><span class="si">{</span><span class="n">output_control</span><span class="o">.</span><span class="n">freq</span><span class="si">}</span><span class="s2">s"</span>
     <span class="p">)</span>
 
 
@@ -677,7 +691,7 @@
     <span class="n">debug_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">validate_profiles</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert SUEWS input to YAML configuration.</span>
+<span class="w">    </span><span class="sd">"""Convert SUEWS input to YAML configuration.</span>
 
 <span class="sd">    Supports both:</span>
 <span class="sd">    1. Table-based input (RunControl.nml)</span>
@@ -693,7 +707,7 @@
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">        None</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">detect_input_type</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">.df_state</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
         <span class="n">load_df_state_file</span><span class="p">,</span>
@@ -711,61 +725,61 @@
         <span class="c1"># Detect input type from file</span>
         <span class="n">input_type</span> <span class="o">=</span> <span class="n">detect_input_type</span><span class="p">(</span><span class="n">input_path</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">input_type</span> <span class="o">==</span> <span class="s2">&quot;df_state&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">input_type</span> <span class="o">==</span> <span class="s2">"df_state"</span><span class="p">:</span>
             <span class="c1"># df_state conversion path</span>
-            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing df_state file: </span><span class="si">{</span><span class="n">input_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Processing df_state file: </span><span class="si">{</span><span class="n">input_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
             <span class="c1"># Load df_state</span>
             <span class="n">df_state</span> <span class="o">=</span> <span class="n">load_df_state_file</span><span class="p">(</span><span class="n">input_path</span><span class="p">)</span>
             <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;  Loaded df_state: </span><span class="si">{</span><span class="n">df_state</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> grids, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">df_state</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2"> columns&quot;</span>
+                <span class="sa">f</span><span class="s2">"  Loaded df_state: </span><span class="si">{</span><span class="n">df_state</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> grids, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">df_state</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2"> columns"</span>
             <span class="p">)</span>
 
             <span class="c1"># Check version and convert if needed</span>
             <span class="n">version</span> <span class="o">=</span> <span class="n">detect_df_state_version</span><span class="p">(</span><span class="n">df_state</span><span class="p">)</span>
-            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Detected format: </span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Detected format: </span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="s2">&quot;old&quot;</span><span class="p">:</span>
-                <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">&quot;  Converting from old format to current...&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="s2">"old"</span><span class="p">:</span>
+                <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">"  Converting from old format to current..."</span><span class="p">)</span>
                 <span class="n">df_state</span> <span class="o">=</span> <span class="n">convert_df_state_format</span><span class="p">(</span><span class="n">df_state</span><span class="p">)</span>
 
                 <span class="c1"># Validate</span>
                 <span class="n">is_valid</span><span class="p">,</span> <span class="n">message</span> <span class="o">=</span> <span class="n">validate_converted_df_state</span><span class="p">(</span><span class="n">df_state</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">is_valid</span><span class="p">:</span>
-                    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [OK] </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  [OK] </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [WARNING] </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">version</span> <span class="o">==</span> <span class="s2">&quot;unknown&quot;</span><span class="p">:</span>
-                <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">&quot;  Warning: Unknown format, attempting conversion anyway...&quot;</span><span class="p">)</span>
+                    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  [WARNING] </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">version</span> <span class="o">==</span> <span class="s2">"unknown"</span><span class="p">:</span>
+                <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">"  Warning: Unknown format, attempting conversion anyway..."</span><span class="p">)</span>
                 <span class="n">df_state</span> <span class="o">=</span> <span class="n">convert_df_state_format</span><span class="p">(</span><span class="n">df_state</span><span class="p">)</span>
 
             <span class="c1"># Create config from df_state</span>
-            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">&quot;Creating YAML configuration...&quot;</span><span class="p">)</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">"Creating YAML configuration..."</span><span class="p">)</span>
             <span class="n">config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_df_state</span><span class="p">(</span><span class="n">df_state</span><span class="p">)</span>
 
-        <span class="k">elif</span> <span class="n">input_type</span> <span class="o">==</span> <span class="s2">&quot;nml&quot;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">input_type</span> <span class="o">==</span> <span class="s2">"nml"</span><span class="p">:</span>
             <span class="c1"># Table conversion path - extract directory from nml path</span>
             <span class="n">table_dir</span> <span class="o">=</span> <span class="n">input_path</span><span class="o">.</span><span class="n">parent</span>
-            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing table files from: </span><span class="si">{</span><span class="n">table_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Processing table files from: </span><span class="si">{</span><span class="n">table_dir</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
             <span class="c1"># Prepare processing directory</span>
             <span class="n">processing_dir</span><span class="p">,</span> <span class="n">temp_dir_obj</span> <span class="o">=</span> <span class="n">_prepare_processing_dir</span><span class="p">(</span>
                 <span class="n">table_dir</span><span class="p">,</span> <span class="n">from_ver</span><span class="p">,</span> <span class="n">debug_dir</span><span class="p">,</span> <span class="n">validate_profiles</span>
             <span class="p">)</span>
 
-            <span class="n">path_runcontrol</span> <span class="o">=</span> <span class="n">processing_dir</span> <span class="o">/</span> <span class="s2">&quot;RunControl.nml&quot;</span>
+            <span class="n">path_runcontrol</span> <span class="o">=</span> <span class="n">processing_dir</span> <span class="o">/</span> <span class="s2">"RunControl.nml"</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">path_runcontrol</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="n">click</span><span class="o">.</span><span class="n">ClickException</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;RunControl.nml not found in </span><span class="si">{</span><span class="n">processing_dir</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">"RunControl.nml not found in </span><span class="si">{</span><span class="n">processing_dir</span><span class="si">}</span><span class="s2">"</span>
                 <span class="p">)</span>
 
-            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">&quot;Loading SUEWS input tables...&quot;</span><span class="p">)</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">"Loading SUEWS input tables..."</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">df_state</span> <span class="o">=</span> <span class="n">load_InitialCond_grid_df</span><span class="p">(</span><span class="n">path_runcontrol</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">click</span><span class="o">.</span><span class="n">ClickException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load SUEWS tables: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+                <span class="k">raise</span> <span class="n">click</span><span class="o">.</span><span class="n">ClickException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Failed to load SUEWS tables: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
-            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">&quot;Creating YAML configuration...&quot;</span><span class="p">)</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">"Creating YAML configuration..."</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_df_state</span><span class="p">(</span><span class="n">df_state</span><span class="p">)</span>
 
@@ -776,13 +790,13 @@
 
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">click</span><span class="o">.</span><span class="n">ClickException</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Failed to create configuration: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">"Failed to create configuration: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span>
                 <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">click</span><span class="o">.</span><span class="n">ClickException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected input type: </span><span class="si">{</span><span class="n">input_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">click</span><span class="o">.</span><span class="n">ClickException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unexpected input type: </span><span class="si">{</span><span class="n">input_type</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="c1"># Save to YAML</span>
-        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving to: </span><span class="si">{</span><span class="n">output_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Saving to: </span><span class="si">{</span><span class="n">output_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">config</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">include_internal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="k">finally</span><span class="p">:</span>
@@ -842,7 +856,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -856,8 +870,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

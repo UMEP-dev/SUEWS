@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-01-28T15:54:16+00:00" />
+    <meta property="article:modified_time" content="2026-10-21T16:09:52+00:00" />
     <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.6.5 documentation</title>
   
   
@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="_static/documentation_options.js?v=72daed37"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
@@ -52,6 +52,7 @@
     <script src="_static/design-tabs.js?v=f930bc37"></script>
     <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'parameterisations-and-sub-models';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="genindex.html" />
@@ -61,21 +62,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
-    <meta name="docbuild:last-update" content="2026-01-28"/>
+    <meta name="docbuild:last-update" content="2026-10-21"/>
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -101,7 +108,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -557,11 +564,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -589,7 +603,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#net-all-wave-radiation-q">1.1. Net all-wave radiation, Q*</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#beers-building-envelope-energy-radiation-scheme">1.2. BEERS (Building Envelope Energy Radiation Scheme)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anthropogenic-heat-flux-qf">1.3. Anthropogenic heat flux, Q<sub>F</sub></a></li>
@@ -673,7 +687,7 @@ and surface characteristics (albedo, emissivity).</p></li>
 <ul class="simple">
 <li><p><strong>Incoming/Outgoing Radiation:</strong> Shortwave (Kdown2d, Kup2d) and longwave (Ldown2d, Lup2d) at POI</p></li>
 <li><p><strong>Directional Components:</strong> Radiation from north, south, east, west directions</p></li>
-<li><p><strong>Shadow Information:</strong> Shadow patterns on ground (SH_Ground) and walls (SH_Walls)</p></li>
+<li><p><strong>Sunlit Fractions:</strong> Sunlit fractions of the ground (SH_Ground) and walls (SH_Walls); 1 is fully sunlit, and both are 0 at night</p></li>
 <li><p><strong>Sky View Factors:</strong> From ground (SVF_Ground), roof (SVF_Roof), and buildings/vegetation (SVF_BdVeg)</p></li>
 <li><p><strong>Surface Temperatures:</strong> Ground (Tg), wall (Tw), and air (Ta) temperatures</p></li>
 <li><p><strong>Comfort Metrics:</strong> Mean radiant temperature (Tmrt) for thermal comfort assessment</p></li>
@@ -834,41 +848,52 @@ calculated similarly as melt water and can freeze within the snow pack.
 </section>
 <section id="wind-temperature-and-humidity-profiles-in-the-roughness-sublayer">
 <span id="rsl-mod"></span><h2><span class="section-number">1.9. </span>Wind, Temperature and Humidity Profiles in the Roughness Sublayer<a class="headerlink" href="#wind-temperature-and-humidity-profiles-in-the-roughness-sublayer" title="Link to this heading">#</a></h2>
-<p>A dignostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following <span class="bibtex-citation" id="id18">Harman and Finnigan [<a class="reference internal" href="references.html#id36" title="Harman, Ian N. and Finnigan, John J. A simple unified theory for flow in the canopy and roughness sublayer. Boundary-Layer Meteorol, 123(2):339-363, March 2007. doi:10.1007/s10546-006-9145-6.">2007</a>], Harman and Finnigan [<a class="reference internal" href="references.html#id35" title="Harman, Ian N. and Finnigan, John J. Scalar concentration profiles in the canopy and roughness sublayer. Boundary-Layer Meteorol, 129(3):323-351, October 2008. doi:10.1007/s10546-008-9328-4.">2008</a>]</span> and <span class="bibtex-citation" id="id19">Theeuwes <em>et al.</em> [<a class="reference internal" href="references.html#id3" title="Theeuwes, Natalie E., Ronda, Reinder J., Harman, Ian N., Christen, Andreas, and Grimmond, C. Sue B. Parametrizing horizontally-averaged wind and temperature profiles in the urban roughness sublayer. Boundary-Layer Meteorol, 173(3):321-348, September 2019. doi:10.1007/s10546-019-00472-1.">2019</a>]</span>.
-An recent application of this RSL scheme can be found in <span class="bibtex-citation" id="id20">Tang <em>et al.</em> [<a class="reference internal" href="references.html#id32" title="Tang, Yihao, Sun, Ting, Luo, Zhiwen, Omidvar, Hamidreza, Theeuwes, Natalie, Xie, Xiaoxiong, Xiong, Jie, Yao, Runming, and Grimmond, Sue. Urban meteorological forcing data for building energy simulations. Building and Environment, 204:108088, October 2021. doi:10.1016/j.buildenv.2021.108088.">2021</a>]</span>.</p>
-<p>The diagnostic profiles are outputed in 30 uneven levels between the ground and forcing height, which are divided into two groups:</p>
+<p>A diagnostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following <span class="bibtex-citation" id="id18">Harman and Finnigan [<a class="reference internal" href="references.html#id36" title="Harman, Ian N. and Finnigan, John J. A simple unified theory for flow in the canopy and roughness sublayer. Boundary-Layer Meteorol, 123(2):339-363, March 2007. doi:10.1007/s10546-006-9145-6.">2007</a>], Harman and Finnigan [<a class="reference internal" href="references.html#id35" title="Harman, Ian N. and Finnigan, John J. Scalar concentration profiles in the canopy and roughness sublayer. Boundary-Layer Meteorol, 129(3):323-351, October 2008. doi:10.1007/s10546-008-9328-4.">2008</a>]</span> and <span class="bibtex-citation" id="id19">Theeuwes <em>et al.</em> [<a class="reference internal" href="references.html#id3" title="Theeuwes, Natalie E., Ronda, Reinder J., Harman, Ian N., Christen, Andreas, and Grimmond, C. Sue B. Parametrizing horizontally-averaged wind and temperature profiles in the urban roughness sublayer. Boundary-Layer Meteorol, 173(3):321-348, September 2019. doi:10.1007/s10546-019-00472-1.">2019</a>]</span>.
+A recent application of this RSL scheme can be found in <span class="bibtex-citation" id="id20">Tang <em>et al.</em> [<a class="reference internal" href="references.html#id32" title="Tang, Yihao, Sun, Ting, Luo, Zhiwen, Omidvar, Hamidreza, Theeuwes, Natalie, Xie, Xiaoxiong, Xiong, Jie, Yao, Runming, and Grimmond, Sue. Urban meteorological forcing data for building energy simulations. Building and Environment, 204:108088, October 2021. doi:10.1016/j.buildenv.2021.108088.">2021</a>]</span>.</p>
+<p>The diagnostic profiles are output at 30 levels between the surface and the forcing height.
+Where the levels sit depends on the scheme selected by <a class="reference internal" href="inputs/yaml/config-reference/modelphysics.html#roughness-sublayer"><span class="std std-ref">roughness_sublayer</span></a>:</p>
 <ul class="simple">
-<li><p>One group of levels are evenly distributed within the urban canopy layer characterised by mean height of roughness elements (e.g. buildings, trees, etc.) <span class="math notranslate nohighlight">\(z_H\)</span>, which determines the number of layers within urban canopy <span class="math notranslate nohighlight">\(n_{can}\)</span>:</p></li>
+<li><p>With RST, levels 1 to 20 lie within the canopy, level 20 just below its top, and the other 10 above it, whatever the mean height of roughness elements (buildings and trees, weighted by their plan area with trees counted by their non-porous fraction).
+The levels are placed on an effective canopy height <span class="math notranslate nohighlight">\(z_H = \max(\text{mean height}, 2\ \text{m})\)</span>, so over a canopy lower than 2 m they do not follow the actual height.
+Level 1 is at 1% of <span class="math notranslate nohighlight">\(z_H\)</span>, capped just below 2 m, levels 1 to 9 lie in the lower third of the canopy, level 10 is at <span class="math notranslate nohighlight">\(z_H/2\)</span>, and levels 11 to 20 close in on the canopy top.
+Levels 21 to 30 run from just above <span class="math notranslate nohighlight">\(z_H\)</span> to the forcing height and are also concentrated towards the canopy top.</p></li>
+<li><p>With MOST, the 30 levels are spaced logarithmically from just above <span class="math notranslate nohighlight">\(z_d + z_0\)</span> (and at least 0.1 m) to the forcing height, where <span class="math notranslate nohighlight">\(z_d\)</span> is the zero-plane displacement height and <span class="math notranslate nohighlight">\(z_0\)</span> the roughness length for momentum.
+Where 2 m and 10 m fall within that range, the nearest levels are moved to exactly those heights.</p></li>
 </ul>
-<div class="math notranslate nohighlight">
-\[
-      n_{can} =
-\begin{cases}
-   3 &amp; \text{if } z_H \leq \text{2 m} \\
-   10 &amp; \text{if } \text{2 m} \lt z_H \leq \text{10 m} \\
-   15 &amp; \text{if } z_H \gt \text{10 m} \\
-
-\end{cases}
-\]</div><ul class="simple">
-<li><p>The other levels are evenly distributed between the urban canopy layer top and forcing height.</p></li>
-</ul>
+<p>With <code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code> set to <code class="docutils literal notranslate"><span class="pre">variable</span></code> (the default), RST is used when the plan area index of buildings and trees, with trees counted by their non-porous fraction, is between 0.1 and 0.68 and <span class="math notranslate nohighlight">\(z_H\)</span> exceeds 2 m; otherwise MOST is used.
+The frontal area index does not enter this choice.
+The <code class="docutils literal notranslate"><span class="pre">flag_RSL</span></code> column of the RSL output group records the outcome at each timestep: 1 when RST was used and 0 when MOST was used.
+It is averaged when output is resampled, so a resampled value gives the fraction of timesteps that used RST.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>All the diagnostic profiles (wind speed, temperature and humidity) are calculated
 from the forcing data down into the canopy.
 Therefore it is assumed that the forcing temperature and humidity
-are above the blending height.</p>
+are above the blending height <span class="math notranslate nohighlight">\(z_R = z_H + 1.5\,(D_x - L_x)\)</span>, where
+<span class="math notranslate nohighlight">\(D_x\)</span> is the mean spacing of buildings and <span class="math notranslate nohighlight">\(L_x\)</span> their mean plan
+dimension; the RSL correction to the profiles vanishes above <span class="math notranslate nohighlight">\(z_R\)</span>.</p>
 </div>
 <p>Common near-surface diagnostics:</p>
 <blockquote>
 <div><ul class="simple">
-<li><p>T2: air temperature at 2 m agl</p></li>
-<li><p>Q2: air specific humidity at 2 m agl</p></li>
-<li><p>RH2: air relative humidity at 2 m agl</p></li>
-<li><p>U10: wind speed at 10 m agl</p></li>
+<li><p>T2: air temperature</p></li>
+<li><p>Q2: air specific humidity</p></li>
+<li><p>RH2: air relative humidity</p></li>
+<li><p>U10: wind speed</p></li>
 </ul>
 </div></blockquote>
-<p>are calculated by the <a class="reference internal" href="#rsl-mod"><span class="std std-ref">RSL scheme</span></a> by interpolating RSL profile results to the corresponding diagnostic heights.</p>
+<p>are calculated by the <a class="reference internal" href="#rsl-mod"><span class="std std-ref">RSL scheme</span></a> by interpolating the profiles to their reference heights, which differ between the two schemes.</p>
+<div class="admonition important" id="rsl-diag-heights">
+<p class="admonition-title">Important</p>
+<p><strong>Reference heights of the near-surface diagnostics.</strong>
+With RST, T2, Q2 and RH2 are taken at 2 m and U10 at 10 m above ground.
+With MOST, they are taken at 2 m and 10 m above <span class="math notranslate nohighlight">\(z_d + z_0\)</span>, the level at which the MOST wind profile falls to zero, that is at <span class="math notranslate nohighlight">\(2 + z_d + z_0\)</span> and <span class="math notranslate nohighlight">\(10 + z_d + z_0\)</span> above ground.
+Where <span class="math notranslate nohighlight">\(z_d + z_0\)</span> is small the two sets of reference heights nearly coincide, but over a tall, dense canopy the MOST values sit well above ground: where <span class="math notranslate nohighlight">\(z_d + z_0 = 16\)</span> m, for example, MOST reports T2, Q2 and RH2 at 18 m and U10 at 26 m above ground.
+Where such a height lies above the forcing height, the value at the forcing height is reported instead.
+The two schemes therefore report quantities at different heights under the same names.
+Bear this in mind when comparing runs with different <code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code> settings, or grid cells for which <code class="docutils literal notranslate"><span class="pre">variable</span></code> selected different schemes.
+The <span class="math notranslate nohighlight">\(z_d\)</span> and <span class="math notranslate nohighlight">\(z_0\)</span> used at each timestep are reported as <code class="docutils literal notranslate"><span class="pre">zd_RSL</span></code> and <code class="docutils literal notranslate"><span class="pre">z0_RSL</span></code> in the RSL output group.</p>
+</div>
 </section>
 <section id="spartacus-surface-ss">
 <h2><span class="section-number">1.10. </span>SPARTACUS-Surface (SS)<a class="headerlink" href="#spartacus-surface-ss" title="Link to this heading">#</a></h2>
@@ -963,8 +988,7 @@ The probabilities for buildings and the ground are determined by albedos and emi
 <li><p>Output variables (including multi-layer ones) are in SUEWS-SS output file <code class="docutils literal notranslate"><span class="pre">SSss_YYYY_SPARTACUS.txt</span></code>. <a class="footnote-reference brackets" href="#ss-output" id="id23" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a></p></li>
 </ul>
 <ul class="simple">
-<li><p>The RSL has 30 levels but when the average building height is &lt;2 m, &lt; 12 m and &gt; 12 m there are 3, 10 and 15 evenly spaced layers in the canopy.</p></li>
-<li><p>The remaining levels are evenly spaced up to the forcing level (<a class="reference internal" href="#suews-rsl"><span class="std std-numref">Fig. 1.3</span></a>).</p></li>
+<li><p>The RSL has 30 levels. With RST, levels 1 to 20 lie within the canopy and the remaining 10 run from just above the canopy top to the forcing level (<a class="reference internal" href="#suews-rsl"><span class="std std-numref">Fig. 1.3</span></a>); see <a class="reference internal" href="#rsl-mod"><span class="std std-ref">Wind, Temperature and Humidity Profiles in the Roughness Sublayer</span></a> for the MOST layout.</p></li>
 <li><p>The buildings are assumed to be uniform height.</p></li>
 </ul>
 <figure class="align-default" id="id29">
@@ -1099,7 +1123,7 @@ Surface codes in <a class="reference internal" href="inputs/tables/SUEWS_SiteInf
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#net-all-wave-radiation-q">1.1. Net all-wave radiation, Q*</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#beers-building-envelope-energy-radiation-scheme">1.2. BEERS (Building Envelope Energy Radiation Scheme)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anthropogenic-heat-flux-qf">1.3. Anthropogenic heat flux, Q<sub>F</sub></a></li>
@@ -1158,7 +1182,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-01-28.
+  Last updated on 2026-10-21.
   <br/>
 </p>
   </div>
@@ -1167,7 +1191,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1181,8 +1205,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

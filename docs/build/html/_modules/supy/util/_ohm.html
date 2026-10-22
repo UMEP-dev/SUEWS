@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_ohm';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -525,13 +539,13 @@
                   
   <h1>Source code for supy.util._ohm</h1><div class="highlight"><pre>
 <span></span><span class="c1"># -*- coding: utf-8 -*-</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">Created on Mon Dec 17 11:13:44 2018</span>
 
 <span class="sd">Authors:</span>
 <span class="sd">George Meachim,</span>
 <span class="sd">Ting Sun</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
@@ -544,7 +558,7 @@
 <div class="viewcode-block" id="derive_ohm_coef">
 <a class="viewcode-back" href="../../../api/_autosummary/supy.util.derive_ohm_coef.html#supy.util.derive_ohm_coef">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">derive_ohm_coef</span><span class="p">(</span><span class="n">ser_QS</span><span class="p">,</span> <span class="n">ser_QN</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    A function to linearly fit two independant variables to a dependent one.</span>
 
 <span class="sd">    Parameters</span>
@@ -558,33 +572,33 @@
 <span class="sd">    -------</span>
 <span class="sd">    Tuple</span>
 <span class="sd">        a1, a2 coefficients and a3 (intercept)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.linear_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">LinearRegression</span>
 
     <span class="c1"># derive dt in hours</span>
-    <span class="n">dt_hr</span> <span class="o">=</span> <span class="n">ser_QN</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span> <span class="o">/</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span>
+    <span class="n">dt_hr</span> <span class="o">=</span> <span class="n">ser_QN</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span> <span class="o">/</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">"1h"</span><span class="p">)</span>
 
     <span class="c1"># Calculate difference between neighbouring QN values</span>
     <span class="n">ser_delta_QN_dt</span> <span class="o">=</span> <span class="n">ser_QN</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span> <span class="o">/</span> <span class="n">dt_hr</span>
 
     <span class="c1"># Drop NaNs and infinite values</span>
-    <span class="n">ser_QS</span> <span class="o">=</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">replace</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">)</span>
+    <span class="n">ser_QS</span> <span class="o">=</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">replace</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s2">"all"</span><span class="p">)</span>
     <span class="n">ser_QN</span> <span class="o">=</span> <span class="n">ser_QN</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ser_QS</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
     <span class="n">ser_delta_QN_dt</span> <span class="o">=</span> <span class="n">ser_delta_QN_dt</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ser_QS</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
 
     <span class="c1"># Create DataFrame with regression quantities and rename cols</span>
     <span class="n">frames</span> <span class="o">=</span> <span class="p">[</span><span class="n">ser_QS</span><span class="p">,</span> <span class="n">ser_QN</span><span class="p">,</span> <span class="n">ser_delta_QN_dt</span><span class="p">]</span>
     <span class="n">regression_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">regression_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;QS&quot;</span><span class="p">,</span> <span class="s2">&quot;QN&quot;</span><span class="p">,</span> <span class="s2">&quot;delta_QN_dt&quot;</span><span class="p">]</span>
+    <span class="n">regression_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"QS"</span><span class="p">,</span> <span class="s2">"QN"</span><span class="p">,</span> <span class="s2">"delta_QN_dt"</span><span class="p">]</span>
 
     <span class="c1"># Reindex after dropping NaNs</span>
     <span class="n">regression_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">regression_df</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">regression_df</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="n">feature_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;QN&quot;</span><span class="p">,</span> <span class="s2">&quot;delta_QN_dt&quot;</span><span class="p">]</span>
+    <span class="n">feature_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"QN"</span><span class="p">,</span> <span class="s2">"delta_QN_dt"</span><span class="p">]</span>
 
-    <span class="n">X</span> <span class="o">=</span> <span class="n">regression_df</span><span class="p">[</span><span class="n">feature_cols</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">regression_df</span><span class="p">[</span><span class="n">feature_cols</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s2">"all"</span><span class="p">)</span>
     <span class="n">y</span> <span class="o">=</span> <span class="n">regression_df</span><span class="o">.</span><span class="n">QS</span>
 
     <span class="n">lm</span> <span class="o">=</span> <span class="n">LinearRegression</span><span class="p">()</span>
@@ -599,7 +613,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">replace_ohm_coeffs</span><span class="p">(</span><span class="n">df_state</span><span class="p">,</span> <span class="n">coefs</span><span class="p">,</span> <span class="n">land_cover_type</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    This function takes as input parameters the model initial state DataFrame,</span>
 <span class="sd">    the new ohm coefficients as calculated by performing linear regression on</span>
 <span class="sd">    AMF Obs and the land cover type for which they were calculated.</span>
@@ -615,23 +629,23 @@
 <span class="sd">        2. any of a1/a2/a3 can be either one numeric value or a list-like structure of four values for SW/SD/WW/WD conditions indicated by `ohm_threshsw` and `ohm_threshwd`.</span>
 <span class="sd">    land_cover_type : str</span>
 <span class="sd">        one of seven SUEWS land cover types, can be any of</span>
-<span class="sd">        1. {&quot;Paved&quot;,&quot;Bldgs&quot;,&quot;EveTr&quot;,&quot;DecTr&quot;,&quot;Grass&quot;,&quot;BSoil&quot;,&quot;Water&quot;} (string case does NOT matter); or</span>
+<span class="sd">        1. {"Paved","Bldgs","EveTr","DecTr","Grass","BSoil","Water"} (string case does NOT matter); or</span>
 <span class="sd">        2. an integer between 0 to 6.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    pandas.DataFrame</span>
 <span class="sd">        a DataFrame with updated OHM coefficients.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">land_cover_type_dict</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;paved&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-        <span class="s2">&quot;bldgs&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="s2">&quot;evetr&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
-        <span class="s2">&quot;dectr&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
-        <span class="s2">&quot;grass&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
-        <span class="s2">&quot;bsoil&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
-        <span class="s2">&quot;water&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+        <span class="s2">"paved"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"bldgs"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">"evetr"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s2">"dectr"</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s2">"grass"</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="s2">"bsoil"</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="s2">"water"</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
     <span class="p">}</span>
 
     <span class="k">try</span><span class="p">:</span>
@@ -643,7 +657,7 @@
     <span class="k">except</span><span class="p">:</span>
         <span class="n">list_lc</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">land_cover_type_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="n">logger_supy</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;land_cover_type must be one of </span><span class="si">{</span><span class="n">list_lc</span><span class="si">}</span><span class="s2">, instead of </span><span class="si">{</span><span class="n">land_cover_type</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">"land_cover_type must be one of </span><span class="si">{</span><span class="n">list_lc</span><span class="si">}</span><span class="s2">, instead of </span><span class="si">{</span><span class="n">land_cover_type</span><span class="si">}</span><span class="s2">"</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># Instantiate 4x3 matrix of zeros to put old coeffs</span>
@@ -653,7 +667,7 @@
         <span class="n">coef_matrix</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">coefs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
 
         <span class="c1"># Copy ohm_coef part of df_state_init</span>
-        <span class="n">df_ohm</span> <span class="o">=</span> <span class="n">df_state</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;ohm_coef&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">df_ohm</span> <span class="o">=</span> <span class="n">df_state</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"ohm_coef"</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="c1"># Reshape values into matrix form</span>
         <span class="n">values_ohm</span> <span class="o">=</span> <span class="n">df_ohm</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
         <span class="c1"># Get ohm values corresponding to user specified land cover and assign to matrix</span>
@@ -663,7 +677,7 @@
         <span class="c1"># Make copy of df_state_init</span>
         <span class="n">df_state_init_copy</span> <span class="o">=</span> <span class="n">df_state</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="c1"># Replace  ohm_coef part of df_state_init with new values</span>
-        <span class="n">df_state_init_copy</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;ohm_coef&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_ohm</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">df_state_init_copy</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"ohm_coef"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_ohm</span><span class="o">.</span><span class="n">values</span>
 
         <span class="k">return</span> <span class="n">df_state_init_copy</span>
 
@@ -671,7 +685,7 @@
 <div class="viewcode-block" id="sim_ohm">
 <a class="viewcode-back" href="../../../api/_autosummary/supy.util.sim_ohm.html#supy.util.sim_ohm">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">sim_ohm</span><span class="p">(</span><span class="n">ser_qn</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">a1</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">a2</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">a3</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate QS using OHM (Objective Hysteresis Model).</span>
+<span class="w">    </span><span class="sd">"""Calculate QS using OHM (Objective Hysteresis Model).</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -688,13 +702,13 @@
 <span class="sd">    -------</span>
 <span class="sd">    pd.Series</span>
 <span class="sd">        heat storage flux calculated by OHM.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="c1"># derive delta t in hour</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">dt_hr</span> <span class="o">=</span> <span class="n">ser_qn</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span> <span class="o">/</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span>
+        <span class="n">dt_hr</span> <span class="o">=</span> <span class="n">ser_qn</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span> <span class="o">/</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">"1h"</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">AttributeError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;frequency info is missing from input `ser_qn`&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"frequency info is missing from input `ser_qn`"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span>
 
     <span class="c1"># Calculate rate of change of Net All-wave radiation</span>
     <span class="n">ser_qn_dt</span> <span class="o">=</span> <span class="n">ser_qn</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span> <span class="o">/</span> <span class="n">dt_hr</span>
@@ -707,20 +721,20 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">compare_heat_storage</span><span class="p">(</span><span class="n">ser_qn_obs</span><span class="p">,</span> <span class="n">ser_qs_obs</span><span class="p">,</span> <span class="n">a1</span><span class="p">,</span> <span class="n">a2</span><span class="p">,</span> <span class="n">a3</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;This function compares the storage heat flux calculated with AMF</span>
+<span class="w">    </span><span class="sd">"""This function compares the storage heat flux calculated with AMF</span>
 <span class="sd">    QN and linear regression coefficients with  that output by SUEWS.</span>
 <span class="sd">    Input params: QN_Ser_Obs: A series of OBS net all-wave radiation.</span>
 <span class="sd">                  QS_Ser_SUEWS: A series of SUEWS storage heat flux values.</span>
 <span class="sd">                  a1, a2, a3: Linear regression coefficients from ohm_linregress_clean.</span>
 <span class="sd">    Returns: MPL plot of diurnal comparison, MPL plot with 1:1 line and fitted line.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="c1"># calculate qs using OHM</span>
-    <span class="n">ser_qs_sim</span> <span class="o">=</span> <span class="n">sim_ohm</span><span class="p">(</span><span class="n">ser_qn_obs</span><span class="p">,</span> <span class="n">a1</span><span class="p">,</span> <span class="n">a2</span><span class="p">,</span> <span class="n">a3</span><span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;Sim&quot;</span><span class="p">)</span>
+    <span class="n">ser_qs_sim</span> <span class="o">=</span> <span class="n">sim_ohm</span><span class="p">(</span><span class="n">ser_qn_obs</span><span class="p">,</span> <span class="n">a1</span><span class="p">,</span> <span class="n">a2</span><span class="p">,</span> <span class="n">a3</span><span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"Sim"</span><span class="p">)</span>
 
     <span class="c1"># re-organise obs and sim info one dataframe</span>
-    <span class="n">ser_qs_obs</span> <span class="o">=</span> <span class="n">ser_qs_obs</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;Obs&quot;</span><span class="p">)</span>
-    <span class="n">df_qs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_qs_sim</span><span class="p">,</span> <span class="n">ser_qs_obs</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;Obs&quot;</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ser_qs_obs</span> <span class="o">=</span> <span class="n">ser_qs_obs</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"Obs"</span><span class="p">)</span>
+    <span class="n">df_qs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_qs_sim</span><span class="p">,</span> <span class="n">ser_qs_obs</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"Obs"</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
     <span class="c1"># Plotting</span>
     <span class="n">plot1</span> <span class="o">=</span> <span class="n">plot_day_clm</span><span class="p">(</span><span class="n">df_qs</span><span class="p">)</span>
     <span class="n">plot2</span> <span class="o">=</span> <span class="n">plot_comp</span><span class="p">(</span><span class="n">df_qs</span><span class="p">)</span>
@@ -779,7 +793,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -793,8 +807,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

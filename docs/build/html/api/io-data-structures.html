@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../_static/documentation_options.js?v=72daed37"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
@@ -51,6 +51,7 @@
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'api/io-data-structures';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -61,20 +62,26 @@
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
     <meta name="docbuild:last-update" content="2026-04-24"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -100,7 +107,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -556,11 +563,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -588,7 +602,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">6.8.1. Introduction</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input">6.8.2. Input</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#df-state-init-model-initial-states">6.8.2.1. <code class="docutils literal notranslate"><span class="pre">df_state_init</span></code>: model initial states</a></li>
@@ -684,7 +698,7 @@ actually be of higher dimension. The <code class="docutils literal notranslate">
 </ul>
 <p>For example, <code class="docutils literal notranslate"><span class="pre">ohm_coef</span></code> has dimension {8, 4, 3} according to
 <span class="xref std std-ref">its description</span>. The flattened representation:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">df_state_init</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;ohm_coef&quot;</span><span class="p">]</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">df_state_init</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"ohm_coef"</span><span class="p">]</span>
 <span class="go">ind_dim  (0, 0, 0)  (0, 0, 1)  (0, 0, 2)  ...  (7, 3, 1)  (7, 3, 2)</span>
 <span class="go">grid</span>
 <span class="go">98           0.719      0.194      -36.6  ...        0.6      -30.0</span>
@@ -776,13 +790,13 @@ same YAML configuration, attach the next forcing period, and run from
 <code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_checkpoint(...)</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSCheckpoint</span><span class="p">,</span> <span class="n">SUEWSSimulation</span>
 
-<span class="n">checkpoint</span> <span class="o">=</span> <span class="n">SUEWSCheckpoint</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{site}</span><span class="s2">_SUEWS_checkpoint.json&quot;</span><span class="p">)</span>
+<span class="n">checkpoint</span> <span class="o">=</span> <span class="n">SUEWSCheckpoint</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">"</span><span class="si">{site}</span><span class="s2">_SUEWS_checkpoint.json"</span><span class="p">)</span>
 
 <span class="n">sim_next</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span>
-    <span class="s2">&quot;config.yml&quot;</span><span class="p">,</span>
+    <span class="s2">"config.yml"</span><span class="p">,</span>
     <span class="n">checkpoint</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="n">sim_next</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s2">&quot;forcing_next_period.txt&quot;</span><span class="p">)</span>
+<span class="n">sim_next</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s2">"forcing_next_period.txt"</span><span class="p">)</span>
 <span class="n">output_next</span> <span class="o">=</span> <span class="n">sim_next</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -792,17 +806,17 @@ are keyed by grid ID, so checkpoint/configuration grid mismatches are rejected
 by the runtime.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="supy.SUEWSCheckpoint">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">supy.</span></span><span class="sig-name descname"><span class="pre">SUEWSCheckpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">grid_states:</span> <span class="pre">dict[int,</span> <span class="pre">str],</span> <span class="pre">supy_version:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'2026.6.5.dev3',</span> <span class="pre">state_schema_version:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">created_at:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">last_timestamp:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint" title="Link to this definition">#</a></dt>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">supy.</span></span><span class="sig-name descname"><span class="pre">SUEWSCheckpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">grid_states:</span> <span class="pre">dict[int,</span> <span class="pre">str],</span> <span class="pre">supy_version:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'2026.6.11.dev9189',</span> <span class="pre">state_schema_version:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">created_at:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">last_timestamp:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint" title="Link to this definition">#</a></dt>
 <dd><p>Typed restart artifact carrying Rust SUEWS state JSON by grid ID.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSCheckpoint.from_file">
-<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint.from_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint.from_file" title="Link to this definition">#</a></dt>
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><span class="pre">Path</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint.from_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint.from_file" title="Link to this definition">#</a></dt>
 <dd><p>Read a checkpoint JSON file.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSCheckpoint.to_file">
-<span class="sig-name descname"><span class="pre">to_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint.to_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint.to_file" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">to_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><span class="pre">Path</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><span class="pre">Path</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint.to_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint.to_file" title="Link to this definition">#</a></dt>
 <dd><p>Write the checkpoint JSON file and return its path.</p>
 </dd></dl>
 
@@ -868,7 +882,7 @@ by the runtime.</p>
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">6.8.1. Introduction</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input">6.8.2. Input</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#df-state-init-model-initial-states">6.8.2.1. <code class="docutils literal notranslate"><span class="pre">df_state_init</span></code>: model initial states</a></li>
@@ -931,7 +945,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -945,8 +959,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

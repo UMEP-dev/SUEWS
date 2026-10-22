@@ -29,22 +29,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
@@ -52,6 +52,7 @@
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'outputs/variables/stebbs';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
@@ -61,20 +62,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -100,7 +107,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -491,11 +498,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -541,7 +555,7 @@
 <dl class="output variable" id="index-1">
 <dt class="sig sig-object output" id="output-variable-Kroof_in">
 <span class="sig-name descname"><span class="pre">Kroof_in</span></span><a class="headerlink" href="#output-variable-Kroof_in" title="Link to this definition">#</a></dt>
-<dd><p>Incoming shortwave radiation on roof per surface area</p>
+<dd><p>Incoming shortwave radiation on the roof per unit roof area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -555,7 +569,7 @@
 <dl class="output variable" id="index-2">
 <dt class="sig sig-object output" id="output-variable-Kwall_in">
 <span class="sig-name descname"><span class="pre">Kwall_in</span></span><a class="headerlink" href="#output-variable-Kwall_in" title="Link to this definition">#</a></dt>
-<dd><p>Incoming shortwave radiation on wall per surface area</p>
+<dd><p>Incoming shortwave radiation on the walls per unit wall area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -569,7 +583,7 @@
 <dl class="output variable" id="index-3">
 <dt class="sig sig-object output" id="output-variable-Lroof_in">
 <span class="sig-name descname"><span class="pre">Lroof_in</span></span><a class="headerlink" href="#output-variable-Lroof_in" title="Link to this definition">#</a></dt>
-<dd><p>Incoming longwave radiation on roof per surface area</p>
+<dd><p>Incoming longwave radiation on the roof per unit roof area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -583,7 +597,7 @@
 <dl class="output variable" id="index-4">
 <dt class="sig sig-object output" id="output-variable-Lwall_in">
 <span class="sig-name descname"><span class="pre">Lwall_in</span></span><a class="headerlink" href="#output-variable-Lwall_in" title="Link to this definition">#</a></dt>
-<dd><p>Incoming longwave radiation on wall per surface area</p>
+<dd><p>Incoming longwave radiation on the walls per unit wall area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -639,7 +653,7 @@
 <dl class="output variable" id="index-8">
 <dt class="sig sig-object output" id="output-variable-QEC_dhw_FA">
 <span class="sig-name descname"><span class="pre">QEC_dhw_FA</span></span><a class="headerlink" href="#output-variable-QEC_dhw_FA" title="Link to this definition">#</a></dt>
-<dd><p>Energy consumption by dhw system</p>
+<dd><p>Energy consumption by the domestic hot water system</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -723,7 +737,7 @@
 <dl class="output variable" id="index-14">
 <dt class="sig sig-object output" id="output-variable-QH_ventilation_FA">
 <span class="sig-name descname"><span class="pre">QH_ventilation_FA</span></span><a class="headerlink" href="#output-variable-QH_ventilation_FA" title="Link to this definition">#</a></dt>
-<dd><p>Heat gain/loss through ventilation</p>
+<dd><p>Heat gain or loss through ventilation</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -737,7 +751,7 @@
 <dl class="output variable" id="index-15">
 <dt class="sig sig-object output" id="output-variable-QHcond_ground_FA">
 <span class="sig-name descname"><span class="pre">QHcond_ground_FA</span></span><a class="headerlink" href="#output-variable-QHcond_ground_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through ground beneath building</p>
+<dd><p>Conductive heat flux through ground beneath building</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -751,7 +765,7 @@
 <dl class="output variable" id="index-16">
 <dt class="sig sig-object output" id="output-variable-QHcond_groundflr_FA">
 <span class="sig-name descname"><span class="pre">QHcond_groundflr_FA</span></span><a class="headerlink" href="#output-variable-QHcond_groundflr_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through floor</p>
+<dd><p>Conductive heat flux through floor</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -765,7 +779,7 @@
 <dl class="output variable" id="index-17">
 <dt class="sig sig-object output" id="output-variable-QHcond_roof_FA">
 <span class="sig-name descname"><span class="pre">QHcond_roof_FA</span></span><a class="headerlink" href="#output-variable-QHcond_roof_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through roof</p>
+<dd><p>Conductive heat flux through roof</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -779,7 +793,7 @@
 <dl class="output variable" id="index-18">
 <dt class="sig sig-object output" id="output-variable-QHcond_tank_FA">
 <span class="sig-name descname"><span class="pre">QHcond_tank_FA</span></span><a class="headerlink" href="#output-variable-QHcond_tank_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through water tank</p>
+<dd><p>Conductive heat flux through the wall of the hot water tank</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -793,7 +807,7 @@
 <dl class="output variable" id="index-19">
 <dt class="sig sig-object output" id="output-variable-QHcond_vessel_FA">
 <span class="sig-name descname"><span class="pre">QHcond_vessel_FA</span></span><a class="headerlink" href="#output-variable-QHcond_vessel_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through water vessel</p>
+<dd><p>Conductive heat flux through the wall of the vessel (hot water in use)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -807,7 +821,7 @@
 <dl class="output variable" id="index-20">
 <dt class="sig sig-object output" id="output-variable-QHcond_wall_FA">
 <span class="sig-name descname"><span class="pre">QHcond_wall_FA</span></span><a class="headerlink" href="#output-variable-QHcond_wall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through wall</p>
+<dd><p>Conductive heat flux through wall</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -821,7 +835,7 @@
 <dl class="output variable" id="index-21">
 <dt class="sig sig-object output" id="output-variable-QHcond_window_FA">
 <span class="sig-name descname"><span class="pre">QHcond_window_FA</span></span><a class="headerlink" href="#output-variable-QHcond_window_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through window</p>
+<dd><p>Conductive heat flux through window</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -835,7 +849,7 @@
 <dl class="output variable" id="index-22">
 <dt class="sig sig-object output" id="output-variable-QHconv_extroof_FA">
 <span class="sig-name descname"><span class="pre">QHconv_extroof_FA</span></span><a class="headerlink" href="#output-variable-QHconv_extroof_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between external roof and outdoor air</p>
+<dd><p>Convective heat flux between external roof and outdoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -849,7 +863,7 @@
 <dl class="output variable" id="index-23">
 <dt class="sig sig-object output" id="output-variable-QHconv_exttankwall_FA">
 <span class="sig-name descname"><span class="pre">QHconv_exttankwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_exttankwall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between external surface of tank and indoor air</p>
+<dd><p>Convective heat flux between the outer surface of the hot water tank and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -863,7 +877,7 @@
 <dl class="output variable" id="index-24">
 <dt class="sig sig-object output" id="output-variable-QHconv_extvesselwall_FA">
 <span class="sig-name descname"><span class="pre">QHconv_extvesselwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_extvesselwall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between external surface of vessel and indoor air</p>
+<dd><p>Convective heat flux between the outer surface of the vessel (hot water in use) and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -877,7 +891,7 @@
 <dl class="output variable" id="index-25">
 <dt class="sig sig-object output" id="output-variable-QHconv_extwall_FA">
 <span class="sig-name descname"><span class="pre">QHconv_extwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_extwall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between external wall and outdoor air</p>
+<dd><p>Convective heat flux between external wall and outdoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -891,7 +905,7 @@
 <dl class="output variable" id="index-26">
 <dt class="sig sig-object output" id="output-variable-QHconv_extwin_FA">
 <span class="sig-name descname"><span class="pre">QHconv_extwin_FA</span></span><a class="headerlink" href="#output-variable-QHconv_extwin_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between external window and outdoor air</p>
+<dd><p>Convective heat flux between external window and outdoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -905,7 +919,7 @@
 <dl class="output variable" id="index-27">
 <dt class="sig sig-object output" id="output-variable-QHconv_indoormass_FA">
 <span class="sig-name descname"><span class="pre">QHconv_indoormass_FA</span></span><a class="headerlink" href="#output-variable-QHconv_indoormass_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between internal mass and indoor air</p>
+<dd><p>Convective heat flux between indoor mass and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -919,7 +933,7 @@
 <dl class="output variable" id="index-28">
 <dt class="sig sig-object output" id="output-variable-QHconv_intgroundflr_FA">
 <span class="sig-name descname"><span class="pre">QHconv_intgroundflr_FA</span></span><a class="headerlink" href="#output-variable-QHconv_intgroundflr_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between internal surface of floor and indoor air</p>
+<dd><p>Convective heat flux between internal surface of floor and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -933,7 +947,7 @@
 <dl class="output variable" id="index-29">
 <dt class="sig sig-object output" id="output-variable-QHconv_introof_FA">
 <span class="sig-name descname"><span class="pre">QHconv_introof_FA</span></span><a class="headerlink" href="#output-variable-QHconv_introof_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between internal surface of roof and indoor air</p>
+<dd><p>Convective heat flux between internal surface of roof and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -947,7 +961,7 @@
 <dl class="output variable" id="index-30">
 <dt class="sig sig-object output" id="output-variable-QHconv_inttankwall_FA">
 <span class="sig-name descname"><span class="pre">QHconv_inttankwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_inttankwall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between internal surface of tank and indoor water</p>
+<dd><p>Convective heat flux between the inner surface of the hot water tank and the water in it</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -961,7 +975,7 @@
 <dl class="output variable" id="index-31">
 <dt class="sig sig-object output" id="output-variable-QHconv_intvesselwall_FA">
 <span class="sig-name descname"><span class="pre">QHconv_intvesselwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_intvesselwall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between internal surface of vessel and water</p>
+<dd><p>Convective heat flux between the inner surface of the vessel (hot water in use) and the water in it</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -975,7 +989,7 @@
 <dl class="output variable" id="index-32">
 <dt class="sig sig-object output" id="output-variable-QHconv_intwall_FA">
 <span class="sig-name descname"><span class="pre">QHconv_intwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_intwall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between internal surface of wall and indoor air</p>
+<dd><p>Convective heat flux between internal surface of wall and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -989,7 +1003,7 @@
 <dl class="output variable" id="index-33">
 <dt class="sig sig-object output" id="output-variable-QHconv_intwindow_FA">
 <span class="sig-name descname"><span class="pre">QHconv_intwindow_FA</span></span><a class="headerlink" href="#output-variable-QHconv_intwindow_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat between internal surface of window and indoor air</p>
+<dd><p>Convective heat flux between internal surface of window and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1017,7 +1031,7 @@
 <dl class="output variable" id="index-35">
 <dt class="sig sig-object output" id="output-variable-QHload_dhw_FA">
 <span class="sig-name descname"><span class="pre">QHload_dhw_FA</span></span><a class="headerlink" href="#output-variable-QHload_dhw_FA" title="Link to this definition">#</a></dt>
-<dd><p>Sensible heat supply to hot water tank</p>
+<dd><p>Heat supplied by the water heater to the hot water tank</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1059,7 +1073,7 @@
 <dl class="output variable" id="index-38">
 <dt class="sig sig-object output" id="output-variable-QHwaste_dhw_FA">
 <span class="sig-name descname"><span class="pre">QHwaste_dhw_FA</span></span><a class="headerlink" href="#output-variable-QHwaste_dhw_FA" title="Link to this definition">#</a></dt>
-<dd><p>Sensible heat gain from waste heat due to hot water</p>
+<dd><p>Sensible heat gain to indoor air from losses of the water heater</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1101,7 +1115,7 @@
 <dl class="output variable" id="index-41">
 <dt class="sig sig-object output" id="output-variable-QS_air_FA">
 <span class="sig-name descname"><span class="pre">QS_air_FA</span></span><a class="headerlink" href="#output-variable-QS_air_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux in air</p>
+<dd><p>Storage heat flux in indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1115,7 +1129,7 @@
 <dl class="output variable" id="index-42">
 <dt class="sig sig-object output" id="output-variable-QS_bldg_FA">
 <span class="sig-name descname"><span class="pre">QS_bldg_FA</span></span><a class="headerlink" href="#output-variable-QS_bldg_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux for building components</p>
+<dd><p>Storage heat flux in the building fabric, indoor mass and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1129,7 +1143,7 @@
 <dl class="output variable" id="index-43">
 <dt class="sig sig-object output" id="output-variable-QS_dhw_FA">
 <span class="sig-name descname"><span class="pre">QS_dhw_FA</span></span><a class="headerlink" href="#output-variable-QS_dhw_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux in hot water going to drainage system</p>
+<dd><p>Heat in hot water going to the drainage system (equal to Qloss_drain_FA)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1143,7 +1157,7 @@
 <dl class="output variable" id="index-44">
 <dt class="sig sig-object output" id="output-variable-QS_ground_FA">
 <span class="sig-name descname"><span class="pre">QS_ground_FA</span></span><a class="headerlink" href="#output-variable-QS_ground_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux in the soil beneath building</p>
+<dd><p>Heat conducted into the ground beneath the building (equal to QHcond_ground_FA)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1157,7 +1171,7 @@
 <dl class="output variable" id="index-45">
 <dt class="sig sig-object output" id="output-variable-QS_groundfloor_FA">
 <span class="sig-name descname"><span class="pre">QS_groundfloor_FA</span></span><a class="headerlink" href="#output-variable-QS_groundfloor_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux ground floor</p>
+<dd><p>Storage heat flux in ground floor</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1171,7 +1185,7 @@
 <dl class="output variable" id="index-46">
 <dt class="sig sig-object output" id="output-variable-QS_indoormass_FA">
 <span class="sig-name descname"><span class="pre">QS_indoormass_FA</span></span><a class="headerlink" href="#output-variable-QS_indoormass_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux in indoormass</p>
+<dd><p>Storage heat flux in indoor mass</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1199,7 +1213,7 @@
 <dl class="output variable" id="index-48">
 <dt class="sig sig-object output" id="output-variable-QS_total_FA">
 <span class="sig-name descname"><span class="pre">QS_total_FA</span></span><a class="headerlink" href="#output-variable-QS_total_FA" title="Link to this definition">#</a></dt>
-<dd><p>Total Storage heat flux per building footprint area</p>
+<dd><p>Total storage heat flux per building footprint area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1255,7 +1269,7 @@
 <dl class="output variable" id="index-52">
 <dt class="sig sig-object output" id="output-variable-Qloss_drain_FA">
 <span class="sig-name descname"><span class="pre">Qloss_drain_FA</span></span><a class="headerlink" href="#output-variable-Qloss_drain_FA" title="Link to this definition">#</a></dt>
-<dd><p>Heat loss from hot water to drainage system</p>
+<dd><p>Heat carried away by hot water going to the drainage system, relative to the mains water temperature</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1283,7 +1297,7 @@
 <dl class="output variable" id="index-54">
 <dt class="sig sig-object output" id="output-variable-Qlw_net_tank_FA">
 <span class="sig-name descname"><span class="pre">Qlw_net_tank_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_tank_FA" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave radiation from external surface of tank to internal mass</p>
+<dd><p>Net longwave radiation from the outer surface of the hot water tank to the indoor mass</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1297,7 +1311,7 @@
 <dl class="output variable" id="index-55">
 <dt class="sig sig-object output" id="output-variable-Qlw_net_vessel_FA">
 <span class="sig-name descname"><span class="pre">Qlw_net_vessel_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_vessel_FA" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave radiation from external surface of vessel to internal mass</p>
+<dd><p>Net longwave radiation from the outer surface of the vessel (hot water in use) to the indoor mass</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1395,7 +1409,7 @@
 <dl class="output variable" id="index-62">
 <dt class="sig sig-object output" id="output-variable-Tair_2">
 <span class="sig-name descname"><span class="pre">Tair_2</span></span><a class="headerlink" href="#output-variable-Tair_2" title="Link to this definition">#</a></dt>
-<dd><p>Air temperature at 2m</p>
+<dd><p>Air temperature at 2 m</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1577,7 +1591,7 @@
 <dl class="output variable" id="index-75">
 <dt class="sig sig-object output" id="output-variable-Twater_mains">
 <span class="sig-name descname"><span class="pre">Twater_mains</span></span><a class="headerlink" href="#output-variable-Twater_mains" title="Link to this definition">#</a></dt>
-<dd><p>Water mains (cold) temperature</p>
+<dd><p>Cold mains water temperature</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1591,7 +1605,7 @@
 <dl class="output variable" id="index-76">
 <dt class="sig sig-object output" id="output-variable-Twater_tank">
 <span class="sig-name descname"><span class="pre">Twater_tank</span></span><a class="headerlink" href="#output-variable-Twater_tank" title="Link to this definition">#</a></dt>
-<dd><p>Water temperature in tank</p>
+<dd><p>Water temperature in the hot water tank</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>K</p>
@@ -1605,7 +1619,7 @@
 <dl class="output variable" id="index-77">
 <dt class="sig sig-object output" id="output-variable-Twater_vessel">
 <span class="sig-name descname"><span class="pre">Twater_vessel</span></span><a class="headerlink" href="#output-variable-Twater_vessel" title="Link to this definition">#</a></dt>
-<dd><p>Water temperature in vessel</p>
+<dd><p>Temperature of the hot water in use (vessel)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>K</p>
@@ -1619,7 +1633,7 @@
 <dl class="output variable" id="index-78">
 <dt class="sig sig-object output" id="output-variable-Vwater_tank">
 <span class="sig-name descname"><span class="pre">Vwater_tank</span></span><a class="headerlink" href="#output-variable-Vwater_tank" title="Link to this definition">#</a></dt>
-<dd><p>Volume of water in tank</p>
+<dd><p>Volume of water in the hot water tank</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>m<sup>3</sup></p>
@@ -1633,7 +1647,7 @@
 <dl class="output variable" id="index-79">
 <dt class="sig sig-object output" id="output-variable-Vwater_vessel">
 <span class="sig-name descname"><span class="pre">Vwater_vessel</span></span><a class="headerlink" href="#output-variable-Vwater_vessel" title="Link to this definition">#</a></dt>
-<dd><p>Volume of water in vessel</p>
+<dd><p>Volume of hot water in use (vessel)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>m<sup>3</sup></p>
@@ -1647,7 +1661,7 @@
 <dl class="output variable" id="index-80">
 <dt class="sig sig-object output" id="output-variable-ws_10">
 <span class="sig-name descname"><span class="pre">ws_10</span></span><a class="headerlink" href="#output-variable-ws_10" title="Link to this definition">#</a></dt>
-<dd><p>Wind speed at 10m</p>
+<dd><p>Wind speed at 10 m</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>m s<sup>-1</sup></p>
@@ -1758,7 +1772,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1772,8 +1786,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

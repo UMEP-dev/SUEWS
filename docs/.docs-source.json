@@ -1,7 +1,7 @@
 {
-  "source_branch": "rtd",
-  "source_commit": "4b480c2187deb6884d5b5b9b7f1abc72a1bdc200",
+  "source_branch": "sunt05-claude/docs-2026.6.5-output-descriptions",
+  "source_commit": "c8b59d265b5c204f425707aa7bc367b231e0e7b4",
   "source_tag": "2026.6.5",
-  "docs_built": "2026-06-11T07:21:37.575427+00:00",
+  "docs_built": "2026-10-22T10:54:15.827172+00:00",
   "builder": "github-actions (release-docs-anchor)"
 }

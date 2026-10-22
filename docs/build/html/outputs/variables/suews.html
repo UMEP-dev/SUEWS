@@ -29,22 +29,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
@@ -52,6 +52,7 @@
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'outputs/variables/suews';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
@@ -61,20 +62,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -100,7 +107,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -491,11 +498,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -571,7 +585,7 @@
 <dl class="output variable" id="index-3">
 <dt class="sig sig-object output" id="output-variable-AlbSnow">
 <span class="sig-name descname"><span class="pre">AlbSnow</span></span><a class="headerlink" href="#output-variable-AlbSnow" title="Link to this definition">#</a></dt>
-<dd><p>Snow albedo</p>
+<dd><p>Albedo of the snowpack, one value shared by all snow-covered surfaces: it decreases as the snow ages (linearly below 0 degC, towards the minimum snow albedo at or above 0 degC), returns to the maximum after enough fresh snowfall, and is 0 when no surface has snow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -601,7 +615,7 @@
 <dl class="output variable" id="index-5">
 <dt class="sig sig-object output" id="output-variable-Drainage">
 <span class="sig-name descname"><span class="pre">Drainage</span></span><a class="headerlink" href="#output-variable-Drainage" title="Link to this definition">#</a></dt>
-<dd><p>Sub-surface drainage from soil store</p>
+<dd><p>Drainage from surface water stores, redistributed within the grid to other surfaces, runoff or the soil store (per unit non-water area)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -685,7 +699,7 @@
 <dl class="output variable" id="index-11">
 <dt class="sig sig-object output" id="output-variable-FcPoint">
 <span class="sig-name descname"><span class="pre">FcPoint</span></span><a class="headerlink" href="#output-variable-FcPoint" title="Link to this definition">#</a></dt>
-<dd><p>CO2 flux from point source</p>
+<dd><p>CO2 flux from point sources</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>umol m<sup>-2</sup> s<sup>-1</sup></p>
@@ -743,7 +757,7 @@
 <dl class="output variable" id="index-15">
 <dt class="sig sig-object output" id="output-variable-FlowCh">
 <span class="sig-name descname"><span class="pre">FlowCh</span></span><a class="headerlink" href="#output-variable-FlowCh" title="Link to this definition">#</a></dt>
-<dd><p>Additional flow into water body</p>
+<dd><p>Additional flow into the water surface, from the site flow-change parameter</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -757,7 +771,7 @@
 <dl class="output variable" id="index-16">
 <dt class="sig sig-object output" id="output-variable-Irr">
 <span class="sig-name descname"><span class="pre">Irr</span></span><a class="headerlink" href="#output-variable-Irr" title="Link to this definition">#</a></dt>
-<dd><p>Irrigation water applied to vegetated surfaces</p>
+<dd><p>External water use: total water use minus internal water use, never negative</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -855,7 +869,7 @@
 <dl class="output variable" id="index-23">
 <dt class="sig sig-object output" id="output-variable-MeltWStore">
 <span class="sig-name descname"><span class="pre">MeltWStore</span></span><a class="headerlink" href="#output-variable-MeltWStore" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater store</p>
+<dd><p>Liquid water held in the snowpack</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -869,7 +883,7 @@
 <dl class="output variable" id="index-24">
 <dt class="sig sig-object output" id="output-variable-MeltWater">
 <span class="sig-name descname"><span class="pre">MeltWater</span></span><a class="headerlink" href="#output-variable-MeltWater" title="Link to this definition">#</a></dt>
-<dd><p>Meltwater</p>
+<dd><p>Snow melted during the timestep</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -883,7 +897,7 @@
 <dl class="output variable" id="index-25">
 <dt class="sig sig-object output" id="output-variable-NWtrState">
 <span class="sig-name descname"><span class="pre">NWtrState</span></span><a class="headerlink" href="#output-variable-NWtrState" title="Link to this definition">#</a></dt>
-<dd><p>Surface wetness state (non-water surfaces)</p>
+<dd><p>Surface wetness state of the non-water surfaces (per unit non-water area)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -925,7 +939,7 @@
 <dl class="output variable" id="index-28">
 <dt class="sig sig-object output" id="output-variable-QElumps">
 <span class="sig-name descname"><span class="pre">QElumps</span></span><a class="headerlink" href="#output-variable-QElumps" title="Link to this definition">#</a></dt>
-<dd><p>Latent heat flux (using LUMPS)</p>
+<dd><p>Latent heat flux (LUMPS method)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -967,7 +981,7 @@
 <dl class="output variable" id="index-31">
 <dt class="sig sig-object output" id="output-variable-QHinit">
 <span class="sig-name descname"><span class="pre">QHinit</span></span><a class="headerlink" href="#output-variable-QHinit" title="Link to this definition">#</a></dt>
-<dd><p>Initial sensible heat flux estimate used in TStar iteration</p>
+<dd><p>Sensible heat flux used to seed the stability calculation (the LUMPS estimate on the first iteration, then QH from the previous iteration). Deprecated: it always equals QH at output and will be removed in a future release; use QH.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -981,7 +995,7 @@
 <dl class="output variable" id="index-32">
 <dt class="sig sig-object output" id="output-variable-QHlumps">
 <span class="sig-name descname"><span class="pre">QHlumps</span></span><a class="headerlink" href="#output-variable-QHlumps" title="Link to this definition">#</a></dt>
-<dd><p>Sensible heat flux (using LUMPS)</p>
+<dd><p>Sensible heat flux (LUMPS method)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1009,7 +1023,7 @@
 <dl class="output variable" id="index-34">
 <dt class="sig sig-object output" id="output-variable-QM">
 <span class="sig-name descname"><span class="pre">QM</span></span><a class="headerlink" href="#output-variable-QM" title="Link to this definition">#</a></dt>
-<dd><p>Snow-related heat exchange</p>
+<dd><p>Heat used to melt snow (negative when meltwater refreezes)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1023,7 +1037,7 @@
 <dl class="output variable" id="index-35">
 <dt class="sig sig-object output" id="output-variable-QMFreeze">
 <span class="sig-name descname"><span class="pre">QMFreeze</span></span><a class="headerlink" href="#output-variable-QMFreeze" title="Link to this definition">#</a></dt>
-<dd><p>Internal energy change</p>
+<dd><p>Heat related to freezing of water (internal energy change)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1065,7 +1079,7 @@
 <dl class="output variable" id="index-38">
 <dt class="sig sig-object output" id="output-variable-QNSnow">
 <span class="sig-name descname"><span class="pre">QNSnow</span></span><a class="headerlink" href="#output-variable-QNSnow" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for snow area</p>
+<dd><p>Net all-wave radiation for the snow-covered area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1079,7 +1093,7 @@
 <dl class="output variable" id="index-39">
 <dt class="sig sig-object output" id="output-variable-QNSnowFr">
 <span class="sig-name descname"><span class="pre">QNSnowFr</span></span><a class="headerlink" href="#output-variable-QNSnowFr" title="Link to this definition">#</a></dt>
-<dd><p>Net all-wave radiation for non-snow area</p>
+<dd><p>Net all-wave radiation for the snow-free area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -1331,7 +1345,7 @@
 <dl class="output variable" id="index-57">
 <dt class="sig sig-object output" id="output-variable-RO">
 <span class="sig-name descname"><span class="pre">RO</span></span><a class="headerlink" href="#output-variable-RO" title="Link to this definition">#</a></dt>
-<dd><p>Total surface runoff leaving the grid</p>
+<dd><p>Total runoff generated by all surfaces, before routing to pipes, above-ground flooding or the water surface</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1345,7 +1359,7 @@
 <dl class="output variable" id="index-58">
 <dt class="sig sig-object output" id="output-variable-ROImp">
 <span class="sig-name descname"><span class="pre">ROImp</span></span><a class="headerlink" href="#output-variable-ROImp" title="Link to this definition">#</a></dt>
-<dd><p>Runoff over impervious surfaces</p>
+<dd><p>Above-ground runoff from paved and building surfaces when pipe capacity is exceeded</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1373,7 +1387,7 @@
 <dl class="output variable" id="index-60">
 <dt class="sig sig-object output" id="output-variable-ROSoil">
 <span class="sig-name descname"><span class="pre">ROSoil</span></span><a class="headerlink" href="#output-variable-ROSoil" title="Link to this definition">#</a></dt>
-<dd><p>Runoff to soil</p>
+<dd><p>Overflow from full soil stores during lateral soil-water exchange between surfaces, not included in RO (per unit non-water area)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1387,7 +1401,7 @@
 <dl class="output variable" id="index-61">
 <dt class="sig sig-object output" id="output-variable-ROVeg">
 <span class="sig-name descname"><span class="pre">ROVeg</span></span><a class="headerlink" href="#output-variable-ROVeg" title="Link to this definition">#</a></dt>
-<dd><p>Runoff over vegetated surfaces</p>
+<dd><p>Above-ground runoff from vegetated and bare-soil surfaces when pipe capacity is exceeded</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1401,7 +1415,7 @@
 <dl class="output variable" id="index-62">
 <dt class="sig sig-object output" id="output-variable-ROWater">
 <span class="sig-name descname"><span class="pre">ROWater</span></span><a class="headerlink" href="#output-variable-ROWater" title="Link to this definition">#</a></dt>
-<dd><p>Runoff for water surface</p>
+<dd><p>Overflow from the water surface above its state limit</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1429,7 +1443,7 @@
 <dl class="output variable" id="index-64">
 <dt class="sig sig-object output" id="output-variable-Rain">
 <span class="sig-name descname"><span class="pre">Rain</span></span><a class="headerlink" href="#output-variable-Rain" title="Link to this definition">#</a></dt>
-<dd><p>Precipitation input to the surface water balance</p>
+<dd><p>Precipitation from the meteorological forcing</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1443,7 +1457,7 @@
 <dl class="output variable" id="index-65">
 <dt class="sig sig-object output" id="output-variable-SMD">
 <span class="sig-name descname"><span class="pre">SMD</span></span><a class="headerlink" href="#output-variable-SMD" title="Link to this definition">#</a></dt>
-<dd><p>Soil Moisture Deficit</p>
+<dd><p>Soil moisture deficit</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1555,7 +1569,7 @@
 <dl class="output variable" id="index-73">
 <dt class="sig sig-object output" id="output-variable-SnowCh">
 <span class="sig-name descname"><span class="pre">SnowCh</span></span><a class="headerlink" href="#output-variable-SnowCh" title="Link to this definition">#</a></dt>
-<dd><p>Change in snow pack</p>
+<dd><p>Change in snowpack water, ice and held liquid water together</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1695,7 +1709,7 @@
 <dl class="output variable" id="index-83">
 <dt class="sig sig-object output" id="output-variable-State">
 <span class="sig-name descname"><span class="pre">State</span></span><a class="headerlink" href="#output-variable-State" title="Link to this definition">#</a></dt>
-<dd><p>Surface Wetness State</p>
+<dd><p>Surface wetness state, area-weighted over all surfaces including water</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1709,7 +1723,7 @@
 <dl class="output variable" id="index-84">
 <dt class="sig sig-object output" id="output-variable-SurfCh">
 <span class="sig-name descname"><span class="pre">SurfCh</span></span><a class="headerlink" href="#output-variable-SurfCh" title="Link to this definition">#</a></dt>
-<dd><p>Surface moisture change</p>
+<dd><p>Change in surface water storage</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1737,7 +1751,7 @@
 <dl class="output variable" id="index-86">
 <dt class="sig sig-object output" id="output-variable-TStar">
 <span class="sig-name descname"><span class="pre">TStar</span></span><a class="headerlink" href="#output-variable-TStar" title="Link to this definition">#</a></dt>
-<dd><p>Temperature scale</p>
+<dd><p>Temperature scale (friction temperature)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>K</p>
@@ -1751,7 +1765,7 @@
 <dl class="output variable" id="index-87">
 <dt class="sig sig-object output" id="output-variable-TotCh">
 <span class="sig-name descname"><span class="pre">TotCh</span></span><a class="headerlink" href="#output-variable-TotCh" title="Link to this definition">#</a></dt>
-<dd><p>Surface and soil moisture change</p>
+<dd><p>Change in surface and soil water storage</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -1793,7 +1807,7 @@
 <dl class="output variable" id="index-90">
 <dt class="sig sig-object output" id="output-variable-Ts_BSoil_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_BSoil_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_BSoil_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for bare soil surface</p>
+<dd><p>Surface temperature for bare soil surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1821,7 +1835,7 @@
 <dl class="output variable" id="index-92">
 <dt class="sig sig-object output" id="output-variable-Ts_Bldgs_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Bldgs_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Bldgs_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for building surface</p>
+<dd><p>Surface temperature for building surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1849,7 +1863,7 @@
 <dl class="output variable" id="index-94">
 <dt class="sig sig-object output" id="output-variable-Ts_DecTr_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_DecTr_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_DecTr_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for deciduous tree surface</p>
+<dd><p>Surface temperature for deciduous tree surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1877,7 +1891,7 @@
 <dl class="output variable" id="index-96">
 <dt class="sig sig-object output" id="output-variable-Ts_EveTr_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_EveTr_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_EveTr_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for evergreen tree surface</p>
+<dd><p>Surface temperature for evergreen tree surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1905,7 +1919,7 @@
 <dl class="output variable" id="index-98">
 <dt class="sig sig-object output" id="output-variable-Ts_Grass_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Grass_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Grass_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for grass surface</p>
+<dd><p>Surface temperature for grass surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1933,7 +1947,7 @@
 <dl class="output variable" id="index-100">
 <dt class="sig sig-object output" id="output-variable-Ts_Paved_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Paved_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Paved_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for paved surface</p>
+<dd><p>Surface temperature for paved surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -1961,7 +1975,7 @@
 <dl class="output variable" id="index-102">
 <dt class="sig sig-object output" id="output-variable-Ts_Water_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Water_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Water_dyohm" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature (dynamic OHM) for water surface</p>
+<dd><p>Surface temperature for water surface from the dynamic OHM ground temperature profile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -2101,7 +2115,7 @@
 <dl class="output variable" id="index-112">
 <dt class="sig sig-object output" id="output-variable-zL">
 <span class="sig-name descname"><span class="pre">zL</span></span><a class="headerlink" href="#output-variable-zL" title="Link to this definition">#</a></dt>
-<dd><p>Stability parameter z/L (height over Obukhov length)</p>
+<dd><p>Stability parameter (z - d)/L: measurement height above the displacement height over the Obukhov length</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -2200,7 +2214,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -2214,8 +2228,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

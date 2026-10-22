@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_era5';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -541,9 +555,9 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">.._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span>
 
 <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
-    <span class="n">action</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+    <span class="n">action</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">,</span>
     <span class="n">category</span><span class="o">=</span><span class="ne">FutureWarning</span><span class="p">,</span>
-    <span class="n">module</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;^pandas(\.|$)&quot;</span><span class="p">,</span>
+    <span class="n">module</span><span class="o">=</span><span class="sa">r</span><span class="s2">"^pandas(\.|$)"</span><span class="p">,</span>
 <span class="p">)</span>
 
 
@@ -554,13 +568,13 @@
 
 <span class="c1"># utility functions</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">roundPartial</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">resolution</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Geopotential Functions on WGS84 Reference Ellipsoid</span>
 
 <span class="sd">    This module contains code for converting Geopotential to Geometric and vice-versa on the WGS84 reference ellipsoid</span>
 
 <span class="sd">    ERA-5 utility functions from Chris Roth # https://pypi.org/project/eratools/</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">return</span> <span class="nb">round</span><span class="p">(</span><span class="n">value</span> <span class="o">/</span> <span class="n">resolution</span><span class="p">)</span> <span class="o">*</span> <span class="n">resolution</span>
 
 
@@ -569,7 +583,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_geoid_radius</span><span class="p">(</span><span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculates the GEOID radius at a given latitude</span>
+<span class="w">    </span><span class="sd">"""Calculates the GEOID radius at a given latitude</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -580,13 +594,13 @@
 <span class="sd">    -------</span>
 <span class="sd">    R : float</span>
 <span class="sd">        GEOID Radius (meters)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">lat</span> <span class="o">=</span> <span class="n">deg2rad</span><span class="p">(</span><span class="n">latitude</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">cos</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">Rmax_WGS84</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sin</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">Rmin_WGS84</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">geometric2geopotential</span><span class="p">(</span><span class="n">z</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Converts geometric height to geopotential height</span>
+<span class="w">    </span><span class="sd">"""Converts geometric height to geopotential height</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -599,7 +613,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    h : float</span>
 <span class="sd">        Geopotential Height (meters) above the reference ellipsoid</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">twolat</span> <span class="o">=</span> <span class="n">deg2rad</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">latitude</span><span class="p">)</span>
     <span class="n">g</span> <span class="o">=</span> <span class="mf">9.80616</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mf">0.002637</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">twolat</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.0000059</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">twolat</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
     <span class="n">re</span> <span class="o">=</span> <span class="n">_geoid_radius</span><span class="p">(</span><span class="n">latitude</span><span class="p">)</span>
@@ -607,7 +621,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">geopotential2geometric</span><span class="p">(</span><span class="n">h</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Converts geopotential height to geometric height</span>
+<span class="w">    </span><span class="sd">"""Converts geopotential height to geometric height</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -620,7 +634,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    z : float</span>
 <span class="sd">        Geometric Height (meters) above the reference ellipsoid</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">twolat</span> <span class="o">=</span> <span class="n">deg2rad</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">latitude</span><span class="p">)</span>
     <span class="n">g</span> <span class="o">=</span> <span class="mf">9.80616</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mf">0.002637</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">twolat</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.0000059</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">twolat</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
     <span class="n">re</span> <span class="o">=</span> <span class="n">_geoid_radius</span><span class="p">(</span><span class="n">latitude</span><span class="p">)</span>
@@ -635,7 +649,7 @@
     <span class="n">da_alt</span><span class="p">,</span>
     <span class="n">da_val</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;interpolate atmospheric variable to a specified altitude</span>
+<span class="w">    </span><span class="sd">"""interpolate atmospheric variable to a specified altitude</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -654,12 +668,12 @@
 <span class="sd">    -------</span>
 <span class="sd">    pd.Series</span>
 <span class="sd">        interpolated values at the specified altitude of site positioned by [`lat`, `lon`]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.interpolate</span><span class="w"> </span><span class="kn">import</span> <span class="n">interp1d</span>
 
-    <span class="n">alt_t_1d</span> <span class="o">=</span> <span class="n">da_alt</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)</span>
-    <span class="n">val_t_1d</span> <span class="o">=</span> <span class="n">da_val</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)</span>
-    <span class="n">alt_x</span> <span class="o">=</span> <span class="n">da_alt_x</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">alt_t_1d</span> <span class="o">=</span> <span class="n">da_alt</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"nearest"</span><span class="p">)</span>
+    <span class="n">val_t_1d</span> <span class="o">=</span> <span class="n">da_val</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"nearest"</span><span class="p">)</span>
+    <span class="n">alt_x</span> <span class="o">=</span> <span class="n">da_alt_x</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"nearest"</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">val_alt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
         <span class="n">interp1d</span><span class="p">(</span><span class="n">alt_1d</span><span class="p">,</span> <span class="n">val_1d</span><span class="p">)(</span><span class="n">alt_x</span><span class="p">)</span> <span class="k">for</span> <span class="n">alt_1d</span><span class="p">,</span> <span class="n">val_1d</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">alt_t_1d</span><span class="p">,</span> <span class="n">val_t_1d</span><span class="p">)</span>
     <span class="p">])</span>
@@ -672,7 +686,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">get_df_val_alt</span><span class="p">(</span><span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">da_alt_meas</span><span class="p">,</span> <span class="n">ds_val</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;interpolate atmospheric variables to a specified altitude</span>
+<span class="w">    </span><span class="sd">"""interpolate atmospheric variables to a specified altitude</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -689,13 +703,13 @@
 <span class="sd">    -------</span>
 <span class="sd">    pd.DataFrame</span>
 <span class="sd">        interpolated values at the specified altitude of site positioned by [`lat`, `lon`]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.interpolate</span><span class="w"> </span><span class="kn">import</span> <span class="n">interp1d</span>
 
     <span class="n">da_alt</span> <span class="o">=</span> <span class="n">geopotential2geometric</span><span class="p">(</span><span class="n">ds_val</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">ds_val</span><span class="o">.</span><span class="n">latitude</span><span class="p">)</span>
     <span class="c1"># generate pressure series for grid x</span>
-    <span class="n">da_alt_x</span> <span class="o">=</span> <span class="n">da_alt</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)</span>
-    <span class="n">alt_meas_x</span> <span class="o">=</span> <span class="n">da_alt_meas</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">da_alt_x</span> <span class="o">=</span> <span class="n">da_alt</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"nearest"</span><span class="p">)</span>
+    <span class="n">alt_meas_x</span> <span class="o">=</span> <span class="n">da_alt_meas</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"nearest"</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="n">val_pres</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">interp1d</span><span class="p">(</span><span class="n">alt</span><span class="p">,</span> <span class="n">da_alt_x</span><span class="o">.</span><span class="n">level</span><span class="p">)(</span><span class="n">alt_meas_x</span><span class="p">)</span> <span class="k">for</span> <span class="n">alt</span> <span class="ow">in</span> <span class="n">da_alt_x</span><span class="p">])</span>
     <span class="n">df_val_alt</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
@@ -706,17 +720,17 @@
         <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="c1">#     add pressure</span>
-    <span class="n">df_val_alt</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val_pres</span>
-    <span class="n">df_val_alt</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">df_val_alt</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">set_names</span><span class="p">(</span><span class="s2">&quot;time&quot;</span><span class="p">)</span>
-    <span class="n">df_val_alt</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">df_val_alt</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">set_names</span><span class="p">(</span><span class="s2">&quot;var&quot;</span><span class="p">)</span>
+    <span class="n">df_val_alt</span><span class="p">[</span><span class="s2">"p"</span><span class="p">]</span> <span class="o">=</span> <span class="n">val_pres</span>
+    <span class="n">df_val_alt</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">df_val_alt</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">set_names</span><span class="p">(</span><span class="s2">"time"</span><span class="p">)</span>
+    <span class="n">df_val_alt</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">df_val_alt</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">set_names</span><span class="p">(</span><span class="s2">"var"</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">df_val_alt</span>
 
 
 <span class="c1"># cds download related functions</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">gen_dict_dt</span><span class="p">(</span><span class="n">dt_index</span><span class="p">):</span>
-    <span class="n">list_key</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;year&quot;</span><span class="p">,</span> <span class="s2">&quot;month&quot;</span><span class="p">,</span> <span class="s2">&quot;day&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">]</span>
-    <span class="n">list_fmt</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;%Y&quot;</span><span class="p">,</span> <span class="s2">&quot;%m&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;%H:%M&quot;</span><span class="p">]</span>
+    <span class="n">list_key</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"year"</span><span class="p">,</span> <span class="s2">"month"</span><span class="p">,</span> <span class="s2">"day"</span><span class="p">,</span> <span class="s2">"time"</span><span class="p">]</span>
+    <span class="n">list_fmt</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"%Y"</span><span class="p">,</span> <span class="s2">"%m"</span><span class="p">,</span> <span class="s2">"</span><span class="si">%d</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"%H:%M"</span><span class="p">]</span>
     <span class="n">dict_dt</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">k</span><span class="p">:</span> <span class="n">dt_index</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">fmt</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">fmt</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">list_key</span><span class="p">,</span> <span class="n">list_fmt</span><span class="p">)</span>
@@ -726,7 +740,7 @@
 
 <span class="k">def</span><span class="w"> </span><span class="nf">gen_dict_dt_sub</span><span class="p">(</span><span class="n">dt_index</span><span class="p">):</span>
     <span class="c1"># divide by [year, month] for surface level data</span>
-    <span class="n">ser_dict_sub</span> <span class="o">=</span> <span class="n">dt_index</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">dt_index</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">gen_dict_dt</span><span class="p">)</span>
+    <span class="n">ser_dict_sub</span> <span class="o">=</span> <span class="n">dt_index</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">dt_index</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%Y%m"</span><span class="p">))</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">gen_dict_dt</span><span class="p">)</span>
     <span class="n">dict_sub</span> <span class="o">=</span> <span class="n">ser_dict_sub</span><span class="o">.</span><span class="n">unstack</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">dict_sub</span>
 
@@ -734,30 +748,30 @@
 <span class="c1"># generate filename</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">gen_fn</span><span class="p">(</span><span class="n">dict_x</span><span class="p">):</span>
     <span class="c1"># centre coordinates</span>
-    <span class="n">ar_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;area&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ar_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dict_x</span><span class="p">[</span><span class="s2">"area"</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">lat_c</span><span class="p">,</span> <span class="n">lon_c</span> <span class="o">=</span> <span class="n">ar_coords</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
     <span class="c1"># starting year</span>
-    <span class="n">yr_x</span> <span class="o">=</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;year&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">yr_x</span> <span class="o">=</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">"year"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
     <span class="c1"># starting month</span>
-    <span class="n">mon_x</span> <span class="o">=</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;month&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">mon_x</span> <span class="o">=</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">"month"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
     <span class="c1"># type of dataset: `sfc` for surface level while `ml` for atmospheric multi-level</span>
-    <span class="n">type_x</span> <span class="o">=</span> <span class="s2">&quot;sfc&quot;</span> <span class="k">if</span> <span class="s2">&quot;2m_temperature&quot;</span> <span class="ow">in</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;variable&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;ml&quot;</span>
+    <span class="n">type_x</span> <span class="o">=</span> <span class="s2">"sfc"</span> <span class="k">if</span> <span class="s2">"2m_temperature"</span> <span class="ow">in</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">"variable"</span><span class="p">]</span> <span class="k">else</span> <span class="s2">"ml"</span>
 
     <span class="c1"># format location coordinates in filename</span>
-    <span class="n">lat_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}</span><span class="s2">N&quot;</span> <span class="k">if</span> <span class="n">lat_c</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lat_c</span><span class="si">}</span><span class="s2">S&quot;</span>
-    <span class="n">lon_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">E&quot;</span> <span class="k">if</span> <span class="n">lon_c</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">W&quot;</span>
+    <span class="n">lat_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}</span><span class="s2">N"</span> <span class="k">if</span> <span class="n">lat_c</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="o">-</span><span class="n">lat_c</span><span class="si">}</span><span class="s2">S"</span>
+    <span class="n">lon_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">E"</span> <span class="k">if</span> <span class="n">lon_c</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="o">-</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">W"</span>
 
     <span class="c1"># construct filename</span>
-    <span class="n">fn_x</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">yr_x</span><span class="si">}{</span><span class="n">mon_x</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">type_x</span><span class="si">}</span><span class="s2">.nc&quot;</span>
+    <span class="n">fn_x</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">yr_x</span><span class="si">}{</span><span class="n">mon_x</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">type_x</span><span class="si">}</span><span class="s2">.nc"</span>
     <span class="k">return</span> <span class="n">fn_x</span>
 
 
 <span class="c1"># dict_x: a dict describing download elements</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">gen_dict_proc</span><span class="p">(</span><span class="n">dict_x</span><span class="p">):</span>
-    <span class="n">type_x</span> <span class="o">=</span> <span class="s2">&quot;sfc&quot;</span> <span class="k">if</span> <span class="s2">&quot;2m_temperature&quot;</span> <span class="ow">in</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;variable&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;ml&quot;</span>
+    <span class="n">type_x</span> <span class="o">=</span> <span class="s2">"sfc"</span> <span class="k">if</span> <span class="s2">"2m_temperature"</span> <span class="ow">in</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">"variable"</span><span class="p">]</span> <span class="k">else</span> <span class="s2">"ml"</span>
     <span class="n">dict_feed</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;sfc&quot;</span><span class="p">:</span> <span class="s2">&quot;reanalysis-era5-single-levels&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;ml&quot;</span><span class="p">:</span> <span class="s2">&quot;reanalysis-era5-pressure-levels&quot;</span><span class="p">,</span>
+        <span class="s2">"sfc"</span><span class="p">:</span> <span class="s2">"reanalysis-era5-single-levels"</span><span class="p">,</span>
+        <span class="s2">"ml"</span><span class="p">:</span> <span class="s2">"reanalysis-era5-pressure-levels"</span><span class="p">,</span>
     <span class="p">}</span>
     <span class="n">feed_x</span> <span class="o">=</span> <span class="n">dict_feed</span><span class="p">[</span><span class="n">type_x</span><span class="p">]</span>
     <span class="n">dict_proc</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
@@ -782,18 +796,18 @@
 
 <span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">safe_stdout_stderr</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Ensure stdout/stderr are valid file objects for libraries that assume they exist.</span>
+<span class="w">    </span><span class="sd">"""Ensure stdout/stderr are valid file objects for libraries that assume they exist.</span>
 
 <span class="sd">    Some GUI environments (e.g., QGIS Processing toolbox) set stdout/stderr to None,</span>
 <span class="sd">    which causes libraries like tqdm to crash with:</span>
-<span class="sd">        AttributeError: &#39;NoneType&#39; object has no attribute &#39;write&#39;</span>
+<span class="sd">        AttributeError: 'NoneType' object has no attribute 'write'</span>
 
 <span class="sd">    This context manager temporarily replaces None streams with os.devnull, which is</span>
 <span class="sd">    more robust than setting TQDM_DISABLE as it works for any library that writes to</span>
 <span class="sd">    stdout/stderr.</span>
 
 <span class="sd">    See: https://github.com/UMEP-dev/SUEWS/issues/902</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 
     <span class="n">stdout_was_none</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="ow">is</span> <span class="kc">None</span>
@@ -805,9 +819,9 @@
         <span class="k">return</span>
 
     <span class="c1"># Replace None streams with devnull. Force UTF-8 so libraries that emit</span>
-    <span class="c1"># Unicode (e.g. tqdm progress bars) don&#39;t crash on Windows, whose default</span>
+    <span class="c1"># Unicode (e.g. tqdm progress bars) don't crash on Windows, whose default</span>
     <span class="c1"># cp1252 codec cannot encode them (see gh#1097, gh#902).</span>
-    <span class="n">devnull</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">devnull</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    <span class="n">devnull</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">devnull</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">stdout_was_none</span><span class="p">:</span>
             <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">devnull</span>
@@ -829,9 +843,9 @@
     <span class="n">c</span> <span class="o">=</span> <span class="n">cdsapi</span><span class="o">.</span><span class="n">Client</span><span class="p">()</span>
     <span class="n">path_fn</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">path_fn</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> exists!&quot;</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> exists!"</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;To download: </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"To download: </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="c1"># this will download the file to a secure temporary directory without requirement for extra permission</span>
         <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">td</span><span class="p">:</span>
@@ -850,10 +864,10 @@
     <span class="n">lon_x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">start</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">end</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">dir_save</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">),</span>
+    <span class="n">dir_save</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">"."</span><span class="p">),</span>
     <span class="n">logging_level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Download ERA5 data using CDS API timeseries dataset.</span>
+<span class="w">    </span><span class="sd">"""Download ERA5 data using CDS API timeseries dataset.</span>
 
 <span class="sd">    This function uses the ERA5 timeseries dataset which is optimised for</span>
 <span class="sd">    fast retrieval of point location data. Only provides surface-level variables.</span>
@@ -865,11 +879,11 @@
 <span class="sd">    lon_x : float</span>
 <span class="sd">        Longitude of the point of interest.</span>
 <span class="sd">    start : str</span>
-<span class="sd">        Start date in format &#39;YYYY-MM-DD&#39;.</span>
+<span class="sd">        Start date in format 'YYYY-MM-DD'.</span>
 <span class="sd">    end : str</span>
-<span class="sd">        End date in format &#39;YYYY-MM-DD&#39;.</span>
+<span class="sd">        End date in format 'YYYY-MM-DD'.</span>
 <span class="sd">    dir_save : Path or str, optional</span>
-<span class="sd">        Directory to save downloaded file, by default Path(&quot;.&quot;).</span>
+<span class="sd">        Directory to save downloaded file, by default Path(".").</span>
 <span class="sd">    logging_level : int, optional</span>
 <span class="sd">        Logging level, by default logging.INFO.</span>
 
@@ -890,7 +904,7 @@
 <span class="sd">    Reference</span>
 <span class="sd">    ---------</span>
 <span class="sd">    ERA5 timeseries documentation: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-timeseries</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">cdsapi</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">zipfile</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
@@ -908,43 +922,43 @@
     <span class="c1"># Advanced variables (geopotential, heat fluxes, surface properties) are NOT available.</span>
     <span class="c1"># These must be obtained from the gridded ERA5 dataset if needed.</span>
     <span class="n">variables</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="s2">&quot;2m_dewpoint_temperature&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;2m_temperature&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;10m_u_component_of_wind&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;10m_v_component_of_wind&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;surface_pressure&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;surface_solar_radiation_downwards&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;surface_thermal_radiation_downwards&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;total_precipitation&quot;</span><span class="p">,</span>
+        <span class="s2">"2m_dewpoint_temperature"</span><span class="p">,</span>
+        <span class="s2">"2m_temperature"</span><span class="p">,</span>
+        <span class="s2">"10m_u_component_of_wind"</span><span class="p">,</span>
+        <span class="s2">"10m_v_component_of_wind"</span><span class="p">,</span>
+        <span class="s2">"surface_pressure"</span><span class="p">,</span>
+        <span class="s2">"surface_solar_radiation_downwards"</span><span class="p">,</span>
+        <span class="s2">"surface_thermal_radiation_downwards"</span><span class="p">,</span>
+        <span class="s2">"total_precipitation"</span><span class="p">,</span>
     <span class="p">]</span>
 
     <span class="c1"># format location coordinates in filename</span>
-    <span class="n">lat_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">N&quot;</span> <span class="k">if</span> <span class="n">lat_x</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">S&quot;</span>
-    <span class="n">lon_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">E&quot;</span> <span class="k">if</span> <span class="n">lon_x</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">W&quot;</span>
+    <span class="n">lat_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">N"</span> <span class="k">if</span> <span class="n">lat_x</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="o">-</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">S"</span>
+    <span class="n">lon_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">E"</span> <span class="k">if</span> <span class="n">lon_x</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="o">-</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">W"</span>
 
     <span class="c1"># parse dates</span>
-    <span class="n">date_start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">date_end</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">end</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">date_start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%Y-%m-</span><span class="si">%d</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">date_end</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">end</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%Y-%m-</span><span class="si">%d</span><span class="s2">"</span><span class="p">)</span>
     <span class="n">year_start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="o">.</span><span class="n">year</span>
 
     <span class="c1"># construct filename (CSV format)</span>
-    <span class="n">fn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">year_start</span><span class="si">}</span><span class="s2">-sfc.csv&quot;</span>
+    <span class="n">fn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">year_start</span><span class="si">}</span><span class="s2">-sfc.csv"</span>
     <span class="n">path_fn</span> <span class="o">=</span> <span class="n">path_dir_save</span> <span class="o">/</span> <span class="n">fn</span>
 
     <span class="k">if</span> <span class="n">path_fn</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> exists!&quot;</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> exists!"</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloading ERA5 timeseries data using CDS API...&quot;</span><span class="p">)</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Location: (</span><span class="si">{</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Period: </span><span class="si">{</span><span class="n">date_start</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">date_end</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Downloading ERA5 timeseries data using CDS API..."</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Location: (</span><span class="si">{</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Period: </span><span class="si">{</span><span class="n">date_start</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">date_end</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="c1"># define request parameters (CSV - no netCDF dependencies needed)</span>
-        <span class="n">dataset</span> <span class="o">=</span> <span class="s2">&quot;reanalysis-era5-single-levels-timeseries&quot;</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="s2">"reanalysis-era5-single-levels-timeseries"</span>
         <span class="n">request</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;variable&quot;</span><span class="p">:</span> <span class="n">variables</span><span class="p">,</span>
-            <span class="s2">&quot;location&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;longitude&quot;</span><span class="p">:</span> <span class="n">lon_x</span><span class="p">,</span> <span class="s2">&quot;latitude&quot;</span><span class="p">:</span> <span class="n">lat_x</span><span class="p">},</span>
-            <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">date_start</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">date_end</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
-            <span class="s2">&quot;data_format&quot;</span><span class="p">:</span> <span class="s2">&quot;csv&quot;</span><span class="p">,</span>
+            <span class="s2">"variable"</span><span class="p">:</span> <span class="n">variables</span><span class="p">,</span>
+            <span class="s2">"location"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"longitude"</span><span class="p">:</span> <span class="n">lon_x</span><span class="p">,</span> <span class="s2">"latitude"</span><span class="p">:</span> <span class="n">lat_x</span><span class="p">},</span>
+            <span class="s2">"date"</span><span class="p">:</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">date_start</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">date_end</span><span class="si">}</span><span class="s2">"</span><span class="p">],</span>
+            <span class="s2">"data_format"</span><span class="p">:</span> <span class="s2">"csv"</span><span class="p">,</span>
         <span class="p">}</span>
 
         <span class="c1"># retrieve data to temporary file (CDS API returns zip archives)</span>
@@ -952,17 +966,17 @@
         <span class="n">client</span> <span class="o">=</span> <span class="n">cdsapi</span><span class="o">.</span><span class="n">Client</span><span class="p">()</span>
 
         <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">tmp_dir</span><span class="p">:</span>
-            <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tmp_dir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;download.zip&quot;</span>
+            <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tmp_dir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"download.zip"</span>
             <span class="c1"># Ensure stdout/stderr exist for tqdm in headless environments</span>
             <span class="k">with</span> <span class="n">safe_stdout_stderr</span><span class="p">():</span>
                 <span class="n">client</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">request</span><span class="p">)</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">))</span>
 
             <span class="c1"># extract CSV from zip archive</span>
-            <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
                 <span class="c1"># find the CSV file in the archive</span>
-                <span class="n">csv_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">zip_ref</span><span class="o">.</span><span class="n">namelist</span><span class="p">()</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.csv&quot;</span><span class="p">)]</span>
+                <span class="n">csv_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">zip_ref</span><span class="o">.</span><span class="n">namelist</span><span class="p">()</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">".csv"</span><span class="p">)]</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">csv_files</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No CSV file found in downloaded archive&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No CSV file found in downloaded archive"</span><span class="p">)</span>
 
                 <span class="c1"># extract the first CSV file</span>
                 <span class="n">zip_ref</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">csv_files</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">path_dir_save</span><span class="p">)</span>
@@ -973,7 +987,7 @@
             <span class="c1"># cleanup happens automatically when tmp_dir context exits</span>
 
         <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Download completed in </span><span class="si">{</span><span class="n">t1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">t0</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> seconds&quot;</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Download completed in </span><span class="si">{</span><span class="n">t1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">t0</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> seconds"</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">path_fn</span><span class="p">)</span>
 
@@ -988,11 +1002,11 @@
     <span class="n">lon_x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">start</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">end</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">dir_save</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">),</span>
+    <span class="n">dir_save</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">"."</span><span class="p">),</span>
     <span class="n">hgt_agl_diag</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span>
     <span class="n">logging_level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate SUEWS forcing files using ERA-5 timeseries data.</span>
+<span class="w">    </span><span class="sd">"""Generate SUEWS forcing files using ERA-5 timeseries data.</span>
 
 <span class="sd">    Downloads ERA5 surface timeseries data from CDS API and converts to SUEWS forcing format.</span>
 <span class="sd">    Uses simple diagnostics: environmental lapse rate (6.5 K/km) for temperature and</span>
@@ -1005,11 +1019,11 @@
 <span class="sd">    lon_x : float</span>
 <span class="sd">        Longitude of the location.</span>
 <span class="sd">    start : str</span>
-<span class="sd">        Start date (e.g., &quot;2020-01-01&quot;).</span>
+<span class="sd">        Start date (e.g., "2020-01-01").</span>
 <span class="sd">    end : str</span>
-<span class="sd">        End date (e.g., &quot;2020-12-31&quot;).</span>
+<span class="sd">        End date (e.g., "2020-12-31").</span>
 <span class="sd">    dir_save : pathlib.Path or str, optional</span>
-<span class="sd">        Directory for saving ERA5 CSV files, by default Path(&quot;.&quot;).</span>
+<span class="sd">        Directory for saving ERA5 CSV files, by default Path(".").</span>
 <span class="sd">    hgt_agl_diag : float, optional</span>
 <span class="sd">        Height above ground level for diagnostics (m), by default 100.</span>
 <span class="sd">    logging_level : int, optional</span>
@@ -1029,13 +1043,13 @@
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
-<span class="sd">    &gt;&gt;&gt; list_fn = gen_forcing_era5(50.86, 4.35, &quot;2020-01-01&quot;, &quot;2020-01-31&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; list_fn = gen_forcing_era5(50.86, 4.35, "2020-01-01", "2020-01-31")</span>
 
 <span class="sd">    Reference</span>
 <span class="sd">    ---------</span>
 <span class="sd">    ECMWF, S. P. (2016). In IFS documentation CY41R2 Part IV: Physical Processes.</span>
 <span class="sd">    ECMWF: Reading, UK, 111-113. https://www.ecmwf.int/en/elibrary/16648-part-iv-physical-processes</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># adjust logging level</span>
     <span class="n">logger_supy</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging_level</span><span class="p">)</span>
 
@@ -1046,16 +1060,16 @@
     <span class="n">df_forcing_raw</span> <span class="o">=</span> <span class="n">gen_df_diag_era5_csv</span><span class="p">(</span><span class="n">fn_sfc</span><span class="p">,</span> <span class="n">hgt_agl_diag</span><span class="p">)</span>
 
     <span class="c1"># extract coordinates</span>
-    <span class="n">lat</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;latitude&quot;</span><span class="p">]</span>
-    <span class="n">lon</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;longitude&quot;</span><span class="p">]</span>
+    <span class="n">lat</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"latitude"</span><span class="p">]</span>
+    <span class="n">lon</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"longitude"</span><span class="p">]</span>
 
     <span class="c1"># format to SUEWS convention</span>
     <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">format_df_forcing</span><span class="p">(</span><span class="n">df_forcing_raw</span><span class="p">)</span>
 
     <span class="c1"># add coordinates to match expected structure</span>
-    <span class="n">df_forcing</span><span class="p">[</span><span class="s2">&quot;latitude&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lat</span>
-    <span class="n">df_forcing</span><span class="p">[</span><span class="s2">&quot;longitude&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lon</span>
-    <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s2">&quot;latitude&quot;</span><span class="p">,</span> <span class="s2">&quot;longitude&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">])</span>
+    <span class="n">df_forcing</span><span class="p">[</span><span class="s2">"latitude"</span><span class="p">]</span> <span class="o">=</span> <span class="n">lat</span>
+    <span class="n">df_forcing</span><span class="p">[</span><span class="s2">"longitude"</span><span class="p">]</span> <span class="o">=</span> <span class="n">lon</span>
+    <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s2">"latitude"</span><span class="p">,</span> <span class="s2">"longitude"</span><span class="p">,</span> <span class="s2">"time"</span><span class="p">])</span>
 
     <span class="c1"># save results as SUEWS met input files</span>
     <span class="n">list_fn</span> <span class="o">=</span> <span class="n">save_forcing_era5</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">,</span> <span class="n">dir_save</span><span class="p">)</span>
@@ -1071,36 +1085,36 @@
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
     <span class="c1"># convert energy fluxes: [J m-2] to [W m-2]</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">&quot;ssrd&quot;</span><span class="p">,</span> <span class="s2">&quot;strd&quot;</span><span class="p">,</span> <span class="s2">&quot;sshf&quot;</span><span class="p">,</span> <span class="s2">&quot;slhf&quot;</span><span class="p">]]</span> <span class="o">/=</span> <span class="mi">3600</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">"ssrd"</span><span class="p">,</span> <span class="s2">"strd"</span><span class="p">,</span> <span class="s2">"sshf"</span><span class="p">,</span> <span class="s2">"slhf"</span><span class="p">]]</span> <span class="o">/=</span> <span class="mi">3600</span>
 
     <span class="c1"># reverse the sign of qh and qe</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">&quot;sshf&quot;</span><span class="p">,</span> <span class="s2">&quot;slhf&quot;</span><span class="p">]]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">"sshf"</span><span class="p">,</span> <span class="s2">"slhf"</span><span class="p">]]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
 
     <span class="c1"># convert rainfall: from [m] to [mm]</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;tp&quot;</span><span class="p">]</span> <span class="o">*=</span> <span class="mi">1000</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"tp"</span><span class="p">]</span> <span class="o">*=</span> <span class="mi">1000</span>
 
     <span class="c1"># convert bulb temperature from K to degC</span>
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">Tair</span><span class="o">=</span><span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">t_z</span> <span class="o">-</span> <span class="mf">273.15</span><span class="p">)</span>
 
     <span class="c1"># convert atmospheric pressure: [Pa] to [kPa]</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;p_z&quot;</span><span class="p">]</span> <span class="o">/=</span> <span class="mi">1000</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"p_z"</span><span class="p">]</span> <span class="o">/=</span> <span class="mi">1000</span>
 
     <span class="c1"># renaming for consistency with SUEWS</span>
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span>
         <span class="p">{</span>
-            <span class="s2">&quot;ssrd&quot;</span><span class="p">:</span> <span class="s2">&quot;kdown&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;strd&quot;</span><span class="p">:</span> <span class="s2">&quot;ldown&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;sshf&quot;</span><span class="p">:</span> <span class="s2">&quot;qh&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;slhf&quot;</span><span class="p">:</span> <span class="s2">&quot;qe&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;tp&quot;</span><span class="p">:</span> <span class="s2">&quot;rain&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;uv_z&quot;</span><span class="p">:</span> <span class="s2">&quot;U&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;RH_z&quot;</span><span class="p">:</span> <span class="s2">&quot;RH&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;p_z&quot;</span><span class="p">:</span> <span class="s2">&quot;pres&quot;</span><span class="p">,</span>
+            <span class="s2">"ssrd"</span><span class="p">:</span> <span class="s2">"kdown"</span><span class="p">,</span>
+            <span class="s2">"strd"</span><span class="p">:</span> <span class="s2">"ldown"</span><span class="p">,</span>
+            <span class="s2">"sshf"</span><span class="p">:</span> <span class="s2">"qh"</span><span class="p">,</span>
+            <span class="s2">"slhf"</span><span class="p">:</span> <span class="s2">"qe"</span><span class="p">,</span>
+            <span class="s2">"tp"</span><span class="p">:</span> <span class="s2">"rain"</span><span class="p">,</span>
+            <span class="s2">"uv_z"</span><span class="p">:</span> <span class="s2">"U"</span><span class="p">,</span>
+            <span class="s2">"RH_z"</span><span class="p">:</span> <span class="s2">"RH"</span><span class="p">,</span>
+            <span class="s2">"p_z"</span><span class="p">:</span> <span class="s2">"pres"</span><span class="p">,</span>
         <span class="p">},</span>
         <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">col_suews</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dict_var_type_forcing</span><span class="o">.</span><span class="n">keys</span><span class="p">())[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;alt_z&quot;</span><span class="p">]</span>
+    <span class="n">col_suews</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dict_var_type_forcing</span><span class="o">.</span><span class="n">keys</span><span class="p">())[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s2">"alt_z"</span><span class="p">]</span>
 
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">col_suews</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
@@ -1112,11 +1126,11 @@
     <span class="p">)</span>
 
     <span class="c1"># corrections</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-        <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">105</span><span class="p">),</span> <span class="mi">105</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"RH"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"RH"</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"RH"</span><span class="p">]</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">105</span><span class="p">),</span> <span class="mi">105</span>
     <span class="p">)</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;kdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;kdown&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-        <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;kdown&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"kdown"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"kdown"</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"kdown"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
     <span class="p">)</span>
 
     <span class="c1"># trim decimals</span>
@@ -1124,49 +1138,49 @@
 
     <span class="c1"># coerce integer</span>
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">astype</span><span class="p">({</span>
-        <span class="s2">&quot;iy&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;it&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;imin&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span>
+        <span class="s2">"iy"</span><span class="p">:</span> <span class="s2">"int32"</span><span class="p">,</span>
+        <span class="s2">"id"</span><span class="p">:</span> <span class="s2">"int32"</span><span class="p">,</span>
+        <span class="s2">"it"</span><span class="p">:</span> <span class="s2">"int32"</span><span class="p">,</span>
+        <span class="s2">"imin"</span><span class="p">:</span> <span class="s2">"int32"</span><span class="p">,</span>
     <span class="p">})</span>
 
     <span class="c1"># replace nan with -999</span>
-    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="o">-</span><span class="mi">999</span><span class="p">)</span><span class="o">.</span><span class="n">asfreq</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span>
+    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="o">-</span><span class="mi">999</span><span class="p">)</span><span class="o">.</span><span class="n">asfreq</span><span class="p">(</span><span class="s2">"1h"</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">df_forcing_grid</span>
 
 
 <span class="c1"># pandas-only version for CSV timeseries (no xarray dependency)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">gen_df_diag_era5_csv</span><span class="p">(</span><span class="n">fn_csv</span><span class="p">,</span> <span class="n">hgt_agl_diag</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate diagnostics from CSV timeseries data using pandas only.</span>
+<span class="w">    </span><span class="sd">"""Generate diagnostics from CSV timeseries data using pandas only.</span>
 
 <span class="sd">    This function avoids xarray dependency for the common timeseries use case.</span>
 <span class="sd">    Only supports simple_mode=True (log law + lapse rate).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">atmosp</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate</span> <span class="k">as</span> <span class="n">ac</span>
 
     <span class="c1"># load CSV timeseries data</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">fn_csv</span><span class="p">)</span>
-    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;valid_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;valid_time&quot;</span><span class="p">])</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;valid_time&quot;</span><span class="p">)</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;time&quot;</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">"valid_time"</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">"valid_time"</span><span class="p">])</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">"valid_time"</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"time"</span>
 
     <span class="c1"># extract coordinates</span>
-    <span class="n">lat</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;latitude&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">lon</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;longitude&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">lat</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"latitude"</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">lon</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"longitude"</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># extract variables (using abbreviated CSV column names)</span>
-    <span class="n">pres_z0</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;sp&quot;</span><span class="p">]</span>  <span class="c1"># surface pressure [Pa]</span>
-    <span class="n">u10</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;u10&quot;</span><span class="p">]</span>  <span class="c1"># 10m u-wind [m/s]</span>
-    <span class="n">v10</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;v10&quot;</span><span class="p">]</span>  <span class="c1"># 10m v-wind [m/s]</span>
-    <span class="n">t2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;t2m&quot;</span><span class="p">]</span>  <span class="c1"># 2m temperature [K]</span>
-    <span class="n">d2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;d2m&quot;</span><span class="p">]</span>  <span class="c1"># 2m dewpoint [K]</span>
+    <span class="n">pres_z0</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"sp"</span><span class="p">]</span>  <span class="c1"># surface pressure [Pa]</span>
+    <span class="n">u10</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"u10"</span><span class="p">]</span>  <span class="c1"># 10m u-wind [m/s]</span>
+    <span class="n">v10</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"v10"</span><span class="p">]</span>  <span class="c1"># 10m v-wind [m/s]</span>
+    <span class="n">t2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"t2m"</span><span class="p">]</span>  <span class="c1"># 2m temperature [K]</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"d2m"</span><span class="p">]</span>  <span class="c1"># 2m dewpoint [K]</span>
 
     <span class="c1"># computed variables</span>
     <span class="n">uv10</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">u10</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">v10</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># wind speed</span>
-    <span class="n">q2</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;qv&quot;</span><span class="p">,</span> <span class="n">Td</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t2</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pres_z0</span><span class="p">)</span>  <span class="c1"># specific humidity</span>
+    <span class="n">q2</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">"qv"</span><span class="p">,</span> <span class="n">Td</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t2</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pres_z0</span><span class="p">)</span>  <span class="c1"># specific humidity</span>
 
-    <span class="c1"># default values for missing variables (timeseries doesn&#39;t provide these)</span>
+    <span class="c1"># default values for missing variables (timeseries doesn't provide these)</span>
     <span class="n">alt_z0</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># assume sea level</span>
     <span class="n">z0m</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># default roughness [m]</span>
 
@@ -1185,8 +1199,8 @@
     <span class="n">p_z</span> <span class="o">=</span> <span class="n">pres_z0</span> <span class="o">*</span> <span class="p">(</span><span class="n">t_z</span> <span class="o">/</span> <span class="n">t2</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">grav</span> <span class="o">/</span> <span class="p">(</span><span class="n">rd</span> <span class="o">*</span> <span class="n">env_lapse</span><span class="p">))</span>
 
     <span class="c1"># humidity assuming invariable relative humidity</span>
-    <span class="n">RH_z</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;RH&quot;</span><span class="p">,</span> <span class="n">qv</span><span class="o">=</span><span class="n">q2</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pres_z0</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t2</span><span class="p">)</span>
-    <span class="n">q_z</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;qv&quot;</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">RH_z</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p_z</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t_z</span><span class="p">)</span>
+    <span class="n">RH_z</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">"RH"</span><span class="p">,</span> <span class="n">qv</span><span class="o">=</span><span class="n">q2</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pres_z0</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t2</span><span class="p">)</span>
+    <span class="n">q_z</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">"qv"</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">RH_z</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p_z</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t_z</span><span class="p">)</span>
 
     <span class="c1"># wind speed using log law (neutral condition)</span>
     <span class="n">uv_z</span> <span class="o">=</span> <span class="n">uv10</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="n">z</span> <span class="o">+</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="mi">10</span> <span class="o">+</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">z0m</span><span class="p">))</span>
@@ -1197,24 +1211,24 @@
     <span class="c1"># create DataFrame with diagnostics</span>
     <span class="n">df_diag</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
         <span class="p">{</span>
-            <span class="s2">&quot;uv_z&quot;</span><span class="p">:</span> <span class="n">uv_z</span><span class="p">,</span>
-            <span class="s2">&quot;t_z&quot;</span><span class="p">:</span> <span class="n">t_z</span><span class="p">,</span>
-            <span class="s2">&quot;q_z&quot;</span><span class="p">:</span> <span class="n">q_z</span><span class="p">,</span>
-            <span class="s2">&quot;RH_z&quot;</span><span class="p">:</span> <span class="n">RH_z</span><span class="p">,</span>
-            <span class="s2">&quot;p_z&quot;</span><span class="p">:</span> <span class="n">p_z</span><span class="p">,</span>
-            <span class="s2">&quot;alt_z&quot;</span><span class="p">:</span> <span class="n">alt_z</span><span class="p">,</span>
+            <span class="s2">"uv_z"</span><span class="p">:</span> <span class="n">uv_z</span><span class="p">,</span>
+            <span class="s2">"t_z"</span><span class="p">:</span> <span class="n">t_z</span><span class="p">,</span>
+            <span class="s2">"q_z"</span><span class="p">:</span> <span class="n">q_z</span><span class="p">,</span>
+            <span class="s2">"RH_z"</span><span class="p">:</span> <span class="n">RH_z</span><span class="p">,</span>
+            <span class="s2">"p_z"</span><span class="p">:</span> <span class="n">p_z</span><span class="p">,</span>
+            <span class="s2">"alt_z"</span><span class="p">:</span> <span class="n">alt_z</span><span class="p">,</span>
             <span class="c1"># also include surface variables needed downstream</span>
-            <span class="s2">&quot;ssrd&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ssrd&quot;</span><span class="p">],</span>
-            <span class="s2">&quot;strd&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;strd&quot;</span><span class="p">],</span>
-            <span class="s2">&quot;tp&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;tp&quot;</span><span class="p">],</span>
-            <span class="s2">&quot;sshf&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># not available in timeseries</span>
-            <span class="s2">&quot;slhf&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># not available in timeseries</span>
+            <span class="s2">"ssrd"</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">"ssrd"</span><span class="p">],</span>
+            <span class="s2">"strd"</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">"strd"</span><span class="p">],</span>
+            <span class="s2">"tp"</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">"tp"</span><span class="p">],</span>
+            <span class="s2">"sshf"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># not available in timeseries</span>
+            <span class="s2">"slhf"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># not available in timeseries</span>
         <span class="p">},</span>
         <span class="n">index</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># add coordinates as attributes (will be used for filename)</span>
-    <span class="n">df_diag</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;latitude&quot;</span><span class="p">:</span> <span class="n">lat</span><span class="p">,</span> <span class="s2">&quot;longitude&quot;</span><span class="p">:</span> <span class="n">lon</span><span class="p">}</span>
+    <span class="n">df_diag</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"latitude"</span><span class="p">:</span> <span class="n">lat</span><span class="p">,</span> <span class="s2">"longitude"</span><span class="p">:</span> <span class="n">lon</span><span class="p">}</span>
 
     <span class="k">return</span> <span class="n">df_diag</span>
 
@@ -1223,7 +1237,7 @@
 <span class="c1"># diagnose ISL variable using MOST</span>
 <span class="c1"># save ERA5 forcing dataframe to SUEWS-simulation ready txt files</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_forcing_era5</span><span class="p">(</span><span class="n">df_forcing_era5</span><span class="p">,</span> <span class="n">dir_save</span><span class="p">):</span>
-    <span class="n">gpb</span> <span class="o">=</span> <span class="n">df_forcing_era5</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">&quot;latitude&quot;</span><span class="p">,</span> <span class="s2">&quot;longitude&quot;</span><span class="p">])</span>
+    <span class="n">gpb</span> <span class="o">=</span> <span class="n">df_forcing_era5</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">"latitude"</span><span class="p">,</span> <span class="s2">"longitude"</span><span class="p">])</span>
     <span class="n">list_grid</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">gpb</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
     <span class="n">list_fn</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">path_dir_save</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">dir_save</span><span class="p">)</span>
@@ -1231,11 +1245,11 @@
     <span class="c1"># split into grids</span>
     <span class="k">for</span> <span class="n">lat</span><span class="p">,</span> <span class="n">lon</span> <span class="ow">in</span> <span class="n">list_grid</span><span class="p">:</span>
         <span class="n">df_grid</span> <span class="o">=</span> <span class="n">df_forcing_era5</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">]</span>
-        <span class="n">s_lat</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat</span><span class="si">}</span><span class="s2">N&quot;</span> <span class="k">if</span> <span class="n">lat</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lat</span><span class="si">}</span><span class="s2">S&quot;</span>
-        <span class="n">s_lon</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lon</span><span class="si">}</span><span class="s2">E&quot;</span> <span class="k">if</span> <span class="n">lon</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lon</span><span class="si">}</span><span class="s2">W&quot;</span>
+        <span class="n">s_lat</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lat</span><span class="si">}</span><span class="s2">N"</span> <span class="k">if</span> <span class="n">lat</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="o">-</span><span class="n">lat</span><span class="si">}</span><span class="s2">S"</span>
+        <span class="n">s_lon</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lon</span><span class="si">}</span><span class="s2">E"</span> <span class="k">if</span> <span class="n">lon</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="o">-</span><span class="n">lon</span><span class="si">}</span><span class="s2">W"</span>
         <span class="n">alt_z</span> <span class="o">=</span> <span class="n">df_grid</span><span class="o">.</span><span class="n">alt_z</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">df_grid</span> <span class="o">=</span> <span class="n">df_grid</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;alt_z&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">s_alt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">alt_z</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">A&quot;</span>
+        <span class="n">df_grid</span> <span class="o">=</span> <span class="n">df_grid</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">"alt_z"</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">s_alt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">alt_z</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">A"</span>
         <span class="n">idx_grid</span> <span class="o">=</span> <span class="n">df_grid</span><span class="o">.</span><span class="n">index</span>
 
         <span class="c1"># split into years</span>
@@ -1248,12 +1262,12 @@
             <span class="n">time_diff</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">idx_year</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">idx_year</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx_year</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
-                <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">&quot;60min&quot;</span><span class="p">)</span>
+                <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">"60min"</span><span class="p">)</span>
             <span class="p">)</span>
-            <span class="n">s_freq</span> <span class="o">=</span> <span class="n">time_diff</span> <span class="o">/</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">&quot;1min&quot;</span><span class="p">)</span>
-            <span class="n">s_fn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;ERA5_UTC-</span><span class="si">{</span><span class="n">s_lat</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">s_lon</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">s_alt</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">s_year</span><span class="si">}</span><span class="s2">_data_</span><span class="si">{</span><span class="n">s_freq</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">.txt&quot;</span>
+            <span class="n">s_freq</span> <span class="o">=</span> <span class="n">time_diff</span> <span class="o">/</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">"1min"</span><span class="p">)</span>
+            <span class="n">s_fn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"ERA5_UTC-</span><span class="si">{</span><span class="n">s_lat</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">s_lon</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">s_alt</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">s_year</span><span class="si">}</span><span class="s2">_data_</span><span class="si">{</span><span class="n">s_freq</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">.txt"</span>
             <span class="n">path_fn</span> <span class="o">=</span> <span class="n">path_dir_save</span> <span class="o">/</span> <span class="n">s_fn</span>
-            <span class="n">df_year</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path_fn</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">df_year</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path_fn</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">" "</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
             <span class="c1"># collect file names</span>
             <span class="n">list_fn</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path_fn</span><span class="p">))</span>
@@ -1312,7 +1326,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1326,8 +1340,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

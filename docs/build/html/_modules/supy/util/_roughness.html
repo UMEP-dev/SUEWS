@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_roughness';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -542,7 +556,7 @@
     <span class="n">z_meas</span><span class="p">,</span>
     <span class="n">h_sfc</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculates the rows associated with neutral condition (threshold=0.01)</span>
+<span class="w">    </span><span class="sd">"""Calculates the rows associated with neutral condition (threshold=0.01)</span>
 
 
 <span class="sd">    Parameters</span>
@@ -569,7 +583,7 @@
 <span class="sd">    tuple</span>
 <span class="sd">        - ser_ws_neutral: pandas.Series - observation time series of WS (Neutral conditions)</span>
 <span class="sd">        - ser_ustar_neutral: pandas.Series - observation time series of u* (Neutral conditions)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="c1"># calculate Obukhov length</span>
     <span class="c1"># ser_Lob = df_val.apply(</span>
@@ -583,7 +597,7 @@
 
     <span class="k">if</span> <span class="n">z_d</span> <span class="o">&gt;=</span> <span class="n">z_meas</span><span class="p">:</span>
         <span class="n">logger_supy</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
-            <span class="s2">&quot;vegetation height is greater than measuring height. Please fix this before continuing ...&quot;</span>
+            <span class="s2">"vegetation height is greater than measuring height. Please fix this before continuing ..."</span>
         <span class="p">)</span>
 
     <span class="c1"># calculate stability scale</span>
@@ -595,7 +609,7 @@
 
     <span class="n">ind_neutral</span> <span class="o">=</span> <span class="n">ind_neutral</span><span class="p">[</span><span class="n">ind_neutral</span><span class="p">]</span><span class="o">.</span><span class="n">index</span>
 
-    <span class="c1"># df_sel = df_val.loc[ind_neutral.index, [&quot;WS&quot;, &quot;USTAR&quot;]].dropna()</span>
+    <span class="c1"># df_sel = df_val.loc[ind_neutral.index, ["WS", "USTAR"]].dropna()</span>
     <span class="n">ser_ustar_neutral</span> <span class="o">=</span> <span class="n">ser_ustar</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ind_neutral</span><span class="p">]</span>
     <span class="n">ser_ws_neutral</span> <span class="o">=</span> <span class="n">ser_ws</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ind_neutral</span><span class="p">]</span>
 
@@ -617,7 +631,7 @@
     <span class="n">h_sfc</span><span class="p">,</span>
     <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculates surface roughness and zero plane displacement height.</span>
+<span class="w">    </span><span class="sd">"""Calculates surface roughness and zero plane displacement height.</span>
 <span class="sd">    Refer to https://suews-parameters-docs.readthedocs.io/en/latest/steps/roughness-SuPy.html for example</span>
 
 <span class="sd">    Parameters</span>
@@ -646,7 +660,7 @@
 <span class="sd">        surface roughness length for momentum</span>
 <span class="sd">    zd</span>
 <span class="sd">        zero displacement height</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="kn">from</span><span class="w"> </span><span class="nn">lmfit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">Parameters</span>
 
@@ -670,19 +684,19 @@
 
     <span class="n">model_uz_neutral</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span>
         <span class="n">cal_uz_neutral</span><span class="p">,</span>
-        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ustar_ntrl&quot;</span><span class="p">],</span>
-        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;z0&quot;</span><span class="p">,</span> <span class="s2">&quot;zd&quot;</span><span class="p">],</span>
+        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">"ustar_ntrl"</span><span class="p">],</span>
+        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"z0"</span><span class="p">,</span> <span class="s2">"zd"</span><span class="p">],</span>
     <span class="p">)</span>
     <span class="n">prms</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
     <span class="n">prm_z0</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span>
-        <span class="s2">&quot;z0&quot;</span><span class="p">,</span>
+        <span class="s2">"z0"</span><span class="p">,</span>
         <span class="n">h_sfc</span> <span class="o">*</span> <span class="mf">0.1</span><span class="p">,</span>
         <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="nb">min</span><span class="o">=</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">h_sfc</span><span class="p">,</span>
         <span class="nb">max</span><span class="o">=</span><span class="mf">0.95</span> <span class="o">*</span> <span class="n">h_sfc</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">prm_zd</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span>
-        <span class="s2">&quot;zd&quot;</span><span class="p">,</span>
+        <span class="s2">"zd"</span><span class="p">,</span>
         <span class="n">h_sfc</span> <span class="o">*</span> <span class="mf">0.7</span><span class="p">,</span>
         <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="nb">min</span><span class="o">=</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">h_sfc</span><span class="p">,</span>
@@ -698,12 +712,12 @@
         <span class="c1"># provide full fitted model if debug == True otherwise only a dict with best fit parameters</span>
         <span class="n">res</span> <span class="o">=</span> <span class="n">res_fit</span> <span class="k">if</span> <span class="n">debug</span> <span class="k">else</span> <span class="n">res_fit</span><span class="o">.</span><span class="n">best_values</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;z0&quot;</span><span class="p">],</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;zd&quot;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="s2">"z0"</span><span class="p">],</span> <span class="n">res</span><span class="p">[</span><span class="s2">"zd"</span><span class="p">]</span>
 
         <span class="k">return</span> <span class="n">res</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Fitting failed! Use 0.1h and 0.7h for z0 and zd, respectively&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"Fitting failed! Use 0.1h and 0.7h for z0 and zd, respectively"</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">h_sfc</span> <span class="o">*</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">h_sfc</span> <span class="o">*</span> <span class="mf">0.7</span></div>
 
 </pre></div>
@@ -759,7 +773,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -773,8 +787,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

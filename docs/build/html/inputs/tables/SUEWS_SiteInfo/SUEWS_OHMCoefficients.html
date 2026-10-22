@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
@@ -51,6 +51,7 @@
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/tables/SUEWS_SiteInfo/SUEWS_OHMCoefficients';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -59,20 +60,26 @@
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
     <meta name="docbuild:last-update" content="2025-08-15"/>
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -98,7 +105,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -554,11 +561,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -586,7 +600,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">SUEWS_OHMCoefficients.txt</a></li>
 <li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#advanced-example-adding-custom-ohm-coefficients">Advanced Example: Adding Custom OHM Coefficients</a></li>
 </ul>
@@ -686,10 +700,10 @@ summer/winter conditions, use the same code for all four OHM columns
 <p>An example <a class="reference internal" href="#suews-ohmcoefficients-txt"><span class="std std-ref">SUEWS_OHMCoefficients.txt</span></a> can be found below:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>1    	 2      	 3       	 4
 Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Reference    	 Not           recommended   (NR)
-10   	 0.71   	 0.04    	 -39.7       	 !   	 &quot;Canyon       (E-W),          Japan&quot;       	 Yosheida      (1990/91)
-11   	 0.32   	 0.01    	 -27.7       	 !   	 &quot;Canyon,      Vancouver&quot;    	 Nunez          (1974)
+10   	 0.71   	 0.04    	 -39.7       	 !   	 "Canyon       (E-W),          Japan"       	 Yosheida      (1990/91)
+11   	 0.32   	 0.01    	 -27.7       	 !   	 "Canyon,      Vancouver"    	 Nunez          (1974)
 100  	 0.515  	 0.025   	 -33.7       	 !   	 Canyon        (average)
-200  	 0.336  	 0.313   	 -31.4       	 !   	 &quot;Vegetation   (average).      This           is            the           average       of            Codes       20,          30,           50,           51,             52,          53,            60              (i.e.    includes      soil     and    water).&quot;
+200  	 0.336  	 0.313   	 -31.4       	 !   	 "Vegetation   (average).      This           is            the           average       of            Codes       20,          30,           50,           51,             52,          53,            60              (i.e.    includes      soil     and    water)."
 201  	 0.215  	 0.325   	 -19.85      	 !   	 NEW           Vegetation      only           (average      of            codes         20            and         30).
 2011 	 0.230  	 0.276   	 -16.91      	 !   	 Code          201             x              Mulitplier    for           summer
 2012 	 0.270  	 -0.435  	 6.62        	 !   	 Code          201             x              Multiplier    for           winter
@@ -699,36 +713,36 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
 51   	 0.33   	 0.07    	 -34.9       	 !   	 Bare          soil            (wet)        	 Fuchs         &amp;             Hadas         (1972)
 52   	 0.35   	 0.43    	 -36.5       	 !   	 Bare          soil            (dry)        	 Fuchs         &amp;             Hadas         (1972)
 53   	 0.36   	 0.27    	 -42.4       	 !   	 Bare          soil          	 Asaeda         &amp;             Ca            (1983)
-55   	 0.355  	 0.335   	 -35.275     	 !   	 &quot;Bare         soil            (average).     This          is            the           average       of          Codes        50,           51,           52,             53.&quot;
+55   	 0.355  	 0.335   	 -35.275     	 !   	 "Bare         soil            (average).     This          is            the           average       of          Codes        50,           51,           52,             53."
 551  	 0.379  	 0.284   	 -30.05      	 !   	 Code          55              x              Mulitplier    for           summer
 552  	 0.445  	 -0.448  	 11.77       	 !   	 Code          55              x              Mulitplier    for           winter
 60   	 0.5    	 0.21    	 -39.1       	 !   	 Water         (shallow        -              turbid)     	 Souch         et            al.           (1998)
 601  	 0.534  	 0.178   	 -33.31      	 !   	 Code          60              x              Multiplier    for           summer
 602  	 0.627  	 -0.281  	 13.05       	 !   	 Code          60              x              Multiplier    for           winter
 61   	 0.25   	 0.6     	 -30         	 !   	 Snow        	 Jarvi           et             al.           (2014)
-713  	 0.17   	 0.1     	 -17         	 !   	 &quot;Roof         (tar            and            gravel,       summer)&quot;    	 summer
-701  	 0.3    	 0.96    	 -24         	 !   	 &quot;Roof         (commerical     or             industrial,   gravel,       dry,          WS            &lt;           1            m/s,          Vancouver)&quot; 	 &quot;Meyn           &amp;            Oke            (2009)          Table    4,            Pg       750&quot;
-702  	 0.26   	 0.89    	 -21         	 !   	 &quot;Roof         (commerical     or             industrial,   gravel,       dry,          WS            1-1.4       m/s,         Vancouver)&quot; 	 &quot;Meyn         &amp;               Oke          (2009)         Table           4,       Pg            750&quot;
-703  	 0.23   	 0.87    	 -24         	 !   	 &quot;Roof         (commerical     or             industrial,   gravel,       dry,          WS            1.5-2       m/s,         Vancouver)&quot; 	 &quot;Meyn         &amp;               Oke          (2009)         Table           4,       Pg            750&quot;
-704  	 0.23   	 0.69    	 -21         	 !   	 &quot;Roof         (commerical     or             industrial,   gravel,       wet,          WS            0.9-1.9     m/s,         Vancouver)&quot; 	 &quot;Meyn         &amp;               Oke          (2009)         Table           4,       Pg            750&quot;
-705  	 0.06   	 0.28    	 -3          	 !   	 &quot;Roof         (commerical     or             industrial,   bitumen       spread        over          flat        industrial   membrane,     wet           &amp;               dry,         WS             1.1-2           m/s,     Vancouver)&quot; 	 &quot;Meyn    &amp;      Oke        (2009)   Table   4,   Pg   750&quot;
-706  	 0.15   	 0.28    	 -6          	 !   	 &quot;Roof         (residential,   asphalt        shingle       on            plywood,      dry,          WS          &lt;            1             m/s,          Vancouver)&quot;   	 &quot;Meyn        &amp;              Oke             (2009)   Table         4,       Pg     750&quot;
-707  	 0.12   	 0.25    	 -5          	 !   	 &quot;Roof         (residential,   asphalt        shingle       on            plywood,      dry,          WS          &lt;            1.0-1.4       m/s,          Vancouver)&quot;   	 &quot;Meyn        &amp;              Oke             (2009)   Table         4,       Pg     750&quot;
-708  	 0.1    	 0.23    	 -6          	 !   	 &quot;Roof         (residential,   asphalt        shingle       on            plywood,      dry,          WS          &lt;            2             m/s,          Vancouver)&quot;   	 &quot;Meyn        &amp;              Oke             (2009)   Table         4,       Pg     750&quot;
-709  	 0.09   	 0.18    	 -1          	 !   	 &quot;Roof         (STAR,          residential,   high          albedo        asphalt       shingle,      dry,        WS           1.0-1.4       m/s)&quot;       	 &quot;Meyn           &amp;            Oke            (2009)          Table    4,            Pg       750&quot;
-710  	 0.07   	 0.26    	 -6          	 !   	 &quot;Roof         (STAR,          Japanese       ceramic       tile)&quot;      	 &quot;Meyn         &amp;             Oke         (2009)       Table         4,            Pg              750&quot;
-711  	 0.06   	 0.43    	 -4          	 !   	 &quot;Roof         (STAR,          slate          tile,         dry,          WS            1.0-1.4       m/s)&quot;     	 &quot;Meyn        &amp;             Oke           (2009)          Table        4,             Pg              750&quot;
-712  	 0.07   	 0.06    	 -5          	 !   	 &quot;Roof         (STAR,          clay           tile,         dry,          WS            1.0-1.4       m/s)&quot;     	 &quot;Meyn        &amp;             Oke           (2009)          Table        4,             Pg              750&quot;
-750  	 0.19   	 0.54    	 -15.125     	 !   	 &quot;Roof         (own            for            SMEAR         III,          Helsinki)&quot;  	 Jarvi         et          al.          (2014)
+713  	 0.17   	 0.1     	 -17         	 !   	 "Roof         (tar            and            gravel,       summer)"    	 summer
+701  	 0.3    	 0.96    	 -24         	 !   	 "Roof         (commerical     or             industrial,   gravel,       dry,          WS            &lt;           1            m/s,          Vancouver)" 	 "Meyn           &amp;            Oke            (2009)          Table    4,            Pg       750"
+702  	 0.26   	 0.89    	 -21         	 !   	 "Roof         (commerical     or             industrial,   gravel,       dry,          WS            1-1.4       m/s,         Vancouver)" 	 "Meyn         &amp;               Oke          (2009)         Table           4,       Pg            750"
+703  	 0.23   	 0.87    	 -24         	 !   	 "Roof         (commerical     or             industrial,   gravel,       dry,          WS            1.5-2       m/s,         Vancouver)" 	 "Meyn         &amp;               Oke          (2009)         Table           4,       Pg            750"
+704  	 0.23   	 0.69    	 -21         	 !   	 "Roof         (commerical     or             industrial,   gravel,       wet,          WS            0.9-1.9     m/s,         Vancouver)" 	 "Meyn         &amp;               Oke          (2009)         Table           4,       Pg            750"
+705  	 0.06   	 0.28    	 -3          	 !   	 "Roof         (commerical     or             industrial,   bitumen       spread        over          flat        industrial   membrane,     wet           &amp;               dry,         WS             1.1-2           m/s,     Vancouver)" 	 "Meyn    &amp;      Oke        (2009)   Table   4,   Pg   750"
+706  	 0.15   	 0.28    	 -6          	 !   	 "Roof         (residential,   asphalt        shingle       on            plywood,      dry,          WS          &lt;            1             m/s,          Vancouver)"   	 "Meyn        &amp;              Oke             (2009)   Table         4,       Pg     750"
+707  	 0.12   	 0.25    	 -5          	 !   	 "Roof         (residential,   asphalt        shingle       on            plywood,      dry,          WS          &lt;            1.0-1.4       m/s,          Vancouver)"   	 "Meyn        &amp;              Oke             (2009)   Table         4,       Pg     750"
+708  	 0.1    	 0.23    	 -6          	 !   	 "Roof         (residential,   asphalt        shingle       on            plywood,      dry,          WS          &lt;            2             m/s,          Vancouver)"   	 "Meyn        &amp;              Oke             (2009)   Table         4,       Pg     750"
+709  	 0.09   	 0.18    	 -1          	 !   	 "Roof         (STAR,          residential,   high          albedo        asphalt       shingle,      dry,        WS           1.0-1.4       m/s)"       	 "Meyn           &amp;            Oke            (2009)          Table    4,            Pg       750"
+710  	 0.07   	 0.26    	 -6          	 !   	 "Roof         (STAR,          Japanese       ceramic       tile)"      	 "Meyn         &amp;             Oke         (2009)       Table         4,            Pg              750"
+711  	 0.06   	 0.43    	 -4          	 !   	 "Roof         (STAR,          slate          tile,         dry,          WS            1.0-1.4       m/s)"     	 "Meyn        &amp;             Oke           (2009)          Table        4,             Pg              750"
+712  	 0.07   	 0.06    	 -5          	 !   	 "Roof         (STAR,          clay           tile,         dry,          WS            1.0-1.4       m/s)"     	 "Meyn        &amp;             Oke           (2009)          Table        4,             Pg              750"
+750  	 0.19   	 0.54    	 -15.125     	 !   	 "Roof         (own            for            SMEAR         III,          Helsinki)"  	 Jarvi         et          al.          (2014)
 751  	 0.12   	 0.24    	 -4.5        	 !   	 Own           for             Montreal       suburban      (calculated   as            a             average     from         shingle       types)       	 Jarvi           et           al.            (2014)
 752  	 0.26   	 0.85    	 -21.4       	 !   	 Own           for             Montreal       urban         (calculated   as            a             average     from         gravel)     	 Jarvi         et              al.          (2014)
 790  	 0.44   	 0.57    	 -28.9       	 !   	 Roof          (Uppsala)     	 Taseler        (1980)      	 NR
 791  	 0.82   	 0.34    	 -55.7       	 !   	 Roof          (membrane       &amp;              concrete)   	 Yoshida       et            al.           (1990/91)  	 NR
-798  	 0.477  	 0.337   	 -33.87      	 !   	 &quot;Rooftop      average         (of            Taesler,      Yap           and           Yoshida,      as          in           Grimmond      et            al.             1992)&quot;     	 Keogh          et              al.      (2012)
+798  	 0.477  	 0.337   	 -33.87      	 !   	 "Rooftop      average         (of            Taesler,      Yap           and           Yoshida,      as          in           Grimmond      et            al.             1992)"     	 Keogh          et              al.      (2012)
 7981 	 0.510  	 0.286   	 -28.85      	 !   	 Code          798             x              Multiplier    for           summer
 7982 	 0.598  	 -0.451  	 11.30       	 !   	 Code          798             x              Multiplier    for           winter
 799  	 0.238  	 0.427   	 -16.7       	 !   	 Original      roof            average        (inlcudes     two           not           recommended   -           Meyn         2001          and           old             Meyn         2001           coefficients)
-800  	 0.719  	 0.194   	 -36.6       	 !   	 &quot;Impervious   (average).      This           is            the           average       of            Codes       801,         802,          901,          902,            903,         905,           906.&quot;
+800  	 0.719  	 0.194   	 -36.6       	 !   	 "Impervious   (average).      This           is            the           average       of            Codes       801,         802,          901,          902,            903,         905,           906."
 801  	 0.81   	 0.1     	 -79.9       	 !   	 Concrete    	 Doll            et             al.           (1985)
 802  	 0.85   	 0.32    	 -28.5       	 !   	 Concrete    	 Asaeda          &amp;              Ca            (1993)
 901  	 0.36   	 0.23    	 -19.3       	 !   	 Asphalt     	 Narita          et             al.           (1984)
@@ -741,8 +755,8 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
 908  	 0.843  	 -0.838  	 15.98       	 !   	 An99          Oct-Mar         weighted       average       (winter)      -              calculated    by          HCW
 909  	 0.67   	 0.493   	 -47.97      	 !   	 An99          August          average        -             calculated    by            HCW
 910  	 0.718  	 0.532   	 -40.81      	 !   	 An99          JJA             average        -             calculated    by            HCW
-850  	 0.665  	 0.243   	 -42.825     	 !   	 &quot;Impervious   (average)       excluding      all           An99          values,       i.e.          average     of           Codes         801,          802,            901,         902.&quot;
-851  	 0.676  	 0.300   	 -42.42      	 !   	 &quot;NEW          Impervious      (average).     This          is            the           average       of          Codes        801,          802,          901,            902,         910.&quot;        	 Ward            et       al.           (2015)
+850  	 0.665  	 0.243   	 -42.825     	 !   	 "Impervious   (average)       excluding      all           An99          values,       i.e.          average     of           Codes         801,          802,            901,         902."
+851  	 0.676  	 0.300   	 -42.42      	 !   	 "NEW          Impervious      (average).     This          is            the           average       of          Codes        801,          802,          901,            902,         910."        	 Ward            et       al.           (2015)
 8511 	 0.722  	 0.255   	 -36.14      	 !   	 Code          851             x              Multiplier    for           summer
 8512 	 0.848  	 -0.402  	 14.16       	 !   	 Code          851             x              Multiplier    for           winter
 -9
@@ -771,35 +785,35 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">derive_ohm_coef</span><span class="p">,</span> <span class="n">replace_ohm_coeffs</span><span class="p">,</span> <span class="n">sim_ohm</span>
 
 <span class="c1"># Load your measured data (must have datetime index)</span>
-<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;surface_measurements.csv&#39;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'surface_measurements.csv'</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># Ensure regular time frequency for proper derivative calculation</span>
-<span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">asfreq</span><span class="p">(</span><span class="s1">&#39;H&#39;</span><span class="p">)</span>  <span class="c1"># Hourly frequency</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">asfreq</span><span class="p">(</span><span class="s1">'H'</span><span class="p">)</span>  <span class="c1"># Hourly frequency</span>
 
 <span class="c1"># Extract required time series</span>
-<span class="n">ser_QN</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Q_star&#39;</span><span class="p">]</span>  <span class="c1"># Net all-wave radiation</span>
-<span class="n">ser_QS</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;storage_heat_flux&#39;</span><span class="p">]</span>  <span class="c1"># Measured storage heat flux</span>
+<span class="n">ser_QN</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'Q_star'</span><span class="p">]</span>  <span class="c1"># Net all-wave radiation</span>
+<span class="n">ser_QS</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'storage_heat_flux'</span><span class="p">]</span>  <span class="c1"># Measured storage heat flux</span>
 
 <span class="c1"># Derive OHM coefficients using built-in SuPy function</span>
 <span class="n">a1</span><span class="p">,</span> <span class="n">a2</span><span class="p">,</span> <span class="n">a3</span> <span class="o">=</span> <span class="n">derive_ohm_coef</span><span class="p">(</span><span class="n">ser_QS</span><span class="p">,</span> <span class="n">ser_QN</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Derived OHM Coefficients:&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;a1 = </span><span class="si">{</span><span class="n">a1</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (fraction)&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;a2 = </span><span class="si">{</span><span class="n">a2</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (W m-2 / (W m-2 s-1))&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;a3 = </span><span class="si">{</span><span class="n">a3</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (W m-2)&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Derived OHM Coefficients:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"a1 = </span><span class="si">{</span><span class="n">a1</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (fraction)"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"a2 = </span><span class="si">{</span><span class="n">a2</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (W m-2 / (W m-2 s-1))"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"a3 = </span><span class="si">{</span><span class="n">a3</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (W m-2)"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>Step 3: Implementation in SUEWS</strong></p>
 <p><strong>Option A: Using SuPy utilities (Recommended for single-surface updates):</strong></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load initial model state</span>
-<span class="n">df_state_init</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">init_supy</span><span class="p">(</span><span class="s1">&#39;config.yml&#39;</span><span class="p">)</span>  <span class="c1"># or your config file</span>
+<span class="n">df_state_init</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">init_supy</span><span class="p">(</span><span class="s1">'config.yml'</span><span class="p">)</span>  <span class="c1"># or your config file</span>
 
 <span class="c1"># Update coefficients for specific land cover type</span>
-<span class="c1"># Available types: &quot;Paved&quot;, &quot;Bldgs&quot;, &quot;EveTr&quot;, &quot;DecTr&quot;, &quot;Grass&quot;, &quot;BSoil&quot;, &quot;Water&quot;</span>
+<span class="c1"># Available types: "Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water"</span>
 <span class="n">df_state_updated</span> <span class="o">=</span> <span class="n">replace_ohm_coeffs</span><span class="p">(</span>
     <span class="n">df_state_init</span><span class="p">,</span>
     <span class="n">coefs</span><span class="o">=</span><span class="p">(</span><span class="n">a1</span><span class="p">,</span> <span class="n">a2</span><span class="p">,</span> <span class="n">a3</span><span class="p">),</span>  <span class="c1"># coefficients from derive_ohm_coef</span>
-    <span class="n">land_cover_type</span><span class="o">=</span><span class="s2">&quot;Grass&quot;</span>  <span class="c1"># for green roof example</span>
+    <span class="n">land_cover_type</span><span class="o">=</span><span class="s2">"Grass"</span>  <span class="c1"># for green roof example</span>
 <span class="p">)</span>
 
 <span class="c1"># Run simulation with updated coefficients</span>
@@ -830,28 +844,28 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
 <span class="n">r2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">ser_QS</span><span class="p">,</span> <span class="n">ser_qs_modelled</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
 <span class="n">bias</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">ser_qs_modelled</span> <span class="o">-</span> <span class="n">ser_QS</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Performance Metrics:&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;RMSE: </span><span class="si">{</span><span class="n">rmse</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W m-2&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;R²: </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bias: </span><span class="si">{</span><span class="n">bias</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W m-2&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Performance Metrics:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RMSE: </span><span class="si">{</span><span class="n">rmse</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W m-2"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"R²: </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Bias: </span><span class="si">{</span><span class="n">bias</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W m-2"</span><span class="p">)</span>
 
 <span class="c1"># Create validation plots</span>
 <span class="n">fig</span><span class="p">,</span> <span class="p">(</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax2</span><span class="p">)</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
 
 <span class="c1"># Scatter plot</span>
 <span class="n">ax1</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">ser_QS</span><span class="p">,</span> <span class="n">ser_qs_modelled</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">ser_QS</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">max</span><span class="p">()],</span> <span class="p">[</span><span class="n">ser_QS</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">max</span><span class="p">()],</span> <span class="s1">&#39;r--&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Observed QS (W m⁻²)&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Modelled QS (W m⁻²)&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;1:1 Comparison (R² = </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">ser_QS</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">max</span><span class="p">()],</span> <span class="p">[</span><span class="n">ser_QS</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">max</span><span class="p">()],</span> <span class="s1">'r--'</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">'Observed QS (W m⁻²)'</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Modelled QS (W m⁻²)'</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">'1:1 Comparison (R² = </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">)'</span><span class="p">)</span>
 
 <span class="c1"># Time series comparison (sample week)</span>
 <span class="n">sample_week</span> <span class="o">=</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">168</span><span class="p">]</span>  <span class="c1"># First week</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sample_week</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">sample_week</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Observed&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sample_week</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">ser_qs_modelled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">168</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Modelled&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;QS (W m⁻²)&#39;</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Time Series Comparison&#39;</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sample_week</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">sample_week</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'Observed'</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sample_week</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">ser_qs_modelled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">168</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">'Modelled'</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">'Time'</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'QS (W m⁻²)'</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">'Time Series Comparison'</span><span class="p">)</span>
 <span class="n">ax2</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
@@ -908,7 +922,7 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">SUEWS_OHMCoefficients.txt</a></li>
 <li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#advanced-example-adding-custom-ohm-coefficients">Advanced Example: Adding Custom OHM Coefficients</a></li>
 </ul>
@@ -954,7 +968,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -968,8 +982,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

@@ -43,7 +43,7 @@ BEERS provides comprehensive radiation output including:
 
 - **Incoming/Outgoing Radiation:** Shortwave (Kdown2d, Kup2d) and longwave (Ldown2d, Lup2d) at POI
 - **Directional Components:** Radiation from north, south, east, west directions
-- **Shadow Information:** Shadow patterns on ground (SH_Ground) and walls (SH_Walls)  
+- **Sunlit Fractions:** Sunlit fractions of the ground (SH_Ground) and walls (SH_Walls); 1 is fully sunlit, and both are 0 at night
 - **Sky View Factors:** From ground (SVF_Ground), roof (SVF_Roof), and buildings/vegetation (SVF_BdVeg)
 - **Surface Temperatures:** Ground (Tg), wall (Tw), and air (Ta) temperatures
 - **Comfort Metrics:** Mean radiant temperature (Tmrt) for thermal comfort assessment
@@ -235,27 +235,23 @@ A convective boundary layer (CBL) slab model :cite:`CG01` calculates the CBL hei
 
 Wind, Temperature and Humidity Profiles in the Roughness Sublayer
 ----------------------------------------------------------------------------
-A dignostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following :cite:t:`HF07, HF08` and :cite:t:`T19`.
-An recent application of this RSL scheme can be found in :cite:t:`T21`.
+A diagnostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following :cite:t:`HF07, HF08` and :cite:t:`T19`.
+A recent application of this RSL scheme can be found in :cite:t:`T21`.
 
-The diagnostic profiles are outputed in 30 uneven levels between the ground and forcing height, which are divided into two groups:
+The diagnostic profiles are output at 30 levels between the surface and the forcing height.
+Where the levels sit depends on the scheme selected by :ref:`roughness_sublayer <roughness_sublayer>`:
 
-- One group of levels are evenly distributed within the urban canopy layer characterised by mean height of roughness elements (e.g. buildings, trees, etc.) :math:`z_H`, which determines the number of layers within urban canopy :math:`n_{can}`:
+- With RST, levels 1 to 20 lie within the canopy, level 20 just below its top, and the other 10 above it, whatever the mean height of roughness elements (buildings and trees, weighted by their plan area with trees counted by their non-porous fraction).
+  The levels are placed on an effective canopy height :math:`z_H = \max(\text{mean height}, 2\ \text{m})`, so over a canopy lower than 2 m they do not follow the actual height.
+  Level 1 is at 1% of :math:`z_H`, capped just below 2 m, levels 1 to 9 lie in the lower third of the canopy, level 10 is at :math:`z_H/2`, and levels 11 to 20 close in on the canopy top.
+  Levels 21 to 30 run from just above :math:`z_H` to the forcing height and are also concentrated towards the canopy top.
+- With MOST, the 30 levels are spaced logarithmically from just above :math:`z_d + z_0` (and at least 0.1 m) to the forcing height, where :math:`z_d` is the zero-plane displacement height and :math:`z_0` the roughness length for momentum.
+  Where 2 m and 10 m fall within that range, the nearest levels are moved to exactly those heights.
 
-.. math::
-   :nowrap:
-
-   \[
-         n_{can} =
-   \begin{cases}
-      3 & \text{if } z_H \leq \text{2 m} \\
-      10 & \text{if } \text{2 m} \lt z_H \leq \text{10 m} \\
-      15 & \text{if } z_H \gt \text{10 m} \\
-
-   \end{cases}
-   \]
-
-- The other levels are evenly distributed between the urban canopy layer top and forcing height.
+With ``roughness_sublayer`` set to ``variable`` (the default), RST is used when the plan area index of buildings and trees, with trees counted by their non-porous fraction, is between 0.1 and 0.68 and :math:`z_H` exceeds 2 m; otherwise MOST is used.
+The frontal area index does not enter this choice.
+The ``flag_RSL`` column of the RSL output group records the outcome at each timestep: 1 when RST was used and 0 when MOST was used.
+It is averaged when output is resampled, so a resampled value gives the fraction of timesteps that used RST.
 
 
 .. note::
@@ -263,18 +259,33 @@ The diagnostic profiles are outputed in 30 uneven levels between the ground and 
    All the diagnostic profiles (wind speed, temperature and humidity) are calculated
    from the forcing data down into the canopy.
    Therefore it is assumed that the forcing temperature and humidity
-   are above the blending height.
+   are above the blending height :math:`z_R = z_H + 1.5\,(D_x - L_x)`, where
+   :math:`D_x` is the mean spacing of buildings and :math:`L_x` their mean plan
+   dimension; the RSL correction to the profiles vanishes above :math:`z_R`.
 
 
 
 Common near-surface diagnostics:
 
-   -  T2: air temperature at 2 m agl
-   -  Q2: air specific humidity at 2 m agl
-   -  RH2: air relative humidity at 2 m agl
-   -  U10: wind speed at 10 m agl
+   -  T2: air temperature
+   -  Q2: air specific humidity
+   -  RH2: air relative humidity
+   -  U10: wind speed
 
-are calculated by the `RSL scheme <rsl_mod>` by interpolating RSL profile results to the corresponding diagnostic heights.
+are calculated by the `RSL scheme <rsl_mod>` by interpolating the profiles to their reference heights, which differ between the two schemes.
+
+.. _rsl_diag_heights:
+
+.. important::
+
+   **Reference heights of the near-surface diagnostics.**
+   With RST, T2, Q2 and RH2 are taken at 2 m and U10 at 10 m above ground.
+   With MOST, they are taken at 2 m and 10 m above :math:`z_d + z_0`, the level at which the MOST wind profile falls to zero, that is at :math:`2 + z_d + z_0` and :math:`10 + z_d + z_0` above ground.
+   Where :math:`z_d + z_0` is small the two sets of reference heights nearly coincide, but over a tall, dense canopy the MOST values sit well above ground: where :math:`z_d + z_0 = 16` m, for example, MOST reports T2, Q2 and RH2 at 18 m and U10 at 26 m above ground.
+   Where such a height lies above the forcing height, the value at the forcing height is reported instead.
+   The two schemes therefore report quantities at different heights under the same names.
+   Bear this in mind when comparing runs with different ``roughness_sublayer`` settings, or grid cells for which ``variable`` selected different schemes.
+   The :math:`z_d` and :math:`z_0` used at each timestep are reported as ``zd_RSL`` and ``z0_RSL`` in the RSL output group.
 
 
 SPARTACUS-Surface (SS)
@@ -386,8 +397,7 @@ RSL and SS Canopy Representation Comparison
 *******************************************
 
 
--  The RSL has 30 levels but when the average building height is <2 m, < 12 m and > 12 m there are 3, 10 and 15 evenly spaced layers in the canopy.
--  The remaining levels are evenly spaced up to the forcing level (:numref:`SUEWS-RSL`).
+-  The RSL has 30 levels. With RST, levels 1 to 20 lie within the canopy and the remaining 10 run from just above the canopy top to the forcing level (:numref:`SUEWS-RSL`); see :ref:`rsl_mod` for the MOST layout.
 -  The buildings are assumed to be uniform height.
 
 

@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_tmy';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -549,9 +563,9 @@
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ConstError</span><span class="p">(</span><span class="s2">&quot;can&#39;t change const </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ConstError</span><span class="p">(</span><span class="s2">"can't change const </span><span class="si">%s</span><span class="s2">"</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="o">.</span><span class="n">isupper</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ConstCaseError</span><span class="p">(</span><span class="s1">&#39;const name &quot;</span><span class="si">%s</span><span class="s1">&quot; is not all uppercase&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ConstCaseError</span><span class="p">(</span><span class="s1">'const name "</span><span class="si">%s</span><span class="s1">" is not all uppercase'</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
 
 
@@ -569,7 +583,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">gen_FS_DF</span><span class="p">(</span><span class="n">df_output</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;generate DataFrame of scores.</span>
+<span class="w">    </span><span class="sd">"""generate DataFrame of scores.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -580,11 +594,11 @@
 <span class="sd">    type</span>
 <span class="sd">        Description of returned object.</span>
 
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">df_day</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span>
         <span class="n">df_output</span><span class="p">,</span>
-        <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">,</span> <span class="s2">&quot;U10&quot;</span><span class="p">,</span> <span class="s2">&quot;Kdown&quot;</span><span class="p">,</span> <span class="s2">&quot;RH2&quot;</span><span class="p">],</span>
-        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Year&quot;</span><span class="p">,</span> <span class="s2">&quot;Month&quot;</span><span class="p">,</span> <span class="s2">&quot;Day&quot;</span><span class="p">],</span>
+        <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">,</span> <span class="s2">"U10"</span><span class="p">,</span> <span class="s2">"Kdown"</span><span class="p">,</span> <span class="s2">"RH2"</span><span class="p">],</span>
+        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">,</span> <span class="s2">"Month"</span><span class="p">,</span> <span class="s2">"Day"</span><span class="p">],</span>
         <span class="n">aggfunc</span><span class="o">=</span><span class="p">[</span>
             <span class="nb">min</span><span class="p">,</span>
             <span class="nb">max</span><span class="p">,</span>
@@ -593,8 +607,8 @@
     <span class="p">)</span>
     <span class="n">df_day_all_year</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span>
         <span class="n">df_output</span><span class="p">,</span>
-        <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">,</span> <span class="s2">&quot;U10&quot;</span><span class="p">,</span> <span class="s2">&quot;Kdown&quot;</span><span class="p">,</span> <span class="s2">&quot;RH2&quot;</span><span class="p">],</span>
-        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Month&quot;</span><span class="p">,</span> <span class="s2">&quot;Day&quot;</span><span class="p">],</span>
+        <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">,</span> <span class="s2">"U10"</span><span class="p">,</span> <span class="s2">"Kdown"</span><span class="p">,</span> <span class="s2">"RH2"</span><span class="p">],</span>
+        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">"Month"</span><span class="p">,</span> <span class="s2">"Day"</span><span class="p">],</span>
         <span class="n">aggfunc</span><span class="o">=</span><span class="p">[</span>
             <span class="nb">min</span><span class="p">,</span>
             <span class="nb">max</span><span class="p">,</span>
@@ -602,7 +616,7 @@
         <span class="p">],</span>
     <span class="p">)</span>
 
-    <span class="n">array_yr_mon</span> <span class="o">=</span> <span class="n">df_day</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">&quot;Day&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">array_yr_mon</span> <span class="o">=</span> <span class="n">df_day</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">"Day"</span><span class="p">)</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
 
     <span class="n">df_fs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
         <span class="p">(</span><span class="n">yr</span><span class="p">,</span> <span class="n">mon</span><span class="p">):</span> <span class="p">(</span>
@@ -618,7 +632,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">gen_WS_DF</span><span class="p">(</span><span class="n">df_met</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;generate DataFrame of weighted sums of F-score.</span>
+<span class="w">    </span><span class="sd">"""generate DataFrame of weighted sums of F-score.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -637,20 +651,20 @@
 <span class="sd">    pd.DataFrame</span>
 <span class="sd">        Converted dataframe with calculated metrics for TMY generation.</span>
 
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">df_fs</span> <span class="o">=</span> <span class="n">gen_FS_DF</span><span class="p">(</span><span class="n">df_met</span><span class="p">)</span>
 
     <span class="n">list_index</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;T2&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;T2&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;T2&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;U10&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;U10&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;U10&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;RH2&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;RH2&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;RH2&quot;</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;Kdown&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"T2"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"max"</span><span class="p">,</span> <span class="s2">"T2"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"min"</span><span class="p">,</span> <span class="s2">"T2"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"U10"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"max"</span><span class="p">,</span> <span class="s2">"U10"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"min"</span><span class="p">,</span> <span class="s2">"U10"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"RH2"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"max"</span><span class="p">,</span> <span class="s2">"RH2"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"min"</span><span class="p">,</span> <span class="s2">"RH2"</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"Kdown"</span><span class="p">),</span>
     <span class="p">]</span>
 
     <span class="c1"># generate weights: Sandia method</span>
@@ -675,16 +689,16 @@
     <span class="n">list_const</span> <span class="o">=</span> <span class="p">[</span>
         <span class="nb">getattr</span><span class="p">(</span><span class="n">const</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span>
-            <span class="s2">&quot;T_MEAN&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;T_MAX&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;T_MIN&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;WIND_MEAN&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;WIND_MAX&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;WIND_MIN&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;RH_MEAN&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;RH_MAX&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;RH_MIN&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;SOLAR_RADIATION_GLOBAL&quot;</span><span class="p">,</span>
+            <span class="s2">"T_MEAN"</span><span class="p">,</span>
+            <span class="s2">"T_MAX"</span><span class="p">,</span>
+            <span class="s2">"T_MIN"</span><span class="p">,</span>
+            <span class="s2">"WIND_MEAN"</span><span class="p">,</span>
+            <span class="s2">"WIND_MAX"</span><span class="p">,</span>
+            <span class="s2">"WIND_MIN"</span><span class="p">,</span>
+            <span class="s2">"RH_MEAN"</span><span class="p">,</span>
+            <span class="s2">"RH_MAX"</span><span class="p">,</span>
+            <span class="s2">"RH_MIN"</span><span class="p">,</span>
+            <span class="s2">"SOLAR_RADIATION_GLOBAL"</span><span class="p">,</span>
         <span class="p">]</span>
     <span class="p">]</span>
     <span class="n">list_ws</span> <span class="o">=</span> <span class="p">[</span><span class="n">df_fs</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">*</span> <span class="n">cst</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">cst</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">list_index</span><span class="p">,</span> <span class="n">list_const</span><span class="p">)]</span>
@@ -712,8 +726,8 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_rmsd_mon</span><span class="p">(</span><span class="n">df_output</span><span class="p">):</span>
     <span class="n">df_day</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span>
         <span class="n">df_output</span><span class="p">,</span>
-        <span class="n">values</span><span class="o">=</span><span class="s2">&quot;Kdown&quot;</span><span class="p">,</span>
-        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Year&quot;</span><span class="p">,</span> <span class="s2">&quot;Month&quot;</span><span class="p">,</span> <span class="s2">&quot;Day&quot;</span><span class="p">],</span>
+        <span class="n">values</span><span class="o">=</span><span class="s2">"Kdown"</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">,</span> <span class="s2">"Month"</span><span class="p">,</span> <span class="s2">"Day"</span><span class="p">],</span>
         <span class="n">aggfunc</span><span class="o">=</span><span class="p">[</span>
             <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span>
         <span class="p">],</span>
@@ -721,14 +735,14 @@
 
     <span class="n">df_day_all_year</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span>
         <span class="n">df_output</span><span class="p">,</span>
-        <span class="n">values</span><span class="o">=</span><span class="s2">&quot;Kdown&quot;</span><span class="p">,</span>
-        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Month&quot;</span><span class="p">,</span> <span class="s2">&quot;Day&quot;</span><span class="p">],</span>
+        <span class="n">values</span><span class="o">=</span><span class="s2">"Kdown"</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">"Month"</span><span class="p">,</span> <span class="s2">"Day"</span><span class="p">],</span>
         <span class="n">aggfunc</span><span class="o">=</span><span class="p">[</span>
             <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span>
         <span class="p">],</span>
     <span class="p">)</span>
 
-    <span class="n">array_yr_mon</span> <span class="o">=</span> <span class="n">df_day</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">&quot;Day&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">array_yr_mon</span> <span class="o">=</span> <span class="n">df_day</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">"Day"</span><span class="p">)</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
 
     <span class="n">df_rmse</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
@@ -745,7 +759,7 @@
 
 
 <span class="c1"># headers of standard EPW files</span>
-<span class="n">header_EPW</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="n">header_EPW</span> <span class="o">=</span> <span class="s2">"""</span>
 <span class="s2">Year</span>
 <span class="s2">Month</span>
 <span class="s2">Day</span>
@@ -781,30 +795,30 @@
 <span class="s2">Albedo</span>
 <span class="s2">Liquid Precipitation Depth</span>
 <span class="s2">Liquid Precipitation Quantity</span>
-<span class="s2">    &quot;&quot;&quot;</span>
+<span class="s2">    """</span>
 
 <span class="c1"># list of variables in EPW</span>
-<span class="n">list_var_EPW</span> <span class="o">=</span> <span class="n">header_EPW</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">list_var_EPW</span> <span class="o">=</span> <span class="n">header_EPW</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
 <span class="c1"># dict: SuPy variables -&gt; EPW standard names</span>
 <span class="n">dict_supy_epw</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s2">&quot;Kdown&quot;</span><span class="p">:</span> <span class="s2">&quot;Global Horizontal Radiation&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;T2&quot;</span><span class="p">:</span> <span class="s2">&quot;Dry Bulb Temperature&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;RH2&quot;</span><span class="p">:</span> <span class="s2">&quot;Relative Humidity&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;U10&quot;</span><span class="p">:</span> <span class="s2">&quot;Wind Speed&quot;</span><span class="p">,</span>
+    <span class="s2">"Kdown"</span><span class="p">:</span> <span class="s2">"Global Horizontal Radiation"</span><span class="p">,</span>
+    <span class="s2">"T2"</span><span class="p">:</span> <span class="s2">"Dry Bulb Temperature"</span><span class="p">,</span>
+    <span class="s2">"RH2"</span><span class="p">:</span> <span class="s2">"Relative Humidity"</span><span class="p">,</span>
+    <span class="s2">"U10"</span><span class="p">:</span> <span class="s2">"Wind Speed"</span><span class="p">,</span>
 <span class="p">}</span>
 <span class="n">dict_epw_supy</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dict_supy_epw</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">gen_TMY</span><span class="p">(</span><span class="n">df_output</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;generate TMY (typical meteorological year) from SuPy output.</span>
+<span class="w">    </span><span class="sd">"""generate TMY (typical meteorological year) from SuPy output.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    df_output : pandas.DataFrame</span>
 <span class="sd">        Output from `run_supy`: longterm (e.g., &gt;10 years) simulation results, otherwise not very useful.</span>
 
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="c1"># calculate weighted score</span>
     <span class="n">df_output_x</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
@@ -824,7 +838,7 @@
 
     <span class="c1"># generate TMY data</span>
     <span class="n">df_TMY</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span>
-        <span class="n">df_output_x</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">&quot;Month&quot;</span><span class="p">,</span> <span class="s2">&quot;Year&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">grp</span><span class="p">)</span>
+        <span class="n">df_output_x</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">"Month"</span><span class="p">,</span> <span class="s2">"Year"</span><span class="p">])</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">grp</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">grp</span> <span class="ow">in</span> <span class="n">year_sel</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
     <span class="p">])</span>
 
@@ -834,11 +848,11 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">conv_0to24</span><span class="p">(</span><span class="n">df_TMY</span><span class="p">):</span>
     <span class="c1"># convert `0h` to `24h` and take care of `day`</span>
     <span class="n">loc_24h</span> <span class="o">=</span> <span class="n">df_TMY</span><span class="o">.</span><span class="n">index</span> <span class="o">==</span> <span class="n">df_TMY</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
-    <span class="n">ser_24h</span> <span class="o">=</span> <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">]</span><span class="o">.</span><span class="n">index</span> <span class="o">-</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span>
-    <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">,</span> <span class="s2">&quot;Year&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_24h</span><span class="o">.</span><span class="n">year</span>
-    <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">,</span> <span class="s2">&quot;Month&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_24h</span><span class="o">.</span><span class="n">month</span>
-    <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">,</span> <span class="s2">&quot;Day&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_24h</span><span class="o">.</span><span class="n">day</span>
-    <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">,</span> <span class="s2">&quot;Hour&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">24</span>
+    <span class="n">ser_24h</span> <span class="o">=</span> <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">]</span><span class="o">.</span><span class="n">index</span> <span class="o">-</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">"1h"</span><span class="p">)</span>
+    <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">,</span> <span class="s2">"Year"</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_24h</span><span class="o">.</span><span class="n">year</span>
+    <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">,</span> <span class="s2">"Month"</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_24h</span><span class="o">.</span><span class="n">month</span>
+    <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">,</span> <span class="s2">"Day"</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_24h</span><span class="o">.</span><span class="n">day</span>
+    <span class="n">df_TMY</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">loc_24h</span><span class="p">,</span> <span class="s2">"Hour"</span><span class="p">]</span> <span class="o">=</span> <span class="mi">24</span>
     <span class="k">return</span> <span class="n">df_TMY</span>
 
 
@@ -850,7 +864,7 @@
     <span class="n">target_height</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
     <span class="n">z0m</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read in EPW (EnergyPlus Weather) file as a DataFrame.</span>
+<span class="w">    </span><span class="sd">"""Read in EPW (EnergyPlus Weather) file as a DataFrame.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -915,45 +929,45 @@
 <span class="sd">    &gt;&gt;&gt; from pathlib import Path</span>
 <span class="sd">    &gt;&gt;&gt;</span>
 <span class="sd">    &gt;&gt;&gt; # Read EPW file without height correction (default)</span>
-<span class="sd">    &gt;&gt;&gt; df_epw = sp.util.read_epw(Path(&quot;weather.epw&quot;))</span>
+<span class="sd">    &gt;&gt;&gt; df_epw = sp.util.read_epw(Path("weather.epw"))</span>
 <span class="sd">    &gt;&gt;&gt;</span>
 <span class="sd">    &gt;&gt;&gt; # Read EPW file and extrapolate wind speed to 50 m</span>
 <span class="sd">    &gt;&gt;&gt; df_epw = sp.util.read_epw(</span>
-<span class="sd">    ...     Path(&quot;weather.epw&quot;),</span>
+<span class="sd">    ...     Path("weather.epw"),</span>
 <span class="sd">    ...     target_height=50.0,</span>
 <span class="sd">    ...     z0m=0.5,  # urban roughness length</span>
 <span class="sd">    ... )</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Input validation</span>
     <span class="k">if</span> <span class="n">z0m</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;z0m must be positive, got </span><span class="si">{</span><span class="n">z0m</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"z0m must be positive, got </span><span class="si">{</span><span class="n">z0m</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">target_height</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;target_height must be positive, got </span><span class="si">{</span><span class="n">target_height</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"target_height must be positive, got </span><span class="si">{</span><span class="n">target_height</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
-    <span class="n">df_tmy</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path_epw</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-    <span class="n">df_tmy</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">header_EPW</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;DateTime&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span>
+    <span class="n">df_tmy</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path_epw</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">","</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">df_tmy</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">header_EPW</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"DateTime"</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span>
         <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span>
-            <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Year&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">10000</span> <span class="o">+</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Month&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">+</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Day&quot;</span><span class="p">],</span>
-            <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">*</span> <span class="mi">10000</span> <span class="o">+</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Month"</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">+</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Day"</span><span class="p">],</span>
+            <span class="nb">format</span><span class="o">=</span><span class="s2">"%Y%m</span><span class="si">%d</span><span class="s2">"</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_timedelta</span><span class="p">(</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Hour&quot;</span><span class="p">],</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;h&quot;</span><span class="p">)</span>
+        <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_timedelta</span><span class="p">(</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Hour"</span><span class="p">],</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"h"</span><span class="p">)</span>
     <span class="p">)</span>
-    <span class="n">df_tmy</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;DateTime&quot;</span><span class="p">)</span>
+    <span class="n">df_tmy</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">"DateTime"</span><span class="p">)</span>
 
     <span class="c1"># Apply wind speed height correction if target height differs from EPW standard (10 m)</span>
     <span class="n">epw_height</span> <span class="o">=</span> <span class="mf">10.0</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">target_height</span><span class="p">,</span> <span class="n">epw_height</span><span class="p">):</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Applying wind speed height correction from </span><span class="si">{</span><span class="n">epw_height</span><span class="si">}</span><span class="s2">m to </span><span class="si">{</span><span class="n">target_height</span><span class="si">}</span><span class="s2">m &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;using log-law profile (assumes neutral atmospheric conditions). &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;This approximation may be less accurate under strongly stable or unstable conditions.&quot;</span>
+            <span class="sa">f</span><span class="s2">"Applying wind speed height correction from </span><span class="si">{</span><span class="n">epw_height</span><span class="si">}</span><span class="s2">m to </span><span class="si">{</span><span class="n">target_height</span><span class="si">}</span><span class="s2">m "</span>
+            <span class="sa">f</span><span class="s2">"using log-law profile (assumes neutral atmospheric conditions). "</span>
+            <span class="sa">f</span><span class="s2">"This approximation may be less accurate under strongly stable or unstable conditions."</span>
         <span class="p">)</span>
         <span class="c1"># Log-law wind profile correction (neutral conditions)</span>
         <span class="n">correction_factor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="n">target_height</span> <span class="o">+</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
             <span class="p">(</span><span class="n">epw_height</span> <span class="o">+</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">z0m</span>
         <span class="p">)</span>
-        <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Wind Speed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Wind Speed&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">correction_factor</span>
+        <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Wind Speed"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Wind Speed"</span><span class="p">]</span> <span class="o">*</span> <span class="n">correction_factor</span>
 
     <span class="k">return</span> <span class="n">df_tmy</span></div>
 
@@ -967,11 +981,11 @@
     <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">tz</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-    <span class="n">path_epw</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;./uTMY.epw&quot;</span><span class="p">),</span>
+    <span class="n">path_epw</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"./uTMY.epw"</span><span class="p">),</span>
     <span class="n">freq</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">grid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate an ``epw`` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results.</span>
+<span class="w">    </span><span class="sd">"""Generate an ``epw`` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -988,9 +1002,9 @@
 <span class="sd">        Time zone represented by time difference from UTC+0 (e.g., 8 for UTC+8),</span>
 <span class="sd">        by default 0 (i.e., UTC+0).</span>
 <span class="sd">    path_epw : pathlib.Path or str, optional</span>
-<span class="sd">        Path to store generated epw file, by default Path(&#39;./uTMY.epw&#39;).</span>
+<span class="sd">        Path to store generated epw file, by default Path('./uTMY.epw').</span>
 <span class="sd">    freq : str, optional</span>
-<span class="sd">        Target frequency for resampling (e.g., &#39;h&#39;, &#39;60min&#39;, &#39;1h&#39;).</span>
+<span class="sd">        Target frequency for resampling (e.g., 'h', '60min', '1h').</span>
 <span class="sd">        If provided, the output is resampled before EPW generation using</span>
 <span class="sd">        variable-appropriate aggregation methods.</span>
 <span class="sd">        Recommended for sub-hourly simulation output. Default is None (no resampling).</span>
@@ -1021,7 +1035,7 @@
 <span class="sd">    Basic usage with pre-extracted data:</span>
 
 <span class="sd">    &gt;&gt;&gt; df_epw, meta, path = sp.util.gen_epw(</span>
-<span class="sd">    ...     df_output.loc[grid, &quot;SUEWS&quot;], lat=51.5, lon=-0.1</span>
+<span class="sd">    ...     df_output.loc[grid, "SUEWS"], lat=51.5, lon=-0.1</span>
 <span class="sd">    ... )</span>
 
 <span class="sd">    With automatic resampling and grid extraction:</span>
@@ -1030,13 +1044,13 @@
 <span class="sd">    ...     df_output,  # Full MultiIndex output from run_supy</span>
 <span class="sd">    ...     lat=51.5,</span>
 <span class="sd">    ...     lon=-0.1,</span>
-<span class="sd">    ...     freq=&quot;h&quot;,  # Resample to hourly</span>
+<span class="sd">    ...     freq="h",  # Resample to hourly</span>
 <span class="sd">    ... )</span>
 
 <span class="sd">    See Also</span>
 <span class="sd">    --------</span>
 <span class="sd">    supy.resample_output : Resample output with variable-appropriate aggregation</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">atmosp</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
@@ -1044,15 +1058,15 @@
         <span class="kn">import</span><span class="w"> </span><span class="nn">pvlib</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
-            <span class="s2">&quot;TMY/EPW generation requires pvlib. Install it with: pip install pvlib</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot;Note: pvlib requires h5py which may need compilation on some systems.&quot;</span>
+            <span class="s2">"TMY/EPW generation requires pvlib. Install it with: pip install pvlib</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="s2">"Note: pvlib requires h5py which may need compilation on some systems."</span>
         <span class="p">)</span>
 
     <span class="c1"># Handle MultiIndex input from run_supy</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_output</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
         <span class="c1"># Extract grid if needed</span>
         <span class="k">if</span> <span class="n">grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">grid</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">grid</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"grid"</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># Resample if frequency specified (before extracting to single grid)</span>
         <span class="k">if</span> <span class="n">freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1060,9 +1074,9 @@
 
         <span class="c1"># Extract SUEWS group for the specified grid</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_output</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
-            <span class="n">groups</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
-            <span class="k">if</span> <span class="s2">&quot;SUEWS&quot;</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
-                <span class="n">df_output</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">grid</span><span class="p">,</span> <span class="s2">&quot;SUEWS&quot;</span><span class="p">]</span>
+            <span class="n">groups</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"group"</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+            <span class="k">if</span> <span class="s2">"SUEWS"</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+                <span class="n">df_output</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">grid</span><span class="p">,</span> <span class="s2">"SUEWS"</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">df_output</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">grid</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
@@ -1070,7 +1084,7 @@
     <span class="k">elif</span> <span class="n">freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># Single-grid input with freq specified - use simple resampling</span>
         <span class="c1"># For single-grid SUEWS output, variables are typically averaged</span>
-        <span class="n">df_output</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">df_output</span> <span class="o">=</span> <span class="n">df_output</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="s2">"right"</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"right"</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
     <span class="c1"># select months from representative years</span>
     <span class="n">df_tmy</span> <span class="o">=</span> <span class="n">gen_TMY</span><span class="p">(</span><span class="n">df_output</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
@@ -1079,28 +1093,28 @@
     <span class="n">df_tmy</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tz_localize</span><span class="p">(</span><span class="n">tz</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">)</span>
 
     <span class="c1"># adding necessary variables that can be derive from supy output</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Dew Point Temperature&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Dew Point Temperature"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">atmosp</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span>
-            <span class="s2">&quot;Td&quot;</span><span class="p">,</span>
-            <span class="n">T</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="mf">273.15</span><span class="p">,</span>
-            <span class="n">qv</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Q2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">qv_unit</span><span class="o">=</span><span class="s2">&quot;g/kg&quot;</span><span class="p">,</span>
-            <span class="n">RH</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;RH2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+            <span class="s2">"Td"</span><span class="p">,</span>
+            <span class="n">T</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="mf">273.15</span><span class="p">,</span>
+            <span class="n">qv</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Q2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">qv_unit</span><span class="o">=</span><span class="s2">"g/kg"</span><span class="p">,</span>
+            <span class="n">RH</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"RH2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
             <span class="n">rho</span><span class="o">=</span><span class="mf">1.23</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="o">-</span> <span class="mf">273.15</span>
     <span class="p">)</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Atmospheric Station Pressure&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">atmosp</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span>
-        <span class="s2">&quot;p&quot;</span><span class="p">,</span>
-        <span class="n">T</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="mf">273.15</span><span class="p">,</span>
-        <span class="n">qv</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Q2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
-        <span class="n">qv_unit</span><span class="o">=</span><span class="s2">&quot;g/kg&quot;</span><span class="p">,</span>
-        <span class="n">RH</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;RH2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Atmospheric Station Pressure"</span><span class="p">]</span> <span class="o">=</span> <span class="n">atmosp</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span>
+        <span class="s2">"p"</span><span class="p">,</span>
+        <span class="n">T</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="mf">273.15</span><span class="p">,</span>
+        <span class="n">qv</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Q2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+        <span class="n">qv_unit</span><span class="o">=</span><span class="s2">"g/kg"</span><span class="p">,</span>
+        <span class="n">RH</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"RH2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
         <span class="n">rho</span><span class="o">=</span><span class="mf">1.23</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># processing solar radiation components</span>
-    <span class="n">df_tmy</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Kdown&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.001</span><span class="p">,</span> <span class="s2">&quot;Kdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">df_tmy</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Kdown"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.001</span><span class="p">,</span> <span class="s2">"Kdown"</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 
     <span class="c1"># ===================================================================</span>
     <span class="c1"># relationship of solar radiation components:</span>
@@ -1111,10 +1125,10 @@
     <span class="c1"># cos(Z): cosine of solar zenith angle</span>
 
     <span class="c1"># transfer simulated Kdown to GHI</span>
-    <span class="n">GHI</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Kdown&quot;</span><span class="p">]</span>
+    <span class="n">GHI</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Kdown"</span><span class="p">]</span>
 
     <span class="c1"># global horizontal radiation</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Global Horizontal Radiation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GHI</span>
+    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Global Horizontal Radiation"</span><span class="p">]</span> <span class="o">=</span> <span class="n">GHI</span>
 
     <span class="c1"># solar zenith angle</span>
     <span class="n">solar_zenith_deg</span> <span class="o">=</span> <span class="n">pvlib</span><span class="o">.</span><span class="n">solarposition</span><span class="o">.</span><span class="n">get_solarposition</span><span class="p">(</span>
@@ -1124,25 +1138,25 @@
     <span class="c1"># direct normal radaition</span>
     <span class="c1"># Determine DNI from GHI using the DIRINT modification of the DISC model.</span>
     <span class="n">DNI</span> <span class="o">=</span> <span class="n">pvlib</span><span class="o">.</span><span class="n">irradiance</span><span class="o">.</span><span class="n">dirint</span><span class="p">(</span>
-        <span class="n">ghi</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Global Horizontal Radiation&quot;</span><span class="p">],</span>
+        <span class="n">ghi</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Global Horizontal Radiation"</span><span class="p">],</span>
         <span class="n">times</span><span class="o">=</span><span class="n">df_tmy</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
         <span class="n">solar_zenith</span><span class="o">=</span><span class="n">solar_zenith_deg</span><span class="p">,</span>
-        <span class="n">pressure</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Atmospheric Station Pressure&quot;</span><span class="p">],</span>
-        <span class="n">temp_dew</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Dew Point Temperature&quot;</span><span class="p">],</span>
+        <span class="n">pressure</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Atmospheric Station Pressure"</span><span class="p">],</span>
+        <span class="n">temp_dew</span><span class="o">=</span><span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Dew Point Temperature"</span><span class="p">],</span>
         <span class="n">use_delta_kt_prime</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Direct Normal Radiation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DNI</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Direct Normal Radiation"</span><span class="p">]</span> <span class="o">=</span> <span class="n">DNI</span><span class="o">.</span><span class="n">values</span>
 
     <span class="c1"># diffuse horizontal radiation</span>
     <span class="c1"># DHI = GHI - DNI * cos (Z)</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Diffuse Horizontal Radiation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GHI</span> <span class="o">-</span> <span class="n">DNI</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span>
+    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Diffuse Horizontal Radiation"</span><span class="p">]</span> <span class="o">=</span> <span class="n">GHI</span> <span class="o">-</span> <span class="n">DNI</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span>
         <span class="n">solar_zenith_deg</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
     <span class="p">)</span>
     <span class="c1"># end: solar radiation processing</span>
     <span class="c1"># ===================================================================</span>
 
     <span class="c1"># horizontal infrared radiation</span>
-    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Horizontal Infrared Radiation Intensity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">&quot;Ldown&quot;</span><span class="p">]</span>
+    <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Horizontal Infrared Radiation Intensity"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="p">[</span><span class="s2">"Ldown"</span><span class="p">]</span>
 
     <span class="c1"># conform column names to EPW standard</span>
     <span class="n">df_TMY_x</span> <span class="o">=</span> <span class="n">df_tmy</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">dict_supy_epw</span><span class="p">)</span>
@@ -1152,47 +1166,47 @@
 
     <span class="c1"># dict of default values</span>
     <span class="n">dict_var_dft</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;Data Source and Uncertainty Flags&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">9992</span><span class="p">,</span>
-        <span class="s2">&quot;Extraterrestrial Horizontal Radiation&quot;</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
-        <span class="s2">&quot;Extraterrestrial Direct Normal Radiation&quot;</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
-        <span class="s2">&quot;Horizontal Infrared Radiation Intensity&quot;</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
-        <span class="s2">&quot;Direct Normal Radiation&quot;</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
-        <span class="s2">&quot;Global Horizontal Illuminance&quot;</span><span class="p">:</span> <span class="mi">9999999</span><span class="p">,</span>
-        <span class="s2">&quot;Direct Normal Illuminance&quot;</span><span class="p">:</span> <span class="mi">9999999</span><span class="p">,</span>
-        <span class="s2">&quot;Diffuse Horizontal Illuminance&quot;</span><span class="p">:</span> <span class="mi">9999999</span><span class="p">,</span>
-        <span class="s2">&quot;Zenith Luminance&quot;</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
-        <span class="s2">&quot;Wind Direction&quot;</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
-        <span class="s2">&quot;Total Sky Cover&quot;</span><span class="p">:</span> <span class="mi">99</span><span class="p">,</span>
-        <span class="s2">&quot;Opaque Sky Cover&quot;</span><span class="p">:</span> <span class="mi">99</span><span class="p">,</span>
-        <span class="s2">&quot;Visibility&quot;</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
-        <span class="s2">&quot;Ceiling Height&quot;</span><span class="p">:</span> <span class="mi">99999</span><span class="p">,</span>
-        <span class="s2">&quot;Present Weather Observation&quot;</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
-        <span class="s2">&quot;Present Weather Codes&quot;</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
-        <span class="s2">&quot;Precipitable Water&quot;</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
-        <span class="s2">&quot;Aerosol Optical Depth&quot;</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
-        <span class="s2">&quot;Snow Depth&quot;</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
-        <span class="s2">&quot;Days Since Last Snowfall&quot;</span><span class="p">:</span> <span class="mi">99</span><span class="p">,</span>
-        <span class="s2">&quot;Albedo&quot;</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
-        <span class="s2">&quot;Liquid Precipitation Depth&quot;</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
-        <span class="s2">&quot;Liquid Precipitation Quantity&quot;</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
+        <span class="s2">"Data Source and Uncertainty Flags"</span><span class="p">:</span> <span class="o">-</span><span class="mi">9992</span><span class="p">,</span>
+        <span class="s2">"Extraterrestrial Horizontal Radiation"</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
+        <span class="s2">"Extraterrestrial Direct Normal Radiation"</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
+        <span class="s2">"Horizontal Infrared Radiation Intensity"</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
+        <span class="s2">"Direct Normal Radiation"</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
+        <span class="s2">"Global Horizontal Illuminance"</span><span class="p">:</span> <span class="mi">9999999</span><span class="p">,</span>
+        <span class="s2">"Direct Normal Illuminance"</span><span class="p">:</span> <span class="mi">9999999</span><span class="p">,</span>
+        <span class="s2">"Diffuse Horizontal Illuminance"</span><span class="p">:</span> <span class="mi">9999999</span><span class="p">,</span>
+        <span class="s2">"Zenith Luminance"</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
+        <span class="s2">"Wind Direction"</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
+        <span class="s2">"Total Sky Cover"</span><span class="p">:</span> <span class="mi">99</span><span class="p">,</span>
+        <span class="s2">"Opaque Sky Cover"</span><span class="p">:</span> <span class="mi">99</span><span class="p">,</span>
+        <span class="s2">"Visibility"</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
+        <span class="s2">"Ceiling Height"</span><span class="p">:</span> <span class="mi">99999</span><span class="p">,</span>
+        <span class="s2">"Present Weather Observation"</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
+        <span class="s2">"Present Weather Codes"</span><span class="p">:</span> <span class="mi">9999</span><span class="p">,</span>
+        <span class="s2">"Precipitable Water"</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
+        <span class="s2">"Aerosol Optical Depth"</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
+        <span class="s2">"Snow Depth"</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
+        <span class="s2">"Days Since Last Snowfall"</span><span class="p">:</span> <span class="mi">99</span><span class="p">,</span>
+        <span class="s2">"Albedo"</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
+        <span class="s2">"Liquid Precipitation Depth"</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
+        <span class="s2">"Liquid Precipitation Quantity"</span><span class="p">:</span> <span class="mi">999</span><span class="p">,</span>
     <span class="p">}</span>
     <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">list_var_EPW</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">df_epw</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_TMY_x</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
         <span class="k">except</span><span class="p">:</span>
-            <span class="c1"># print(f&#39;{var} not existing! This variable will be filled with default value {dict_var_dft[var]}&#39;)</span>
+            <span class="c1"># print(f'{var} not existing! This variable will be filled with default value {dict_var_dft[var]}')</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">df_epw</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df_epw</span><span class="p">))</span> <span class="o">*</span> <span class="n">dict_var_dft</span><span class="p">[</span><span class="n">var</span><span class="p">]</span>
             <span class="k">except</span><span class="p">:</span>
                 <span class="n">df_epw</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-    <span class="c1"># fill &#39;Data Source and Uncertainty Flags&#39;</span>
-    <span class="n">df_epw</span><span class="p">[</span><span class="s2">&quot;Data Source and Uncertainty Flags&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="s2">&quot;?9?9?9?9E0?9?9?9*9*9?9*9*9?9*9*9?9?9*9*_*9*9*9*9*9&quot;</span>
+    <span class="c1"># fill 'Data Source and Uncertainty Flags'</span>
+    <span class="n">df_epw</span><span class="p">[</span><span class="s2">"Data Source and Uncertainty Flags"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"?9?9?9?9E0?9?9?9*9*9?9*9*9?9*9*9?9?9*9*_*9*9*9*9*9"</span>
     <span class="p">)</span>
-    <span class="c1"># df_epw[&quot;Global Horizontal Radiation&quot;] = np.ones(len(df_epw)) * 9999</span>
+    <span class="c1"># df_epw["Global Horizontal Radiation"] = np.ones(len(df_epw)) * 9999</span>
     <span class="n">df_epw</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">df_TMY_x</span><span class="o">.</span><span class="n">index</span>
 
-    <span class="n">df_epw</span> <span class="o">=</span> <span class="n">df_epw</span><span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s2">&quot;Month&quot;</span><span class="p">,</span> <span class="s2">&quot;Day&quot;</span><span class="p">,</span> <span class="s2">&quot;Hour&quot;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">df_epw</span> <span class="o">=</span> <span class="n">df_epw</span><span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s2">"Month"</span><span class="p">,</span> <span class="s2">"Day"</span><span class="p">,</span> <span class="s2">"Hour"</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="c1"># save pure data to a csv for formatting</span>
     <span class="n">path_epw</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_epw</span><span class="p">)</span>
@@ -1200,11 +1214,11 @@
         <span class="n">path_epw</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">path_epw</span><span class="o">.</span><span class="n">touch</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">df_epw</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path_epw</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-    <span class="n">text_data</span> <span class="o">=</span> <span class="n">path_epw</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">text_data</span> <span class="o">=</span> <span class="n">path_epw</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
     <span class="c1"># delete the csv file</span>
     <span class="n">path_epw</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
 
-    <span class="n">text_meta</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+    <span class="n">text_meta</span> <span class="o">=</span> <span class="s2">"""</span>
 <span class="s2">LOCATION,Chongqing Shapingba,Chongqing,CHN,CSWD,575160,lat,lon,tz,259.1</span>
 <span class="s2">DESIGN CONDITIONS,1,Climate Design Data 2009 ASHRAE Handbook,,Heating,1,3.2,4.2,-0.2,3.8,6.5,1.3,4.3,6.2,4.9,7.6,4.3,7.5,1.4,0,Cooling,7,7.4,36.9,25.6,35.5,25.6,34.2,25.4,27.4,32.7,26.9,32.2,26.4,31.6,2.5,110,26.1,22.2,30.2,25.6,21.5,29.8,25.1,20.8,29.3,89.3,32.7,86.9,32.5,84.7,31.7,909,Extremes,5.1,4.3,3.6,35.4,1.1,38.8,1.3,1.6,0.1,40,-0.6,40.9,-1.4,41.8,-2.3,43</span>
 <span class="s2">TYPICAL/EXTREME PERIODS,6,Summer - Week Nearest Max Temperature For Period,Extreme,7/27,8/ 2,Summer - Week Nearest Average Temperature For Period,Typical,7/ 6,7/12,Winter - Week Nearest Min Temperature For Period,Extreme,12/22,1/ 5,Winter - Week Nearest Average Temperature For Period,Typical,1/13,1/19,Autumn - Week Nearest Average Temperature For Period,Typical,10/13,10/19,Spring - Week Nearest Average Temperature For Period,Typical,4/12,4/18</span>
@@ -1213,23 +1227,23 @@
 <span class="s2">COMMENTS 1, generated by SuPy</span>
 <span class="s2">COMMENTS 2, none</span>
 <span class="s2">DATA PERIODS,1,1,Data,Sunday,1/1,12/31</span>
-<span class="s2">    &quot;&quot;&quot;</span>
-    <span class="n">text_meta</span> <span class="o">=</span> <span class="n">text_meta</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="s2">    """</span>
+    <span class="n">text_meta</span> <span class="o">=</span> <span class="n">text_meta</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="c1"># change the default latitude, longuitude and timezone from args, which will be used to calculate solar position and received direct solar radiation at each surface in EnergyPlus</span>
-    <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;lat&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">lat</span><span class="p">))</span>
-    <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;lon&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">lon</span><span class="p">))</span>
-    <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;tz&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">tz</span><span class="p">))</span>
+    <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"lat"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">lat</span><span class="p">))</span>
+    <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"lon"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">lon</span><span class="p">))</span>
+    <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">text_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"tz"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">tz</span><span class="p">))</span>
     <span class="c1"># lines = []</span>
-    <span class="n">text_epw</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text_meta</span> <span class="o">+</span> <span class="n">text_data</span><span class="p">)</span>
-    <span class="c1"># with open(path_epw, &#39;r&#39;) as f:</span>
+    <span class="n">text_epw</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text_meta</span> <span class="o">+</span> <span class="n">text_data</span><span class="p">)</span>
+    <span class="c1"># with open(path_epw, 'r') as f:</span>
     <span class="c1">#     for line in f:</span>
     <span class="c1">#         lines.append(line)</span>
     <span class="c1">#     lines.insert(0, text_meta[1:])</span>
-    <span class="c1">#     s = &#39;&#39;.join(lines)</span>
+    <span class="c1">#     s = ''.join(lines)</span>
 
     <span class="c1"># write out the actual EPW file</span>
-    <span class="n">path_epw</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">text_epw</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
-    <span class="c1"># with open(path_epw, &quot;w&quot;) as fp:</span>
+    <span class="n">path_epw</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">text_epw</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span>
+    <span class="c1"># with open(path_epw, "w") as fp:</span>
     <span class="c1">#     fp.write(text_epw)</span>
 
     <span class="k">return</span> <span class="n">df_epw</span><span class="p">,</span> <span class="n">text_meta</span><span class="p">,</span> <span class="n">path_epw</span></div>
@@ -1287,7 +1301,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1301,8 +1315,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

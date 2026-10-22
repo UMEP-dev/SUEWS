@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_gap_filler';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -529,13 +543,13 @@
 
 
 <span class="c1"># locate the first position of period with in-between gaps</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">loc_gap</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;010&quot;</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">loc_gap</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">"010"</span><span class="p">):</span>
     <span class="n">rsmp</span> <span class="o">=</span> <span class="n">ser_test</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
     <span class="n">ser_TF_10</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">ser</span><span class="p">:</span> <span class="n">ser</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">())</span> <span class="o">*</span> <span class="mi">1</span>
     <span class="n">n_gap</span> <span class="o">=</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_test</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;too many gaps (n_gap/n_period=</span><span class="si">{</span><span class="n">n_gap</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">ser_TF_10</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s2">) to proceed! please enlarge the series to introduce more valid periods.&quot;</span>
+            <span class="sa">f</span><span class="s2">"too many gaps (n_gap/n_period=</span><span class="si">{</span><span class="n">n_gap</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">ser_TF_10</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s2">) to proceed! please enlarge the series to introduce more valid periods."</span>
         <span class="p">)</span>
     <span class="n">str_TF_10</span> <span class="o">=</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">cat</span><span class="p">()</span>
     <span class="n">pos_gap</span> <span class="o">=</span> <span class="n">str_TF_10</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
@@ -544,7 +558,7 @@
 
 
 <span class="c1"># fill gap with neighbouring days</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">fill_gap_one</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;010&quot;</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">fill_gap_one</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">"010"</span><span class="p">):</span>
     <span class="c1"># resample into daily periods</span>
     <span class="n">rsmp</span> <span class="o">=</span> <span class="n">ser_test</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
     <span class="c1"># locate the gaps according to gap pattern: 0 for NO gap, 1 for gapped</span>
@@ -559,12 +573,12 @@
     <span class="c1"># ser_prev: series prior to gapped period</span>
     <span class="c1"># ser_gap: series with gaps</span>
     <span class="c1"># ser_post: series after gapped period</span>
-    <span class="k">if</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">&quot;010&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">"010"</span><span class="p">:</span>
         <span class="n">ser_prev</span><span class="p">,</span> <span class="n">ser_gap</span><span class="p">,</span> <span class="n">ser_post</span> <span class="o">=</span> <span class="n">ser_find</span>
-    <span class="k">elif</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">&quot;01&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">"01"</span><span class="p">:</span>
         <span class="n">ser_prev</span><span class="p">,</span> <span class="n">ser_gap</span> <span class="o">=</span> <span class="n">ser_find</span>
         <span class="n">ser_post</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([])</span>
-    <span class="k">elif</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">&quot;10&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">"10"</span><span class="p">:</span>
         <span class="n">ser_gap</span><span class="p">,</span> <span class="n">ser_post</span> <span class="o">=</span> <span class="n">ser_find</span>
         <span class="n">ser_prev</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([])</span>
 
@@ -572,8 +586,8 @@
     <span class="n">ser_fill_base</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_prev</span><span class="p">,</span> <span class="n">ser_post</span><span class="p">])</span>
     <span class="n">ser_fill</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">ser_fill_base</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span>
-            <span class="n">ser_fill_base</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;hr&quot;</span><span class="p">),</span>
-            <span class="n">ser_fill_base</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">minute</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;min&quot;</span><span class="p">),</span>
+            <span class="n">ser_fill_base</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"hr"</span><span class="p">),</span>
+            <span class="n">ser_fill_base</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">minute</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"min"</span><span class="p">),</span>
         <span class="p">])</span>
         <span class="o">.</span><span class="n">median</span><span class="p">()</span>
         <span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -587,7 +601,7 @@
         <span class="nb">print</span><span class="p">(</span><span class="n">ser_gap</span><span class="p">)</span>
 
     <span class="c1"># calculate rescaling factor with enough values to robustly rescale</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">pattern</span> <span class="o">==</span> <span class="s2">&quot;010&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">ser_gap</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">ser_gap</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">pattern</span> <span class="o">==</span> <span class="s2">"010"</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">ser_gap</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">ser_gap</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
         <span class="n">scale_fill</span> <span class="o">=</span> <span class="p">(</span><span class="n">ser_fill</span> <span class="o">/</span> <span class="n">ser_gap</span><span class="p">)</span><span class="o">.</span><span class="n">median</span><span class="p">()</span>
         <span class="c1"># correct scale_fill for edge cases</span>
         <span class="n">scale_fill</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">scale_fill</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span> <span class="k">else</span> <span class="n">scale_fill</span>
@@ -608,22 +622,22 @@
     <span class="k">return</span> <span class="n">ser_test_filled</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">cal_ratio_info</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1d&quot;</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">cal_ratio_info</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1d"</span><span class="p">):</span>
     <span class="n">rsmp</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
     <span class="n">ser_TF_10</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">ser</span><span class="p">:</span> <span class="n">ser</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">())</span> <span class="o">*</span> <span class="mi">1</span>
     <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">size</span>
 
 
 <span class="c1"># fill gaps iteratively</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">fill_gap_all_x</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">,</span> <span class="n">limit_fill</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fill all gaps in a time series using data from neighbouring divisions of &#39;freq&#39;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">fill_gap_all_x</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">,</span> <span class="n">limit_fill</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Fill all gaps in a time series using data from neighbouring divisions of 'freq'</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    ser_to_fill : pd.Series</span>
 <span class="sd">        Time series to gap-fill</span>
 <span class="sd">    freq : str, optional</span>
-<span class="sd">        Frequency to identify gapped divisions, by default &#39;1D&#39;</span>
+<span class="sd">        Frequency to identify gapped divisions, by default '1D'</span>
 <span class="sd">    limit_fill: int, optional</span>
 <span class="sd">        Maximum number of consecutive NaNs to fill.</span>
 <span class="sd">        Any number less than one means no pre-gap-filling interpolation will be done.</span>
@@ -638,14 +652,14 @@
 <span class="sd">    010: missing data in division between others with no missing data</span>
 <span class="sd">    01:  missing data in division after one with no missing data</span>
 <span class="sd">    10:  division with missing data before one with no missing data</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="k">if</span> <span class="n">limit_fill</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="n">limit_fill</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-    <span class="n">ptn_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;010&quot;</span><span class="p">,</span> <span class="s2">&quot;01&quot;</span><span class="p">,</span> <span class="s2">&quot;10&quot;</span><span class="p">]</span>
+    <span class="n">ptn_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"010"</span><span class="p">,</span> <span class="s2">"01"</span><span class="p">,</span> <span class="s2">"10"</span><span class="p">]</span>
 
     <span class="c1"># if ratio_info &gt; 0.5:</span>
     <span class="n">n_freq</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">size</span>
@@ -691,7 +705,7 @@
         <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_test_filled1</span><span class="p">,</span> <span class="n">ser_test_filled2</span><span class="p">,</span> <span class="n">ser_residual</span><span class="p">])</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">while</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
-            <span class="c1"># print(&quot;here&quot;)</span>
+            <span class="c1"># print("here")</span>
             <span class="c1"># try to different gap patterns and fill gaps</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">ptn_gap</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
@@ -704,7 +718,7 @@
             <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
                 <span class="k">pass</span>
             <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="c1"># print(&quot;cannot proceed so can only return the original gapped series!&quot;)</span>
+                <span class="c1"># print("cannot proceed so can only return the original gapped series!")</span>
                 <span class="k">return</span> <span class="n">ser_test_filled</span>
 
     <span class="k">return</span> <span class="n">ser_test_filled</span>
@@ -714,18 +728,18 @@
 <a class="viewcode-back" href="../../../api/_autosummary/supy.util.fill_gap_all.html#supy.util.fill_gap_all">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">fill_gap_all</span><span class="p">(</span>
     <span class="n">ser_to_fill</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
-    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">,</span>
+    <span class="n">freq</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">,</span>
     <span class="n">limit_fill</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
     <span class="n">thresh_ratio</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fill all gaps in a time series using data from neighbouring divisions of &#39;freq&#39;</span>
+<span class="w">    </span><span class="sd">"""Fill all gaps in a time series using data from neighbouring divisions of 'freq'</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    ser_to_fill : pandas.Series</span>
 <span class="sd">        Time series to gap-fill</span>
 <span class="sd">    freq : str, optional</span>
-<span class="sd">        Frequency to identify gapped divisions, by default &#39;1D&#39;</span>
+<span class="sd">        Frequency to identify gapped divisions, by default '1D'</span>
 <span class="sd">    limit_fill : int, optional</span>
 <span class="sd">        Maximum number of consecutive NaNs to fill.</span>
 <span class="sd">        Any number less than one means no pre-gap-filling interpolation will be done.</span>
@@ -742,12 +756,12 @@
 <span class="sd">    010: missing data in division between others with no missing data</span>
 <span class="sd">    01:  missing data in division after one with no missing data</span>
 <span class="sd">    10:  division with missing data before one with no missing data</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">ratio_info</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">)</span>
     <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">norm_ser_dt</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">ratio_info</span> <span class="o">&lt;</span> <span class="n">thresh_ratio</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;input series is too gapped (valid data ratio = </span><span class="si">{</span><span class="n">ratio_info</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">) to proceed with the gap-filling method.&quot;</span>
+            <span class="sa">f</span><span class="s2">"input series is too gapped (valid data ratio = </span><span class="si">{</span><span class="n">ratio_info</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">) to proceed with the gap-filling method."</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># normalise into a series with complete diurnal cycles</span>
@@ -766,7 +780,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">norm_ser_dt</span><span class="p">(</span><span class="n">ser_dt</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    normalise a time series into a time series with complete diurnal cycles.</span>
 
 <span class="sd">    Parameters</span>
@@ -778,10 +792,10 @@
 <span class="sd">    -------</span>
 <span class="sd">    pandas.Series</span>
 <span class="sd">        time series with complete diurnal cycles; missing values may be inserted as np.nan.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">freq</span> <span class="o">=</span> <span class="n">ser_dt</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span>
     <span class="n">dt_start</span><span class="p">,</span> <span class="n">dt_end</span> <span class="o">=</span> <span class="n">ser_dt</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">normalize</span><span class="p">()[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
-    <span class="n">dt_end</span> <span class="o">=</span> <span class="n">dt_end</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">&quot;1d&quot;</span><span class="p">)</span>
+    <span class="n">dt_end</span> <span class="o">=</span> <span class="n">dt_end</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">"1d"</span><span class="p">)</span>
     <span class="n">dt_end</span>
     <span class="n">idx_norm</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">dt_start</span><span class="p">,</span> <span class="n">dt_end</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">ser_norm</span> <span class="o">=</span> <span class="n">ser_dt</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">idx_norm</span><span class="p">)</span>
@@ -839,7 +853,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -853,8 +867,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

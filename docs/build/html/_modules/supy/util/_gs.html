@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_gs';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -531,8 +545,8 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">._atm</span><span class="w"> </span><span class="kn">import</span> <span class="n">cal_des_dta</span><span class="p">,</span> <span class="n">cal_dq</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">cal_rs_obs</span><span class="p">(</span><span class="n">qh</span><span class="p">,</span> <span class="n">qe</span><span class="p">,</span> <span class="n">ta</span><span class="p">,</span> <span class="n">rh</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;iPM&quot;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate surface resistance based on observations, notably turbulent fluxes.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">cal_rs_obs</span><span class="p">(</span><span class="n">qh</span><span class="p">,</span> <span class="n">qe</span><span class="p">,</span> <span class="n">ta</span><span class="p">,</span> <span class="n">rh</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"iPM"</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Calculate surface resistance based on observations, notably turbulent fluxes.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -549,21 +563,21 @@
 <span class="sd">    ra : float</span>
 <span class="sd">        aerodynamic resistance [m s-1]</span>
 <span class="sd">    method: str</span>
-<span class="sd">        method used to calculate rs, can be one of {&#39;iPM&#39;,&#39;FG&#39;}, by default &#39;iPM&#39;</span>
-<span class="sd">        &#39;iPM&#39;: inverted Penman-Monteith</span>
-<span class="sd">        &#39;FG&#39;: flux gradient</span>
+<span class="sd">        method used to calculate rs, can be one of {'iPM','FG'}, by default 'iPM'</span>
+<span class="sd">        'iPM': inverted Penman-Monteith</span>
+<span class="sd">        'FG': flux gradient</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Surface resistance based on observations [s m-1]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">atmosp</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate</span> <span class="k">as</span> <span class="n">ac</span>
 
     <span class="c1"># choose calculation method</span>
     <span class="n">dict_fun</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;iPM&quot;</span><span class="p">:</span> <span class="n">cal_rs_iPM</span><span class="p">,</span>
-        <span class="s2">&quot;FG&quot;</span><span class="p">:</span> <span class="n">cal_rs_FG</span><span class="p">,</span>
+        <span class="s2">"iPM"</span><span class="p">:</span> <span class="n">cal_rs_iPM</span><span class="p">,</span>
+        <span class="s2">"FG"</span><span class="p">:</span> <span class="n">cal_rs_FG</span><span class="p">,</span>
     <span class="p">}</span>
     <span class="n">fun</span> <span class="o">=</span> <span class="n">dict_fun</span><span class="p">[</span><span class="n">method</span><span class="p">]</span>
 
@@ -574,7 +588,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_rs_iPM</span><span class="p">(</span><span class="n">qh</span><span class="p">,</span> <span class="n">qe</span><span class="p">,</span> <span class="n">ta</span><span class="p">,</span> <span class="n">rh</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">ra</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate surface resistance based on observations, notably turbulent fluxes.</span>
+<span class="w">    </span><span class="sd">"""Calculate surface resistance based on observations, notably turbulent fluxes.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -595,7 +609,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Surface resistance based on observations [s m-1]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">atmosp</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate</span> <span class="k">as</span> <span class="n">ac</span>
 
     <span class="c1"># psychrometric constant [Pa K-1] as a function of air pressure</span>
@@ -613,8 +627,8 @@
     <span class="c1"># slope of es(Ta) curve at Ta</span>
     <span class="n">ser_des_dTa</span> <span class="o">=</span> <span class="n">cal_des_dta</span><span class="p">(</span><span class="n">ta_K</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">dta</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
     <span class="c1">#</span>
-    <span class="n">arr_e</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;e&quot;</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">ta_K</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">rh</span><span class="p">)</span>
-    <span class="n">arr_es</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;es&quot;</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">ta_K</span><span class="p">)</span>
+    <span class="n">arr_e</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">"e"</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">ta_K</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">rh</span><span class="p">)</span>
+    <span class="n">arr_es</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">"es"</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">ta_K</span><span class="p">)</span>
     <span class="n">arr_vpd</span> <span class="o">=</span> <span class="n">arr_es</span> <span class="o">-</span> <span class="n">arr_e</span>
     <span class="c1">#</span>
     <span class="n">ser_rs_1</span> <span class="o">=</span> <span class="p">(</span><span class="n">ser_des_dTa</span> <span class="o">/</span> <span class="n">ser_gamma</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">qh</span> <span class="o">/</span> <span class="n">qe</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">ra</span>
@@ -625,14 +639,14 @@
         <span class="c1"># try to pack as Series</span>
         <span class="n">ser_rs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">ser_rs</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">ta_K</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">AttributeError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">ex</span><span class="p">,</span> <span class="s2">&quot;cannot pack into pd.Series&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">ex</span><span class="p">,</span> <span class="s2">"cannot pack into pd.Series"</span><span class="p">)</span>
         <span class="k">pass</span>
 
     <span class="k">return</span> <span class="n">ser_rs</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_rs_FG</span><span class="p">(</span><span class="n">qh</span><span class="p">,</span> <span class="n">qe</span><span class="p">,</span> <span class="n">ta</span><span class="p">,</span> <span class="n">rh</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">ra</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate surface resistance based on observations, notably turbulent fluxes.</span>
+<span class="w">    </span><span class="sd">"""Calculate surface resistance based on observations, notably turbulent fluxes.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -653,7 +667,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Surface resistance based on observations [s m-1]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">atmosp</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate</span> <span class="k">as</span> <span class="n">ac</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">._atm</span><span class="w"> </span><span class="kn">import</span> <span class="n">cal_dens_vap</span><span class="p">,</span> <span class="n">cal_lat_vap</span><span class="p">,</span> <span class="n">cal_qa</span>
 
@@ -670,10 +684,10 @@
     <span class="n">tc_K</span> <span class="o">=</span> <span class="n">qh</span> <span class="o">/</span> <span class="p">(</span><span class="n">val_rho</span> <span class="o">*</span> <span class="n">val_cp</span><span class="p">)</span> <span class="o">*</span> <span class="n">ra</span> <span class="o">+</span> <span class="n">ta_K</span>
 
     <span class="c1"># actual atmospheric vapour pressure [Pa]</span>
-    <span class="n">ser_qa</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;qv&quot;</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">ta_K</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">rh</span><span class="p">)</span> <span class="o">+</span> <span class="n">rh</span> <span class="o">*</span> <span class="mi">0</span>
+    <span class="n">ser_qa</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">"qv"</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">ta_K</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">rh</span><span class="p">)</span> <span class="o">+</span> <span class="n">rh</span> <span class="o">*</span> <span class="mi">0</span>
 
     <span class="c1"># saturated atmospheric vapour pressure at canopy surface [Pa]</span>
-    <span class="n">ser_qs_c</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;qvs&quot;</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">tc_K</span><span class="p">)</span> <span class="o">+</span> <span class="n">rh</span> <span class="o">*</span> <span class="mi">0</span>
+    <span class="n">ser_qs_c</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">"qvs"</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">tc_K</span><span class="p">)</span> <span class="o">+</span> <span class="n">rh</span> <span class="o">*</span> <span class="mi">0</span>
 
     <span class="c1"># # vapour pressure deficit [Pa]</span>
     <span class="c1"># arr_vpd = arr_es_c - arr_ea</span>
@@ -685,7 +699,7 @@
     <span class="n">ser_lv</span> <span class="o">=</span> <span class="n">cal_lat_vap</span><span class="p">(</span><span class="n">ser_qa</span><span class="p">,</span> <span class="n">ta_K</span><span class="p">,</span> <span class="n">pa</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span> <span class="o">+</span> <span class="n">pa</span> <span class="o">*</span> <span class="mi">0</span>
 
     <span class="c1"># vapour density [kg m-3]</span>
-    <span class="n">rho_v</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;rho&quot;</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">rh</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">ta_K</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">)</span> <span class="o">+</span> <span class="n">pa</span> <span class="o">*</span> <span class="mi">0</span>
+    <span class="n">rho_v</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">"rho"</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">rh</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">ta_K</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pa</span><span class="p">)</span> <span class="o">+</span> <span class="n">pa</span> <span class="o">*</span> <span class="mi">0</span>
 
     <span class="n">ser_et</span> <span class="o">=</span> <span class="n">qe</span> <span class="o">/</span> <span class="n">ser_lv</span>
     <span class="n">ser_rs</span> <span class="o">=</span> <span class="n">rho_v</span> <span class="o">*</span> <span class="p">(</span><span class="n">ser_qs_c</span> <span class="o">-</span> <span class="n">ser_qa</span><span class="p">)</span> <span class="o">/</span> <span class="n">ser_et</span> <span class="o">-</span> <span class="n">ra</span>
@@ -705,7 +719,7 @@
         <span class="c1"># try to pack as Series</span>
         <span class="n">ser_rs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">ser_rs</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">ta_K</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">AttributeError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">ex</span><span class="p">,</span> <span class="s2">&quot;cannot pack into pd.Series&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">ex</span><span class="p">,</span> <span class="s2">"cannot pack into pd.Series"</span><span class="p">)</span>
         <span class="k">pass</span>
 
     <span class="k">return</span> <span class="n">ser_rs</span>
@@ -714,7 +728,7 @@
 <div class="viewcode-block" id="cal_gs_obs">
 <a class="viewcode-back" href="../../../api/_autosummary/supy.util.cal_gs_obs.html#supy.util.cal_gs_obs">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_gs_obs</span><span class="p">(</span><span class="n">qh</span><span class="p">,</span> <span class="n">qe</span><span class="p">,</span> <span class="n">ta</span><span class="p">,</span> <span class="n">rh</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">ra</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate surface conductance based on observations, notably turbulent fluxes.</span>
+<span class="w">    </span><span class="sd">"""Calculate surface conductance based on observations, notably turbulent fluxes.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -733,7 +747,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Surface conductance based on observations [mm s-1]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">rs_obs</span> <span class="o">=</span> <span class="n">cal_rs_obs</span><span class="p">(</span><span class="n">qh</span><span class="p">,</span> <span class="n">qe</span><span class="p">,</span> <span class="n">ta</span><span class="p">,</span> <span class="n">rh</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">ra</span><span class="p">)</span>
     <span class="n">gs_obs</span> <span class="o">=</span> <span class="mf">1e3</span> <span class="o">/</span> <span class="n">rs_obs</span>
     <span class="k">return</span> <span class="n">gs_obs</span></div>
@@ -741,7 +755,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_g_lai</span><span class="p">(</span><span class="n">lai</span><span class="p">,</span> <span class="n">g_lai</span><span class="p">,</span> <span class="n">lai_max</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate LAI-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate LAI-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -756,13 +770,13 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        LAI-related correction coefficient [-]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">g_lai</span> <span class="o">=</span> <span class="n">lai</span> <span class="o">/</span> <span class="n">lai_max</span> <span class="o">*</span> <span class="n">g_lai</span>
     <span class="k">return</span> <span class="n">g_lai</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_g_kd</span><span class="p">(</span><span class="n">kd</span><span class="p">,</span> <span class="n">g_kd</span><span class="p">,</span> <span class="n">kd_max</span><span class="o">=</span><span class="mf">1200.0</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate solar radiation-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate solar radiation-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -777,7 +791,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Solar radiation-related correction coefficient [-]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">g_kd_nom</span> <span class="o">=</span> <span class="n">kd</span> <span class="o">/</span> <span class="p">(</span><span class="n">g_kd</span> <span class="o">+</span> <span class="n">kd</span><span class="p">)</span>
     <span class="n">g_kd_denom</span> <span class="o">=</span> <span class="n">kd_max</span> <span class="o">/</span> <span class="p">(</span><span class="n">g_kd</span> <span class="o">+</span> <span class="n">kd_max</span><span class="p">)</span>
     <span class="n">g_kd</span> <span class="o">=</span> <span class="n">g_kd_nom</span> <span class="o">/</span> <span class="n">g_kd_denom</span>
@@ -785,7 +799,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_g_dq</span><span class="p">(</span><span class="n">dq</span><span class="p">,</span> <span class="n">g_dq_base</span><span class="p">,</span> <span class="n">g_dq_shape</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate air humidity-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate air humidity-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -800,13 +814,13 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Air humidity-related correction coefficient</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">g_dq</span> <span class="o">=</span> <span class="n">g_dq_base</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">g_dq_base</span><span class="p">)</span> <span class="o">*</span> <span class="n">g_dq_shape</span><span class="o">**</span><span class="n">dq</span>
     <span class="k">return</span> <span class="n">g_dq</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_g_ta</span><span class="p">(</span><span class="n">ta_c</span><span class="p">,</span> <span class="n">g_ta</span><span class="p">,</span> <span class="n">tl</span><span class="o">=-</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">th</span><span class="o">=</span><span class="mf">55.0</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate air temperature-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate air temperature-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -823,7 +837,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Air temperature-related correction coefficient</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">tc</span> <span class="o">=</span> <span class="p">(</span><span class="n">th</span> <span class="o">-</span> <span class="n">g_ta</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">g_ta</span> <span class="o">-</span> <span class="n">tl</span><span class="p">)</span>
     <span class="c1"># set a threshold for avoiding numeric difficulty</span>
@@ -837,7 +851,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_g_smd</span><span class="p">(</span><span class="n">smd</span><span class="p">,</span> <span class="n">g_smd</span><span class="p">,</span> <span class="n">wp_smd</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate soil moisture-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate soil moisture-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -852,7 +866,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Soil moisture-related correction coefficient</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Wilting point calculated following SUEWS</span>
     <span class="c1"># wp = wp_smd / g_smd</span>
 
@@ -867,7 +881,7 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_gs_suews</span><span class="p">(</span>
     <span class="n">kd</span><span class="p">,</span> <span class="n">ta_c</span><span class="p">,</span> <span class="n">rh</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">smd</span><span class="p">,</span> <span class="n">lai</span><span class="p">,</span> <span class="n">g_cst</span><span class="p">,</span> <span class="n">g_max</span><span class="p">,</span> <span class="n">lai_max</span><span class="p">,</span> <span class="n">wp_smd</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Model surface conductance/resistance using phenology and atmospheric forcing conditions.</span>
+<span class="w">    </span><span class="sd">"""Model surface conductance/resistance using phenology and atmospheric forcing conditions.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -902,32 +916,32 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Modelled surface conductance [mm s-1]</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">atmosp</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate</span> <span class="k">as</span> <span class="n">ac</span>
 
     <span class="c1"># broadcast g_lai – g_smd</span>
-    <span class="c1"># print(&#39;g_cst&#39;, g_cst)</span>
+    <span class="c1"># print('g_cst', g_cst)</span>
     <span class="n">g_lai</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">g_dq_base</span><span class="p">,</span> <span class="n">g_dq_shape</span><span class="p">,</span> <span class="n">g_ta</span><span class="p">,</span> <span class="n">g_smd</span> <span class="o">=</span> <span class="n">g_cst</span>
     <span class="c1"># print(g_lai, g2, g_dq_base, g_dq_shape, g_ta, g_smd)</span>
     <span class="c1"># lai related</span>
     <span class="n">g_lai</span> <span class="o">=</span> <span class="n">cal_g_lai</span><span class="p">(</span><span class="n">lai</span><span class="p">,</span> <span class="n">g_lai</span><span class="p">,</span> <span class="n">lai_max</span><span class="p">)</span>
-    <span class="c1"># print(&#39;g_lai&#39;, g_lai)</span>
+    <span class="c1"># print('g_lai', g_lai)</span>
 
     <span class="c1"># kdown related</span>
     <span class="n">g_kd</span> <span class="o">=</span> <span class="n">cal_g_kd</span><span class="p">(</span><span class="n">kd</span><span class="p">,</span> <span class="n">g2</span><span class="p">)</span>
-    <span class="c1"># print(&#39;g_kd&#39;, g_kd)</span>
+    <span class="c1"># print('g_kd', g_kd)</span>
     <span class="c1"># dq related</span>
     <span class="n">ta_k</span> <span class="o">=</span> <span class="n">ta_c</span> <span class="o">+</span> <span class="mf">273.15</span>
     <span class="n">dq</span> <span class="o">=</span> <span class="n">cal_dq</span><span class="p">(</span><span class="n">rh</span><span class="p">,</span> <span class="n">ta_c</span><span class="p">,</span> <span class="n">pa</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">+</span> <span class="n">rh</span> <span class="o">*</span> <span class="mi">0</span>
     <span class="n">g_dq</span> <span class="o">=</span> <span class="n">cal_g_dq</span><span class="p">(</span><span class="n">dq</span><span class="p">,</span> <span class="n">g_dq_base</span><span class="p">,</span> <span class="n">g_dq_shape</span><span class="p">)</span>
-    <span class="c1"># print(&#39;g_dq&#39;, g_dq)</span>
+    <span class="c1"># print('g_dq', g_dq)</span>
     <span class="c1"># ta related</span>
     <span class="n">ta_c</span> <span class="o">=</span> <span class="n">ta_k</span> <span class="o">-</span> <span class="mf">273.15</span>
     <span class="n">g_ta</span> <span class="o">=</span> <span class="n">cal_g_ta</span><span class="p">(</span><span class="n">ta_c</span><span class="p">,</span> <span class="n">g_ta</span><span class="p">)</span>
-    <span class="c1"># print(&#39;g_ta&#39;, g_ta)</span>
+    <span class="c1"># print('g_ta', g_ta)</span>
     <span class="c1"># smd related</span>
     <span class="n">g_smd</span> <span class="o">=</span> <span class="n">cal_g_smd</span><span class="p">(</span><span class="n">smd</span><span class="p">,</span> <span class="n">g_smd</span><span class="p">,</span> <span class="n">wp_smd</span><span class="p">)</span>
-    <span class="c1"># print(&#39;g_smd&#39;, g_smd)</span>
+    <span class="c1"># print('g_smd', g_smd)</span>
     <span class="c1"># combine all corrections</span>
     <span class="n">gs_c</span> <span class="o">=</span> <span class="n">g_lai</span> <span class="o">*</span> <span class="n">g_kd</span> <span class="o">*</span> <span class="n">g_dq</span> <span class="o">*</span> <span class="n">g_ta</span> <span class="o">*</span> <span class="n">g_smd</span>
     <span class="n">gs</span> <span class="o">=</span> <span class="n">g_max</span> <span class="o">*</span> <span class="n">gs_c</span>
@@ -936,13 +950,13 @@
         <span class="c1"># pack results into a dataframe</span>
         <span class="n">df_gs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
             <span class="p">{</span>
-                <span class="s2">&quot;gs_mod&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">gs</span><span class="p">),</span>
-                <span class="s2">&quot;gs_c&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">gs_c</span><span class="p">),</span>
-                <span class="s2">&quot;g_lai&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_lai</span><span class="p">),</span>
-                <span class="s2">&quot;g_kd&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_kd</span><span class="p">),</span>
-                <span class="s2">&quot;g_dq&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_dq</span><span class="p">),</span>
-                <span class="s2">&quot;g_ta&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_ta</span><span class="p">),</span>
-                <span class="s2">&quot;g_smd&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_smd</span><span class="p">),</span>
+                <span class="s2">"gs_mod"</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">gs</span><span class="p">),</span>
+                <span class="s2">"gs_c"</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">gs_c</span><span class="p">),</span>
+                <span class="s2">"g_lai"</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_lai</span><span class="p">),</span>
+                <span class="s2">"g_kd"</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_kd</span><span class="p">),</span>
+                <span class="s2">"g_dq"</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_dq</span><span class="p">),</span>
+                <span class="s2">"g_ta"</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_ta</span><span class="p">),</span>
+                <span class="s2">"g_smd"</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">g_smd</span><span class="p">),</span>
             <span class="p">},</span>
             <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
         <span class="p">)</span>
@@ -961,11 +975,11 @@
     <span class="n">g_max</span><span class="p">,</span>
     <span class="n">lai_max</span><span class="p">,</span>
     <span class="n">wp_smd</span><span class="p">,</span>
-    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;cobyla&quot;</span><span class="p">,</span>
+    <span class="n">method</span><span class="o">=</span><span class="s2">"cobyla"</span><span class="p">,</span>
     <span class="n">prms_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calibrate parameters for modelling surface conductance over vegetated surfaces using `LMFIT &lt;https://lmfit.github.io/lmfit-py/model.html&gt;`.</span>
+<span class="w">    </span><span class="sd">"""Calibrate parameters for modelling surface conductance over vegetated surfaces using `LMFIT &lt;https://lmfit.github.io/lmfit-py/model.html&gt;`.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1004,10 +1018,10 @@
 <span class="sd">    For calibration validity, turbulent fluxes, QH and QE, in `df_fc_suews` should ONLY be observations, i.e., interpolated values should be avoided.</span>
 <span class="sd">    To do so, please place `np.nan` as missing values for QH and QE.</span>
 
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">lmfit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">Parameters</span>
 
-    <span class="n">list_var_sel</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;qh&quot;</span><span class="p">,</span> <span class="s2">&quot;qe&quot;</span><span class="p">,</span> <span class="s2">&quot;Tair&quot;</span><span class="p">,</span> <span class="s2">&quot;RH&quot;</span><span class="p">,</span> <span class="s2">&quot;pres&quot;</span><span class="p">,</span> <span class="s2">&quot;kdown&quot;</span><span class="p">,</span> <span class="s2">&quot;xsmd&quot;</span><span class="p">,</span> <span class="s2">&quot;lai&quot;</span><span class="p">]</span>
+    <span class="n">list_var_sel</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"qh"</span><span class="p">,</span> <span class="s2">"qe"</span><span class="p">,</span> <span class="s2">"Tair"</span><span class="p">,</span> <span class="s2">"RH"</span><span class="p">,</span> <span class="s2">"pres"</span><span class="p">,</span> <span class="s2">"kdown"</span><span class="p">,</span> <span class="s2">"xsmd"</span><span class="p">,</span> <span class="s2">"lai"</span><span class="p">]</span>
     <span class="n">df_obs</span> <span class="o">=</span> <span class="n">df_fc_suews</span><span class="p">[</span><span class="n">list_var_sel</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
 
     <span class="c1"># convert to Pa</span>
@@ -1036,44 +1050,44 @@
 
     <span class="n">gmodel</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span>
         <span class="n">func_fit_g</span><span class="p">,</span>
-        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;lai&quot;</span><span class="p">,</span> <span class="s2">&quot;kd&quot;</span><span class="p">,</span> <span class="s2">&quot;ta&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">,</span> <span class="s2">&quot;pa&quot;</span><span class="p">,</span> <span class="s2">&quot;smd&quot;</span><span class="p">],</span>
-        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;g_lai&quot;</span><span class="p">,</span> <span class="s2">&quot;g_kd&quot;</span><span class="p">,</span> <span class="s2">&quot;g_dq_base&quot;</span><span class="p">,</span> <span class="s2">&quot;g_dq_shape&quot;</span><span class="p">,</span> <span class="s2">&quot;g_ta&quot;</span><span class="p">,</span> <span class="s2">&quot;g_smd&quot;</span><span class="p">],</span>
+        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">"lai"</span><span class="p">,</span> <span class="s2">"kd"</span><span class="p">,</span> <span class="s2">"ta"</span><span class="p">,</span> <span class="s2">"rh"</span><span class="p">,</span> <span class="s2">"pa"</span><span class="p">,</span> <span class="s2">"smd"</span><span class="p">],</span>
+        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"g_lai"</span><span class="p">,</span> <span class="s2">"g_kd"</span><span class="p">,</span> <span class="s2">"g_dq_base"</span><span class="p">,</span> <span class="s2">"g_dq_shape"</span><span class="p">,</span> <span class="s2">"g_ta"</span><span class="p">,</span> <span class="s2">"g_smd"</span><span class="p">],</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">prms_init</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Preset parameters will be loaded!&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Please use with caution.&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"Preset parameters will be loaded!"</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"Please use with caution."</span><span class="p">)</span>
         <span class="n">prms</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
         <span class="n">dict_prms_init</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;lai&quot;</span><span class="p">:</span> <span class="mf">3.5</span><span class="p">,</span>
-            <span class="s2">&quot;kd&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
-            <span class="s2">&quot;q1&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
-            <span class="s2">&quot;q2&quot;</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span>
-            <span class="s2">&quot;ta&quot;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>
-            <span class="s2">&quot;smd&quot;</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span>
+            <span class="s2">"lai"</span><span class="p">:</span> <span class="mf">3.5</span><span class="p">,</span>
+            <span class="s2">"kd"</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+            <span class="s2">"q1"</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+            <span class="s2">"q2"</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span>
+            <span class="s2">"ta"</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>
+            <span class="s2">"smd"</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">list_g</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">Parameter</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;g_</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">Parameter</span><span class="p">(</span><span class="sa">f</span><span class="s2">"g_</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">dict_prms_init</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
         <span class="p">)</span>
         <span class="n">prms</span><span class="o">.</span><span class="n">add_many</span><span class="p">(</span><span class="o">*</span><span class="n">list_g</span><span class="p">)</span>
         <span class="c1"># set specific bounds:</span>
         <span class="c1"># g_lai: LAI related</span>
-        <span class="n">prms</span><span class="p">[</span><span class="s2">&quot;g_lai&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_lai"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 
-        <span class="n">prms</span><span class="p">[</span><span class="s2">&quot;g_kd&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_kd"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
         <span class="c1"># g_dq_base, g_dq_shape: specific humidity related</span>
-        <span class="n">prms</span><span class="p">[</span><span class="s2">&quot;g_dq_base&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">prms</span><span class="p">[</span><span class="s2">&quot;g_dq_shape&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_dq_base"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_dq_shape"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="c1"># g_ta: within reasonable temperature ranges</span>
-        <span class="n">prms</span><span class="p">[</span><span class="s2">&quot;g_ta&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=-</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">55</span><span class="p">)</span>
+        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_ta"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=-</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">55</span><span class="p">)</span>
         <span class="c1"># g_smd: within sensitive ranges of SMD</span>
-        <span class="n">prms</span><span class="p">[</span><span class="s2">&quot;g_smd&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_smd"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;User provided parameters are loaded!&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"User provided parameters are loaded!"</span><span class="p">)</span>
         <span class="n">prms</span> <span class="o">=</span> <span class="n">prms_init</span>
 
     <span class="c1"># pack into a DataFrame for filtering out nan</span>
-    <span class="n">df_fit</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">gs_obs</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;gs_obs&quot;</span><span class="p">),</span> <span class="n">df_obs</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
+    <span class="n">df_fit</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">gs_obs</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"gs_obs"</span><span class="p">),</span> <span class="n">df_obs</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
 
     <span class="n">res_fit</span> <span class="o">=</span> <span class="n">gmodel</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span>
         <span class="n">df_fit</span><span class="o">.</span><span class="n">gs_obs</span><span class="p">,</span>
@@ -1084,9 +1098,9 @@
         <span class="n">smd</span><span class="o">=</span><span class="n">df_fit</span><span class="o">.</span><span class="n">xsmd</span><span class="p">,</span>
         <span class="n">lai</span><span class="o">=</span><span class="n">df_fit</span><span class="o">.</span><span class="n">lai</span><span class="p">,</span>
         <span class="n">params</span><span class="o">=</span><span class="n">prms</span><span class="p">,</span>
-        <span class="c1"># useful ones: [&#39;nelder&#39;, &#39;powell&#39;, &#39;cg&#39;, &#39;cobyla&#39;, &#39;bfgs&#39;, &#39;trust-tnc&#39;]</span>
+        <span class="c1"># useful ones: ['nelder', 'powell', 'cg', 'cobyla', 'bfgs', 'trust-tnc']</span>
         <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
-        <span class="c1">#     nan_policy=&#39;omit&#39;,</span>
+        <span class="c1">#     nan_policy='omit',</span>
         <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
@@ -1102,15 +1116,15 @@
 
     <span class="n">model_g_ta</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span>
         <span class="n">cal_g_ta</span><span class="p">,</span>
-        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ta_c&quot;</span><span class="p">],</span>
-        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;g_ta&quot;</span><span class="p">,</span> <span class="s2">&quot;tl&quot;</span><span class="p">,</span> <span class="s2">&quot;th&quot;</span><span class="p">],</span>
+        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">"ta_c"</span><span class="p">],</span>
+        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"g_ta"</span><span class="p">,</span> <span class="s2">"tl"</span><span class="p">,</span> <span class="s2">"th"</span><span class="p">],</span>
     <span class="p">)</span>
     <span class="n">prms</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
     <span class="n">prm_g_ta</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span>
-        <span class="s2">&quot;g_ta&quot;</span><span class="p">,</span> <span class="n">ser_ta</span><span class="o">.</span><span class="n">median</span><span class="p">(),</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="n">ser_ta</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="nb">max</span><span class="o">=</span><span class="n">ser_ta</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="s2">"g_ta"</span><span class="p">,</span> <span class="n">ser_ta</span><span class="o">.</span><span class="n">median</span><span class="p">(),</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="n">ser_ta</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="nb">max</span><span class="o">=</span><span class="n">ser_ta</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
     <span class="p">)</span>
-    <span class="n">prm_tl</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">&quot;tl&quot;</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="n">ser_ta</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">prm_th</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">&quot;th&quot;</span><span class="p">,</span> <span class="n">ser_ta</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">prm_tl</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">"tl"</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="n">ser_ta</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">prm_th</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">"th"</span><span class="p">,</span> <span class="n">ser_ta</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">prms</span><span class="o">.</span><span class="n">add_many</span><span class="p">(</span><span class="n">prm_g_ta</span><span class="p">,</span> <span class="n">prm_tl</span><span class="p">,</span> <span class="n">prm_th</span><span class="p">)</span>
 
     <span class="n">res_fit</span> <span class="o">=</span> <span class="n">model_g_ta</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">ser_gs</span> <span class="o">/</span> <span class="n">ser_gs</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">ta_c</span><span class="o">=</span><span class="n">ser_ta</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">prms</span><span class="p">)</span>
@@ -1122,12 +1136,12 @@
 
     <span class="n">model_g_smd</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span>
         <span class="n">cal_g_smd</span><span class="p">,</span>
-        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;smd&quot;</span><span class="p">],</span>
-        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;g_smd&quot;</span><span class="p">,</span> <span class="s2">&quot;wp_smd&quot;</span><span class="p">],</span>
+        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">"smd"</span><span class="p">],</span>
+        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"g_smd"</span><span class="p">,</span> <span class="s2">"wp_smd"</span><span class="p">],</span>
     <span class="p">)</span>
     <span class="n">prms</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
-    <span class="n">prm_g_smd</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">&quot;g_smd&quot;</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
-    <span class="n">prm_wp_smd</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">&quot;wp_smd&quot;</span><span class="p">,</span> <span class="n">wp_smd</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">prm_g_smd</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">"g_smd"</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">prm_wp_smd</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">"wp_smd"</span><span class="p">,</span> <span class="n">wp_smd</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">prms</span><span class="o">.</span><span class="n">add_many</span><span class="p">(</span><span class="n">prm_g_smd</span><span class="p">,</span> <span class="n">prm_wp_smd</span><span class="p">)</span>
 
     <span class="n">res_fit</span> <span class="o">=</span> <span class="n">model_g_smd</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">ser_gs</span> <span class="o">/</span> <span class="n">ser_gs</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">smd</span><span class="o">=</span><span class="n">ser_smd</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">prms</span><span class="p">)</span>
@@ -1139,11 +1153,11 @@
 
     <span class="n">model_g_kd</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span>
         <span class="n">cal_g_kd</span><span class="p">,</span>
-        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;kd&quot;</span><span class="p">],</span>
-        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;g_kd&quot;</span><span class="p">],</span>
+        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">"kd"</span><span class="p">],</span>
+        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"g_kd"</span><span class="p">],</span>
     <span class="p">)</span>
     <span class="n">prms</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
-    <span class="n">prm_g_kd</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">&quot;g_kd&quot;</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+    <span class="n">prm_g_kd</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">"g_kd"</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
     <span class="n">prms</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">prm_g_kd</span><span class="p">)</span>
     <span class="n">res_fit</span> <span class="o">=</span> <span class="n">model_g_kd</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">ser_gs</span> <span class="o">/</span> <span class="n">ser_gs</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">kd</span><span class="o">=</span><span class="n">ser_kd</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">prms</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">res_fit</span>
@@ -1154,16 +1168,16 @@
 
     <span class="n">model_g_dq</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span>
         <span class="n">cal_g_dq</span><span class="p">,</span>
-        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;dq&quot;</span><span class="p">],</span>
-        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;g_dq_base&quot;</span><span class="p">,</span> <span class="s2">&quot;g_dq_shape&quot;</span><span class="p">],</span>
+        <span class="n">independent_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">"dq"</span><span class="p">],</span>
+        <span class="n">param_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"g_dq_base"</span><span class="p">,</span> <span class="s2">"g_dq_shape"</span><span class="p">],</span>
     <span class="p">)</span>
     <span class="n">prms</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
     <span class="n">prm_g_dq_base</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span>
-        <span class="s2">&quot;g_dq_base&quot;</span><span class="p">,</span>
+        <span class="s2">"g_dq_base"</span><span class="p">,</span>
         <span class="n">ser_gs</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">/</span> <span class="n">ser_gs</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span>
         <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">prm_g_dq_shape</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">&quot;g_dq_shape&quot;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>
+    <span class="n">prm_g_dq_shape</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="s2">"g_dq_shape"</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>
     <span class="n">prms</span><span class="o">.</span><span class="n">add_many</span><span class="p">(</span><span class="n">prm_g_dq_base</span><span class="p">,</span> <span class="n">prm_g_dq_shape</span><span class="p">)</span>
     <span class="n">res_fit</span> <span class="o">=</span> <span class="n">model_g_dq</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">ser_gs</span> <span class="o">/</span> <span class="n">ser_gs</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">dq</span><span class="o">=</span><span class="n">ser_dq</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">prms</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">res_fit</span>
@@ -1179,7 +1193,7 @@
 
 <span class="c1"># humidity</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_g_dq_noah</span><span class="p">(</span><span class="n">dq</span><span class="p">,</span> <span class="n">hs</span><span class="o">=</span><span class="mi">31</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate air humidity-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate air humidity-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1192,14 +1206,14 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Air humidity-related correction coefficient</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">g_dq</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">hs</span> <span class="o">*</span> <span class="p">(</span><span class="n">dq</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">g_dq</span>
 
 
 <span class="c1"># smc</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_g_swc_noah</span><span class="p">(</span><span class="n">swc</span><span class="p">,</span> <span class="n">q_wilt</span><span class="p">,</span> <span class="n">q_ref</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate soil moisture-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate soil moisture-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1214,7 +1228,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Soil moisture-related correction coefficient</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Wilting point calculated following SUEWS</span>
     <span class="c1"># wp = wp_smd / g_smd</span>
 
@@ -1223,7 +1237,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">cal_g_ta_noah</span><span class="p">(</span><span class="n">ta_c</span><span class="p">,</span> <span class="n">b1</span><span class="o">=</span><span class="mf">0.0016</span><span class="p">,</span> <span class="n">tref</span><span class="o">=</span><span class="mi">298</span> <span class="o">-</span> <span class="mf">273.15</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate air temperature-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate air temperature-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1238,7 +1252,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    float</span>
 <span class="sd">        Air temperature-related correction coefficient</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">g_ta</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">b1</span> <span class="o">*</span> <span class="p">(</span><span class="n">tref</span> <span class="o">-</span> <span class="n">ta_c</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
 
@@ -1270,7 +1284,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">deriv_g_smd_noah</span><span class="p">(</span><span class="n">dsoil</span><span class="p">,</span> <span class="n">q_wilt</span><span class="p">,</span> <span class="n">q_ref</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate soil moisture-related correction coefficient for surface conductance.</span>
+<span class="w">    </span><span class="sd">"""Calculate soil moisture-related correction coefficient for surface conductance.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1284,7 +1298,7 @@
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    model fit result</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">ar_swc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">q_wilt</span><span class="p">,</span> <span class="n">q_ref</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
     <span class="n">ser_swc</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">ar_swc</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">ar_swc</span><span class="p">)</span>
@@ -1346,7 +1360,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1360,8 +1374,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

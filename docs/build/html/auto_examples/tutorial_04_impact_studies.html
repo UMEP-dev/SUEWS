@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../_static/documentation_options.js?v=72daed37"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
@@ -51,6 +51,7 @@
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'auto_examples/tutorial_04_impact_studies';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -61,20 +62,26 @@
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
     <meta name="docbuild:last-update" content="2026-06-11"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -100,7 +107,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -556,11 +563,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -588,7 +602,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#setup-and-load-sample-data">3.4.1. Setup and Load Sample Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#part-1-surface-properties-albedo-study">3.4.2. Part 1: Surface Properties - Albedo Study</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#examine-default-albedo-values">3.4.2.1. Examine Default Albedo Values</a></li>
@@ -662,10 +676,10 @@ modify parameters across many test cases.</p>
 <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
 
 <span class="c1"># Slice forcing to a shorter period for faster execution (returns SUEWSForcing)</span>
-<span class="n">forcing_sliced</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="p">[</span><span class="s2">&quot;2012-01&quot;</span><span class="p">:</span><span class="s2">&quot;2012-03&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+<span class="n">forcing_sliced</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="p">[</span><span class="s2">"2012-01"</span><span class="p">:</span><span class="s2">"2012-03"</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Sample data loaded using SUEWSSimulation.from_sample_data()&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Simulation period: </span><span class="si">{</span><span class="n">forcing_sliced</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">forcing_sliced</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Sample data loaded using SUEWSSimulation.from_sample_data()"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Simulation period: </span><span class="si">{</span><span class="n">forcing_sliced</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">forcing_sliced</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Sample data loaded using SUEWSSimulation.from_sample_data()
@@ -682,7 +696,7 @@ radiation and lower surface and air temperatures.</p>
 <h3><span class="section-number">3.4.2.1. </span>Examine Default Albedo Values<a class="headerlink" href="#examine-default-albedo-values" title="Link to this heading">#</a></h3>
 <p>First, let’s look at the default albedo values from the sample dataset.
 We access the initial state via the simulation object.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Default albedo values by surface type:&quot;</span><span class="p">)</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Default albedo values by surface type:"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">state_init</span><span class="o">.</span><span class="n">alb</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -705,13 +719,13 @@ the effect of building albedo. We extract the DataFrame for modification.</p>
 
 <span class="c1"># Set surface fractions: 99% buildings, 1% paved</span>
 <span class="n">df_state_test</span><span class="o">.</span><span class="n">sfr_surf</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># Use float to preserve dtype</span>
-<span class="n">df_state_test</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">(</span><span class="s2">&quot;sfr_surf&quot;</span><span class="p">,</span> <span class="s2">&quot;(1,)&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.99</span>  <span class="c1"># Buildings</span>
-<span class="n">df_state_test</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">(</span><span class="s2">&quot;sfr_surf&quot;</span><span class="p">,</span> <span class="s2">&quot;(0,)&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.01</span>  <span class="c1"># Paved</span>
+<span class="n">df_state_test</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">(</span><span class="s2">"sfr_surf"</span><span class="p">,</span> <span class="s2">"(1,)"</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.99</span>  <span class="c1"># Buildings</span>
+<span class="n">df_state_test</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">(</span><span class="s2">"sfr_surf"</span><span class="p">,</span> <span class="s2">"(0,)"</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.01</span>  <span class="c1"># Paved</span>
 
 <span class="c1"># Verify fractions sum to 1.0</span>
-<span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">df_state_test</span><span class="o">.</span><span class="n">sfr_surf</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="s2">&quot;Surface fractions must sum to 1.0&quot;</span>
+<span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">df_state_test</span><span class="o">.</span><span class="n">sfr_surf</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="s2">"Surface fractions must sum to 1.0"</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Modified surface fractions:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Modified surface fractions:"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">df_state_test</span><span class="o">.</span><span class="n">sfr_surf</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -734,17 +748,17 @@ This is the key step where DataFrame manipulation is necessary.</p>
 <span class="n">df_state_scenarios</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
         <span class="p">{</span><span class="n">a</span><span class="p">:</span> <span class="n">df_state_test</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">list_albedo</span><span class="p">},</span>
-        <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;alb&quot;</span><span class="p">,</span> <span class="s2">&quot;grid&quot;</span><span class="p">],</span>
+        <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">"alb"</span><span class="p">,</span> <span class="s2">"grid"</span><span class="p">],</span>
     <span class="p">)</span>
-    <span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">&quot;grid&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="o">.</span><span class="n">rename_axis</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">"grid"</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">rename_axis</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">"grid"</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># Set building albedo for each scenario (explicit per-row assignment for safety)</span>
 <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">alb_val</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">df_state_scenarios</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">list_albedo</span><span class="p">):</span>
-    <span class="n">df_state_scenarios</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;alb&quot;</span><span class="p">,</span> <span class="s2">&quot;(1,)&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">alb_val</span>
+    <span class="n">df_state_scenarios</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="s2">"alb"</span><span class="p">,</span> <span class="s2">"(1,)"</span><span class="p">)]</span> <span class="o">=</span> <span class="n">alb_val</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created </span><span class="si">{</span><span class="n">n_albedo</span><span class="si">}</span><span class="s2"> albedo scenarios:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Created </span><span class="si">{</span><span class="n">n_albedo</span><span class="si">}</span><span class="s2"> albedo scenarios:"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">df_state_scenarios</span><span class="o">.</span><span class="n">alb</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -765,7 +779,7 @@ This demonstrates efficient batch execution.</p>
 <span class="n">sim_albedo</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_state</span><span class="p">(</span><span class="n">df_state_scenarios</span><span class="p">)</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">forcing_sliced</span><span class="p">)</span>
 <span class="n">output_albedo</span> <span class="o">=</span> <span class="n">sim_albedo</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">logging_level</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Completed </span><span class="si">{</span><span class="n">n_albedo</span><span class="si">}</span><span class="s2"> albedo simulations&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Completed </span><span class="si">{</span><span class="n">n_albedo</span><span class="si">}</span><span class="s2"> albedo simulations"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Completed 3 albedo simulations
@@ -779,7 +793,7 @@ This demonstrates efficient batch execution.</p>
 <span class="n">df_results</span> <span class="o">=</span> <span class="n">output_albedo</span><span class="o">.</span><span class="n">SUEWS</span><span class="o">.</span><span class="n">unstack</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
 <span class="c1"># Select last month for analysis</span>
-<span class="n">last_month</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">df_results</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">year</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">df_results</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">month</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="n">last_month</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">df_results</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">year</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">df_results</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">month</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">"</span>
 <span class="n">df_month</span> <span class="o">=</span> <span class="n">df_results</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">last_month</span><span class="p">]</span>
 
 <span class="c1"># Calculate temperature statistics across scenarios</span>
@@ -789,8 +803,8 @@ This demonstrates efficient batch execution.</p>
 <span class="n">df_T2_diff</span> <span class="o">=</span> <span class="n">df_T2_stats</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">-</span> <span class="n">df_T2_stats</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
 <span class="n">df_T2_diff</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">list_albedo</span> <span class="o">-</span> <span class="n">list_albedo</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Temperature statistics for </span><span class="si">{</span><span class="n">last_month</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">df_T2_stats</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">]])</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Temperature statistics for </span><span class="si">{</span><span class="n">last_month</span><span class="si">}</span><span class="s2">:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">df_T2_stats</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">]])</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Temperature statistics for 2012-03:
@@ -805,12 +819,12 @@ max   22.289814  22.184573  22.068406
 <h3><span class="section-number">3.4.2.6. </span>Plot Albedo Impact on Temperature<a class="headerlink" href="#plot-albedo-impact-on-temperature" title="Link to this heading">#</a></h3>
 <p>Visualise how increasing surface albedo reduces air temperature.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
-<span class="n">df_T2_diff</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\Delta T_2$ ($^\circ$C)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\Delta\alpha$ (albedo change)&quot;</span><span class="p">)</span>
+<span class="n">df_T2_diff</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="s2">"max"</span><span class="p">,</span> <span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">]]</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$\Delta T_2$ ($^\circ$C)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$\Delta\alpha$ (albedo change)"</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">margins</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Temperature Response to Albedo Change (</span><span class="si">{</span><span class="n">last_month</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Statistic&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Temperature Response to Albedo Change (</span><span class="si">{</span><span class="n">last_month</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"Statistic"</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -824,14 +838,14 @@ the simulated 2-metre temperature. This represents climate warming scenarios.</p
 <h3><span class="section-number">3.4.3.1. </span>Examine Monthly Climatology<a class="headerlink" href="#examine-monthly-climatology" title="Link to this heading">#</a></h3>
 <p>View the monthly mean air temperature from the forcing data.
 The resample method returns aggregated values.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">df_monthly_temp</span> <span class="o">=</span> <span class="n">forcing_sliced</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1ME&quot;</span><span class="p">)[</span><span class="s2">&quot;Tair&quot;</span><span class="p">]</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">df_monthly_temp</span> <span class="o">=</span> <span class="n">forcing_sliced</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"1ME"</span><span class="p">)[</span><span class="s2">"Tair"</span><span class="p">]</span>
 
 <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
-<span class="n">df_monthly_temp</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;tab:blue&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">([</span><span class="n">d</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%b&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">df_monthly_temp</span><span class="o">.</span><span class="n">index</span><span class="p">],</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Mean Air Temperature ($^\circ$C)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Month&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Monthly Mean Air Temperature (2012)&quot;</span><span class="p">)</span>
+<span class="n">df_monthly_temp</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"tab:blue"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">([</span><span class="n">d</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%b"</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">df_monthly_temp</span><span class="o">.</span><span class="n">index</span><span class="p">],</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Mean Air Temperature ($^\circ$C)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Month"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Monthly Mean Air Temperature (2012)"</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -859,7 +873,7 @@ for clarity.</p>
 <span class="k">for</span> <span class="n">temp_offset</span> <span class="ow">in</span> <span class="n">list_temp_offset</span><span class="p">:</span>
     <span class="c1"># Create modified forcing with temperature offset</span>
     <span class="n">df_forcing_modified</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-    <span class="n">df_forcing_modified</span><span class="p">[</span><span class="s2">&quot;Tair&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">temp_offset</span>
+    <span class="n">df_forcing_modified</span><span class="p">[</span><span class="s2">"Tair"</span><span class="p">]</span> <span class="o">+=</span> <span class="n">temp_offset</span>
 
     <span class="c1"># Run simulation using OOP interface</span>
     <span class="n">sim_climate</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_state</span><span class="p">(</span><span class="n">df_state_init</span><span class="p">)</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span>
@@ -870,8 +884,8 @@ for clarity.</p>
     <span class="c1"># Store results with scenario label</span>
     <span class="n">list_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">temp_offset</span><span class="p">,</span> <span class="n">output</span><span class="p">))</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Completed </span><span class="si">{</span><span class="n">n_climate</span><span class="si">}</span><span class="s2"> climate scenarios&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Temperature offsets: </span><span class="si">{</span><span class="n">list_temp_offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">list_temp_offset</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> deg C&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Completed </span><span class="si">{</span><span class="n">n_climate</span><span class="si">}</span><span class="s2"> climate scenarios"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Temperature offsets: </span><span class="si">{</span><span class="n">list_temp_offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">list_temp_offset</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> deg C"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Completed 3 climate scenarios
@@ -889,20 +903,20 @@ Temperature offsets: 0.0 to 2.0 deg C
     <span class="c1"># T2 is a Series with MultiIndex (grid, datetime) - extract the Series</span>
     <span class="n">dict_results</span><span class="p">[</span><span class="n">temp_offset</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">SUEWS</span><span class="o">.</span><span class="n">T2</span>
 
-<span class="n">df_climate_results</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dict_results</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;temp_offset&quot;</span><span class="p">])</span>
+<span class="n">df_climate_results</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dict_results</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">"temp_offset"</span><span class="p">])</span>
 
 <span class="c1"># Simplify index for analysis (drop grid level since we have only one grid)</span>
-<span class="n">df_climate_results</span> <span class="o">=</span> <span class="n">df_climate_results</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span>
+<span class="n">df_climate_results</span> <span class="o">=</span> <span class="n">df_climate_results</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">"grid"</span><span class="p">)</span>
 
 <span class="c1"># Calculate difference from baseline</span>
 <span class="n">df_temp_diff</span> <span class="o">=</span> <span class="n">df_climate_results</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">-</span> <span class="n">df_climate_results</span><span class="p">[</span><span class="mf">0.0</span><span class="p">])</span>
 
 <span class="c1"># Focus on last month</span>
-<span class="n">last_month_climate</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">df_temp_diff</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">year</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">df_temp_diff</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">month</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="n">last_month_climate</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">df_temp_diff</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">year</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">df_temp_diff</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">month</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">"</span>
 <span class="n">df_temp_diff_month</span> <span class="o">=</span> <span class="n">df_temp_diff</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">last_month_climate</span><span class="p">]</span>
-<span class="n">df_temp_diff_stats</span> <span class="o">=</span> <span class="n">df_temp_diff_month</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">T</span>
+<span class="n">df_temp_diff_stats</span> <span class="o">=</span> <span class="n">df_temp_diff_month</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="s2">"max"</span><span class="p">,</span> <span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">]]</span><span class="o">.</span><span class="n">T</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Temperature response statistics for </span><span class="si">{</span><span class="n">last_month_climate</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Temperature response statistics for </span><span class="si">{</span><span class="n">last_month_climate</span><span class="si">}</span><span class="s2">:"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">df_temp_diff_stats</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -920,12 +934,12 @@ temp_offset
 <p>Visualise the relationship between background air temperature changes
 and simulated 2-metre temperature.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
-<span class="n">df_temp_diff_stats</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\Delta T_2$ ($^\circ$C)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\Delta T_</span><span class="si">{a}</span><span class="s2">$ ($^\circ$C)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Temperature Response to Background Climate Change (</span><span class="si">{</span><span class="n">last_month_climate</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Statistic&quot;</span><span class="p">)</span>
+<span class="n">df_temp_diff_stats</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">"o"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$\Delta T_2$ ($^\circ$C)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$\Delta T_</span><span class="si">{a}</span><span class="s2">$ ($^\circ$C)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">"equal"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Temperature Response to Background Climate Change (</span><span class="si">{</span><span class="n">last_month_climate</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"Statistic"</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -1015,7 +1029,7 @@ warming scenarios).</p>
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#setup-and-load-sample-data">3.4.1. Setup and Load Sample Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#part-1-surface-properties-albedo-study">3.4.2. Part 1: Surface Properties - Albedo Study</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#examine-default-albedo-values">3.4.2.1. Examine Default Albedo Values</a></li>
@@ -1076,7 +1090,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1090,8 +1104,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

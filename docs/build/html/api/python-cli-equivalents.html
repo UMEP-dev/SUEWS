@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../_static/documentation_options.js?v=72daed37"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
@@ -51,6 +51,7 @@
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'api/python-cli-equivalents';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -61,20 +62,26 @@
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
     <meta name="docbuild:last-update" content="2026-04-30"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -100,7 +107,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -556,11 +563,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -588,7 +602,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-validation">6.6.1. Configuration Validation</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-command">6.6.1.1. CLI Command</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-simple-validation">6.6.1.2. Python Equivalent (Simple Validation)</a></li>
@@ -700,16 +714,16 @@
 
 <span class="c1"># Validate a single file</span>
 <span class="n">is_valid</span><span class="p">,</span> <span class="n">errors</span> <span class="o">=</span> <span class="n">validate_single_file</span><span class="p">(</span>
-    <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;config.yml&quot;</span><span class="p">),</span>
+    <span class="n">Path</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">),</span>
     <span class="n">schema</span><span class="p">,</span>
     <span class="n">show_details</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 
 <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
     <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">errors</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Configuration is valid!&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Configuration is valid!"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -727,52 +741,52 @@
 <span class="p">)</span>
 
 <span class="c1"># Validate and get standard config</span>
-<span class="n">user_yaml_file</span> <span class="o">=</span> <span class="n">validate_input_file</span><span class="p">(</span><span class="s2">&quot;config.yml&quot;</span><span class="p">)</span>
-<span class="n">sample_data</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">supy</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;sample_data&quot;</span>
-<span class="k">with</span> <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">as_file</span><span class="p">(</span><span class="n">sample_data</span> <span class="o">/</span> <span class="s2">&quot;sample_config.yml&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">path</span><span class="p">:</span>
+<span class="n">user_yaml_file</span> <span class="o">=</span> <span class="n">validate_input_file</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">)</span>
+<span class="n">sample_data</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">supy</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"sample_data"</span>
+<span class="k">with</span> <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">as_file</span><span class="p">(</span><span class="n">sample_data</span> <span class="o">/</span> <span class="s2">"sample_config.yml"</span><span class="p">)</span> <span class="k">as</span> <span class="n">path</span><span class="p">:</span>
     <span class="n">standard_yaml_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
 <span class="c1"># Setup output paths</span>
 <span class="p">(</span><span class="n">uptodate_file</span><span class="p">,</span> <span class="n">report_file</span><span class="p">,</span>
  <span class="n">science_yaml_file</span><span class="p">,</span> <span class="n">science_report_file</span><span class="p">,</span>
  <span class="n">pydantic_yaml_file</span><span class="p">,</span> <span class="n">pydantic_report_file</span><span class="p">,</span>
- <span class="n">dirname</span><span class="p">)</span> <span class="o">=</span> <span class="n">setup_output_paths</span><span class="p">(</span><span class="n">user_yaml_file</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">=</span><span class="s2">&quot;ABC&quot;</span><span class="p">)</span>
+ <span class="n">dirname</span><span class="p">)</span> <span class="o">=</span> <span class="n">setup_output_paths</span><span class="p">(</span><span class="n">user_yaml_file</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">=</span><span class="s2">"ABC"</span><span class="p">)</span>
 
 <span class="c1"># Run phases A → B → C</span>
 <span class="n">a_ok</span> <span class="o">=</span> <span class="n">run_phase_a</span><span class="p">(</span>
     <span class="n">user_yaml_file</span><span class="p">,</span> <span class="n">standard_yaml_file</span><span class="p">,</span> <span class="n">uptodate_file</span><span class="p">,</span>
-    <span class="n">report_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s2">&quot;ABC&quot;</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">forcing</span><span class="o">=</span><span class="s2">&quot;on&quot;</span>
+    <span class="n">report_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"public"</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s2">"ABC"</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">forcing</span><span class="o">=</span><span class="s2">"on"</span>
 <span class="p">)</span>
 
 <span class="k">if</span> <span class="ow">not</span> <span class="n">a_ok</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✗ Phase A failed&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Report: </span><span class="si">{</span><span class="n">report_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Updated YAML: </span><span class="si">{</span><span class="n">uptodate_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"✗ Phase A failed"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Report: </span><span class="si">{</span><span class="n">report_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Updated YAML: </span><span class="si">{</span><span class="n">uptodate_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
     <span class="n">b_ok</span> <span class="o">=</span> <span class="n">run_phase_b</span><span class="p">(</span>
         <span class="n">user_yaml_file</span><span class="p">,</span> <span class="n">uptodate_file</span><span class="p">,</span> <span class="n">standard_yaml_file</span><span class="p">,</span>
         <span class="n">science_yaml_file</span><span class="p">,</span> <span class="n">science_report_file</span><span class="p">,</span> <span class="n">report_file</span><span class="p">,</span>
-        <span class="n">phase_a_performed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s2">&quot;ABC&quot;</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span>
+        <span class="n">phase_a_performed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"public"</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s2">"ABC"</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">b_ok</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✗ Phase B failed&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Report: </span><span class="si">{</span><span class="n">science_report_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Updated YAML: </span><span class="si">{</span><span class="n">uptodate_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"✗ Phase B failed"</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Report: </span><span class="si">{</span><span class="n">science_report_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Updated YAML: </span><span class="si">{</span><span class="n">uptodate_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">c_ok</span> <span class="o">=</span> <span class="n">run_phase_c</span><span class="p">(</span>
             <span class="n">science_yaml_file</span><span class="p">,</span> <span class="n">pydantic_yaml_file</span><span class="p">,</span> <span class="n">pydantic_report_file</span><span class="p">,</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span> <span class="n">phases_run</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">],</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">"public"</span><span class="p">,</span> <span class="n">phases_run</span><span class="o">=</span><span class="p">[</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"B"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">],</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">c_ok</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✗ Phase C failed&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Report: </span><span class="si">{</span><span class="n">pydantic_report_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Updated YAML: </span><span class="si">{</span><span class="n">science_yaml_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"✗ Phase C failed"</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Report: </span><span class="si">{</span><span class="n">pydantic_report_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Updated YAML: </span><span class="si">{</span><span class="n">science_yaml_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ All phases passed!&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Report: </span><span class="si">{</span><span class="n">pydantic_report_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Updated YAML: </span><span class="si">{</span><span class="n">pydantic_yaml_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"✓ All phases passed!"</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Report: </span><span class="si">{</span><span class="n">pydantic_report_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Updated YAML: </span><span class="si">{</span><span class="n">pydantic_yaml_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -794,8 +808,8 @@ suews-convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span
 
 <span class="c1"># Convert table-based SUEWS input to YAML</span>
 <span class="n">convert_to_yaml</span><span class="p">(</span>
-    <span class="n">input_file</span><span class="o">=</span><span class="s2">&quot;input_dir/RunControl.nml&quot;</span><span class="p">,</span>
-    <span class="n">output_file</span><span class="o">=</span><span class="s2">&quot;config.yml&quot;</span><span class="p">,</span>
+    <span class="n">input_file</span><span class="o">=</span><span class="s2">"input_dir/RunControl.nml"</span><span class="p">,</span>
+    <span class="n">output_file</span><span class="o">=</span><span class="s2">"config.yml"</span><span class="p">,</span>
     <span class="n">from_ver</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># Auto-detect version</span>
     <span class="n">debug_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># No debug files</span>
     <span class="n">validate_profiles</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Validate profiles automatically</span>
@@ -803,13 +817,13 @@ suews-convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span
 
 <span class="c1"># Convert df_state format to YAML</span>
 <span class="n">convert_to_yaml</span><span class="p">(</span>
-    <span class="n">input_file</span><span class="o">=</span><span class="s2">&quot;df_state.csv&quot;</span><span class="p">,</span>
-    <span class="n">output_file</span><span class="o">=</span><span class="s2">&quot;config_from_state.yml&quot;</span><span class="p">,</span>
+    <span class="n">input_file</span><span class="o">=</span><span class="s2">"df_state.csv"</span><span class="p">,</span>
+    <span class="n">output_file</span><span class="o">=</span><span class="s2">"config_from_state.yml"</span><span class="p">,</span>
     <span class="n">from_ver</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># Not used for df_state</span>
     <span class="n">validate_profiles</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Conversion completed successfully!&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Conversion completed successfully!"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -823,16 +837,16 @@ suews-convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">f90nml</span>
 
-<span class="n">input_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;RunControl.nml&quot;</span><span class="p">)</span>
+<span class="n">input_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"RunControl.nml"</span><span class="p">)</span>
 
 <span class="c1"># Detect input type and version</span>
 <span class="n">input_type</span> <span class="o">=</span> <span class="n">detect_input_type</span><span class="p">(</span><span class="n">input_path</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Input type: </span><span class="si">{</span><span class="n">input_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Input type: </span><span class="si">{</span><span class="n">input_type</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
-<span class="k">if</span> <span class="n">input_type</span> <span class="o">==</span> <span class="s2">&quot;nml&quot;</span><span class="p">:</span>
+<span class="k">if</span> <span class="n">input_type</span> <span class="o">==</span> <span class="s2">"nml"</span><span class="p">:</span>
     <span class="c1"># Read RunControl.nml to get the input directory path</span>
     <span class="n">nml</span> <span class="o">=</span> <span class="n">f90nml</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">input_path</span><span class="p">))</span>
-    <span class="n">file_input_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">nml</span><span class="p">[</span><span class="s1">&#39;runcontrol&#39;</span><span class="p">][</span><span class="s1">&#39;fileinputpath&#39;</span><span class="p">])</span>
+    <span class="n">file_input_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">nml</span><span class="p">[</span><span class="s1">'runcontrol'</span><span class="p">][</span><span class="s1">'fileinputpath'</span><span class="p">])</span>
 
     <span class="c1"># Handle both absolute and relative paths</span>
     <span class="k">if</span> <span class="n">file_input_path</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
@@ -841,13 +855,13 @@ suews-convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span
         <span class="n">input_dir</span> <span class="o">=</span> <span class="n">input_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="n">file_input_path</span>
 
     <span class="n">version</span> <span class="o">=</span> <span class="n">detect_table_version</span><span class="p">(</span><span class="n">input_dir</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Detected table version: </span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Detected table version: </span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Convert with debug directory to keep intermediate files</span>
 <span class="n">convert_to_yaml</span><span class="p">(</span>
     <span class="n">input_file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">input_path</span><span class="p">),</span>
-    <span class="n">output_file</span><span class="o">=</span><span class="s2">&quot;config.yml&quot;</span><span class="p">,</span>
-    <span class="n">debug_dir</span><span class="o">=</span><span class="s2">&quot;./debug_conversion&quot;</span><span class="p">,</span>  <span class="c1"># Keep intermediate files</span>
+    <span class="n">output_file</span><span class="o">=</span><span class="s2">"config.yml"</span><span class="p">,</span>
+    <span class="n">debug_dir</span><span class="o">=</span><span class="s2">"./debug_conversion"</span><span class="p">,</span>  <span class="c1"># Keep intermediate files</span>
     <span class="n">validate_profiles</span><span class="o">=</span><span class="kc">False</span>  <span class="c1"># Skip profile validation if needed</span>
 <span class="p">)</span>
 </pre></div>
@@ -888,15 +902,15 @@ YAML support is being added - see <a class="reference external" href="https://gi
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Create simulation from YAML configuration</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">&quot;config.yml&quot;</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">)</span>
 
 <span class="c1"># Run simulation</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="c1"># Save results</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;./output&quot;</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">"./output"</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation completed successfully!&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Simulation completed successfully!"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -905,7 +919,7 @@ YAML support is being added - see <a class="reference external" href="https://gi
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Run simulation</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">&quot;config.yml&quot;</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">)</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="c1"># Access simulation results</span>
@@ -918,8 +932,8 @@ YAML support is being added - see <a class="reference external" href="https://gi
 <span class="n">forcing</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span>
 
 <span class="c1"># Perform custom analysis</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean QH: </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;QH&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W/m²&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Max QE: </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;QE&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W/m²&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Mean QH: </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">'QH'</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W/m²"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Max QE: </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">'QE'</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W/m²"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -928,13 +942,13 @@ YAML support is being added - see <a class="reference external" href="https://gi
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Load base configuration</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">&quot;base_config.yml&quot;</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">"base_config.yml"</span><span class="p">)</span>
 
 <span class="c1"># Update specific parameters</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span>
-    <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span>
-        <span class="s2">&quot;control&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;tstep&quot;</span><span class="p">:</span> <span class="mi">300</span>  <span class="c1"># Change to 5-minute timestep</span>
+    <span class="s2">"model"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"control"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"tstep"</span><span class="p">:</span> <span class="mi">300</span>  <span class="c1"># Change to 5-minute timestep</span>
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">})</span>
@@ -942,7 +956,7 @@ YAML support is being added - see <a class="reference external" href="https://gi
 <span class="c1"># Reset and run with new configuration</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;./output_modified&quot;</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">"./output_modified"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -952,17 +966,17 @@ YAML support is being added - see <a class="reference external" href="https://gi
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
 <span class="c1"># Create simulation</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">&quot;config.yml&quot;</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">)</span>
 
 <span class="c1"># Load custom forcing data</span>
-<span class="n">df_forcing</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;custom_forcing.csv&quot;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">df_forcing</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"custom_forcing.csv"</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># Update forcing</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">)</span>
 
 <span class="c1"># Run with custom forcing</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;./output_custom_forcing&quot;</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">"./output_custom_forcing"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -988,13 +1002,13 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <span class="n">schema</span> <span class="o">=</span> <span class="n">generate_json_schema</span><span class="p">()</span>
 
 <span class="c1"># Save as JSON</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;schema.json&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"schema.json"</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
 <span class="c1"># Or use the built-in save function</span>
-<span class="n">save_schema</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;suews_schema.json&quot;</span><span class="p">))</span>
+<span class="n">save_schema</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"suews_schema.json"</span><span class="p">))</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Schema exported successfully!&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Schema exported successfully!"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -1006,7 +1020,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.core.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSConfig</span>
 
 <span class="c1"># Load configuration</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;config.yml&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">config</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
 
 <span class="c1"># Generate schema and validate</span>
@@ -1019,12 +1033,12 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
     <span class="c1"># Pydantic model validation (additional checks)</span>
     <span class="n">suews_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="p">(</span><span class="o">**</span><span class="n">config</span><span class="p">)</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Configuration is valid!&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Configuration is valid!"</span><span class="p">)</span>
 
 <span class="k">except</span> <span class="n">jsonschema</span><span class="o">.</span><span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Schema validation error: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Schema validation error: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model validation error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Model validation error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -1035,7 +1049,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">CURRENT_SCHEMA_VERSION</span>
 
 <span class="c1"># Load old configuration</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;old_config.yml&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"old_config.yml"</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">old_config</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
 
 <span class="c1"># Migrate to current version</span>
@@ -1043,7 +1057,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 
 <span class="c1"># Auto-detect current version</span>
 <span class="n">current_version</span> <span class="o">=</span> <span class="n">migrator</span><span class="o">.</span><span class="n">auto_detect_version</span><span class="p">(</span><span class="n">old_config</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Detected version: </span><span class="si">{</span><span class="n">current_version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Detected version: </span><span class="si">{</span><span class="n">current_version</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Migrate to target version</span>
 <span class="n">migrated_config</span> <span class="o">=</span> <span class="n">migrator</span><span class="o">.</span><span class="n">migrate</span><span class="p">(</span>
@@ -1053,10 +1067,10 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <span class="p">)</span>
 
 <span class="c1"># Save migrated configuration</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;migrated_config.yml&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"migrated_config.yml"</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">migrated_config</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">default_flow_style</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Migration completed: </span><span class="si">{</span><span class="n">current_version</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">CURRENT_SCHEMA_VERSION</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Migration completed: </span><span class="si">{</span><span class="n">current_version</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">CURRENT_SCHEMA_VERSION</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -1068,27 +1082,27 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.cmd.validate_config</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_single_file</span>
 
 <span class="c1"># Process multiple configuration files</span>
-<span class="n">config_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;configurations&quot;</span><span class="p">)</span>
+<span class="n">config_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"configurations"</span><span class="p">)</span>
 <span class="n">schema</span> <span class="o">=</span> <span class="n">generate_json_schema</span><span class="p">()</span>
 
 <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">config_file</span> <span class="ow">in</span> <span class="n">config_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*.yml&quot;</span><span class="p">):</span>
+<span class="k">for</span> <span class="n">config_file</span> <span class="ow">in</span> <span class="n">config_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">"*.yml"</span><span class="p">):</span>
     <span class="n">is_valid</span><span class="p">,</span> <span class="n">errors</span> <span class="o">=</span> <span class="n">validate_single_file</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">show_details</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
-        <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">config_file</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-        <span class="s2">&quot;valid&quot;</span><span class="p">:</span> <span class="n">is_valid</span><span class="p">,</span>
-        <span class="s2">&quot;error_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span>
+        <span class="s2">"file"</span><span class="p">:</span> <span class="n">config_file</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="s2">"valid"</span><span class="p">:</span> <span class="n">is_valid</span><span class="p">,</span>
+        <span class="s2">"error_count"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span>
     <span class="p">})</span>
 
 <span class="c1"># Summary report</span>
-<span class="n">valid_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;valid&quot;</span><span class="p">])</span>
+<span class="n">valid_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="s2">"valid"</span><span class="p">])</span>
 <span class="n">total_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validation Summary: </span><span class="si">{</span><span class="n">valid_count</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total_count</span><span class="si">}</span><span class="s2"> files valid&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Validation Summary: </span><span class="si">{</span><span class="n">valid_count</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total_count</span><span class="si">}</span><span class="s2"> files valid"</span><span class="p">)</span>
 
 <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-    <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;✓&quot;</span> <span class="k">if</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;valid&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;✗&quot;</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="s2">"✓"</span> <span class="k">if</span> <span class="n">result</span><span class="p">[</span><span class="s2">"valid"</span><span class="p">]</span> <span class="k">else</span> <span class="s2">"✗"</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">'file'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -1151,7 +1165,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-validation">6.6.1. Configuration Validation</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-command">6.6.1.1. CLI Command</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-simple-validation">6.6.1.2. Python Equivalent (Simple Validation)</a></li>
@@ -1224,7 +1238,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1238,8 +1252,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

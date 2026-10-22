@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../_static/documentation_options.js?v=72daed37"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
@@ -51,6 +51,7 @@
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'sub-tutorials/suews-simulation-tutorial';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -59,20 +60,26 @@
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
     <meta name="docbuild:last-update" content="2026-05-03"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -98,7 +105,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -556,11 +563,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -588,7 +602,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">Introduction</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-started">Getting Started</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-simulation">1. Basic Simulation</a></li>
@@ -659,16 +673,16 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Create simulation from YAML configuration</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">&#39;config.yml&#39;</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">'config.yml'</span><span class="p">)</span>
 
 <span class="c1"># Update forcing data</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s1">&#39;forcing_data.txt&#39;</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s1">'forcing_data.txt'</span><span class="p">)</span>
 
 <span class="c1"># Run the simulation</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="c1"># Save results</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;output_dir/&#39;</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'output_dir/'</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -679,8 +693,8 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Use benchmark configuration and forcing</span>
-<span class="n">config_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;test/benchmark1/benchmark1.yml&#39;</span><span class="p">)</span>
-<span class="n">forcing_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;test/benchmark1/forcing/Kc1_2011_data_5.txt&#39;</span><span class="p">)</span>
+<span class="n">config_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">'test/benchmark1/benchmark1.yml'</span><span class="p">)</span>
+<span class="n">forcing_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">'test/benchmark1/forcing/Kc1_2011_data_5.txt'</span><span class="p">)</span>
 
 <span class="c1"># Create and run simulation</span>
 <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
@@ -689,7 +703,7 @@
 
 <span class="c1"># Access results directly</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">results</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Simulation complete! </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2"> timesteps processed&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Simulation complete! </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2"> timesteps processed"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -703,24 +717,24 @@
 <span class="n">results</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">results</span>
 
 <span class="c1"># Method 1: Use get_variable() (recommended for simple access)</span>
-<span class="n">qh</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">&#39;QH&#39;</span><span class="p">)</span>          <span class="c1"># Sensible heat flux</span>
-<span class="n">qe</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">&#39;QE&#39;</span><span class="p">)</span>          <span class="c1"># Latent heat flux</span>
+<span class="n">qh</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'QH'</span><span class="p">)</span>          <span class="c1"># Sensible heat flux</span>
+<span class="n">qe</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'QE'</span><span class="p">)</span>          <span class="c1"># Latent heat flux</span>
 
 <span class="c1"># Method 2: Direct access using (group, variable) syntax</span>
-<span class="n">qs</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s1">&#39;SUEWS&#39;</span><span class="p">,</span> <span class="s1">&#39;QS&#39;</span><span class="p">)]</span>        <span class="c1"># Storage heat flux</span>
-<span class="n">t2</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s1">&#39;SUEWS&#39;</span><span class="p">,</span> <span class="s1">&#39;T2&#39;</span><span class="p">)]</span>        <span class="c1"># 2m air temperature</span>
+<span class="n">qs</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s1">'SUEWS'</span><span class="p">,</span> <span class="s1">'QS'</span><span class="p">)]</span>        <span class="c1"># Storage heat flux</span>
+<span class="n">t2</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s1">'SUEWS'</span><span class="p">,</span> <span class="s1">'T2'</span><span class="p">)]</span>        <span class="c1"># 2m air temperature</span>
 
 <span class="c1"># Calculate daily averages using pandas</span>
-<span class="n">qh_daily</span> <span class="o">=</span> <span class="n">qh</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">&#39;D&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">qh_daily</span> <span class="o">=</span> <span class="n">qh</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">'D'</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
 <span class="c1"># Plot energy balance</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
-<span class="n">energy_vars</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;QH&#39;</span><span class="p">,</span> <span class="s1">&#39;QE&#39;</span><span class="p">,</span> <span class="s1">&#39;QS&#39;</span><span class="p">,</span> <span class="s1">&#39;QF&#39;</span><span class="p">]</span>
+<span class="n">energy_vars</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'QH'</span><span class="p">,</span> <span class="s1">'QE'</span><span class="p">,</span> <span class="s1">'QS'</span><span class="p">,</span> <span class="s1">'QF'</span><span class="p">]</span>
 <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">energy_vars</span><span class="p">:</span>
     <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="n">var</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="n">var</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Energy flux (W/m²)&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">'Energy flux (W/m²)'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -728,17 +742,17 @@
 <p>Some variables appear in multiple output groups (e.g., <code class="docutils literal notranslate"><span class="pre">AlbSnow</span></code> in both <code class="docutils literal notranslate"><span class="pre">SUEWS</span></code> and <code class="docutils literal notranslate"><span class="pre">DailyState</span></code>, <code class="docutils literal notranslate"><span class="pre">Kup</span></code> in both <code class="docutils literal notranslate"><span class="pre">SUEWS</span></code> and <code class="docutils literal notranslate"><span class="pre">SPARTACUS</span></code>). The <code class="docutils literal notranslate"><span class="pre">get_variable()</span></code> method handles this safely:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># For ambiguous variables, specify the group</span>
 <span class="k">try</span><span class="p">:</span>
-    <span class="n">albedo</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">&#39;AlbSnow&#39;</span><span class="p">)</span>  <span class="c1"># Raises error if ambiguous</span>
+    <span class="n">albedo</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'AlbSnow'</span><span class="p">)</span>  <span class="c1"># Raises error if ambiguous</span>
 <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>  <span class="c1"># &quot;Variable &#39;AlbSnow&#39; appears in multiple groups: SUEWS, DailyState...&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>  <span class="c1"># "Variable 'AlbSnow' appears in multiple groups: SUEWS, DailyState..."</span>
 
 <span class="c1"># Resolve by specifying group</span>
-<span class="n">albedo_suews</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">&#39;AlbSnow&#39;</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">&#39;SUEWS&#39;</span><span class="p">)</span>
-<span class="n">albedo_daily</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">&#39;AlbSnow&#39;</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">&#39;DailyState&#39;</span><span class="p">)</span>
+<span class="n">albedo_suews</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'AlbSnow'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
+<span class="n">albedo_daily</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'AlbSnow'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'DailyState'</span><span class="p">)</span>
 
 <span class="c1"># Alternative: direct MultiIndex access</span>
-<span class="n">kup_suews</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s1">&#39;SUEWS&#39;</span><span class="p">,</span> <span class="s1">&#39;Kup&#39;</span><span class="p">)]</span>
-<span class="n">kup_spartacus</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s1">&#39;SPARTACUS&#39;</span><span class="p">,</span> <span class="s1">&#39;Kup&#39;</span><span class="p">)]</span>
+<span class="n">kup_suews</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s1">'SUEWS'</span><span class="p">,</span> <span class="s1">'Kup'</span><span class="p">)]</span>
+<span class="n">kup_spartacus</span> <span class="o">=</span> <span class="n">results</span><span class="p">[(</span><span class="s1">'SPARTACUS'</span><span class="p">,</span> <span class="s1">'Kup'</span><span class="p">)]</span>
 </pre></div>
 </div>
 </section>
@@ -749,7 +763,7 @@
 <span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>  <span class="c1"># Saves to current directory</span>
 
 <span class="c1"># Save to specific directory</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;my_output_dir/&#39;</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'my_output_dir/'</span><span class="p">)</span>
 
 <span class="c1"># The format (txt or parquet) is determined by OutputControl in YAML:</span>
 <span class="c1"># output:</span>
@@ -765,13 +779,13 @@
 <h3>5. Updating Configuration<a class="headerlink" href="#updating-configuration" title="Link to this heading">#</a></h3>
 <p>Update configuration parameters without reloading:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Update timestep</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span><span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;control&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;tstep&#39;</span><span class="p">:</span> <span class="mi">600</span><span class="p">}}})</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span><span class="s1">'model'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'control'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'tstep'</span><span class="p">:</span> <span class="mi">600</span><span class="p">}}})</span>
 
 <span class="c1"># Update multiple parameters</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span>
-    <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="p">{</span>
-        <span class="s1">&#39;control&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;tstep&#39;</span><span class="p">:</span> <span class="mi">300</span><span class="p">},</span>
-        <span class="s1">&#39;physics&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;stabilitymethod&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
+    <span class="s1">'model'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">'control'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'tstep'</span><span class="p">:</span> <span class="mi">300</span><span class="p">},</span>
+        <span class="s1">'physics'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'stabilitymethod'</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
     <span class="p">}</span>
 <span class="p">})</span>
 
@@ -785,13 +799,13 @@
 <h3>6. Loading Different Configurations<a class="headerlink" href="#loading-different-configurations" title="Link to this heading">#</a></h3>
 <p>Switch between configurations:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Start with one configuration</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">&#39;config_summer.yml&#39;</span><span class="p">)</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s1">&#39;forcing_summer.txt&#39;</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">'config_summer.yml'</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s1">'forcing_summer.txt'</span><span class="p">)</span>
 <span class="n">summer_results</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="c1"># Switch to different configuration</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">(</span><span class="s1">&#39;config_winter.yml&#39;</span><span class="p">)</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s1">&#39;forcing_winter.txt&#39;</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">(</span><span class="s1">'config_winter.yml'</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s1">'forcing_winter.txt'</span><span class="p">)</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 <span class="n">winter_results</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </pre></div>
@@ -805,9 +819,9 @@
 <p>Load forcing data from multiple files:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># List of forcing files (concatenated in order)</span>
 <span class="n">forcing_files</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s1">&#39;forcing_2023_jan.txt&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;forcing_2023_feb.txt&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;forcing_2023_mar.txt&#39;</span>
+    <span class="s1">'forcing_2023_jan.txt'</span><span class="p">,</span>
+    <span class="s1">'forcing_2023_feb.txt'</span><span class="p">,</span>
+    <span class="s1">'forcing_2023_mar.txt'</span>
 <span class="p">]</span>
 
 <span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">forcing_files</span><span class="p">)</span>
@@ -820,7 +834,7 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
 <span class="c1"># Load or create forcing DataFrame</span>
-<span class="n">df_forcing</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;my_forcing.csv&#39;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">df_forcing</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'my_forcing.csv'</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># Use DataFrame directly</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">)</span>
@@ -837,11 +851,11 @@
 <span class="n">config</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">config</span>
 
 <span class="c1"># Check current timestep</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Timestep: </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">tstep</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Timestep: </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">tstep</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Check sites</span>
 <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">sites</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Site: </span><span class="si">{</span><span class="n">site</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, Grid ID: </span><span class="si">{</span><span class="n">site</span><span class="o">.</span><span class="n">gridiv</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Site: </span><span class="si">{</span><span class="n">site</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, Grid ID: </span><span class="si">{</span><span class="n">site</span><span class="o">.</span><span class="n">gridiv</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -856,7 +870,7 @@
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># No need to call update_forcing if forcing.file is in config</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">&#39;config.yml&#39;</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">'config.yml'</span><span class="p">)</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>  <span class="c1"># Uses forcing from config</span>
 </pre></div>
 </div>
@@ -876,13 +890,13 @@
 <h2>Error Handling<a class="headerlink" href="#error-handling" title="Link to this heading">#</a></h2>
 <p>Common issues and solutions:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="p">:</span>
-    <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">&#39;config.yml&#39;</span><span class="p">)</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">'config.yml'</span><span class="p">)</span>
     <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Configuration file not found&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Configuration file not found"</span><span class="p">)</span>
 <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="k">if</span> <span class="s2">&quot;No forcing data&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Remember to load forcing data with update_forcing()&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">"No forcing data"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"Remember to load forcing data with update_forcing()"</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span>
 </pre></div>
@@ -926,7 +940,7 @@
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">Introduction</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-started">Getting Started</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-simulation">1. Basic Simulation</a></li>
@@ -998,7 +1012,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1012,8 +1026,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

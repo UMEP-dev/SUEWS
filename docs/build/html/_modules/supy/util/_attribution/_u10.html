@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_attribution/_u10';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../../_static/searchtools.js"></script>
+    <script src="../../../../_static/language_data.js"></script>
+    <script src="../../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -524,12 +538,12 @@
                 <article class="bd-article">
                   
   <h1>Source code for supy.util._attribution._u10</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""</span>
 <span class="sd">U10 (10m wind speed) attribution functions.</span>
 
 <span class="sd">Provides functions to decompose U10 differences between scenarios</span>
 <span class="sd">into physically attributable components using the logarithmic wind profile.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
 
@@ -555,7 +569,7 @@
     <span class="n">z_ref</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
     <span class="n">min_ustar</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttributionResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Decompose U10 (10m wind speed) differences between two SUEWS scenarios.</span>
 
 <span class="sd">    The difference in 10m wind speed is attributed to:</span>
@@ -620,10 +634,10 @@
 <span class="sd">      roughness      : -0.65 m/s (52.8%)</span>
 <span class="sd">      stability      : -0.16 m/s (13.0%)</span>
 
-<span class="sd">    &gt;&gt;&gt; result.plot(kind=&quot;bar&quot;)  # Visualise contributions</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    &gt;&gt;&gt; result.plot(kind="bar")  # Visualise contributions</span>
+<span class="sd">    """</span>
     <span class="c1"># Required columns for U10 attribution</span>
-    <span class="n">required_cols</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;U10&quot;</span><span class="p">,</span> <span class="s2">&quot;UStar&quot;</span><span class="p">,</span> <span class="s2">&quot;z0m&quot;</span><span class="p">,</span> <span class="s2">&quot;zd&quot;</span><span class="p">,</span> <span class="s2">&quot;Lob&quot;</span><span class="p">}</span>
+    <span class="n">required_cols</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"U10"</span><span class="p">,</span> <span class="s2">"UStar"</span><span class="p">,</span> <span class="s2">"z0m"</span><span class="p">,</span> <span class="s2">"zd"</span><span class="p">,</span> <span class="s2">"Lob"</span><span class="p">}</span>
 
     <span class="c1"># Extract SUEWS output group with column validation</span>
     <span class="n">df_A</span> <span class="o">=</span> <span class="n">extract_suews_group</span><span class="p">(</span><span class="n">df_output_A</span><span class="p">,</span> <span class="n">required_cols</span><span class="o">=</span><span class="n">required_cols</span><span class="p">)</span>
@@ -633,16 +647,16 @@
     <span class="n">df_A</span><span class="p">,</span> <span class="n">df_B</span><span class="p">,</span> <span class="n">common_idx</span> <span class="o">=</span> <span class="n">align_scenarios</span><span class="p">(</span><span class="n">df_A</span><span class="p">,</span> <span class="n">df_B</span><span class="p">)</span>
 
     <span class="c1"># Extract required variables</span>
-    <span class="n">U10_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;U10&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">U10_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;U10&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">ustar_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;UStar&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">ustar_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;UStar&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">z0m_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;z0m&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">z0m_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;z0m&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">zd_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;zd&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">zd_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;zd&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">Lob_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;Lob&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">Lob_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;Lob&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">U10_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">"U10"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">U10_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">"U10"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">ustar_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">"UStar"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">ustar_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">"UStar"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">z0m_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">"z0m"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">z0m_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">"z0m"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">zd_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">"zd"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">zd_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">"zd"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">Lob_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">"Lob"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">Lob_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">"Lob"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
 
     <span class="c1"># Calculate profile components for each scenario</span>
     <span class="c1"># F = u*/k, R = ln((z-d)/z0m), S = -psi_m</span>
@@ -655,42 +669,42 @@
     <span class="c1"># Build contributions DataFrame</span>
     <span class="n">contributions</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
         <span class="p">{</span>
-            <span class="s2">&quot;delta_total&quot;</span><span class="p">:</span> <span class="n">U10_B</span> <span class="o">-</span> <span class="n">U10_A</span><span class="p">,</span>
-            <span class="s2">&quot;forcing&quot;</span><span class="p">:</span> <span class="n">Phi_F</span><span class="p">,</span>
-            <span class="s2">&quot;roughness&quot;</span><span class="p">:</span> <span class="n">Phi_R</span><span class="p">,</span>
-            <span class="s2">&quot;stability&quot;</span><span class="p">:</span> <span class="n">Phi_S</span><span class="p">,</span>
+            <span class="s2">"delta_total"</span><span class="p">:</span> <span class="n">U10_B</span> <span class="o">-</span> <span class="n">U10_A</span><span class="p">,</span>
+            <span class="s2">"forcing"</span><span class="p">:</span> <span class="n">Phi_F</span><span class="p">,</span>
+            <span class="s2">"roughness"</span><span class="p">:</span> <span class="n">Phi_R</span><span class="p">,</span>
+            <span class="s2">"stability"</span><span class="p">:</span> <span class="n">Phi_S</span><span class="p">,</span>
         <span class="p">},</span>
         <span class="n">index</span><span class="o">=</span><span class="n">common_idx</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># Add diagnostic columns</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;flag_low_ustar&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ustar_A</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_ustar</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"flag_low_ustar"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ustar_A</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_ustar</span>
 
     <span class="c1"># Store profile components for advanced users</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;F_A&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">F_A</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;F_B&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">F_B</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;R_A&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">R_A</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;R_B&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">R_B</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;S_A&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">S_A</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;S_B&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">S_B</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"F_A"</span><span class="p">]</span> <span class="o">=</span> <span class="n">F_A</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"F_B"</span><span class="p">]</span> <span class="o">=</span> <span class="n">F_B</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"R_A"</span><span class="p">]</span> <span class="o">=</span> <span class="n">R_A</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"R_B"</span><span class="p">]</span> <span class="o">=</span> <span class="n">R_B</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"S_A"</span><span class="p">]</span> <span class="o">=</span> <span class="n">S_A</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"S_B"</span><span class="p">]</span> <span class="o">=</span> <span class="n">S_B</span>
 
     <span class="c1"># Calculate summary statistics (main components only)</span>
-    <span class="n">main_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;delta_total&quot;</span><span class="p">,</span> <span class="s2">&quot;forcing&quot;</span><span class="p">,</span> <span class="s2">&quot;roughness&quot;</span><span class="p">,</span> <span class="s2">&quot;stability&quot;</span><span class="p">,</span> <span class="s2">&quot;flag_low_ustar&quot;</span><span class="p">]</span>
-    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="p">[</span><span class="n">main_cols</span><span class="p">]</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">]]</span>
+    <span class="n">main_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"delta_total"</span><span class="p">,</span> <span class="s2">"forcing"</span><span class="p">,</span> <span class="s2">"roughness"</span><span class="p">,</span> <span class="s2">"stability"</span><span class="p">,</span> <span class="s2">"flag_low_ustar"</span><span class="p">]</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="p">[</span><span class="n">main_cols</span><span class="p">]</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"std"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">]]</span>
 
     <span class="c1"># Metadata</span>
     <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;n_timesteps&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">common_idx</span><span class="p">),</span>
-        <span class="s2">&quot;period_start&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span>
-        <span class="s2">&quot;period_end&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span>
-        <span class="s2">&quot;z_ref&quot;</span><span class="p">:</span> <span class="n">z_ref</span><span class="p">,</span>
-        <span class="s2">&quot;min_ustar_threshold&quot;</span><span class="p">:</span> <span class="n">min_ustar</span><span class="p">,</span>
-        <span class="s2">&quot;n_low_ustar_flagged&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;flag_low_ustar&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()),</span>
-        <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m/s&quot;</span><span class="p">,</span>
+        <span class="s2">"n_timesteps"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">common_idx</span><span class="p">),</span>
+        <span class="s2">"period_start"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span>
+        <span class="s2">"period_end"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span>
+        <span class="s2">"z_ref"</span><span class="p">:</span> <span class="n">z_ref</span><span class="p">,</span>
+        <span class="s2">"min_ustar_threshold"</span><span class="p">:</span> <span class="n">min_ustar</span><span class="p">,</span>
+        <span class="s2">"n_low_ustar_flagged"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">contributions</span><span class="p">[</span><span class="s2">"flag_low_ustar"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()),</span>
+        <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"m/s"</span><span class="p">,</span>
     <span class="p">}</span>
 
     <span class="k">return</span> <span class="n">AttributionResult</span><span class="p">(</span>
-        <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;U10&quot;</span><span class="p">,</span>
+        <span class="n">variable</span><span class="o">=</span><span class="s2">"U10"</span><span class="p">,</span>
         <span class="n">contributions</span><span class="o">=</span><span class="n">contributions</span><span class="p">,</span>
         <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
         <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
@@ -702,12 +716,12 @@
 <a class="viewcode-back" href="../../../../api/_autosummary/supy.util.diagnose_u10.html#supy.util.diagnose_u10">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">diagnose_u10</span><span class="p">(</span>
     <span class="n">df_output</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;anomaly&quot;</span><span class="p">,</span> <span class="s2">&quot;extreme&quot;</span><span class="p">,</span> <span class="s2">&quot;diurnal&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;anomaly&quot;</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"anomaly"</span><span class="p">,</span> <span class="s2">"extreme"</span><span class="p">,</span> <span class="s2">"diurnal"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"anomaly"</span><span class="p">,</span>
     <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
     <span class="n">z_ref</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
     <span class="n">min_ustar</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttributionResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Automatically identify anomalous U10 values and attribute the causes.</span>
 
 <span class="sd">    This convenience function identifies unusual U10 (10m wind speed)</span>
@@ -721,10 +735,10 @@
 <span class="sd">        SUEWS output DataFrame</span>
 <span class="sd">    method : str, optional</span>
 <span class="sd">        Detection method:</span>
-<span class="sd">        - &#39;anomaly&#39;: Compare timesteps &gt; threshold sigma from daily mean</span>
-<span class="sd">        - &#39;extreme&#39;: Compare top/bottom 5% of U10 vs. middle 50%</span>
-<span class="sd">        - &#39;diurnal&#39;: Compare afternoon (12:00-15:00) vs. morning (06:00-10:00)</span>
-<span class="sd">        Default &#39;anomaly&#39;.</span>
+<span class="sd">        - 'anomaly': Compare timesteps &gt; threshold sigma from daily mean</span>
+<span class="sd">        - 'extreme': Compare top/bottom 5% of U10 vs. middle 50%</span>
+<span class="sd">        - 'diurnal': Compare afternoon (12:00-15:00) vs. morning (06:00-10:00)</span>
+<span class="sd">        Default 'anomaly'.</span>
 <span class="sd">    threshold : float, optional</span>
 <span class="sd">        Standard deviation threshold for anomaly detection. Default 2.0.</span>
 <span class="sd">    z_ref : float, optional</span>
@@ -741,7 +755,7 @@
 <span class="sd">    --------</span>
 <span class="sd">    Quick anomaly diagnosis:</span>
 
-<span class="sd">    &gt;&gt;&gt; result = diagnose_u10(df_output, method=&quot;anomaly&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; result = diagnose_u10(df_output, method="anomaly")</span>
 <span class="sd">    &gt;&gt;&gt; print(result)</span>
 <span class="sd">    U10 Attribution Results</span>
 <span class="sd">    ========================================</span>
@@ -756,17 +770,17 @@
 <span class="sd">    Closure residual: 1.23e-15 m/s</span>
 
 <span class="sd">    &gt;&gt;&gt; result.plot()  # Visualise decomposition</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Extract SUEWS output</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">extract_suews_group</span><span class="p">(</span><span class="n">df_output</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="s2">&quot;U10&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+    <span class="k">if</span> <span class="s2">"U10"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;U10 not found in SUEWS output. &quot;</span>
-            <span class="s2">&quot;Ensure SUEWS is configured to output near-surface wind speed.&quot;</span>
+            <span class="s2">"U10 not found in SUEWS output. "</span>
+            <span class="s2">"Ensure SUEWS is configured to output near-surface wind speed."</span>
         <span class="p">)</span>
 
-    <span class="n">u10</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;U10&quot;</span><span class="p">]</span>
+    <span class="n">u10</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"U10"</span><span class="p">]</span>
 
     <span class="n">anomaly_mask</span><span class="p">,</span> <span class="n">normal_mask</span> <span class="o">=</span> <span class="n">detect_anomalies</span><span class="p">(</span>
         <span class="n">u10</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span>
@@ -782,13 +796,13 @@
 
     <span class="c1"># Get mean values for each group</span>
     <span class="n">output_means</span> <span class="o">=</span> <span class="n">_group_means</span><span class="p">(</span>
-        <span class="n">df_normal</span><span class="p">,</span> <span class="n">df_anomaly</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;U10&quot;</span><span class="p">,</span> <span class="s2">&quot;UStar&quot;</span><span class="p">,</span> <span class="s2">&quot;z0m&quot;</span><span class="p">,</span> <span class="s2">&quot;zd&quot;</span><span class="p">,</span> <span class="s2">&quot;Lob&quot;</span><span class="p">]</span>
+        <span class="n">df_normal</span><span class="p">,</span> <span class="n">df_anomaly</span><span class="p">,</span> <span class="p">[</span><span class="s2">"U10"</span><span class="p">,</span> <span class="s2">"UStar"</span><span class="p">,</span> <span class="s2">"z0m"</span><span class="p">,</span> <span class="s2">"zd"</span><span class="p">,</span> <span class="s2">"Lob"</span><span class="p">]</span>
     <span class="p">)</span>
-    <span class="n">U10_A</span><span class="p">,</span> <span class="n">U10_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;U10&quot;</span><span class="p">]</span>
-    <span class="n">ustar_A</span><span class="p">,</span> <span class="n">ustar_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;UStar&quot;</span><span class="p">]</span>
-    <span class="n">z0m_A</span><span class="p">,</span> <span class="n">z0m_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;z0m&quot;</span><span class="p">]</span>
-    <span class="n">zd_A</span><span class="p">,</span> <span class="n">zd_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;zd&quot;</span><span class="p">]</span>
-    <span class="n">Lob_A</span><span class="p">,</span> <span class="n">Lob_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;Lob&quot;</span><span class="p">]</span>
+    <span class="n">U10_A</span><span class="p">,</span> <span class="n">U10_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">"U10"</span><span class="p">]</span>
+    <span class="n">ustar_A</span><span class="p">,</span> <span class="n">ustar_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">"UStar"</span><span class="p">]</span>
+    <span class="n">z0m_A</span><span class="p">,</span> <span class="n">z0m_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">"z0m"</span><span class="p">]</span>
+    <span class="n">zd_A</span><span class="p">,</span> <span class="n">zd_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">"zd"</span><span class="p">]</span>
+    <span class="n">Lob_A</span><span class="p">,</span> <span class="n">Lob_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">"Lob"</span><span class="p">]</span>
 
     <span class="c1"># Calculate profile components for each scenario</span>
     <span class="n">F_A</span><span class="p">,</span> <span class="n">R_A</span><span class="p">,</span> <span class="n">S_A</span> <span class="o">=</span> <span class="n">cal_u10_profile_components</span><span class="p">(</span><span class="n">ustar_A</span><span class="p">,</span> <span class="n">z0m_A</span><span class="p">,</span> <span class="n">zd_A</span><span class="p">,</span> <span class="n">Lob_A</span><span class="p">,</span> <span class="n">z_ref</span><span class="o">=</span><span class="n">z_ref</span><span class="p">)</span>
@@ -800,36 +814,36 @@
     <span class="c1"># Build single-row contributions DataFrame</span>
     <span class="n">contributions</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
         <span class="p">{</span>
-            <span class="s2">&quot;delta_total&quot;</span><span class="p">:</span> <span class="n">U10_B</span> <span class="o">-</span> <span class="n">U10_A</span><span class="p">,</span>
-            <span class="s2">&quot;forcing&quot;</span><span class="p">:</span> <span class="n">Phi_F</span><span class="p">,</span>
-            <span class="s2">&quot;roughness&quot;</span><span class="p">:</span> <span class="n">Phi_R</span><span class="p">,</span>
-            <span class="s2">&quot;stability&quot;</span><span class="p">:</span> <span class="n">Phi_S</span><span class="p">,</span>
+            <span class="s2">"delta_total"</span><span class="p">:</span> <span class="n">U10_B</span> <span class="o">-</span> <span class="n">U10_A</span><span class="p">,</span>
+            <span class="s2">"forcing"</span><span class="p">:</span> <span class="n">Phi_F</span><span class="p">,</span>
+            <span class="s2">"roughness"</span><span class="p">:</span> <span class="n">Phi_R</span><span class="p">,</span>
+            <span class="s2">"stability"</span><span class="p">:</span> <span class="n">Phi_S</span><span class="p">,</span>
         <span class="p">},</span>
-        <span class="n">index</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">([</span><span class="s2">&quot;aggregate&quot;</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;type&quot;</span><span class="p">),</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">([</span><span class="s2">"aggregate"</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">"type"</span><span class="p">),</span>
     <span class="p">)</span>
 
     <span class="c1"># Add flag for low ustar</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;flag_low_ustar&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ustar_A</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_ustar</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"flag_low_ustar"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ustar_A</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_ustar</span>
 
     <span class="c1"># Calculate summary (same as contributions for single-row)</span>
-    <span class="n">main_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;delta_total&quot;</span><span class="p">,</span> <span class="s2">&quot;forcing&quot;</span><span class="p">,</span> <span class="s2">&quot;roughness&quot;</span><span class="p">,</span> <span class="s2">&quot;stability&quot;</span><span class="p">,</span> <span class="s2">&quot;flag_low_ustar&quot;</span><span class="p">]</span>
-    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="p">[</span><span class="n">main_cols</span><span class="p">]</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">]]</span>
+    <span class="n">main_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"delta_total"</span><span class="p">,</span> <span class="s2">"forcing"</span><span class="p">,</span> <span class="s2">"roughness"</span><span class="p">,</span> <span class="s2">"stability"</span><span class="p">,</span> <span class="s2">"flag_low_ustar"</span><span class="p">]</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="p">[</span><span class="n">main_cols</span><span class="p">]</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"std"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">]]</span>
 
     <span class="c1"># Metadata</span>
     <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;n_timesteps&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Aggregate comparison</span>
-        <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span>
-        <span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="n">threshold</span> <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;anomaly&quot;</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="s2">&quot;n_anomaly&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_anomaly</span><span class="p">),</span>
-        <span class="s2">&quot;n_reference&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_normal</span><span class="p">),</span>
-        <span class="s2">&quot;pct_anomaly&quot;</span><span class="p">:</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">n_anomaly</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">u10</span><span class="p">),</span>
-        <span class="s2">&quot;z_ref&quot;</span><span class="p">:</span> <span class="n">z_ref</span><span class="p">,</span>
-        <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m/s&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;aggregate_comparison&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s2">"n_timesteps"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Aggregate comparison</span>
+        <span class="s2">"method"</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span>
+        <span class="s2">"threshold"</span><span class="p">:</span> <span class="n">threshold</span> <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"anomaly"</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"n_anomaly"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_anomaly</span><span class="p">),</span>
+        <span class="s2">"n_reference"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_normal</span><span class="p">),</span>
+        <span class="s2">"pct_anomaly"</span><span class="p">:</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">n_anomaly</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">u10</span><span class="p">),</span>
+        <span class="s2">"z_ref"</span><span class="p">:</span> <span class="n">z_ref</span><span class="p">,</span>
+        <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"m/s"</span><span class="p">,</span>
+        <span class="s2">"aggregate_comparison"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">}</span>
 
     <span class="k">return</span> <span class="n">AttributionResult</span><span class="p">(</span>
-        <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;U10&quot;</span><span class="p">,</span>
+        <span class="n">variable</span><span class="o">=</span><span class="s2">"U10"</span><span class="p">,</span>
         <span class="n">contributions</span><span class="o">=</span><span class="n">contributions</span><span class="p">,</span>
         <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
         <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
@@ -888,7 +902,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -902,8 +916,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

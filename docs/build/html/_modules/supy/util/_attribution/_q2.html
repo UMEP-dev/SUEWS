@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_attribution/_q2';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../../_static/searchtools.js"></script>
+    <script src="../../../../_static/language_data.js"></script>
+    <script src="../../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -524,12 +538,12 @@
                 <article class="bd-article">
                   
   <h1>Source code for supy.util._attribution._q2</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""</span>
 <span class="sd">q2 (2m specific humidity) attribution functions.</span>
 
 <span class="sd">Provides functions to decompose q2 differences between scenarios</span>
 <span class="sd">into physically attributable components.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
 
@@ -558,7 +572,7 @@
     <span class="n">df_forcing_B</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">min_flux</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttributionResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Decompose q2 (2m specific humidity) differences between two SUEWS scenarios.</span>
 
 <span class="sd">    The difference in 2m specific humidity is attributed to:</span>
@@ -573,9 +587,9 @@
 <span class="sd">    df_output_B : pd.DataFrame</span>
 <span class="sd">        SUEWS output DataFrame for scenario B (modified/test)</span>
 <span class="sd">    df_forcing_A : pd.DataFrame</span>
-<span class="sd">        Forcing DataFrame for scenario A. Must contain &#39;Tair&#39;, &#39;RH&#39;, &#39;pres&#39; columns.</span>
+<span class="sd">        Forcing DataFrame for scenario A. Must contain 'Tair', 'RH', 'pres' columns.</span>
 <span class="sd">    df_forcing_B : pd.DataFrame</span>
-<span class="sd">        Forcing DataFrame for scenario B. Must contain &#39;Tair&#39;, &#39;RH&#39;, &#39;pres&#39; columns.</span>
+<span class="sd">        Forcing DataFrame for scenario B. Must contain 'Tair', 'RH', 'pres' columns.</span>
 <span class="sd">    min_flux : float, optional</span>
 <span class="sd">        Minimum flux threshold (W/m2) for resistance calculation.</span>
 <span class="sd">        Timesteps with abs(Q_E) &lt; min_flux are flagged. Default 0.1.</span>
@@ -602,14 +616,14 @@
 <span class="sd">      resistance     : +0.0003 g/kg (25.0%)</span>
 <span class="sd">      air_props      : +0.0001 g/kg ( 8.3%)</span>
 
-<span class="sd">    &gt;&gt;&gt; result.plot(kind=&quot;bar&quot;)  # Visualise contributions</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    &gt;&gt;&gt; result.plot(kind="bar")  # Visualise contributions</span>
+<span class="sd">    """</span>
     <span class="c1"># Unwrap OOP wrappers to raw DataFrames</span>
     <span class="n">df_forcing_A</span> <span class="o">=</span> <span class="n">unwrap_forcing</span><span class="p">(</span><span class="n">df_forcing_A</span><span class="p">)</span>
     <span class="n">df_forcing_B</span> <span class="o">=</span> <span class="n">unwrap_forcing</span><span class="p">(</span><span class="n">df_forcing_B</span><span class="p">)</span>
 
     <span class="c1"># Extract SUEWS output group with column validation</span>
-    <span class="n">required_cols</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;q2&quot;</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">}</span>
+    <span class="n">required_cols</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"q2"</span><span class="p">,</span> <span class="s2">"QE"</span><span class="p">}</span>
     <span class="n">df_A</span> <span class="o">=</span> <span class="n">extract_suews_group</span><span class="p">(</span><span class="n">df_output_A</span><span class="p">,</span> <span class="n">required_cols</span><span class="o">=</span><span class="n">required_cols</span><span class="p">)</span>
     <span class="n">df_B</span> <span class="o">=</span> <span class="n">extract_suews_group</span><span class="p">(</span><span class="n">df_output_B</span><span class="p">,</span> <span class="n">required_cols</span><span class="o">=</span><span class="n">required_cols</span><span class="p">)</span>
 
@@ -617,18 +631,18 @@
     <span class="n">df_A</span><span class="p">,</span> <span class="n">df_B</span><span class="p">,</span> <span class="n">common_idx</span> <span class="o">=</span> <span class="n">align_scenarios</span><span class="p">(</span><span class="n">df_A</span><span class="p">,</span> <span class="n">df_B</span><span class="p">)</span>
 
     <span class="c1"># Extract required variables</span>
-    <span class="n">q2_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">q2_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">QE_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;QE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">QE_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;QE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">q2_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">"q2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">q2_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">"q2"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">QE_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">"QE"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">QE_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">"QE"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
 
     <span class="c1"># Extract forcing data for reference humidity and air properties</span>
-    <span class="n">T_ref_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;Tair&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">T_ref_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;Tair&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">RH_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">RH_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">P_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;pres&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
-    <span class="n">P_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;pres&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">T_ref_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">"Tair"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">T_ref_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">"Tair"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">RH_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">"RH"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">RH_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">"RH"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">P_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">"pres"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">P_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">"pres"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
 
     <span class="c1"># Calculate reference specific humidity</span>
     <span class="n">theta_A</span> <span class="o">=</span> <span class="n">T_ref_A</span> <span class="o">+</span> <span class="mf">273.15</span>  <span class="c1"># Celsius to Kelvin</span>
@@ -659,34 +673,34 @@
     <span class="n">scale</span> <span class="o">=</span> <span class="mf">1000.0</span>  <span class="c1"># kg/kg to g/kg</span>
     <span class="n">contributions</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
         <span class="p">{</span>
-            <span class="s2">&quot;delta_total&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">q2_B</span> <span class="o">-</span> <span class="n">q2_A</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
-            <span class="s2">&quot;q_ref&quot;</span><span class="p">:</span> <span class="n">Phi_q_ref</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
-            <span class="s2">&quot;flux_total&quot;</span><span class="p">:</span> <span class="n">Phi_QE</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
-            <span class="s2">&quot;resistance&quot;</span><span class="p">:</span> <span class="n">Phi_r</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
-            <span class="s2">&quot;air_props&quot;</span><span class="p">:</span> <span class="n">Phi_gamma</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"delta_total"</span><span class="p">:</span> <span class="p">(</span><span class="n">q2_B</span> <span class="o">-</span> <span class="n">q2_A</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"q_ref"</span><span class="p">:</span> <span class="n">Phi_q_ref</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"flux_total"</span><span class="p">:</span> <span class="n">Phi_QE</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"resistance"</span><span class="p">:</span> <span class="n">Phi_r</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"air_props"</span><span class="p">:</span> <span class="n">Phi_gamma</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
         <span class="p">},</span>
         <span class="n">index</span><span class="o">=</span><span class="n">common_idx</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># Add flags for low-flux timesteps</span>
-    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;flag_low_flux&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">QE_A</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_flux</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">"flag_low_flux"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">QE_A</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_flux</span>
 
     <span class="c1"># Calculate summary statistics</span>
-    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">]]</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"std"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">]]</span>
 
     <span class="c1"># Metadata</span>
     <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;n_timesteps&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">common_idx</span><span class="p">),</span>
-        <span class="s2">&quot;period_start&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span>
-        <span class="s2">&quot;period_end&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span>
-        <span class="s2">&quot;hierarchical&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>  <span class="c1"># q2 has no flux budget decomposition</span>
-        <span class="s2">&quot;min_flux_threshold&quot;</span><span class="p">:</span> <span class="n">min_flux</span><span class="p">,</span>
-        <span class="s2">&quot;n_low_flux_flagged&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;flag_low_flux&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()),</span>
-        <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;g/kg&quot;</span><span class="p">,</span>
+        <span class="s2">"n_timesteps"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">common_idx</span><span class="p">),</span>
+        <span class="s2">"period_start"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span>
+        <span class="s2">"period_end"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span>
+        <span class="s2">"hierarchical"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>  <span class="c1"># q2 has no flux budget decomposition</span>
+        <span class="s2">"min_flux_threshold"</span><span class="p">:</span> <span class="n">min_flux</span><span class="p">,</span>
+        <span class="s2">"n_low_flux_flagged"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">contributions</span><span class="p">[</span><span class="s2">"flag_low_flux"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()),</span>
+        <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"g/kg"</span><span class="p">,</span>
     <span class="p">}</span>
 
     <span class="k">return</span> <span class="n">AttributionResult</span><span class="p">(</span>
-        <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;q2&quot;</span><span class="p">,</span>
+        <span class="n">variable</span><span class="o">=</span><span class="s2">"q2"</span><span class="p">,</span>
         <span class="n">contributions</span><span class="o">=</span><span class="n">contributions</span><span class="p">,</span>
         <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
         <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
@@ -699,11 +713,11 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">diagnose_q2</span><span class="p">(</span>
     <span class="n">df_output</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">df_forcing</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;anomaly&quot;</span><span class="p">,</span> <span class="s2">&quot;extreme&quot;</span><span class="p">,</span> <span class="s2">&quot;diurnal&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;anomaly&quot;</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"anomaly"</span><span class="p">,</span> <span class="s2">"extreme"</span><span class="p">,</span> <span class="s2">"diurnal"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"anomaly"</span><span class="p">,</span>
     <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
     <span class="n">min_flux</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttributionResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Automatically identify anomalous q2 values and attribute the causes.</span>
 
 <span class="sd">    This convenience function identifies unusual q2 (2m specific humidity)</span>
@@ -716,13 +730,13 @@
 <span class="sd">    df_output : pd.DataFrame</span>
 <span class="sd">        SUEWS output DataFrame</span>
 <span class="sd">    df_forcing : pd.DataFrame</span>
-<span class="sd">        Forcing DataFrame. Must contain &#39;Tair&#39;, &#39;RH&#39;, &#39;pres&#39; columns.</span>
+<span class="sd">        Forcing DataFrame. Must contain 'Tair', 'RH', 'pres' columns.</span>
 <span class="sd">    method : str, optional</span>
 <span class="sd">        Detection method:</span>
-<span class="sd">        - &#39;anomaly&#39;: Compare timesteps &gt; threshold sigma from daily mean</span>
-<span class="sd">        - &#39;extreme&#39;: Compare top/bottom 5% of q2 vs. middle 50%</span>
-<span class="sd">        - &#39;diurnal&#39;: Compare afternoon (12:00-15:00) vs. morning (06:00-10:00)</span>
-<span class="sd">        Default &#39;anomaly&#39;.</span>
+<span class="sd">        - 'anomaly': Compare timesteps &gt; threshold sigma from daily mean</span>
+<span class="sd">        - 'extreme': Compare top/bottom 5% of q2 vs. middle 50%</span>
+<span class="sd">        - 'diurnal': Compare afternoon (12:00-15:00) vs. morning (06:00-10:00)</span>
+<span class="sd">        Default 'anomaly'.</span>
 <span class="sd">    threshold : float, optional</span>
 <span class="sd">        Standard deviation threshold for anomaly detection. Default 2.0.</span>
 <span class="sd">    min_flux : float, optional</span>
@@ -738,7 +752,7 @@
 <span class="sd">    --------</span>
 <span class="sd">    Quick anomaly diagnosis:</span>
 
-<span class="sd">    &gt;&gt;&gt; result = diagnose_q2(df_output, df_forcing, method=&quot;anomaly&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; result = diagnose_q2(df_output, df_forcing, method="anomaly")</span>
 <span class="sd">    &gt;&gt;&gt; print(result)</span>
 <span class="sd">    q2 Attribution Results</span>
 <span class="sd">    ========================================</span>
@@ -754,20 +768,20 @@
 <span class="sd">    Closure residual: 1.23e-15 g/kg</span>
 
 <span class="sd">    &gt;&gt;&gt; result.plot()  # Visualise decomposition</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Unwrap OOP wrappers to raw DataFrames</span>
     <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">unwrap_forcing</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">)</span>
 
     <span class="c1"># Extract SUEWS output</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">extract_suews_group</span><span class="p">(</span><span class="n">df_output</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="s2">&quot;q2&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+    <span class="k">if</span> <span class="s2">"q2"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;q2 not found in SUEWS output. &quot;</span>
-            <span class="s2">&quot;Ensure SUEWS is configured to output near-surface humidity.&quot;</span>
+            <span class="s2">"q2 not found in SUEWS output. "</span>
+            <span class="s2">"Ensure SUEWS is configured to output near-surface humidity."</span>
         <span class="p">)</span>
 
-    <span class="n">q2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">]</span>
+    <span class="n">q2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"q2"</span><span class="p">]</span>
 
     <span class="n">anomaly_mask</span><span class="p">,</span> <span class="n">normal_mask</span> <span class="o">=</span> <span class="n">detect_anomalies</span><span class="p">(</span>
         <span class="n">q2</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span>
@@ -782,19 +796,19 @@
     <span class="n">df_anomaly</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">anomaly_mask</span><span class="p">]</span>
 
     <span class="c1"># Get mean values for each group</span>
-    <span class="n">output_means</span> <span class="o">=</span> <span class="n">_group_means</span><span class="p">(</span><span class="n">df_normal</span><span class="p">,</span> <span class="n">df_anomaly</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">])</span>
-    <span class="n">q2_A</span><span class="p">,</span> <span class="n">q2_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">]</span>
-    <span class="n">QE_A</span><span class="p">,</span> <span class="n">QE_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;QE&quot;</span><span class="p">]</span>
+    <span class="n">output_means</span> <span class="o">=</span> <span class="n">_group_means</span><span class="p">(</span><span class="n">df_normal</span><span class="p">,</span> <span class="n">df_anomaly</span><span class="p">,</span> <span class="p">[</span><span class="s2">"q2"</span><span class="p">,</span> <span class="s2">"QE"</span><span class="p">])</span>
+    <span class="n">q2_A</span><span class="p">,</span> <span class="n">q2_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">"q2"</span><span class="p">]</span>
+    <span class="n">QE_A</span><span class="p">,</span> <span class="n">QE_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">"QE"</span><span class="p">]</span>
 
     <span class="c1"># Extract forcing data for each group</span>
     <span class="n">df_forcing_normal</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">normal_mask</span><span class="p">]</span>
     <span class="n">df_forcing_anomaly</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">anomaly_mask</span><span class="p">]</span>
     <span class="n">forcing_means</span> <span class="o">=</span> <span class="n">_group_means</span><span class="p">(</span>
-        <span class="n">df_forcing_normal</span><span class="p">,</span> <span class="n">df_forcing_anomaly</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Tair&quot;</span><span class="p">,</span> <span class="s2">&quot;RH&quot;</span><span class="p">,</span> <span class="s2">&quot;pres&quot;</span><span class="p">]</span>
+        <span class="n">df_forcing_normal</span><span class="p">,</span> <span class="n">df_forcing_anomaly</span><span class="p">,</span> <span class="p">[</span><span class="s2">"Tair"</span><span class="p">,</span> <span class="s2">"RH"</span><span class="p">,</span> <span class="s2">"pres"</span><span class="p">]</span>
     <span class="p">)</span>
-    <span class="n">T_ref_A</span><span class="p">,</span> <span class="n">T_ref_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">&quot;Tair&quot;</span><span class="p">]</span>
-    <span class="n">RH_A</span><span class="p">,</span> <span class="n">RH_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">&quot;RH&quot;</span><span class="p">]</span>
-    <span class="n">P_A</span><span class="p">,</span> <span class="n">P_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">&quot;pres&quot;</span><span class="p">]</span>
+    <span class="n">T_ref_A</span><span class="p">,</span> <span class="n">T_ref_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">"Tair"</span><span class="p">]</span>
+    <span class="n">RH_A</span><span class="p">,</span> <span class="n">RH_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">"RH"</span><span class="p">]</span>
+    <span class="n">P_A</span><span class="p">,</span> <span class="n">P_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">"pres"</span><span class="p">]</span>
 
     <span class="c1"># Calculate reference specific humidity</span>
     <span class="n">theta_A</span> <span class="o">=</span> <span class="n">T_ref_A</span> <span class="o">+</span> <span class="mf">273.15</span>
@@ -825,32 +839,32 @@
     <span class="n">scale</span> <span class="o">=</span> <span class="mf">1000.0</span>  <span class="c1"># kg/kg to g/kg</span>
     <span class="n">contributions</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
         <span class="p">{</span>
-            <span class="s2">&quot;delta_total&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">q2_B</span> <span class="o">-</span> <span class="n">q2_A</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
-            <span class="s2">&quot;q_ref&quot;</span><span class="p">:</span> <span class="n">Phi_q_ref</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>  <span class="c1"># Reference humidity contribution</span>
-            <span class="s2">&quot;flux_total&quot;</span><span class="p">:</span> <span class="n">Phi_QE</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
-            <span class="s2">&quot;resistance&quot;</span><span class="p">:</span> <span class="n">Phi_r</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
-            <span class="s2">&quot;air_props&quot;</span><span class="p">:</span> <span class="n">Phi_gamma</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"delta_total"</span><span class="p">:</span> <span class="p">(</span><span class="n">q2_B</span> <span class="o">-</span> <span class="n">q2_A</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"q_ref"</span><span class="p">:</span> <span class="n">Phi_q_ref</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>  <span class="c1"># Reference humidity contribution</span>
+            <span class="s2">"flux_total"</span><span class="p">:</span> <span class="n">Phi_QE</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"resistance"</span><span class="p">:</span> <span class="n">Phi_r</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">"air_props"</span><span class="p">:</span> <span class="n">Phi_gamma</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
         <span class="p">},</span>
-        <span class="n">index</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">([</span><span class="s2">&quot;aggregate&quot;</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;type&quot;</span><span class="p">),</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">([</span><span class="s2">"aggregate"</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">"type"</span><span class="p">),</span>
     <span class="p">)</span>
 
     <span class="c1"># Calculate summary (same as contributions for single-row)</span>
-    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">]]</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"std"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">]]</span>
 
     <span class="c1"># Metadata</span>
     <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;n_timesteps&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Aggregate comparison</span>
-        <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span>
-        <span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="n">threshold</span> <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;anomaly&quot;</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="s2">&quot;n_anomaly&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_anomaly</span><span class="p">),</span>
-        <span class="s2">&quot;n_reference&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_normal</span><span class="p">),</span>
-        <span class="s2">&quot;pct_anomaly&quot;</span><span class="p">:</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">n_anomaly</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">q2</span><span class="p">),</span>
-        <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;g/kg&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;aggregate_comparison&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s2">"n_timesteps"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Aggregate comparison</span>
+        <span class="s2">"method"</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span>
+        <span class="s2">"threshold"</span><span class="p">:</span> <span class="n">threshold</span> <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"anomaly"</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"n_anomaly"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_anomaly</span><span class="p">),</span>
+        <span class="s2">"n_reference"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_normal</span><span class="p">),</span>
+        <span class="s2">"pct_anomaly"</span><span class="p">:</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">n_anomaly</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">q2</span><span class="p">),</span>
+        <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"g/kg"</span><span class="p">,</span>
+        <span class="s2">"aggregate_comparison"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">}</span>
 
     <span class="k">return</span> <span class="n">AttributionResult</span><span class="p">(</span>
-        <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;q2&quot;</span><span class="p">,</span>
+        <span class="n">variable</span><span class="o">=</span><span class="s2">"q2"</span><span class="p">,</span>
         <span class="n">contributions</span><span class="o">=</span><span class="n">contributions</span><span class="p">,</span>
         <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
         <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
@@ -909,7 +923,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -923,8 +937,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

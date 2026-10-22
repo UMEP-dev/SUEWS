@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../_static/documentation_options.js?v=72daed37"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
@@ -51,6 +51,7 @@
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'auto_examples/tutorial_02_setup_own_site';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -61,20 +62,26 @@
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
     <meta name="docbuild:last-update" content="2026-06-11"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -100,7 +107,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -556,11 +563,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -588,7 +602,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-simulation-from-sample-data">3.2.1. Create Simulation from Sample Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configure-site-location">3.2.2. Configure Site Location</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configure-land-cover-fractions">3.2.3. Configure Land Cover Fractions</a></li>
@@ -653,8 +667,8 @@ a clean separation between configuration and execution.</p>
 then modify them for our target site using <code class="docutils literal notranslate"><span class="pre">update_config()</span></code>.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Sample data loaded successfully!&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Default grid ID: </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">state_init</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Sample data loaded successfully!"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Default grid ID: </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">state_init</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Sample data loaded successfully!
@@ -668,18 +682,18 @@ Default grid ID: 1
 These affect solar geometry calculations and atmospheric corrections.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="c1"># US-AR1: ARM Southern Great Plains, Oklahoma, USA</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span>
-    <span class="s2">&quot;sites&quot;</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">{</span>
-        <span class="s2">&quot;properties&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;lat&quot;</span><span class="p">:</span> <span class="mf">36.6</span><span class="p">,</span>      <span class="c1"># Latitude (degrees)</span>
-            <span class="s2">&quot;lng&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">97.5</span><span class="p">,</span>     <span class="c1"># Longitude (degrees)</span>
-            <span class="s2">&quot;alt&quot;</span><span class="p">:</span> <span class="mf">314.0</span><span class="p">,</span>     <span class="c1"># Altitude (metres)</span>
-            <span class="s2">&quot;timezone&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">6</span><span class="p">,</span>   <span class="c1"># Central Time (UTC-6)</span>
+    <span class="s2">"sites"</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"lat"</span><span class="p">:</span> <span class="mf">36.6</span><span class="p">,</span>      <span class="c1"># Latitude (degrees)</span>
+            <span class="s2">"lng"</span><span class="p">:</span> <span class="o">-</span><span class="mf">97.5</span><span class="p">,</span>     <span class="c1"># Longitude (degrees)</span>
+            <span class="s2">"alt"</span><span class="p">:</span> <span class="mf">314.0</span><span class="p">,</span>     <span class="c1"># Altitude (metres)</span>
+            <span class="s2">"timezone"</span><span class="p">:</span> <span class="o">-</span><span class="mi">6</span><span class="p">,</span>   <span class="c1"># Central Time (UTC-6)</span>
         <span class="p">}</span>
     <span class="p">}}</span>
 <span class="p">})</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Site: US-AR1 (ARM Southern Great Plains)&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Location: lat=36.6, lng=-97.5&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Site: US-AR1 (ARM Southern Great Plains)"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Location: lat=36.6, lng=-97.5"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Site: US-AR1 (ARM Southern Great Plains)
@@ -701,14 +715,14 @@ Location: lat=36.6, lng=-97.5
 </ul>
 <p>Fractions must sum to 1.0. For this grassland site, we set 100% grass.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span>
-    <span class="s2">&quot;sites&quot;</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">{</span>
-        <span class="s2">&quot;initial_states&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;sfr_surf&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># 100% grass (index 4)</span>
+    <span class="s2">"sites"</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"initial_states"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"sfr_surf"</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># 100% grass (index 4)</span>
         <span class="p">}</span>
     <span class="p">}}</span>
 <span class="p">})</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Surface fractions configured: 100</span><span class="si">% g</span><span class="s2">rass&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Surface fractions configured: 100</span><span class="si">% g</span><span class="s2">rass"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Surface fractions configured: 100% grass
@@ -721,18 +735,18 @@ Location: lat=36.6, lng=-97.5
 These determine how the surface interacts with solar radiation
 and atmospheric conditions throughout the growing season.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span>
-    <span class="s2">&quot;sites&quot;</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">{</span>
-        <span class="s2">&quot;properties&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">"sites"</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
             <span class="c1"># Measurement height (metres) - affects aerodynamic calculations</span>
-            <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="mf">40.0</span><span class="p">,</span>
+            <span class="s2">"z"</span><span class="p">:</span> <span class="mf">40.0</span><span class="p">,</span>
             <span class="c1"># Disable anthropogenic heat (rural site)</span>
-            <span class="s2">&quot;popdensdaytime&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-            <span class="s2">&quot;popdensnighttime&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"popdensdaytime"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"popdensnighttime"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
         <span class="p">}</span>
     <span class="p">}}</span>
 <span class="p">})</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Site properties configured&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Site properties configured"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Site properties configured
@@ -751,7 +765,7 @@ Hourly forcing data is interpolated to the finer model resolution.</p>
 </div>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Determine script directory (works both standalone and in sphinx-gallery).</span>
 <span class="c1"># sphinx-gallery does not define __file__ in its execution context, so</span>
-<span class="c1"># we fall back to cwd (which sphinx-gallery sets to the script&#39;s source dir).</span>
+<span class="c1"># we fall back to cwd (which sphinx-gallery sets to the script's source dir).</span>
 <span class="c1"># This pattern is repeated across tutorials that load local data files.</span>
 <span class="k">try</span><span class="p">:</span>
     <span class="n">_script_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span>
@@ -759,14 +773,14 @@ Hourly forcing data is interpolated to the finer model resolution.</p>
     <span class="n">_script_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span>
 
 <span class="c1"># Path to forcing data</span>
-<span class="n">path_forcing</span> <span class="o">=</span> <span class="n">_script_dir</span> <span class="o">/</span> <span class="s2">&quot;data&quot;</span> <span class="o">/</span> <span class="s2">&quot;US-AR1_2010_data_60.txt&quot;</span>
+<span class="n">path_forcing</span> <span class="o">=</span> <span class="n">_script_dir</span> <span class="o">/</span> <span class="s2">"data"</span> <span class="o">/</span> <span class="s2">"US-AR1_2010_data_60.txt"</span>
 
 <span class="c1"># Load forcing from file. Automatically resampled to match model.control.tstep (300s).</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">path_forcing</span><span class="p">)</span>
 
 <span class="c1"># Slice to the analysis period. This is a separate call because</span>
 <span class="c1"># update_forcing() first loads the full file, then we select the time window.</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="p">[</span><span class="s2">&quot;2010-01&quot;</span><span class="p">:</span><span class="s2">&quot;2010-03&quot;</span><span class="p">])</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="p">[</span><span class="s2">"2010-01"</span><span class="p">:</span><span class="s2">"2010-03"</span><span class="p">])</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>SUEWSSimulation(Ready: 1 site(s), 25919 timesteps)
@@ -782,11 +796,11 @@ resampling, column selection), use the OOP methods directly.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clean forcing data: clip small negative kdown values to 0</span>
 <span class="c1"># (common measurement noise from pyranometers at night)</span>
 <span class="n">df_forcing_cleaned</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">df</span>  <span class="c1"># .df returns a copy</span>
-<span class="n">df_forcing_cleaned</span><span class="p">[</span><span class="s2">&quot;kdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_cleaned</span><span class="p">[</span><span class="s2">&quot;kdown&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">df_forcing_cleaned</span><span class="p">[</span><span class="s2">"kdown"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_cleaned</span><span class="p">[</span><span class="s2">"kdown"</span><span class="p">]</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">df_forcing_cleaned</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Forcing period: </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">time_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">time_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time steps: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Forcing period: </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">time_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">time_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Time steps: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Forcing period: 2010-01-01 00:05:00 to 2010-03-31 23:55:00
@@ -797,24 +811,24 @@ Time steps: 25919
 <section id="visualise-forcing-data">
 <h2><span class="section-number">3.2.6. </span>Visualise Forcing Data<a class="headerlink" href="#visualise-forcing-data" title="Link to this heading">#</a></h2>
 <p>Examine the key meteorological variables that drive the simulation.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">list_var</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;kdown&quot;</span><span class="p">,</span> <span class="s2">&quot;Tair&quot;</span><span class="p">,</span> <span class="s2">&quot;RH&quot;</span><span class="p">,</span> <span class="s2">&quot;U&quot;</span><span class="p">,</span> <span class="s2">&quot;rain&quot;</span><span class="p">]</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">list_var</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"kdown"</span><span class="p">,</span> <span class="s2">"Tair"</span><span class="p">,</span> <span class="s2">"RH"</span><span class="p">,</span> <span class="s2">"U"</span><span class="p">,</span> <span class="s2">"rain"</span><span class="p">]</span>
 <span class="n">dict_labels</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s2">&quot;kdown&quot;</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$K_\downarrow$ (W m$^{-2}$)&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;Tair&quot;</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$T_</span><span class="si">{air}</span><span class="s2">$ ($^\circ$C)&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;RH&quot;</span><span class="p">:</span> <span class="s2">&quot;RH (%)&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;U&quot;</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$U$ (m s$^{-1}$)&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;rain&quot;</span><span class="p">:</span> <span class="s2">&quot;Rain (mm)&quot;</span><span class="p">,</span>
+    <span class="s2">"kdown"</span><span class="p">:</span> <span class="sa">r</span><span class="s2">"$K_\downarrow$ (W m$^{-2}$)"</span><span class="p">,</span>
+    <span class="s2">"Tair"</span><span class="p">:</span> <span class="sa">r</span><span class="s2">"$T_</span><span class="si">{air}</span><span class="s2">$ ($^\circ$C)"</span><span class="p">,</span>
+    <span class="s2">"RH"</span><span class="p">:</span> <span class="s2">"RH (%)"</span><span class="p">,</span>
+    <span class="s2">"U"</span><span class="p">:</span> <span class="sa">r</span><span class="s2">"$U$ (m s$^{-1}$)"</span><span class="p">,</span>
+    <span class="s2">"rain"</span><span class="p">:</span> <span class="s2">"Rain (mm)"</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="c1"># Resample to hourly for clearer plots (handles rain as sum automatically)</span>
-<span class="n">df_plot</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)[</span><span class="n">list_var</span><span class="p">]</span>
+<span class="n">df_plot</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"1h"</span><span class="p">)[</span><span class="n">list_var</span><span class="p">]</span>
 
 <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">var</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">list_var</span><span class="p">):</span>
     <span class="n">df_plot</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">dict_labels</span><span class="p">[</span><span class="n">var</span><span class="p">])</span>
-<span class="n">axes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Forcing Data Overview&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">1.02</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Date"</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">"Forcing Data Overview"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">1.02</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -825,17 +839,17 @@ Time steps: 25919
 We must update the control times to match our 2010 forcing period
 (the sample data defaults to 2011-2013).</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span>
-    <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span>
-        <span class="s2">&quot;control&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;start_time&quot;</span><span class="p">:</span> <span class="s2">&quot;2010-01-01&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;end_time&quot;</span><span class="p">:</span> <span class="s2">&quot;2010-03-31&quot;</span><span class="p">,</span>
+    <span class="s2">"model"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"control"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"start_time"</span><span class="p">:</span> <span class="s2">"2010-01-01"</span><span class="p">,</span>
+            <span class="s2">"end_time"</span><span class="p">:</span> <span class="s2">"2010-03-31"</span><span class="p">,</span>
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">})</span>
 
 <span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">logging_level</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Simulation complete: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">times</span><span class="p">)</span><span class="si">}</span><span class="s2"> timesteps&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Simulation complete: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">times</span><span class="p">)</span><span class="si">}</span><span class="s2"> timesteps"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Simulation complete: 25919 timesteps
@@ -850,20 +864,20 @@ We must update the control times to match our 2010 forcing period
 <span class="n">df_results</span> <span class="o">=</span> <span class="n">df_suews</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">grid</span><span class="p">]</span>
 
 <span class="c1"># Daily means</span>
-<span class="n">df_daily</span> <span class="o">=</span> <span class="n">df_results</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">df_daily</span> <span class="o">=</span> <span class="n">df_results</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"1D"</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
 <span class="n">dict_var_disp</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s2">&quot;QN&quot;</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$Q^*$&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;QS&quot;</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$\Delta Q_S$&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;QE&quot;</span><span class="p">:</span> <span class="s2">&quot;$Q_E$&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;QH&quot;</span><span class="p">:</span> <span class="s2">&quot;$Q_H$&quot;</span><span class="p">,</span>
+    <span class="s2">"QN"</span><span class="p">:</span> <span class="sa">r</span><span class="s2">"$Q^*$"</span><span class="p">,</span>
+    <span class="s2">"QS"</span><span class="p">:</span> <span class="sa">r</span><span class="s2">"$\Delta Q_S$"</span><span class="p">,</span>
+    <span class="s2">"QE"</span><span class="p">:</span> <span class="s2">"$Q_E$"</span><span class="p">,</span>
+    <span class="s2">"QH"</span><span class="p">:</span> <span class="s2">"$Q_H$"</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
-<span class="n">df_daily</span><span class="p">[[</span><span class="s2">&quot;QN&quot;</span><span class="p">,</span> <span class="s2">&quot;QS&quot;</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">,</span> <span class="s2">&quot;QH&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">dict_var_disp</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Flux (W m$^{-2}$)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Daily Mean Surface Energy Balance&quot;</span><span class="p">)</span>
+<span class="n">df_daily</span><span class="p">[[</span><span class="s2">"QN"</span><span class="p">,</span> <span class="s2">"QS"</span><span class="p">,</span> <span class="s2">"QE"</span><span class="p">,</span> <span class="s2">"QH"</span><span class="p">]]</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">dict_var_disp</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Date"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Flux (W m$^{-2}$)"</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Daily Mean Surface Energy Balance"</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 </pre></div>
@@ -872,38 +886,38 @@ We must update the control times to match our 2010 forcing period
 <section id="examine-lai-dynamics">
 <h2><span class="section-number">3.2.9. </span>Examine LAI Dynamics<a class="headerlink" href="#examine-lai-dynamics" title="Link to this heading">#</a></h2>
 <p>Check how LAI evolves through the simulation based on temperature accumulation.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">df_daily_state</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">DailyState</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">grid</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">df_daily_state</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">DailyState</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">grid</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s2">"all"</span><span class="p">)</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"1D"</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
-<span class="k">if</span> <span class="s2">&quot;LAI_Grass&quot;</span> <span class="ow">in</span> <span class="n">df_daily_state</span><span class="o">.</span><span class="n">columns</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">df_daily_state</span><span class="p">[</span><span class="s2">&quot;LAI_Grass&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+<span class="k">if</span> <span class="s2">"LAI_Grass"</span> <span class="ow">in</span> <span class="n">df_daily_state</span><span class="o">.</span><span class="n">columns</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">df_daily_state</span><span class="p">[</span><span class="s2">"LAI_Grass"</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
     <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
-    <span class="n">df_daily_state</span><span class="p">[</span><span class="s2">&quot;LAI_Grass&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;LAI (m$^2$ m$^{-2}$)&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Grass LAI Evolution&quot;</span><span class="p">)</span>
+    <span class="n">df_daily_state</span><span class="p">[</span><span class="s2">"LAI_Grass"</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Date"</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"LAI (m$^2$ m$^{-2}$)"</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Grass LAI Evolution"</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;LAI_Grass not available or empty in DailyState output&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"LAI_Grass not available or empty in DailyState output"</span><span class="p">)</span>
 </pre></div>
 </div>
 <img src="../_images/sphx_glr_tutorial_02_setup_own_site_003.png" srcset="../_images/sphx_glr_tutorial_02_setup_own_site_003.png" alt="Grass LAI Evolution" class = "sphx-glr-single-img"/></section>
 <section id="surface-resistance-analysis">
 <h2><span class="section-number">3.2.10. </span>Surface Resistance Analysis<a class="headerlink" href="#surface-resistance-analysis" title="Link to this heading">#</a></h2>
 <p>Examine how surface resistance varies with environmental conditions.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">ser_rs</span> <span class="o">=</span> <span class="n">df_results</span><span class="p">[</span><span class="s2">&quot;RS&quot;</span><span class="p">]</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">ser_rs</span> <span class="o">=</span> <span class="n">df_results</span><span class="p">[</span><span class="s2">"RS"</span><span class="p">]</span>
 
 <span class="c1"># Daily median resistance (filter extreme values)</span>
-<span class="n">df_rs_daily</span> <span class="o">=</span> <span class="n">ser_rs</span><span class="o">.</span><span class="n">between_time</span><span class="p">(</span><span class="s2">&quot;10:00&quot;</span><span class="p">,</span> <span class="s2">&quot;16:00&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">median</span><span class="p">()</span>
+<span class="n">df_rs_daily</span> <span class="o">=</span> <span class="n">ser_rs</span><span class="o">.</span><span class="n">between_time</span><span class="p">(</span><span class="s2">"10:00"</span><span class="p">,</span> <span class="s2">"16:00"</span><span class="p">)</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"1D"</span><span class="p">)</span><span class="o">.</span><span class="n">median</span><span class="p">()</span>
 <span class="n">df_rs_daily</span> <span class="o">=</span> <span class="n">df_rs_daily</span><span class="p">[</span><span class="n">df_rs_daily</span> <span class="o">&lt;</span> <span class="mi">5000</span><span class="p">]</span>  <span class="c1"># Filter outliers (high in winter)</span>
 
 <span class="k">if</span> <span class="ow">not</span> <span class="n">df_rs_daily</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
     <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
     <span class="n">df_rs_daily</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$r_s$ (s m$^{-1}$)&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Daily Median Surface Resistance (10:00-16:00)&quot;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Date"</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">"$r_s$ (s m$^{-1}$)"</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Daily Median Surface Resistance (10:00-16:00)"</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No valid surface resistance data for this period&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"No valid surface resistance data for this period"</span><span class="p">)</span>
 </pre></div>
 </div>
 <img src="../_images/sphx_glr_tutorial_02_setup_own_site_004.png" srcset="../_images/sphx_glr_tutorial_02_setup_own_site_004.png" alt="Daily Median Surface Resistance (10:00-16:00)" class = "sphx-glr-single-img"/></section>
@@ -989,7 +1003,7 @@ the OOP API:</p>
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-simulation-from-sample-data">3.2.1. Create Simulation from Sample Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configure-site-location">3.2.2. Configure Site Location</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configure-land-cover-fractions">3.2.3. Configure Land Cover Fractions</a></li>
@@ -1043,7 +1057,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1057,8 +1071,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

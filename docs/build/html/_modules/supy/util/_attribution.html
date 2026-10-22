@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_attribution';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -524,7 +538,7 @@
                 <article class="bd-article">
                   
   <h1>Source code for supy.util._attribution</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""</span>
 <span class="sd">Near-surface diagnostics attribution module for SUEWS.</span>
 
 <span class="sd">Decomposes changes in near-surface variables (T2, q2, U10) between two scenarios</span>
@@ -562,7 +576,7 @@
 <span class="sd">- Phi_forcing = dF * (P_A + P_B) / 2,  where P = R + S</span>
 <span class="sd">- Phi_roughness = dR * (F_A + F_B) / 2</span>
 <span class="sd">- Phi_stability = dS * (F_A + F_B) / 2</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
 
@@ -585,10 +599,10 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">attribute</span><span class="p">(</span>
     <span class="n">df_output_A</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">df_output_B</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">variable</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">,</span> <span class="s2">&quot;q2&quot;</span><span class="p">,</span> <span class="s2">&quot;U10&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;T2&quot;</span><span class="p">,</span>
+    <span class="n">variable</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">,</span> <span class="s2">"q2"</span><span class="p">,</span> <span class="s2">"U10"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"T2"</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttributionResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Generic attribution function for near-surface variables.</span>
 
 <span class="sd">    Dispatches to variable-specific implementation internally.</span>
@@ -600,8 +614,8 @@
 <span class="sd">    df_output_B : pd.DataFrame</span>
 <span class="sd">        SUEWS output DataFrame for scenario B (modified/test)</span>
 <span class="sd">    variable : str, optional</span>
-<span class="sd">        Variable to attribute: &#39;T2&#39; (temperature), &#39;q2&#39; (humidity),</span>
-<span class="sd">        or &#39;U10&#39; (10m wind speed). Default &#39;T2&#39;.</span>
+<span class="sd">        Variable to attribute: 'T2' (temperature), 'q2' (humidity),</span>
+<span class="sd">        or 'U10' (10m wind speed). Default 'T2'.</span>
 <span class="sd">    **kwargs</span>
 <span class="sd">        Additional keyword arguments passed to the specific function.</span>
 <span class="sd">        - For T2: hierarchical (bool), min_flux (float), df_forcing_A/B</span>
@@ -615,24 +629,24 @@
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
-<span class="sd">    &gt;&gt;&gt; result = attribute(df_baseline, df_scenario, variable=&quot;T2&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; result = attribute(df_baseline, df_scenario, variable="T2")</span>
 <span class="sd">    &gt;&gt;&gt; print(result)</span>
 
-<span class="sd">    &gt;&gt;&gt; result = attribute(df_baseline, df_scenario, variable=&quot;q2&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; result = attribute(df_baseline, df_scenario, variable="q2")</span>
 <span class="sd">    &gt;&gt;&gt; print(result)</span>
 
-<span class="sd">    &gt;&gt;&gt; result = attribute(df_baseline, df_scenario, variable=&quot;U10&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; result = attribute(df_baseline, df_scenario, variable="U10")</span>
 <span class="sd">    &gt;&gt;&gt; print(result)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">&quot;T2&quot;</span><span class="p">:</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">"T2"</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">attribute_t2</span><span class="p">(</span><span class="n">df_output_A</span><span class="p">,</span> <span class="n">df_output_B</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">&quot;q2&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">"q2"</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">attribute_q2</span><span class="p">(</span><span class="n">df_output_A</span><span class="p">,</span> <span class="n">df_output_B</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">&quot;U10&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">"U10"</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">attribute_u10</span><span class="p">(</span><span class="n">df_output_A</span><span class="p">,</span> <span class="n">df_output_B</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Unknown variable: </span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s2">. Supported variables: &#39;T2&#39;, &#39;q2&#39;, &#39;U10&#39;&quot;</span>
+            <span class="sa">f</span><span class="s2">"Unknown variable: </span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s2">. Supported variables: 'T2', 'q2', 'U10'"</span>
         <span class="p">)</span></div>
 
 
@@ -641,10 +655,10 @@
 <a class="viewcode-back" href="../../../api/_autosummary/supy.util.diagnose.html#supy.util.diagnose">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">diagnose</span><span class="p">(</span>
     <span class="n">df_output</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">variable</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">,</span> <span class="s2">&quot;q2&quot;</span><span class="p">,</span> <span class="s2">&quot;U10&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;T2&quot;</span><span class="p">,</span>
+    <span class="n">variable</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"T2"</span><span class="p">,</span> <span class="s2">"q2"</span><span class="p">,</span> <span class="s2">"U10"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"T2"</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttributionResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Generic diagnostic function for near-surface variables.</span>
 
 <span class="sd">    Automatically identifies anomalous values and attributes the causes.</span>
@@ -654,11 +668,11 @@
 <span class="sd">    df_output : pd.DataFrame</span>
 <span class="sd">        SUEWS output DataFrame</span>
 <span class="sd">    variable : str, optional</span>
-<span class="sd">        Variable to diagnose: &#39;T2&#39; (temperature), &#39;q2&#39; (humidity),</span>
-<span class="sd">        or &#39;U10&#39; (10m wind speed). Default &#39;T2&#39;.</span>
+<span class="sd">        Variable to diagnose: 'T2' (temperature), 'q2' (humidity),</span>
+<span class="sd">        or 'U10' (10m wind speed). Default 'T2'.</span>
 <span class="sd">    **kwargs</span>
 <span class="sd">        Additional keyword arguments passed to the specific function.</span>
-<span class="sd">        - method: &#39;anomaly&#39;, &#39;extreme&#39;, or &#39;diurnal&#39;</span>
+<span class="sd">        - method: 'anomaly', 'extreme', or 'diurnal'</span>
 <span class="sd">        - threshold: float for anomaly detection</span>
 <span class="sd">        - df_forcing: forcing DataFrame (T2, q2 only)</span>
 <span class="sd">        - hierarchical: bool (T2 only)</span>
@@ -671,24 +685,24 @@
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
-<span class="sd">    &gt;&gt;&gt; result = diagnose(df_output, variable=&quot;T2&quot;, method=&quot;anomaly&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; result = diagnose(df_output, variable="T2", method="anomaly")</span>
 <span class="sd">    &gt;&gt;&gt; print(result)</span>
 
-<span class="sd">    &gt;&gt;&gt; result = diagnose(df_output, variable=&quot;q2&quot;, method=&quot;diurnal&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; result = diagnose(df_output, variable="q2", method="diurnal")</span>
 <span class="sd">    &gt;&gt;&gt; print(result)</span>
 
-<span class="sd">    &gt;&gt;&gt; result = diagnose(df_output, variable=&quot;U10&quot;, method=&quot;extreme&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; result = diagnose(df_output, variable="U10", method="extreme")</span>
 <span class="sd">    &gt;&gt;&gt; print(result)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">&quot;T2&quot;</span><span class="p">:</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">"T2"</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">diagnose_t2</span><span class="p">(</span><span class="n">df_output</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">&quot;q2&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">"q2"</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">diagnose_q2</span><span class="p">(</span><span class="n">df_output</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">&quot;U10&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">variable</span> <span class="o">==</span> <span class="s2">"U10"</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">diagnose_u10</span><span class="p">(</span><span class="n">df_output</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Unknown variable: </span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s2">. Supported variables: &#39;T2&#39;, &#39;q2&#39;, &#39;U10&#39;&quot;</span>
+            <span class="sa">f</span><span class="s2">"Unknown variable: </span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s2">. Supported variables: 'T2', 'q2', 'U10'"</span>
         <span class="p">)</span></div>
 
 
@@ -696,17 +710,17 @@
 <span class="c1"># Public API</span>
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="c1"># Variable-specific functions</span>
-    <span class="s2">&quot;attribute_t2&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;attribute_q2&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;attribute_u10&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;diagnose_t2&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;diagnose_q2&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;diagnose_u10&quot;</span><span class="p">,</span>
+    <span class="s2">"attribute_t2"</span><span class="p">,</span>
+    <span class="s2">"attribute_q2"</span><span class="p">,</span>
+    <span class="s2">"attribute_u10"</span><span class="p">,</span>
+    <span class="s2">"diagnose_t2"</span><span class="p">,</span>
+    <span class="s2">"diagnose_q2"</span><span class="p">,</span>
+    <span class="s2">"diagnose_u10"</span><span class="p">,</span>
     <span class="c1"># Generic dispatchers</span>
-    <span class="s2">&quot;attribute&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;diagnose&quot;</span><span class="p">,</span>
+    <span class="s2">"attribute"</span><span class="p">,</span>
+    <span class="s2">"diagnose"</span><span class="p">,</span>
     <span class="c1"># Result container</span>
-    <span class="s2">&quot;AttributionResult&quot;</span><span class="p">,</span>
+    <span class="s2">"AttributionResult"</span><span class="p">,</span>
 <span class="p">]</span>
 </pre></div>
 
@@ -761,7 +775,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -775,8 +789,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

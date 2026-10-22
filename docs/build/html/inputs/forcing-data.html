@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../_static/documentation_options.js?v=72daed37"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
@@ -51,6 +51,7 @@
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/forcing-data';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -61,20 +62,26 @@
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
     <meta name="docbuild:last-update" content="2026-06-11"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -100,7 +107,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -556,11 +563,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -588,7 +602,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.2.1. Data Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-format">4.2.2. File Format</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files-gh-1372">4.2.3. Named-column forcing files (gh#1372)</a></li>
@@ -641,7 +655,7 @@
 </ul>
 <p>Set the forcing height in your YAML configuration:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">sites</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MySite&quot;</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">"MySite"</span>
 <span class="w">    </span><span class="nt">properties</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50.0</span><span class="w">  </span><span class="c1"># Forcing height in metres</span>
 </pre></div>
@@ -848,7 +862,7 @@ sets emits a <code class="docutils literal notranslate"><span class="pre">UserWa
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">control</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">forcing</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2020_data_60.txt&quot;</span>
+<span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">"forcing/Kc_2020_data_60.txt"</span>
 </pre></div>
 </div>
 <p>Or, for continuous multi-year runs, supply a list under the same
@@ -858,9 +872,9 @@ order):</p>
 <span class="w">  </span><span class="nt">control</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">forcing</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">file</span><span class="p">:</span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2020_data_60.txt&quot;</span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2021_data_60.txt&quot;</span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2022_data_60.txt&quot;</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"forcing/Kc_2020_data_60.txt"</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"forcing/Kc_2021_data_60.txt"</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"forcing/Kc_2022_data_60.txt"</span>
 </pre></div>
 </div>
 </section>
@@ -1005,12 +1019,12 @@ unexpected outputs.</p>
 <span class="c1"># Download 30 years of ERA5 data for Copenhagen (~26 seconds!)</span>
 <span class="n">list_fn</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">gen_forcing_era5</span><span class="p">(</span>
     <span class="mf">55.68</span><span class="p">,</span> <span class="mf">12.57</span><span class="p">,</span>              <span class="c1"># Latitude, longitude</span>
-    <span class="s2">&quot;1991-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-12-31&quot;</span><span class="p">,</span>  <span class="c1"># Date range</span>
-    <span class="n">dir_save</span><span class="o">=</span><span class="s2">&quot;./forcing_data&quot;</span>
+    <span class="s2">"1991-01-01"</span><span class="p">,</span> <span class="s2">"2020-12-31"</span><span class="p">,</span>  <span class="c1"># Date range</span>
+    <span class="n">dir_save</span><span class="o">=</span><span class="s2">"./forcing_data"</span>
 <span class="p">)</span>
 
 <span class="c1"># Files are ready to use in your YAML config</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">list_fn</span><span class="p">)</span><span class="si">}</span><span class="s2"> forcing files&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">list_fn</span><span class="p">)</span><span class="si">}</span><span class="s2"> forcing files"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>Features:</strong></p>
@@ -1023,8 +1037,8 @@ unexpected outputs.</p>
 <p>For model-level data or spatial grids, use the gridded dataset:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">list_fn</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">gen_forcing_era5</span><span class="p">(</span>
     <span class="mf">55.68</span><span class="p">,</span> <span class="mf">12.57</span><span class="p">,</span>
-    <span class="s2">&quot;1991-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-12-31&quot;</span><span class="p">,</span>
-    <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;gridded&quot;</span><span class="p">,</span>     <span class="c1"># Use gridded ERA5 dataset</span>
+    <span class="s2">"1991-01-01"</span><span class="p">,</span> <span class="s2">"2020-12-31"</span><span class="p">,</span>
+    <span class="n">data_source</span><span class="o">=</span><span class="s2">"gridded"</span><span class="p">,</span>     <span class="c1"># Use gridded ERA5 dataset</span>
     <span class="n">simple_mode</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>         <span class="c1"># Complex MOST diagnostics</span>
     <span class="n">scale</span><span class="o">=</span><span class="mi">1</span>                    <span class="c1"># Spatial grid (3x3 for scale=1)</span>
 <span class="p">)</span>
@@ -1072,7 +1086,7 @@ unexpected outputs.</p>
 <p><strong>Correct Configuration for EPW Data</strong></p>
 <p>When using EPW data, set the forcing height to match the wind speed measurement:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">sites</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MySite&quot;</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">"MySite"</span>
 <span class="w">    </span><span class="nt">properties</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10.0</span><span class="w">  </span><span class="c1"># Must be 10 m to match EPW wind speed height</span>
 </pre></div>
@@ -1087,31 +1101,31 @@ unexpected outputs.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
 <span class="c1"># 1. Read EPW file (wind speed at 10 m by default)</span>
-<span class="n">df_epw</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">read_epw</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;weather.epw&quot;</span><span class="p">))</span>
+<span class="n">df_epw</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">read_epw</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"weather.epw"</span><span class="p">))</span>
 
 <span class="c1"># 2. Extract and rename columns for SUEWS forcing</span>
 <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
-    <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">&#39;Wind Speed&#39;</span><span class="p">],</span>
-    <span class="s1">&#39;Tair&#39;</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">&#39;Dry Bulb Temperature&#39;</span><span class="p">],</span>
-    <span class="s1">&#39;RH&#39;</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">&#39;Relative Humidity&#39;</span><span class="p">],</span>
-    <span class="s1">&#39;pres&#39;</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">&#39;Atmospheric Station Pressure&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span>  <span class="c1"># Pa to kPa</span>
-    <span class="s1">&#39;kdown&#39;</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">&#39;Global Horizontal Radiation&#39;</span><span class="p">],</span>
-    <span class="s1">&#39;ldown&#39;</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">&#39;Horizontal Infrared Radiation Intensity&#39;</span><span class="p">],</span>
-    <span class="s1">&#39;rain&#39;</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">&#39;Liquid Precipitation Depth&#39;</span><span class="p">],</span>
+    <span class="s1">'U'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Wind Speed'</span><span class="p">],</span>
+    <span class="s1">'Tair'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Dry Bulb Temperature'</span><span class="p">],</span>
+    <span class="s1">'RH'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Relative Humidity'</span><span class="p">],</span>
+    <span class="s1">'pres'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Atmospheric Station Pressure'</span><span class="p">]</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span>  <span class="c1"># Pa to kPa</span>
+    <span class="s1">'kdown'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Global Horizontal Radiation'</span><span class="p">],</span>
+    <span class="s1">'ldown'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Horizontal Infrared Radiation Intensity'</span><span class="p">],</span>
+    <span class="s1">'rain'</span><span class="p">:</span> <span class="n">df_epw</span><span class="p">[</span><span class="s1">'Liquid Precipitation Depth'</span><span class="p">],</span>
 <span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="n">df_epw</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
 
 <span class="c1"># 3. Fill required time columns</span>
-<span class="n">df_forcing</span><span class="p">[</span><span class="s1">&#39;iy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">year</span>
-<span class="n">df_forcing</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">dayofyear</span>
-<span class="n">df_forcing</span><span class="p">[</span><span class="s1">&#39;it&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span>
-<span class="n">df_forcing</span><span class="p">[</span><span class="s1">&#39;imin&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">minute</span>
+<span class="n">df_forcing</span><span class="p">[</span><span class="s1">'iy'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">year</span>
+<span class="n">df_forcing</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">dayofyear</span>
+<span class="n">df_forcing</span><span class="p">[</span><span class="s1">'it'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span>
+<span class="n">df_forcing</span><span class="p">[</span><span class="s1">'imin'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">minute</span>
 </pre></div>
 </div>
 <p><strong>Wind Speed Height Correction</strong></p>
 <p>If you need EPW wind speed at a different height (e.g., to match flux tower measurements at 50 m), use the <code class="docutils literal notranslate"><span class="pre">target_height</span></code> parameter:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Read EPW and extrapolate wind speed from 10 m to 50 m</span>
 <span class="n">df_epw</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">read_epw</span><span class="p">(</span>
-    <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;weather.epw&quot;</span><span class="p">),</span>
+    <span class="n">Path</span><span class="p">(</span><span class="s2">"weather.epw"</span><span class="p">),</span>
     <span class="n">target_height</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span>  <span class="c1"># Target height [m]</span>
     <span class="n">z0m</span><span class="o">=</span><span class="mf">0.5</span>              <span class="c1"># Urban roughness length [m]</span>
 <span class="p">)</span>
@@ -1268,17 +1282,17 @@ otherwise ignored — see <a class="reference internal" href="#prescribed-lai"><
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy._load</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_SUEWS_Forcing_met_df_yaml</span>
 
 <span class="c1"># Load forcing data</span>
-<span class="n">df_forcing</span> <span class="o">=</span> <span class="n">load_SUEWS_Forcing_met_df_yaml</span><span class="p">(</span><span class="s1">&#39;forcing/Kc_2020_data_60.txt&#39;</span><span class="p">)</span>
+<span class="n">df_forcing</span> <span class="o">=</span> <span class="n">load_SUEWS_Forcing_met_df_yaml</span><span class="p">(</span><span class="s1">'forcing/Kc_2020_data_60.txt'</span><span class="p">)</span>
 
 <span class="c1"># Validate (returns list of issues)</span>
 <span class="n">issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">,</span> <span class="n">fix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">issues</span><span class="p">)</span><span class="si">}</span><span class="s2"> validation issues:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">issues</span><span class="p">)</span><span class="si">}</span><span class="s2"> validation issues:"</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">issue</span> <span class="ow">in</span> <span class="n">issues</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - </span><span class="si">{</span><span class="n">issue</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - </span><span class="si">{</span><span class="n">issue</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Validation passed!&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Validation passed!"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>Automatic Validation</strong></p>
@@ -1293,10 +1307,10 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <p>The validation report shows any issues found:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>## ACTION NEEDED
 - Found (2) forcing data validation error(s):
--- In &#39;Kc_2020_data_60.txt&#39;: Wind speed (`U`) must be &gt;= 0.01 m/s
+-- In 'Kc_2020_data_60.txt': Wind speed (`U`) must be &gt;= 0.01 m/s
    to avoid division by zero errors in atmospheric calculations.
    3 values below 0.01 m/s found at line(s): [45, 127, 890]
--- In &#39;Kc_2020_data_60.txt&#39;: `kdown` should be between [0, 1400]
+-- In 'Kc_2020_data_60.txt': `kdown` should be between [0, 1400]
    but 12 outliers are found at line(s): [156, 234, 567, ...]
    Required fix: Review and correct forcing data file.
    Suggestion: You may want to plot the time series of your input data.
@@ -1413,7 +1427,7 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.2.1. Data Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-format">4.2.2. File Format</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files-gh-1372">4.2.3. Named-column forcing files (gh#1372)</a></li>
@@ -1469,7 +1483,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1483,8 +1497,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

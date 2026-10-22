@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/suews_sim';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -524,12 +538,12 @@
                 <article class="bd-article">
                   
   <h1>Source code for supy.suews_sim</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""</span>
 <span class="sd">SUEWS Simulation Class.</span>
 
 <span class="sd">Modern, object-oriented interface for SUEWS urban climate model simulations.</span>
 <span class="sd">Provides a user-friendly wrapper around the existing SuPy infrastructure.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePosixPath</span>
@@ -556,25 +570,25 @@
 <span class="c1"># Constants</span>
 <span class="n">DEFAULT_OUTPUT_FREQ_SECONDS</span> <span class="o">=</span> <span class="mi">3600</span>  <span class="c1"># Default hourly output frequency</span>
 <span class="n">DEFAULT_FORCING_FILE_PATTERNS</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;*.txt&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;*.csv&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;*.met&quot;</span><span class="p">,</span>
+    <span class="s2">"*.txt"</span><span class="p">,</span>
+    <span class="s2">"*.csv"</span><span class="p">,</span>
+    <span class="s2">"*.met"</span><span class="p">,</span>
 <span class="p">]</span>  <span class="c1"># Valid forcing file extensions</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_validate_n_jobs</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a Rust worker cap for a public ``n_jobs`` value.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Return a Rust worker cap for a public ``n_jobs`` value."""</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n_jobs must be an integer: -1, 1, or a positive value&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"n_jobs must be an integer: -1, 1, or a positive value"</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">n_jobs</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">n_jobs</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n_jobs must be -1, 1, or a positive integer&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"n_jobs must be -1, 1, or a positive integer"</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">n_jobs</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="n">n_jobs</span>
 
 
 <div class="viewcode-block" id="SUEWSSimulation">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">SUEWSSimulation</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Simplified SUEWS simulation class for urban climate modelling.</span>
 
 <span class="sd">    This class provides a clean interface for:</span>
@@ -587,21 +601,21 @@
 <span class="sd">    --------</span>
 <span class="sd">    Basic usage:</span>
 
-<span class="sd">    &gt;&gt;&gt; sim = SUEWSSimulation(&quot;config.yaml&quot;)</span>
-<span class="sd">    &gt;&gt;&gt; sim.update_forcing(&quot;forcing.txt&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; sim = SUEWSSimulation("config.yaml")</span>
+<span class="sd">    &gt;&gt;&gt; sim.update_forcing("forcing.txt")</span>
 <span class="sd">    &gt;&gt;&gt; sim.run()</span>
-<span class="sd">    &gt;&gt;&gt; sim.save(&quot;output_dir/&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; sim.save("output_dir/")</span>
 
 <span class="sd">    Updating configuration:</span>
 
-<span class="sd">    &gt;&gt;&gt; sim.update_config({&quot;model&quot;: {&quot;control&quot;: {&quot;tstep&quot;: 600}}})</span>
+<span class="sd">    &gt;&gt;&gt; sim.update_config({"model": {"control": {"tstep": 600}}})</span>
 <span class="sd">    &gt;&gt;&gt; sim.reset()</span>
 <span class="sd">    &gt;&gt;&gt; sim.run()</span>
 
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Initialize SUEWS simulation.</span>
 
 <span class="sd">        Parameters</span>
@@ -612,7 +626,7 @@
 <span class="sd">            - Dictionary with configuration parameters</span>
 <span class="sd">            - SUEWSConfig object</span>
 <span class="sd">            - None to create empty simulation</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="kc">None</span>
@@ -631,8 +645,8 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">SUEWSConfig</span><span class="p">],</span>
         <span class="n">auto_load_forcing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Update simulation configuration.</span>
 
 <span class="sd">        Can accept full or partial configuration updates.</span>
@@ -661,20 +675,20 @@
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        &gt;&gt;&gt; sim.update_config(&quot;new_config.yaml&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; sim.update_config({&quot;model&quot;: {&quot;control&quot;: {&quot;tstep&quot;: 300}}})</span>
-<span class="sd">        &gt;&gt;&gt; sim.update_config(&quot;config.yaml&quot;).update_forcing(&quot;forcing.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_config("new_config.yaml")</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_config({"model": {"control": {"tstep": 300}}})</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_config("config.yaml").update_forcing("forcing.txt")</span>
 
 <span class="sd">        Explicit forcing control:</span>
 
-<span class="sd">        &gt;&gt;&gt; sim.update_config(&quot;config.yaml&quot;, auto_load_forcing=False)</span>
-<span class="sd">        &gt;&gt;&gt; sim.update_forcing(&quot;custom_forcing.txt&quot;)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_config("config.yaml", auto_load_forcing=False)</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing("custom_forcing.txt")</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
             <span class="c1"># Load from YAML file</span>
             <span class="n">config_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">config_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Configuration file not found: </span><span class="si">{</span><span class="n">config_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Configuration file not found: </span><span class="si">{</span><span class="n">config_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
             <span class="c1"># Load YAML</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">config_path</span><span class="p">))</span>
@@ -699,7 +713,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">to_df_state</span><span class="p">()</span>
 
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Assume it&#39;s a SUEWSConfig object</span>
+            <span class="c1"># Assume it's a SUEWSConfig object</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">to_df_state</span><span class="p">()</span>
 
@@ -707,13 +721,13 @@
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_update_config_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">updates</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply dictionary updates to configuration.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Apply dictionary updates to configuration."""</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">recursive_update</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">upd</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">upd</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
                     <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="s2">&quot;__dict__&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="s2">"__dict__"</span><span class="p">):</span>
                         <span class="c1"># Recursive to read nested dictionaries</span>
                         <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
                     <span class="c1"># Check whether site index or site name is provided</span>
@@ -736,12 +750,12 @@
                                 <span class="c1"># Without name or index and only one site</span>
                                 <span class="n">attr_site</span> <span class="o">=</span> <span class="n">attr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                                 <span class="c1"># Distinguish site name pattern from shorthand</span>
-                                <span class="c1"># If site_key is an attribute on the site object, it&#39;s shorthand</span>
+                                <span class="c1"># If site_key is an attribute on the site object, it's shorthand</span>
                                 <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">site_key</span><span class="p">):</span>
-                                    <span class="c1"># Shorthand pattern: {&#39;name&#39;: &#39;test&#39;} or {&#39;properties&#39;: {...}}</span>
+                                    <span class="c1"># Shorthand pattern: {'name': 'test'} or {'properties': {...}}</span>
                                     <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
                                 <span class="k">else</span><span class="p">:</span>
-                                    <span class="c1"># Site name pattern: {&#39;NonExistent&#39;: {&#39;gridiv&#39;: 99}}</span>
+                                    <span class="c1"># Site name pattern: {'NonExistent': {'gridiv': 99}}</span>
                                     <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">site_value</span><span class="p">)</span>
                             <span class="k">else</span><span class="p">:</span>
                                 <span class="c1"># Otherwise skip these parameters</span>
@@ -755,8 +769,8 @@
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.update_forcing">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_forcing</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">forcing_data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">SUEWSForcing</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Update meteorological forcing data.</span>
 
 <span class="sd">        Parameters</span>
@@ -782,23 +796,23 @@
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        &gt;&gt;&gt; sim.update_forcing(&quot;forcing_2023.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; sim.update_forcing([&quot;forcing_2023.txt&quot;, &quot;forcing_2024.txt&quot;])</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing("forcing_2023.txt")</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing(["forcing_2023.txt", "forcing_2024.txt"])</span>
 <span class="sd">        &gt;&gt;&gt; sim.update_forcing(df_forcing)</span>
-<span class="sd">        &gt;&gt;&gt; sim.update_forcing(SUEWSForcing.from_file(&quot;forcing.txt&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing(SUEWSForcing.from_file("forcing.txt"))</span>
 <span class="sd">        &gt;&gt;&gt; sim.update_config(cfg).update_forcing(forcing).run()</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="c1"># Get tstep from config if available, otherwise default to 300s</span>
         <span class="n">tstep_mod</span> <span class="o">=</span> <span class="mi">300</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">tstep_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">tstep</span>
                 <span class="n">tstep_mod</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">tstep_val</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">tstep_val</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">tstep_val</span>
+                    <span class="n">tstep_val</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">tstep_val</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">)</span> <span class="k">else</span> <span class="n">tstep_val</span>
                 <span class="p">)</span>
             <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
                 <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="s2">&quot;Could not extract tstep from config; using default </span><span class="si">%d</span><span class="s2">s&quot;</span><span class="p">,</span>
+                    <span class="s2">"Could not extract tstep from config; using default </span><span class="si">%d</span><span class="s2">s"</span><span class="p">,</span>
                     <span class="n">tstep_mod</span><span class="p">,</span>
                 <span class="p">)</span>
 
@@ -816,36 +830,36 @@
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
             <span class="n">forcing_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">forcing_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Forcing path not found: </span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Forcing path not found: </span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">_load_forcing_file</span><span class="p">(</span>
                 <span class="n">forcing_path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported forcing data type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported forcing data type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_try_load_forcing_from_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Try to load forcing data from configuration if not explicitly provided.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Try to load forcing data from configuration if not explicitly provided."""</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;control&quot;</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"model"</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">"control"</span>
             <span class="p">):</span>
                 <span class="n">forcing_file_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">file</span>
 
                 <span class="k">if</span> <span class="n">forcing_file_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="c1"># Handle RefValue wrapper</span>
-                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">forcing_file_obj</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">forcing_file_obj</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">):</span>
                         <span class="n">forcing_value</span> <span class="o">=</span> <span class="n">forcing_file_obj</span><span class="o">.</span><span class="n">value</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">forcing_value</span> <span class="o">=</span> <span class="n">forcing_file_obj</span>
 
                     <span class="c1"># Skip default placeholder value</span>
-                    <span class="k">if</span> <span class="n">forcing_value</span> <span class="ow">and</span> <span class="n">forcing_value</span> <span class="o">!=</span> <span class="s2">&quot;forcing.txt&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">forcing_value</span> <span class="ow">and</span> <span class="n">forcing_value</span> <span class="o">!=</span> <span class="s2">"forcing.txt"</span><span class="p">:</span>
                         <span class="c1"># Resolve paths relative to config file if needed</span>
                         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span><span class="p">:</span>
                             <span class="n">forcing_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_forcing_paths</span><span class="p">(</span><span class="n">forcing_value</span><span class="p">)</span>
@@ -853,12 +867,12 @@
                         <span class="bp">self</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">forcing_value</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not load forcing from config: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not load forcing from config: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_forcing_paths</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve forcing paths relative to config file location.</span>
+<span class="w">        </span><span class="sd">"""Resolve forcing paths relative to config file location.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -869,14 +883,14 @@
 <span class="sd">        -------</span>
 <span class="sd">        str or list of str</span>
 <span class="sd">            Resolved path(s). Absolute paths are returned unchanged.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">paths</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_resolve_single_path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_single_path</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_single_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve a single path relative to config file if it&#39;s relative.</span>
+<span class="w">        </span><span class="sd">"""Resolve a single path relative to config file if it's relative.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -890,13 +904,13 @@
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
-<span class="sd">        Relative paths can use &#39;..&#39; to reference parent directories. This is</span>
+<span class="sd">        Relative paths can use '..' to reference parent directories. This is</span>
 <span class="sd">        intentional to allow flexible file organization. Path traversal restrictions</span>
 <span class="sd">        are not enforced since:</span>
 <span class="sd">        1. Config files are created by the user themselves</span>
-<span class="sd">        2. Code runs on the user&#39;s own machine</span>
+<span class="sd">        2. Code runs on the user's own machine</span>
 <span class="sd">        3. No untrusted external input is involved</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
         <span class="c1"># Treat platform-native absolute paths as literal</span>
@@ -904,11 +918,11 @@
             <span class="k">return</span> <span class="n">path_str</span>
 
         <span class="c1"># Relative path - resolve relative to config file location</span>
-        <span class="c1"># Using resolve() handles &#39;..&#39; and normalizes the path</span>
+        <span class="c1"># Using resolve() handles '..' and normalizes the path</span>
         <span class="k">return</span> <span class="nb">str</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_str</span><span class="p">))</span><span class="o">.</span><span class="n">resolve</span><span class="p">())</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_output_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve an output path relative to the loaded config file.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Resolve an output path relative to the loaded config file."""</span>
         <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="n">path_output</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_str</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span>
 
@@ -922,21 +936,21 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_load_forcing_from_list</span><span class="p">(</span>
         <span class="n">forcing_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]],</span> <span class="n">tstep_mod</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load and concatenate forcing data from a list of files.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Load and concatenate forcing data from a list of files."""</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">forcing_list</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Empty forcing file list provided&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Empty forcing file list provided"</span><span class="p">)</span>
 
         <span class="n">dfs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">forcing_list</span><span class="p">:</span>
             <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
 
             <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Forcing file not found: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Forcing file not found: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Directory &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; found in forcing file list. &quot;</span>
-                    <span class="s2">&quot;Directories are not allowed in lists.&quot;</span>
+                    <span class="sa">f</span><span class="s2">"Directory '</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">' found in forcing file list. "</span>
+                    <span class="s2">"Directories are not allowed in lists."</span>
                 <span class="p">)</span>
 
             <span class="n">df</span> <span class="o">=</span> <span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">)</span>
@@ -948,12 +962,12 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_load_forcing_file</span><span class="p">(</span><span class="n">forcing_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load forcing data from file or directory.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Load forcing data from file or directory."""</span>
         <span class="k">if</span> <span class="n">forcing_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
             <span class="c1"># Issue deprecation warning for directory usage</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Loading forcing data from directory &#39;</span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">&#39; is deprecated. &quot;</span>
-                <span class="s2">&quot;Please specify individual files or use a list of files instead.&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"Loading forcing data from directory '</span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">' is deprecated. "</span>
+                <span class="s2">"Please specify individual files or use a list of files instead."</span><span class="p">,</span>
                 <span class="ne">DeprecationWarning</span><span class="p">,</span>
                 <span class="n">stacklevel</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
             <span class="p">)</span>
@@ -965,7 +979,7 @@
 
             <span class="k">if</span> <span class="ow">not</span> <span class="n">forcing_files</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;No forcing files found in directory: </span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">"No forcing files found in directory: </span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">"</span>
                 <span class="p">)</span>
 
             <span class="c1"># Concatenate all files</span>
@@ -987,7 +1001,7 @@
         <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
         <span class="o">**</span><span class="n">run_kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SUEWSOutput</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Run SUEWS simulation using the Rust bridge backend.</span>
 
 <span class="sd">        Parameters</span>
@@ -1022,16 +1036,16 @@
 <span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
 <span class="sd">        &gt;&gt;&gt; output = sim.run()</span>
 <span class="sd">        &gt;&gt;&gt; output.QH  # Access sensible heat flux</span>
-<span class="sd">        &gt;&gt;&gt; output.diurnal_average(&quot;QH&quot;)  # Get diurnal pattern</span>
+<span class="sd">        &gt;&gt;&gt; output.diurnal_average("QH")  # Get diurnal pattern</span>
 <span class="sd">        &gt;&gt;&gt; output.to_dataframe()  # Get raw DataFrame</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="c1"># Handle deprecated backend kwarg</span>
-        <span class="n">backend</span> <span class="o">=</span> <span class="n">run_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;backend&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">backend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">backend</span> <span class="o">!=</span> <span class="s2">&quot;rust&quot;</span><span class="p">:</span>
+        <span class="n">backend</span> <span class="o">=</span> <span class="n">run_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"backend"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">backend</span> <span class="o">!=</span> <span class="s2">"rust"</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;The &#39;</span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">&#39; backend has been removed. &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;Only the &#39;rust&#39; backend is available. &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;Remove the backend parameter or use backend=&#39;rust&#39;.&quot;</span>
+                <span class="sa">f</span><span class="s2">"The '</span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">' backend has been removed. "</span>
+                <span class="sa">f</span><span class="s2">"Only the 'rust' backend is available. "</span>
+                <span class="sa">f</span><span class="s2">"Remove the backend parameter or use backend='rust'."</span>
             <span class="p">)</span>
 
         <span class="n">max_workers</span> <span class="o">=</span> <span class="n">_validate_n_jobs</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">)</span>
@@ -1041,9 +1055,9 @@
 
         <span class="c1"># Validate inputs</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No configuration loaded. Use update_config() first.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"No configuration loaded. Use update_config() first."</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No forcing data loaded. Use update_forcing() first.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"No forcing data loaded. Use update_forcing() first."</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># Backward-compatible path: allow runs initialised from df_state</span>
             <span class="c1"># (legacy functional workflows and continuation tests).</span>
@@ -1051,30 +1065,30 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_df_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="c1"># Some legacy state CSVs carry an extra unnamed index level</span>
-                <span class="c1"># (e.g. MultiIndex [(&#39;grid&#39;, None)]). Strip to grid only.</span>
+                <span class="c1"># (e.g. MultiIndex [('grid', None)]). Strip to grid only.</span>
                 <span class="n">df_state_for_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="s2">&quot;grid&quot;</span> <span class="ow">in</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
-                        <span class="n">grid_vals</span> <span class="o">=</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="s2">"grid"</span> <span class="ow">in</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+                        <span class="n">grid_vals</span> <span class="o">=</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"grid"</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">grid_vals</span> <span class="o">=</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                    <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">(</span><span class="n">grid_vals</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span>
+                    <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">(</span><span class="n">grid_vals</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"grid"</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_df_state</span><span class="p">(</span><span class="n">df_state_for_cfg</span><span class="p">)</span>
 
         <span class="c1"># Fall back to config values if start_date/end_date not provided</span>
         <span class="k">if</span> <span class="n">start_date</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="p">(</span>
-                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">)</span>
-                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;control&quot;</span><span class="p">)</span>
-                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">&quot;start_time&quot;</span><span class="p">)</span>
+                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"model"</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">"control"</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">"start_time"</span><span class="p">)</span>
             <span class="p">):</span>
                 <span class="n">start_date</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">start_time</span>
 
         <span class="k">if</span> <span class="n">end_date</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="p">(</span>
-                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">)</span>
-                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;control&quot;</span><span class="p">)</span>
-                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">&quot;end_time&quot;</span><span class="p">)</span>
+                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"model"</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">"control"</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">"end_time"</span><span class="p">)</span>
             <span class="p">):</span>
                 <span class="n">end_date</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">end_time</span>
 
@@ -1084,10 +1098,10 @@
         <span class="c1"># Validate forcing data, including physics-specific forcing requirements</span>
         <span class="c1"># (e.g. laimethod=0 requires populated effective observed-LAI sources).</span>
         <span class="n">physics_dict</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">):</span>
-            <span class="n">physics</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;physics&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">physics</span><span class="p">,</span> <span class="s2">&quot;model_dump&quot;</span><span class="p">):</span>
-                <span class="n">physics_dict</span> <span class="o">=</span> <span class="n">physics</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;python&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"model"</span><span class="p">):</span>
+            <span class="n">physics</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">"physics"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">physics</span><span class="p">,</span> <span class="s2">"model_dump"</span><span class="p">):</span>
+                <span class="n">physics_dict</span> <span class="o">=</span> <span class="n">physics</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">"python"</span><span class="p">)</span>
             <span class="c1"># Cross-check physics path against forcing columns (gh#1372).</span>
             <span class="c1"># Helper is silent on success; raises ValueError on mismatch.</span>
             <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1100,9 +1114,9 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">list_issues</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">issues_summary</span> <span class="o">=</span> <span class="n">list_issues</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">list_issues</span>
             <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot; (and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">3</span><span class="si">}</span><span class="s2"> more)&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+                <span class="sa">f</span><span class="s2">" (and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">3</span><span class="si">}</span><span class="s2"> more)"</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="s2">""</span>
             <span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid forcing data: </span><span class="si">{</span><span class="n">issues_summary</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid forcing data: </span><span class="si">{</span><span class="n">issues_summary</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="c1"># Run simulation via Rust bridge</span>
         <span class="n">initial_state_json_by_grid</span> <span class="o">=</span> <span class="p">(</span>
@@ -1130,7 +1144,7 @@
         <span class="kn">from</span><span class="w"> </span><span class="nn">._version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
 
         <span class="n">df_state_final</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">df_state_final</span><span class="p">[(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">__version__</span>
+        <span class="n">df_state_final</span><span class="p">[(</span><span class="s2">"version"</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">)]</span> <span class="o">=</span> <span class="n">__version__</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="n">df_state_final</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">True</span>
@@ -1149,7 +1163,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">output_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">save_kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Save simulation results according to OutputControl settings.</span>
 
 <span class="sd">        Parameters</span>
@@ -1162,7 +1176,7 @@
 <span class="sd">            **Currently supported kwargs:**</span>
 
 <span class="sd">            - **format** : str</span>
-<span class="sd">                Output format: &#39;txt&#39; (default) or &#39;parquet&#39;.</span>
+<span class="sd">                Output format: 'txt' (default) or 'parquet'.</span>
 <span class="sd">                Note: This overrides config file settings.</span>
 
 <span class="sd">            **Not currently supported** (due to internal constraints):</span>
@@ -1196,15 +1210,15 @@
 <span class="sd">        Save to specific directory with custom format:</span>
 
 <span class="sd">        &gt;&gt;&gt; sim.run()</span>
-<span class="sd">        &gt;&gt;&gt; paths = sim.save(&quot;output/&quot;, format=&quot;parquet&quot;)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        &gt;&gt;&gt; paths = sim.save("output/", format="parquet")</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No simulation results available. Run simulation first.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"No simulation results available. Run simulation first."</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-                <span class="s2">&quot;save() is not yet supported for the Rust backend. &quot;</span>
-                <span class="s2">&quot;Access results directly via sim.output.df_output&quot;</span>
+                <span class="s2">"save() is not yet supported for the Rust backend. "</span>
+                <span class="s2">"Access results directly via sim.output.df_output"</span>
             <span class="p">)</span>
 
         <span class="c1"># Set default path with priority: parameter &gt; config &gt; current directory</span>
@@ -1219,7 +1233,7 @@
                 <span class="k">pass</span>
 
             <span class="n">output_path</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_output_path</span><span class="p">(</span><span class="n">config_dir</span><span class="p">)</span> <span class="k">if</span> <span class="n">config_dir</span> <span class="k">else</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_output_path</span><span class="p">(</span><span class="n">config_dir</span><span class="p">)</span> <span class="k">if</span> <span class="n">config_dir</span> <span class="k">else</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"."</span><span class="p">)</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
@@ -1228,27 +1242,27 @@
         <span class="n">output_format</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">output_config</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">freq_s</span> <span class="o">=</span> <span class="n">DEFAULT_OUTPUT_FREQ_SECONDS</span>
-        <span class="n">site</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">site</span> <span class="o">=</span> <span class="s2">""</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">:</span>
             <span class="c1"># Get output frequency from OutputControl if available</span>
             <span class="k">if</span> <span class="p">(</span>
-                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">)</span>
-                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;control&quot;</span><span class="p">)</span>
-                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">&quot;output&quot;</span><span class="p">)</span>
+                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"model"</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">"control"</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">"output"</span><span class="p">)</span>
             <span class="p">):</span>
                 <span class="n">output_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">output</span>
-                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output_config</span><span class="p">,</span> <span class="s2">&quot;freq&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">output_config</span><span class="o">.</span><span class="n">freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output_config</span><span class="p">,</span> <span class="s2">"freq"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">output_config</span><span class="o">.</span><span class="n">freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">freq_s</span> <span class="o">=</span> <span class="n">output_config</span><span class="o">.</span><span class="n">freq</span>
-                <span class="c1"># Removed for now - can&#39;t update from YAML (TODO)</span>
-                <span class="c1"># if hasattr(output_config, &#39;format&#39;) and output_config.format is not None:</span>
+                <span class="c1"># Removed for now - can't update from YAML (TODO)</span>
+                <span class="c1"># if hasattr(output_config, 'format') and output_config.format is not None:</span>
                 <span class="c1">#     output_format = output_config.format</span>
 
             <span class="c1"># Get site name from first site</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;sites&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"sites"</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
-        <span class="k">if</span> <span class="s2">&quot;format&quot;</span> <span class="ow">in</span> <span class="n">save_kwargs</span><span class="p">:</span>  <span class="c1"># TODO: When yaml format working, make elif</span>
-            <span class="n">output_format</span> <span class="o">=</span> <span class="n">save_kwargs</span><span class="p">[</span><span class="s2">&quot;format&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">"format"</span> <span class="ow">in</span> <span class="n">save_kwargs</span><span class="p">:</span>  <span class="c1"># TODO: When yaml format working, make elif</span>
+            <span class="n">output_format</span> <span class="o">=</span> <span class="n">save_kwargs</span><span class="p">[</span><span class="s2">"format"</span><span class="p">]</span>
 
         <span class="c1"># Use internal save helper for all formats</span>
         <span class="n">list_path_save</span> <span class="o">=</span> <span class="n">_save_supy</span><span class="p">(</span>
@@ -1265,7 +1279,7 @@
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">checkpoint_name</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">site</span><span class="si">}</span><span class="s2">_SUEWS_checkpoint.json&quot;</span> <span class="k">if</span> <span class="n">site</span> <span class="k">else</span> <span class="s2">&quot;SUEWS_checkpoint.json&quot;</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">site</span><span class="si">}</span><span class="s2">_SUEWS_checkpoint.json"</span> <span class="k">if</span> <span class="n">site</span> <span class="k">else</span> <span class="s2">"SUEWS_checkpoint.json"</span>
             <span class="p">)</span>
             <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">output_path</span> <span class="o">/</span> <span class="n">checkpoint_name</span><span class="p">)</span>
             <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
@@ -1275,8 +1289,8 @@
 
 <div class="viewcode-block" id="SUEWSSimulation.reset">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.reset">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset simulation to initial state, clearing results.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Reset simulation to initial state, clearing results.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1287,7 +1301,7 @@
 <span class="sd">        --------</span>
 <span class="sd">        &gt;&gt;&gt; sim.run()</span>
 <span class="sd">        &gt;&gt;&gt; sim.reset().run()  # Re-run with same configuration</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1299,7 +1313,7 @@
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_sample_data">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_sample_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create SUEWSSimulation instance with built-in sample data.</span>
+<span class="w">        </span><span class="sd">"""Create SUEWSSimulation instance with built-in sample data.</span>
 
 <span class="sd">        This factory method provides a quick way to create a simulation object</span>
 <span class="sd">        pre-loaded with sample configuration and forcing data, ideal for tutorials,</span>
@@ -1319,13 +1333,13 @@
 <span class="sd">        &gt;&gt;&gt; sim.run()</span>
 <span class="sd">        &gt;&gt;&gt; results = sim.results</span>
 
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">trv_supy_module</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_load_sample_data</span>
 
         <span class="c1"># Load core simulation data (state and forcing)</span>
         <span class="n">df_state_init</span><span class="p">,</span> <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">_load_sample_data</span><span class="p">()</span>
-        <span class="n">sample_config_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">trv_supy_module</span> <span class="o">/</span> <span class="s2">&quot;sample_data&quot;</span> <span class="o">/</span> <span class="s2">&quot;sample_config.yml&quot;</span><span class="p">)</span>
+        <span class="n">sample_config_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">trv_supy_module</span> <span class="o">/</span> <span class="s2">"sample_data"</span> <span class="o">/</span> <span class="s2">"sample_config.yml"</span><span class="p">)</span>
 
         <span class="n">sim</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
 
@@ -1336,16 +1350,16 @@
         <span class="k">except</span> <span class="p">(</span><span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
             <span class="c1"># File access issues - warn but continue</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Could not load sample configuration file: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;Simulation will use data from df_state_init instead.&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"Could not load sample configuration file: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+                <span class="s2">"Simulation will use data from df_state_init instead."</span><span class="p">,</span>
                 <span class="ne">UserWarning</span><span class="p">,</span>
                 <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
             <span class="c1"># Other unexpected errors - warn but continue</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Unexpected error loading sample configuration: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;Simulation will use data from df_state_init instead.&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"Unexpected error loading sample configuration: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+                <span class="s2">"Simulation will use data from df_state_init instead."</span><span class="p">,</span>
                 <span class="ne">UserWarning</span><span class="p">,</span>
                 <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
             <span class="p">)</span>
@@ -1365,8 +1379,8 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
             <span class="k">return</span> <span class="n">SUEWSCheckpoint</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-            <span class="s2">&quot;checkpoint must be a SUEWSCheckpoint, str, or Path, &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="s2">"checkpoint must be a SUEWSCheckpoint, str, or Path, "</span>
+            <span class="sa">f</span><span class="s2">"got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span>
         <span class="p">)</span>
 
 <div class="viewcode-block" id="SUEWSSimulation.from_checkpoint">
@@ -1376,12 +1390,12 @@
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">SUEWSConfig</span><span class="p">],</span>
         <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">],</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a continuation simulation from YAML config and checkpoint.&quot;&quot;&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create a continuation simulation from YAML config and checkpoint."""</span>
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;Checkpoint continuation requires a YAML/SUEWSConfig &quot;</span>
-                <span class="s2">&quot;configuration as well as the checkpoint.&quot;</span>
+                <span class="s2">"Checkpoint continuation requires a YAML/SUEWSConfig "</span>
+                <span class="s2">"configuration as well as the checkpoint."</span>
             <span class="p">)</span>
 
         <span class="n">sim</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
@@ -1395,13 +1409,13 @@
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.continue_from">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">continue_from</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use a typed checkpoint as the initial runtime state.&quot;&quot;&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Use a typed checkpoint as the initial runtime state."""</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                <span class="s2">&quot;Checkpoint continuation requires a loaded configuration. &quot;</span>
-                <span class="s2">&quot;Use SUEWSSimulation.from_checkpoint(config, checkpoint) or &quot;</span>
-                <span class="s2">&quot;call update_config() before continue_from().&quot;</span>
+                <span class="s2">"Checkpoint continuation requires a loaded configuration. "</span>
+                <span class="s2">"Use SUEWSSimulation.from_checkpoint(config, checkpoint) or "</span>
+                <span class="s2">"call update_config() before continue_from()."</span>
             <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coerce_checkpoint</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
@@ -1415,7 +1429,7 @@
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_state">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_state</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create SUEWSSimulation from legacy DFState.</span>
+<span class="w">        </span><span class="sd">"""Create SUEWSSimulation from legacy DFState.</span>
 
 <span class="sd">        This compatibility adapter reads older DFState CSV/parquet/DataFrame</span>
 <span class="sd">        artifacts. New continuation workflows should use</span>
@@ -1446,14 +1460,14 @@
 <span class="sd">        Legacy import from saved file:</span>
 
 <span class="sd">        &gt;&gt;&gt; # Period 1</span>
-<span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation(&quot;config.yaml&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; sim1.update_forcing(&quot;forcing_2023.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation("config.yaml")</span>
+<span class="sd">        &gt;&gt;&gt; sim1.update_forcing("forcing_2023.txt")</span>
 <span class="sd">        &gt;&gt;&gt; sim1.run()</span>
-<span class="sd">        &gt;&gt;&gt; paths = sim1.save(&quot;output/&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; paths = sim1.save("output/")</span>
 
 <span class="sd">        &gt;&gt;&gt; # Period 2 - legacy DFState continuation</span>
-<span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_state(&quot;output/df_state.csv&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; sim2.update_forcing(&quot;forcing_2024.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_state("output/df_state.csv")</span>
+<span class="sd">        &gt;&gt;&gt; sim2.update_forcing("forcing_2024.txt")</span>
 <span class="sd">        &gt;&gt;&gt; sim2.run()</span>
 
 <span class="sd">        Legacy import from DataFrame directly:</span>
@@ -1465,13 +1479,13 @@
 <span class="sd">        &gt;&gt;&gt;</span>
 <span class="sd">        &gt;&gt;&gt; # Continue with new forcing</span>
 <span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_state(df_state_final)</span>
-<span class="sd">        &gt;&gt;&gt; sim2.update_forcing(&quot;forcing_2024.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim2.update_forcing("forcing_2024.txt")</span>
 <span class="sd">        &gt;&gt;&gt; sim2.run()</span>
 
 <span class="sd">        Load from Parquet format:</span>
 
 <span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_state(</span>
-<span class="sd">        ...     &quot;output/TestSite_SUEWS_state_final.parquet&quot;</span>
+<span class="sd">        ...     "output/TestSite_SUEWS_state_final.parquet"</span>
 <span class="sd">        ... )</span>
 
 <span class="sd">        See Also</span>
@@ -1480,11 +1494,11 @@
 <span class="sd">        save : Save simulation results and checkpoint</span>
 <span class="sd">        reset : Clear results and reset to initial state</span>
 <span class="sd">        checkpoint : Access typed checkpoint from completed simulation</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;SUEWSSimulation.from_state() is a legacy DFState compatibility &quot;</span>
-            <span class="s2">&quot;adapter. Use SUEWSSimulation.from_checkpoint(config, checkpoint) &quot;</span>
-            <span class="s2">&quot;for restart/continuation runs.&quot;</span><span class="p">,</span>
+            <span class="s2">"SUEWSSimulation.from_state() is a legacy DFState compatibility "</span>
+            <span class="s2">"adapter. Use SUEWSSimulation.from_checkpoint(config, checkpoint) "</span>
+            <span class="s2">"for restart/continuation runs."</span><span class="p">,</span>
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
             <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
         <span class="p">)</span>
@@ -1498,36 +1512,36 @@
             <span class="n">state_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
 
             <span class="k">if</span> <span class="ow">not</span> <span class="n">state_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;State file not found: </span><span class="si">{</span><span class="n">state_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"State file not found: </span><span class="si">{</span><span class="n">state_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
             <span class="c1"># Load based on file extension</span>
-            <span class="k">if</span> <span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.csv&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">".csv"</span><span class="p">:</span>
                 <span class="n">df_state_saved</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span>
                     <span class="n">state_path</span><span class="p">,</span>
                     <span class="n">header</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
                     <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                     <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="p">)</span>
-            <span class="k">elif</span> <span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.parquet&quot;</span><span class="p">:</span>
+            <span class="k">elif</span> <span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">".parquet"</span><span class="p">:</span>
                 <span class="n">df_state_saved</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">state_path</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Unsupported state file format: </span><span class="si">{</span><span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2">. &quot;</span>
-                    <span class="s2">&quot;Expected .csv or .parquet&quot;</span>
+                    <span class="sa">f</span><span class="s2">"Unsupported state file format: </span><span class="si">{</span><span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2">. "</span>
+                    <span class="s2">"Expected .csv or .parquet"</span>
                 <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;state must be str, Path, or DataFrame, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">"state must be str, Path, or DataFrame, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span>
             <span class="p">)</span>
 
         <span class="c1"># Extract last timestep as initial state for continuation</span>
         <span class="n">idx_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df_state_saved</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">)</span>
-        <span class="k">if</span> <span class="s2">&quot;datetime&quot;</span> <span class="ow">in</span> <span class="n">idx_names</span><span class="p">:</span>
-            <span class="n">datetime_level</span> <span class="o">=</span> <span class="n">idx_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;datetime&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">"datetime"</span> <span class="ow">in</span> <span class="n">idx_names</span><span class="p">:</span>
+            <span class="n">datetime_level</span> <span class="o">=</span> <span class="n">idx_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">"datetime"</span><span class="p">)</span>
             <span class="n">last_datetime</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="n">datetime_level</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_state_saved</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
                 <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">xs</span><span class="p">(</span>
-                    <span class="n">last_datetime</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">&quot;datetime&quot;</span>
+                    <span class="n">last_datetime</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">"datetime"</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="n">last_datetime</span><span class="p">]]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
@@ -1536,13 +1550,13 @@
             <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
         <span class="c1"># Check version compatibility</span>
-        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-            <span class="n">saved_version</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="p">[(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">"version"</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">)</span> <span class="ow">in</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">saved_version</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="p">[(</span><span class="s2">"version"</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">)]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">saved_version</span> <span class="o">!=</span> <span class="n">current_version</span><span class="p">:</span>
                 <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;State was saved with SUEWS version </span><span class="si">{</span><span class="n">saved_version</span><span class="si">}</span><span class="s2">, &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;but current version is </span><span class="si">{</span><span class="n">current_version</span><span class="si">}</span><span class="s2">. &quot;</span>
-                    <span class="s2">&quot;This may cause compatibility issues.&quot;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">"State was saved with SUEWS version </span><span class="si">{</span><span class="n">saved_version</span><span class="si">}</span><span class="s2">, "</span>
+                    <span class="sa">f</span><span class="s2">"but current version is </span><span class="si">{</span><span class="n">current_version</span><span class="si">}</span><span class="s2">. "</span>
+                    <span class="s2">"This may cause compatibility issues."</span><span class="p">,</span>
                     <span class="ne">UserWarning</span><span class="p">,</span>
                     <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
                 <span class="p">)</span>
@@ -1557,8 +1571,8 @@
 <div class="viewcode-block" id="SUEWSSimulation.from_output">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_output">[docs]</a>
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">from_output</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">SUEWSOutput</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create SUEWSSimulation from previous output for continuation runs.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_output</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">SUEWSOutput</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"SUEWSSimulation"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create SUEWSSimulation from previous output for continuation runs.</span>
 
 <span class="sd">        Convenience method that extracts the final state from a SUEWSOutput</span>
 <span class="sd">        object and creates a new simulation ready for continuation.</span>
@@ -1579,25 +1593,25 @@
 <span class="sd">        Seamless continuation from previous run:</span>
 
 <span class="sd">        &gt;&gt;&gt; # Run first period</span>
-<span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation(&quot;config.yaml&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; sim1.update_forcing(&quot;forcing_2023.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation("config.yaml")</span>
+<span class="sd">        &gt;&gt;&gt; sim1.update_forcing("forcing_2023.txt")</span>
 <span class="sd">        &gt;&gt;&gt; output1 = sim1.run()</span>
 
 <span class="sd">        &gt;&gt;&gt; # Continue from output checkpoint</span>
 <span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_output(output1)</span>
-<span class="sd">        &gt;&gt;&gt; sim2.update_forcing(&quot;forcing_2024.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim2.update_forcing("forcing_2024.txt")</span>
 <span class="sd">        &gt;&gt;&gt; output2 = sim2.run()</span>
 
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
 <span class="sd">        from_checkpoint : Create from YAML config and checkpoint</span>
 <span class="sd">        SUEWSOutput.checkpoint : Typed checkpoint property for restart</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                    <span class="s2">&quot;SUEWSOutput has a checkpoint but no configuration. &quot;</span>
-                    <span class="s2">&quot;Use SUEWSSimulation.from_checkpoint(config, checkpoint).&quot;</span>
+                    <span class="s2">"SUEWSOutput has a checkpoint but no configuration. "</span>
+                    <span class="s2">"Use SUEWSSimulation.from_checkpoint(config, checkpoint)."</span>
                 <span class="p">)</span>
             <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span>
                 <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">config</span><span class="p">),</span>
@@ -1605,8 +1619,8 @@
             <span class="p">)</span>
 
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;SUEWSSimulation.from_output() is falling back to legacy DFState. &quot;</span>
-            <span class="s2">&quot;Prefer SUEWSSimulation.from_checkpoint(config, output.checkpoint).&quot;</span><span class="p">,</span>
+            <span class="s2">"SUEWSSimulation.from_output() is falling back to legacy DFState. "</span>
+            <span class="s2">"Prefer SUEWSSimulation.from_checkpoint(config, output.checkpoint)."</span><span class="p">,</span>
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
             <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
         <span class="p">)</span>
@@ -1614,7 +1628,7 @@
 
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Concise representation showing simulation status.</span>
+<span class="w">        </span><span class="sd">"""Concise representation showing simulation status.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1634,26 +1648,26 @@
 <span class="sd">        &gt;&gt;&gt; sim.run()</span>
 <span class="sd">        &gt;&gt;&gt; sim</span>
 <span class="sd">        SUEWSSimulation(Complete: 105408 results)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span><span class="p">:</span>
             <span class="n">n_results</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SUEWSSimulation(Complete: </span><span class="si">{</span><span class="n">n_results</span><span class="si">}</span><span class="s2"> results)&quot;</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"SUEWSSimulation(Complete: </span><span class="si">{</span><span class="n">n_results</span><span class="si">}</span><span class="s2"> results)"</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">n_sites</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">)</span>
             <span class="n">n_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="p">)</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SUEWSSimulation(Ready: </span><span class="si">{</span><span class="n">n_sites</span><span class="si">}</span><span class="s2"> site(s), </span><span class="si">{</span><span class="n">n_timesteps</span><span class="si">}</span><span class="s2"> timesteps)&quot;</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"SUEWSSimulation(Ready: </span><span class="si">{</span><span class="n">n_sites</span><span class="si">}</span><span class="s2"> site(s), </span><span class="si">{</span><span class="n">n_timesteps</span><span class="si">}</span><span class="s2"> timesteps)"</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">missing</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">missing</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;config&quot;</span><span class="p">)</span>
+                <span class="n">missing</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"config"</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">missing</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;forcing&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SUEWSSimulation(Not configured: missing </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="n">missing</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"forcing"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"SUEWSSimulation(Not configured: missing </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2">)"</span>
 
 <div class="viewcode-block" id="SUEWSSimulation.is_ready">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.is_ready">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if simulation is configured and ready to run.</span>
+<span class="w">        </span><span class="sd">"""Check if simulation is configured and ready to run.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1669,14 +1683,14 @@
 <span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
 <span class="sd">        &gt;&gt;&gt; sim.is_ready()</span>
 <span class="sd">        True</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
 
 
 <div class="viewcode-block" id="SUEWSSimulation.is_complete">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.is_complete">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if simulation has been run successfully.</span>
+<span class="w">        </span><span class="sd">"""Check if simulation has been run successfully.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1692,7 +1706,7 @@
 <span class="sd">        &gt;&gt;&gt; sim.run()</span>
 <span class="sd">        &gt;&gt;&gt; sim.is_complete()</span>
 <span class="sd">        True</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span></div>
 
 
@@ -1704,7 +1718,7 @@
         <span class="n">group</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">site</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract specific variable from simulation results.</span>
+<span class="w">        </span><span class="sd">"""Extract specific variable from simulation results.</span>
 
 <span class="sd">        Convenience method to extract variables from the MultiIndex column structure</span>
 <span class="sd">        without needing to understand the internal data layout.</span>
@@ -1712,7 +1726,7 @@
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        var_name : str</span>
-<span class="sd">            Variable name to extract (e.g., &#39;QH&#39;, &#39;QE&#39;, &#39;Tair&#39;).</span>
+<span class="sd">            Variable name to extract (e.g., 'QH', 'QE', 'Tair').</span>
 <span class="sd">        group : str, optional</span>
 <span class="sd">            Output group name if variable appears in multiple groups.</span>
 <span class="sd">            If None and variable is in multiple groups, raises ValueError.</span>
@@ -1727,7 +1741,7 @@
 <span class="sd">        Raises</span>
 <span class="sd">        ------</span>
 <span class="sd">        RuntimeError</span>
-<span class="sd">            If simulation hasn&#39;t been run yet.</span>
+<span class="sd">            If simulation hasn't been run yet.</span>
 <span class="sd">        ValueError</span>
 <span class="sd">            If variable name not found in results, or if variable is ambiguous</span>
 <span class="sd">            (appears in multiple groups) and no group specified.</span>
@@ -1738,73 +1752,73 @@
 
 <span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
 <span class="sd">        &gt;&gt;&gt; sim.run()</span>
-<span class="sd">        &gt;&gt;&gt; qh = sim.get_variable(&quot;QH&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; qh = sim.get_variable("QH")</span>
 <span class="sd">        &gt;&gt;&gt; qh.plot()  # Quick visualisation</span>
 
 <span class="sd">        Handle variables in multiple groups:</span>
 
-<span class="sd">        &gt;&gt;&gt; # If &#39;Tair&#39; appears in both &#39;forcing&#39; and &#39;output&#39; groups:</span>
-<span class="sd">        &gt;&gt;&gt; tair = sim.get_variable(&quot;Tair&quot;, group=&quot;output&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; # If 'Tair' appears in both 'forcing' and 'output' groups:</span>
+<span class="sd">        &gt;&gt;&gt; tair = sim.get_variable("Tair", group="output")</span>
 
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
 <span class="sd">        results : Full simulation output DataFrame</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No results available. Run simulation first.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"No results available. Run simulation first."</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Results DataFrame is None&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"Results DataFrame is None"</span><span class="p">)</span>
 
         <span class="c1"># Check if variable exists in results</span>
-        <span class="n">all_vars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;var&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+        <span class="n">all_vars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"var"</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">var_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_vars</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; not found. &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;Available variables: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">all_vars</span><span class="p">[:</span><span class="mi">10</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="o">+</span> <span class="p">(</span><span class="s2">&quot;...&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_vars</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="sa">f</span><span class="s2">"Variable '</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">' not found. "</span>
+                <span class="sa">f</span><span class="s2">"Available variables: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">all_vars</span><span class="p">[:</span><span class="mi">10</span><span class="p">])</span><span class="si">}</span><span class="s2">"</span>
+                <span class="o">+</span> <span class="p">(</span><span class="s2">"..."</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_vars</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span>
             <span class="p">)</span>
 
         <span class="c1"># Check if variable appears in multiple groups</span>
         <span class="n">matching_groups</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">grp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">grp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"group"</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="c1"># Check if this group contains the variable</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">xs</span><span class="p">((</span><span class="n">grp</span><span class="p">,</span> <span class="n">var_name</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">,</span> <span class="s2">&quot;var&quot;</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">xs</span><span class="p">((</span><span class="n">grp</span><span class="p">,</span> <span class="n">var_name</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="p">(</span><span class="s2">"group"</span><span class="p">,</span> <span class="s2">"var"</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
                 <span class="n">matching_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">grp</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
                 <span class="k">continue</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="c1"># Should not happen if var_name was found above</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; not found in any group&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Variable '</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">' not found in any group"</span><span class="p">)</span>
 
         <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="c1"># Variable is ambiguous - need group specification</span>
             <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; appears in multiple groups: &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span><span class="si">}</span><span class="s2">. &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;Specify group parameter (e.g., group=&#39;</span><span class="si">{</span><span class="n">matching_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;)&quot;</span>
+                    <span class="sa">f</span><span class="s2">"Variable '</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">' appears in multiple groups: "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span><span class="si">}</span><span class="s2">. "</span>
+                    <span class="sa">f</span><span class="s2">"Specify group parameter (e.g., group='</span><span class="si">{</span><span class="n">matching_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">')"</span>
                 <span class="p">)</span>
             <span class="k">elif</span> <span class="n">group</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">matching_groups</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; not found in group &#39;</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;Available groups for this variable: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">"Variable '</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">' not found in group '</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">'. "</span>
+                    <span class="sa">f</span><span class="s2">"Available groups for this variable: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
                 <span class="p">)</span>
             <span class="c1"># Extract from specified group</span>
             <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">xs</span><span class="p">(</span>
-                <span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">var_name</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">,</span> <span class="s2">&quot;var&quot;</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+                <span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">var_name</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="p">(</span><span class="s2">"group"</span><span class="p">,</span> <span class="s2">"var"</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
             <span class="p">)</span>
 
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Variable is in only one group</span>
             <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">group</span> <span class="o">!=</span> <span class="n">matching_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; only exists in group &#39;</span><span class="si">{</span><span class="n">matching_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;, &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;not in &#39;</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+                    <span class="sa">f</span><span class="s2">"Variable '</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">' only exists in group '</span><span class="si">{</span><span class="n">matching_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">', "</span>
+                    <span class="sa">f</span><span class="s2">"not in '</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">'"</span>
                 <span class="p">)</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">xs</span><span class="p">(</span><span class="n">var_name</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">&quot;var&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">xs</span><span class="p">(</span><span class="n">var_name</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">"var"</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="c1"># Filter by site if requested</span>
         <span class="k">if</span> <span class="n">site</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1818,7 +1832,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSConfig</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access to simulation configuration.</span>
+<span class="w">        </span><span class="sd">"""Access to simulation configuration.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1830,12 +1844,12 @@
 <span class="sd">        --------</span>
 <span class="sd">        update_config : Load or update configuration</span>
 <span class="sd">        state_init : Access initial state derived from configuration</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">forcing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSForcing</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access to forcing data as SUEWSForcing object.</span>
+<span class="w">        </span><span class="sd">"""Access to forcing data as SUEWSForcing object.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1854,7 +1868,7 @@
 <span class="sd">        &gt;&gt;&gt; sim.forcing.summary()  # Get forcing statistics</span>
 <span class="sd">        &gt;&gt;&gt; sim.forcing.Tair  # Access air temperature</span>
 <span class="sd">        &gt;&gt;&gt; sim.forcing.df  # Access raw DataFrame</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="n">df_main</span><span class="p">,</span> <span class="n">extras</span> <span class="o">=</span> <span class="n">SUEWSForcing</span><span class="o">.</span><span class="n">_split_per_landcover_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="p">)</span>
@@ -1864,7 +1878,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">results</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access to simulation results DataFrame (raw).</span>
+<span class="w">        </span><span class="sd">"""Access to simulation results DataFrame (raw).</span>
 
 <span class="sd">        .. deprecated:: 2025.1</span>
 <span class="sd">            Use ``output = sim.run()`` to get a ``SUEWSOutput`` object,</span>
@@ -1874,7 +1888,7 @@
 <span class="sd">        -------</span>
 <span class="sd">        pandas.DataFrame or None</span>
 <span class="sd">            Complete simulation output with all variable groups.</span>
-<span class="sd">            None if simulation hasn&#39;t been run yet.</span>
+<span class="sd">            None if simulation hasn't been run yet.</span>
 
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
@@ -1882,11 +1896,11 @@
 <span class="sd">        :ref:`df_output_var` : Complete output data structure and variable descriptions</span>
 <span class="sd">        get_variable : Extract specific variables from output groups</span>
 <span class="sd">        save : Save results to files</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;sim.results is deprecated and will be removed in version 2026.1. &quot;</span>
-            <span class="s2">&quot;Use &#39;output = sim.run()&#39; to get a SUEWSOutput &quot;</span>
-            <span class="s2">&quot;object, then &#39;output.df&#39; for the raw DataFrame if needed.&quot;</span><span class="p">,</span>
+            <span class="s2">"sim.results is deprecated and will be removed in version 2026.1. "</span>
+            <span class="s2">"Use 'output = sim.run()' to get a SUEWSOutput "</span>
+            <span class="s2">"object, then 'output.df' for the raw DataFrame if needed."</span><span class="p">,</span>
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
             <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
         <span class="p">)</span>
@@ -1894,7 +1908,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">output</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSOutput</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access to simulation results as SUEWSOutput object.</span>
+<span class="w">        </span><span class="sd">"""Access to simulation results as SUEWSOutput object.</span>
 
 <span class="sd">        .. note::</span>
 <span class="sd">            Preferred pattern is ``output = sim.run()`` which returns the</span>
@@ -1905,7 +1919,7 @@
 <span class="sd">        -------</span>
 <span class="sd">        SUEWSOutput or None</span>
 <span class="sd">            Simulation results wrapped in OOP interface with analysis</span>
-<span class="sd">            and plotting convenience methods. None if simulation hasn&#39;t</span>
+<span class="sd">            and plotting convenience methods. None if simulation hasn't</span>
 <span class="sd">            been run yet.</span>
 
 <span class="sd">        See Also</span>
@@ -1926,7 +1940,7 @@
 <span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
 <span class="sd">        &gt;&gt;&gt; sim.run()</span>
 <span class="sd">        &gt;&gt;&gt; sim.output.QH  # Re-access via property</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="n">SUEWSOutput</span><span class="p">(</span>
@@ -1938,7 +1952,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">state_init</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initial state DataFrame for simulation.</span>
+<span class="w">        </span><span class="sd">"""Initial state DataFrame for simulation.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1957,12 +1971,12 @@
 <span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
 <span class="sd">        &gt;&gt;&gt; sim.state_init.shape</span>
 <span class="sd">        (1, 1403)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">state_final</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Legacy final state DataFrame after simulation.</span>
+<span class="w">        </span><span class="sd">"""Legacy final state DataFrame after simulation.</span>
 
 <span class="sd">        Prefer ``checkpoint`` for restart/continuation workflows.</span>
 
@@ -1970,7 +1984,7 @@
 <span class="sd">        -------</span>
 <span class="sd">        pandas.DataFrame or None</span>
 <span class="sd">            Legacy final state after simulation run.</span>
-<span class="sd">            None if simulation hasn&#39;t been run yet.</span>
+<span class="sd">            None if simulation hasn't been run yet.</span>
 
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
@@ -1986,17 +2000,17 @@
 <span class="sd">        &gt;&gt;&gt; sim.run()</span>
 <span class="sd">        &gt;&gt;&gt; sim.state_final is not None</span>
 <span class="sd">        True</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSCheckpoint</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Typed checkpoint produced by the most recent run.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Typed checkpoint produced by the most recent run."""</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">state_checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSCheckpoint</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Alias for ``checkpoint``.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Alias for ``checkpoint``."""</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span></div>
 
 </pre></div>
@@ -2052,7 +2066,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -2066,8 +2080,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

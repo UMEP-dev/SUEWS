@@ -26,22 +26,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../../_static/documentation_options.js?v=72daed37"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
@@ -49,6 +49,7 @@
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/_env';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
@@ -56,20 +57,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -95,7 +102,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -488,11 +495,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -545,23 +559,23 @@
 <span class="c1">########################################################################</span>
 <span class="c1"># get Traversable object for loading resources in this package</span>
 <span class="c1"># this can be used similarly as `pathlib.Path` object</span>
-<span class="n">trv_supy_module</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">&quot;supy&quot;</span><span class="p">)</span>
+<span class="n">trv_supy_module</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">"supy"</span><span class="p">)</span>
 
 <span class="c1"># set up logger format, note `u` to guarantee UTF-8 encoding</span>
-<span class="n">FORMATTER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> - </span><span class="si">%(name)s</span><span class="s2"> - </span><span class="si">%(levelname)s</span><span class="s2"> - </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">FORMATTER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s2">"</span><span class="si">%(asctime)s</span><span class="s2"> - </span><span class="si">%(name)s</span><span class="s2"> - </span><span class="si">%(levelname)s</span><span class="s2"> - </span><span class="si">%(message)s</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># default log file name; only written when file logging is opted into</span>
-<span class="n">LOG_FILE</span> <span class="o">=</span> <span class="s2">&quot;SuPy.log&quot;</span>
+<span class="n">LOG_FILE</span> <span class="o">=</span> <span class="s2">"SuPy.log"</span>
 
 <span class="c1"># Environment variables to opt in to file logging. By default supy logs only to</span>
 <span class="c1"># the console -- no SuPy.log is created -- unless one of these is set or</span>
 <span class="c1"># `enable_file_logging()` is called explicitly. This avoids dropping a stray</span>
 <span class="c1"># (often empty) SuPy.log into whatever directory a script happens to run from.</span>
-<span class="n">ENV_LOGFILE</span> <span class="o">=</span> <span class="s2">&quot;SUPY_LOGFILE&quot;</span>  <span class="c1"># explicit path to the log file</span>
-<span class="n">ENV_LOG_DIR</span> <span class="o">=</span> <span class="s2">&quot;SUPY_LOG_DIR&quot;</span>  <span class="c1"># directory; the file is &lt;dir&gt;/SuPy.log</span>
+<span class="n">ENV_LOGFILE</span> <span class="o">=</span> <span class="s2">"SUPY_LOGFILE"</span>  <span class="c1"># explicit path to the log file</span>
+<span class="n">ENV_LOG_DIR</span> <span class="o">=</span> <span class="s2">"SUPY_LOG_DIR"</span>  <span class="c1"># directory; the file is &lt;dir&gt;/SuPy.log</span>
 
 <span class="c1"># issue reporting URL</span>
-<span class="n">ISSUES_URL</span> <span class="o">=</span> <span class="s2">&quot;https://github.com/UMEP-dev/SUEWS/issues/new&quot;</span>
+<span class="n">ISSUES_URL</span> <span class="o">=</span> <span class="s2">"https://github.com/UMEP-dev/SUEWS/issues/new"</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">get_console_handler</span><span class="p">():</span>
@@ -576,9 +590,9 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_coerce_logfile_path</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve a user-supplied location to a concrete log-file path.</span>
+<span class="w">    </span><span class="sd">"""Resolve a user-supplied location to a concrete log-file path.</span>
 
-<span class="sd">    A leading ``~`` is expanded to the user&#39;s home directory. The path is</span>
+<span class="sd">    A leading ``~`` is expanded to the user's home directory. The path is</span>
 <span class="sd">    treated as a directory (the default ``SuPy.log`` name is appended) only</span>
 <span class="sd">    when it already exists as a directory or is written with a trailing</span>
 <span class="sd">    separator; otherwise it is taken as the log-file path itself.</span>
@@ -593,23 +607,23 @@
 <span class="sd">    -------</span>
 <span class="sd">    pathlib.Path</span>
 <span class="sd">        The resolved log-file path.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">raw</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="n">path_logfile</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">path_logfile</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span> <span class="ow">or</span> <span class="n">raw</span><span class="o">.</span><span class="n">endswith</span><span class="p">((</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="n">path_logfile</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span> <span class="ow">or</span> <span class="n">raw</span><span class="o">.</span><span class="n">endswith</span><span class="p">((</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">,</span> <span class="s2">"/"</span><span class="p">)):</span>
         <span class="k">return</span> <span class="n">path_logfile</span> <span class="o">/</span> <span class="n">LOG_FILE</span>
     <span class="k">return</span> <span class="n">path_logfile</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_env_logfile</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the opt-in log-file path requested via environment, or ``None``.</span>
+<span class="w">    </span><span class="sd">"""Return the opt-in log-file path requested via environment, or ``None``.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    pathlib.Path or None</span>
 <span class="sd">        Path from ``SUPY_LOGFILE`` (preferred) or ``SUPY_LOG_DIR``; ``None``</span>
 <span class="sd">        when neither is set.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">env_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_LOGFILE</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">env_file</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">env_file</span><span class="p">)</span>
@@ -620,7 +634,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">get_file_handler</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a rotating file handler that defers file creation.</span>
+<span class="w">    </span><span class="sd">"""Build a rotating file handler that defers file creation.</span>
 
 <span class="sd">    ``delay=True`` means the underlying file is opened only when the first</span>
 <span class="sd">    record is emitted, so merely constructing the handler -- or importing</span>
@@ -636,7 +650,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    logging.handlers.TimedRotatingFileHandler</span>
 <span class="sd">        A handler configured for daily rotation at midnight, UTF-8 encoded.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">path_logfile</span> <span class="o">=</span> <span class="n">_coerce_logfile_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">Path</span><span class="p">(</span><span class="n">LOG_FILE</span><span class="p">)</span>
     <span class="n">log_dir</span> <span class="o">=</span> <span class="n">path_logfile</span><span class="o">.</span><span class="n">parent</span>
 
@@ -650,8 +664,8 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">log_dir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">W_OK</span><span class="p">):</span>
         <span class="n">path_fallback</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">())</span> <span class="o">/</span> <span class="n">path_logfile</span><span class="o">.</span><span class="n">name</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Log directory &#39;</span><span class="si">{</span><span class="n">log_dir</span><span class="si">}</span><span class="s2">&#39; is not writable; &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;writing SuPy log to &#39;</span><span class="si">{</span><span class="n">path_fallback</span><span class="si">}</span><span class="s2">&#39; instead&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"Log directory '</span><span class="si">{</span><span class="n">log_dir</span><span class="si">}</span><span class="s2">' is not writable; "</span>
+            <span class="sa">f</span><span class="s2">"writing SuPy log to '</span><span class="si">{</span><span class="n">path_fallback</span><span class="si">}</span><span class="s2">' instead"</span><span class="p">,</span>
             <span class="ne">UserWarning</span><span class="p">,</span>
             <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
         <span class="p">)</span>
@@ -659,8 +673,8 @@
 
     <span class="n">file_handler</span> <span class="o">=</span> <span class="n">TimedRotatingFileHandler</span><span class="p">(</span>
         <span class="n">path_logfile</span><span class="p">,</span>
-        <span class="n">when</span><span class="o">=</span><span class="s2">&quot;midnight&quot;</span><span class="p">,</span>
-        <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+        <span class="n">when</span><span class="o">=</span><span class="s2">"midnight"</span><span class="p">,</span>
+        <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">,</span>
         <span class="n">delay</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">file_handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">FORMATTER</span><span class="p">)</span>
@@ -675,13 +689,13 @@
     <span class="c1"># File logging is opt-in: no file handler is attached by default (see</span>
     <span class="c1"># `enable_file_logging` and the SUPY_LOGFILE / SUPY_LOG_DIR env vars).</span>
 
-    <span class="c1"># with this pattern, it&#39;s rarely necessary to propagate the error up to parent</span>
+    <span class="c1"># with this pattern, it's rarely necessary to propagate the error up to parent</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">propagate</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="k">return</span> <span class="n">logger</span>
 
 
-<span class="n">logger_supy</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">(</span><span class="s2">&quot;SuPy&quot;</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
-<span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;a debug message from SuPy&quot;</span><span class="p">)</span>
+<span class="n">logger_supy</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">(</span><span class="s2">"SuPy"</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"a debug message from SuPy"</span><span class="p">)</span>
 
 <span class="c1"># Reference to the active opt-in file handler (None until file logging is on).</span>
 <span class="n">_file_handler</span> <span class="o">=</span> <span class="kc">None</span>
@@ -690,7 +704,7 @@
 <div class="viewcode-block" id="enable_file_logging">
 <a class="viewcode-back" href="../../api/_autosummary/supy.enable_file_logging.html#supy.enable_file_logging">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">enable_file_logging</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write SuPy log messages to a file (opt-in).</span>
+<span class="w">    </span><span class="sd">"""Write SuPy log messages to a file (opt-in).</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -710,9 +724,9 @@
 <span class="sd">    Notes</span>
 <span class="sd">    -----</span>
 <span class="sd">    Calling this again after file logging is already enabled is a no-op; the</span>
-<span class="sd">    existing handler&#39;s path is returned. Call :func:`disable_file_logging`</span>
+<span class="sd">    existing handler's path is returned. Call :func:`disable_file_logging`</span>
 <span class="sd">    first to switch to a different file.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">global</span> <span class="n">_file_handler</span>
     <span class="k">if</span> <span class="n">_file_handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">_file_handler</span><span class="o">.</span><span class="n">baseFilename</span><span class="p">)</span>
@@ -726,12 +740,12 @@
 <div class="viewcode-block" id="disable_file_logging">
 <a class="viewcode-back" href="../../api/_autosummary/supy.disable_file_logging.html#supy.disable_file_logging">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">disable_file_logging</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Detach and close the opt-in file handler, if one is active.</span>
+<span class="w">    </span><span class="sd">"""Detach and close the opt-in file handler, if one is active.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    None</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">global</span> <span class="n">_file_handler</span>
     <span class="k">if</span> <span class="n">_file_handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">logger_supy</span><span class="o">.</span><span class="n">removeHandler</span><span class="p">(</span><span class="n">_file_handler</span><span class="p">)</span>
@@ -804,7 +818,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -818,8 +832,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

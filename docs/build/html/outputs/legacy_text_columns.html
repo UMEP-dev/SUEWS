@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-10T09:33:20+00:00" />
+    <meta property="article:modified_time" content="2026-10-21T16:09:52+00:00" />
     <title>5.5. Legacy Text Column Reference &#8212; SUEWS 2026.6.5 documentation</title>
   
   
@@ -28,22 +28,22 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
     <script src="../_static/documentation_options.js?v=72daed37"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
@@ -51,6 +51,7 @@
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'outputs/legacy_text_columns';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -60,21 +61,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.6.5" />
-    <meta name="docbuild:last-update" content="2026-06-10"/>
+    <meta name="docbuild:last-update" content="2026-10-21"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -100,7 +107,7 @@
 </div>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -556,11 +563,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -588,7 +602,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-diagnostic-information">5.5.1. Runtime diagnostic information</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-messages-problems-txt">5.5.1.1. Error messages: problems.txt</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#warning-messages-warnings-txt">5.5.1.2. Warning messages: warnings.txt</a></li>
@@ -851,12 +865,12 @@ configuration.</p>
 <tr class="row-even"><td><p>19</p></td>
 <td><p>Rain</p></td>
 <td><p>0,1,2</p></td>
-<td><p>Rain [mm]</p></td>
+<td><p>Precipitation from the meteorological forcing [mm]</p></td>
 </tr>
 <tr class="row-odd"><td><p>20</p></td>
 <td><p>Irr</p></td>
 <td><p>0,1,2</p></td>
-<td><p>Irrigation [mm]</p></td>
+<td><p>External water use: total water use minus internal water use, not below zero [mm]</p></td>
 </tr>
 <tr class="row-even"><td><p>21</p></td>
 <td><p>Evap</p></td>
@@ -866,7 +880,7 @@ configuration.</p>
 <tr class="row-odd"><td><p>22</p></td>
 <td><p>RO</p></td>
 <td><p>0,1,2</p></td>
-<td><p>Runoff [mm]</p></td>
+<td><p>Total runoff generated by all surfaces, before routing to pipes, above-ground flooding or the water surface [mm]</p></td>
 </tr>
 <tr class="row-even"><td><p>23</p></td>
 <td><p>TotCh</p></td>
@@ -911,7 +925,7 @@ configuration.</p>
 <tr class="row-even"><td><p>31</p></td>
 <td><p>ROSoil</p></td>
 <td><p>0,1</p></td>
-<td><p>Runoff to soil (sub-surface) [mm]</p></td>
+<td><p>Overflow from full soil stores during lateral exchange, outside RO [mm]</p></td>
 </tr>
 <tr class="row-odd"><td><p>32</p></td>
 <td><p>ROPipe</p></td>
@@ -1392,15 +1406,15 @@ written for each grid so it may contain multiple years.</p>
 </tr>
 <tr class="row-odd"><td><p>46</p></td>
 <td><p>a1</p></td>
-<td><p>OHM cofficient a1 - [-]</p></td>
+<td><p>OHM coefficient a1 (multiplies net all-wave radiation) [-]</p></td>
 </tr>
 <tr class="row-even"><td><p>47</p></td>
 <td><p>a2</p></td>
-<td><p>OHM cofficient a2 [W m<sup>-2</sup> h<sup>-1</sup>]</p></td>
+<td><p>OHM coefficient a2 (multiplies the rate of change of net all-wave radiation) [h]</p></td>
 </tr>
 <tr class="row-odd"><td><p>48</p></td>
 <td><p>a3</p></td>
-<td><p>OHM cofficient a3 - [W m<sup>-2</sup>]</p></td>
+<td><p>OHM coefficient a3 (constant term) [W m<sup>-2</sup>]</p></td>
 </tr>
 </tbody>
 </table>
@@ -2478,7 +2492,7 @@ written for each grid so it may contain multiple years.</p>
 </section>
 <section id="ssss-yyyy-estm-tt-txt">
 <h4><span class="section-number">5.5.2.2.7. </span>SSss_YYYY_ESTM_TT.txt<a class="headerlink" href="#ssss-yyyy-estm-tt-txt" title="Link to this heading">#</a></h4>
-<p>If the ESTM model option is run, the following output file is created.</p>
+<p>ESTM is not operational in this release: selecting it crashes the run, and in runs that complete the ESTM group holds missing values. This section describes the file the option was designed to produce.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>First time steps of storage output could give NaN values during the initial converging phase.</p>
@@ -2489,8 +2503,8 @@ written for each grid so it may contain multiple years.</p>
 <dt><strong>Temperature Layers (5 layers each):</strong></dt><dd><ul class="simple">
 <li><p><strong>Twall1-5</strong>: Wall temperatures from outer-most (1) to inner-most (5) layer</p></li>
 <li><p><strong>Troof1-5</strong>: Roof temperatures from outer-most (1) to inner-most (5) layer</p></li>
-<li><p><strong>Tground1-5</strong>: Ground temperatures from outer-most (1) to inner-most (5) layer</p></li>
-<li><p><strong>Tibld1-5</strong>: Internal building element temperatures</p></li>
+<li><p><strong>Tground1-5</strong>: Ground temperatures from the uppermost (1) to the deepest (5) layer</p></li>
+<li><p><strong>Tibld1-5</strong>: Internal building element temperatures (layers 1 and 5 face indoor air, layer 3 is the centre)</p></li>
 </ul>
 </dd>
 <dt><strong>Key Temperature Variables:</strong></dt><dd><ul class="simple">
@@ -2504,9 +2518,9 @@ written for each grid so it may contain multiple years.</p>
 </div>
 <dl class="simple">
 <dt><strong>Storage Heat Fluxes:</strong></dt><dd><ul class="simple">
-<li><p><strong>QSnet</strong>: Net storage heat flux (sum of all components)</p></li>
+<li><p><strong>QSnet</strong>: Storage heat flux, the sum of QSwall, QSroof, QSground and QSibld (QSair is excluded)</p></li>
 <li><p><strong>QSwall/QSroof/QSground</strong>: Component-specific storage fluxes</p></li>
-<li><p><strong>QSair</strong>: Storage heat flux into air</p></li>
+<li><p><strong>QSair</strong>: Heat storage rate in outdoor air below twice the mean building height</p></li>
 <li><p><strong>QSibld</strong>: Storage heat flux into internal building elements</p></li>
 </ul>
 </dd>
@@ -2558,12 +2572,12 @@ written for each grid so it may contain multiple years.</p>
 </tr>
 <tr class="row-odd"><td><p>6</p></td>
 <td><p>QSnet</p></td>
-<td><p>Net storage heat flux (QSwall+QSground+QS)</p></td>
+<td><p>Storage heat flux: sum of QSwall, QSroof, QSground and QSibld, excluding QSair (positive into storage)</p></td>
 <td><p>W m<sup>-2</sup></p></td>
 </tr>
 <tr class="row-even"><td><p>7</p></td>
 <td><p>QSair</p></td>
-<td><p>Storage heat flux into air</p></td>
+<td><p>Heat storage rate in outdoor air below twice the mean building height (not included in QSnet)</p></td>
 <td><p>W m<sup>-2</sup></p></td>
 </tr>
 <tr class="row-odd"><td><p>8</p></td>
@@ -2588,102 +2602,102 @@ written for each grid so it may contain multiple years.</p>
 </tr>
 <tr class="row-odd"><td><p>12</p></td>
 <td><p>Twall1</p></td>
-<td><p>Temperature in the first layer of wall (outer-most)</p></td>
+<td><p>Temperature in wall layer 1 (outermost, next to the outdoor surface)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>13</p></td>
 <td><p>Twall2</p></td>
-<td><p>Temperature in the first layer of wall</p></td>
+<td><p>Temperature in wall layer 2 (outer-middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>14</p></td>
 <td><p>Twall3</p></td>
-<td><p>Temperature in the first layer of wall</p></td>
+<td><p>Temperature in wall layer 3 (middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>15</p></td>
 <td><p>Twall4</p></td>
-<td><p>Temperature in the first layer of wall</p></td>
+<td><p>Temperature in wall layer 4 (inner-middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>16</p></td>
 <td><p>Twall5</p></td>
-<td><p>Temperature in the first layer of wall (inner-most)</p></td>
+<td><p>Temperature in wall layer 5 (innermost, next to the indoor surface)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>17</p></td>
 <td><p>Troof1</p></td>
-<td><p>Temperature in the first layer of roof (outer-most)</p></td>
+<td><p>Temperature in roof layer 1 (outermost, next to the outdoor surface)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>18</p></td>
 <td><p>Troof2</p></td>
-<td><p>Temperature in the first layer of roof</p></td>
+<td><p>Temperature in roof layer 2 (outer-middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>19</p></td>
 <td><p>Troof3</p></td>
-<td><p>Temperature in the first layer of roof</p></td>
+<td><p>Temperature in roof layer 3 (middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>20</p></td>
 <td><p>Troof4</p></td>
-<td><p>Temperature in the first layer of roof</p></td>
+<td><p>Temperature in roof layer 4 (inner-middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>21</p></td>
 <td><p>Troof5</p></td>
-<td><p>Temperature in the first layer of ground (inner-most)</p></td>
+<td><p>Temperature in roof layer 5 (innermost, next to the indoor surface)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>22</p></td>
 <td><p>Tground1</p></td>
-<td><p>Temperature in the first layer of ground (outer-most)</p></td>
+<td><p>Temperature in ground layer 1 (uppermost, next to the ground surface)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>23</p></td>
 <td><p>Tground2</p></td>
-<td><p>Temperature in the first layer of ground</p></td>
+<td><p>Temperature in ground layer 2 (upper-middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>24</p></td>
 <td><p>Tground3</p></td>
-<td><p>Temperature in the first layer of ground</p></td>
+<td><p>Temperature in ground layer 3 (middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>25</p></td>
 <td><p>Tground4</p></td>
-<td><p>Temperature in the first layer of ground</p></td>
+<td><p>Temperature in ground layer 4 (lower-middle)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>26</p></td>
 <td><p>Tground5</p></td>
-<td><p>Temperature in the first layer of ground (inner-most)</p></td>
+<td><p>Temperature in ground layer 5 (deepest, next to the lower soil boundary)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>27</p></td>
 <td><p>Tibld1</p></td>
-<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>Temperature in internal building element layer 1 (surface layer, facing indoor air)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>28</p></td>
 <td><p>Tibld2</p></td>
-<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>Temperature in internal building element layer 2 (between surface and centre)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>29</p></td>
 <td><p>Tibld3</p></td>
-<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>Temperature in internal building element layer 3 (centre)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>30</p></td>
 <td><p>Tibld4</p></td>
-<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>Temperature in internal building element layer 4 (between surface and centre)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-even"><td><p>31</p></td>
 <td><p>Tibld5</p></td>
-<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>Temperature in internal building element layer 5 (surface layer, facing indoor air)</p></td>
 <td><p>K</p></td>
 </tr>
 <tr class="row-odd"><td><p>32</p></td>
@@ -3452,7 +3466,7 @@ written for each grid so it may contain multiple years.</p>
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-diagnostic-information">5.5.1. Runtime diagnostic information</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-messages-problems-txt">5.5.1.1. Error messages: problems.txt</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#warning-messages-warnings-txt">5.5.1.2. Warning messages: warnings.txt</a></li>
@@ -3507,7 +3521,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-10.
+  Last updated on 2026-10-21.
   <br/>
 </p>
   </div>
@@ -3516,7 +3530,7 @@ By SUEWS dev team led by Prof Sue Grimmond
     
 <div class="extra_footer">
   <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/da3f6ff4250839e826b4a7701ee9b082f8aee259">da3f6ff</a> |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/59468d1280acc4ba3d94c27478fcb0f248adb260">59468d1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -3530,8 +3544,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

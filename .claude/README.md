@@ -14,7 +14,9 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   │   ├── conventions.md          # When editing src/supy/**/*.py
 │   │   └── config-patterns.md      # When editing src/supy/**/*.py
 │   ├── docs/
-│   │   └── conventions.md          # When editing docs/**/*
+│   │   ├── conventions.md          # When editing docs/**/*, site/**/*, README.md
+│   │   ├── release-docs-sanity.md  # When editing docs/**/*
+│   │   └── bib-topic-tags.md       # When editing docs/**/*
 │   ├── tests/
 │   │   └── patterns.md             # When editing test*/**/*.py
 │   ├── changelog/
@@ -40,7 +42,6 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   │                      # -- Operation skills (building blocks) --
 │   ├── lint-code/         # Code style (references rules/)
 │   ├── verify-build/      # Build config checks
-│   ├── sync-docs/         # Doc-code content consistency
 │   ├── audit-docs/        # Docs sanity check (non-ASCII + bib tags)
 │   ├── log-changes/       # CHANGELOG management
 │   │                      # -- User-facing (published as the suews plugin) --
@@ -107,8 +108,11 @@ Skills perform specific workflows when invoked via `/skill-name`. Each skill has
 
 - `/lint-code` - Check code style against conventions
 - `/verify-build` - Verify build configuration (meson / pyproject / CI)
-- `/sync-docs` - Check doc-code content consistency
 - `/audit-docs` - Docs sanity check: non-ASCII fixes + bib topic-tags (backed by doc-change hooks)
+
+Doc-code drift and house-style review is the `docs-reviewer` agent
+(`.claude/agents/docs-reviewer.md`), dispatched by `fix-issue` and `audit-pr`
+rather than invoked as a skill.
 - `/log-changes` - Update CHANGELOG
 
 The user-facing `/suews` skill (run, validate, analyse simulations) is published
@@ -138,13 +142,15 @@ without adding reach.
 ```
 fix-issue (super-workflow: issue -> PR-ready)
   ├── triage-issue           (readiness gate / governance)
-  ├── lint-code / sync-docs / verify-build   (quality operations)
+  ├── lint-code / verify-build   (quality operations)
+  ├── docs-reviewer agent    (doc-code drift, when the user-facing surface moves)
   ├── log-changes            (CHANGELOG)
   └── audit-pr               (PR review loop)
         └── split-pr (if oversized) ── queue-pr (merge-queue preflight)
 
 prep-release (release workflow)
-  ├── verify-build / sync-docs / lint-code   (pre-flight operations)
+  ├── verify-build / lint-code   (pre-flight operations)
+  ├── docs-reviewer agent    (release docs pass)
   └── log-changes            (CHANGELOG)
 
 republish-docs (docs workflow)
@@ -193,7 +199,7 @@ path and the manual steps for cases `fix-issue` does not cover.
 2. Branch + `make dev` + baseline tests (`uv venv && make dev` if the environment is not ready)
 3. Implement (auto-loaded rules guide coding)
 4. `git commit` -- pre-commit hook auto-runs quality checks
-5. `/sync-docs` + `/log-changes` + `make docs`
+5. `docs-reviewer` agent (drift mode) + `/log-changes` + `make docs`
 6. `git fetch origin && git rebase origin/master`, then `gh pr create`
 7. `/audit-pr <N>` -- review
 8. Verify closure: issue closed and CI green
@@ -203,12 +209,12 @@ path and the manual steps for cases `fix-issue` does not cover.
 2. `make test` (full baseline)
 3. Implement, `make test` (compare)
 4. `git commit` -- hook checks
-5. `/sync-docs` + `/log-changes` ([change])
+5. `docs-reviewer` agent (drift mode) + `/log-changes` ([change])
 6. `/audit-pr` (refactoring mode)
 
 **Documentation Only**
 1. Create branch, `make dev`, `make docs` (baseline)
-2. Edit docs, `/sync-docs`, `/lint-code`, `/audit-docs` (non-ASCII + bib tags)
+2. Edit docs, `docs-reviewer` agent (standalone pass), `/audit-docs` (non-ASCII + bib tags)
 3. `/log-changes` ([doc]), PR
 
 ### Review Workflows
@@ -221,7 +227,7 @@ path and the manual steps for cases `fix-issue` does not cover.
 
 **Release**
 1. `/prep-release` -- assess necessity
-2. Pre-flight: `/verify-build` + `/sync-docs` + `/lint-code`
+2. Pre-flight: `/verify-build` + `/lint-code` + `docs-reviewer` agent (release mode)
 3. `/log-changes` -- finalise CHANGELOG
 4. Open PR, CI, merge; create the tag and GitHub release (`gh release create <tag>`; `/prep-release` generates the tag)
 5. Monitor PyPI, GitHub Release, Zenodo
@@ -235,7 +241,7 @@ path and the manual steps for cases `fix-issue` does not cover.
 1. `/split-pr <PR>` -- carve an oversized PR into a stacked series (when `/audit-pr` flags size)
 2. `/queue-pr` -- order ready PRs and run merge-queue preflight
 
-**Checks**: Run `/verify-build` + `/sync-docs` + `/lint-code` together, report summary
+**Checks**: Run `/verify-build` + `/lint-code` together (plus the `docs-reviewer` agent when docs may drift), report summary
 
 ## Hook Infrastructure
 

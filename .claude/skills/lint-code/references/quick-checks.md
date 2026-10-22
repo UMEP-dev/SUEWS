@@ -14,12 +14,6 @@
 - Logging: `logger_supy` not `print()`
 - pathlib: `Path` not `os.path`
 
-## RST Critical
-
-- Max 3 heading levels (no `~`, `^`)
-- No nested markup (`**:doc:...**` is invalid)
-- Images require `:alt:` and `/assets/img/` path
-
 ## CHANGELOG Critical
 
 - Date format: `### DD Mon YYYY`
@@ -49,10 +43,6 @@ fprettify --diff src/suews/src/*.f95
   _load.py:
     L23: forcing = ... -> df_forcing = ...
     L78: os.path.join -> use pathlib
-
-=== RST ===
-  docs/source/physics.rst:
-    L34: Level 4 heading detected (max 3 levels allowed)
 
 === Markdown ===
   CHANGELOG.md:

@@ -2231,7 +2231,7 @@ SUBROUTINE tstep( &
          
          IF (Vwater_vessel > 0.0) THEN
             dTwater_vessel = &
-               (Qtotal_net_water_vessel/(density_water*cp_water)*Vwater_vessel)*resolution
+               (Qtotal_net_water_vessel/((density_water*cp_water)*Vwater_vessel))*resolution
 
             Twater_vessel = Twater_vessel + dTwater_vessel
          END IF
@@ -2246,7 +2246,7 @@ SUBROUTINE tstep( &
          END IF
          Qloss_drain = &
             waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, Tincomingwater_tank, resolution)
-         Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain * resolution
+         Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain
          dVwater_vessel = (flowrate_water_supply - flowrate_water_drain)*resolution
          Vwater_vessel = Vwater_vessel + dVwater_vessel
          !IF (Vwater_vessel < minVwater_vessel) THEN

@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] STEBBS hot-water vessel temperature now changes by the heat it exchanges divided by the water's heat capacity (#1880)
+  - The vessel update multiplied by the vessel volume instead of dividing by it, so the water's temperature response scaled with the square of the volume: about 11 times too slow at 0.3 m3, too fast above 1 m3. Vessel temperature, drain heat loss (`Qloss_drain_FA`, `QS_dhw_FA`) and `QS_total_FA` change when hot water is in use; the building storage heat passed to SUEWS moves by a few tenths of a W m-2.
+  - Drain heat loss is no longer multiplied by the STEBBS substep a second time. The substep is fixed at 1 s, so this changes no result today.
 - [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.

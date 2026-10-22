@@ -330,7 +330,12 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
 
 
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
-    """Prepare forcing DataFrame as a Fortran-order array for the Rust bridge."""
+    """Prepare the forcing as the ``(len_sim, MET_FORCING_COLS)`` kernel block.
+
+    The block is C-ordered: the bridge reads it row by row, so its memory is
+    already the row-major layout the kernel expects and it can be handed over
+    as a buffer without a copy in Python (gh#1849).
+    """
     len_sim = len(df_forcing)
     columns_by_lower = {str(col).lower(): col for col in df_forcing.columns}
 
@@ -355,7 +360,7 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
         (31, "kdir", -999.0),
     ]
 
-    block = np.zeros((len_sim, MET_FORCING_COLS), dtype=np.float64, order="F")
+    block = np.zeros((len_sim, MET_FORCING_COLS), dtype=np.float64, order="C")
 
     block[:, 0] = df_forcing.index.year
     block[:, 1] = df_forcing.index.day_of_year
@@ -533,7 +538,7 @@ def _frame_from_output_buffers(
 def _run_grid_into(
     rust_module: Any,
     config_text: str,
-    forcing_flat: list[float],
+    forcing_block: np.ndarray,
     len_forcing: int,
     grid_id: int,
     state_json: str | None = None,
@@ -546,7 +551,7 @@ def _run_grid_into(
     ar_data, ar_datetime = _alloc_output_buffers(len_forcing)
     state_json_out, len_sim, raw_warnings = rust_module.run_suews_into(
         config_text,
-        forcing_flat,
+        forcing_block,
         len_forcing,
         ar_data,
         ar_datetime,
@@ -563,7 +568,7 @@ def _run_grid_into(
 def _run_grids_into(
     rust_module: Any,
     list_config_jsons: list[str],
-    forcing_flat: list[float],
+    forcing_block: np.ndarray,
     len_forcing: int,
     list_grid_ids: list[int],
     list_state_jsons: list[str] | None,
@@ -583,7 +588,7 @@ def _run_grids_into(
         list_buffers = [_alloc_output_buffers(len_forcing) for _ in list_grid_ids]
         raw_results = rust_module.run_suews_multi_into(
             list_config_jsons,
-            forcing_flat,
+            forcing_block,
             len_forcing,
             [ar_data for ar_data, _ in list_buffers],
             [ar_datetime for _, ar_datetime in list_buffers],
@@ -613,7 +618,7 @@ def _run_grids_into(
             df_output, state_json, raw_warnings = _run_grid_into(
                 rust_module,
                 config_json,
-                forcing_flat,
+                forcing_block,
                 len_forcing,
                 grid_id,
                 list_state_jsons[idx] if list_state_jsons is not None else None,
@@ -651,10 +656,9 @@ def run_suews_rust(
         Dumper=_yaml_Dumper,
     )
     forcing_block = _prepare_forcing_block(df_forcing)
-    forcing_flat = forcing_block.ravel(order="C").tolist()
 
     df_output, state_json, raw_warnings = _run_grid_into(
-        rust_module, config_yaml, forcing_flat, len(df_forcing), grid_id
+        rust_module, config_yaml, forcing_block, len(df_forcing), grid_id
     )
     kernel_warnings = KernelWarningLog()
     kernel_warnings.add(grid_id, raw_warnings)
@@ -738,7 +742,6 @@ def run_suews_rust_multi(
     config_dict = config.model_dump(exclude_none=True, mode="json")
     list_site_dict = [s.model_dump(exclude_none=True, mode="json") for s in sites]
     forcing_block = _prepare_forcing_block(df_forcing)
-    forcing_flat = forcing_block.ravel(order="C").tolist()
     len_forcing = len(df_forcing)
 
     # Pre-serialise per-grid config JSON strings
@@ -766,7 +769,7 @@ def run_suews_rust_multi(
     return _run_grids_into(
         rust_module,
         list_config_jsons,
-        forcing_flat,
+        forcing_block,
         len_forcing,
         list_grid_ids,
         None,
@@ -838,7 +841,6 @@ def run_suews_rust_multi_with_state(
     config_dict = config.model_dump(exclude_none=True, mode="json")
     list_site_dict = [s.model_dump(exclude_none=True, mode="json") for s in sites]
     forcing_block = _prepare_forcing_block(df_forcing)
-    forcing_flat = forcing_block.ravel(order="C").tolist()
     len_forcing = len(df_forcing)
 
     list_grid_ids = []
@@ -867,7 +869,7 @@ def run_suews_rust_multi_with_state(
     return _run_grids_into(
         rust_module,
         list_config_jsons,
-        forcing_flat,
+        forcing_block,
         len_forcing,
         list_grid_ids,
         list_state_jsons,
@@ -895,10 +897,9 @@ def run_suews_rust_with_state(
         Dumper=_yaml_Dumper,
     )
     forcing_block = _prepare_forcing_block(df_forcing)
-    forcing_flat = forcing_block.ravel(order="C").tolist()
 
     df_output, new_state_json, raw_warnings = _run_grid_into(
-        rust_module, config_yaml, forcing_flat, len(df_forcing), grid_id, state_json
+        rust_module, config_yaml, forcing_block, len(df_forcing), grid_id, state_json
     )
     kernel_warnings = KernelWarningLog()
     kernel_warnings.add(grid_id, raw_warnings)

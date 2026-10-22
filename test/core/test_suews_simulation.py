@@ -941,7 +941,7 @@ class TestRun:
             def run_suews_multi_into(
                 self,
                 list_config_jsons,
-                forcing_flat,
+                forcing_block,
                 len_forcing,
                 list_out_data,
                 list_out_datetime,

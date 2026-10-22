@@ -61,6 +61,7 @@ EXAMPLES:
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.
   - Descriptions now share one style: sentence case, spelt-out shortwave and longwave in SPARTACUS, "for <surface> surface" in the debug and EHC groups, one term per quantity (net all-wave radiation, surface wetness state, soil water store), and mangled snow surface names (`evetr`, `dectr`, `bsoil`) replaced.
   - Six descriptions were wrong and are corrected: `HDD3_Tmean` is the daily mean air temperature and `HDD4_T5d` its 5-day running mean, not degree days; `HDD1_h` and `HDD2_c` state what the daily value is; `UStar_heat` is implied by the heat resistance only under MOST; debug `vsmd` is the soil moisture deficit of the vegetated surfaces and `dsp` the deficit threshold of the soil-moisture conductance function.
+  - `QHinit` is marked deprecated: it always equals `QH` at output and will be removed in a future release.
   - No variable name, unit, group, aggregation or column layout changes, so `1.1.3` is proposed as a PATCH.
 
 ### 21 Oct 2026

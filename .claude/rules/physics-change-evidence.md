@@ -221,6 +221,12 @@ label. `test/core/test_sample_output_exact.py` closes that gap:
   the check always runs, and a reference generated elsewhere is a failure, so a
   refresh made on another machine cannot switch the gate off. Elsewhere the
   check skips with the reason when the build does not match.
+- A change to that lane's build environment (a cibuildwheel bump that moves
+  the pinned `manylinux2014` image, or a different compiler in it) therefore
+  fails the check until the reference is refreshed from the lane's
+  `reference-regenerated` artefact, even when no physics changed. Such a refresh
+  still carries `0-physics:change`, with an evidence section saying the stored
+  values moved only through the build environment.
 - On a mismatch the lane uploads the regenerated shards and sidecar as the
   `reference-regenerated-cp312-manylinux-x86_64` artefact: the refresh for an
   intended change.

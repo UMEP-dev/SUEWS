@@ -81,7 +81,7 @@
 80,"SnowCh",1,"Change in snow pack [mm]"
 81,"SnowRPaved",1,"Snow removed from paved surface [mm]"
 82,"SnowRBldgs",1,"Snow removed from building surface [mm]"
-83,"Ts","0,1,2","Skin temperature [°C]"
+83,"Ts","0,1,2","Surface temperature diagnosed from QH and the aerodynamic resistance [°C]"
 84,"T2","0,1,2","Air temperature at 2 m agl [°C]"
 85,"Q2","0,1,2","Air specific humidity at 2 m agl [g |kg^-1|]"
 86,"U10","0,1,2","Wind speed at 10 m agl [m |s^-1|]"

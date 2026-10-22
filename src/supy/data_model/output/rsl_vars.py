@@ -81,7 +81,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="Lc",
         unit="m",
-        description="Canopy drag length scale. Missing when MOST is used.",
+        description="Canopy drag length scale. Missing when MOST is used; after resampling, the mean over the timesteps that used RST.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -89,7 +89,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="beta",
         unit="-",
-        description="Roughness-sublayer attenuation coefficient beta of Harman (2012). Missing when MOST is used.",
+        description="Roughness-sublayer attenuation coefficient beta of Harman (2012). Missing when MOST is used; after resampling, the mean over the timesteps that used RST.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -113,7 +113,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="elm",
         unit="m",
-        description="Mixing length at the canopy top, used for the in-canopy profiles. Missing when MOST is used.",
+        description="Mixing length at the canopy top, used for the in-canopy profiles. Missing when MOST is used; after resampling, the mean over the timesteps that used RST.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -121,7 +121,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="Scc",
         unit="-",
-        description="Schmidt number for temperature and humidity. Missing when MOST is used.",
+        description="Schmidt number for temperature and humidity. Missing when MOST is used; after resampling, the mean over the timesteps that used RST.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -132,7 +132,7 @@ RSL_DIAG_VARS = [
         description=(
             "Roughness-sublayer parameter f of Harman and Finnigan (2008), "
             "derived from the Schmidt number Scc, which sets the in-canopy decay "
-            "of temperature and humidity. Missing when MOST is used."
+            "of temperature and humidity. Missing when MOST is used; after resampling, the mean over the timesteps that used RST."
         ),
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,

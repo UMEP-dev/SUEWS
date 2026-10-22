@@ -661,6 +661,9 @@ jobs:
   #  3. No Fortran procedure local may carry a declaration initialiser or
   #     SAVE, which would share it between parallel grid threads (gh#1741).
   #     Also a text scan that needs no build.
+  #  4. Fortran physical-constant literals (273.15, Stefan-Boltzmann, pi,
+  #     degree-radian and time factors, cp and Lv) may not exceed their
+  #     committed per-file baseline. A text scan that needs no build.
   #
   # The job id and display name are unchanged so nothing that references
   # them (needs:, .github/scripts/pr-gate.sh, branch protection) breaks.
@@ -699,6 +702,14 @@ jobs:
         if: always()
         shell: bash
         run: python scripts/lint/check_saved_fortran_locals.py
+
+      # Physical-constant and unit-conversion literals in the kernel may only
+      # go down: counts per file are pinned by a committed baseline, which a
+      # clean-up PR lowers in the same diff.
+      - name: Lint Fortran literal constants against the baseline
+        if: always()
+        shell: bash
+        run: python scripts/lint/check_fortran_literals.py
 
   # A change to the stored reference outputs must declare itself as a physics
   # change (.claude/rules/physics-change-evidence.md). The exact sample-output

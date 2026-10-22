@@ -265,7 +265,9 @@ def relabel_output_timestamps(
 
 
 # Cells handled per chunk when scanning or writing output tables: bounds the
-# temporary arrays and Python objects to tens of MB whatever the table size.
+# temporary value arrays and formatted lines to tens of MB whatever the table
+# width; only the per-row date tuples of the table being written grow with
+# its row count.
 _CHUNK_CELLS = 1 << 20
 
 
@@ -369,7 +371,7 @@ def _write_df_txt(df_year: pd.DataFrame, path_out: Path) -> None:
     missing values as -999. Rows are formatted and written a block at a
     time, so no string copy of the whole table is built (gh#1849). The bytes
     match formatting every cell to a ``str`` and writing the table with
-    ``pandas.DataFrame.to_csv(sep="\\t", index=False)``: ``'%W.4f'`` and
+    ``pandas.DataFrame.to_csv(sep="\t", index=False)``: ``'%W.4f'`` and
     ``format(value, '>W.4f')`` share CPython's float formatting, and the
     header goes through the same csv writer settings pandas uses.
     """

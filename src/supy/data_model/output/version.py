@@ -1,6 +1,6 @@
 """Output data-contract version management."""
 
-CURRENT_OUTPUT_VERSION: str | None = "1.1.2"
+CURRENT_OUTPUT_VERSION: str | None = "1.1.3"
 
 # Published version -> contract digest.
 OUTPUT_VERSIONS: dict[str, str] = {
@@ -8,4 +8,5 @@ OUTPUT_VERSIONS: dict[str, str] = {
     "1.1.0": "sha256:cb083b648318a831784a15165cbcda53a509acc881d508d7dacc4aeb1e89c066",
     "1.1.1": "sha256:da6fccae0df185365141eb35d7c23ee55e2e1287e7f869799d9457dc22683498",
     "1.1.2": "sha256:71928fd2a0efcdacf594443c94a0712ac1ac9b9d51a2eebb50fba62f91d48e31",
+    "1.1.3": "sha256:c0742e84a9fb751f9ba0b2bd6138229d7cb4578f2d012633836753db30f7395d",
 }

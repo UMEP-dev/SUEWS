@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 22 Oct 2026
+
+- [doc] Proofread every output-variable description and published output contract `1.1.3`
+  - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
+  - Descriptions now share one style: sentence case (EHC, SPARTACUS and NHood started lower case), spelt-out shortwave and longwave in SPARTACUS, "for <surface> surface" in the debug and EHC groups, one term per quantity (net all-wave radiation, surface wetness state, soil water store), and mangled snow surface names (`evetr`, `dectr`, `bsoil`) replaced.
+  - Bare BL labels such as "Height" and "Potential temperature" now name the boundary-layer height and mixed-layer quantities they hold.
+  - No description changes meaning, and no variable name, unit, group, aggregation or column layout changes, so `1.1.3` is proposed as a PATCH.
+
 ### 21 Oct 2026
 
 - [bugfix] Long runs at a 5-minute timestep need less memory: a three-year single-grid run saving SUEWS, RSL, DailyState and debug output every step now peaks at 9.2 GB instead of 12.6 GB (#1849)

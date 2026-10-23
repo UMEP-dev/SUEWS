@@ -14,8 +14,6 @@ pytestmark = pytest.mark.api
 
 SAMPLE_BUILDING_DYOHM_PROFILE_INDEX = 70
 TIMESTEPS_PER_DAY = 288
-CHECKPOINT_RTOL = 1e-12
-CHECKPOINT_ATOL = 1e-12
 TIMER_SENSITIVE_OUTPUTS = {
     ("SUEWS", "QS"),
     ("SUEWS", "T2"),
@@ -188,7 +186,7 @@ def test_checkpoint_continuation_reports_invalid_value_path(short_sample_sim):
 def test_external_checkpoint_matches_continuous_run_across_day_boundary(
     short_sample_sim,
 ):
-    """External continuation agrees to 1e-12 across a 24-hour boundary."""
+    """External continuation matches the continuous run exactly across a 24-hour boundary."""
     sim_full = short_sample_sim()
     forcing = sim_full.forcing.df.iloc[:300]
     sim_full.update_forcing(forcing)
@@ -210,14 +208,12 @@ def test_external_checkpoint_matches_continuous_run_across_day_boundary(
     pd.testing.assert_frame_equal(
         output_second.df,
         expected_second,
-        check_exact=False,
-        rtol=CHECKPOINT_RTOL,
-        atol=CHECKPOINT_ATOL,
+        check_exact=True,
     )
 
 
 def test_chunked_run_matches_uninterrupted_run_across_day_boundary(short_sample_sim):
-    """Internal one-day chunks agree to 1e-12 with an uninterrupted run."""
+    """Internal one-day chunks match an uninterrupted run exactly (gh#1849)."""
     sim_full = short_sample_sim()
     forcing = sim_full.forcing.df.iloc[:300]
     sim_full.update_forcing(forcing)
@@ -231,9 +227,7 @@ def test_chunked_run_matches_uninterrupted_run_across_day_boundary(short_sample_
     pd.testing.assert_frame_equal(
         output_chunked.df,
         output_full.df,
-        check_exact=False,
-        rtol=CHECKPOINT_RTOL,
-        atol=CHECKPOINT_ATOL,
+        check_exact=True,
     )
 
 
@@ -431,7 +425,5 @@ def test_chunked_continuation_from_checkpoint_matches_uninterrupted_run(
     pd.testing.assert_frame_equal(
         output_second.df,
         output_full.df.loc[output_second.df.index],
-        check_exact=False,
-        rtol=CHECKPOINT_RTOL,
-        atol=CHECKPOINT_ATOL,
+        check_exact=True,
     )

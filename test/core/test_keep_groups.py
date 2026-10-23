@@ -25,7 +25,9 @@ def _sim_with_forcing(short_sample_sim, n_rows, list_gridiv=None):
     """Short-sample simulation on its first *n_rows* forcing rows.
 
     With *list_gridiv*, the site is replicated once per entry with that
-    ``gridiv``, in the given order.
+    ``gridiv``, in the given order, each entry 10 degrees further north than
+    the one before, so the grids' outputs differ and a block of rows carrying
+    the wrong grid's label would not match.
     """
     sim = short_sample_sim()
     forcing = sim.forcing.df.iloc[:n_rows]
@@ -33,10 +35,11 @@ def _sim_with_forcing(short_sample_sim, n_rows, list_gridiv=None):
         config = sim.config.model_copy(deep=True)
         site0 = config.sites[0]
         list_site = []
-        for gridiv in list_gridiv:
+        for pos, gridiv in enumerate(list_gridiv):
             site = site0.model_copy(deep=True)
             site.gridiv = gridiv
             site.name = f"grid{gridiv}"
+            site.properties.lat.value += 10.0 * pos
             list_site.append(site)
         config.sites = list_site
         sim.update_config(config, auto_load_forcing=False)
@@ -73,20 +76,30 @@ def test_keep_groups_equals_full_run(short_sample_sim, chunk_day):
     assert output_kept.checkpoint.grid_states == output_full.checkpoint.grid_states
 
 
+@pytest.mark.parametrize("n_jobs", [-1, 1], ids=["rayon", "serial"])
 @pytest.mark.parametrize("chunk_day", [3660, 1])
-def test_keep_groups_two_grids(short_sample_sim, chunk_day):
-    """Two grids listed out of ID order, run in parallel: same frame."""
+def test_keep_groups_two_grids(short_sample_sim, chunk_day, n_jobs):
+    """Two grids listed out of ID order, at different latitudes, run in
+    parallel or one after another.
+
+    The kept frame equals the full one, so each grid's rows sit in its own
+    block of the shared output table and of the kept store.
+    """
     n_rows = TIMESTEPS_PER_DAY + 24
     output_full = _run_loaded(
         _sim_with_forcing(short_sample_sim, n_rows, list_gridiv=[2, 1]),
         chunk_day=chunk_day,
+        n_jobs=n_jobs,
     )
     output_kept = _run_loaded(
         _sim_with_forcing(short_sample_sim, n_rows, list_gridiv=[2, 1]),
         chunk_day=chunk_day,
+        n_jobs=n_jobs,
         keep_groups=["SUEWS", "RSL"],
     )
     assert output_kept.grids == [1, 2]
+    df_suews = output_full.df["SUEWS"]
+    assert not df_suews.loc[1].equals(df_suews.loc[2])
     _assert_kept_equal(output_kept.df, output_full.df, ["SUEWS", "RSL"])
 
 

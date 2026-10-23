@@ -451,7 +451,7 @@ def _parse_output_block(
 
     ar_data = output_block[:, np.concatenate(list_col_idx)]
     _replace_sentinel_in_place(ar_data)
-    return _wrap_output_frame(ar_data, cols_all, datetime_index, grid_id)
+    return _wrap_output_frame(ar_data, cols_all, _grid_index(grid_id, datetime_index))
 
 
 def _output_columns() -> pd.MultiIndex:
@@ -487,38 +487,90 @@ def _replace_sentinel_in_place(ar_data: np.ndarray) -> None:
         ar_slab[ar_slab == -999.0] = np.nan
 
 
-def _wrap_output_frame(
-    ar_data: np.ndarray,
-    columns: pd.MultiIndex,
-    datetime_index: pd.DatetimeIndex,
-    grid_id: int,
-) -> pd.DataFrame:
-    """Wrap a 2-D float array as the output frame without copying it."""
-    return pd.DataFrame(
-        ar_data,
-        columns=columns,
-        index=pd.MultiIndex.from_product(
-            [[_normalise_grid_id(grid_id)], datetime_index],
-            names=["grid", "datetime"],
-        ),
-        copy=False,
+def _grid_index(grid_id: int, datetime_index: pd.DatetimeIndex) -> pd.MultiIndex:
+    """Return the ``(grid, datetime)`` index of one grid's output rows."""
+    return pd.MultiIndex.from_product(
+        [[_normalise_grid_id(grid_id)], datetime_index],
+        names=["grid", "datetime"],
     )
 
 
-def _alloc_output_buffers(len_sim: int) -> tuple[np.ndarray, np.ndarray]:
-    """Allocate the arrays the kernel writes one grid's output into (gh#1849).
+def _wrap_output_frame(
+    ar_data: np.ndarray,
+    columns: pd.MultiIndex,
+    index: pd.MultiIndex,
+) -> pd.DataFrame:
+    """Wrap a 2-D float array as the output frame without copying it."""
+    return pd.DataFrame(ar_data, columns=columns, index=index, copy=False)
 
-    Returns ``(ar_data, ar_datetime)``, shaped ``(len_sim, OUTPUT_DATA_COLS)``
-    and ``(len_sim, OUTPUT_TIME_COLS)``. Both are Fortran-ordered, the layout
-    the kernel writes, so ``ar_data`` becomes the output frame as it is:
-    the kernel, the bridge and pandas share this one full-size buffer.
+
+def _alloc_output_buffers(n_rows: int) -> tuple[np.ndarray, np.ndarray]:
+    """Allocate the arrays the kernel writes output into (gh#1849).
+
+    Returns ``(ar_data, ar_datetime)``, shaped ``(n_rows, OUTPUT_DATA_COLS)``
+    and ``(n_rows, OUTPUT_TIME_COLS)``: one grid's rows, or the rows of every
+    grid of a run, one block of rows per grid. Both are Fortran-ordered, the
+    layout the kernel writes, so ``ar_data`` becomes the output frame as it
+    is: the kernel, the bridge and pandas share this one full-size buffer.
     ``np.zeros`` maps zeroed pages lazily, so memory is committed only as the
     kernel writes it, and a row the kernel never reaches keeps year 0, which
     :func:`_build_datetime_index` rejects.
     """
-    ar_data = np.zeros((len_sim, OUTPUT_DATA_COLS), dtype=np.float64, order="F")
-    ar_datetime = np.zeros((len_sim, OUTPUT_TIME_COLS), dtype=np.float64, order="F")
+    ar_data = np.zeros((n_rows, OUTPUT_DATA_COLS), dtype=np.float64, order="F")
+    ar_datetime = np.zeros((n_rows, OUTPUT_TIME_COLS), dtype=np.float64, order="F")
     return ar_data, ar_datetime
+
+
+def _alloc_output_store(n_grid: int, len_sim: int) -> tuple[np.ndarray, np.ndarray]:
+    """Allocate one output table shared by *n_grid* grids of *len_sim* rows each.
+
+    Grid ``i`` writes rows ``i * len_sim`` to ``(i + 1) * len_sim``. With one
+    grid this is :func:`_alloc_output_buffers`. With several, the arrays get
+    one spare row when that makes the leading dimension odd, and the returned
+    arrays are views of the first ``n_grid * len_sim`` rows. The kernel writes
+    one row at a time across every column, so consecutive writes are a column
+    apart; when that distance in bytes is a multiple of a large power of two,
+    as ``n_grid * len_sim`` rows easily make it with eight grids, the writes
+    of a row crowd into a few cache sets and the run is markedly slower. An
+    odd leading dimension spreads them out.
+    """
+    n_rows = n_grid * len_sim
+    if n_grid == 1:
+        return _alloc_output_buffers(n_rows)
+    ar_data, ar_datetime = _alloc_output_buffers(n_rows | 1)
+    return ar_data[:n_rows], ar_datetime[:n_rows]
+
+
+def _frame_from_output_store(
+    ar_data: np.ndarray,
+    ar_datetime: np.ndarray,
+    list_grid_ids: list[int],
+    columns: pd.MultiIndex | None = None,
+) -> pd.DataFrame:
+    """Turn kernel-filled output arrays into the multi-group output frame.
+
+    Grid ``list_grid_ids[i]`` holds the ``i``-th of ``len(list_grid_ids)``
+    equal blocks of rows. The frame takes ``ar_data`` as its storage: the
+    -999 sentinel is replaced in place and no copy is made. The per-grid
+    indexes are joined as ``pd.concat`` joins the indexes of per-grid frames.
+    *columns* labels the columns of ``ar_data``; the default is every group
+    the kernel writes.
+    """
+    len_sim = ar_data.shape[0] // len(list_grid_ids)
+    list_index = [
+        _grid_index(
+            grid_id,
+            _build_datetime_index(ar_datetime[idx * len_sim : (idx + 1) * len_sim]),
+        )
+        for idx, grid_id in enumerate(list_grid_ids)
+    ]
+    index = (
+        list_index[0].append(list_index[1:]) if len(list_index) > 1 else list_index[0]
+    )
+    _replace_sentinel_in_place(ar_data)
+    if columns is None:
+        columns = _output_columns()
+    return _wrap_output_frame(ar_data, columns, index)
 
 
 def _frame_from_output_buffers(
@@ -526,14 +578,18 @@ def _frame_from_output_buffers(
     ar_datetime: np.ndarray,
     grid_id: int,
 ) -> pd.DataFrame:
-    """Turn kernel-filled output buffers into the multi-group output frame.
+    """Turn one grid's kernel-filled output arrays into its output frame."""
+    return _frame_from_output_store(ar_data, ar_datetime, [grid_id])
 
-    The frame takes ``ar_data`` as its storage: the -999 sentinel is replaced
-    in place and no copy is made.
+
+def _grid_row_starts(list_grid_ids: Sequence[int], len_sim: int) -> dict[int, int]:
+    """Return the first row of each grid's block of *len_sim* rows.
+
+    Blocks follow grid ID, which is the row order of the output frame.
     """
-    datetime_index = _build_datetime_index(ar_datetime)
-    _replace_sentinel_in_place(ar_data)
-    return _wrap_output_frame(ar_data, _output_columns(), datetime_index, grid_id)
+    return {
+        grid_id: rank * len_sim for rank, grid_id in enumerate(sorted(list_grid_ids))
+    }
 
 
 def _kept_output_slices(
@@ -578,13 +634,14 @@ def _kept_output_slices(
 class _KeptOutputStore:
     """Output frame storage that holds only the kept groups (gh#1849).
 
-    Allocated once for the whole run: one row block per grid, grids in
-    ascending ID order, which is the row order of the frame a full run
-    returns. Each chunk's kernel buffer is copied in group by group with
-    :meth:`take` and can then be released, so a run holds the kept columns
-    plus one chunk's full-width buffer rather than every group for every
-    row. :meth:`to_frame` returns a frame whose values and labels equal the
-    kept columns of the full frame.
+    Allocated once for the whole run: one block of rows per grid, laid out
+    by grid ID as in :func:`_run_grids_into`'s shared table, which is the row
+    order of the frame a full run returns. After each chunk the kept groups
+    are copied out of that chunk's full-width table with :meth:`take`, group
+    by group, and the table is then released, so a run holds the kept
+    columns plus one chunk's full-width table rather than every group for
+    every row. :meth:`to_frame` returns a frame whose values and labels equal
+    the kept columns of the full frame.
     """
 
     def __init__(
@@ -593,9 +650,7 @@ class _KeptOutputStore:
         self.list_slice, self.columns = _kept_output_slices(keep_groups)
         self.list_grid_ids = sorted(_normalise_grid_id(g) for g in list_grid_ids)
         self.len_run = len_run
-        self._row_base = {
-            grid_id: pos * len_run for pos, grid_id in enumerate(self.list_grid_ids)
-        }
+        self._row_base = _grid_row_starts(self.list_grid_ids, len_run)
         self._row_next = dict.fromkeys(self.list_grid_ids, 0)
         n_rows = len(self.list_grid_ids) * len_run
         self.ar_data = np.empty(
@@ -620,7 +675,11 @@ class _KeptOutputStore:
         return cls(keep_groups, [s.gridiv for s in config.sites], len(df_forcing))
 
     def take(self, grid_id: int, ar_data: np.ndarray, ar_datetime: np.ndarray) -> None:
-        """Copy one grid's chunk buffers into the next rows of its block."""
+        """Copy one grid's rows of a chunk into the next rows of its block.
+
+        *ar_data* and *ar_datetime* are that grid's block of rows of the
+        chunk's full-width table.
+        """
         grid_id = _normalise_grid_id(grid_id)
         n_chunk = ar_data.shape[0]
         if self._row_next[grid_id] + n_chunk > self.len_run:
@@ -645,37 +704,30 @@ class _KeptOutputStore:
         list_short = [g for g, n in self._row_next.items() if n != self.len_run]
         if list_short:
             raise RuntimeError(f"Kept output is incomplete for grids {list_short}")
-        _replace_sentinel_in_place(self.ar_data)
-        list_index = []
-        for grid_id in self.list_grid_ids:
-            row_base = self._row_base[grid_id]
-            datetime_index = _build_datetime_index(
-                self.ar_datetime[row_base : row_base + self.len_run]
-            )
-            list_index.append(
-                pd.MultiIndex.from_product(
-                    [[grid_id], datetime_index], names=["grid", "datetime"]
-                )
-            )
-        index = list_index[0]
-        if len(list_index) > 1:
-            index = index.append(list_index[1:])
-        return pd.DataFrame(self.ar_data, columns=self.columns, index=index, copy=False)
+        df_output = _frame_from_output_store(
+            self.ar_data, self.ar_datetime, self.list_grid_ids, columns=self.columns
+        )
+        # Unsorted forcing gives an unsorted frame; sort it, as a full run does.
+        if not df_output.index.is_monotonic_increasing:
+            df_output = df_output.sort_index()
+        return df_output
 
 
-def _run_grid_buffers(
+def _write_grid_output(
     rust_module: Any,
     config_text: str,
     forcing_block: np.ndarray,
     len_forcing: int,
+    ar_data: np.ndarray,
+    ar_datetime: np.ndarray,
     state_json: str | None = None,
-) -> tuple[np.ndarray, np.ndarray, str | None, Any]:
-    """Run one grid with the kernel writing into freshly allocated buffers.
+) -> tuple[str | None, Any]:
+    """Run one grid with the kernel writing into *ar_data* and *ar_datetime*.
 
-    Returns ``(ar_data, ar_datetime, state_json, raw_warnings)``. With
-    *state_json*, the run continues from that checkpoint.
+    Both may be a block of rows of a larger array shared by several grids.
+    Returns ``(state_json, raw_warnings)``. With *state_json*, the run
+    continues from that checkpoint.
     """
-    ar_data, ar_datetime = _alloc_output_buffers(len_forcing)
     state_json_out, len_sim, raw_warnings = rust_module.run_suews_into(
         config_text,
         forcing_block,
@@ -688,7 +740,7 @@ def _run_grid_buffers(
         raise RuntimeError(
             f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
         )
-    return ar_data, ar_datetime, state_json_out, raw_warnings
+    return state_json_out, raw_warnings
 
 
 def _run_grid_into(
@@ -704,8 +756,15 @@ def _run_grid_into(
     Returns ``(df_output, state_json, raw_warnings)``. With *state_json*, the
     run continues from that checkpoint.
     """
-    ar_data, ar_datetime, state_json_out, raw_warnings = _run_grid_buffers(
-        rust_module, config_text, forcing_block, len_forcing, state_json
+    ar_data, ar_datetime = _alloc_output_buffers(len_forcing)
+    state_json_out, raw_warnings = _write_grid_output(
+        rust_module,
+        config_text,
+        forcing_block,
+        len_forcing,
+        ar_data,
+        ar_datetime,
+        state_json,
     )
     df_output = _frame_from_output_buffers(ar_data, ar_datetime, grid_id)
     return df_output, state_json_out, raw_warnings
@@ -722,25 +781,36 @@ def _run_grids_into(
     max_workers: int | None,
     store: _KeptOutputStore | None = None,
 ) -> tuple[pd.DataFrame | None, dict[int, str] | None, KernelWarningLog]:
-    """Run every grid, each writing into its own preallocated output frame.
+    """Run every grid, all writing into one shared output array (gh#1849).
 
-    With *use_rayon* the grids run in parallel inside the bridge; otherwise
-    one after another. Returns ``(df_output, dict_state_json, warnings)``.
-    With *store*, each grid's kept groups are copied into it and its full
-    buffer released, and ``df_output`` is ``None``.
+    Each grid's kernel writes into its own block of rows of one preallocated
+    Fortran-ordered array, which then becomes the output frame as it is, so
+    no per-grid frames are joined afterwards and a multi-grid run needs about
+    the memory of its output once rather than twice. The blocks follow grid
+    ID, so the frame comes out in the order the joined per-grid frames were
+    sorted into. With *use_rayon* the grids run in parallel inside the
+    bridge; otherwise one after another. Returns
+    ``(df_output, dict_state_json, warnings)``. With *store*, each grid's kept
+    groups are copied out of the shared array into it, the array is released,
+    and ``df_output`` is ``None``.
     """
-    list_df_output: list[pd.DataFrame] = []
+    list_grid_ids_sorted = sorted(list_grid_ids)
+    dict_row_start = _grid_row_starts(list_grid_ids, len_forcing)
+    ar_data, ar_datetime = _alloc_output_store(len(list_grid_ids), len_forcing)
+    list_rows = [
+        slice(dict_row_start[grid_id], dict_row_start[grid_id] + len_forcing)
+        for grid_id in list_grid_ids
+    ]
     dict_state_json: dict[int, str] = {}
     kernel_warnings = KernelWarningLog()
 
     if use_rayon:
-        list_buffers = [_alloc_output_buffers(len_forcing) for _ in list_grid_ids]
         raw_results = rust_module.run_suews_multi_into(
             list_config_jsons,
             forcing_block,
             len_forcing,
-            [ar_data for ar_data, _ in list_buffers],
-            [ar_datetime for _, ar_datetime in list_buffers],
+            [ar_data[rows] for rows in list_rows],
+            [ar_datetime[rows] for rows in list_rows],
             list_state_jsons,
             max_workers,
         )
@@ -754,47 +824,35 @@ def _run_grids_into(
                     f"output={len_sim}"
                 )
             grid_id = list_grid_ids[idx]
-            ar_data, ar_datetime = list_buffers[idx]
-            if store is not None:
-                store.take(grid_id, ar_data, ar_datetime)
-                list_buffers[idx] = None
-                del ar_data, ar_datetime
-            else:
-                list_df_output.append(
-                    _frame_from_output_buffers(ar_data, ar_datetime, grid_id)
-                )
             if state_json is not None:
                 dict_state_json[grid_id] = state_json
             kernel_warnings.add(grid_id, raw_warnings)
     else:
         for idx, config_json in enumerate(list_config_jsons):
             grid_id = list_grid_ids[idx]
-            state_json_in = (
-                list_state_jsons[idx] if list_state_jsons is not None else None
+            rows = list_rows[idx]
+            state_json, raw_warnings = _write_grid_output(
+                rust_module,
+                config_json,
+                forcing_block,
+                len_forcing,
+                ar_data[rows],
+                ar_datetime[rows],
+                list_state_jsons[idx] if list_state_jsons is not None else None,
             )
-            if store is not None:
-                ar_data, ar_datetime, state_json, raw_warnings = _run_grid_buffers(
-                    rust_module, config_json, forcing_block, len_forcing, state_json_in
-                )
-                store.take(grid_id, ar_data, ar_datetime)
-                del ar_data, ar_datetime
-            else:
-                df_output, state_json, raw_warnings = _run_grid_into(
-                    rust_module,
-                    config_json,
-                    forcing_block,
-                    len_forcing,
-                    grid_id,
-                    state_json_in,
-                )
-                list_df_output.append(df_output)
             if state_json is not None:
                 dict_state_json[grid_id] = state_json
             kernel_warnings.add(grid_id, raw_warnings)
 
     if store is not None:
+        for grid_id, rows in zip(list_grid_ids, list_rows):
+            store.take(grid_id, ar_data[rows], ar_datetime[rows])
         return None, dict_state_json or None, kernel_warnings
-    df_output_all = _concat_output_frames(list_df_output)
+
+    df_output_all = _frame_from_output_store(ar_data, ar_datetime, list_grid_ids_sorted)
+    # Unsorted forcing gives an unsorted frame; sort it, as joining did.
+    if not df_output_all.index.is_monotonic_increasing:
+        df_output_all = df_output_all.sort_index()
     return df_output_all, dict_state_json or None, kernel_warnings
 
 
@@ -948,7 +1006,7 @@ def run_suews_rust_multi(
 
 
 def _concat_output_frames(list_df_output: list[pd.DataFrame]) -> pd.DataFrame:
-    """Join per-grid or per-chunk output frames into one sorted frame.
+    """Join per-chunk output frames into one sorted frame.
 
     ``sort_index`` always returns a full copy, which for a multi-year run at
     the model timestep is several GB (gh#1849). Sort only when the joined
@@ -1097,11 +1155,11 @@ def run_suews_rust_chunked(
     chunk also runs through ``run_suews_with_state`` for those grids.
 
     With *keep_groups*, the returned frame holds only those output groups:
-    each chunk's kernel buffer is copied group by group into storage
-    allocated once for the run and then released (gh#1849), so the run
-    holds the kept columns plus one chunk's full-width buffer. The kept
-    columns equal those of a run without *keep_groups* at the same
-    *chunk_day*.
+    the kept groups of each chunk's full-width output table are copied group
+    by group into storage allocated once for the run, and the table is then
+    released (gh#1849), so the run holds the kept columns plus one chunk's
+    full-width table. The kept columns equal those of a run without
+    *keep_groups* at the same *chunk_day*.
     """
     initial_state_json_by_grid = {
         _normalise_grid_id(grid_id): state_json

@@ -3,12 +3,14 @@
 ``run_suews_into`` and ``run_suews_multi_into`` take the forcing as a NumPy
 array rather than a list of Python floats, and hand the Fortran kernel the
 memory of two output arrays, which then become the output frame without a
-copy. These tests pin the contract: the frame built that way is exactly the
-frame parsed from the legacy list-in, flat-block-out path, it shares the
-kernel's buffer, and unsuitable forcing or output arrays are refused before
-the kernel runs.
+copy; the grids of a multi-grid run write into row blocks of one shared
+array. These tests pin the contract: the frame built that way is exactly the
+frame parsed from the legacy list-in, flat-block-out path or joined from
+per-grid frames, it shares the kernel's buffer, and unsuitable forcing or
+output arrays are refused before the kernel runs.
 """
 
+from importlib import import_module
 from importlib.resources import as_file
 import json
 
@@ -28,11 +30,17 @@ from supy._run_rust import (
     _load_rust_module,
     _parse_output_block,
     _prepare_forcing_block,
+    run_suews_rust,
+    run_suews_rust_multi,
+    run_suews_rust_multi_with_state,
+    run_suews_rust_with_state,
 )
 
 # ruff: enable[import-private-name]
 
 pytestmark = pytest.mark.physics
+
+_run_rust = import_module("supy._run_rust")
 
 GRID_ID = 1
 
@@ -48,6 +56,8 @@ def native_inputs():
     df_forcing = simulation.forcing.df.iloc[:SHORT_RUN_STEPS]
     forcing_block = _prepare_forcing_block(df_forcing)
     return {
+        "config": simulation.config,
+        "df_forcing": df_forcing,
         "rust": _load_rust_module(),
         "config_json": config_json,
         "forcing_block": forcing_block,
@@ -139,7 +149,22 @@ def test_parallel_grids_match_serial_runs(native_inputs):
     [
         (
             lambda d, t: (np.ascontiguousarray(d), t),
-            "Fortran-contiguous",
+            "column-major",
+        ),
+        (
+            # every other row of a taller array: rows are not adjacent
+            lambda d, t: (np.zeros((2 * d.shape[0], d.shape[1]), order="F")[::2], t),
+            "column-major",
+        ),
+        (
+            # columns closer together than a column is long: they overlap
+            lambda d, t: (
+                np.lib.stride_tricks.as_strided(
+                    d, shape=d.shape, strides=(d.itemsize, d.itemsize * (len(d) - 1))
+                ),
+                t,
+            ),
+            "column-major",
         ),
         (
             lambda d, t: (np.zeros((d.shape[0] - 1, d.shape[1]), order="F"), t),
@@ -152,7 +177,15 @@ def test_parallel_grids_match_serial_runs(native_inputs):
         (lambda d, t: (np.zeros(d.shape[::-1], order="F"), t), "shape"),
         (lambda d, t: (_read_only(d), t), "writable"),
     ],
-    ids=["c-order", "short-data", "wide-datetime", "transposed-data", "read-only"],
+    ids=[
+        "c-order",
+        "strided-rows",
+        "overlapping-columns",
+        "short-data",
+        "wide-datetime",
+        "transposed-data",
+        "read-only",
+    ],
 )
 def test_unsuitable_buffers_are_refused(native_inputs, make_buffers, message):
     """The bridge refuses buffers the kernel cannot safely write into."""
@@ -244,6 +277,148 @@ def test_unsuitable_forcing_is_refused(native_inputs, make_forcing, error, messa
             [ar_data],
             [ar_datetime],
         )
+
+
+def test_grids_overlapping_in_a_shared_array_are_refused(native_inputs):
+    """Row blocks of one array may serve several grids only if they are disjoint."""
+    len_sim = native_inputs["len_sim"]
+    ar_data, ar_datetime = _alloc_output_buffers(2 * len_sim)
+    rows_b = slice(len_sim // 2, len_sim // 2 + len_sim)
+
+    with pytest.raises(ValueError, match="share memory"):
+        native_inputs["rust"].run_suews_multi_into(
+            [native_inputs["config_json"]] * 2,
+            native_inputs["forcing_block"],
+            len_sim,
+            [ar_data[:len_sim], ar_data[rows_b]],
+            [ar_datetime[:len_sim], ar_datetime[len_sim:]],
+        )
+
+
+def _two_lat_config_jsons(inputs):
+    """Two grid configs differing in latitude, so their outputs differ."""
+    dict_config = json.loads(inputs["config_json"])
+    dict_config["sites"][0]["properties"]["lat"]["value"] += 10.0
+    return [inputs["config_json"], json.dumps(dict_config)]
+
+
+def test_grids_write_into_row_blocks_of_one_array(native_inputs):
+    """Grids sharing one output array each fill exactly their own rows.
+
+    Each block matches a run of that grid into an array of its own, whether
+    the grids run in parallel or one after another.
+    """
+    len_sim = native_inputs["len_sim"]
+    list_config_jsons = _two_lat_config_jsons(native_inputs)
+    list_own = [
+        _run_into({**native_inputs, "config_json": config_json})
+        for config_json in list_config_jsons
+    ]
+    list_rows = [slice(0, len_sim), slice(len_sim, 2 * len_sim)]
+
+    ar_data, ar_datetime = _alloc_output_buffers(2 * len_sim)
+    results = native_inputs["rust"].run_suews_multi_into(
+        list_config_jsons,
+        native_inputs["forcing_block"],
+        len_sim,
+        [ar_data[rows] for rows in list_rows],
+        [ar_datetime[rows] for rows in list_rows],
+    )
+    ar_data_serial, ar_datetime_serial = _alloc_output_buffers(2 * len_sim)
+    for config_json, rows in zip(list_config_jsons, list_rows):
+        native_inputs["rust"].run_suews_into(
+            config_json,
+            native_inputs["forcing_block"],
+            len_sim,
+            ar_data_serial[rows],
+            ar_datetime_serial[rows],
+        )
+
+    assert sorted(idx for idx, *_ in results) == [0, 1]
+    for idx, state_json, _, _ in results:
+        df_own, state_own, _ = list_own[idx]
+        assert state_json == state_own
+        for ar_d, ar_t in [
+            (ar_data, ar_datetime),
+            (ar_data_serial, ar_datetime_serial),
+        ]:
+            rows = list_rows[idx]
+            df_block = _frame_from_output_buffers(ar_d[rows], ar_t[rows], GRID_ID)
+            pd.testing.assert_frame_equal(df_block, df_own, check_exact=True)
+
+
+def _two_grid_config(config):
+    """Two grids at different latitudes, the one listed first with the larger ID.
+
+    Their outputs differ, so a grid's rows labelled with the other grid's ID
+    would not match the per-grid runs.
+    """
+    config_two = config.model_copy(deep=True)
+    site_other = config_two.sites[0].model_copy(deep=True)
+    config_two.sites[0].gridiv = 2
+    site_other.gridiv = 1
+    site_other.properties.lat.value += 10.0
+    config_two.sites.append(site_other)
+    return config_two
+
+
+@pytest.mark.parametrize("serial_mode", [False, True], ids=["rayon", "serial"])
+def test_multi_grid_frame_matches_joined_grid_frames(
+    native_inputs, monkeypatch, serial_mode
+):
+    """A multi-grid run gives the frame the per-grid frames joined to.
+
+    That frame is the one array every grid wrote into, and a continuation
+    from the run's checkpoint states matches the per-grid continuations too.
+    """
+    config = _two_grid_config(native_inputs["config"])
+    df_forcing = native_inputs["df_forcing"]
+    n_first = len(df_forcing) // 2
+    list_store = []
+    alloc = _run_rust._alloc_output_buffers
+
+    def capture_alloc(n_rows):
+        list_store.append(alloc(n_rows))
+        return list_store[-1]
+
+    monkeypatch.setattr(_run_rust, "_alloc_output_buffers", capture_alloc)
+
+    df_multi, dict_state, _ = run_suews_rust_multi(
+        config, df_forcing.iloc[:n_first], serial_mode=serial_mode
+    )
+    df_multi_next, _, _ = run_suews_rust_multi_with_state(
+        config, df_forcing.iloc[n_first:], dict_state, serial_mode=serial_mode
+    )
+
+    assert len(list_store) == 2
+    ar_store = list_store[0][0]
+    assert ar_store.shape[0] in {2 * n_first, 2 * n_first + 1}
+    assert np.shares_memory(df_multi.to_numpy(), ar_store)
+
+    list_first, list_next = [], []
+    for site in config.sites:
+        config_site = config.model_copy(update={"sites": [site]})
+        df_site, _, _ = run_suews_rust(
+            config_site, df_forcing.iloc[:n_first], grid_id=site.gridiv
+        )
+        list_first.append(df_site)
+        df_site_next, _, _ = run_suews_rust_with_state(
+            config_site,
+            df_forcing.iloc[n_first:],
+            grid_id=site.gridiv,
+            state_json=dict_state[site.gridiv],
+        )
+        list_next.append(df_site_next)
+
+    assert not np.array_equal(
+        list_first[0].to_numpy(), list_first[1].to_numpy(), equal_nan=True
+    )
+    pd.testing.assert_frame_equal(
+        df_multi, pd.concat(list_first).sort_index(), check_exact=True
+    )
+    pd.testing.assert_frame_equal(
+        df_multi_next, pd.concat(list_next).sort_index(), check_exact=True
+    )
 
 
 def _read_only(ar: np.ndarray) -> np.ndarray:

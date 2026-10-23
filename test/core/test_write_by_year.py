@@ -16,7 +16,6 @@ from pathlib import Path
 import re
 
 from click.testing import CliRunner
-from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
 from pydantic import ValidationError
 import pytest
@@ -31,6 +30,7 @@ import supy.suews_sim as suews_sim_module
 pytestmark = pytest.mark.api
 
 GROUPS = ["SUEWS", "DailyState", "RSL", "debug"]
+SAMPLE_FORCING_ROWS_PER_DAY = 24  # the sample forcing file is hourly
 
 
 def test_year_keys_follow_right_closed_years():
@@ -493,17 +493,15 @@ def test_cli_run_writes_by_year_once(tmp_path, monkeypatch):
     cfg_text = (src / "sample_config.yml").read_text(encoding="utf-8")
     forcing_name = sim.config.model.control.forcing.file.value
     lines = (src / forcing_name).read_text(encoding="utf-8").splitlines(keepends=True)
-    # Two days of forcing, so the CLI run stays quick.
+    # Two days of the hourly sample forcing, so the CLI run stays quick.
     (tmp_path / forcing_name).write_text(
-        "".join(lines[: 2 * TIMESTEPS_PER_DAY + 1]), encoding="utf-8"
+        "".join(lines[: 2 * SAMPLE_FORCING_ROWS_PER_DAY + 1]), encoding="utf-8"
     )
     assert 'end_time: "2012-12-31"' in cfg_text
     cfg_text = cfg_text.replace('end_time: "2012-12-31"', 'end_time: "2012-01-02"')
-    assert "      timestamp_reference: follow\n" in cfg_text
+    assert "      write_by_year: false\n" in cfg_text
     cfg_text = cfg_text.replace(
-        "      timestamp_reference: follow\n",
-        "      timestamp_reference: follow\n      write_by_year: true\n",
-        1,
+        "      write_by_year: false\n", "      write_by_year: true\n", 1
     )
     cfg_path = tmp_path / "case.yml"
     cfg_path.write_text(cfg_text, encoding="utf-8")

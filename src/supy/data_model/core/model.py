@@ -1451,33 +1451,60 @@ class OutputControl(BaseModel):
 
     @model_validator(mode="after")
     def _check_write_by_year(self):
-        """Reject output settings that writing year by year cannot reproduce.
-
-        Each year's files must be what saving the whole run writes for that
-        year: text output has one file per grid, group and year (Parquet one
-        file for the run), and an output frequency dividing one day keeps
-        every resampling bin inside one year. A daylight-saving relabelling
-        moves rows across a year boundary in the southern hemisphere; the
-        clock check against the forcing is in :class:`ModelControl`.
-        """
-        if not self.write_by_year:
-            return self
-        if str(self.format) != "txt":
-            raise ValueError(
-                "output.write_by_year writes text output only; "
-                f"output.format is {str(self.format)!r}."
-            )
-        if self.freq is not None and (self.freq <= 0 or 86400 % self.freq != 0):
-            raise ValueError(
-                "output.write_by_year needs an output frequency that divides "
-                f"one day (86400 s); output.freq is {self.freq} s."
-            )
-        if self.timestamp_reference == OutputTimestampReference.DAYLIGHT:
-            raise ValueError(
-                "output.write_by_year keeps output timestamps on the forcing "
-                "clock; output.timestamp_reference='daylight' is not supported."
+        """Reject output settings that writing year by year cannot reproduce."""
+        if self.write_by_year:
+            check_write_by_year(
+                str(self.format), self.freq, str(self.timestamp_reference)
             )
         return self
+
+
+def check_write_by_year(
+    output_format: str,
+    freq_s: int | None,
+    timestamp_reference: str,
+    forcing_timestamp_reference: str | None = None,
+) -> None:
+    """Reject output settings that ``output.write_by_year`` cannot reproduce.
+
+    Each year's files must be what saving the whole run writes for that
+    year: text output has one file per grid, group and year (Parquet one
+    file for the run), an output frequency dividing one day keeps every
+    resampling bin inside one year, and saved timestamps on the forcing
+    clock keep every row in its year (a UTC or daylight-saving relabelling
+    moves rows across the boundary). With *forcing_timestamp_reference*
+    unknown, only the daylight relabelling, which never follows the
+    forcing, is rejected on the clock.
+
+    Shared by the YAML validators and :meth:`SUEWSSimulation.run`, which
+    checks again in case the config was changed by attribute assignment.
+    """
+    if output_format != "txt":
+        raise ValueError(
+            "output.write_by_year writes text output only; "
+            f"output.format is {output_format!r}."
+        )
+    if freq_s is not None and (freq_s <= 0 or 86400 % freq_s != 0):
+        raise ValueError(
+            "output.write_by_year needs an output frequency that divides "
+            f"one day (86400 s); output.freq is {freq_s} s."
+        )
+    allowed = {str(OutputTimestampReference.FOLLOW)}
+    if forcing_timestamp_reference is None:
+        allowed |= {
+            str(OutputTimestampReference.UTC),
+            str(OutputTimestampReference.LOCAL_STANDARD_TIME),
+        }
+        clock = "the forcing clock"
+    else:
+        allowed.add(forcing_timestamp_reference)
+        clock = f"the forcing clock ({forcing_timestamp_reference!r})"
+    if timestamp_reference not in allowed:
+        raise ValueError(
+            f"output.write_by_year keeps output timestamps on {clock}; "
+            f"output.timestamp_reference={timestamp_reference!r} is not "
+            "supported."
+        )
 
 
 class ForcingTimestampReference(StrEnum):
@@ -1687,8 +1714,19 @@ class ModelControl(BaseModel):
         saved whole.
         """
         output = self.output
-        if not output.write_by_year:
-            return self
+        if output.write_by_year:
+            source = getattr(
+                self.forcing.timestamp_reference,
+                "value",
+                self.forcing.timestamp_reference,
+            )
+            check_write_by_year(
+                str(output.format),
+                output.freq,
+                str(output.timestamp_reference),
+                str(source),
+            )
+        return self
         target = str(output.timestamp_reference)
         source = getattr(
             self.forcing.timestamp_reference,

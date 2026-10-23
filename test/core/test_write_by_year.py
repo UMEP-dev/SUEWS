@@ -24,7 +24,7 @@ from supy import SUEWSCheckpoint, SUEWSSimulation
 from supy._provenance import read_provenance
 from supy._run_rust import forcing_year_keys, iter_suews_rust_by_year
 from supy.cmd.SUEWS import SUEWS as run_cmd
-from supy.data_model.core.model import ModelControl, OutputControl
+from supy.data_model.core.model import ModelControl, OutputControl, OutputFormat
 import supy.suews_sim as suews_sim_module
 
 pytestmark = pytest.mark.api
@@ -473,6 +473,30 @@ def test_unsupported_settings_fail_before_running(short_sample_sim, tmp_path):
             {"model": {"control": {"output": {"format": "parquet"}}}},
             auto_load_forcing=False,
         )
+
+
+@pytest.mark.parametrize(
+    ("write_by_year", "field", "value", "match"),
+    [
+        (True, "format", OutputFormat.PARQUET, "text output only"),
+        (True, "freq", 25200, "divides one day"),
+        (True, "timestamp_reference", "utc", "forcing clock"),
+        (False, "write_by_year", True, "text output only"),
+    ],
+)
+def test_settings_assigned_on_the_config_fail_before_running(
+    short_sample_sim, tmp_path, write_by_year, field, value, match
+):
+    """A config changed by attribute assignment is checked again by run()."""
+    sim = _year_crossing_sim(short_sample_sim, tmp_path / "out", 3600, write_by_year)
+    output = sim.config.model.control.output
+    if field == "write_by_year":
+        output.format = OutputFormat.PARQUET
+    setattr(output, field, value)
+
+    with pytest.raises(ValueError, match=match):
+        sim.run()
+    assert not (tmp_path / "out").exists()
 
 
 def test_groups_the_model_does_not_write_are_rejected(short_sample_sim, tmp_path):

@@ -46,6 +46,7 @@ from ._save import DEFAULT_OUTPUT_GROUPS
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
+from .data_model.core.model import check_write_by_year
 
 # Import new OOP classes
 from .suews_checkpoint import SUEWSCheckpoint
@@ -908,13 +909,15 @@ class SUEWSSimulation:
                     df_state_for_cfg.index = pd.Index(grid_vals, name="grid")
                 self._config = SUEWSConfig.from_df_state(df_state_for_cfg)
 
-        # Writing by year saves as it goes: resolve where and what it writes
-        # before any work is done. The YAML validators have already rejected
-        # output settings it cannot reproduce.
+        # Writing by year saves as it goes: resolve where and what it writes,
+        # and reject settings it cannot reproduce, before any work is done.
+        # The YAML validators check the same, but not a config changed by
+        # attribute assignment.
         save_settings = None
         list_keep = None
         if self._write_by_year():
             save_settings = self._resolve_save_settings(None, {})
+            self._check_write_by_year(save_settings)
             list_keep = self._groups_saved(save_settings["output_config"])
             logger_supy.info(
                 "output.write_by_year is on: running one calendar year at a "
@@ -1367,6 +1370,19 @@ class SUEWSSimulation:
             None,
         )
         return bool(getattr(output_control, "write_by_year", False))
+
+    @staticmethod
+    def _check_write_by_year(settings: dict) -> None:
+        """Check the resolved save settings against ``output.write_by_year``."""
+        output_config = settings["output_config"]
+        ref = getattr(output_config, "timestamp_reference", "follow")
+        source = settings["forcing_timestamp_reference"]
+        check_write_by_year(
+            str(output_config.format),
+            settings["freq_s"],
+            str(getattr(ref, "value", ref)),
+            str(getattr(source, "value", source)),
+        )
 
     @staticmethod
     def _groups_saved(output_config) -> list[str]:

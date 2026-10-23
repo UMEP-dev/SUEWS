@@ -54,12 +54,15 @@ EXAMPLES:
 
 ## 2026
 
+### 23 Oct 2026
+
+- [bugfix] Multi-grid runs with grids in parallel now give the same output as the same run done serially. `AerodynamicResistance` kept the heat stability correction `psih` in a module variable shared by every grid thread between computing and using it, so a grid could take another grid's value and its `QH`, `QE` and everything downstream departed from its serial run, mostly in checked (unoptimised) builds; `psih` is now a local. Serial runs, and so the sample reference, are unchanged (#1926)
+
 ### 22 Oct 2026
 
-- [feature][experimental] Long runs can stream their output to disk year by year: `SUEWSSimulation.run(stream="year")` runs one calendar year at a time, writes that year's text files with the same machinery as `save()`, drops the year from memory and carries the model state into the next year, so memory stays at about one year of output however long the run; opt-in, and the default run is unchanged (#1849)
-  - The streamed files are byte-identical to those `run()` followed by `save()` writes, as state now crosses each year boundary exactly (#1912).
-  - The returned `SUEWSOutput` holds no rows, so `.df`, the group and variable accessors, `resample()` and `save()` raise `RuntimeError` naming the output folder instead of returning an empty frame; the checkpoint, final state and kernel warnings remain available.
-  - The checkpoint file (`<site>_SUEWS_checkpoint.json`) is replaced after every year, so a run that fails part-way resumes from the last completed year with `SUEWSSimulation.from_checkpoint(config, checkpoint)` and `run(start_date=<checkpoint last_timestamp + tstep>, stream="year")`; the checkpoint after the last year is the one an uninterrupted streamed run writes.
+- [bugfix] With snow enabled, the water body is now limited by its state limit, as when snow is off, instead of by the storage capacity of the drainage equation; on the first snow timestep the sample's 20000 mm water body drained to 0.5 mm and about 2800 mm (grid average) left as runoff (#1906)
+- [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)
+- [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.8` carries the clarified descriptions (#1866)
 - [bugfix] With snow enabled, `State`, `NWtrState`, `TotCh` and the per-surface `SMD*` columns are now updated every timestep: `State` and `NWtrState` read 0, `TotCh` and `SMD*` kept their last snow-free values, and `SMD` lagged one timestep (#1879)
 - [bugfix] `WUEveTr` and `WUDecTr` in the SUEWS output group now report evergreen- and deciduous-tree water use respectively; each previously carried the other tree type's value (#1865)
 - [bugfix] Runs split into chunks (`chunk_day`) or continued from a checkpoint now reproduce an uninterrupted run bit for bit. The Rust bridge parsed the carried state's JSON with serde_json's default float parser, which can land one ulp away from the decimal it reads, so every chunk boundary perturbed the state; enabling serde_json's `float_roundtrip` feature makes the parse exact. Unchunked runs, and so the sample reference, are unchanged (#1849)

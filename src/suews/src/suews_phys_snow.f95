@@ -482,7 +482,7 @@ CONTAINS
       vpd_hPa, qn_e, s_hPa, ResistSurf, RA, rb, tlv, snowdensmin, SnowProf_24hr, precip, &
       PipeCapacity, RunoffToWater, &
       addVeg, SnowLimPaved, SnowLimBldg, FlowChange, drain, &
-      WetThresh, stateOld, mw_ind, SoilStoreCap, rainonsnow, &
+      WetThresh, stateOld, mw_ind, SoilStoreCap, StateLimit, rainonsnow, &
       freezmelt, freezstate, freezstatevol, &
       Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, StoreDrainPrm, SnowPackLimit, &
       AddWater, addwaterrunoff, &
@@ -583,6 +583,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: AddWater
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: addwaterrunoff
       REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StateLimit !Limit for state_id of each surface type [mm]
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(in) :: SnowProf_24hr
 
       !Updated status: input and output
@@ -748,17 +749,19 @@ CONTAINS
 
          END IF !SnowPack negative or positive
 
-         !Check water state_id separately
-         IF (state_id(WaterSurf) > StoreDrainPrm(5, WaterSurf)) THEN
-            runoff_snowfree(WaterSurf) = runoff_snowfree(WaterSurf) + (state_id(WaterSurf) - StoreDrainPrm(5, WaterSurf))
-            state_id(WaterSurf) = StoreDrainPrm(5, WaterSurf)
+         !Check water state_id separately: the water body is limited by its state
+         !limit, as on the snow-free path (cal_water_storage), not by the storage
+         !capacity of the drainage equation (#1906)
+         IF (state_id(WaterSurf) > StateLimit(WaterSurf)) THEN
+            runoff_snowfree(WaterSurf) = runoff_snowfree(WaterSurf) + (state_id(WaterSurf) - StateLimit(WaterSurf))
+            state_id(WaterSurf) = StateLimit(WaterSurf)
             runoffWaterBody = runoffWaterBody + runoff_snowfree(WaterSurf)*sfr_surf(WaterSurf)
          ELSE
             state_id(WaterSurf) = state_id(WaterSurf) + surplusWaterBody
 
-            IF (state_id(WaterSurf) > StoreDrainPrm(5, WaterSurf)) THEN
-               runoffWaterBody = runoffWaterBody + (state_id(WaterSurf) - StoreDrainPrm(5, WaterSurf))*sfr_surf(WaterSurf)
-               state_id(WaterSurf) = StoreDrainPrm(5, WaterSurf)
+            IF (state_id(WaterSurf) > StateLimit(WaterSurf)) THEN
+               runoffWaterBody = runoffWaterBody + (state_id(WaterSurf) - StateLimit(WaterSurf))*sfr_surf(WaterSurf)
+               state_id(WaterSurf) = StateLimit(WaterSurf)
             END IF
          END IF
 

@@ -42,7 +42,10 @@ kernel (`HDD1_h` to `HDD4_T5d`, `UStar_heat`, debug `vsmd` and `dsp`). Output co
 BEERS `Tg`, `Tw` and `SVF_BdVeg`, `AddWater`, NHood `iter_count` and the RSL
 parameters missing under MOST. Output contract `1.1.7` describes the debug
 `x_exp` column as `G_sm*(vsmd - dsp)`, the expression the kernel now writes
-after a sign error in `S2` was corrected. A group is covered when that group is
+after a sign error in `S2` was corrected. Output contract `1.1.8` describes the
+BEERS `DirectRad` (direct beam normal to the sun) and `DiffuseRad` (diffuse on
+the horizontal) columns as the kernel now writes them, after their values were
+found swapped. A group is covered when that group is
 present; the contract does not promise that every optional group is emitted by
 every run.
 

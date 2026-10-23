@@ -1,8 +1,8 @@
 {
-  "description": "Pre-guard W16/MOST baseline for GH#1783, GH#1784 and PR#1853; no existing reference outputs were regenerated.",
-  "source_ref": "origin/master",
-  "source_commit": "2ffde7377024d58f5c3e46e61beea7c8164fdc7a",
-  "generated_date": "2026-10-20",
+  "description": "Pre-guard W16/MOST baseline for GH#1783, GH#1784 and PR#1853; no existing reference outputs were regenerated. Refreshed for GH#1878 (DailyState daily means divided by one step too few): only the rows at 2012-01-01 23:55 and 2012-01-02 00:00 changed.",
+  "source_ref": "sunt05-claude/gh1878-tstepcount",
+  "source_commit": "fcab99b03a",
+  "generated_date": "2026-10-22",
   "platform": "Linux x86_64",
   "compiler": "GNU Fortran (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)",
   "python": "3.12.12",
@@ -18,5 +18,5 @@
   "csv_format": "output.df['SUEWS'][['QH', 'QE', 'T2', 'U10']].to_csv(path, float_format='%.17g')",
   "sample_config_sha256": "dbf6d57acf4fa5222308999c58ae4e32303c0b0c567539577a2573f35aafa281",
   "hourly_forcing_sha256": "952a1fd3422aad584e214e190c32688d9c2070c04e956835ecb1641e2d0aa029",
-  "csv_sha256": "291d6ad93c703d2a6e5a7f9e4b4b2ffd89631747a245c0e01d3272c20742a954"
+  "csv_sha256": "e7cff662f8e62be8719355d6a2ccbead8f66b252ced3ec1fad2c38d44c7179e7"
 }

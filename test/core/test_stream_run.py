@@ -1,10 +1,8 @@
 """Tests for the opt-in year-by-year streamed run, ``run(stream="year")``.
 
 A streamed run writes each calendar year's files during the run and keeps no
-output frame. Its files must match what ``run()`` followed by ``save()``
-writes; the chunked state chaining is close to, but not bit-identical with,
-an uninterrupted run (see ``test_checkpoint.py``), so the file contents are
-compared numerically at the precision the text files are written with.
+output frame. Its files must be byte-identical to what ``run()`` followed by
+``save()`` writes: state crosses each year boundary exactly (gh#1912).
 
 The returned output holds no rows, so its row accessors raise; the checkpoint
 is written after every year, so a run that fails part-way resumes from the
@@ -15,7 +13,6 @@ import json
 from pathlib import Path
 import re
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -25,12 +22,6 @@ import supy.suews_sim as suews_sim_module
 
 pytestmark = pytest.mark.api
 
-# Text output carries four decimals; allow one unit in the last place plus
-# the round-off of reading it back.
-TXT_ATOL = 1.5e-4
-# Chained state differs from an uninterrupted run only by round-off.
-STATE_RTOL = 1e-9
-STATE_ATOL = 1e-9
 GROUPS = ["SUEWS", "DailyState", "RSL", "debug"]
 
 
@@ -106,33 +97,23 @@ def _numbers(obj):
 
 
 def _compare_dirs(dir_a, dir_b):
-    """Same file list; text values and checkpoint numbers within tolerance."""
+    """Same file list, byte-identical text files and identical checkpoint numbers.
+
+    State crosses each year boundary exactly (gh#1912), so a streamed run
+    writes what an uninterrupted run writes, bit for bit; only the
+    checkpoint's creation time and ``provenance.json`` record when they ran.
+    """
     names_a = sorted(p.name for p in dir_a.iterdir())
     names_b = sorted(p.name for p in dir_b.iterdir())
     assert names_a == names_b
     for name in names_a:
         if name.endswith(".txt"):
-            df_a = pd.read_csv(dir_a / name, sep=r"\s+")
-            df_b = pd.read_csv(dir_b / name, sep=r"\s+")
-            assert list(df_a.columns) == list(df_b.columns), name
-            assert df_a.shape == df_b.shape, name
-            np.testing.assert_allclose(
-                df_a.to_numpy(dtype=float),
-                df_b.to_numpy(dtype=float),
-                rtol=0,
-                atol=TXT_ATOL,
-                err_msg=name,
-            )
+            assert (dir_a / name).read_bytes() == (dir_b / name).read_bytes(), name
         elif name.endswith("_checkpoint.json"):
             ckpt_a = json.loads((dir_a / name).read_text(encoding="utf-8"))
             ckpt_b = json.loads((dir_b / name).read_text(encoding="utf-8"))
             assert ckpt_a["last_timestamp"] == ckpt_b["last_timestamp"]
-            np.testing.assert_allclose(
-                list(_numbers(ckpt_a)),
-                list(_numbers(ckpt_b)),
-                rtol=STATE_RTOL,
-                atol=STATE_ATOL,
-            )
+            assert list(_numbers(ckpt_a)) == list(_numbers(ckpt_b)), name
 
 
 @pytest.mark.parametrize("freq_s", [3600, 300])

@@ -174,7 +174,8 @@ def test_stability_profile_combinations(method, rsl, sample_config_loaded, sampl
             # Pre-guard origin/master: 2ffde7377024d58f5c3e46e61beea7c8164fdc7a.
             # Same sample config, first 288 forcing rows, stability=2,
             # roughness_sublayer=0 and n_jobs=1; see fixture provenance.
-            # Last two rows refreshed for gh#1878 (DailyState daily means).
+            # Last two rows refreshed for gh#1878 (DailyState daily means) and
+            # gh#1919 (first day started at the run's first step).
             path_reference = Path(__file__).resolve().parents[1] / "fixtures" / "w16_most.csv"
             df_expected = pd.read_csv(
                 path_reference, index_col=[0, 1], parse_dates=[1], float_precision="round_trip",

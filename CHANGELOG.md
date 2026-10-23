@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 23 Oct 2026
 
+- [bugfix] DailyState statistics for the first day of a run that starts after 00:00 (such as the sample run, from 00:05) now cover that day's own steps: the first step starts the day as 00:00 does, so `Tmin`, `Tmax`, the degree-day and precipitation sums no longer carry the initial state, and the daily means divide by the steps the partial day ran. Runs starting at 00:00, and every later day, are unchanged (#1919)
+  - With `roughness_sublayer_level: none`, day 1 of the sample run now reports `Tmin` 7.72 and `HDD3_Tmean` 10.6445, against 0.0 and 10.6544 before
+  - With `basic` or `detailed`, DailyState reads the 2 m temperature diagnosed at the previous step, which on a run's first step is still the initial value (0 degC), so day 1's `Tmin` stays at 0 until that ordering is addressed
 - [bugfix] Multi-grid runs with grids in parallel now give the same output as the same run done serially. `AerodynamicResistance` kept the heat stability correction `psih` in a module variable shared by every grid thread between computing and using it, so a grid could take another grid's value and its `QH`, `QE` and everything downstream departed from its serial run, mostly in checked (unoptimised) builds; `psih` is now a local. Serial runs, and so the sample reference, are unchanged (#1926)
 
 ### 22 Oct 2026

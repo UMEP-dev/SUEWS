@@ -957,9 +957,9 @@ class TestRun:
                     for idx in range(len(list_config_jsons))
                 ]
 
-        def fake_frame_from_output_buffers(ar_data, ar_datetime, grid_id):
+        def fake_frame_from_output_store(ar_data, ar_datetime, list_grid_ids):
             index = pd.MultiIndex.from_product(
-                [[grid_id], df_forcing.index[: len(ar_data)]],
+                [list_grid_ids, df_forcing.index],
                 names=["grid", "datetime"],
             )
             return pd.DataFrame({"QH": 0.0}, index=index)
@@ -972,8 +972,8 @@ class TestRun:
         )
         monkeypatch.setattr(
             run_rust_module,
-            "_frame_from_output_buffers",
-            fake_frame_from_output_buffers,
+            "_frame_from_output_store",
+            fake_frame_from_output_store,
         )
 
         _, dict_state_json, _ = run_rust_module.run_suews_rust_multi_with_state(

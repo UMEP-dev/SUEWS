@@ -52,6 +52,43 @@ backwards compatibility and developer inspection, but they are not the preferred
 restart artefact for new object-oriented workflows.
 
 
+.. _output_write_by_year:
+
+Writing Long Runs Year by Year
+------------------------------
+
+A run keeps its whole output in memory until it is saved, so memory grows with
+the length of the run and the number of grids. For long runs, set
+``write_by_year`` in the output block:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       output:
+         format: txt
+         freq: 3600
+         write_by_year: true
+
+``suews run`` and :meth:`~supy.SUEWSSimulation.run` then go one calendar year at
+a time: each year's text files are written as soon as the year is done, by the
+same code as :meth:`~supy.SUEWSSimulation.save`, and the year is dropped before
+the next one runs. While a year is held, only the groups listed in ``groups``
+(default ``SUEWS`` and ``DailyState``) are kept, so memory stays at about one
+year of output however long the run. The files are byte-identical to
+those of a run saved whole. The switch needs text output, an output frequency
+that divides one day, and output timestamps on the forcing clock
+(``timestamp_reference`` of ``follow`` or the forcing's own reference);
+``chunk_day`` is ignored.
+
+The output returned to Python holds no rows: read the written files back, for
+example with ``pandas.read_csv(path, sep=r"\s+")``. The checkpoint file is
+replaced after every year, so a run that stops part-way can continue from the
+last completed year: load the checkpoint with
+:meth:`~supy.SUEWSSimulation.from_checkpoint` and run from one model timestep
+after its ``last_timestamp``.
+
+
 Run Provenance
 --------------
 
@@ -84,8 +121,9 @@ without the original session:
   the end of each interval, see :ref:`timestamp_convention`) and the forcing
   and output ``timestamp_reference`` settings.
 - ``run``: interface (``cli`` or ``python``), the ``suews run`` command line
-  when applicable, wall-clock start and end, ``n_jobs``, ``chunk_day`` and
-  whether the run continued from a checkpoint.
+  when applicable, wall-clock start and end, ``n_jobs``, ``chunk_day``,
+  whether the run continued from a checkpoint and, for a run writing year by
+  year, ``write_by_year``.
 - ``output``: format, output frequency, the files written and the checkpoint
   file name.
 

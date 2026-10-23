@@ -229,7 +229,10 @@ plt.tight_layout()
 #
 # 1. **Memory scales with grid count**. The forcing array is cloned per thread
 #    because the Fortran kernel mutates it in place, so peak memory use grows
-#    roughly linearly with the number of sites in flight.
+#    roughly linearly with the number of sites in flight. The output grows
+#    with grid count and run length too; for long runs, set
+#    ``output.write_by_year: true`` to write and drop one year at a time
+#    (see :ref:`output_write_by_year`).
 # 2. **Each site needs its own config entry**. ``config.sites`` is the unit of
 #    parallelism: one entry per grid, with a unique ``gridiv``.
 # 3. **``n_jobs`` controls the per-call worker policy**. ``n_jobs=-1`` uses the

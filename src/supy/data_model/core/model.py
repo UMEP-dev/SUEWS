@@ -1272,9 +1272,10 @@ class ModelPhysics(BaseModel):
             except KeyError:
                 properties[field_name] = RefValue(int(default_enum))
 
-        for field_name, (col_names, default_value) in (
-            optional_float_attrs_with_defaults.items()
-        ):
+        for field_name, (
+            col_names,
+            default_value,
+        ) in optional_float_attrs_with_defaults.items():
             for col_name in col_names:
                 col = (col_name, "0")
                 if col in df.columns:
@@ -1398,6 +1399,25 @@ class OutputControl(BaseModel):
             "daylight-saving offset to local standard time inside the DLS window."
         ),
     )
+    write_by_year: bool = Field(
+        default=False,
+        description=(
+            "Write the output to disk one calendar year at a time during the "
+            "run. When true, the run proceeds year by year: each year's text "
+            "files are written exactly as a run followed by save would write "
+            "them, the year is then dropped from memory, and only the output "
+            "groups listed in 'groups' are kept while it is held, so memory "
+            "stays at about one year of output however long the run. The "
+            "checkpoint file is replaced after every year, so a run that stops "
+            "part-way can continue from the last completed year. The output "
+            "returned to Python holds no rows: read the written files. "
+            "Requires 'format' to be 'txt', an output frequency that divides "
+            "one day (86400 s), and output timestamps on the forcing clock "
+            "('timestamp_reference' of 'follow' or the forcing's own "
+            "reference). Default false keeps the whole output in memory until "
+            "it is saved."
+        ),
+    )
 
     @property
     def path(self):
@@ -1428,6 +1448,36 @@ class OutputControl(BaseModel):
                     f"Invalid output groups: {invalid}. Valid groups are: {valid_groups}"
                 )
         return v
+
+    @model_validator(mode="after")
+    def _check_write_by_year(self):
+        """Reject output settings that writing year by year cannot reproduce.
+
+        Each year's files must be what saving the whole run writes for that
+        year: text output has one file per grid, group and year (Parquet one
+        file for the run), and an output frequency dividing one day keeps
+        every resampling bin inside one year. A daylight-saving relabelling
+        moves rows across a year boundary in the southern hemisphere; the
+        clock check against the forcing is in :class:`ModelControl`.
+        """
+        if not self.write_by_year:
+            return self
+        if str(self.format) != "txt":
+            raise ValueError(
+                "output.write_by_year writes text output only; "
+                f"output.format is {str(self.format)!r}."
+            )
+        if self.freq is not None and (self.freq <= 0 or 86400 % self.freq != 0):
+            raise ValueError(
+                "output.write_by_year needs an output frequency that divides "
+                f"one day (86400 s); output.freq is {self.freq} s."
+            )
+        if self.timestamp_reference == OutputTimestampReference.DAYLIGHT:
+            raise ValueError(
+                "output.write_by_year keeps output timestamps on the forcing "
+                "clock; output.timestamp_reference='daylight' is not supported."
+            )
+        return self
 
 
 class ForcingTimestampReference(StrEnum):
@@ -1627,6 +1677,31 @@ class ModelControl(BaseModel):
     )
 
     ref: Optional[Reference] = None
+
+    @model_validator(mode="after")
+    def _check_write_by_year_clock(self):
+        """Keep the output of ``output.write_by_year`` on the forcing clock.
+
+        Relabelling the saved timestamps to another clock moves rows across
+        a year boundary, so the year files would differ from those of a run
+        saved whole.
+        """
+        output = self.output
+        if not output.write_by_year:
+            return self
+        target = str(output.timestamp_reference)
+        source = getattr(
+            self.forcing.timestamp_reference,
+            "value",
+            self.forcing.timestamp_reference,
+        )
+        if target not in {str(OutputTimestampReference.FOLLOW), str(source)}:
+            raise ValueError(
+                "output.write_by_year keeps output timestamps on the forcing "
+                f"clock ({str(source)!r}); output.timestamp_reference="
+                f"{target!r} is not supported."
+            )
+        return self
 
     @property
     def forcing_file(self):

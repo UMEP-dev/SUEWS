@@ -56,6 +56,12 @@ EXAMPLES:
 
 ### 23 Oct 2026
 
+- [feature][experimental] Long runs can write their output to disk year by year to bound memory: with `model.control.output.write_by_year: true` in the YAML, `SUEWSSimulation.run()` and `suews run` go one calendar year at a time, write that year's text files with the same code as `save()`, keep only the output groups the text output saves while a year is held, drop the year and carry the model state into the next year, so memory stays at about one year of output however long the run; off by default, and the default run is unchanged (#1849)
+  - The written files are byte-identical to those `run()` followed by `save()` writes, as state crosses each year boundary exactly (#1912).
+  - Requires `format: txt`, an output `freq` that divides one day and output timestamps on the forcing clock; the YAML validation rejects other settings. `chunk_day` is ignored.
+  - The returned `SUEWSOutput` holds no rows, so `.df`, the group and variable accessors, `resample()` and `save()` raise `RuntimeError` naming the output folder instead of returning an empty frame; the checkpoint, final state and kernel warnings remain available, and `SUEWSSimulation.save()` returns the written files.
+  - The checkpoint file (`<site>_SUEWS_checkpoint.json`) is replaced after every year, so a run that fails part-way resumes from the last completed year with `SUEWSSimulation.from_checkpoint(config, checkpoint)` and `run(start_date=<checkpoint last_timestamp + tstep>)`.
+  - The `chunk_day` docstring no longer claims that a smaller value lowers peak memory: every chunk writes into one output table for the whole run.
 - [bugfix] Multi-grid runs with grids in parallel now give the same output as the same run done serially. `AerodynamicResistance` kept the heat stability correction `psih` in a module variable shared by every grid thread between computing and using it, so a grid could take another grid's value and its `QH`, `QE` and everything downstream departed from its serial run, mostly in checked (unoptimised) builds; `psih` is now a local. Serial runs, and so the sample reference, are unchanged (#1926)
 
 ### 22 Oct 2026

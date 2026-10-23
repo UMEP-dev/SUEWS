@@ -278,6 +278,82 @@ def test_parallel_stebbs_output_matches_serial(stebbs_inputs, trial):
         assert mismatch is None, mismatch
 
 
+DISTINCT_STEPS = 288 * 7  # one week at the sample 5-minute timestep
+# Measurement heights that make the sample grids differ: the stability
+# corrections in the aerodynamic resistance depend on z, so a grid reading
+# another grid's value gives a different QH from its own serial run.
+DISTINCT_GRID_Z = [40.0, 45.0, 50.0, 55.0]
+DISTINCT_REPEATS = 10
+
+
+def _run_distinct_grids(inputs: dict, max_workers: int) -> list:
+    configs = [
+        _grid_json(inputs["config_dict"], idx + 1, False, z=z)
+        for idx, z in enumerate(DISTINCT_GRID_Z)
+    ]
+    return sorted(
+        inputs["rust"].run_suews_multi(
+            configs, inputs["forcing_flat"], inputs["len_sim"], max_workers
+        )
+    )
+
+
+@pytest.fixture(scope="module")
+def distinct_inputs():
+    """Bridge inputs for four distinct sample grids, plus their serial output."""
+    sim = sp.SUEWSSimulation.from_sample_data()
+    df_forcing = sim._df_forcing.iloc[:DISTINCT_STEPS]
+    inputs = {
+        "rust": _run_rust._check_rust_available(),
+        "config_dict": sim.config.model_dump(exclude_none=True, mode="json"),
+        "forcing_flat": _run_rust
+        ._prepare_forcing_block(df_forcing)
+        .ravel(order="C")
+        .tolist(),
+        "len_sim": len(df_forcing),
+    }
+    inputs["serial"] = _run_distinct_grids(inputs, max_workers=1)
+    return inputs
+
+
+def test_distinct_grids_are_distinct(distinct_inputs):
+    """The perturbed measurement heights must produce different serial output
+    per grid, or the parallel comparison below could pass by coincidence."""
+    blocks = [bytes(result[1]) for result in distinct_inputs["serial"]]
+    assert len(set(blocks)) == len(blocks), "sample grids gave identical output"
+
+
+def test_parallel_distinct_grids_match_serial(distinct_inputs):
+    """Distinct grids must give bit-identical output in serial and parallel
+    execution, on every one of repeated runs (gh#1926).
+
+    ``AerodynamicResistance`` stored its heat stability correction in the
+    module variable ``psih``, shared by every grid thread, between computing
+    it and using it, so one grid could take another grid's value and its QH
+    and QE departed from its serial run. Identical grids compute the same
+    value and hide the race, hence the distinct measurement heights. With the
+    shared variable, about two in three parallel runs of this set-up diverged
+    in a checked build, so ten repeats miss it with a probability below 1e-4.
+    """
+    serial = distinct_inputs["serial"]
+    list_mismatch = []
+    for repeat in range(DISTINCT_REPEATS):
+        parallel = _run_distinct_grids(distinct_inputs, max_workers=4)
+        for parallel_result, serial_result in zip(parallel, serial, strict=True):
+            assert parallel_result[0] == serial_result[0]
+            mismatch = _describe_mismatch(
+                f"run {repeat} grid {serial_result[0]} output blocks",
+                bytes(parallel_result[1]),
+                bytes(serial_result[1]),
+            )
+            if mismatch is not None:
+                list_mismatch.append(mismatch)
+    assert not list_mismatch, (
+        f"{len(list_mismatch)} grid outputs of {DISTINCT_REPEATS} parallel runs "
+        f"differ from serial; first: {list_mismatch[0]}"
+    )
+
+
 def test_public_multi_grid_run_names_the_failing_grid():
     """Same contract through the public config path used by SUEWSSimulation."""
     sim = sp.SUEWSSimulation.from_sample_data()

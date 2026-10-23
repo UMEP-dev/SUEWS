@@ -34,6 +34,7 @@ import pytest
 
 from supy import SUEWSSimulation
 from supy.data_model.core.model import SnowUse
+from supy.data_model.core.site import Site
 
 pytestmark = pytest.mark.physics
 
@@ -418,3 +419,60 @@ def test_snow_density_and_depth_are_consistent(run: SnowRun):
     np.testing.assert_allclose(
         run.snow["Sd_Paved"][with_snow], depth_expected, rtol=1e-2, atol=0
     )
+
+
+# Water-body inflow -----------------------------------------------------------
+
+FLOW_CHANGE_MM_H = 1.0
+
+
+@pytest.fixture(scope="module")
+def inflow_run() -> SnowRun:
+    """The snow scenario with a net inflow into the water body.
+
+    This fixture works below the validated config boundary. The kernel reads
+    the flow change from the site scalar the Rust bridge takes from
+    ``sites[].properties.flowchange``; the data model holds it at
+    ``land_cover.water.flowchange``, which the bridge does not pass to the
+    kernel, and ``SiteProperties`` has no ``flowchange`` field. So no
+    ``SUEWSConfig`` can set a non-zero flow change, and the fixture adds the
+    key the bridge reads to the per-site config dump instead. Once the
+    documented field reaches the kernel, set that field here instead.
+    """
+    original_dump = Site.model_dump
+
+    def dump_with_flow_change(self, *args, **kwargs):
+        dict_site = original_dump(self, *args, **kwargs)
+        dict_site["properties"]["flowchange"] = FLOW_CHANGE_MM_H
+        return dict_site
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(Site, "model_dump", dump_with_flow_change)
+        return SnowRun()
+
+
+@pytest.mark.core
+def test_water_body_inflow_is_one_timestep_of_flow_change(
+    run: SnowRun, inflow_run: SnowRun
+):
+    """The water body gains ``flowchange`` (mm h-1) times the timestep.
+
+    Regression for gh#1927: ``SnowCalc`` added the hourly ``FlowChange`` at
+    every timestep, so with snow on the water body received 12 times (at a
+    5-minute step) the inflow of the snow-free path. The run differs from the
+    default scenario only in the inflow, so the extra water stored plus the
+    extra runoff must be one timestep of inflow over the water fraction at
+    every step. How it splits between the two depends on the water-body cap
+    (gh#1906), not on this check. The snow-free control days are checked to
+    1e-9; on the snow days the freeze and melt exchange with the ice cover
+    moves a little of the inflow between steps, so they are checked to 1e-6.
+    """
+    sfr_water = run.sfr["Water"]
+    extra_store = (inflow_run.suews["StWater"] - run.suews["StWater"]) * sfr_water
+    extra_runoff = inflow_run.suews["RO"] - run.suews["RO"]
+    gained = (extra_store.diff() + extra_runoff).iloc[1:]
+    one_step = FLOW_CHANGE_MM_H * TSTEP_H * sfr_water
+
+    control = run.on_days(*range(FIRST_SNOW_FREE_DAY, N_DAYS)).iloc[1:]
+    np.testing.assert_allclose(gained[control], one_step, rtol=1e-9, atol=0)
+    np.testing.assert_allclose(gained, one_step, rtol=0, atol=1e-6)

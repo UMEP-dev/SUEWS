@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 23 Oct 2026
+
+- [bugfix] On the snow path the kernel now adds one timestep of the water-body flow change (`FlowChange`, in mm h-1) to the water body, as the snow-free path does, instead of the full hourly amount at every timestep (12 times too much at a 5-minute timestep). No run output changes at present: the documented `land_cover.water.flowchange` does not reach the kernel, which so far always sees a flow change of zero (#1927)
+
 ### 22 Oct 2026
 
 - [bugfix] With snow enabled, `State`, `NWtrState`, `TotCh` and the per-surface `SMD*` columns are now updated every timestep: `State` and `NWtrState` read 0, `TotCh` and `SMD*` kept their last snow-free values, and `SMD` lagged one timestep (#1879)

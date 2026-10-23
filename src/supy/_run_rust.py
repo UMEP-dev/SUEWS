@@ -655,15 +655,71 @@ def _run_grids_into(
     bridge; otherwise one after another. Returns
     ``(df_output, dict_state_json, warnings)``.
     """
-    list_grid_ids_sorted = sorted(list_grid_ids)
-    dict_row_start = {
-        grid_id: rank * len_forcing for rank, grid_id in enumerate(list_grid_ids_sorted)
-    }
     ar_data, ar_datetime = _alloc_output_store(len(list_grid_ids), len_forcing)
-    list_rows = [
-        slice(dict_row_start[grid_id], dict_row_start[grid_id] + len_forcing)
-        for grid_id in list_grid_ids
-    ]
+    dict_state_json, kernel_warnings = _write_grids_output(
+        rust_module,
+        list_config_jsons,
+        forcing_block,
+        len_forcing,
+        list_grid_ids,
+        list_state_jsons,
+        use_rayon,
+        max_workers,
+        ar_data=ar_data,
+        ar_datetime=ar_datetime,
+        list_row_start=_grid_row_starts(list_grid_ids, len_forcing),
+    )
+    df_output_all = _frame_from_grid_store(ar_data, ar_datetime, list_grid_ids)
+    return df_output_all, dict_state_json or None, kernel_warnings
+
+
+def _grid_row_starts(list_grid_ids: list[int], len_grid: int) -> list[int]:
+    """Return the first row of each listed grid's block in a shared table.
+
+    Blocks of *len_grid* rows follow grid ID, so the table comes out in the
+    order the joined per-grid frames were sorted into.
+    """
+    dict_rank = {grid_id: rank for rank, grid_id in enumerate(sorted(list_grid_ids))}
+    return [dict_rank[grid_id] * len_grid for grid_id in list_grid_ids]
+
+
+def _frame_from_grid_store(
+    ar_data: np.ndarray,
+    ar_datetime: np.ndarray,
+    list_grid_ids: list[int],
+) -> pd.DataFrame:
+    """Turn a table laid out by :func:`_grid_row_starts` into the output frame."""
+    df_output_all = _frame_from_output_store(
+        ar_data, ar_datetime, sorted(list_grid_ids)
+    )
+    # Unsorted forcing gives an unsorted frame; sort it, as joining did.
+    if not df_output_all.index.is_monotonic_increasing:
+        df_output_all = df_output_all.sort_index()
+    return df_output_all
+
+
+def _write_grids_output(
+    rust_module: Any,
+    list_config_jsons: list[str],
+    forcing_block: np.ndarray,
+    len_forcing: int,
+    list_grid_ids: list[int],
+    list_state_jsons: list[str] | None,
+    use_rayon: bool,
+    max_workers: int | None,
+    *,
+    ar_data: np.ndarray,
+    ar_datetime: np.ndarray,
+    list_row_start: list[int],
+) -> tuple[dict[int, str], KernelWarningLog]:
+    """Run every grid, each writing *len_forcing* rows of one shared table.
+
+    Grid ``list_grid_ids[i]`` writes rows ``list_row_start[i]`` onwards of
+    *ar_data* and *ar_datetime*; the bridge takes each block of rows without
+    a copy. With *use_rayon* the grids run in parallel inside the bridge;
+    otherwise one after another. Returns ``(dict_state_json, warnings)``.
+    """
+    list_rows = [slice(start, start + len_forcing) for start in list_row_start]
     dict_state_json: dict[int, str] = {}
     kernel_warnings = KernelWarningLog()
 
@@ -707,11 +763,7 @@ def _run_grids_into(
                 dict_state_json[grid_id] = state_json
             kernel_warnings.add(grid_id, raw_warnings)
 
-    df_output_all = _frame_from_output_store(ar_data, ar_datetime, list_grid_ids_sorted)
-    # Unsorted forcing gives an unsorted frame; sort it, as joining did.
-    if not df_output_all.index.is_monotonic_increasing:
-        df_output_all = df_output_all.sort_index()
-    return df_output_all, dict_state_json or None, kernel_warnings
+    return dict_state_json, kernel_warnings
 
 
 def run_suews_rust(
@@ -802,38 +854,18 @@ def run_suews_rust_multi(
 
     # Validate unique grid IDs
     list_gridiv = [s.gridiv for s in sites]
-    list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
-    if list_dupes:
-        raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
+    _check_unique_grid_ids(list_gridiv)
 
     rust_module = _check_rust_available()
     _validate_output_layout(rust_module)
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
-    if max_workers is not None and (
-        isinstance(max_workers, bool)
-        or not isinstance(max_workers, int)
-        or max_workers < 1
-    ):
-        raise ValueError("max_workers must be a positive integer or None")
+    _check_max_workers(max_workers)
 
     # --- Prepare shared data once ---
-    # The Rust bridge's YAML preprocessor accepts both new snake_case and
-    # legacy fused spellings (gh#1322), so the Pydantic dump is submitted
-    # verbatim.
-    config_dict = config.model_dump(exclude_none=True, mode="json")
-    list_site_dict = [s.model_dump(exclude_none=True, mode="json") for s in sites]
     forcing_block = _prepare_forcing_block(df_forcing)
     len_forcing = len(df_forcing)
-
-    # Pre-serialise per-grid config JSON strings
-    list_grid_ids = []
-    list_config_jsons = []
-    for idx, site_dict in enumerate(list_site_dict):
-        grid_id = _normalise_grid_id(sites[idx].gridiv)
-        list_grid_ids.append(grid_id)
-        config_dict["sites"] = [site_dict]
-        list_config_jsons.append(json.dumps(config_dict))
+    list_grid_ids, list_config_jsons = _grid_config_jsons(config)
 
     # --- Execute grids ---
     # Use Rust Rayon parallelism (shared memory, no IPC overhead) when
@@ -860,41 +892,27 @@ def run_suews_rust_multi(
     )
 
 
-def _concat_output_frames(list_df_output: list[pd.DataFrame]) -> pd.DataFrame:
-    """Join per-chunk output frames into one sorted frame.
-
-    ``sort_index`` always returns a full copy, which for a multi-year run at
-    the model timestep is several GB (gh#1849). Sort only when the joined
-    index is out of order, and skip ``pd.concat`` for a single frame.
-    """
-    if len(list_df_output) == 1:
-        df_output_all = list_df_output[0]
-    else:
-        df_output_all = pd.concat(list_df_output)
-    if not df_output_all.index.is_monotonic_increasing:
-        df_output_all = df_output_all.sort_index()
-    return df_output_all
-
-
-def run_suews_rust_multi_with_state(
-    config: SUEWSConfig,
-    df_forcing: pd.DataFrame,
-    dict_state_json_by_grid: dict[int, str],
-    serial_mode: bool = False,
-    max_workers: int | None = None,
-) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
-    """Run SUEWS via Rust bridge for all sites with injected states."""
-    sites = config.sites
-
-    list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
+def _check_unique_grid_ids(list_gridiv: list[Any]) -> None:
+    """Refuse a configuration that lists one grid ID twice."""
     list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
     if list_dupes:
         raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
 
-    dict_state_json_by_grid = {
-        _normalise_grid_id(grid_id): state_json
-        for grid_id, state_json in dict_state_json_by_grid.items()
-    }
+
+def _check_max_workers(max_workers: int | None) -> None:
+    """Refuse a worker cap that is not a positive integer."""
+    if max_workers is not None and (
+        isinstance(max_workers, bool)
+        or not isinstance(max_workers, int)
+        or max_workers < 1
+    ):
+        raise ValueError("max_workers must be a positive integer or None")
+
+
+def _check_state_grid_ids(
+    dict_state_json_by_grid: dict[int, str], list_gridiv: list[int]
+) -> None:
+    """Refuse states that do not cover exactly the configured grids."""
     config_grid_ids = set(list_gridiv)
     state_grid_ids = set(dict_state_json_by_grid)
     if state_grid_ids != config_grid_ids:
@@ -909,31 +927,53 @@ def run_suews_rust_multi_with_state(
             "State grid IDs do not match config.sites: " + "; ".join(parts)
         )
 
+
+def _grid_config_jsons(config: SUEWSConfig) -> tuple[list[int], list[str]]:
+    """Return each site's grid ID and its one-site config as a JSON string.
+
+    The Rust bridge's YAML preprocessor accepts both new snake_case and
+    legacy fused spellings (gh#1322), so the Pydantic dump is submitted
+    verbatim.
+    """
+    config_dict = config.model_dump(exclude_none=True, mode="json")
+    list_grid_ids = []
+    list_config_jsons = []
+    for site in config.sites:
+        list_grid_ids.append(_normalise_grid_id(site.gridiv))
+        config_dict["sites"] = [site.model_dump(exclude_none=True, mode="json")]
+        list_config_jsons.append(json.dumps(config_dict))
+    return list_grid_ids, list_config_jsons
+
+
+def run_suews_rust_multi_with_state(
+    config: SUEWSConfig,
+    df_forcing: pd.DataFrame,
+    dict_state_json_by_grid: dict[int, str],
+    serial_mode: bool = False,
+    max_workers: int | None = None,
+) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
+    """Run SUEWS via Rust bridge for all sites with injected states."""
+    sites = config.sites
+
+    list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
+    _check_unique_grid_ids(list_gridiv)
+
+    dict_state_json_by_grid = {
+        _normalise_grid_id(grid_id): state_json
+        for grid_id, state_json in dict_state_json_by_grid.items()
+    }
+    _check_state_grid_ids(dict_state_json_by_grid, list_gridiv)
+
     rust_module = _check_rust_available()
     _validate_output_layout(rust_module)
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
-    if max_workers is not None and (
-        isinstance(max_workers, bool)
-        or not isinstance(max_workers, int)
-        or max_workers < 1
-    ):
-        raise ValueError("max_workers must be a positive integer or None")
+    _check_max_workers(max_workers)
 
-    config_dict = config.model_dump(exclude_none=True, mode="json")
-    list_site_dict = [s.model_dump(exclude_none=True, mode="json") for s in sites]
     forcing_block = _prepare_forcing_block(df_forcing)
     len_forcing = len(df_forcing)
-
-    list_grid_ids = []
-    list_config_jsons = []
-    list_state_jsons = []
-    for idx, site_dict in enumerate(list_site_dict):
-        grid_id = list_gridiv[idx]
-        list_grid_ids.append(grid_id)
-        config_dict["sites"] = [site_dict]
-        list_config_jsons.append(json.dumps(config_dict))
-        list_state_jsons.append(dict_state_json_by_grid[grid_id])
+    list_grid_ids, list_config_jsons = _grid_config_jsons(config)
+    list_state_jsons = [dict_state_json_by_grid[grid_id] for grid_id in list_grid_ids]
 
     use_rayon = not serial_mode and len(sites) > 1
     if use_rayon:
@@ -993,9 +1033,7 @@ def _check_chunk_grid_ids(
 ) -> None:
     """Reject duplicate grid IDs and checkpoints that do not match the sites."""
     list_gridiv = [_normalise_grid_id(s.gridiv) for s in config.sites]
-    list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
-    if list_dupes:
-        raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
+    _check_unique_grid_ids(list_gridiv)
 
     if initial_state_json_by_grid:
         checkpoint_grid_ids = set(initial_state_json_by_grid)
@@ -1082,7 +1120,14 @@ def run_suews_rust_chunked(
     Splits forcing into chunks of *chunk_day* days, runs each chunk
     sequentially, and threads the final state of chunk N into chunk N+1
     for every grid.  When *initial_state_json_by_grid* is provided, the first
-    chunk also runs through ``run_suews_with_state`` for those grids.
+    chunk also continues from those states.
+
+    Every chunk writes into its own rows of one output table allocated for
+    the whole period (gh#1849): each grid has one block of rows, laid out by
+    grid ID as in a single-chunk run, and inside it the chunks follow one
+    another. The table becomes the output frame as it is, so the chunks are
+    not joined afterwards and the run needs about the memory of its output
+    once, however many chunks it is split into.
     """
     initial_state_json_by_grid = {
         _normalise_grid_id(grid_id): state_json
@@ -1111,21 +1156,71 @@ def run_suews_rust_chunked(
 
     _check_chunk_grid_ids(config, initial_state_json_by_grid)
 
-    dict_state_json: dict[int, str] = dict(initial_state_json_by_grid)
-    list_df_output: list[pd.DataFrame] = []
-    kernel_warnings = KernelWarningLog()
-    for df_output_chunk, dict_state_chunk, warnings_chunk in _iter_suews_rust_chunks(
-        config,
-        grp_forcing_chunk,
-        serial_mode,
-        max_workers,
-        initial_state_json_by_grid,
-    ):
-        list_df_output.append(df_output_chunk)
-        kernel_warnings.extend(warnings_chunk)
-        dict_state_json = dict_state_chunk
+    if n_chunk <= 1:
+        return run_suews_rust_multi_with_state(
+            config,
+            df_forcing,
+            initial_state_json_by_grid,
+            serial_mode=serial_mode,
+            max_workers=max_workers,
+        )
 
-    df_output_all = _concat_output_frames(list_df_output)
+    rust_module = _check_rust_available()
+    _validate_output_layout(rust_module)
+    _check_max_workers(max_workers)
+
+    list_grid_ids, list_config_jsons = _grid_config_jsons(config)
+    len_total = len(df_forcing)
+    ar_data, ar_datetime = _alloc_output_store(len(list_grid_ids), len_total)
+    list_grid_start = _grid_row_starts(list_grid_ids, len_total)
+    use_rayon = not serial_mode and len(list_grid_ids) > 1
+    if use_rayon:
+        logger_supy.info(
+            "Running %d grids in parallel (Rust/Rayon%s)",
+            len(list_grid_ids),
+            "" if max_workers is None else f", max_workers={max_workers}",
+        )
+
+    dict_state_json: dict[int, str] = dict(initial_state_json_by_grid)
+    kernel_warnings = KernelWarningLog()
+    row_offset = 0
+
+    for chunk_idx, grp in enumerate(grp_forcing_chunk.groups):
+        df_forcing_chunk = grp_forcing_chunk.get_group(grp)
+        len_chunk = len(df_forcing_chunk)
+        logger_supy.debug(
+            "Rust backend: chunk %d/%d  (%s -> %s, %d rows)",
+            chunk_idx + 1,
+            n_chunk,
+            df_forcing_chunk.index[0],
+            df_forcing_chunk.index[-1],
+            len_chunk,
+        )
+
+        list_state_jsons = None
+        if dict_state_json:
+            _check_state_grid_ids(dict_state_json, list_grid_ids)
+            list_state_jsons = [dict_state_json[grid_id] for grid_id in list_grid_ids]
+
+        # This chunk's rows start row_offset rows into each grid's block.
+        dict_state_json_chunk, warnings_chunk = _write_grids_output(
+            rust_module,
+            list_config_jsons,
+            _prepare_forcing_block(df_forcing_chunk),
+            len_chunk,
+            list_grid_ids,
+            list_state_jsons,
+            use_rayon,
+            max_workers,
+            ar_data=ar_data,
+            ar_datetime=ar_datetime,
+            list_row_start=[start + row_offset for start in list_grid_start],
+        )
+        kernel_warnings.extend(warnings_chunk)
+        dict_state_json.update(dict_state_json_chunk)
+        row_offset += len_chunk
+
+    df_output_all = _frame_from_grid_store(ar_data, ar_datetime, list_grid_ids)
     return df_output_all, dict_state_json or None, kernel_warnings
 
 

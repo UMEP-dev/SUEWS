@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.10.23.dev10 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.10.23.dev11 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=274500d4"></script>
+    <script src="../../_static/documentation_options.js?v=9cb982c9"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.23.dev10" />
+  <meta name="docsearch:version" content="2026.10.23.dev11" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.23.dev10, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/84854d51d11593976217cdfc5e4a75823706e74c" style="color: #31708f;">84854d5</a>).
+        (2026.10.23.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d" style="color: #31708f;">ac7b081</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev10 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev10 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
   
   
 </a></div>
@@ -574,6 +574,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">._filename</span><span class="w"> </span><span class="kn">import</span> <span class="n">safe_filename_component</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._load</span><span class="w"> </span><span class="kn">import</span> <span class="n">merge_forcing_frames</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._provenance</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PROVENANCE_FILENAME</span><span class="p">,</span>
     <span class="n">PROVENANCE_FORMAT_VERSION</span><span class="p">,</span>
     <span class="n">TIMESTAMP_CONVENTION</span><span class="p">,</span>
     <span class="n">dataframe_sha256</span><span class="p">,</span>
@@ -587,20 +588,24 @@
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._run_period</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_run_period</span><span class="p">,</span> <span class="n">slice_forcing_to_period</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._run_rust</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">OUTPUT_GROUP_LAYOUT</span><span class="p">,</span>
     <span class="n">KernelWarningLog</span><span class="p">,</span>
     <span class="n">_check_rust_available</span><span class="p">,</span>
+    <span class="n">iter_suews_rust_streamed</span><span class="p">,</span>
     <span class="n">run_suews_rust_chunked</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._save</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEFAULT_OUTPUT_GROUPS</span><span class="p">,</span> <span class="n">StreamedTextFiles</span>
 
 <span class="c1"># Import SuPy components directly</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_save_supy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.data_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">RefValue</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.data_model.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.data_model.core.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">OutputControl</span><span class="p">,</span> <span class="n">check_stream_chunk</span>
 
 <span class="c1"># Import new OOP classes</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.suews_checkpoint</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSCheckpoint</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.suews_forcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSForcing</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.suews_output</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSOutput</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.suews_output</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSOutput</span><span class="p">,</span> <span class="n">streamed_output_error</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.util._io</span><span class="w"> </span><span class="kn">import</span> <span class="n">prepare_dataframe_forcing</span><span class="p">,</span> <span class="n">read_forcing</span>
 
 <span class="c1"># Constants</span>
@@ -675,6 +680,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_period</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># Files written during a run with ``output.stream_chunk`` set.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># Provenance bookkeeping (see ``_provenance.py``); private, best effort.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_config_identity</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_forcing_sources</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1344,9 +1351,13 @@
 <span class="sd">            requested and actual periods are then logged as a warning. A</span>
 <span class="sd">            request with no overlap at all always raises.</span>
 <span class="sd">        chunk_day : int, optional</span>
-<span class="sd">            Chunk size in days for splitting long simulations, by default 3660</span>
-<span class="sd">            (~10 years). Smaller values reduce peak memory at a small overhead</span>
-<span class="sd">            cost.</span>
+<span class="sd">            Length in days of the pieces a long run is split into, by default</span>
+<span class="sd">            3660 (~10 years); the model state is carried across each piece</span>
+<span class="sd">            exactly, so the output is that of an unsplit run. Every piece</span>
+<span class="sd">            writes into its own rows of one output table for the whole run,</span>
+<span class="sd">            so a smaller value does not reduce peak memory. To bound memory</span>
+<span class="sd">            for a long run, set ``model.control.output.stream_chunk`` (see</span>
+<span class="sd">            Notes), which ignores ``chunk_day``.</span>
 <span class="sd">        n_jobs : int, optional</span>
 <span class="sd">            Parallel worker control for multi-grid runs. ``-1`` (default) uses</span>
 <span class="sd">            Rayon default parallelism, ``1`` forces serial execution, and</span>
@@ -1357,7 +1368,12 @@
 <span class="sd">        SUEWSOutput</span>
 <span class="sd">            Simulation results wrapped in an OOP interface with analysis</span>
 <span class="sd">            and plotting convenience methods. Access raw DataFrame via</span>
-<span class="sd">            ``.to_dataframe()`` or ``.df``.</span>
+<span class="sd">            ``.to_dataframe()`` or ``.df``. With ``output.stream_chunk``</span>
+<span class="sd">            set, the output holds the column layout but no rows (the values</span>
+<span class="sd">            are in the written files): ``.df``, the group and variable accessors,</span>
+<span class="sd">            ``resample()`` and ``save()`` raise ``RuntimeError`` naming the</span>
+<span class="sd">            output folder, while ``checkpoint``, ``state_final``,</span>
+<span class="sd">            ``kernel_warnings``, ``columns`` and ``groups`` work as usual.</span>
 
 <span class="sd">        Raises</span>
 <span class="sd">        ------</span>
@@ -1367,6 +1383,50 @@
 <span class="sd">            If the forcing does not cover the requested period and</span>
 <span class="sd">            ``clip_to_forcing`` is False, or if the request and the forcing</span>
 <span class="sd">            do not overlap at all.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        With ``model.control.output.stream_chunk`` set to a number of days</span>
+<span class="sd">        N, the run streams its output to disk: it goes through each calendar</span>
+<span class="sd">        year (years follow the right-closed convention, so the row stamped</span>
+<span class="sd">        ``1 January 00:00`` closes the previous year) in consecutive chunks of</span>
+<span class="sd">        up to N days, each starting at 00:00 plus one model timestep. Each</span>
+<span class="sd">        chunk's text files are written into the configured output directory</span>
+<span class="sd">        by the same code as :meth:`save`, one file per grid, group and year,</span>
+<span class="sd">        which later chunks extend; the chunk is dropped and the model state</span>
+<span class="sd">        carried into the next chunk. Only the groups the text output saves</span>
+<span class="sd">        (``output.groups``, default SUEWS and DailyState) are kept from each</span>
+<span class="sd">        chunk. Peak memory then stays at about one chunk of the model's full</span>
+<span class="sd">        output (every group) however long the run. At the end of every</span>
+<span class="sd">        calendar year the checkpoint file that :meth:`save` writes</span>
+<span class="sd">        (``&lt;site&gt;_SUEWS_checkpoint.json``) is replaced by the state reached;</span>
+<span class="sd">        ``provenance.json`` is written once at the end, so a completed run</span>
+<span class="sd">        leaves the same files, byte for byte, as ``run()`` followed by</span>
+<span class="sd">        ``save()``, and :meth:`save` afterwards returns those files.</span>
+
+<span class="sd">        A streamed run that stops part-way (an error, or the process being</span>
+<span class="sd">        killed) leaves a checkpoint whose ``last_timestamp`` is the last</span>
+<span class="sd">        forcing row of the last completed year; ``provenance.json`` is only</span>
+<span class="sd">        written by a run that completes. To resume, continue from that</span>
+<span class="sd">        checkpoint and start one model timestep after it, with the same</span>
+<span class="sd">        configuration (``path_checkpoint`` is</span>
+<span class="sd">        ``&lt;output dir&gt;/&lt;site&gt;_SUEWS_checkpoint.json`` and ``tstep`` the model</span>
+<span class="sd">        timestep in seconds)::</span>
+
+<span class="sd">            ckpt = SUEWSCheckpoint.from_file(path_checkpoint)</span>
+<span class="sd">            sim = SUEWSSimulation.from_checkpoint("config.yml", ckpt)</span>
+<span class="sd">            sim.update_forcing(forcing)  # the same forcing as before</span>
+<span class="sd">            start = pd.Timestamp(ckpt.last_timestamp) + pd.Timedelta(seconds=tstep)</span>
+<span class="sd">            sim.run(start_date=start)</span>
+
+<span class="sd">        The resumed run starts again from the beginning of the year it</span>
+<span class="sd">        stopped in. In each file it writes, it keeps the rows the run up to</span>
+<span class="sd">        the checkpoint produced, drops anything later (that year's partial</span>
+<span class="sd">        rows) and appends from there, so it ends with the files of an</span>
+<span class="sd">        uninterrupted run; resuming again from the same checkpoint gives the</span>
+<span class="sd">        same files. Its ``provenance.json`` describes the resumed segment</span>
+<span class="sd">        (``continued_from_checkpoint`` is true). The continuity check refuses</span>
+<span class="sd">        a ``start_date`` that does not follow the checkpoint.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -1418,6 +1478,18 @@
                         <span class="n">grid_vals</span> <span class="o">=</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
                     <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">(</span><span class="n">grid_vals</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"grid"</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_df_state</span><span class="p">(</span><span class="n">df_state_for_cfg</span><span class="p">)</span>
+
+        <span class="c1"># A streamed run saves as it goes: resolve where and what it writes,</span>
+        <span class="c1"># and reject settings it cannot reproduce, before any work is done.</span>
+        <span class="c1"># The YAML validators check the same, but not a config changed by</span>
+        <span class="c1"># attribute assignment.</span>
+        <span class="n">save_settings</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">list_keep</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">stream_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream_chunk</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">stream_chunk</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_settings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_save_settings</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="n">stream_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_stream_chunk</span><span class="p">(</span><span class="n">save_settings</span><span class="p">)</span>
+            <span class="n">list_keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_groups_saved</span><span class="p">(</span><span class="n">save_settings</span><span class="p">[</span><span class="s2">"output_config"</span><span class="p">])</span>
 
         <span class="c1"># Fall back to config values if start_date/end_date not provided</span>
         <span class="k">if</span> <span class="n">start_date</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1531,14 +1603,37 @@
         <span class="n">initial_state_json_by_grid</span> <span class="o">=</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">grid_states</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
         <span class="p">)</span>
-        <span class="n">df_output</span><span class="p">,</span> <span class="n">dict_state_json</span><span class="p">,</span> <span class="n">kernel_warnings</span> <span class="o">=</span> <span class="n">run_suews_rust_chunked</span><span class="p">(</span>
-            <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
-            <span class="n">df_forcing</span><span class="o">=</span><span class="n">df_forcing_slice</span><span class="p">,</span>
-            <span class="n">chunk_day</span><span class="o">=</span><span class="n">chunk_day</span><span class="p">,</span>
-            <span class="n">serial_mode</span><span class="o">=</span><span class="n">serial_mode</span><span class="p">,</span>
-            <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
-            <span class="n">initial_state_json_by_grid</span><span class="o">=</span><span class="n">initial_state_json_by_grid</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="c1"># Keep a legacy DFState-shaped final state for compatibility only.</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">._version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+
+        <span class="n">df_state_final</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">df_state_final</span><span class="p">[(</span><span class="s2">"version"</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">)]</span> <span class="o">=</span> <span class="n">__version__</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">save_settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hint_stream_chunk</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+            <span class="n">df_output</span><span class="p">,</span> <span class="n">dict_state_json</span><span class="p">,</span> <span class="n">kernel_warnings</span> <span class="o">=</span> <span class="n">run_suews_rust_chunked</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
+                <span class="n">df_forcing</span><span class="o">=</span><span class="n">df_forcing_slice</span><span class="p">,</span>
+                <span class="n">chunk_day</span><span class="o">=</span><span class="n">chunk_day</span><span class="p">,</span>
+                <span class="n">serial_mode</span><span class="o">=</span><span class="n">serial_mode</span><span class="p">,</span>
+                <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+                <span class="n">initial_state_json_by_grid</span><span class="o">=</span><span class="n">initial_state_json_by_grid</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">list_path_streamed</span><span class="p">,</span> <span class="n">df_output</span><span class="p">,</span> <span class="n">dict_state_json</span><span class="p">,</span> <span class="n">kernel_warnings</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_run_streamed</span><span class="p">(</span>
+                    <span class="n">df_forcing_slice</span><span class="p">,</span>
+                    <span class="n">tstep_cfg</span><span class="p">,</span>
+                    <span class="n">stream_chunk</span><span class="p">,</span>
+                    <span class="n">serial_mode</span><span class="p">,</span>
+                    <span class="n">max_workers</span><span class="p">,</span>
+                    <span class="n">df_state_final</span><span class="p">,</span>
+                    <span class="n">save_settings</span><span class="p">,</span>
+                    <span class="n">list_keep</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">run_metadata</span><span class="p">[</span><span class="s2">"stream_chunk"</span><span class="p">]</span> <span class="o">=</span> <span class="n">stream_chunk</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">df_output</span>
         <span class="c1"># Surface non-fatal kernel warnings (physics fallbacks) that were</span>
         <span class="c1"># previously discarded inside the Fortran layer (GH#1737).</span>
@@ -1556,16 +1651,23 @@
         <span class="c1"># same instance is an implicit continuation and is always checked.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_continuity</span> <span class="o">=</span> <span class="kc">True</span>
 
-        <span class="c1"># Keep a legacy DFState-shaped final state for compatibility only.</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">._version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
-
-        <span class="n">df_state_final</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">df_state_final</span><span class="p">[(</span><span class="s2">"version"</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">)]</span> <span class="o">=</span> <span class="n">__version__</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="n">df_state_final</span>
 
         <span class="n">run_metadata</span><span class="p">[</span><span class="s2">"ended_at"</span><span class="p">]</span> <span class="o">=</span> <span class="n">now_utc_iso</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_metadata</span> <span class="o">=</span> <span class="n">run_metadata</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">save_settings</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Same sidecars as save(), written once the run is complete.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_save_sidecars</span><span class="p">(</span>
+                <span class="n">list_path_streamed</span><span class="p">,</span> <span class="n">save_settings</span><span class="p">,</span> <span class="n">command</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">checkpoint_written</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">"stream_chunk: finished writing </span><span class="si">%d</span><span class="s2"> files to </span><span class="si">%s</span><span class="s2">; the returned "</span>
+                <span class="s2">"output holds no rows."</span><span class="p">,</span>
+                <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">),</span>
+                <span class="n">Path</span><span class="p">(</span><span class="n">save_settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">(),</span>
+            <span class="p">)</span>
 
         <span class="c1"># Wrap results in SUEWSOutput</span>
         <span class="k">return</span> <span class="n">SUEWSOutput</span><span class="p">(</span>
@@ -1574,6 +1676,7 @@
             <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
             <span class="n">checkpoint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="p">,</span>
             <span class="n">kernel_warnings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_kernel_warnings</span><span class="o">.</span><span class="n">to_frame</span><span class="p">(),</span>
+            <span class="n">streamed_paths</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">,</span>
         <span class="p">)</span></div>
 
 
@@ -1643,6 +1746,49 @@
                 <span class="s2">"Access results directly via sim.output.df_output"</span>
             <span class="p">)</span>
 
+        <span class="n">settings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_save_settings</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">save_kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># The run streamed every file to disk; the frame is gone, so</span>
+            <span class="c1"># nothing can be written again somewhere else.</span>
+            <span class="n">streamed_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">parent</span>
+            <span class="n">same_dir</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">]</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span> <span class="o">==</span> <span class="n">streamed_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+            <span class="n">as_text</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"output_format"</span><span class="p">]</span> <span class="ow">in</span> <span class="p">{</span><span class="kc">None</span><span class="p">,</span> <span class="s2">"txt"</span><span class="p">}</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">same_dir</span> <span class="ow">and</span> <span class="n">as_text</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">"This run streamed its output to "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">streamed_dir</span><span class="si">}</span><span class="s2"> as text (output.stream_chunk); its "</span>
+                    <span class="s2">"output is not held in memory, so it cannot be saved "</span>
+                    <span class="s2">"again elsewhere or in another format. Rerun with "</span>
+                    <span class="s2">"output.stream_chunk unset to save differently."</span>
+                <span class="p">)</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="n">save_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"command"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">command</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Only the provenance sidecar records the command line.</span>
+                <span class="n">list_path</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">p</span>
+                    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span>
+                    <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="n">PROVENANCE_FILENAME</span>
+                <span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_write_provenance_sidecar</span><span class="p">(</span><span class="n">list_path</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">)</span>
+
+        <span class="n">list_path_save</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_output_frame</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span><span class="p">,</span> <span class="n">settings</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_save_sidecars</span><span class="p">(</span>
+            <span class="n">list_path_save</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">command</span><span class="o">=</span><span class="n">save_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"command"</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_save_settings</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">output_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">save_kwargs</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Resolve where and how :meth:`save` writes, from arguments and config.</span>
+
+<span class="sd">        Shared by :meth:`save` and a streamed :meth:`run`, so both</span>
+<span class="sd">        write with the same settings.</span>
+<span class="sd">        """</span>
         <span class="c1"># Set default path with priority: parameter &gt; config &gt; current directory</span>
         <span class="k">if</span> <span class="n">output_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># Check if dir is specified in config</span>
@@ -1687,34 +1833,78 @@
             <span class="c1"># Get site name from first site</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"sites"</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
-        <span class="n">site_filename</span> <span class="o">=</span> <span class="n">safe_filename_component</span><span class="p">(</span><span class="n">site</span><span class="p">)</span>
         <span class="k">if</span> <span class="s2">"format"</span> <span class="ow">in</span> <span class="n">save_kwargs</span><span class="p">:</span>  <span class="c1"># TODO: When yaml format working, make elif</span>
             <span class="n">output_format</span> <span class="o">=</span> <span class="n">save_kwargs</span><span class="p">[</span><span class="s2">"format"</span><span class="p">]</span>
 
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"output_path"</span><span class="p">:</span> <span class="n">output_path</span><span class="p">,</span>
+            <span class="s2">"output_format"</span><span class="p">:</span> <span class="n">output_format</span><span class="p">,</span>
+            <span class="s2">"output_config"</span><span class="p">:</span> <span class="n">output_config</span><span class="p">,</span>
+            <span class="s2">"forcing_timestamp_reference"</span><span class="p">:</span> <span class="n">forcing_timestamp_reference</span><span class="p">,</span>
+            <span class="s2">"freq_s"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">freq_s</span><span class="p">),</span>
+            <span class="s2">"site"</span><span class="p">:</span> <span class="n">site</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_write_output_frame</span><span class="p">(</span>
+        <span class="n">df_output</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">df_state_final</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">settings</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">streamed_files</span><span class="p">:</span> <span class="n">StreamedTextFiles</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Write one output frame as :meth:`save` does; return the file paths.</span>
+
+<span class="sd">        With *streamed_files* the frame is one chunk of a streamed run, and</span>
+<span class="sd">        files the run has already started are extended.</span>
+<span class="sd">        """</span>
         <span class="c1"># Use internal save helper for all formats</span>
-        <span class="n">list_path_save</span> <span class="o">=</span> <span class="n">_save_supy</span><span class="p">(</span>
-            <span class="n">df_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">,</span>
-            <span class="n">df_state_final</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span><span class="p">,</span>
-            <span class="n">freq_s</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">freq_s</span><span class="p">),</span>
-            <span class="n">site</span><span class="o">=</span><span class="n">site</span><span class="p">,</span>
-            <span class="n">path_dir_save</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">output_path</span><span class="p">),</span>
+        <span class="k">return</span> <span class="n">_save_supy</span><span class="p">(</span>
+            <span class="n">df_output</span><span class="o">=</span><span class="n">df_output</span><span class="p">,</span>
+            <span class="n">df_state_final</span><span class="o">=</span><span class="n">df_state_final</span><span class="p">,</span>
+            <span class="n">freq_s</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"freq_s"</span><span class="p">],</span>
+            <span class="n">site</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"site"</span><span class="p">],</span>
+            <span class="n">path_dir_save</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">]),</span>
             <span class="c1"># **save_kwargs # The shared save backend expects explicit arguments</span>
-            <span class="n">output_config</span><span class="o">=</span><span class="n">output_config</span><span class="p">,</span>
-            <span class="n">output_format</span><span class="o">=</span><span class="n">output_format</span><span class="p">,</span>
+            <span class="n">output_config</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_config"</span><span class="p">],</span>
+            <span class="n">output_format</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_format"</span><span class="p">],</span>
             <span class="n">save_state</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">forcing_timestamp_reference</span><span class="o">=</span><span class="n">forcing_timestamp_reference</span><span class="p">,</span>
+            <span class="n">forcing_timestamp_reference</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"forcing_timestamp_reference"</span><span class="p">],</span>
+            <span class="n">streamed_files</span><span class="o">=</span><span class="n">streamed_files</span><span class="p">,</span>
         <span class="p">)</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_write_save_sidecars</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">list_path_save</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">settings</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">command</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">checkpoint_written</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Append the checkpoint and the provenance sidecar to saved files.</span>
+
+<span class="sd">        With *checkpoint_written*, the checkpoint file already holds this</span>
+<span class="sd">        run's final state (a streamed run writes it at its last year end) and</span>
+<span class="sd">        is listed without being written again.</span>
+<span class="sd">        """</span>
+        <span class="n">list_path_save</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">list_path_save</span><span class="p">)</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">checkpoint_name</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">site_filename</span><span class="si">}</span><span class="s2">_SUEWS_checkpoint.json"</span>
-                <span class="k">if</span> <span class="n">site_filename</span>
-                <span class="k">else</span> <span class="s2">"SUEWS_checkpoint.json"</span>
-            <span class="p">)</span>
-            <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">output_path</span> <span class="o">/</span> <span class="n">checkpoint_name</span><span class="p">)</span>
+            <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">Path</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint_filename</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"site"</span><span class="p">])</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">checkpoint_written</span><span class="p">:</span>
+                <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
             <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
 
         <span class="c1"># Provenance sidecar: written last so it can list what was saved.</span>
+        <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write_provenance_sidecar</span><span class="p">(</span><span class="n">list_path_save</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">list_path_save</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_write_provenance_sidecar</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">list_path_save</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">settings</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">command</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Write ``provenance.json`` describing *list_path_save*; return its path."""</span>
         <span class="c1"># Report the format that was actually written: the YAML</span>
         <span class="c1"># ``output.format`` applies when no ``format`` kwarg is given.</span>
         <span class="n">written_format</span> <span class="o">=</span> <span class="p">(</span>
@@ -1725,15 +1915,230 @@
         <span class="n">payload</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_provenance</span><span class="p">(</span>
             <span class="n">list_path_save</span><span class="p">,</span>
             <span class="n">output_format</span><span class="o">=</span><span class="n">written_format</span><span class="p">,</span>
-            <span class="n">freq_s</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">freq_s</span><span class="p">),</span>
-            <span class="n">forcing_timestamp_reference</span><span class="o">=</span><span class="n">forcing_timestamp_reference</span><span class="p">,</span>
-            <span class="n">output_config</span><span class="o">=</span><span class="n">output_config</span><span class="p">,</span>
-            <span class="n">command</span><span class="o">=</span><span class="n">save_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"command"</span><span class="p">),</span>
+            <span class="n">freq_s</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"freq_s"</span><span class="p">],</span>
+            <span class="n">forcing_timestamp_reference</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"forcing_timestamp_reference"</span><span class="p">],</span>
+            <span class="n">output_config</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_config"</span><span class="p">],</span>
+            <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">write_provenance</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">payload</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">write_provenance</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">],</span> <span class="n">payload</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">list_path_save</span></div>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_checkpoint_filename</span><span class="p">(</span><span class="n">site</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Name of the checkpoint file :meth:`save` writes for *site*."""</span>
+        <span class="n">site_filename</span> <span class="o">=</span> <span class="n">safe_filename_component</span><span class="p">(</span><span class="n">site</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">site_filename</span><span class="si">}</span><span class="s2">_SUEWS_checkpoint.json"</span>
+            <span class="k">if</span> <span class="n">site_filename</span>
+            <span class="k">else</span> <span class="s2">"SUEWS_checkpoint.json"</span>
+        <span class="p">)</span>
 
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_write_year_checkpoint</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">dict_state_json</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">last_timestamp</span><span class="p">,</span> <span class="n">settings</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Write the checkpoint reached at the end of one streamed year.</span>
+
+<span class="sd">        Same file name as the checkpoint :meth:`save` writes, so the last</span>
+<span class="sd">        completed year's state is always at one known path;</span>
+<span class="sd">        :meth:`SUEWSCheckpoint.to_file` replaces it atomically, so a run</span>
+<span class="sd">        killed while writing leaves the previous year's checkpoint intact.</span>
+<span class="sd">        """</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_checkpoint_filename</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"site"</span><span class="p">])</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">])</span> <span class="o">/</span> <span class="n">name</span>
+        <span class="n">checkpoint</span> <span class="o">=</span> <span class="n">SUEWSCheckpoint</span><span class="o">.</span><span class="n">from_grid_states</span><span class="p">(</span>
+            <span class="n">dict_state_json</span><span class="p">,</span> <span class="n">last_timestamp</span><span class="o">=</span><span class="n">last_timestamp</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_stream_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return ``model.control.output.stream_chunk``, or ``None`` when unset."""</span>
+        <span class="n">output_control</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">"model"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">"control"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="s2">"output"</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">output_control</span><span class="p">,</span> <span class="s2">"stream_chunk"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_stream_chunk</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Check the resolved save settings against ``output.stream_chunk``.</span>
+
+<span class="sd">        The output block is validated again through :class:`OutputControl`</span>
+<span class="sd">        (its fields can be assigned without validation, so ``True`` or</span>
+<span class="sd">        ``30.5`` would otherwise reach the run), then checked against the</span>
+<span class="sd">        forcing clock. Returns the validated chunk length in days.</span>
+<span class="sd">        """</span>
+        <span class="n">output_config</span> <span class="o">=</span> <span class="n">OutputControl</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span>
+            <span class="n">settings</span><span class="p">[</span><span class="s2">"output_config"</span><span class="p">]</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">output_config</span><span class="p">,</span> <span class="s2">"timestamp_reference"</span><span class="p">,</span> <span class="s2">"follow"</span><span class="p">)</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"forcing_timestamp_reference"</span><span class="p">]</span>
+        <span class="n">check_stream_chunk</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">output_config</span><span class="o">.</span><span class="n">format</span><span class="p">),</span>
+            <span class="n">settings</span><span class="p">[</span><span class="s2">"freq_s"</span><span class="p">],</span>
+            <span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">,</span> <span class="n">ref</span><span class="p">)),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">,</span> <span class="n">source</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">output_config</span><span class="o">.</span><span class="n">stream_chunk</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_hint_stream_chunk</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Suggest ``output.stream_chunk`` for a run longer than two years."""</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="ow">and</span> <span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">731</span><span class="p">):</span>
+            <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">"This run covers more than two years and keeps its whole output "</span>
+                <span class="s2">"in memory; set output.stream_chunk (for example 30 or 366 "</span>
+                <span class="s2">"days) to stream it to disk instead."</span>
+            <span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_groups_saved</span><span class="p">(</span><span class="n">output_config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return the kernel output groups the text output saves.</span>
+
+<span class="sd">        These are the groups :meth:`save` writes (``output.groups``, default</span>
+<span class="sd">        SUEWS and DailyState), restricted to those the kernel writes, in</span>
+<span class="sd">        kernel order; a streamed run keeps only these from each chunk.</span>
+<span class="sd">        """</span>
+        <span class="n">list_save</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">output_config</span><span class="p">,</span> <span class="s2">"groups"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">list_save</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">list_save</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">DEFAULT_OUTPUT_GROUPS</span><span class="p">)</span>
+        <span class="n">list_keep</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">OUTPUT_GROUP_LAYOUT</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">list_save</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">list_keep</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"output.groups </span><span class="si">{</span><span class="n">list_save</span><span class="si">}</span><span class="s2"> names no group the model writes, so "</span>
+                <span class="s2">"output.stream_chunk would write no output files; add a group "</span>
+                <span class="s2">"such as SUEWS or DailyState."</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">list_keep</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_remove_stale_sidecars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">settings</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Remove the checkpoint and provenance a previous run left behind.</span>
+
+<span class="sd">        A streamed run starting afresh replaces its folder's files as it goes;</span>
+<span class="sd">        an older checkpoint or provenance left in place would describe another</span>
+<span class="sd">        run until this one writes its own, and a failure before its first year</span>
+<span class="sd">        end would leave another run's checkpoint to resume from.</span>
+<span class="sd">        """</span>
+        <span class="n">path_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint_filename</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"site"</span><span class="p">]),</span> <span class="n">PROVENANCE_FILENAME</span><span class="p">):</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">path_dir</span> <span class="o">/</span> <span class="n">name</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">"stream_chunk: removing </span><span class="si">%s</span><span class="s2"> left by a previous run."</span><span class="p">,</span>
+                    <span class="n">path</span><span class="o">.</span><span class="n">resolve</span><span class="p">(),</span>
+                <span class="p">)</span>
+                <span class="n">path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_streamed</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">df_forcing</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">tstep_s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">stream_chunk</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">serial_mode</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">max_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">df_state_final</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">settings</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">list_keep</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Run in chunks of *stream_chunk* days, writing and dropping each.</span>
+
+<span class="sd">        Each chunk keeps only the groups *list_keep* that the text output</span>
+<span class="sd">        saves. At the end of each calendar year the checkpoint file is</span>
+<span class="sd">        replaced by the state reached, so a run that stops part-way can</span>
+<span class="sd">        resume from the start of the year it stopped in.</span>
+
+<span class="sd">        Returns ``(list_path_save, df_empty, dict_state_json,</span>
+<span class="sd">        kernel_warnings)``; ``df_empty`` has the output columns and no rows.</span>
+<span class="sd">        """</span>
+        <span class="n">list_path_save</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">kernel_warnings</span> <span class="o">=</span> <span class="n">KernelWarningLog</span><span class="p">()</span>
+        <span class="n">dict_state_json</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">df_empty</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">last_done</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">checkpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span>
+        <span class="k">if</span> <span class="n">checkpoint</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_remove_stale_sidecars</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span>
+        <span class="c1"># Files are started on first write and extended after; a run</span>
+        <span class="c1"># continuing from a checkpoint keeps what the run up to it wrote.</span>
+        <span class="n">streamed_files</span> <span class="o">=</span> <span class="n">StreamedTextFiles</span><span class="p">(</span>
+            <span class="n">resume_after</span><span class="o">=</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">last_timestamp</span> <span class="k">if</span> <span class="n">checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="c1"># _save_supy sets the SuPy logger level on every call; keep the</span>
+        <span class="c1"># caller's level so later chunks and the end-of-run summaries still log.</span>
+        <span class="n">log_level</span> <span class="o">=</span> <span class="n">logger_supy</span><span class="o">.</span><span class="n">level</span>
+        <span class="n">folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">"stream_chunk: writing the output to </span><span class="si">%s</span><span class="s2"> in chunks of up to </span><span class="si">%d</span><span class="s2"> days; "</span>
+            <span class="s2">"it is not kept in memory, and chunk_day is ignored."</span><span class="p">,</span>
+            <span class="n">folder</span><span class="p">,</span>
+            <span class="n">stream_chunk</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="p">(</span>
+                <span class="n">df_chunk</span><span class="p">,</span>
+                <span class="n">dict_state_chunk</span><span class="p">,</span>
+                <span class="n">warnings_chunk</span><span class="p">,</span>
+                <span class="n">first_timestamp</span><span class="p">,</span>
+                <span class="n">last_timestamp</span><span class="p">,</span>
+                <span class="n">year</span><span class="p">,</span>
+                <span class="n">k_chunk</span><span class="p">,</span>
+                <span class="n">n_chunk</span><span class="p">,</span>
+            <span class="p">)</span> <span class="ow">in</span> <span class="n">iter_suews_rust_streamed</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
+                <span class="n">df_forcing</span><span class="o">=</span><span class="n">df_forcing</span><span class="p">,</span>
+                <span class="n">tstep_s</span><span class="o">=</span><span class="n">tstep_s</span><span class="p">,</span>
+                <span class="n">chunk_days</span><span class="o">=</span><span class="n">stream_chunk</span><span class="p">,</span>
+                <span class="n">serial_mode</span><span class="o">=</span><span class="n">serial_mode</span><span class="p">,</span>
+                <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+                <span class="n">initial_state_json_by_grid</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">checkpoint</span><span class="o">.</span><span class="n">grid_states</span> <span class="k">if</span> <span class="n">checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+                <span class="p">),</span>
+                <span class="n">keep_groups</span><span class="o">=</span><span class="n">list_keep</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="n">kernel_warnings</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">warnings_chunk</span><span class="p">)</span>
+                <span class="n">dict_state_json</span> <span class="o">=</span> <span class="n">dict_state_chunk</span>
+                <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_output_frame</span><span class="p">(</span>
+                    <span class="n">df_chunk</span><span class="p">,</span> <span class="n">df_state_final</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">streamed_files</span>
+                <span class="p">):</span>
+                    <span class="k">if</span> <span class="n">path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">list_path_save</span><span class="p">:</span>
+                        <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                <span class="n">logger_supy</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">log_level</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">df_empty</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># A deep copy, so the empty frame does not keep the</span>
+                    <span class="c1"># chunk's buffer alive.</span>
+                    <span class="n">df_empty</span> <span class="o">=</span> <span class="n">df_chunk</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="c1"># Drop this chunk's frame before the next one is allocated.</span>
+                <span class="k">del</span> <span class="n">df_chunk</span>
+                <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">"stream_chunk: wrote </span><span class="si">%d</span><span class="s2"> chunk </span><span class="si">%d</span><span class="s2"> of </span><span class="si">%d</span><span class="s2"> (</span><span class="si">%s</span><span class="s2"> to </span><span class="si">%s</span><span class="s2">) to </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span>
+                    <span class="n">year</span><span class="p">,</span>
+                    <span class="n">k_chunk</span><span class="p">,</span>
+                    <span class="n">n_chunk</span><span class="p">,</span>
+                    <span class="n">first_timestamp</span><span class="p">,</span>
+                    <span class="n">last_timestamp</span><span class="p">,</span>
+                    <span class="n">folder</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="c1"># The year's files are complete; record the state reached at</span>
+                <span class="c1"># its end so a later failure can resume from here.</span>
+                <span class="k">if</span> <span class="n">k_chunk</span> <span class="o">==</span> <span class="n">n_chunk</span> <span class="ow">and</span> <span class="n">dict_state_chunk</span><span class="p">:</span>
+                    <span class="n">path_checkpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_year_checkpoint</span><span class="p">(</span>
+                        <span class="n">dict_state_chunk</span><span class="p">,</span> <span class="n">last_timestamp</span><span class="p">,</span> <span class="n">settings</span>
+                    <span class="p">)</span>
+                    <span class="n">last_done</span> <span class="o">=</span> <span class="p">(</span><span class="n">last_timestamp</span><span class="p">,</span> <span class="n">path_checkpoint</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">last_done</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">logger_supy</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">log_level</span><span class="p">)</span>
+                <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">"Streamed run stopped; the output is complete up to </span><span class="si">%s</span><span class="s2"> and "</span>
+                    <span class="s2">"its checkpoint is </span><span class="si">%s</span><span class="s2">. Resume with "</span>
+                    <span class="s2">"SUEWSSimulation.from_checkpoint(config, checkpoint) and "</span>
+                    <span class="s2">"run(start_date=&lt;last_timestamp + tstep&gt;); the year after "</span>
+                    <span class="s2">"it is written again from its start."</span><span class="p">,</span>
+                    <span class="n">last_done</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">last_done</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="p">)</span>
+            <span class="k">raise</span>
+        <span class="k">return</span> <span class="n">list_path_save</span><span class="p">,</span> <span class="n">df_empty</span><span class="p">,</span> <span class="n">dict_state_json</span><span class="p">,</span> <span class="n">kernel_warnings</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_start_run_metadata</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">,</span> <span class="n">df_forcing_slice</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">,</span> <span class="n">chunk_day</span>
@@ -1898,6 +2303,8 @@
                 <span class="s2">"continued_from_checkpoint"</span><span class="p">,</span> <span class="kc">False</span>
             <span class="p">),</span>
         <span class="p">}</span>
+        <span class="k">if</span> <span class="n">run_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"stream_chunk"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">run_block</span><span class="p">[</span><span class="s2">"stream_chunk"</span><span class="p">]</span> <span class="o">=</span> <span class="n">run_metadata</span><span class="p">[</span><span class="s2">"stream_chunk"</span><span class="p">]</span>
         <span class="k">return</span> <span class="p">{</span>
             <span class="s2">"format_version"</span><span class="p">:</span> <span class="n">PROVENANCE_FORMAT_VERSION</span><span class="p">,</span>
             <span class="s2">"generator"</span><span class="p">:</span> <span class="s2">"supy.SUEWSSimulation.save"</span><span class="p">,</span>
@@ -1943,6 +2350,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_period</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_metadata</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
 
@@ -2113,6 +2521,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_kernel_warnings</span> <span class="o">=</span> <span class="n">KernelWarningLog</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
 
@@ -2341,6 +2750,9 @@
 <span class="sd">        SUEWSSimulation(Complete: 105408 results)</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span>
+                <span class="k">return</span> <span class="sa">f</span><span class="s2">"SUEWSSimulation(Complete: streamed to </span><span class="si">{</span><span class="n">folder</span><span class="si">}</span><span class="s2">)"</span>
             <span class="n">n_results</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
             <span class="k">return</span> <span class="sa">f</span><span class="s2">"SUEWSSimulation(Complete: </span><span class="si">{</span><span class="n">n_results</span><span class="si">}</span><span class="s2"> results)"</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -2460,6 +2872,9 @@
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"Results DataFrame is None"</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">streamed_output_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">)</span>
 
         <span class="c1"># Check if variable exists in results</span>
         <span class="n">all_vars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"var"</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
@@ -2595,6 +3010,8 @@
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
             <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
         <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">streamed_output_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span>
 
     <span class="nd">@property</span>
@@ -2640,6 +3057,7 @@
             <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
             <span class="n">checkpoint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="p">,</span>
             <span class="n">kernel_warnings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_kernel_warnings</span><span class="o">.</span><span class="n">to_frame</span><span class="p">(),</span>
+            <span class="n">streamed_paths</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="nd">@property</span>
@@ -2768,8 +3186,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.23.dev10 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/84854d51d11593976217cdfc5e4a75823706e74c">84854d5</a> |
+  <p>Version: 2026.10.23.dev11 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d">ac7b081</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

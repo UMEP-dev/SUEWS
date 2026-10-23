@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-21T20:13:45+00:00" />
-    <title>5. Output Files &#8212; SUEWS 2026.10.23.dev10 documentation</title>
+    <meta property="article:modified_time" content="2026-10-23T18:18:12+00:00" />
+    <title>5. Output Files &#8212; SUEWS 2026.10.23.dev11 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=274500d4"></script>
+    <script src="../_static/documentation_options.js?v=9cb982c9"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.10.3.4.5. Snow related parameters" href="../inputs/tables/Initial_Conditions/Snow_related_parameters.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.23.dev10" />
-    <meta name="docbuild:last-update" content="2026-10-21"/>
+  <meta name="docsearch:version" content="2026.10.23.dev11" />
+    <meta name="docbuild:last-update" content="2026-10-23"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.23.dev10, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/84854d51d11593976217cdfc5e4a75823706e74c" style="color: #31708f;">84854d5</a>).
+        (2026.10.23.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d" style="color: #31708f;">ac7b081</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev10 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev10 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
   
   
 </a></div>
@@ -622,12 +622,13 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#site-suews-checkpoint-json">5.6.1. {site}_SUEWS_checkpoint.json</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-provenance">5.7. Run Provenance</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#provenance-json">5.7.1. provenance.json</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#streaming-long-runs-to-disk">5.7. Streaming Long Runs to Disk</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-provenance">5.8. Run Provenance</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#provenance-json">5.8.1. provenance.json</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.8. Temporal Information</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#saved-timestamp-reference">5.9. Saved Timestamp Reference</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.9. Temporal Information</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#saved-timestamp-reference">5.10. Saved Timestamp Reference</a></li>
 </ul>
             </nav>
         </div>
@@ -692,10 +693,68 @@ backwards compatibility and developer inspection, but they are not the preferred
 restart artefact for new object-oriented workflows.</p>
 </section>
 </section>
+<section id="streaming-long-runs-to-disk">
+<span id="output-stream-chunk"></span><h2><span class="section-number">5.7. </span>Streaming Long Runs to Disk<a class="headerlink" href="#streaming-long-runs-to-disk" title="Link to this heading">#</a></h2>
+<p>A run keeps its whole output in memory until it is saved, so memory grows with
+the length of the run and the number of grids. For long runs, set
+<code class="docutils literal notranslate"><span class="pre">stream_chunk</span></code> in the output block to a number of days (1 to 366); 30 (about
+a month) or 366 (a calendar year) are good choices:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">control</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">output</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">txt</span>
+<span class="w">      </span><span class="nt">freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span>
+<span class="w">      </span><span class="nt">stream_chunk</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code> and <a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.run" title="supy.SUEWSSimulation.run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code></a> then go through each
+calendar year in consecutive chunks of up to that many days, each starting at
+00:00 plus one model timestep. After each chunk its rows are written by the
+same code as <a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save()</span></code></a>, into the usual files (one per
+grid, group and year, which later chunks extend), and the chunk is dropped
+before the next one runs. Only the groups listed in <code class="docutils literal notranslate"><span class="pre">groups</span></code> (default
+<code class="docutils literal notranslate"><span class="pre">SUEWS</span></code> and <code class="docutils literal notranslate"><span class="pre">DailyState</span></code>) are kept from each chunk. The files are
+byte-identical to those of a run saved whole, for any chunk length. Streaming
+currently needs text output, an output frequency that divides one day, and
+output timestamps on the forcing clock (<code class="docutils literal notranslate"><span class="pre">timestamp_reference</span></code> of <code class="docutils literal notranslate"><span class="pre">follow</span></code>
+or the forcing’s own reference); <code class="docutils literal notranslate"><span class="pre">chunk_day</span></code> is ignored. The log names the
+output folder at the start and reports each chunk as it is written.</p>
+<p>The output returned to Python holds no rows: read the written files back, for
+example with <code class="docutils literal notranslate"><span class="pre">pandas.read_csv(path,</span> <span class="pre">sep=r&quot;\s+&quot;)</span></code>. The checkpoint file is
+replaced at the end of every calendar year. A run that stops part-way can
+continue from it: load the checkpoint with
+<a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.from_checkpoint" title="supy.SUEWSSimulation.from_checkpoint"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_checkpoint()</span></code></a> and run from one model timestep
+after its <code class="docutils literal notranslate"><span class="pre">last_timestamp</span></code>. The resumed run starts again from the beginning
+of the year it stopped in and rewrites that year’s files: in each file it
+writes, it keeps the rows up to the checkpoint and replaces everything after
+(a file whose header is missing or cut short is written anew), so it ends with
+the files of an uninterrupted run, and resuming again from the same checkpoint
+gives the same files. A streamed run that starts afresh, not from a
+checkpoint, first removes the checkpoint and <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> a previous
+run left in the output folder, so a failure before its first year end leaves
+no checkpoint of another run to resume from.</p>
+<p>Limitations:</p>
+<ul class="simple">
+<li><p>Peak memory is about one chunk of the model’s full output, every output
+group included, because the model computes all groups for the chunk before
+the unsaved ones are dropped. A run no longer than one chunk therefore gains
+nothing and can peak slightly higher than a run saved whole; the gain grows
+with run length and grid count. A ten-year run of eight grids at a 5-minute
+timestep saving <code class="docutils literal notranslate"><span class="pre">SUEWS</span></code> and <code class="docutils literal notranslate"><span class="pre">DailyState</span></code> hourly peaked at about 2.3 GB
+with <code class="docutils literal notranslate"><span class="pre">stream_chunk:</span> <span class="pre">30</span></code> and 11 GB with <code class="docutils literal notranslate"><span class="pre">stream_chunk:</span> <span class="pre">366</span></code>, against
+92 GB for a run saved whole. A one-year single-grid run peaked at 1.5 GB with
+<code class="docutils literal notranslate"><span class="pre">stream_chunk:</span> <span class="pre">366</span></code>, as when saved whole, and at 0.4 GB with 30.</p></li>
+<li><p>The output exists only on disk. Values read back from the text files carry
+the saved text precision, four decimal places, not the full double precision
+a run kept in memory holds.</p></li>
+<li><p>Groups not listed in <code class="docutils literal notranslate"><span class="pre">groups</span></code> are not kept at all; to analyse another group,
+list it in <code class="docutils literal notranslate"><span class="pre">groups</span></code> before the run.</p></li>
+</ul>
+</section>
 <section id="run-provenance">
-<h2><span class="section-number">5.7. </span>Run Provenance<a class="headerlink" href="#run-provenance" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.8. </span>Run Provenance<a class="headerlink" href="#run-provenance" title="Link to this heading">#</a></h2>
 <section id="provenance-json">
-<h3><span class="section-number">5.7.1. </span>provenance.json<a class="headerlink" href="#provenance-json" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">5.8.1. </span>provenance.json<a class="headerlink" href="#provenance-json" title="Link to this heading">#</a></h3>
 <p>Every save (<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span> <span class="pre">&lt;config.yml&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.save()</span></code>) writes a
 small <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> next to the output files. It records what a saved
 run directory was produced from, so the run can be audited or compared later
@@ -722,8 +781,9 @@ the period-coverage check when it ran, and are <code class="docutils literal not
 the end of each interval, see <a class="reference internal" href="../inputs/timestamp-convention.html#timestamp-convention"><span class="std std-ref">Timestamp Convention</span></a>) and the forcing
 and output <code class="docutils literal notranslate"><span class="pre">timestamp_reference</span></code> settings.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">run</span></code>: interface (<code class="docutils literal notranslate"><span class="pre">cli</span></code> or <code class="docutils literal notranslate"><span class="pre">python</span></code>), the <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code> command line
-when applicable, wall-clock start and end, <code class="docutils literal notranslate"><span class="pre">n_jobs</span></code>, <code class="docutils literal notranslate"><span class="pre">chunk_day</span></code> and
-whether the run continued from a checkpoint.</p></li>
+when applicable, wall-clock start and end, <code class="docutils literal notranslate"><span class="pre">n_jobs</span></code>, <code class="docutils literal notranslate"><span class="pre">chunk_day</span></code>,
+whether the run continued from a checkpoint and, for a streamed run,
+<code class="docutils literal notranslate"><span class="pre">stream_chunk</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">output</span></code>: format, output frequency, the files written and the checkpoint
 file name.</p></li>
 </ul>
@@ -733,7 +793,7 @@ top-level <code class="docutils literal notranslate"><span class="pre">format_ve
 </section>
 </section>
 <section id="temporal-information">
-<h2><span class="section-number">5.8. </span>Temporal Information<a class="headerlink" href="#temporal-information" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.9. </span>Temporal Information<a class="headerlink" href="#temporal-information" title="Link to this heading">#</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Temporal information in output files (<code class="docutils literal notranslate"><span class="pre">iy</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">it</span></code>, <code class="docutils literal notranslate"><span class="pre">imin</span></code>)
@@ -748,7 +808,7 @@ for readability. See <a class="reference internal" href="text_format.html#output
 </div>
 </section>
 <section id="saved-timestamp-reference">
-<h2><span class="section-number">5.9. </span>Saved Timestamp Reference<a class="headerlink" href="#saved-timestamp-reference" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.10. </span>Saved Timestamp Reference<a class="headerlink" href="#saved-timestamp-reference" title="Link to this heading">#</a></h2>
 <p>Saved output follows the configured forcing clock by default. To relabel the
 saved timestamps without changing simulated values, set
 <code class="docutils literal notranslate"><span class="pre">model.control.output.timestamp_reference</span></code>:</p>
@@ -828,12 +888,13 @@ output filenames. <code class="docutils literal notranslate"><span class="pre">f
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#site-suews-checkpoint-json">5.6.1. {site}_SUEWS_checkpoint.json</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-provenance">5.7. Run Provenance</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#provenance-json">5.7.1. provenance.json</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#streaming-long-runs-to-disk">5.7. Streaming Long Runs to Disk</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-provenance">5.8. Run Provenance</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#provenance-json">5.8.1. provenance.json</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.8. Temporal Information</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#saved-timestamp-reference">5.9. Saved Timestamp Reference</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.9. Temporal Information</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#saved-timestamp-reference">5.10. Saved Timestamp Reference</a></li>
 </ul>
   </nav></div>
 
@@ -867,7 +928,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-21.
+  Last updated on 2026-10-23.
   <br/>
 </p>
   </div>
@@ -875,8 +936,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.23.dev10 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/84854d51d11593976217cdfc5e4a75823706e74c">84854d5</a> |
+  <p>Version: 2026.10.23.dev11 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d">ac7b081</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

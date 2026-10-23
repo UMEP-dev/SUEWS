@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.10.23.dev10 documentation</title>
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.10.23.dev11 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=274500d4"></script>
+    <script src="../_static/documentation_options.js?v=9cb982c9"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="6. Python API Reference" href="../api.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.23.dev10" />
+  <meta name="docsearch:version" content="2026.10.23.dev11" />
     <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.23.dev10, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/84854d51d11593976217cdfc5e4a75823706e74c" style="color: #31708f;">84854d5</a>).
+        (2026.10.23.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d" style="color: #31708f;">ac7b081</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev10 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev10 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
   
   
 </a></div>
@@ -1168,9 +1168,13 @@ midnight. A value with a time component is inclusive.</p></li>
 overlap exists. Pass <code class="docutils literal notranslate"><span class="pre">True</span></code> to run on the overlap only; the
 requested and actual periods are then logged as a warning. A
 request with no overlap at all always raises.</p></li>
-<li><p><strong>chunk_day</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size in days for splitting long simulations, by default 3660
-(~10 years). Smaller values reduce peak memory at a small overhead
-cost.</p></li>
+<li><p><strong>chunk_day</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em>, </em><em>optional</em>) – Length in days of the pieces a long run is split into, by default
+3660 (~10 years); the model state is carried across each piece
+exactly, so the output is that of an unsplit run. Every piece
+writes into its own rows of one output table for the whole run,
+so a smaller value does not reduce peak memory. To bound memory
+for a long run, set <code class="docutils literal notranslate"><span class="pre">model.control.output.stream_chunk</span></code> (see
+Notes), which ignores <code class="docutils literal notranslate"><span class="pre">chunk_day</span></code>.</p></li>
 <li><p><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em>, </em><em>optional</em>) – Parallel worker control for multi-grid runs. <code class="docutils literal notranslate"><span class="pre">-1</span></code> (default) uses
 Rayon default parallelism, <code class="docutils literal notranslate"><span class="pre">1</span></code> forces serial execution, and
 values greater than <code class="docutils literal notranslate"><span class="pre">1</span></code> cap Rayon to that many threads.</p></li>
@@ -1179,7 +1183,12 @@ values greater than <code class="docutils literal notranslate"><span class="pre"
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Simulation results wrapped in an OOP interface with analysis
 and plotting convenience methods. Access raw DataFrame via
-<code class="docutils literal notranslate"><span class="pre">.to_dataframe()</span></code> or <code class="docutils literal notranslate"><span class="pre">.df</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">.to_dataframe()</span></code> or <code class="docutils literal notranslate"><span class="pre">.df</span></code>. With <code class="docutils literal notranslate"><span class="pre">output.stream_chunk</span></code>
+set, the output holds the column layout but no rows (the values
+are in the written files): <code class="docutils literal notranslate"><span class="pre">.df</span></code>, the group and variable accessors,
+<code class="docutils literal notranslate"><span class="pre">resample()</span></code> and <code class="docutils literal notranslate"><span class="pre">save()</span></code> raise <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> naming the
+output folder, while <code class="docutils literal notranslate"><span class="pre">checkpoint</span></code>, <code class="docutils literal notranslate"><span class="pre">state_final</span></code>,
+<code class="docutils literal notranslate"><span class="pre">kernel_warnings</span></code>, <code class="docutils literal notranslate"><span class="pre">columns</span></code> and <code class="docutils literal notranslate"><span class="pre">groups</span></code> work as usual.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>SUEWSOutput</p>
@@ -1193,6 +1202,47 @@ and plotting convenience methods. Access raw DataFrame via
 </ul>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">model.control.output.stream_chunk</span></code> set to a number of days
+N, the run streams its output to disk: it goes through each calendar
+year (years follow the right-closed convention, so the row stamped
+<code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">January</span> <span class="pre">00:00</span></code> closes the previous year) in consecutive chunks of
+up to N days, each starting at 00:00 plus one model timestep. Each
+chunk’s text files are written into the configured output directory
+by the same code as <a class="reference internal" href="#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save()</span></code></a>, one file per grid, group and year,
+which later chunks extend; the chunk is dropped and the model state
+carried into the next chunk. Only the groups the text output saves
+(<code class="docutils literal notranslate"><span class="pre">output.groups</span></code>, default SUEWS and DailyState) are kept from each
+chunk. Peak memory then stays at about one chunk of the model’s full
+output (every group) however long the run. At the end of every
+calendar year the checkpoint file that <a class="reference internal" href="#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save()</span></code></a> writes
+(<code class="docutils literal notranslate"><span class="pre">&lt;site&gt;_SUEWS_checkpoint.json</span></code>) is replaced by the state reached;
+<code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> is written once at the end, so a completed run
+leaves the same files, byte for byte, as <code class="docutils literal notranslate"><span class="pre">run()</span></code> followed by
+<code class="docutils literal notranslate"><span class="pre">save()</span></code>, and <a class="reference internal" href="#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save()</span></code></a> afterwards returns those files.</p>
+<p>A streamed run that stops part-way (an error, or the process being
+killed) leaves a checkpoint whose <code class="docutils literal notranslate"><span class="pre">last_timestamp</span></code> is the last
+forcing row of the last completed year; <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> is only
+written by a run that completes. To resume, continue from that
+checkpoint and start one model timestep after it, with the same
+configuration (<code class="docutils literal notranslate"><span class="pre">path_checkpoint</span></code> is
+<code class="docutils literal notranslate"><span class="pre">&lt;output</span> <span class="pre">dir&gt;/&lt;site&gt;_SUEWS_checkpoint.json</span></code> and <code class="docutils literal notranslate"><span class="pre">tstep</span></code> the model
+timestep in seconds):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ckpt</span> <span class="o">=</span> <span class="n">SUEWSCheckpoint</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path_checkpoint</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">,</span> <span class="n">ckpt</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">forcing</span><span class="p">)</span>  <span class="c1"># the same forcing as before</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">ckpt</span><span class="o">.</span><span class="n">last_timestamp</span><span class="p">)</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">tstep</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">start_date</span><span class="o">=</span><span class="n">start</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The resumed run starts again from the beginning of the year it
+stopped in. In each file it writes, it keeps the rows the run up to
+the checkpoint produced, drops anything later (that year’s partial
+rows) and appends from there, so it ends with the files of an
+uninterrupted run; resuming again from the same checkpoint gives the
+same files. Its <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> describes the resumed segment
+(<code class="docutils literal notranslate"><span class="pre">continued_from_checkpoint</span></code> is true). The continuity check refuses
+a <code class="docutils literal notranslate"><span class="pre">start_date</span></code> that does not follow the checkpoint.</p>
 <p class="rubric">Examples</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
@@ -1766,8 +1816,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.23.dev10 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/84854d51d11593976217cdfc5e4a75823706e74c">84854d5</a> |
+  <p>Version: 2026.10.23.dev11 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d">ac7b081</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

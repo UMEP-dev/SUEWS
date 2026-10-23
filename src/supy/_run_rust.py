@@ -701,14 +701,10 @@ def _frame_from_grid_store(
     ar_data: np.ndarray,
     ar_datetime: np.ndarray,
     list_grid_ids: list[int],
-    columns: pd.MultiIndex | None = None,
 ) -> pd.DataFrame:
-    """Turn a table laid out by :func:`_grid_row_starts` into the output frame.
-
-    *columns* is passed on to :func:`_frame_from_output_store`.
-    """
+    """Turn a table laid out by :func:`_grid_row_starts` into the output frame."""
     df_output_all = _frame_from_output_store(
-        ar_data, ar_datetime, sorted(list_grid_ids), columns
+        ar_data, ar_datetime, sorted(list_grid_ids)
     )
     # Unsorted forcing gives an unsorted frame; sort it, as joining did.
     if not df_output_all.index.is_monotonic_increasing:
@@ -916,9 +912,16 @@ class _KeptOutputStore:
         list_short = [g for g, n in self._row_next.items() if n != self.len_run]
         if list_short:
             raise RuntimeError(f"Kept output is incomplete for grids {list_short}")
-        return _frame_from_grid_store(
-            self.ar_data, self.ar_datetime, self.list_grid_ids, self.columns
+        df_output = _frame_from_output_store(
+            self.ar_data,
+            self.ar_datetime,
+            sorted(self.list_grid_ids),
+            columns=self.columns,
         )
+        # Unsorted forcing gives an unsorted frame; sort it, as a full run does.
+        if not df_output.index.is_monotonic_increasing:
+            df_output = df_output.sort_index()
+        return df_output
 
 
 def run_suews_rust(

@@ -378,7 +378,7 @@ CONTAINS
                          + absL*(Ldown2d*Fup + Lup2d*Fup + Lnorth*Fside + Least*Fside + Lsouth*Fside + Lwest*Fside)
                   Tmrt = SQRT(SQRT((Sstr/(absL*SBC)))) - 273.15
 
-                  dataOutLineBEERS = [azimuth_deg, altitude, radG, radI, radD, &
+                  dataOutLineBEERS = [azimuth_deg, altitude, radG, radD, radI, &
                                       Kdown2d, Kup2d, Ksouth, Kwest, Knorth, Keast, &
                                       Ldown2d, Lup2d, Lsouth, Lwest, Lnorth, Least, &
                                       Tmrt, I0, CI, shadowground, shadowwalls, svf_ground, svf_roof, svf_bldg_veg, &
@@ -841,8 +841,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: Kt
       REAL(KIND(1D0)), INTENT(in) :: Ta
       REAL(KIND(1D0)), INTENT(in) :: RH
-      REAL(KIND(1D0)), INTENT(out) :: radD ! direct radiation
-      REAL(KIND(1D0)), INTENT(out) :: radI ! diffusive radiation
+      REAL(KIND(1D0)), INTENT(out) :: radD ! diffuse radiation on a horizontal surface [W m-2]
+      REAL(KIND(1D0)), INTENT(out) :: radI ! direct-beam radiation on a surface normal to the sun [W m-2]
       REAL(KIND(1D0)) :: alfa
 
       alfa = altitude*DEG2RAD

@@ -56,15 +56,15 @@ EXAMPLES:
 
 ### 23 Oct 2026
 
+- [bugfix] Corrected three slips in the STEBBS hot-water formulas (#1880, #1881)
+  - The hot-water vessel's temperature changed by the heat it exchanges multiplied by the vessel volume instead of divided by it, so its response scaled with the square of the volume: about 11 times too slow at 0.3 m3, too fast above 1 m3. Drain heat loss is also no longer multiplied by the STEBBS substep a second time; the substep is fixed at 1 s, so that part changes no result today.
+  - Domestic hot-water energy consumption (`QEC_dhw_FA`, and so `QEC_bldg_FA`) used the space-heating efficiency instead of the water-heater efficiency. It now equals the heat supplied to the tank plus the water heater's losses (`QHload_dhw_FA + QHwaste_dhw_FA`), and changes only when the two efficiencies differ.
+  - The vessel's external wall convection coefficient was read from the hot-water tank's parameter, and its emissivity from the vessel wall conductivity; both now come from the vessel's own parameters (`convection_coefficient_hot_water_tank_vessel_external`, `emissivity_hot_water_vessel_wall`).
+  - Vessel temperature and wall fluxes, drain heat loss (`Qloss_drain_FA`, `QS_dhw_FA`) and `QS_total_FA` change; the building storage heat passed to SUEWS and the cooling load move by under 1 W m-2 on daily means, and indoor air temperature by a few hundredths of a kelvin. The STEBBS reference output is refreshed.
 - [bugfix] Multi-grid runs with grids in parallel now give the same output as the same run done serially. `AerodynamicResistance` kept the heat stability correction `psih` in a module variable shared by every grid thread between computing and using it, so a grid could take another grid's value and its `QH`, `QE` and everything downstream departed from its serial run, mostly in checked (unoptimised) builds; `psih` is now a local. Serial runs, and so the sample reference, are unchanged (#1926)
 
 ### 22 Oct 2026
 
-- [bugfix] STEBBS hot-water vessel temperature now changes by the heat it exchanges divided by the water's heat capacity (#1880)
-  - The vessel update multiplied by the vessel volume instead of dividing by it, so the water's temperature response scaled with the square of the volume: about 11 times too slow at 0.3 m3, too fast above 1 m3. Vessel temperature, drain heat loss (`Qloss_drain_FA`, `QS_dhw_FA`) and `QS_total_FA` change when hot water is in use; the building storage heat passed to SUEWS moves by a few tenths of a W m-2.
-  - Drain heat loss is no longer multiplied by the STEBBS substep a second time. The substep is fixed at 1 s, so this changes no result today.
-- [bugfix] STEBBS domestic hot-water energy consumption (`QEC_dhw_FA`, and so `QEC_bldg_FA`) now uses the water-heater efficiency instead of the space-heating efficiency (#1881)
-  - It now equals the heat supplied to the tank plus the water heater's losses (`QHload_dhw_FA + QHwaste_dhw_FA`). Results change only when the two efficiencies differ; no other output moves.
 - [bugfix] With snow enabled, the water body is now limited by its state limit, as when snow is off, instead of by the storage capacity of the drainage equation; on the first snow timestep the sample's 20000 mm water body drained to 0.5 mm and about 2800 mm (grid average) left as runoff (#1906)
 - [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)
 - [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.8` carries the clarified descriptions (#1866)

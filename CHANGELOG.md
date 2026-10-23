@@ -60,6 +60,10 @@ EXAMPLES:
   - With `roughness_sublayer_level: none`, day 1 of the sample run now reports `Tmin` 7.72 and `HDD3_Tmean` 10.6445, against 0.0 and 10.6544 before
   - With `basic` or `detailed`, DailyState reads the 2 m temperature diagnosed at the previous step, which on a run's first step is still the initial value (0 degC), so day 1's `Tmin` stays at 0 until that ordering is addressed
 
+### 22 Oct 2026
+
+- [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)
+- [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.8` carries the clarified descriptions (#1866)
 - [bugfix] With snow enabled, `State`, `NWtrState`, `TotCh` and the per-surface `SMD*` columns are now updated every timestep: `State` and `NWtrState` read 0, `TotCh` and `SMD*` kept their last snow-free values, and `SMD` lagged one timestep (#1879)
 - [bugfix] `WUEveTr` and `WUDecTr` in the SUEWS output group now report evergreen- and deciduous-tree water use respectively; each previously carried the other tree type's value (#1865)
 - [bugfix] Runs split into chunks (`chunk_day`) or continued from a checkpoint now reproduce an uninterrupted run bit for bit. The Rust bridge parsed the carried state's JSON with serde_json's default float parser, which can land one ulp away from the decimal it reads, so every chunk boundary perturbed the state; enabling serde_json's `float_roundtrip` feature makes the parse exact. Unchunked runs, and so the sample reference, are unchanged (#1849)

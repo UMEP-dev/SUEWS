@@ -91,9 +91,13 @@ continue from it: load the checkpoint with
 :meth:`~supy.SUEWSSimulation.from_checkpoint` and run from one model timestep
 after its ``last_timestamp``. The resumed run starts again from the beginning
 of the year it stopped in and rewrites that year's files: in each file it
-writes, it keeps the rows up to the checkpoint and replaces everything after,
-so it ends with the files of an uninterrupted run, and resuming again from the
-same checkpoint gives the same files.
+writes, it keeps the rows up to the checkpoint and replaces everything after
+(a file whose header is missing or cut short is written anew), so it ends with
+the files of an uninterrupted run, and resuming again from the same checkpoint
+gives the same files. A streamed run that starts afresh, not from a
+checkpoint, first removes the checkpoint and ``provenance.json`` a previous
+run left in the output folder, so a failure before its first year end leaves
+no checkpoint of another run to resume from.
 
 Limitations:
 

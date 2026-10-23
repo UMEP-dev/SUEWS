@@ -37,7 +37,9 @@ use crate::surf_store::surf_store_prm_from_ordered_values;
 use crate::timer::{SuewsTimer, SUEWS_TIMER_FLAT_LEN};
 use crate::yaml_config::{load_run_config_from_str, RunConfig};
 use std::ffi::CStr;
+use std::marker::PhantomData;
 use std::os::raw::c_char;
+use std::ptr::NonNull;
 
 pub const MET_FORCING_COLS: usize = 32;
 const BUILDING_SURFACE_INDEX: usize = 1;
@@ -188,16 +190,88 @@ pub struct SimulationOutput {
     pub warnings: KernelWarnings,
 }
 
-/// Caller-owned destination the kernel writes its output into (gh#1849).
+/// A column-major table the kernel writes output into (gh#1849).
 ///
-/// Both slices are column-major, i.e. column `c` of row `r` lives at
-/// `c * len_sim + r`, so a caller can lend the memory of a Fortran-ordered
-/// array and use it as the final output table without a copy.
+/// Element `(r, c)` lives `c * ld + r` elements after the first. With
+/// `ld == nrows` the table is a whole Fortran-ordered array; with a larger
+/// `ld` it is a row block of a taller one, for example one grid's rows of an
+/// output table that several grids share. Row blocks of one array interleave
+/// in memory, so the table is held as a raw pointer rather than a slice:
+/// two blocks never form overlapping Rust references.
+pub struct OutputMatrix<'a> {
+    ptr: NonNull<f64>,
+    nrows: usize,
+    ncols: usize,
+    ld: usize,
+    _memory: PhantomData<&'a mut [f64]>,
+}
+
+impl<'a> OutputMatrix<'a> {
+    /// Use all of `data` as a contiguous `(nrows, ncols)` column-major table.
+    pub fn from_slice(
+        data: &'a mut [f64],
+        nrows: usize,
+        ncols: usize,
+    ) -> Result<Self, BridgeError> {
+        if nrows.checked_mul(ncols) != Some(data.len()) {
+            return Err(simulation_error(format!(
+                "output buffer of {} values cannot hold a {nrows} x {ncols} table",
+                data.len()
+            )));
+        }
+        Ok(Self {
+            ptr: NonNull::from(data).cast(),
+            nrows,
+            ncols,
+            ld: nrows,
+            _memory: PhantomData,
+        })
+    }
+
+    /// Use the `(nrows, ncols)` table at `ptr` whose columns start `ld`
+    /// elements apart.
+    ///
+    /// # Safety
+    ///
+    /// `ld >= nrows`, and for all of `'a` every element `c * ld + r` with
+    /// `r < nrows` and `c < ncols` must be valid for reads and writes through
+    /// `ptr` and accessed by nothing else: no reference, and no other
+    /// `OutputMatrix`. Elements between the rows of the table (other rows of
+    /// the same array) are never touched, so they may belong to another table.
+    pub unsafe fn from_raw_parts(ptr: NonNull<f64>, nrows: usize, ncols: usize, ld: usize) -> Self {
+        debug_assert!(ld >= nrows, "leading dimension shorter than the table");
+        Self {
+            ptr,
+            nrows,
+            ncols,
+            ld,
+            _memory: PhantomData,
+        }
+    }
+
+    /// Number of elements from the first one to the last one inclusive,
+    /// `(ncols - 1) * ld + nrows`, or `None` on overflow.
+    fn reach(&self) -> Option<usize> {
+        match self.ncols {
+            0 => Some(0),
+            ncols => (ncols - 1).checked_mul(self.ld)?.checked_add(self.nrows),
+        }
+    }
+}
+
+// SAFETY: an `OutputMatrix` is the only accessor of its elements (see
+// `from_raw_parts`; `from_slice` holds the exclusive borrow), so moving it to
+// another thread, as a parallel multi-grid run does, cannot cause a data race.
+unsafe impl Send for OutputMatrix<'_> {}
+
+/// Caller-owned destination the kernel writes its output into (gh#1849), so
+/// a caller can lend the memory of Fortran-ordered arrays and use it as the
+/// final output table without a copy.
 pub struct OutputBuffers<'a> {
     /// Data columns of all output groups, shape `(len_sim, OUTPUT_DATA_COLS)`.
-    pub data: &'a mut [f64],
+    pub data: OutputMatrix<'a>,
     /// Datetime prefix shared by the groups, shape `(len_sim, OUTPUT_DATETIME_COLS)`.
-    pub datetime: &'a mut [f64],
+    pub datetime: OutputMatrix<'a>,
 }
 
 /// Everything a run returns apart from the output written to [`OutputBuffers`].
@@ -299,6 +373,15 @@ impl MemberBuffers {
         self.flat.extend_from_slice(values);
         Ok(())
     }
+}
+
+/// The reach of an output table (see [`OutputMatrix::reach`]) as the
+/// 64-bit count the C API takes.
+fn reach_i64(table: &OutputMatrix<'_>, label: &str) -> Result<i64, BridgeError> {
+    table
+        .reach()
+        .and_then(|reach| i64::try_from(reach).ok())
+        .ok_or_else(|| simulation_error(format!("{label} table extent overflows")))
 }
 
 fn i32_len(value: usize, label: &str) -> Result<i32, BridgeError> {
@@ -1032,8 +1115,8 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
     let result = run_simulation_into(
         input,
         OutputBuffers {
-            data: &mut data,
-            datetime: &mut datetime,
+            data: OutputMatrix::from_slice(&mut data, len_sim, OUTPUT_DATA_COLS)?,
+            datetime: OutputMatrix::from_slice(&mut datetime, len_sim, OUTPUT_DATETIME_COLS)?,
         },
     )?;
     Ok(SimulationOutput {
@@ -1129,16 +1212,16 @@ pub fn run_simulation_into(
 
     let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
     let mut state_out = vec![0.0_f64; state_members.flat.len()];
-    let data_len = output_len(input.len_sim, OUTPUT_DATA_COLS)?;
-    let datetime_len = output_len(input.len_sim, OUTPUT_DATETIME_COLS)?;
-    if out.data.len() != data_len || out.datetime.len() != datetime_len {
-        return Err(simulation_error(format!(
-            "output buffer length mismatch: got data {} and datetime {}, expected {} and {}",
-            out.data.len(),
-            out.datetime.len(),
-            data_len,
-            datetime_len
-        )));
+    for (label, table, ncols) in [
+        ("data", &out.data, OUTPUT_DATA_COLS),
+        ("datetime", &out.datetime, OUTPUT_DATETIME_COLS),
+    ] {
+        if table.nrows != input.len_sim || table.ncols != ncols {
+            return Err(simulation_error(format!(
+                "output {label} table is {} x {}, expected {} x {ncols}",
+                table.nrows, table.ncols, input.len_sim
+            )));
+        }
     }
 
     let mut sim_err_code = 0_i32;
@@ -1161,8 +1244,10 @@ pub fn run_simulation_into(
     let len_sim_i32 = i32_len(input.len_sim, "len_sim")?;
     let forcing_cols_i32 = i32_len(MET_FORCING_COLS, "forcing column count")?;
     let state_out_len_i32 = i32_len(state_out.len(), "state output length")?;
-    let output_len_i32 = i32_len(out.data.len(), "output length")?;
-    let datetime_len_i32 = i32_len(out.datetime.len(), "datetime output length")?;
+    let output_reach = reach_i64(&out.data, "output")?;
+    let output_ld_i32 = i32_len(out.data.ld, "output leading dimension")?;
+    let datetime_reach = reach_i64(&out.datetime, "datetime output")?;
+    let datetime_ld_i32 = i32_len(out.datetime.ld, "datetime output leading dimension")?;
     let sim_err_message_len_i32 = i32_len(sim_err_message.len(), "error message length")?;
     let warn_max_i32 = i32_len(KERNEL_WARNING_MAX, "warning record count")?;
     let warn_text_len_i32 = i32_len(KERNEL_WARNING_TEXT_LEN, "warning text length")?;
@@ -1194,10 +1279,12 @@ pub fn run_simulation_into(
             timer_len_i32,
             state_out.as_mut_ptr(),
             state_out_len_i32,
-            out.data.as_mut_ptr(),
-            output_len_i32,
-            out.datetime.as_mut_ptr(),
-            datetime_len_i32,
+            out.data.ptr.as_ptr(),
+            output_reach,
+            output_ld_i32,
+            out.datetime.ptr.as_ptr(),
+            datetime_reach,
+            datetime_ld_i32,
             &mut sim_err_code as *mut i32,
             sim_err_message.as_mut_ptr(),
             sim_err_message_len_i32,

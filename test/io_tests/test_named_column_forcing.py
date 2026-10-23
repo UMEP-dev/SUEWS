@@ -365,7 +365,7 @@ def test_check_forcing_accepts_per_landcover_extras():
     idx = pd.date_range("2024-01-01", periods=24, freq="h")
     data = {
         "iy": idx.year,
-        "id": idx.dayofyear,
+        "id": idx.day_of_year,
         "it": idx.hour,
         "imin": idx.minute,
         "U": np.full(24, 3.0),

@@ -262,9 +262,7 @@ def test_water_budget_closes_over_the_snow_event(run: SnowRun):
     than 1e-3 mm. Over the whole event (snowfall through to the last melt) the
     cumulative residual is bounded by 1 % of the snowfall: the only open terms
     are the snow-fraction weighting at the step where a pack disappears and
-    evaporation drawn from the soil store, which the snow path does not report
-    (``SMD`` is not updated while snow is on; that limitation is documented on
-    the linked issue and is not covered here).
+    evaporation drawn from the soil store, which this budget leaves out.
     """
     s = run.suews
     store = (
@@ -281,6 +279,53 @@ def test_water_budget_closes_over_the_snow_event(run: SnowRun):
     event = run.on_days(DAY_SNOWFALL, DAY_HOLD, *DAYS_MELT)
     assert abs(residual[event].sum()) < 0.01 * SNOWFALL_TOTAL_MM
     assert s["Rain"][event].sum() == pytest.approx(SNOWFALL_TOTAL_MM, rel=1e-9)
+
+
+@pytest.mark.core
+def test_state_columns_aggregate_the_surface_states(run: SnowRun):
+    """``State`` and ``NWtrState`` must be the area-weighted surface states.
+
+    Regression for gh#1879: ``SUEWS_cal_snow`` zeroed both grid totals at the
+    start of every timestep and never recomputed them, so with snow on they
+    read 0 whatever water lay on the surfaces.
+    """
+    s = run.suews
+    non_water = [surf for surf in SURFACES if surf != "Water"]
+    non_water_fraction = sum(run.sfr[surf] for surf in non_water)
+    nw_state = (
+        sum(s[f"St{surf}"] * run.sfr[surf] for surf in non_water) / non_water_fraction
+    )
+
+    assert run.surface_state()[run.on_days(*DAYS_MELT)].max() > 0.0
+    np.testing.assert_allclose(s["State"], run.surface_state(), rtol=1e-9, atol=1e-12)
+    np.testing.assert_allclose(s["NWtrState"], nw_state, rtol=1e-9, atol=1e-12)
+
+
+@pytest.mark.core
+def test_total_change_adds_the_soil_store_change(run: SnowRun):
+    """``TotCh`` = ``SurfCh`` + area-weighted change in soil water at every step.
+
+    Regression for gh#1879: the snow path never called
+    ``SUEWS_cal_SoilState``, so ``TotCh`` and the per-surface ``SMD*``
+    columns kept the values of the last snow-free timestep. The soil
+    store change is rebuilt from the per-surface deficits (store = capacity -
+    deficit, so the change in store is minus the change in deficit). In this
+    scenario the soil stores barely change, so ``TotCh`` must follow
+    ``SurfCh``, which varies. The kernel's soil term reaches about 2e-7 mm
+    at some steps without showing in the ``SMD*`` columns, so the identity is
+    checked to 1e-6 mm; the stale ``TotCh`` missed it by up to 2800 mm.
+    """
+    s = run.suews
+    soil_surfaces = [surf for surf in SURFACES if surf != "Water"]
+    soil_change = -sum(s[f"SMD{surf}"].diff() * run.sfr[surf] for surf in soil_surfaces)
+
+    assert s["SurfCh"].nunique() > 1
+    np.testing.assert_allclose(
+        s["TotCh"].iloc[1:],
+        (s["SurfCh"] + soil_change).iloc[1:],
+        rtol=0,
+        atol=1e-6,
+    )
 
 
 # Melt law ------------------------------------------------------------------

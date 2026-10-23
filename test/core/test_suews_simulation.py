@@ -827,42 +827,40 @@ class TestRun:
         df_forcing = sample_forcing.iloc[: TIMESTEPS_PER_DAY + 1].copy()
         calls = []
 
-        def fake_run_suews_rust_multi(
-            config, df_forcing, serial_mode=False, max_workers=None
-        ):
-            calls.append(("fresh", serial_mode, max_workers))
-            dict_state_json = {
-                run_rust_module._normalise_grid_id(site.gridiv): "state"
-                for site in config.sites
-            }
-            return (
-                self._fake_output_for_config(config, df_forcing),
-                dict_state_json,
-                run_rust_module.KernelWarningLog(),
-            )
+        class FakeRustModule:
+            def run_suews_multi_into(
+                self,
+                list_config_jsons,
+                forcing_block,
+                len_forcing,
+                list_out_data,
+                list_out_datetime,
+                list_state_jsons,
+                max_workers,
+            ):
+                calls.append((len_forcing, list_state_jsons, max_workers))
+                return [
+                    (idx, f"state-{idx}", len_forcing, None)
+                    for idx in range(len(list_config_jsons))
+                ]
 
-        def fake_run_suews_rust_multi_with_state(
-            config,
-            df_forcing,
-            dict_state_json_by_grid,
-            serial_mode=False,
-            max_workers=None,
-        ):
-            calls.append(("state", serial_mode, max_workers))
-            assert sorted(dict_state_json_by_grid) == [1, 2]
-            return (
-                self._fake_output_for_config(config, df_forcing),
-                dict_state_json_by_grid,
-                run_rust_module.KernelWarningLog(),
+        def fake_frame_from_output_store(ar_data, ar_datetime, list_grid_ids):
+            index = pd.MultiIndex.from_product(
+                [list_grid_ids, df_forcing.index],
+                names=["grid", "datetime"],
             )
+            return pd.DataFrame({"QH": 0.0}, index=index)
 
         monkeypatch.setattr(
-            run_rust_module, "run_suews_rust_multi", fake_run_suews_rust_multi
+            run_rust_module, "_check_rust_available", lambda: FakeRustModule()
+        )
+        monkeypatch.setattr(
+            run_rust_module, "_validate_output_layout", lambda rust_module: None
         )
         monkeypatch.setattr(
             run_rust_module,
-            "run_suews_rust_multi_with_state",
-            fake_run_suews_rust_multi_with_state,
+            "_frame_from_output_store",
+            fake_frame_from_output_store,
         )
 
         run_rust_module.run_suews_rust_chunked(
@@ -873,7 +871,10 @@ class TestRun:
             max_workers=3,
         )
 
-        assert calls == [("fresh", False, 3), ("state", False, 3)]
+        assert calls == [
+            (TIMESTEPS_PER_DAY, None, 3),
+            (1, ["state-0", "state-1"], 3),
+        ]
 
     def test_checkpointed_run_forwards_worker_cap(
         self,
@@ -941,7 +942,7 @@ class TestRun:
             def run_suews_multi_into(
                 self,
                 list_config_jsons,
-                forcing_flat,
+                forcing_block,
                 len_forcing,
                 list_out_data,
                 list_out_datetime,
@@ -957,9 +958,9 @@ class TestRun:
                     for idx in range(len(list_config_jsons))
                 ]
 
-        def fake_frame_from_output_buffers(ar_data, ar_datetime, grid_id):
+        def fake_frame_from_output_store(ar_data, ar_datetime, list_grid_ids):
             index = pd.MultiIndex.from_product(
-                [[grid_id], df_forcing.index[: len(ar_data)]],
+                [list_grid_ids, df_forcing.index],
                 names=["grid", "datetime"],
             )
             return pd.DataFrame({"QH": 0.0}, index=index)
@@ -972,8 +973,8 @@ class TestRun:
         )
         monkeypatch.setattr(
             run_rust_module,
-            "_frame_from_output_buffers",
-            fake_frame_from_output_buffers,
+            "_frame_from_output_store",
+            fake_frame_from_output_store,
         )
 
         _, dict_state_json, _ = run_rust_module.run_suews_rust_multi_with_state(

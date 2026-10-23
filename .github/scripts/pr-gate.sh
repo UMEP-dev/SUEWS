@@ -11,11 +11,13 @@
 #   TEST_BRIDGE_RESULT    -- needs.build_wheels.result: the api cross-CPython lanes are
 #                            chained behind each platform's wheel build inside that job
 #   CHECK_MARKERS_RESULT  -- needs.check_test_markers.result
+#   PHYSICS_LABEL_RESULT  -- needs.check_physics_label.result
 #   NEEDS_BUILD           -- needs.detect-changes.outputs.needs-build
 
 set -euo pipefail
 
 CHECK_MARKERS_RESULT="${CHECK_MARKERS_RESULT:-skipped}"
+PHYSICS_LABEL_RESULT="${PHYSICS_LABEL_RESULT:-skipped}"
 BUILD_MCP_RESULT="${BUILD_MCP_RESULT:-skipped}"
 
 echo "=== Job Results ==="
@@ -24,6 +26,7 @@ echo "build_wheels: ${BUILD_WHEELS_RESULT}"
 echo "build_mcp: ${BUILD_MCP_RESULT}"
 echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
 echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
+echo "check_physics_label: ${PHYSICS_LABEL_RESULT}"
 echo "needs-build: ${NEEDS_BUILD}"
 echo ""
 
@@ -52,6 +55,18 @@ elif [[ "${CHECK_MARKERS_RESULT}" == "skipped" ]]; then
 else
   echo "[X] Marker lint failed - some test file is missing physics/api marker"
   echo "  check_test_markers: ${CHECK_MARKERS_RESULT}"
+  VALIDATION_PASSED=false
+fi
+
+# A changed stored reference must carry 0-physics:change; runs on every PR.
+echo "Validating physics-change label on reference changes..."
+if [[ "${PHYSICS_LABEL_RESULT}" == "success" ]]; then
+  echo "[OK] Reference changes are labelled (or none were made)"
+elif [[ "${PHYSICS_LABEL_RESULT}" == "skipped" ]]; then
+  echo "[OK] Label check skipped (not a PR/merge-queue run)"
+else
+  echo "[X] Stored reference outputs changed without the 0-physics:change label"
+  echo "  check_physics_label: ${PHYSICS_LABEL_RESULT}"
   VALIDATION_PASSED=false
 fi
 

@@ -1272,9 +1272,10 @@ class ModelPhysics(BaseModel):
             except KeyError:
                 properties[field_name] = RefValue(int(default_enum))
 
-        for field_name, (col_names, default_value) in (
-            optional_float_attrs_with_defaults.items()
-        ):
+        for field_name, (
+            col_names,
+            default_value,
+        ) in optional_float_attrs_with_defaults.items():
             for col_name in col_names:
                 col = (col_name, "0")
                 if col in df.columns:
@@ -1398,6 +1399,31 @@ class OutputControl(BaseModel):
             "daylight-saving offset to local standard time inside the DLS window."
         ),
     )
+    stream_chunk: Optional[int] = Field(
+        default=None,
+        description=(
+            "Stream the output to disk during the run in chunks of this many "
+            "days (1 to 366), so memory no longer grows with run length. The "
+            "run goes through each calendar year in consecutive chunks; each "
+            "chunk's text files are written, or extended, exactly as a run "
+            "followed by save would write them, and the chunk is then dropped "
+            "from memory, keeping only the groups listed in 'groups'. 30 "
+            "(about a month) or 366 (a calendar year) are good choices. "
+            "Limitations: peak memory is still about one chunk of the model's "
+            "full output (all groups); values read back from the files carry "
+            "the text precision of four decimal places; groups not listed in "
+            "'groups' are not kept at all. The checkpoint file is replaced "
+            "at the end of every calendar year, so a run that stops part-way "
+            "continues from the start of the year it stopped in and rewrites "
+            "that year's files. The output returned to Python holds no rows: "
+            "read the written files. Currently needs 'format' to be 'txt', an "
+            "output frequency that divides one day (86400 s), and output "
+            "timestamps on the forcing clock ('timestamp_reference' of "
+            "'follow' or the forcing's own reference). Unset (the default) "
+            "keeps the whole output in memory until it is saved."
+        ),
+        json_schema_extra={"unit": "d"},
+    )
 
     @property
     def path(self):
@@ -1428,6 +1454,85 @@ class OutputControl(BaseModel):
                     f"Invalid output groups: {invalid}. Valid groups are: {valid_groups}"
                 )
         return v
+
+    @field_validator("stream_chunk", mode="before")
+    @classmethod
+    def _reject_bool_stream_chunk(cls, v):
+        """Reject true/false, which Python would otherwise read as 1 or 0."""
+        if isinstance(v, bool):
+            raise ValueError(
+                "output.stream_chunk is a number of days from 1 to 366, not "
+                f"{str(v).lower()}."
+            )
+        return v
+
+    @field_validator("stream_chunk")
+    @classmethod
+    def _check_stream_chunk_range(cls, v):
+        """Keep the chunk length between one day and one calendar year."""
+        if v is not None and not 1 <= v <= 366:
+            raise ValueError(
+                "output.stream_chunk is a number of days from 1 to 366; got "
+                f"{v}. (output.freq is in seconds, output.stream_chunk in days.)"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def _check_stream_chunk(self):
+        """Reject output settings that streaming in chunks cannot reproduce."""
+        if self.stream_chunk is not None:
+            check_stream_chunk(
+                str(self.format), self.freq, str(self.timestamp_reference)
+            )
+        return self
+
+
+def check_stream_chunk(
+    output_format: str,
+    freq_s: int | None,
+    timestamp_reference: str,
+    forcing_timestamp_reference: str | None = None,
+) -> None:
+    """Reject output settings that ``output.stream_chunk`` cannot reproduce.
+
+    The files must be what saving the whole run writes: text output has one
+    file per grid, group and year that each chunk extends (Parquet one file
+    for the run), an output frequency dividing one day keeps every
+    resampling bin inside one chunk, and saved timestamps on the forcing
+    clock keep every row in the chunk that computed it (a relabelling to
+    another clock moves rows across chunk boundaries). With
+    *forcing_timestamp_reference* unknown, only the daylight relabelling,
+    which never follows the forcing, is rejected on the clock.
+
+    Shared by the YAML validators and :meth:`SUEWSSimulation.run`, which
+    checks again in case the config was changed by attribute assignment.
+    """
+    if output_format != "txt":
+        raise ValueError(
+            "output.stream_chunk currently needs text output; "
+            f"output.format is {output_format!r}."
+        )
+    if freq_s is not None and (freq_s <= 0 or 86400 % freq_s != 0):
+        raise ValueError(
+            "output.stream_chunk needs an output frequency that divides "
+            f"one day (86400 s); output.freq is {freq_s} s."
+        )
+    allowed = {str(OutputTimestampReference.FOLLOW)}
+    if forcing_timestamp_reference is None:
+        allowed |= {
+            str(OutputTimestampReference.UTC),
+            str(OutputTimestampReference.LOCAL_STANDARD_TIME),
+        }
+        clock = "the forcing clock"
+    else:
+        allowed.add(forcing_timestamp_reference)
+        clock = f"the forcing clock ({forcing_timestamp_reference!r})"
+    if timestamp_reference not in allowed:
+        raise ValueError(
+            f"output.stream_chunk keeps output timestamps on {clock}; "
+            f"output.timestamp_reference={timestamp_reference!r} is not "
+            "supported."
+        )
 
 
 class ForcingTimestampReference(StrEnum):
@@ -1627,6 +1732,29 @@ class ModelControl(BaseModel):
     )
 
     ref: Optional[Reference] = None
+
+    @model_validator(mode="after")
+    def _check_stream_chunk_clock(self):
+        """Keep the output of ``output.stream_chunk`` on the forcing clock.
+
+        Relabelling the saved timestamps to another clock moves rows across
+        chunk boundaries, so the files would differ from those of a run
+        saved whole.
+        """
+        output = self.output
+        if output.stream_chunk is not None:
+            source = getattr(
+                self.forcing.timestamp_reference,
+                "value",
+                self.forcing.timestamp_reference,
+            )
+            check_stream_chunk(
+                str(output.format),
+                output.freq,
+                str(output.timestamp_reference),
+                str(source),
+            )
+        return self
 
     @property
     def forcing_file(self):

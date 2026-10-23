@@ -18,6 +18,27 @@ from ._filename import safe_filename_component
 from .suews_checkpoint import SUEWSCheckpoint
 
 
+def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
+    """Build the error raised when rows of a streamed run's output are requested.
+
+    A run with ``model.control.output.stream_chunk`` set writes its output
+    files during the run and keeps no output rows, so every accessor that
+    would read rows raises this instead of handing back an empty frame.
+    """
+    paths = [Path(p) for p in streamed_paths]
+    folder = paths[0].resolve().parent if paths else Path(".").resolve()
+    text_files = sorted(p.name for p in paths if p.suffix == ".txt")
+    example = f" (for example {text_files[0]})" if text_files else ""
+    return RuntimeError(
+        "This output was streamed to disk in chunks (output.stream_chunk) "
+        f"and holds no rows in memory. Its {len(text_files)} text output files "
+        f"are in {folder}{example}; read one back with "
+        "pandas.read_csv(path, sep=r'\\s+'), or rerun with "
+        "output.stream_chunk unset to keep the output in memory. The "
+        "checkpoint, final state and kernel warnings are still available."
+    )
+
+
 def _copy_on_write_active() -> bool:
     """Whether pandas copy-on-write protects a shallow copy from writes.
 
@@ -167,6 +188,7 @@ class SUEWSOutput:
         metadata: Optional[Dict[str, Any]] = None,
         checkpoint: Optional[SUEWSCheckpoint] = None,
         kernel_warnings: Optional[pd.DataFrame] = None,
+        streamed_paths: list[str | Path] | None = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -186,7 +208,15 @@ class SUEWSOutput:
         kernel_warnings : pd.DataFrame, optional
             Non-fatal warnings raised by the Fortran kernel (columns
             ``grid``, ``datetime``, ``location``, ``message``)
+        streamed_paths : list, optional
+            Files written by a run with ``output.stream_chunk`` set. When
+            given, *df_output* carries the column layout only, and every
+            accessor that reads output rows raises ``RuntimeError`` naming
+            the output folder instead of returning an empty frame.
         """
+        self._streamed_paths = (
+            [str(p) for p in streamed_paths] if streamed_paths is not None else None
+        )
         # Shallow copy: a new frame object (index/columns edits on the caller's
         # frame do not leak in) that shares the values buffer. A deep copy here
         # held a second full-width output table for the life of the run
@@ -210,6 +240,11 @@ class SUEWSOutput:
     # Core data access
     # =========================================================================
 
+    def _require_rows(self) -> None:
+        """Raise if this output was streamed to disk and holds no rows."""
+        if self._streamed_paths is not None:
+            raise streamed_output_error(self._streamed_paths)
+
     @property
     def df(self) -> pd.DataFrame:
         """Output DataFrame, shared with this object rather than copied.
@@ -230,11 +265,13 @@ class SUEWSOutput:
         ``get_group`` and group attributes (``output.SUEWS``) return a
         writable frame on every pandas version.
         """
+        self._require_rows()
         return _frame_for_caller(self._df_output)
 
     @property
     def empty(self) -> bool:
         """Check if output is empty (pandas-compatible)."""
+        self._require_rows()
         return self._df_output.empty
 
     @property
@@ -245,6 +282,7 @@ class SUEWSOutput:
     @property
     def index(self) -> pd.Index:
         """Row index of output DataFrame (pandas-compatible)."""
+        self._require_rows()
         return self._df_output.index
 
     @property
@@ -283,6 +321,7 @@ class SUEWSOutput:
     @property
     def times(self) -> pd.DatetimeIndex:
         """Datetime index of output."""
+        self._require_rows()
         return self._df_output.index.get_level_values("datetime").unique()
 
     @property
@@ -294,6 +333,7 @@ class SUEWSOutput:
     @property
     def grids(self) -> List:
         """List of grid identifiers."""
+        self._require_rows()
         return self._df_output.index.get_level_values("grid").unique().tolist()
 
     @property
@@ -314,15 +354,18 @@ class SUEWSOutput:
     @property
     def loc(self):
         """Label-based indexer (pandas-compatible)."""
+        self._require_rows()
         return self._df_output.loc
 
     @property
     def iloc(self):
         """Integer-based indexer (pandas-compatible)."""
+        self._require_rows()
         return self._df_output.iloc
 
     def xs(self, key, axis=0, level=None, drop_level=True):
         """Cross-section from MultiIndex DataFrame (pandas-compatible)."""
+        self._require_rows()
         return self._df_output.xs(key, axis=axis, level=level, drop_level=drop_level)
 
     def __getattr__(self, name: str) -> pd.DataFrame:
@@ -404,6 +447,7 @@ class SUEWSOutput:
             All variables in the group, as a frame independent of this
             object: writing to it does not change the stored output.
         """
+        self._require_rows()
         # Case-insensitive group lookup
         if group not in self.groups:
             group_lower = group.lower()
@@ -442,6 +486,7 @@ class SUEWSOutput:
         pd.DataFrame
             Time series of requested variable
         """
+        self._require_rows()
         # Check if variable exists (case-insensitive)
         all_vars = self._df_output.columns.get_level_values("var").unique()
         if var_name not in all_vars:
@@ -518,8 +563,7 @@ class SUEWSOutput:
         for group in self.groups:
             try:
                 vars_in_group = (
-                    self
-                    ._df_output[group]
+                    self._df_output[group]
                     .columns.get_level_values("var")
                     .unique()
                     .tolist()
@@ -559,6 +603,7 @@ class SUEWSOutput:
         """
         from ._post import _resample_output
 
+        self._require_rows()
         resampled = _resample_output(self, freq)
         return SUEWSOutput(
             df_output=resampled,
@@ -604,6 +649,7 @@ class SUEWSOutput:
         """
         from ._supy_module import _save_supy
 
+        self._require_rows()
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
@@ -662,6 +708,8 @@ class SUEWSOutput:
 
     def __repr__(self) -> str:
         """Concise representation of output data."""
+        if self._streamed_paths is not None:
+            return self._streamed_summary()
         start, end = self.time_range
         n_grids = len(self.grids)
         n_groups = len(self.groups)
@@ -674,6 +722,8 @@ class SUEWSOutput:
 
     def _repr_html_(self) -> str:
         """HTML representation for Jupyter notebooks."""
+        if self._streamed_paths is not None:
+            return f"<pre>{self._streamed_summary()}</pre>"
         start, end = self.time_range
         n_grids = len(self.grids)
         n_groups = len(self.groups)
@@ -695,6 +745,15 @@ class SUEWSOutput:
         </div>
         """
         return html
+
+    def _streamed_summary(self) -> str:
+        """One-line description of a streamed output (no rows held)."""
+        folder = Path(self._streamed_paths[0]).resolve().parent
+        n_text = sum(1 for p in self._streamed_paths if Path(p).suffix == ".txt")
+        return (
+            f"SUEWSOutput(streamed to {folder}, {n_text} text files, "
+            f"{len(self.groups)} groups; no rows held in memory)"
+        )
 
     def __len__(self) -> int:
         """Number of timesteps."""

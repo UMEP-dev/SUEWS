@@ -844,7 +844,9 @@ class TestRun:
                     for idx in range(len(list_config_jsons))
                 ]
 
-        def fake_frame_from_output_store(ar_data, ar_datetime, list_grid_ids):
+        def fake_frame_from_output_store(
+            ar_data, ar_datetime, list_grid_ids, columns=None
+        ):
             index = pd.MultiIndex.from_product(
                 [list_grid_ids, df_forcing.index],
                 names=["grid", "datetime"],
@@ -958,7 +960,9 @@ class TestRun:
                     for idx in range(len(list_config_jsons))
                 ]
 
-        def fake_frame_from_output_store(ar_data, ar_datetime, list_grid_ids):
+        def fake_frame_from_output_store(
+            ar_data, ar_datetime, list_grid_ids, columns=None
+        ):
             index = pd.MultiIndex.from_product(
                 [list_grid_ids, df_forcing.index],
                 names=["grid", "datetime"],

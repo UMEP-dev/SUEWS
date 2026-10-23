@@ -52,6 +52,71 @@ backwards compatibility and developer inspection, but they are not the preferred
 restart artefact for new object-oriented workflows.
 
 
+.. _output_stream_chunk:
+
+Streaming Long Runs to Disk
+---------------------------
+
+A run keeps its whole output in memory until it is saved, so memory grows with
+the length of the run and the number of grids. For long runs, set
+``stream_chunk`` in the output block to a number of days (1 to 366); 30 (about
+a month) or 366 (a calendar year) are good choices:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       output:
+         format: txt
+         freq: 3600
+         stream_chunk: 30
+
+``suews run`` and :meth:`~supy.SUEWSSimulation.run` then go through each
+calendar year in consecutive chunks of up to that many days, each starting at
+00:00 plus one model timestep. After each chunk its rows are written by the
+same code as :meth:`~supy.SUEWSSimulation.save`, into the usual files (one per
+grid, group and year, which later chunks extend), and the chunk is dropped
+before the next one runs. Only the groups listed in ``groups`` (default
+``SUEWS`` and ``DailyState``) are kept from each chunk. The files are
+byte-identical to those of a run saved whole, for any chunk length. Streaming
+currently needs text output, an output frequency that divides one day, and
+output timestamps on the forcing clock (``timestamp_reference`` of ``follow``
+or the forcing's own reference); ``chunk_day`` is ignored. The log names the
+output folder at the start and reports each chunk as it is written.
+
+The output returned to Python holds no rows: read the written files back, for
+example with ``pandas.read_csv(path, sep=r"\s+")``. The checkpoint file is
+replaced at the end of every calendar year. A run that stops part-way can
+continue from it: load the checkpoint with
+:meth:`~supy.SUEWSSimulation.from_checkpoint` and run from one model timestep
+after its ``last_timestamp``. The resumed run starts again from the beginning
+of the year it stopped in and rewrites that year's files: in each file it
+writes, it keeps the rows up to the checkpoint and replaces everything after
+(a file whose header is missing or cut short is written anew), so it ends with
+the files of an uninterrupted run, and resuming again from the same checkpoint
+gives the same files. A streamed run that starts afresh, not from a
+checkpoint, first removes the checkpoint and ``provenance.json`` a previous
+run left in the output folder, so a failure before its first year end leaves
+no checkpoint of another run to resume from.
+
+Limitations:
+
+- Peak memory is about one chunk of the model's full output, every output
+  group included, because the model computes all groups for the chunk before
+  the unsaved ones are dropped. A run no longer than one chunk therefore gains
+  nothing and can peak slightly higher than a run saved whole; the gain grows
+  with run length and grid count. A ten-year run of eight grids at a 5-minute
+  timestep saving ``SUEWS`` and ``DailyState`` hourly peaked at about 2.3 GB
+  with ``stream_chunk: 30`` and 11 GB with ``stream_chunk: 366``, against
+  92 GB for a run saved whole. A one-year single-grid run peaked at 1.5 GB with
+  ``stream_chunk: 366``, as when saved whole, and at 0.4 GB with 30.
+- The output exists only on disk. Values read back from the text files carry
+  the saved text precision, four decimal places, not the full double precision
+  a run kept in memory holds.
+- Groups not listed in ``groups`` are not kept at all; to analyse another group,
+  list it in ``groups`` before the run.
+
+
 Run Provenance
 --------------
 
@@ -84,8 +149,9 @@ without the original session:
   the end of each interval, see :ref:`timestamp_convention`) and the forcing
   and output ``timestamp_reference`` settings.
 - ``run``: interface (``cli`` or ``python``), the ``suews run`` command line
-  when applicable, wall-clock start and end, ``n_jobs``, ``chunk_day`` and
-  whether the run continued from a checkpoint.
+  when applicable, wall-clock start and end, ``n_jobs``, ``chunk_day``,
+  whether the run continued from a checkpoint and, for a streamed run,
+  ``stream_chunk``.
 - ``output``: format, output frequency, the files written and the checkpoint
   file name.
 

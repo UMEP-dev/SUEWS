@@ -1398,7 +1398,7 @@ class SUEWSSimulation:
     @staticmethod
     def _hint_stream_chunk(index: pd.DatetimeIndex) -> None:
         """Suggest ``output.stream_chunk`` for a run longer than two years."""
-        if len(index) and index[-1] - index[0] > pd.Timedelta(days=2 * 366):
+        if len(index) and index[-1] - index[0] > pd.Timedelta(days=731):
             logger_supy.info(
                 "This run covers more than two years and keeps its whole output "
                 "in memory; set output.stream_chunk (for example 30 or 366 "

@@ -739,7 +739,9 @@ def _resume(sim, dir_out, monkeypatch=None, fail_after=None):
 N_CHUNK_2011 = 16  # one-day chunks from 16 to 31 December 2011
 
 
-@pytest.mark.parametrize("clock", [CLOCK_FOLLOW, CLOCK_UTC], ids=["follow", "utc"])
+@pytest.mark.parametrize(
+    "clock", [CLOCK_FOLLOW, CLOCK_UTC, CLOCK_LST], ids=["follow", "utc", "lst"]
+)
 @pytest.mark.parametrize(
     "n_written", [N_CHUNK_2011, N_CHUNK_2011 + 3], ids=["at-year-end", "mid-year"]
 )

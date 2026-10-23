@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 23 Oct 2026
+
+- [bugfix] Multi-grid runs with grids in parallel now give the same output as the same run done serially. `AerodynamicResistance` kept the heat stability correction `psih` in a module variable shared by every grid thread between computing and using it, so a grid could take another grid's value and its `QH`, `QE` and everything downstream departed from its serial run, mostly in checked (unoptimised) builds; `psih` is now a local. Serial runs, and so the sample reference, are unchanged (#1926)
+
 ### 22 Oct 2026
 
 - [bugfix] With snow enabled, `State`, `NWtrState`, `TotCh` and the per-surface `SMD*` columns are now updated every timestep: `State` and `NWtrState` read 0, `TotCh` and `SMD*` kept their last snow-free values, and `SMD` lagged one timestep (#1879)

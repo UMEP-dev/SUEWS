@@ -56,6 +56,11 @@ EXAMPLES:
 
 ### 23 Oct 2026
 
+- [bugfix] Corrected three slips in the STEBBS hot-water formulas (#1880, #1881)
+  - The hot-water vessel's temperature changed by the heat it exchanges multiplied by the vessel volume instead of divided by it, so its response scaled with the square of the volume: about 11 times too slow at 0.3 m3, too fast above 1 m3. Drain heat loss is also no longer multiplied by the STEBBS substep a second time; the substep is fixed at 1 s, so that part changes no result today.
+  - Domestic hot-water energy consumption (`QEC_dhw_FA`, and so `QEC_bldg_FA`) used the space-heating efficiency instead of the water-heater efficiency. It now equals the heat supplied to the tank plus the water heater's losses (`QHload_dhw_FA + QHwaste_dhw_FA`), and changes only when the two efficiencies differ.
+  - The vessel's external wall convection coefficient was read from the hot-water tank's parameter, and its emissivity from the vessel wall conductivity; both now come from the vessel's own parameters (`convection_coefficient_hot_water_tank_vessel_external`, `emissivity_hot_water_vessel_wall`).
+  - Vessel temperature and wall fluxes, drain heat loss (`Qloss_drain_FA`, `QS_dhw_FA`) and `QS_total_FA` change; the building storage heat passed to SUEWS and the cooling load move by under 1 W m-2 on daily means, and indoor air temperature by a few hundredths of a kelvin. The STEBBS reference output is refreshed.
 - [bugfix] Multi-grid runs with grids in parallel now give the same output as the same run done serially. `AerodynamicResistance` kept the heat stability correction `psih` in a module variable shared by every grid thread between computing and using it, so a grid could take another grid's value and its `QH`, `QE` and everything downstream departed from its serial run, mostly in checked (unoptimised) builds; `psih` is now a local. Serial runs, and so the sample reference, are unchanged (#1926)
 
 ### 22 Oct 2026

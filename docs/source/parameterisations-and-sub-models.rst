@@ -138,7 +138,7 @@ The output contract classifies this group as provisional.
 Several variables hold something other than their names, or their descriptions in the output variable reference, suggest:
 
 - ``SH_Ground`` and ``SH_Walls`` are sunlit fractions, not shadow fractions as their names suggest, and both are 0 at night. ``SH_Ground`` runs from 0 to 1 (fully sunlit). ``SH_Walls`` is averaged over the two facing walls of the canyon, one of which is always in shade, so it never exceeds 0.5.
-- ``DiffuseRad`` holds the direct-beam irradiance on a surface normal to the sun, and ``DirectRad`` holds the diffuse irradiance on a horizontal surface.
+- ``DirectRad`` is the direct-beam irradiance on a surface normal to the sun, not on the horizontal, so it can exceed ``GlobalRad`` when the sun is low; ``DiffuseRad`` is the diffuse irradiance on a horizontal surface, and ``DiffuseRad`` + ``DirectRad`` times the sine of the solar altitude equals ``GlobalRad``. Until this was corrected (GitHub issue 1866) each of the two columns held the other's value.
 - ``Tg`` and ``Tw`` are the excesses of ground and wall surface temperature over air temperature, not absolute surface temperatures.
 - ``SVF_BdVeg`` equals ``SVF_Ground``, because the vegetation sky-view factor is fixed at 1.
 - ``Ta`` is the forcing air temperature.

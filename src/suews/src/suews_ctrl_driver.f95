@@ -4153,9 +4153,9 @@ CONTAINS
             RH2_pct = atmState%RH2*100.0
 
             ! translate water use to vegetated surfaces
-            wu_DecTr = hydroState%wu_surf(3)
-            wu_EveTr = hydroState%wu_surf(4)
-            wu_Grass = hydroState%wu_surf(5)
+            wu_EveTr = hydroState%wu_surf(ConifSurf)
+            wu_DecTr = hydroState%wu_surf(DecidSurf)
+            wu_Grass = hydroState%wu_surf(GrassSurf)
 
             !====================== update output line ==============================
             ! date & time:

@@ -15,6 +15,7 @@ model:
       freq: 3600
       dir: "./Output"
       timestamp_reference: follow
+      write_by_year: false
       groups:
         - "SUEWS"
     ref:

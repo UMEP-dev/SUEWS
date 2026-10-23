@@ -19,9 +19,9 @@ from .suews_checkpoint import SUEWSCheckpoint
 
 
 def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
-    """Build the error raised when rows of an output written by year are requested.
+    """Build the error raised when rows of a streamed run's output are requested.
 
-    A run with ``model.control.output.write_by_year`` on writes its output
+    A run with ``model.control.output.stream_chunk`` set writes its output
     files during the run and keeps no output rows, so every accessor that
     would read rows raises this instead of handing back an empty frame.
     """
@@ -30,11 +30,11 @@ def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
     text_files = sorted(p.name for p in paths if p.suffix == ".txt")
     example = f" (for example {text_files[0]})" if text_files else ""
     return RuntimeError(
-        "This output was written to disk year by year (output.write_by_year) "
+        "This output was streamed to disk in chunks (output.stream_chunk) "
         f"and holds no rows in memory. Its {len(text_files)} text output files "
         f"are in {folder}{example}; read one back with "
         "pandas.read_csv(path, sep=r'\\s+'), or rerun with "
-        "output.write_by_year off to keep the output in memory. The "
+        "output.stream_chunk unset to keep the output in memory. The "
         "checkpoint, final state and kernel warnings are still available."
     )
 
@@ -209,7 +209,7 @@ class SUEWSOutput:
             Non-fatal warnings raised by the Fortran kernel (columns
             ``grid``, ``datetime``, ``location``, ``message``)
         streamed_paths : list, optional
-            Files written by a run with ``output.write_by_year`` on. When
+            Files written by a run with ``output.stream_chunk`` set. When
             given, *df_output* carries the column layout only, and every
             accessor that reads output rows raises ``RuntimeError`` naming
             the output folder instead of returning an empty frame.
@@ -241,7 +241,7 @@ class SUEWSOutput:
     # =========================================================================
 
     def _require_rows(self) -> None:
-        """Raise if this output was written to disk by year and holds no rows."""
+        """Raise if this output was streamed to disk and holds no rows."""
         if self._streamed_paths is not None:
             raise streamed_output_error(self._streamed_paths)
 
@@ -747,11 +747,11 @@ class SUEWSOutput:
         return html
 
     def _streamed_summary(self) -> str:
-        """One-line description of an output written by year (no rows held)."""
+        """One-line description of a streamed output (no rows held)."""
         folder = Path(self._streamed_paths[0]).resolve().parent
         n_text = sum(1 for p in self._streamed_paths if Path(p).suffix == ".txt")
         return (
-            f"SUEWSOutput(written by year to {folder}, {n_text} text files, "
+            f"SUEWSOutput(streamed to {folder}, {n_text} text files, "
             f"{len(self.groups)} groups; no rows held in memory)"
         )
 

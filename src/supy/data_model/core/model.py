@@ -1399,28 +1399,30 @@ class OutputControl(BaseModel):
             "daylight-saving offset to local standard time inside the DLS window."
         ),
     )
-    write_by_year: bool = Field(
-        default=False,
+    stream_chunk: Optional[int] = Field(
+        default=None,
         description=(
-            "Write the output to disk one calendar year at a time during the "
-            "run. When true, the run proceeds year by year: each year's text "
-            "files are written exactly as a run followed by save would write "
-            "them, the year is then dropped from memory, and only the output "
-            "groups listed in 'groups' are kept from it, so memory stays at "
-            "about one year of output however long the run. Peak memory is "
-            "still about one year of the model's full output (all groups), so "
-            "a run of one year or less gains nothing; values read back from "
-            "the files carry the text precision of four decimal places; "
-            "groups not listed in 'groups' are not kept at all. The "
-            "checkpoint file is replaced after every year, so a run that stops "
-            "part-way can continue from the last completed year. The output "
-            "returned to Python holds no rows: read the written files. "
-            "Requires 'format' to be 'txt', an output frequency that divides "
-            "one day (86400 s), and output timestamps on the forcing clock "
-            "('timestamp_reference' of 'follow' or the forcing's own "
-            "reference). Default false keeps the whole output in memory until "
-            "it is saved."
+            "Stream the output to disk during the run in chunks of this many "
+            "days (1 to 366), so memory no longer grows with run length. The "
+            "run goes through each calendar year in consecutive chunks; each "
+            "chunk's text files are written, or extended, exactly as a run "
+            "followed by save would write them, and the chunk is then dropped "
+            "from memory, keeping only the groups listed in 'groups'. 30 "
+            "(about a month) or 366 (a calendar year) are good choices. "
+            "Limitations: peak memory is still about one chunk of the model's "
+            "full output (all groups); values read back from the files carry "
+            "the text precision of four decimal places; groups not listed in "
+            "'groups' are not kept at all. The checkpoint file is replaced "
+            "at the end of every calendar year, so a run that stops part-way "
+            "continues from the start of the year it stopped in and rewrites "
+            "that year's files. The output returned to Python holds no rows: "
+            "read the written files. Currently needs 'format' to be 'txt', an "
+            "output frequency that divides one day (86400 s), and output "
+            "timestamps on the forcing clock ('timestamp_reference' of "
+            "'follow' or the forcing's own reference). Unset (the default) "
+            "keeps the whole output in memory until it is saved."
         ),
+        json_schema_extra={"unit": "d"},
     )
 
     @property
@@ -1453,44 +1455,66 @@ class OutputControl(BaseModel):
                 )
         return v
 
+    @field_validator("stream_chunk", mode="before")
+    @classmethod
+    def _reject_bool_stream_chunk(cls, v):
+        """Reject true/false, which Python would otherwise read as 1 or 0."""
+        if isinstance(v, bool):
+            raise ValueError(
+                "output.stream_chunk is a number of days from 1 to 366, not "
+                f"{str(v).lower()}."
+            )
+        return v
+
+    @field_validator("stream_chunk")
+    @classmethod
+    def _check_stream_chunk_range(cls, v):
+        """Keep the chunk length between one day and one calendar year."""
+        if v is not None and not 1 <= v <= 366:
+            raise ValueError(
+                "output.stream_chunk is a number of days from 1 to 366; got "
+                f"{v}. (output.freq is in seconds, output.stream_chunk in days.)"
+            )
+        return v
+
     @model_validator(mode="after")
-    def _check_write_by_year(self):
-        """Reject output settings that writing year by year cannot reproduce."""
-        if self.write_by_year:
-            check_write_by_year(
+    def _check_stream_chunk(self):
+        """Reject output settings that streaming in chunks cannot reproduce."""
+        if self.stream_chunk is not None:
+            check_stream_chunk(
                 str(self.format), self.freq, str(self.timestamp_reference)
             )
         return self
 
 
-def check_write_by_year(
+def check_stream_chunk(
     output_format: str,
     freq_s: int | None,
     timestamp_reference: str,
     forcing_timestamp_reference: str | None = None,
 ) -> None:
-    """Reject output settings that ``output.write_by_year`` cannot reproduce.
+    """Reject output settings that ``output.stream_chunk`` cannot reproduce.
 
-    Each year's files must be what saving the whole run writes for that
-    year: text output has one file per grid, group and year (Parquet one
-    file for the run), an output frequency dividing one day keeps every
-    resampling bin inside one year, and saved timestamps on the forcing
-    clock keep every row in its year (a UTC or daylight-saving relabelling
-    moves rows across the boundary). With *forcing_timestamp_reference*
-    unknown, only the daylight relabelling, which never follows the
-    forcing, is rejected on the clock.
+    The files must be what saving the whole run writes: text output has one
+    file per grid, group and year that each chunk extends (Parquet one file
+    for the run), an output frequency dividing one day keeps every
+    resampling bin inside one chunk, and saved timestamps on the forcing
+    clock keep every row in the chunk that computed it (a relabelling to
+    another clock moves rows across chunk boundaries). With
+    *forcing_timestamp_reference* unknown, only the daylight relabelling,
+    which never follows the forcing, is rejected on the clock.
 
     Shared by the YAML validators and :meth:`SUEWSSimulation.run`, which
     checks again in case the config was changed by attribute assignment.
     """
     if output_format != "txt":
         raise ValueError(
-            "output.write_by_year writes text output only; "
+            "output.stream_chunk currently needs text output; "
             f"output.format is {output_format!r}."
         )
     if freq_s is not None and (freq_s <= 0 or 86400 % freq_s != 0):
         raise ValueError(
-            "output.write_by_year needs an output frequency that divides "
+            "output.stream_chunk needs an output frequency that divides "
             f"one day (86400 s); output.freq is {freq_s} s."
         )
     allowed = {str(OutputTimestampReference.FOLLOW)}
@@ -1505,7 +1529,7 @@ def check_write_by_year(
         clock = f"the forcing clock ({forcing_timestamp_reference!r})"
     if timestamp_reference not in allowed:
         raise ValueError(
-            f"output.write_by_year keeps output timestamps on {clock}; "
+            f"output.stream_chunk keeps output timestamps on {clock}; "
             f"output.timestamp_reference={timestamp_reference!r} is not "
             "supported."
         )
@@ -1710,38 +1734,25 @@ class ModelControl(BaseModel):
     ref: Optional[Reference] = None
 
     @model_validator(mode="after")
-    def _check_write_by_year_clock(self):
-        """Keep the output of ``output.write_by_year`` on the forcing clock.
+    def _check_stream_chunk_clock(self):
+        """Keep the output of ``output.stream_chunk`` on the forcing clock.
 
         Relabelling the saved timestamps to another clock moves rows across
-        a year boundary, so the year files would differ from those of a run
+        chunk boundaries, so the files would differ from those of a run
         saved whole.
         """
         output = self.output
-        if output.write_by_year:
+        if output.stream_chunk is not None:
             source = getattr(
                 self.forcing.timestamp_reference,
                 "value",
                 self.forcing.timestamp_reference,
             )
-            check_write_by_year(
+            check_stream_chunk(
                 str(output.format),
                 output.freq,
                 str(output.timestamp_reference),
                 str(source),
-            )
-        return self
-        target = str(output.timestamp_reference)
-        source = getattr(
-            self.forcing.timestamp_reference,
-            "value",
-            self.forcing.timestamp_reference,
-        )
-        if target not in {str(OutputTimestampReference.FOLLOW), str(source)}:
-            raise ValueError(
-                "output.write_by_year keeps output timestamps on the forcing "
-                f"clock ({str(source)!r}); output.timestamp_reference="
-                f"{target!r} is not supported."
             )
         return self
 

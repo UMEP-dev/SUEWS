@@ -37,16 +37,16 @@ from ._run_rust import (
     OUTPUT_GROUP_LAYOUT,
     KernelWarningLog,
     _check_rust_available,
-    iter_suews_rust_by_year,
+    iter_suews_rust_streamed,
     run_suews_rust_chunked,
 )
-from ._save import DEFAULT_OUTPUT_GROUPS
+from ._save import DEFAULT_OUTPUT_GROUPS, StreamedTextFiles
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
-from .data_model.core.model import check_write_by_year
+from .data_model.core.model import check_stream_chunk
 
 # Import new OOP classes
 from .suews_checkpoint import SUEWSCheckpoint
@@ -124,7 +124,7 @@ class SUEWSSimulation:
         self._check_continuity = True
         self._run_period = None
         self._run_completed = False
-        # Files written during a run with ``output.write_by_year`` on.
+        # Files written during a run with ``output.stream_chunk`` set.
         self._streamed_paths = None
         # Provenance bookkeeping (see ``_provenance.py``); private, best effort.
         self._config_identity = None
@@ -792,7 +792,7 @@ class SUEWSSimulation:
             exactly, so the output is that of an unsplit run. Every piece
             writes into its own rows of one output table for the whole run,
             so a smaller value does not reduce peak memory. To bound memory
-            for a long run, set ``model.control.output.write_by_year`` (see
+            for a long run, set ``model.control.output.stream_chunk`` (see
             Notes), which ignores ``chunk_day``.
         n_jobs : int, optional
             Parallel worker control for multi-grid runs. ``-1`` (default) uses
@@ -804,8 +804,8 @@ class SUEWSSimulation:
         SUEWSOutput
             Simulation results wrapped in an OOP interface with analysis
             and plotting convenience methods. Access raw DataFrame via
-            ``.to_dataframe()`` or ``.df``. With ``output.write_by_year``
-            on, the output holds the column layout but no rows (the values
+            ``.to_dataframe()`` or ``.df``. With ``output.stream_chunk``
+            set, the output holds the column layout but no rows (the values
             are in the written files): ``.df``, the group and variable accessors,
             ``resample()`` and ``save()`` raise ``RuntimeError`` naming the
             output folder, while ``checkpoint``, ``state_final``,
@@ -822,29 +822,32 @@ class SUEWSSimulation:
 
         Notes
         -----
-        With ``model.control.output.write_by_year`` set to true, the run goes
-        one calendar year at a time (years follow the right-closed
-        convention, so the row stamped ``1 January 00:00`` closes the
-        previous year). Each year's text files are written into the
-        configured output directory by the same code as :meth:`save`, the
-        year is dropped and the model state carried into the next year;
-        while a year is held, only the groups the text output saves
-        (``output.groups``, default SUEWS and DailyState) are kept. Memory
-        then stays at about one year of output however long the run.
-        After each year the checkpoint file that :meth:`save` writes
-        (``<site>_SUEWS_checkpoint.json``) is replaced by the state at the
-        end of that year; ``provenance.json`` is written once at the end, so
-        a completed run leaves the same files as ``run()`` followed by
+        With ``model.control.output.stream_chunk`` set to a number of days
+        N, the run streams its output to disk: it goes through each calendar
+        year (years follow the right-closed convention, so the row stamped
+        ``1 January 00:00`` closes the previous year) in consecutive chunks of
+        up to N days, each starting at 00:00 plus one model timestep. Each
+        chunk's text files are written into the configured output directory
+        by the same code as :meth:`save`, one file per grid, group and year,
+        which later chunks extend; the chunk is dropped and the model state
+        carried into the next chunk. Only the groups the text output saves
+        (``output.groups``, default SUEWS and DailyState) are kept from each
+        chunk. Peak memory then stays at about one chunk of the model's full
+        output (every group) however long the run. At the end of every
+        calendar year the checkpoint file that :meth:`save` writes
+        (``<site>_SUEWS_checkpoint.json``) is replaced by the state reached;
+        ``provenance.json`` is written once at the end, so a completed run
+        leaves the same files, byte for byte, as ``run()`` followed by
         ``save()``, and :meth:`save` afterwards returns those files.
 
-        A run writing by year that stops part-way (an error, or the process
-        being killed) leaves the files of every completed year and a
-        checkpoint whose ``last_timestamp`` is the last forcing row of the
-        last completed year; ``provenance.json`` is only written by a run
-        that completes. To resume, continue from that checkpoint and start
-        one model timestep after it, with the same configuration
-        (``path_checkpoint`` is ``<output dir>/<site>_SUEWS_checkpoint.json``
-        and ``tstep`` the model timestep in seconds)::
+        A streamed run that stops part-way (an error, or the process being
+        killed) leaves a checkpoint whose ``last_timestamp`` is the last
+        forcing row of the last completed year; ``provenance.json`` is only
+        written by a run that completes. To resume, continue from that
+        checkpoint and start one model timestep after it, with the same
+        configuration (``path_checkpoint`` is
+        ``<output dir>/<site>_SUEWS_checkpoint.json`` and ``tstep`` the model
+        timestep in seconds)::
 
             ckpt = SUEWSCheckpoint.from_file(path_checkpoint)
             sim = SUEWSSimulation.from_checkpoint("config.yml", ckpt)
@@ -852,11 +855,14 @@ class SUEWSSimulation:
             start = pd.Timestamp(ckpt.last_timestamp) + pd.Timedelta(seconds=tstep)
             sim.run(start_date=start)
 
-        The resumed run rewrites the year files from the resume point on
-        and replaces the checkpoint as it goes; its ``provenance.json``
-        describes the resumed segment (``continued_from_checkpoint`` is
-        true). The continuity check refuses a ``start_date`` that does not
-        follow the checkpoint, so no completed year is rewritten by mistake.
+        The resumed run starts again from the beginning of the year it
+        stopped in. In each file it writes, it keeps the rows the run up to
+        the checkpoint produced, drops anything later (that year's partial
+        rows) and appends from there, so it ends with the files of an
+        uninterrupted run; resuming again from the same checkpoint gives the
+        same files. Its ``provenance.json`` describes the resumed segment
+        (``continued_from_checkpoint`` is true). The continuity check refuses
+        a ``start_date`` that does not follow the checkpoint.
 
         Examples
         --------
@@ -909,15 +915,16 @@ class SUEWSSimulation:
                     df_state_for_cfg.index = pd.Index(grid_vals, name="grid")
                 self._config = SUEWSConfig.from_df_state(df_state_for_cfg)
 
-        # Writing by year saves as it goes: resolve where and what it writes,
+        # A streamed run saves as it goes: resolve where and what it writes,
         # and reject settings it cannot reproduce, before any work is done.
         # The YAML validators check the same, but not a config changed by
         # attribute assignment.
         save_settings = None
         list_keep = None
-        if self._write_by_year():
+        stream_chunk = self._stream_chunk()
+        if stream_chunk is not None:
             save_settings = self._resolve_save_settings(None, {})
-            self._check_write_by_year(save_settings)
+            self._check_stream_chunk(save_settings)
             list_keep = self._groups_saved(save_settings["output_config"])
 
         # Fall back to config values if start_date/end_date not provided
@@ -1040,6 +1047,7 @@ class SUEWSSimulation:
 
         self._streamed_paths = None
         if save_settings is None:
+            self._hint_stream_chunk(df_forcing_slice.index)
             df_output, dict_state_json, kernel_warnings = run_suews_rust_chunked(
                 config=self._config,
                 df_forcing=df_forcing_slice,
@@ -1050,18 +1058,18 @@ class SUEWSSimulation:
             )
         else:
             list_path_streamed, df_output, dict_state_json, kernel_warnings = (
-                self._run_streamed_by_year(
+                self._run_streamed(
                     df_forcing_slice,
                     tstep_cfg,
+                    stream_chunk,
                     serial_mode,
                     max_workers,
-                    initial_state_json_by_grid,
                     df_state_final,
                     save_settings,
                     list_keep,
                 )
             )
-            run_metadata["write_by_year"] = True
+            run_metadata["stream_chunk"] = stream_chunk
         self._df_output = df_output
         # Surface non-fatal kernel warnings (physics fallbacks) that were
         # previously discarded inside the Fortran layer (GH#1737).
@@ -1091,10 +1099,10 @@ class SUEWSSimulation:
                 list_path_streamed, save_settings, command=None
             )
             logger_supy.info(
-                "Wrote the output year by year to %s (%d files); the returned "
+                "stream_chunk: finished writing %d files to %s; the returned "
                 "output holds no rows.",
-                save_settings["output_path"],
                 len(self._streamed_paths),
+                Path(save_settings["output_path"]).resolve(),
             )
 
         # Wrap results in SUEWSOutput
@@ -1174,18 +1182,18 @@ class SUEWSSimulation:
         settings = self._resolve_save_settings(output_path, save_kwargs)
 
         if self._streamed_paths is not None:
-            # The run wrote every file year by year; the frame is gone, so
+            # The run streamed every file to disk; the frame is gone, so
             # nothing can be written again somewhere else.
             streamed_dir = Path(self._streamed_paths[0]).parent
             same_dir = settings["output_path"].resolve() == streamed_dir.resolve()
             as_text = settings["output_format"] in {None, "txt"}
             if not (same_dir and as_text):
                 raise ValueError(
-                    "This run wrote its output year by year to "
-                    f"{streamed_dir} as text (output.write_by_year); its "
+                    "This run streamed its output to "
+                    f"{streamed_dir} as text (output.stream_chunk); its "
                     "output is not held in memory, so it cannot be saved "
                     "again elsewhere or in another format. Rerun with "
-                    "output.write_by_year off to save differently."
+                    "output.stream_chunk unset to save differently."
                 )
             command = save_kwargs.get("command")
             if command is not None:
@@ -1210,7 +1218,7 @@ class SUEWSSimulation:
     ) -> dict:
         """Resolve where and how :meth:`save` writes, from arguments and config.
 
-        Shared by :meth:`save` and :meth:`run` writing by year, so both
+        Shared by :meth:`save` and a streamed :meth:`run`, so both
         write with the same settings.
         """
         # Set default path with priority: parameter > config > current directory
@@ -1271,9 +1279,16 @@ class SUEWSSimulation:
 
     @staticmethod
     def _write_output_frame(
-        df_output: pd.DataFrame, df_state_final: pd.DataFrame, settings: dict
+        df_output: pd.DataFrame,
+        df_state_final: pd.DataFrame,
+        settings: dict,
+        streamed_files: StreamedTextFiles | None = None,
     ) -> list:
-        """Write one output frame as :meth:`save` does; return the file paths."""
+        """Write one output frame as :meth:`save` does; return the file paths.
+
+        With *streamed_files* the frame is one chunk of a streamed run, and
+        files the run has already started are extended.
+        """
         # Use internal save helper for all formats
         return _save_supy(
             df_output=df_output,
@@ -1286,6 +1301,7 @@ class SUEWSSimulation:
             output_format=settings["output_format"],
             save_state=False,
             forcing_timestamp_reference=settings["forcing_timestamp_reference"],
+            streamed_files=streamed_files,
         )
 
     def _write_save_sidecars(
@@ -1340,7 +1356,7 @@ class SUEWSSimulation:
     def _write_year_checkpoint(
         cls, dict_state_json: dict, last_timestamp, settings: dict
     ) -> Path:
-        """Write the checkpoint reached at the end of one year written by year.
+        """Write the checkpoint reached at the end of one streamed year.
 
         Same file name as the checkpoint :meth:`save` writes, so the last
         completed year's state is always at one known path. The file is
@@ -1357,22 +1373,22 @@ class SUEWSSimulation:
         os.replace(path_tmp, path)
         return path
 
-    def _write_by_year(self) -> bool:
-        """Whether ``model.control.output.write_by_year`` is on."""
+    def _stream_chunk(self) -> int | None:
+        """Return ``model.control.output.stream_chunk``, or ``None`` when unset."""
         output_control = getattr(
             getattr(getattr(self._config, "model", None), "control", None),
             "output",
             None,
         )
-        return bool(getattr(output_control, "write_by_year", False))
+        return getattr(output_control, "stream_chunk", None)
 
     @staticmethod
-    def _check_write_by_year(settings: dict) -> None:
-        """Check the resolved save settings against ``output.write_by_year``."""
+    def _check_stream_chunk(settings: dict) -> None:
+        """Check the resolved save settings against ``output.stream_chunk``."""
         output_config = settings["output_config"]
         ref = getattr(output_config, "timestamp_reference", "follow")
         source = settings["forcing_timestamp_reference"]
-        check_write_by_year(
+        check_stream_chunk(
             str(output_config.format),
             settings["freq_s"],
             str(getattr(ref, "value", ref)),
@@ -1380,12 +1396,22 @@ class SUEWSSimulation:
         )
 
     @staticmethod
+    def _hint_stream_chunk(index: pd.DatetimeIndex) -> None:
+        """Suggest ``output.stream_chunk`` for a run longer than two years."""
+        if len(index) and index[-1] - index[0] > pd.Timedelta(days=2 * 366):
+            logger_supy.info(
+                "This run covers more than two years and keeps its whole output "
+                "in memory; set output.stream_chunk (for example 30 or 366 "
+                "days) to stream it to disk instead."
+            )
+
+    @staticmethod
     def _groups_saved(output_config) -> list[str]:
         """Return the kernel output groups the text output saves.
 
         These are the groups :meth:`save` writes (``output.groups``, default
         SUEWS and DailyState), restricted to those the kernel writes, in
-        kernel order; writing by year keeps only these while a year is held.
+        kernel order; a streamed run keeps only these from each chunk.
         """
         list_save = getattr(output_config, "groups", None)
         if list_save is None:
@@ -1394,28 +1420,28 @@ class SUEWSSimulation:
         if not list_keep:
             raise ValueError(
                 f"output.groups {list_save} names no group the model writes, so "
-                "output.write_by_year would write no output files; add a group "
+                "output.stream_chunk would write no output files; add a group "
                 "such as SUEWS or DailyState."
             )
         return list_keep
 
-    def _run_streamed_by_year(
+    def _run_streamed(
         self,
         df_forcing: pd.DataFrame,
         tstep_s: int,
+        stream_chunk: int,
         serial_mode: bool,
         max_workers: int | None,
-        initial_state_json_by_grid: dict | None,
         df_state_final: pd.DataFrame,
         settings: dict,
         list_keep: list[str],
     ) -> tuple:
-        """Run year by year, writing and dropping each year's output.
+        """Run in chunks of *stream_chunk* days, writing and dropping each.
 
-        Each year keeps only the groups *list_keep* that the text output
-        saves. After each year's files are written, the checkpoint file is
-        replaced by the state at the end of that year, so a run that stops
-        part-way can resume from the last completed year.
+        Each chunk keeps only the groups *list_keep* that the text output
+        saves. At the end of each calendar year the checkpoint file is
+        replaced by the state reached, so a run that stops part-way can
+        resume from the start of the year it stopped in.
 
         Returns ``(list_path_save, df_empty, dict_state_json,
         kernel_warnings)``; ``df_empty`` has the output columns and no rows.
@@ -1425,69 +1451,83 @@ class SUEWSSimulation:
         dict_state_json = None
         df_empty = None
         last_done = None
+        checkpoint = self._checkpoint
+        # Files are started on first write and extended after; a run
+        # continuing from a checkpoint keeps what the run up to it wrote.
+        streamed_files = StreamedTextFiles(
+            resume_after=checkpoint.last_timestamp if checkpoint is not None else None
+        )
         # _save_supy sets the SuPy logger level on every call; keep the
-        # caller's level so later years and the end-of-run summaries still log.
+        # caller's level so later chunks and the end-of-run summaries still log.
         log_level = logger_supy.level
         folder = Path(settings["output_path"]).resolve()
         logger_supy.info(
-            "write_by_year: writing the output to %s one calendar year at a "
-            "time; it is not kept in memory, and chunk_day is ignored.",
+            "stream_chunk: writing the output to %s in chunks of up to %d days; "
+            "it is not kept in memory, and chunk_day is ignored.",
             folder,
+            stream_chunk,
         )
         try:
-            for k_year, (
-                df_year,
-                dict_state_year,
-                warnings_year,
+            for (
+                df_chunk,
+                dict_state_chunk,
+                warnings_chunk,
+                first_timestamp,
                 last_timestamp,
                 year,
-                n_year,
-            ) in enumerate(
-                iter_suews_rust_by_year(
-                    config=self._config,
-                    df_forcing=df_forcing,
-                    tstep_s=tstep_s,
-                    serial_mode=serial_mode,
-                    max_workers=max_workers,
-                    initial_state_json_by_grid=initial_state_json_by_grid,
-                    keep_groups=list_keep,
+                k_chunk,
+                n_chunk,
+            ) in iter_suews_rust_streamed(
+                config=self._config,
+                df_forcing=df_forcing,
+                tstep_s=tstep_s,
+                chunk_days=stream_chunk,
+                serial_mode=serial_mode,
+                max_workers=max_workers,
+                initial_state_json_by_grid=(
+                    checkpoint.grid_states if checkpoint is not None else None
                 ),
-                start=1,
+                keep_groups=list_keep,
             ):
-                kernel_warnings.extend(warnings_year)
-                dict_state_json = dict_state_year
-                list_path_save += self._write_output_frame(
-                    df_year, df_state_final, settings
-                )
+                kernel_warnings.extend(warnings_chunk)
+                dict_state_json = dict_state_chunk
+                for path in self._write_output_frame(
+                    df_chunk, df_state_final, settings, streamed_files
+                ):
+                    if path not in list_path_save:
+                        list_path_save.append(path)
                 logger_supy.setLevel(log_level)
                 if df_empty is None:
-                    # A deep copy, so the empty frame does not keep the year's
-                    # buffer alive.
-                    df_empty = df_year.iloc[:0].copy()
-                # Drop this year's frame before the next year is allocated.
-                del df_year
-                # The year's files are on disk; record the state reached at
-                # its end so a later failure can resume from here.
-                if dict_state_year:
-                    path_checkpoint = self._write_year_checkpoint(
-                        dict_state_year, last_timestamp, settings
-                    )
-                    last_done = (last_timestamp, path_checkpoint)
+                    # A deep copy, so the empty frame does not keep the
+                    # chunk's buffer alive.
+                    df_empty = df_chunk.iloc[:0].copy()
+                # Drop this chunk's frame before the next one is allocated.
+                del df_chunk
                 logger_supy.info(
-                    "write_by_year: wrote %d (%d of %d) to %s",
+                    "stream_chunk: wrote %d chunk %d of %d (%s to %s) to %s",
                     year,
-                    k_year,
-                    n_year,
+                    k_chunk,
+                    n_chunk,
+                    first_timestamp,
+                    last_timestamp,
                     folder,
                 )
+                # The year's files are complete; record the state reached at
+                # its end so a later failure can resume from here.
+                if k_chunk == n_chunk and dict_state_chunk:
+                    path_checkpoint = self._write_year_checkpoint(
+                        dict_state_chunk, last_timestamp, settings
+                    )
+                    last_done = (last_timestamp, path_checkpoint)
         except Exception:
             if last_done is not None:
                 logger_supy.setLevel(log_level)
                 logger_supy.warning(
-                    "Run writing by year stopped; output up to %s is written "
-                    "and its checkpoint is %s. Resume with "
+                    "Streamed run stopped; the output is complete up to %s and "
+                    "its checkpoint is %s. Resume with "
                     "SUEWSSimulation.from_checkpoint(config, checkpoint) and "
-                    "run(start_date=<last_timestamp + tstep>).",
+                    "run(start_date=<last_timestamp + tstep>); the year after "
+                    "it is written again from its start.",
                     last_done[0],
                     last_done[1],
                 )
@@ -1657,8 +1697,8 @@ class SUEWSSimulation:
                 "continued_from_checkpoint", False
             ),
         }
-        if run_metadata.get("write_by_year"):
-            run_block["write_by_year"] = True
+        if run_metadata.get("stream_chunk") is not None:
+            run_block["stream_chunk"] = run_metadata["stream_chunk"]
         return {
             "format_version": PROVENANCE_FORMAT_VERSION,
             "generator": "supy.SUEWSSimulation.save",
@@ -2088,7 +2128,7 @@ class SUEWSSimulation:
         if self._run_completed:
             if self._streamed_paths is not None:
                 folder = Path(self._streamed_paths[0]).resolve().parent
-                return f"SUEWSSimulation(Complete: written by year to {folder})"
+                return f"SUEWSSimulation(Complete: streamed to {folder})"
             n_results = len(self._df_output) if self._df_output is not None else 0
             return f"SUEWSSimulation(Complete: {n_results} results)"
         elif self._df_state_init is not None and self._df_forcing is not None:

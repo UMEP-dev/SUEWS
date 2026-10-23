@@ -363,8 +363,12 @@ def _gen_df_datetime(idx_dt: pd.DatetimeIndex) -> pd.DataFrame:
     return df_datetime
 
 
-def _write_df_txt(df_year: pd.DataFrame, path_out: Path) -> None:
+def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False) -> None:
     r"""Write one grid-group-year table as SUEWS tab-separated text.
+
+    With *append*, the rows are added to the end of an existing file and no
+    header is written, so a file built from consecutive tables holds the
+    same bytes as one written from their concatenation.
 
     The layout is the one SuPy has always written: the date columns, then
     every value as ``%.4f`` right-justified to ``max(8, len(name))`` with
@@ -391,10 +395,13 @@ def _write_df_txt(df_year: pd.DataFrame, path_out: Path) -> None:
     n_row, n_col = ar_value.shape
     n_row_chunk = max(1, _CHUNK_CELLS // max(1, n_col))
     linesep = os.linesep
-    with open(path_out, "w", encoding="utf-8", newline="") as file_out:
-        csv.writer(file_out, delimiter="\t", lineterminator=linesep).writerow(
-            list_header
-        )
+    with open(
+        path_out, "a" if append else "w", encoding="utf-8", newline=""
+    ) as file_out:
+        if not append:
+            csv.writer(file_out, delimiter="\t", lineterminator=linesep).writerow(
+                list_header
+            )
         for start in range(0, n_row, n_row_chunk):
             stop = start + n_row_chunk
             if n_col:
@@ -408,6 +415,85 @@ def _write_df_txt(df_year: pd.DataFrame, path_out: Path) -> None:
                 list_line = [fmt_dt % dt for dt in list_dt[start:stop]]
             file_out.write(linesep.join(list_line))
             file_out.write(linesep)
+
+
+def _row_label(line: str) -> Optional[pd.Timestamp]:
+    """Return the timestamp label of one data line of a saved text file.
+
+    The label is read from the leading Year, DOY, Hour and Min columns;
+    ``None`` for a line that does not hold them (an incomplete last line).
+    """
+    fields = line.split("\t", 4)
+    if len(fields) < 5:
+        return None
+    try:
+        year, doy, hour, minute = (int(field) for field in fields[:4])
+    except ValueError:
+        return None
+    return pd.Timestamp(year=year, month=1, day=1) + pd.Timedelta(
+        days=doy - 1, hours=hour, minutes=minute
+    )
+
+
+def _keep_rows_up_to(path_out: Path, end_last: pd.Timestamp) -> None:
+    """Keep only the rows of a saved text file labelled at or before *end_last*.
+
+    Saved rows are labelled by the end of the period they cover (DailyState
+    by the last step of its day), so these are the rows a run ending at
+    *end_last* produces. The header and the leading rows up to *end_last* are
+    kept; the first row past it, an incomplete line, and everything after
+    are dropped. The file is rewritten beside itself and renamed over, so an
+    interruption leaves it either as it was or trimmed, and trimming again
+    changes nothing.
+    """
+    path_tmp = path_out.with_name(path_out.name + ".tmp")
+    with (
+        open(path_out, encoding="utf-8", newline="") as file_in,
+        open(path_tmp, "w", encoding="utf-8", newline="") as file_out,
+    ):
+        header = file_in.readline()
+        file_out.write(header)
+        for line in file_in:
+            label = _row_label(line)
+            if label is None or not line.endswith(("\n", "\r")) or label > end_last:
+                break
+            file_out.write(line)
+    os.replace(path_tmp, path_out)
+
+
+class StreamedTextFiles:
+    """The text files a run streamed to disk in chunks has opened (gh#1849).
+
+    A file is written with its header the first time the run writes to it
+    and appended to afterwards, whichever chunk or year writes it, so a row
+    that one year's last chunk writes into the next year's file (a period
+    ending at 1 January 00:00, labelled by its end) is kept when the next
+    year starts.
+
+    *resume_after* is the ``last_timestamp`` of the checkpoint a run continues
+    from. The first write to a file that already exists then keeps the rows
+    the run up to the checkpoint produced (those labelled at or before it,
+    see :func:`_keep_rows_up_to`) and appends after them, so a run
+    resumed after an interruption ends with the files of an uninterrupted
+    run, and resuming again from the same checkpoint gives the same files.
+    """
+
+    def __init__(self, resume_after: Optional[pd.Timestamp] = None) -> None:
+        self.resume_after = (
+            pd.Timestamp(resume_after) if resume_after is not None else None
+        )
+        self._set_started: set = set()
+
+    def open_append(self, path_out: Path) -> bool:
+        """Return whether to append to *path_out*, preparing it if needed."""
+        key = Path(path_out).resolve()
+        if key in self._set_started:
+            return True
+        self._set_started.add(key)
+        if self.resume_after is not None and Path(path_out).exists():
+            _keep_rows_up_to(Path(path_out), self.resume_after)
+            return True
+        return False
 
 
 def _asfreq_frame(df_data: pd.DataFrame, freq) -> pd.DataFrame:
@@ -446,6 +532,7 @@ def _gen_df_year(
     output_level: int,
     idx_asfreq: Optional[pd.DatetimeIndex],
     timestamps_are_final: bool,
+    step_s: Optional[int] = None,
 ) -> pd.DataFrame:
     """Return one year of one grid's group, ready for saving.
 
@@ -453,7 +540,8 @@ def _gen_df_year(
     view of the held output; only the rows and columns of ``year`` are
     copied. ``idx_asfreq`` is the grid's regular index from
     :func:`_grid_asfreq_index`, or ``None`` to keep the timestamps as they
-    are.
+    are. *step_s* is the table's step, used to move a single row, whose
+    index carries no frequency, forward to the end of its period.
     """
     columns = None
     if group == "SUEWS":
@@ -473,7 +561,10 @@ def _gen_df_year(
     # shift back to align with SUEWS convention; DailyState holds
     # end-of-day values and is not shifted
     if group != "DailyState" and not timestamps_are_final:
-        df_year.index = df_year.index.shift(1)
+        if df_year.index.freq is None and step_s is not None:
+            df_year.index = df_year.index + pd.Timedelta(seconds=step_s)
+        else:
+            df_year.index = df_year.index.shift(1)
     return _drop_empty_rows(df_year)
 
 
@@ -486,7 +577,16 @@ def save_df_grid_group(
     timestamp_reference="follow",
     freq_s=None,
     allow_irregular_timestamps=False,
+    fallback_freq_s=300,
+    streamed_files: Optional[StreamedTextFiles] = None,
 ):
+    """Write one grid-group-year table as a text file; return its path.
+
+    The frequency in the file name is *freq_s*, else inferred from the
+    table's first two rows, else *fallback_freq_s* (the table's step) for a
+    table of one row. With *streamed_files*, the rows are appended to a file
+    this run has already started (see :class:`StreamedTextFiles`).
+    """
     # processing path
     path_dir = Path(dir_save)
     # pandas bug here: monotonic datetime index would lose `freq` once `pd.concat`ed
@@ -504,7 +604,7 @@ def save_df_grid_group(
         df_year = _asfreq_frame(df_year, freq_cal)
         freq = pd.Timedelta(df_year.index.freq)
     else:
-        df_year = _asfreq_frame(df_year, "5min")
+        df_year = _asfreq_frame(df_year, pd.Timedelta(fallback_freq_s, unit="s"))
         freq = pd.Timedelta(df_year.index.freq)
     # output frequency in min
     freq_min = int(freq.total_seconds() / 60)
@@ -521,8 +621,9 @@ def save_df_grid_group(
     file_out = file_out.replace("DailyState_1440", "DailyState")
     path_out = path_dir / file_out
     logger_supy.debug(f"writing out: {path_out}")
+    append = streamed_files is not None and streamed_files.open_append(path_out)
     t_start = time.time()
-    _write_df_txt(df_year, path_out)
+    _write_df_txt(df_year, path_out, append=append)
     t_end = time.time()
     # remove freq info from `DailyState` file
     if "DailyState" in path_out.name:
@@ -563,13 +664,15 @@ def _save_row_index(
     timestamp_reference: object,
     forcing_timestamp_reference: object,
     df_state_final: Optional[pd.DataFrame],
+    step_s: Optional[int] = None,
 ) -> pd.MultiIndex:
     """Return the row index a table is saved under.
 
     With ``shift_to_period_start`` the datetime level is moved back one step
     so timestamps mark the start of each period (each year's rows are moved
     forward again in :func:`_gen_df_year`); the result is then relabelled to
-    the requested clock.
+    the requested clock. A single timestamp carries no step of its own and
+    is moved back by *step_s*, the table's step.
     """
     if shift_to_period_start:
         idx_dt = index.get_level_values("datetime").drop_duplicates()
@@ -585,6 +688,8 @@ def _save_row_index(
 
         if len(idx_dt) > 1:
             idx_dt = idx_dt.shift(-1)
+        elif step_s is not None:
+            idx_dt = idx_dt - pd.Timedelta(seconds=step_s)
 
         index = index.set_levels(idx_dt, level="datetime")
     return _relabel_output_index(
@@ -602,22 +707,22 @@ def _save_groups(
     timestamp_reference="follow",
     timestamps_are_final=False,
     dict_group_frequency_s=None,
+    step_s=None,
+    streamed_files: Optional[StreamedTextFiles] = None,
 ) -> list:
     """Save ``list_group`` of ``df_save`` one grid, group and year at a time.
 
     ``index`` replaces the row index of ``df_save`` (same length and order).
     Each group is taken as a view of ``df_save``, so the working set is one
-    group-year rather than a copy of the table (gh#1849).
+    group-year rather than a copy of the table (gh#1849). *step_s* is the
+    table's step, for tables of a single row; *streamed_files* is passed to
+    :func:`save_df_grid_group`.
     """
     list_grid = index.get_level_values("grid").unique()
-    is_dailystate_only = len(list_group) == 1 and list_group[0] == "DailyState"
-    idx_year = index.get_level_values("datetime").year
-    if is_dailystate_only or timestamps_are_final:
-        list_year = idx_year.unique()
-    else:
-        # the last index value is dropped as supy uses starting timestamp of each year
-        # for naming files
-        list_year = idx_year[:-1].unique()
+    # Every labelled year is written: once moved to the start of their
+    # periods, the rows of a run ending just after 1 January 00:00 belong to
+    # the new year, whatever the number of grids.
+    list_year = index.get_level_values("datetime").year.unique()
     allow_irregular_timestamps = (
         _normalise_output_timestamp_reference(timestamp_reference) == "daylight"
     )
@@ -638,6 +743,7 @@ def _save_groups(
                     output_level,
                     idx_asfreq,
                     timestamps_are_final,
+                    step_s=step_s,
                 )
                 if df_year.shape[0] > 0:
                     group_frequency_s = (
@@ -654,6 +760,8 @@ def _save_groups(
                         timestamp_reference,
                         freq_s=group_frequency_s,
                         allow_irregular_timestamps=allow_irregular_timestamps,
+                        fallback_freq_s=step_s if step_s is not None else 300,
+                        streamed_files=streamed_files,
                     )
                     list_path_save.append(path_save)
                 del df_year
@@ -678,6 +786,7 @@ def save_df_output(
     timestamp_reference="follow",
     forcing_timestamp_reference="local_standard_time",
     df_state_final: Optional[pd.DataFrame] = None,
+    streamed_files: Optional[StreamedTextFiles] = None,
 ) -> list:
     """save supy output dataframe to txt files
 
@@ -708,6 +817,11 @@ def save_df_output(
         Clock used by ``df_output`` before any saved-output relabelling.
     df_state_final : pandas.DataFrame, optional
         Per-grid timezone and daylight-saving parameters used for relabelling.
+    streamed_files : StreamedTextFiles, optional
+        Set when ``df_output`` is one chunk of a run streamed to disk: files
+        the run has already started are appended to, see
+        :class:`StreamedTextFiles`. ``None`` (the default) writes every file
+        anew.
 
     Returns
     -------
@@ -803,6 +917,7 @@ def save_df_output(
             timestamp_reference,
             forcing_timestamp_reference,
             df_state_final,
+            step_s=fallback_frequency_s,
         )
         list_path_save += _save_groups(
             df_save,
@@ -814,6 +929,8 @@ def save_df_output(
             timestamp_reference,
             timestamps_are_final=timestamps_are_final,
             dict_group_frequency_s=dict_group_frequency_s,
+            step_s=fallback_frequency_s,
+            streamed_files=streamed_files,
         )
     return list_path_save
 

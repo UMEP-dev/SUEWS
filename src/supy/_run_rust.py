@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from functools import cache
 from importlib import import_module
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -827,8 +827,8 @@ def _kept_output_slices(
 class _KeptOutputStore:
     """Output frame storage that holds only the kept groups (gh#1849).
 
-    Allocated for one run of the forcing it is sized for (one calendar year
-    when ``output.write_by_year`` is on), laid out like that run's full
+    Allocated for one run of the forcing it is sized for (one chunk when
+    ``output.stream_chunk`` is set), laid out like that run's full
     output table (:func:`_grid_row_starts`): one block of rows per grid, in
     grid ID order. The kernel still writes every group into a full-width
     table; :meth:`take_table` copies the kept groups out of that table,
@@ -1421,29 +1421,73 @@ def forcing_year_keys(index: pd.DatetimeIndex, tstep_s: int) -> np.ndarray:
     return ar_year
 
 
-def iter_suews_rust_by_year(
+def forcing_chunk_keys(
+    index: pd.DatetimeIndex, tstep_s: int, chunk_days: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the calendar year and the chunk within it of each forcing row.
+
+    Years follow :func:`forcing_year_keys`. Each year is cut into
+    consecutive chunks of up to *chunk_days* days counted from the year's
+    first day in the run; a row belongs to the day its interval starts in,
+    ``(t - tstep).floor("D")``, so a chunk boundary falls at 00:00 + tstep
+    and no resampling bin or DailyState row straddles two chunks. Rows of a
+    leading stub folded into the next year join its first chunk. With
+    ``chunk_days`` of 366 every year is one chunk.
+    """
+    ar_year = forcing_year_keys(index, tstep_s)
+    df_day = pd.DataFrame({
+        "year": ar_year,
+        "day": (index - pd.Timedelta(seconds=int(tstep_s))).floor("D"),
+    })
+    grp_day = df_day.groupby("year")["day"]
+    # The year's first day; a folded stub's day lies before it.
+    in_year = df_day["day"].dt.year == df_day["year"]
+    ser_origin = (
+        df_day["day"]
+        .where(in_year)
+        .groupby(df_day["year"])
+        .transform("min")
+        .fillna(grp_day.transform("min"))
+    )
+    ser_offset = (df_day["day"] - ser_origin).dt.days.clip(lower=0)
+    return ar_year, (ser_offset // int(chunk_days)).to_numpy()
+
+
+class StreamChunk(NamedTuple):
+    """One chunk of a run streamed to disk, as :func:`iter_suews_rust_streamed` yields it."""
+
+    df_output: pd.DataFrame
+    dict_state_json: dict[int, str]
+    kernel_warnings: KernelWarningLog
+    first_timestamp: pd.Timestamp
+    last_timestamp: pd.Timestamp
+    year: int
+    chunk: int
+    n_chunk: int
+
+
+def iter_suews_rust_streamed(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,
     tstep_s: int,
+    chunk_days: int,
     serial_mode: bool = False,
     max_workers: int | None = None,
     initial_state_json_by_grid: dict[int, str] | None = None,
     keep_groups: Sequence[str] | None = None,
-) -> Iterator[
-    tuple[pd.DataFrame, dict[int, str], KernelWarningLog, pd.Timestamp, int, int]
-]:
-    """Run SUEWS one calendar year at a time, yielding each year's output.
+) -> Iterator[StreamChunk]:
+    """Run SUEWS one chunk of days at a time, yielding each chunk's output.
 
     Same state chaining as :func:`run_suews_rust_chunked`, but chunks follow
-    calendar years under the right-closed convention (see
-    :func:`forcing_year_keys`) and no chunk is kept: the caller receives
-    ``(df_output_year, dict_state_json, warnings_year, last_timestamp, year,
-    n_year)`` per year, where *dict_state_json* is the state reached at
-    *last_timestamp* (the year's last forcing row), *year* is the calendar
-    year the rows belong to and *n_year* the number of years in the run, and
-    can write and drop the frame before
-    the next year runs, so memory no longer grows with run length. With
-    *keep_groups*, each year's frame holds only those output groups.
+    :func:`forcing_chunk_keys` (calendar years under the right-closed
+    convention, each cut into chunks of up to *chunk_days* days) and no
+    chunk is kept: the caller receives a :class:`StreamChunk` per chunk, in
+    time order, where ``dict_state_json`` is the state reached at
+    ``last_timestamp`` (the chunk's last forcing row), ``year`` the calendar
+    year the rows belong to, and ``chunk`` its 1-based position among the
+    ``n_chunk`` chunks of that year. The caller can write and drop the frame
+    before the next chunk runs, so memory no longer grows with run length.
+    With *keep_groups*, each chunk's frame holds only those output groups.
     """
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
@@ -1452,12 +1496,18 @@ def iter_suews_rust_by_year(
         for grid_id, state_json in (initial_state_json_by_grid or {}).items()
     }
     _check_chunk_grid_ids(config, initial_state_json_by_grid)
-    ar_year = forcing_year_keys(df_forcing.index, tstep_s)
-    grp_forcing_chunk = df_forcing.groupby(ar_year)
-    # Last forcing row of each year, in the group order the chunks run in.
-    ser_last = pd.Series(df_forcing.index).groupby(ar_year).max()
-    n_year = len(grp_forcing_chunk)
-    logger_supy.debug("Rust backend: running %d calendar-year chunks.", n_year)
+    ar_year, ar_chunk = forcing_chunk_keys(df_forcing.index, tstep_s, chunk_days)
+    list_key = [ar_year, ar_chunk]
+    grp_forcing_chunk = df_forcing.groupby(list_key)
+    # First and last forcing rows of each chunk, in the order the chunks run.
+    grp_index = pd.Series(df_forcing.index).groupby(list_key)
+    ser_first, ser_last = grp_index.min(), grp_index.max()
+    ser_n_chunk = ser_last.groupby(level=0).size()
+    logger_supy.debug(
+        "Rust backend: running %d chunks of up to %d days.",
+        len(grp_forcing_chunk),
+        chunk_days,
+    )
     iter_chunk = _iter_suews_rust_chunks(
         config,
         grp_forcing_chunk,
@@ -1466,16 +1516,21 @@ def iter_suews_rust_by_year(
         initial_state_json_by_grid,
         keep_groups=keep_groups,
     )
-    for year, last_timestamp in ser_last.items():
-        df_output_year, dict_state_json, warnings_year = next(iter_chunk)
-        yield (
-            df_output_year,
+    dict_pos: dict[int, int] = {}
+    for key, last_timestamp in ser_last.items():
+        year = key[0]
+        df_output_chunk, dict_state_json, warnings_chunk = next(iter_chunk)
+        dict_pos[year] = dict_pos.get(year, 0) + 1
+        yield StreamChunk(
+            df_output_chunk,
             dict_state_json,
-            warnings_year,
+            warnings_chunk,
+            ser_first.loc[key],
             last_timestamp,
             int(year),
-            n_year,
+            dict_pos[year],
+            int(ser_n_chunk.loc[year]),
         )
-        # Drop this frame before the next year is run, as the chunk
-        # generator does, so only one year is held at a time.
-        del df_output_year
+        # Drop this frame before the next chunk is run, as the chunk
+        # generator does, so only one chunk is held at a time.
+        del df_output_chunk

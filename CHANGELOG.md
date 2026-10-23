@@ -57,6 +57,7 @@ EXAMPLES:
 ### 22 Oct 2026
 
 - [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.8` carries the clarified descriptions (#1866)
+- [bugfix] `WUEveTr` and `WUDecTr` in the SUEWS output group now report evergreen- and deciduous-tree water use respectively; each previously carried the other tree type's value (#1865)
 - [bugfix] Runs split into chunks (`chunk_day`) or continued from a checkpoint now reproduce an uninterrupted run bit for bit. The Rust bridge parsed the carried state's JSON with serde_json's default float parser, which can land one ulp away from the decimal it reads, so every chunk boundary perturbed the state; enabling serde_json's `float_roundtrip` feature makes the parse exact. Unchunked runs, and so the sample reference, are unchanged (#1849)
 - [bugfix] DailyState daily means (`HDD1_h`, `HDD2_c`, `HDD3_Tmean`) now divide by the number of timesteps actually summed; the count was one short, so they were n/(n-1) too high (#1878)
   - The correction grows with the timestep: daily means drop by about 4.3% for hourly runs (24/23), against 0.35% at five minutes (288/287)

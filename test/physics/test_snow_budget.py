@@ -27,12 +27,15 @@ ever carried the last (water) surface.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pandas as pd
 import pytest
 
 from supy import SUEWSSimulation
+from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.model import SnowUse
 
 pytestmark = pytest.mark.physics
@@ -75,7 +78,7 @@ LAND_COVER_KEYS = {
 class SnowRun:
     """Container for one synthetic snow-event run and its derived series."""
 
-    def __init__(self) -> None:
+    def __init__(self, configure: Callable[[SUEWSConfig], None] | None = None) -> None:
         sim = SUEWSSimulation.from_sample_data()
         cfg = sim._config
         cfg.model.physics.snow_use = SnowUse.ENABLED
@@ -91,6 +94,9 @@ class SnowRun:
         cfg.model.control.end_time = (
             scenario_index[-1] - pd.Timedelta(hours=TSTEP_H)
         ).strftime("%Y-%m-%d")
+        # Scenario variants change the sample site before its state is built.
+        if configure is not None:
+            configure(cfg)
         sim._df_state_init = cfg.to_df_state()
 
         snow_prm = cfg.sites[0].properties.snow
@@ -100,6 +106,8 @@ class SnowRun:
         self.snow_density_min = snow_prm.snow_density_min.value
         self.snow_density_max = snow_prm.snow_density_max.value
         land_cover = cfg.sites[0].properties.land_cover
+        self.water_state_init = cfg.sites[0].initial_states.water.state.value
+        self.water_state_limit = land_cover.water.state_limit.value
         self.sfr = {
             surf: getattr(land_cover, key).sfr.value
             for surf, key in LAND_COVER_KEYS.items()
@@ -279,6 +287,71 @@ def test_water_budget_closes_over_the_snow_event(run: SnowRun):
     event = run.on_days(DAY_SNOWFALL, DAY_HOLD, *DAYS_MELT)
     assert abs(residual[event].sum()) < 0.01 * SNOWFALL_TOTAL_MM
     assert s["Rain"][event].sum() == pytest.approx(SNOWFALL_TOTAL_MM, rel=1e-9)
+
+
+@pytest.mark.core
+def test_water_body_keeps_its_depth_under_snow(run: SnowRun):
+    """The water body must keep its depth on the snow path.
+
+    Regression for gh#1906: ``SnowCalc`` capped the water-body state at the
+    storage capacity of the drainage equation (``StoreDrainPrm(5)``, 0.5 mm
+    in the sample) instead of its state limit (30000 mm), as the snow-free
+    path does. On the first snow timestep the 20000 mm water body drained to
+    0.5 mm, a ``SurfCh`` of about -2800 mm for the grid. The water body may
+    only gain the snow that falls and melts on it, and lose what evaporates.
+    """
+    st_water = run.suews["StWater"]
+    assert st_water.min() > run.water_state_init - 1.0
+    assert st_water.max() < run.water_state_init + SNOWFALL_TOTAL_MM + 1.0
+    assert run.suews["SurfCh"].abs().max() < 5.0
+
+
+# Offsets of the water-body state limit from its initial state [mm]: one run
+# starts above the limit, the other fills to it with the meltwater of the
+# event, which adds about 24 mm to the water body.
+NEAR_LIMIT_OFFSETS_MM = {"starts-above-limit": -10.0, "fills-to-limit": 5.0}
+
+
+@pytest.fixture(scope="module", params=list(NEAR_LIMIT_OFFSETS_MM), ids=str)
+def near_limit_run(request, run: SnowRun) -> SnowRun:
+    """The snow scenario with the water-body state limit near its initial state."""
+    limit = run.water_state_init + NEAR_LIMIT_OFFSETS_MM[request.param]
+
+    def set_water_state_limit(cfg: SUEWSConfig) -> None:
+        cfg.sites[0].properties.land_cover.water.state_limit.value = limit
+
+    return SnowRun(configure=set_water_state_limit)
+
+
+@pytest.mark.core
+def test_water_body_overflow_leaves_as_runoff(run: SnowRun, near_limit_run: SnowRun):
+    """Above its state limit the water body overflows into runoff.
+
+    Regression for gh#1906, run with the state limit close to the initial
+    depth so that the cap is reached. The water body must be held at its
+    state limit, not at the storage capacity of the drainage equation and not
+    above the limit, and the volume above the limit must leave as runoff,
+    weighted by the water fraction. The run differs from the default scenario
+    only in the limit, so the drop in grid storage against that run must
+    reappear, at every step, as extra runoff (``RO`` and ``Evap`` are grid
+    averages per step; ``StWater`` is per unit area of water).
+    """
+    limit = near_limit_run.water_state_limit
+    sfr_water = run.sfr["Water"]
+    st_water = near_limit_run.suews["StWater"]
+    st_water_free = run.suews["StWater"]
+
+    assert st_water_free.max() > limit + 1.0  # without a cap it would exceed the limit
+    assert st_water.max() == pytest.approx(limit, rel=0, abs=1e-9)
+
+    extra_runoff = (near_limit_run.suews["RO"] - run.suews["RO"]).cumsum()
+    extra_evap = (near_limit_run.suews["Evap"] - run.suews["Evap"]).cumsum()
+    storage_drop = (st_water_free - st_water) * sfr_water
+    np.testing.assert_allclose(
+        extra_runoff + extra_evap, storage_drop, rtol=0, atol=1e-6
+    )
+    # Everything above the limit left: at least the excess of the uncapped peak.
+    assert extra_runoff.iloc[-1] >= (st_water_free.max() - limit) * sfr_water - 1e-6
 
 
 @pytest.mark.core

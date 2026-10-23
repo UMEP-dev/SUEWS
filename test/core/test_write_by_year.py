@@ -274,20 +274,28 @@ def test_kept_groups_equal_the_full_year_frames(
             assert df_kept.index.get_level_values("grid").unique().tolist() == [1, 2]
 
 
-def test_logs_the_folder_and_each_year(short_sample_sim, tmp_path, caplog, monkeypatch):
+def test_logs_the_folder_and_each_year(short_sample_sim, tmp_path):
     """The run says once where the output goes, then reports each year written."""
-    monkeypatch.setattr(logging.getLogger("SuPy"), "propagate", True)
+    list_msg = []
+
+    class _Collect(logging.Handler):
+        def emit(self, record):
+            if record.getMessage().startswith("write_by_year:"):
+                list_msg.append(record.getMessage())
+
+    logger = logging.getLogger("SuPy")
+    handler = _Collect(level=logging.INFO)
+    level = logger.level
     dir_out = tmp_path / "out"
     sim = _year_crossing_sim(short_sample_sim, dir_out, 3600, True)
-
-    with caplog.at_level(logging.INFO, logger="SuPy"):
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    try:
         sim.run()
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(level)
 
-    list_msg = [
-        r.getMessage()
-        for r in caplog.records
-        if r.getMessage().startswith("write_by_year:")
-    ]
     folder = dir_out.resolve()
     assert list_msg == [
         f"write_by_year: writing the output to {folder} one calendar year at a "

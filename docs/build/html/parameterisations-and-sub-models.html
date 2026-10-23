@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-21T17:01:44+00:00" />
-    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.10.23.dev3 documentation</title>
+    <meta property="article:modified_time" content="2026-10-23T05:46:41+00:00" />
+    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.10.23.dev4 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=2c9b1679"></script>
+    <script src="_static/documentation_options.js?v=b98e94a8"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="3. Acknowledgements" href="acknowledgement.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.23.dev3" />
-    <meta name="docbuild:last-update" content="2026-10-21"/>
+  <meta name="docsearch:version" content="2026.10.23.dev4" />
+    <meta name="docbuild:last-update" content="2026-10-23"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.23.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9287873dd9b3386e77a553a52860dcc0baa16323" style="color: #31708f;">9287873</a>).
+        (2026.10.23.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/28d439c942d3fe47af425287266b7c0c5d8bcc81" style="color: #31708f;">28d439c</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -157,8 +157,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev3 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev3 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev4 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev4 documentation - Home"/>
   
   
 </a></div>
@@ -798,7 +798,7 @@ The output contract classifies this group as provisional.
 Several variables hold something other than their names, or their descriptions in the output variable reference, suggest:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">SH_Ground</span></code> and <code class="docutils literal notranslate"><span class="pre">SH_Walls</span></code> are sunlit fractions, not shadow fractions as their names suggest, and both are 0 at night. <code class="docutils literal notranslate"><span class="pre">SH_Ground</span></code> runs from 0 to 1 (fully sunlit). <code class="docutils literal notranslate"><span class="pre">SH_Walls</span></code> is averaged over the two facing walls of the canyon, one of which is always in shade, so it never exceeds 0.5.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">DiffuseRad</span></code> holds the direct-beam irradiance on a surface normal to the sun, and <code class="docutils literal notranslate"><span class="pre">DirectRad</span></code> holds the diffuse irradiance on a horizontal surface.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DirectRad</span></code> is the direct-beam irradiance on a surface normal to the sun, not on the horizontal, so it can exceed <code class="docutils literal notranslate"><span class="pre">GlobalRad</span></code> when the sun is low; <code class="docutils literal notranslate"><span class="pre">DiffuseRad</span></code> is the diffuse irradiance on a horizontal surface, and <code class="docutils literal notranslate"><span class="pre">DiffuseRad</span></code> + <code class="docutils literal notranslate"><span class="pre">DirectRad</span></code> times the sine of the solar altitude equals <code class="docutils literal notranslate"><span class="pre">GlobalRad</span></code>. Until this was corrected (GitHub issue 1866) each of the two columns held the other’s value.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Tg</span></code> and <code class="docutils literal notranslate"><span class="pre">Tw</span></code> are the excesses of ground and wall surface temperature over air temperature, not absolute surface temperatures.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">SVF_BdVeg</span></code> equals <code class="docutils literal notranslate"><span class="pre">SVF_Ground</span></code>, because the vegetation sky-view factor is fixed at 1.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Ta</span></code> is the forcing air temperature.</p></li>
@@ -1258,7 +1258,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-21.
+  Last updated on 2026-10-23.
   <br/>
 </p>
   </div>
@@ -1266,8 +1266,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.23.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9287873dd9b3386e77a553a52860dcc0baa16323">9287873</a> |
+  <p>Version: 2026.10.23.dev4 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/28d439c942d3fe47af425287266b7c0c5d8bcc81">28d439c</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

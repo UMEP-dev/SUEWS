@@ -146,7 +146,7 @@ DEBUG_VARIABLE_DEFS = [
     ("vsmd", "mm", "A", "Soil moisture deficit of the vegetated surfaces"),
     ("dsp", "mm", "A", "Soil moisture deficit threshold in the soil-moisture conductance function"),
     ("G_sm", "-", "A", "Conductance parameter for soil moisture (G_sm, from the site configuration)"),
-    ("x_exp", "-", "A", "Argument of the exponential in the soil-moisture conductance function, as written: G_sm*(vsmd - S1/G_sm + S2)"),
+    ("x_exp", "-", "A", "Argument of the exponential in the soil-moisture conductance function, G_sm*(vsmd - dsp), before any clipping at zero"),
     ("g_kdown", "-", "A", "Conductance factor for incoming shortwave radiation"),
     ("g_dq", "-", "A", "Conductance factor for humidity deficit"),
     ("g_ta", "-", "A", "Conductance factor for air temperature"),

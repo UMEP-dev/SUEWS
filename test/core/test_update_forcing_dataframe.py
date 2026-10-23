@@ -9,6 +9,7 @@ timestep, so a 300 s model never reached the ``23:55`` daily-write point and
 """
 
 import pandas as pd
+from pandas.tseries.frequencies import to_offset
 import pytest
 
 try:
@@ -16,6 +17,7 @@ try:
 except ImportError:  # pragma: no cover - Python < 3.9 fallback
     from importlib_resources import files
 
+from supy._misc import infer_freq_offset
 from supy.suews_sim import SUEWSSimulation
 from supy.util import read_forcing
 
@@ -57,15 +59,15 @@ class TestTimestepNormalisation:
         sim_df.update_forcing(hourly_forcing)
 
         # ASSERT: both resampled to the model timestep (5 min)
-        assert pd.infer_freq(sim_path._df_forcing.index) == "5min"
-        assert pd.infer_freq(sim_df._df_forcing.index) == "5min"
+        assert infer_freq_offset(sim_path._df_forcing.index) == to_offset("5min")
+        assert infer_freq_offset(sim_df._df_forcing.index) == to_offset("5min")
         assert len(sim_df._df_forcing) == len(sim_path._df_forcing)
         assert sim_df._df_forcing.index.equals(sim_path._df_forcing.index)
 
     @pytest.mark.core
     def test_hourly_input_is_upsampled(self, sample_paths, hourly_forcing):
         """An hourly DataFrame is upsampled to the 300 s model timestep."""
-        assert pd.infer_freq(hourly_forcing.index) == "h"
+        assert infer_freq_offset(hourly_forcing.index) == to_offset("h")
 
         sim = SUEWSSimulation()
         sim.update_config(str(sample_paths["config"]), auto_load_forcing=False)
@@ -142,7 +144,7 @@ class TestTemporalColumns:
 
         idx = sim._df_forcing.index
         assert (sim._df_forcing["iy"] == idx.year).all()
-        assert (sim._df_forcing["id"] == idx.dayofyear).all()
+        assert (sim._df_forcing["id"] == idx.day_of_year).all()
         assert (sim._df_forcing["it"] == idx.hour).all()
         assert (sim._df_forcing["imin"] == idx.minute).all()
 

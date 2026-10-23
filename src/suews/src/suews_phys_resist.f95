@@ -41,7 +41,6 @@ CONTAINS
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
       USE module_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
-      USE module_ctrl_const_sues, ONLY: psih
       USE module_ctrl_type, ONLY: SUEWS_STATE
 
       IMPLICIT NONE
@@ -68,8 +67,10 @@ CONTAINS
          k2 = 0.16, & !Power of Van Karman's constant (= 0.16 = 0.4^2)
          muu = 1.46E-5 !molecular viscosity
       REAL(KIND(1D0)) :: psim
+      ! psih is local: the module variable of the same name was shared by
+      ! every grid thread, so one grid could read another grid's value (gh#1926)
+      REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
-      ! REAL(KIND(1d0)):: psih
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)

@@ -57,6 +57,7 @@ EXAMPLES:
 ### 22 Oct 2026
 
 - [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)
+- [bugfix] `WUEveTr` and `WUDecTr` in the SUEWS output group now report evergreen- and deciduous-tree water use respectively; each previously carried the other tree type's value (#1865)
 - [bugfix] Runs split into chunks (`chunk_day`) or continued from a checkpoint now reproduce an uninterrupted run bit for bit. The Rust bridge parsed the carried state's JSON with serde_json's default float parser, which can land one ulp away from the decimal it reads, so every chunk boundary perturbed the state; enabling serde_json's `float_roundtrip` feature makes the parse exact. Unchunked runs, and so the sample reference, are unchanged (#1849)
 - [bugfix] DailyState daily means (`HDD1_h`, `HDD2_c`, `HDD3_Tmean`) now divide by the number of timesteps actually summed; the count was one short, so they were n/(n-1) too high (#1878)
   - The correction grows with the timestep: daily means drop by about 4.3% for hourly runs (24/23), against 0.35% at five minutes (288/287)

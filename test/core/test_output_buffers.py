@@ -4,17 +4,18 @@
 array rather than a list of Python floats, and hand the Fortran kernel the
 memory of two output arrays, which then become the output frame without a
 copy; the grids of a multi-grid run write into row blocks of one shared
-array. These tests pin the contract: the frame built that way is exactly the
-frame parsed from the legacy list-in, flat-block-out path or joined from
-per-grid frames, it shares the kernel's buffer, and unsuitable forcing or
-output arrays are refused before the kernel runs.
+array, and so do the chunks of a run split by ``chunk_day``. These tests pin
+the contract: the frame built that way is exactly the frame parsed from the
+legacy list-in, flat-block-out path or joined from per-grid or per-chunk
+frames, it shares the kernel's buffer, and unsuitable forcing or output
+arrays are refused before the kernel runs.
 """
 
 from importlib import import_module
 from importlib.resources import as_file
 import json
 
-from conftest import SHORT_RUN_STEPS
+from conftest import SHORT_RUN_STEPS, TIMESTEPS_PER_DAY
 import numpy as np
 import pandas as pd
 import pytest
@@ -31,6 +32,7 @@ from supy._run_rust import (
     _parse_output_block,
     _prepare_forcing_block,
     run_suews_rust,
+    run_suews_rust_chunked,
     run_suews_rust_multi,
     run_suews_rust_multi_with_state,
     run_suews_rust_with_state,
@@ -58,6 +60,10 @@ def native_inputs():
     return {
         "config": simulation.config,
         "df_forcing": df_forcing,
+        # Two days and a few hours: three chunks of one day at most.
+        "df_forcing_days": simulation.forcing.df.iloc[
+            : 2 * TIMESTEPS_PER_DAY + 3 * SHORT_RUN_STEPS
+        ],
         "rust": _load_rust_module(),
         "config_json": config_json,
         "forcing_block": forcing_block,
@@ -419,6 +425,105 @@ def test_multi_grid_frame_matches_joined_grid_frames(
     pd.testing.assert_frame_equal(
         df_multi_next, pd.concat(list_next).sort_index(), check_exact=True
     )
+
+
+def _run_chunks_joined(config, df_forcing, chunk_day, serial_mode, dict_state):
+    """Run each chunk on its own and join the chunk frames, as runs once did.
+
+    Every chunk continues from the states the previous chunk ended with (the
+    first from *dict_state*, if given); the frames are joined and sorted.
+    Returns ``(df_output, dict_state, n_chunk)``.
+    """
+    idx_chunk = (df_forcing.index - df_forcing.index.min()) // pd.Timedelta(
+        chunk_day, "D"
+    )
+    list_df_output = []
+    for _, df_chunk in df_forcing.groupby(idx_chunk):
+        if dict_state:
+            df_chunk_out, dict_state, _ = run_suews_rust_multi_with_state(
+                config, df_chunk, dict_state, serial_mode=serial_mode
+            )
+        else:
+            df_chunk_out, dict_state, _ = run_suews_rust_multi(
+                config, df_chunk, serial_mode=serial_mode
+            )
+        list_df_output.append(df_chunk_out)
+    return pd.concat(list_df_output).sort_index(), dict_state, len(list_df_output)
+
+
+def _capture_store(monkeypatch):
+    """Record every output table allocated from here on."""
+    list_store = []
+    alloc = _run_rust._alloc_output_buffers
+
+    def capture_alloc(n_rows):
+        list_store.append(alloc(n_rows))
+        return list_store[-1]
+
+    monkeypatch.setattr(_run_rust, "_alloc_output_buffers", capture_alloc)
+    return list_store
+
+
+@pytest.mark.parametrize("resume", [False, True], ids=["fresh", "checkpoint"])
+@pytest.mark.parametrize("serial_mode", [False, True], ids=["rayon", "serial"])
+def test_chunked_run_matches_joined_chunks(
+    native_inputs, monkeypatch, serial_mode, resume
+):
+    """A run split into chunks gives the frame its chunk frames joined to.
+
+    All chunks write into one table for the whole period, which is the
+    frame. The two grids differ and the one listed first has the larger ID,
+    so a chunk written into the wrong grid's rows, or a grid block laid out in
+    listing order, fails the comparison; so would a chunk at the wrong offset.
+    """
+    config = _two_grid_config(native_inputs["config"])
+    df_forcing = native_inputs["df_forcing_days"]
+    dict_state_init = None
+    if resume:
+        _, dict_state_init, _ = run_suews_rust_multi(
+            config, df_forcing.iloc[:SHORT_RUN_STEPS], serial_mode=serial_mode
+        )
+        df_forcing = df_forcing.iloc[SHORT_RUN_STEPS:]
+
+    df_joined, dict_state_joined, n_chunk = _run_chunks_joined(
+        config, df_forcing, 1, serial_mode, dict_state_init
+    )
+    list_store = _capture_store(monkeypatch)
+    df_chunked, dict_state, _ = run_suews_rust_chunked(
+        config,
+        df_forcing,
+        chunk_day=1,
+        serial_mode=serial_mode,
+        initial_state_json_by_grid=dict_state_init,
+    )
+
+    assert n_chunk == 3
+    assert len(list_store) == 1
+    ar_store = list_store[0][0]
+    assert ar_store.shape[0] in {2 * len(df_forcing), 2 * len(df_forcing) + 1}
+    assert np.shares_memory(df_chunked.to_numpy(), ar_store)
+    pd.testing.assert_frame_equal(df_chunked, df_joined, check_exact=True)
+    assert dict_state == dict_state_joined
+
+
+def test_single_grid_chunked_run_matches_joined_chunks(native_inputs, monkeypatch):
+    """A single-grid run split into chunks writes them into one table too."""
+    config = native_inputs["config"]
+    df_forcing = native_inputs["df_forcing_days"]
+
+    df_joined, dict_state_joined, n_chunk = _run_chunks_joined(
+        config, df_forcing, 1, False, None
+    )
+    list_store = _capture_store(monkeypatch)
+    df_chunked, dict_state, _ = run_suews_rust_chunked(config, df_forcing, chunk_day=1)
+
+    assert n_chunk == 3
+    assert len(list_store) == 1
+    ar_store = list_store[0][0]
+    assert ar_store.shape[0] == len(df_forcing)
+    assert np.shares_memory(df_chunked.to_numpy(), ar_store)
+    pd.testing.assert_frame_equal(df_chunked, df_joined, check_exact=True)
+    assert dict_state == dict_state_joined
 
 
 def _read_only(ar: np.ndarray) -> np.ndarray:

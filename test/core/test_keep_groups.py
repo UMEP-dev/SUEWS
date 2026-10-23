@@ -10,6 +10,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from supy import SUEWSSimulation
+
 pytestmark = pytest.mark.api
 
 TIMESTEPS_PER_DAY = 288
@@ -101,6 +103,37 @@ def test_keep_groups_two_grids(short_sample_sim, chunk_day, n_jobs):
     df_suews = output_full.df["SUEWS"]
     assert not df_suews.loc[1].equals(df_suews.loc[2])
     _assert_kept_equal(output_kept.df, output_full.df, ["SUEWS", "RSL"])
+
+
+@pytest.mark.parametrize("chunk_day", [3660, 1])
+def test_keep_groups_two_grids_from_checkpoint(short_sample_sim, chunk_day):
+    """Continuing two asymmetric grids from a checkpoint: same kept frame.
+
+    Covers the run paths that start from saved states, in one chunk and
+    split into chunks.
+    """
+    n_first = 12
+    n_rows = n_first + TIMESTEPS_PER_DAY + 24
+    sim_first = _sim_with_forcing(short_sample_sim, n_rows, list_gridiv=[2, 1])
+    forcing = sim_first.forcing.df
+    sim_first.update_forcing(forcing.iloc[:n_first])
+    _run_loaded(sim_first)
+
+    dict_output = {}
+    for label, run_kw in [("full", {}), ("kept", {"keep_groups": ["SUEWS"]})]:
+        sim_next = SUEWSSimulation.from_checkpoint(
+            sim_first.config, sim_first.checkpoint
+        )
+        sim_next.update_forcing(forcing.iloc[n_first:])
+        dict_output[label] = _run_loaded(sim_next, chunk_day=chunk_day, **run_kw)
+
+    df_suews = dict_output["full"].df["SUEWS"]
+    assert not df_suews.loc[1].equals(df_suews.loc[2])
+    _assert_kept_equal(dict_output["kept"].df, dict_output["full"].df, ["SUEWS"])
+    assert (
+        dict_output["kept"].checkpoint.grid_states
+        == dict_output["full"].checkpoint.grid_states
+    )
 
 
 def test_keep_groups_save_matches_full_run(short_sample_sim, tmp_path):

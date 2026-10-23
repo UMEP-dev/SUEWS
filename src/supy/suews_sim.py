@@ -754,7 +754,7 @@ class SUEWSSimulation:
         chunk_day: int = 3660,
         n_jobs: int = -1,
         clip_to_forcing: bool = False,
-        keep_groups: Sequence[str] | None = None,
+        keep_groups: Optional[Sequence[str]] = None,
         **run_kwargs,
     ) -> SUEWSOutput:
         """
@@ -792,8 +792,8 @@ class SUEWSSimulation:
             Rayon default parallelism, ``1`` forces serial execution, and
             values greater than ``1`` cap Rayon to that many threads.
         keep_groups : sequence of str, optional
-            Proposal (gh#1849): keep only these output groups (e.g.
-            ``["SUEWS", "DailyState"]``) in memory. The kernel still computes
+            Keep only these output groups (e.g. ``["SUEWS", "DailyState"]``)
+            in memory (gh#1849). The kernel still computes
             every group, but each chunk's full-width output is copied group
             by group into storage sized for the kept groups and then
             released, so the run holds the kept columns plus one chunk's

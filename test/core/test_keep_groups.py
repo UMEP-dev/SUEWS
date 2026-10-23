@@ -1,4 +1,4 @@
-"""Tests for the opt-in ``run(keep_groups=...)`` prototype (gh#1849).
+"""Tests for the opt-in ``run(keep_groups=...)`` option (gh#1849).
 
 The contract: the kept groups' columns, labels and index equal those of a
 run without ``keep_groups`` at the same ``chunk_day``, exactly; dropped

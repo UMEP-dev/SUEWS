@@ -701,10 +701,15 @@ def _frame_from_grid_store(
     ar_data: np.ndarray,
     ar_datetime: np.ndarray,
     list_grid_ids: list[int],
+    columns: pd.MultiIndex | None = None,
 ) -> pd.DataFrame:
-    """Turn a table laid out by :func:`_grid_row_starts` into the output frame."""
+    """Turn a table laid out by :func:`_grid_row_starts` into the output frame.
+
+    *columns* labels the columns of ``ar_data``, as in
+    :func:`_frame_from_output_store`.
+    """
     df_output_all = _frame_from_output_store(
-        ar_data, ar_datetime, sorted(list_grid_ids)
+        ar_data, ar_datetime, sorted(list_grid_ids), columns=columns
     )
     # Unsorted forcing gives an unsorted frame; sort it, as joining did.
     if not df_output_all.index.is_monotonic_increasing:
@@ -912,16 +917,9 @@ class _KeptOutputStore:
         list_short = [g for g, n in self._row_next.items() if n != self.len_run]
         if list_short:
             raise RuntimeError(f"Kept output is incomplete for grids {list_short}")
-        df_output = _frame_from_output_store(
-            self.ar_data,
-            self.ar_datetime,
-            sorted(self.list_grid_ids),
-            columns=self.columns,
+        return _frame_from_grid_store(
+            self.ar_data, self.ar_datetime, self.list_grid_ids, columns=self.columns
         )
-        # Unsorted forcing gives an unsorted frame; sort it, as a full run does.
-        if not df_output.index.is_monotonic_increasing:
-            df_output = df_output.sort_index()
-        return df_output
 
 
 def run_suews_rust(
@@ -1194,6 +1192,17 @@ def run_suews_rust_with_state(
     return df_output, new_state_json, kernel_warnings
 
 
+def _with_kept_frame(
+    store: _KeptOutputStore | None,
+    result: tuple[pd.DataFrame | None, dict[int, str] | None, KernelWarningLog],
+) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
+    """Return a run's result with the store's frame when it has a store."""
+    df_output, dict_state_json, kernel_warnings = result
+    if store is not None:
+        df_output = store.to_frame()
+    return df_output, dict_state_json, kernel_warnings
+
+
 def run_suews_rust_chunked(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,
@@ -1242,15 +1251,16 @@ def run_suews_rust_chunked(
     # Only pass the store when there is one, so the default call is unchanged.
     dict_store_kw = {"store": store} if store is not None else {}
     if n_chunk <= 1 and not initial_state_json_by_grid:
-        df_output, dict_state_out, warnings_out = run_suews_rust_multi(
-            config,
-            df_forcing,
-            serial_mode=serial_mode,
-            max_workers=max_workers,
-            **dict_store_kw,
+        return _with_kept_frame(
+            store,
+            run_suews_rust_multi(
+                config,
+                df_forcing,
+                serial_mode=serial_mode,
+                max_workers=max_workers,
+                **dict_store_kw,
+            ),
         )
-        df_output = store.to_frame() if store is not None else df_output
-        return df_output, dict_state_out, warnings_out
 
     if n_chunk > 1:
         logger_supy.info(
@@ -1279,16 +1289,17 @@ def run_suews_rust_chunked(
             )
 
     if n_chunk <= 1:
-        df_output, dict_state_out, warnings_out = run_suews_rust_multi_with_state(
-            config,
-            df_forcing,
-            initial_state_json_by_grid,
-            serial_mode=serial_mode,
-            max_workers=max_workers,
-            **dict_store_kw,
+        return _with_kept_frame(
+            store,
+            run_suews_rust_multi_with_state(
+                config,
+                df_forcing,
+                initial_state_json_by_grid,
+                serial_mode=serial_mode,
+                max_workers=max_workers,
+                **dict_store_kw,
+            ),
         )
-        df_output = store.to_frame() if store is not None else df_output
-        return df_output, dict_state_out, warnings_out
 
     rust_module = _check_rust_available()
     _validate_output_layout(rust_module)

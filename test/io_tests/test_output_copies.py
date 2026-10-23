@@ -4,8 +4,9 @@ The run output is no longer deep-copied on the way into ``SUEWSOutput``, on
 each ``.df`` or group access, on entry to the text and parquet savers, or by an
 unconditional ``sort_index`` after joining grids and chunks. These tests pin
 the contracts that the deep copies used to guarantee: nothing a user does to
-what they receive reaches the stored table, saving leaves the stored table
-untouched, and joined output is still sorted.
+what they receive reaches the stored table and saving leaves the stored table
+untouched. That multi-grid and chunked output, now written into one table,
+still comes out sorted is pinned in ``test/core/test_output_buffers.py``.
 
 ``.df`` shares the stored table instead of copying it. With pandas
 copy-on-write (always on from pandas 3) the shared frame behaves as a copy;
@@ -24,7 +25,6 @@ from packaging.version import Version
 import pandas as pd
 import pytest
 
-from supy._run_rust import _concat_output_frames
 from supy._save import save_df_output
 from supy.suews_output import SUEWSOutput, _copy_on_write_active
 
@@ -359,31 +359,3 @@ class TestSaveLeavesInputUntouched:
             text_shared = (dir_shared / name).read_text(encoding="utf-8")
             text_copy = (dir_copy / name).read_text(encoding="utf-8")
             assert text_shared == text_copy
-
-
-class TestConcatOutputFrames:
-    def test_single_frame_is_returned_without_copy(self):
-        df_output = _make_df_output()
-
-        df_joined = _concat_output_frames([df_output])
-
-        assert df_joined is df_output
-
-    def test_out_of_order_frames_are_sorted(self):
-        df_grid2 = _make_df_output(grid=2)
-        df_grid1 = _make_df_output(grid=1)
-
-        df_joined = _concat_output_frames([df_grid2, df_grid1])
-
-        assert df_joined.index.is_monotonic_increasing
-        pd.testing.assert_frame_equal(
-            df_joined, pd.concat([df_grid2, df_grid1]).sort_index()
-        )
-
-    def test_consecutive_chunks_match_sorted_concat(self):
-        df_output = _make_df_output(n_steps=96)
-        list_chunks = [df_output.iloc[:40], df_output.iloc[40:]]
-
-        df_joined = _concat_output_frames(list_chunks)
-
-        pd.testing.assert_frame_equal(df_joined, df_output)

@@ -255,6 +255,7 @@ Claude Code hooks run automatically at specific trigger points:
   - RST: heading level validation
   - CHANGELOG: date format + category tag validation
   - `make test-smoke`: runs only when Python or Fortran files are staged
+  - During a merge, files taken unchanged from the merged-in branch are skipped; only files that also differ from it (e.g. resolved conflicts) are checked
 
 Global hooks (in `~/.claude/settings.json`):
 - **PostToolUse on Edit/Write/MultiEdit**: runs `ruff check --fix` + `ruff format` on Python files

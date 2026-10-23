@@ -58,7 +58,6 @@ MODULE SUEWS_Driver
       ncolumnsDataOutRSL, ncolumnsdataOutSOLWEIG, ncolumnsDataOutBEERS, &
       ncolumnsDataOutDebug, ncolumnsDataOutSPARTACUS, ncolumnsDataOutEHC, &
       ncolumnsDataOutSTEBBS, ncolumnsDataOutNHood
-   USE module_ctrl_const_moist, ONLY: avcp, avdens, lv_J_kg
    USE module_phys_solweig, ONLY: SOLWEIG_cal_main
    USE module_phys_beers, ONLY: BEERS_cal_main
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
@@ -2988,6 +2987,8 @@ CONTAINS
                SoilStoreCap => [pavedPrm%soil%soil_store_capacity, bldgPrm%soil%soil_store_capacity, &
                                 evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
                                 grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
+               StateLimit_surf => [pavedPrm%state_limit, bldgPrm%state_limit, evetrPrm%state_limit, &
+                                   dectrPrm%state_limit, grassPrm%state_limit, bsoilPrm%state_limit, waterPrm%state_limit], &
                tau_r => snowPrm%tau_r, &
                CRWmin => snowPrm%water_holding_capacity_min, &
                CRWmax => snowPrm%water_holding_capacity_max, &
@@ -3102,7 +3103,7 @@ CONTAINS
                         vpd_hPa, qn_e, s_hPa, RS, RA_h, RB, tlv, SnowDensMin, SnowProf_24hr, precip, &
                         PipeCapacity, RunoffToWater, &
                         addVeg, SnowLimPaved, SnowLimBldg, FlowChange, drain, &
-                        WetThresh_surf, state_id_in, mw_ind, SoilStoreCap, rainonsnow, &
+                        WetThresh_surf, state_id_in, mw_ind, SoilStoreCap, StateLimit_surf, rainonsnow, &
                         freezmelt, freezstate, freezstatevol, &
                         Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, StoreDrainPrm, SnowPackLimit, &
                         AddWater, frac_water2runoff, &

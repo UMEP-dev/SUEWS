@@ -54,9 +54,19 @@ EXAMPLES:
 
 ## 2026
 
+### 23 Oct 2026
+
+- [bugfix] DailyState statistics for the first day of a run that starts after 00:00 (such as the sample run, from 00:05) now cover that day's own steps: the first step starts the day as 00:00 does, so `Tmin`, `Tmax`, the degree-day and precipitation sums no longer carry the initial state, and the daily means divide by the steps the partial day ran. Runs starting at 00:00, and every later day, are unchanged (#1919)
+  - With `roughness_sublayer_level: none`, day 1 of the sample run now reports `Tmin` 7.72 and `HDD3_Tmean` 10.6445, against 0.0 and 10.6544 before
+  - With `basic` or `detailed`, DailyState reads the 2 m temperature diagnosed at the previous step, which on a run's first step is still the initial value (0 degC), so day 1's `Tmin` stays at 0 until that ordering is addressed
+- [bugfix] Multi-grid runs with grids in parallel now give the same output as the same run done serially. `AerodynamicResistance` kept the heat stability correction `psih` in a module variable shared by every grid thread between computing and using it, so a grid could take another grid's value and its `QH`, `QE` and everything downstream departed from its serial run, mostly in checked (unoptimised) builds; `psih` is now a local. Serial runs, and so the sample reference, are unchanged (#1926)
+
 ### 22 Oct 2026
 
 - [bugfix] The roughness-sublayer humidity scale `qStar_RSL` now divides the latent heat flux by air density instead of multiplying by it, so the RSL humidity profile, `Q2` and `RH2` no longer depart from the forcing humidity by about 1.4 times too much; the sample reference output is refreshed (#1867)
+- [bugfix] With snow enabled, the water body is now limited by its state limit, as when snow is off, instead of by the storage capacity of the drainage equation; on the first snow timestep the sample's 20000 mm water body drained to 0.5 mm and about 2800 mm (grid average) left as runoff (#1906)
+- [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)
+- [bugfix] BEERS `DiffuseRad` and `DirectRad` now hold the diffuse and direct-beam irradiance; each previously held the other. `DirectRad` is the beam on a surface normal to the sun, so `DiffuseRad + DirectRad*sin(altitude) = GlobalRad`; output contract `1.1.8` carries the clarified descriptions (#1866)
 - [bugfix] With snow enabled, `State`, `NWtrState`, `TotCh` and the per-surface `SMD*` columns are now updated every timestep: `State` and `NWtrState` read 0, `TotCh` and `SMD*` kept their last snow-free values, and `SMD` lagged one timestep (#1879)
 - [bugfix] `WUEveTr` and `WUDecTr` in the SUEWS output group now report evergreen- and deciduous-tree water use respectively; each previously carried the other tree type's value (#1865)
 - [bugfix] Runs split into chunks (`chunk_day`) or continued from a checkpoint now reproduce an uninterrupted run bit for bit. The Rust bridge parsed the carried state's JSON with serde_json's default float parser, which can land one ulp away from the decimal it reads, so every chunk boundary perturbed the state; enabling serde_json's `float_roundtrip` feature makes the parse exact. Unchunked runs, and so the sample reference, are unchanged (#1849)

@@ -262,19 +262,6 @@ CONTAINS
                last_tstep_Q = time_now%getDay() /= time_next%getDay()
 
                ! --------------------------------------------------------------------------------
-               ! On first timestep of each day, define whether the day each a workday or weekend
-               IF ((first_tstep_Q) .AND. execute_subroutines) THEN
-                  CALL update_DailyState_Start( &
-                     it, imin, & !input
-                     HDD_id) !inout
-
-                  ! reset certain GDD columns
-                  Tmin_id = Temp_C !Daily min T in column 3
-                  Tmax_id = Temp_C !Daily max T in column 4
-                  lenDay_id = 0 !Cumulate daytime hours
-               END IF
-
-               ! --------------------------------------------------------------------------------
                !> assign Tair with either the forcing air temperature or the local diagnostic air temperature
                IF (config%RSLLevel == 1) THEN
                   Tair = atmState%t2_C
@@ -282,6 +269,19 @@ CONTAINS
                   Tair = atmState%T_half_bldg_C
                ELSE
                   Tair = Temp_C
+               END IF
+
+               ! --------------------------------------------------------------------------------
+               ! On first timestep of each day, define whether the day each a workday or weekend
+               IF ((first_tstep_Q) .AND. execute_subroutines) THEN
+                  CALL update_DailyState_Start( &
+                     it, imin, & !input
+                     HDD_id) !inout
+
+                  ! reset certain GDD columns from the same Tair used for the rest of the day (gh#1882)
+                  Tmin_id = Tair !Daily min T in column 3
+                  Tmax_id = Tair !Daily max T in column 4
+                  lenDay_id = 0 !Cumulate daytime hours
                END IF
 
                ! regular update at all timesteps of a day

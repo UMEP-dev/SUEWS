@@ -463,12 +463,12 @@ def test_unsupported_settings_fail_before_running(short_sample_sim, tmp_path):
     """Updating a simulation's config to a setting it cannot write by year fails."""
     sim = _year_crossing_sim(short_sample_sim, tmp_path / "out", 3600, True)
 
-    with pytest.raises(ValidationError, match="divides one day"):
+    with pytest.raises(ValueError, match="divides one day"):
         sim.update_config(
             {"model": {"control": {"output": {"freq": 25200}}}},
             auto_load_forcing=False,
         )
-    with pytest.raises(ValidationError, match="text output only"):
+    with pytest.raises(ValueError, match="text output only"):
         sim.update_config(
             {"model": {"control": {"output": {"format": "parquet"}}}},
             auto_load_forcing=False,

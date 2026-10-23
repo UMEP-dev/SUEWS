@@ -54,7 +54,11 @@ EXAMPLES:
 
 ## 2026
 
-### 22 Oct 2026
+### 23 Oct 2026
+
+- [bugfix] DailyState statistics for the first day of a run that starts after 00:00 (such as the sample run, from 00:05) now cover that day's own steps: the first step starts the day as 00:00 does, so `Tmin`, `Tmax`, the degree-day and precipitation sums no longer carry the initial state, and the daily means divide by the steps the partial day ran. Runs starting at 00:00, and every later day, are unchanged (#1919)
+  - With `roughness_sublayer_level: none`, day 1 of the sample run now reports `Tmin` 7.72 and `HDD3_Tmean` 10.6445, against 0.0 and 10.6544 before
+  - With `basic` or `detailed`, DailyState reads the 2 m temperature diagnosed at the previous step, which on a run's first step is still the initial value (0 degC), so day 1's `Tmin` stays at 0 until that ordering is addressed
 
 - [bugfix] With snow enabled, `State`, `NWtrState`, `TotCh` and the per-surface `SMD*` columns are now updated every timestep: `State` and `NWtrState` read 0, `TotCh` and `SMD*` kept their last snow-free values, and `SMD` lagged one timestep (#1879)
 - [bugfix] `WUEveTr` and `WUDecTr` in the SUEWS output group now report evergreen- and deciduous-tree water use respectively; each previously carried the other tree type's value (#1865)

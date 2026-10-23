@@ -2627,8 +2627,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%emissivity_extwall_tank = stebbsPrm%hot_water_tank_wall_emissivity
    self%conductivity_wall_vessel = stebbsPrm%hot_water_vessel_wall_conductivity
    self%conv_coeff_intwall_vessel = stebbsPrm%hot_water_vessel_internal_wall_convection_coefficient
-   self%conv_coeff_extwall_vessel = stebbsPrm%hot_water_tank_external_wall_convection_coefficient ! # Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building
-   self%emissivity_extwall_vessel = stebbsPrm%hot_water_vessel_wall_conductivity ! # Effective External Wall emissivity of hot water being used within building
+   self%conv_coeff_extwall_vessel = stebbsPrm%hot_water_vessel_external_wall_convection_coefficient ! # Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building
+   self%emissivity_extwall_vessel = stebbsPrm%hot_water_vessel_wall_emissivity ! # Effective External Wall emissivity of hot water being used within building
 
    self%maxheatingpower_water = building_archtype%maximum_hot_water_heating_power ! # Watts
    self%heating_efficiency_water = stebbsPrm%hot_water_heating_efficiency

@@ -29,6 +29,20 @@ fi
 
 # Get staged files
 STAGED=$(git diff --cached --name-only 2>/dev/null || true)
+
+# During a merge, check only files whose staged content also differs from the
+# merged-in branch. Files that arrive unchanged from that side (e.g. master
+# merged into a PR branch) are not the contributor's changes, so a clean merge
+# checks nothing while resolved conflicts are still checked.
+if [[ -n "$STAGED" ]] && git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+    FROM_MERGE=$(git diff --cached --name-only MERGE_HEAD 2>/dev/null || true)
+    if [[ -n "$FROM_MERGE" ]]; then
+        STAGED=$(comm -12 <(sort <<< "$STAGED") <(sort <<< "$FROM_MERGE"))
+    else
+        STAGED=""
+    fi
+fi
+
 if [[ -z "$STAGED" ]]; then
     exit 0
 fi

@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
+- [bugfix] Runs split into chunks by `chunk_day` (by default runs longer than about ten years, or any run with a smaller `chunk_day`) no longer hold their output two or three times over at the end of the run: every chunk now writes into its own rows of one output table for the whole period, instead of into a table of its own that was then joined with the others and sorted, so a three-year eight-grid run at a 5-minute timestep with `chunk_day=365` peaks at 25.7 GB instead of 74.1 GB during the run, and a ten-year single-grid run at 11.0 GB instead of 21.1 GB (#1849)
+  - Output values, row order, columns and saved files are those of the same chunked run before this change; runs that fit in one chunk are unaffected.
 - [bugfix] Multi-grid runs need about half the memory while the model runs: every grid now writes its output into its own rows of one shared table, instead of into a table of its own that was then copied into a joined table at the end, so a ten-year eight-grid run at a 5-minute timestep peaks at 87 GB instead of 164 GB during the run (#1849)
   - The kernel and the Rust bridge accept a block of rows of a larger column-major array as a grid's output table, and refuse blocks that overlap.
   - The shared table's leading dimension is kept odd, so the kernel's row-by-row writes do not crowd into a few cache sets; multi-grid runs are as fast as before or slightly faster.

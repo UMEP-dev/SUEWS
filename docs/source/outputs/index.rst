@@ -73,13 +73,13 @@ the length of the run and the number of grids. For long runs, set
 ``suews run`` and :meth:`~supy.SUEWSSimulation.run` then go one calendar year at
 a time: each year's text files are written as soon as the year is done, by the
 same code as :meth:`~supy.SUEWSSimulation.save`, and the year is dropped before
-the next one runs. While a year is held, only the groups listed in ``groups``
-(default ``SUEWS`` and ``DailyState``) are kept, so memory stays at about one
-year of output however long the run. The files are byte-identical to
-those of a run saved whole. The switch needs text output, an output frequency
-that divides one day, and output timestamps on the forcing clock
-(``timestamp_reference`` of ``follow`` or the forcing's own reference);
-``chunk_day`` is ignored.
+the next one runs. Only the groups listed in ``groups`` (default ``SUEWS`` and
+``DailyState``) are kept from each year, so memory stays at about one year of
+output however long the run. The files are byte-identical to those of a run
+saved whole. The switch needs text output, an output frequency that divides one
+day, and output timestamps on the forcing clock (``timestamp_reference`` of
+``follow`` or the forcing's own reference); ``chunk_day`` is ignored. The log
+names the output folder at the start and reports each year as it is written.
 
 The output returned to Python holds no rows: read the written files back, for
 example with ``pandas.read_csv(path, sep=r"\s+")``. The checkpoint file is
@@ -87,6 +87,22 @@ replaced after every year, so a run that stops part-way can continue from the
 last completed year: load the checkpoint with
 :meth:`~supy.SUEWSSimulation.from_checkpoint` and run from one model timestep
 after its ``last_timestamp``.
+
+Limitations:
+
+- Peak memory is about one year of the model's full output, every output group
+  included, because the model computes all groups for the year before the
+  unsaved ones are dropped; only what is held between years is cut down to the
+  saved groups. A run of one year or less therefore gains nothing and can peak
+  slightly higher than a run saved whole. The gain grows with run length and
+  grid count: a ten-year run at a 5-minute timestep saving ``SUEWS`` and
+  ``DailyState`` hourly peaked at about 2 GB instead of 12 GB for one grid, and
+  at about 11 GB instead of 92 GB for eight grids.
+- The output exists only on disk. Values read back from the text files carry
+  the saved text precision, four decimal places, not the full double precision
+  a run kept in memory holds.
+- Groups not listed in ``groups`` are not kept at all; to analyse another group,
+  list it in ``groups`` before the run.
 
 
 Run Provenance

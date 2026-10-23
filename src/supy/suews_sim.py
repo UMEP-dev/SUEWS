@@ -919,11 +919,6 @@ class SUEWSSimulation:
             save_settings = self._resolve_save_settings(None, {})
             self._check_write_by_year(save_settings)
             list_keep = self._groups_saved(save_settings["output_config"])
-            logger_supy.info(
-                "output.write_by_year is on: running one calendar year at a "
-                "time and writing each year to %s; chunk_day is ignored.",
-                save_settings["output_path"],
-            )
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -1433,20 +1428,31 @@ class SUEWSSimulation:
         # _save_supy sets the SuPy logger level on every call; keep the
         # caller's level so later years and the end-of-run summaries still log.
         log_level = logger_supy.level
+        folder = Path(settings["output_path"]).resolve()
+        logger_supy.info(
+            "write_by_year: writing the output to %s one calendar year at a "
+            "time; it is not kept in memory, and chunk_day is ignored.",
+            folder,
+        )
         try:
-            for (
+            for k_year, (
                 df_year,
                 dict_state_year,
                 warnings_year,
                 last_timestamp,
-            ) in iter_suews_rust_by_year(
-                config=self._config,
-                df_forcing=df_forcing,
-                tstep_s=tstep_s,
-                serial_mode=serial_mode,
-                max_workers=max_workers,
-                initial_state_json_by_grid=initial_state_json_by_grid,
-                keep_groups=list_keep,
+                year,
+                n_year,
+            ) in enumerate(
+                iter_suews_rust_by_year(
+                    config=self._config,
+                    df_forcing=df_forcing,
+                    tstep_s=tstep_s,
+                    serial_mode=serial_mode,
+                    max_workers=max_workers,
+                    initial_state_json_by_grid=initial_state_json_by_grid,
+                    keep_groups=list_keep,
+                ),
+                start=1,
             ):
                 kernel_warnings.extend(warnings_year)
                 dict_state_json = dict_state_year
@@ -1467,6 +1473,13 @@ class SUEWSSimulation:
                         dict_state_year, last_timestamp, settings
                     )
                     last_done = (last_timestamp, path_checkpoint)
+                logger_supy.info(
+                    "write_by_year: wrote %d (%d of %d) to %s",
+                    year,
+                    k_year,
+                    n_year,
+                    folder,
+                )
         except Exception:
             if last_done is not None:
                 logger_supy.setLevel(log_level)

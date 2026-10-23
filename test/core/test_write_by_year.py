@@ -12,6 +12,7 @@ last completed year.
 """
 
 import json
+import logging
 from pathlib import Path
 import re
 
@@ -258,10 +259,10 @@ def test_kept_groups_equal_the_full_year_frames(
     )
 
     assert len(list_full) == len(list_kept) == 2
-    for (df_full, state_full, _, last_full), (df_kept, state_kept, _, last_kept) in zip(
-        list_full, list_kept
-    ):
-        assert last_full == last_kept
+    for full, kept in zip(list_full, list_kept):
+        df_full, state_full, _, last_full, year_full, n_full = full
+        df_kept, state_kept, _, last_kept, year_kept, n_kept = kept
+        assert (last_full, year_full, n_full) == (last_kept, year_kept, n_kept)
         assert state_full == state_kept
         assert df_kept.columns.get_level_values("group").unique().tolist() == list_keep
         pd.testing.assert_frame_equal(
@@ -271,6 +272,29 @@ def test_kept_groups_equal_the_full_year_frames(
         )
         if list_gridiv is not None:
             assert df_kept.index.get_level_values("grid").unique().tolist() == [1, 2]
+
+
+def test_logs_the_folder_and_each_year(short_sample_sim, tmp_path, caplog, monkeypatch):
+    """The run says once where the output goes, then reports each year written."""
+    monkeypatch.setattr(logging.getLogger("SuPy"), "propagate", True)
+    dir_out = tmp_path / "out"
+    sim = _year_crossing_sim(short_sample_sim, dir_out, 3600, True)
+
+    with caplog.at_level(logging.INFO, logger="SuPy"):
+        sim.run()
+
+    list_msg = [
+        r.getMessage()
+        for r in caplog.records
+        if r.getMessage().startswith("write_by_year:")
+    ]
+    folder = dir_out.resolve()
+    assert list_msg == [
+        f"write_by_year: writing the output to {folder} one calendar year at a "
+        "time; it is not kept in memory, and chunk_day is ignored.",
+        f"write_by_year: wrote 2011 (1 of 2) to {folder}",
+        f"write_by_year: wrote 2012 (2 of 2) to {folder}",
+    ]
 
 
 def test_output_raises_on_row_access(short_sample_sim, tmp_path):

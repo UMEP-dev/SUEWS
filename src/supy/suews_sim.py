@@ -7,7 +7,6 @@ Provides a user-friendly wrapper around the existing SuPy infrastructure.
 
 import copy
 from enum import Enum
-import os
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
@@ -46,7 +45,7 @@ from ._save import DEFAULT_OUTPUT_GROUPS, StreamedTextFiles
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
-from .data_model.core.model import check_stream_chunk
+from .data_model.core.model import OutputControl, check_stream_chunk
 
 # Import new OOP classes
 from .suews_checkpoint import SUEWSCheckpoint
@@ -924,7 +923,7 @@ class SUEWSSimulation:
         stream_chunk = self._stream_chunk()
         if stream_chunk is not None:
             save_settings = self._resolve_save_settings(None, {})
-            self._check_stream_chunk(save_settings)
+            stream_chunk = self._check_stream_chunk(save_settings)
             list_keep = self._groups_saved(save_settings["output_config"])
 
         # Fall back to config values if start_date/end_date not provided
@@ -1096,7 +1095,7 @@ class SUEWSSimulation:
         if save_settings is not None:
             # Same sidecars as save(), written once the run is complete.
             self._streamed_paths = self._write_save_sidecars(
-                list_path_streamed, save_settings, command=None
+                list_path_streamed, save_settings, command=None, checkpoint_written=True
             )
             logger_supy.info(
                 "stream_chunk: finished writing %d files to %s; the returned "
@@ -1305,14 +1304,26 @@ class SUEWSSimulation:
         )
 
     def _write_save_sidecars(
-        self, list_path_save: list, settings: dict, command: str | None
+        self,
+        list_path_save: list,
+        settings: dict,
+        command: str | None,
+        checkpoint_written: bool = False,
     ) -> list:
-        """Append the checkpoint and the provenance sidecar to saved files."""
+        """Append the checkpoint and the provenance sidecar to saved files.
+
+        With *checkpoint_written*, the checkpoint file already holds this
+        run's final state (a streamed run writes it at its last year end) and
+        is listed without being written again.
+        """
         list_path_save = list(list_path_save)
         output_path = settings["output_path"]
         if self._checkpoint is not None:
-            checkpoint_name = self._checkpoint_filename(settings["site"])
-            checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
+            checkpoint_path = (
+                Path(output_path) / self._checkpoint_filename(settings["site"])
+            ).resolve()
+            if not checkpoint_written:
+                checkpoint_path = self._checkpoint.to_file(checkpoint_path)
             list_path_save.append(checkpoint_path)
 
         # Provenance sidecar: written last so it can list what was saved.
@@ -1359,19 +1370,16 @@ class SUEWSSimulation:
         """Write the checkpoint reached at the end of one streamed year.
 
         Same file name as the checkpoint :meth:`save` writes, so the last
-        completed year's state is always at one known path. The file is
-        written beside it and then renamed over it, so a run killed while
-        writing leaves the previous year's checkpoint intact.
+        completed year's state is always at one known path;
+        :meth:`SUEWSCheckpoint.to_file` replaces it atomically, so a run
+        killed while writing leaves the previous year's checkpoint intact.
         """
         name = cls._checkpoint_filename(settings["site"])
         path = Path(settings["output_path"]) / name
-        path_tmp = path.with_name(path.name + ".tmp")
         checkpoint = SUEWSCheckpoint.from_grid_states(
             dict_state_json, last_timestamp=last_timestamp
         )
-        checkpoint.to_file(path_tmp)
-        os.replace(path_tmp, path)
-        return path
+        return checkpoint.to_file(path)
 
     def _stream_chunk(self) -> int | None:
         """Return ``model.control.output.stream_chunk``, or ``None`` when unset."""
@@ -1383,9 +1391,17 @@ class SUEWSSimulation:
         return getattr(output_control, "stream_chunk", None)
 
     @staticmethod
-    def _check_stream_chunk(settings: dict) -> None:
-        """Check the resolved save settings against ``output.stream_chunk``."""
-        output_config = settings["output_config"]
+    def _check_stream_chunk(settings: dict) -> int:
+        """Check the resolved save settings against ``output.stream_chunk``.
+
+        The output block is validated again through :class:`OutputControl`
+        (its fields can be assigned without validation, so ``True`` or
+        ``30.5`` would otherwise reach the run), then checked against the
+        forcing clock. Returns the validated chunk length in days.
+        """
+        output_config = OutputControl.model_validate(
+            settings["output_config"].model_dump()
+        )
         ref = getattr(output_config, "timestamp_reference", "follow")
         source = settings["forcing_timestamp_reference"]
         check_stream_chunk(
@@ -1394,6 +1410,7 @@ class SUEWSSimulation:
             str(getattr(ref, "value", ref)),
             str(getattr(source, "value", source)),
         )
+        return output_config.stream_chunk
 
     @staticmethod
     def _hint_stream_chunk(index: pd.DatetimeIndex) -> None:
@@ -1425,6 +1442,24 @@ class SUEWSSimulation:
             )
         return list_keep
 
+    def _remove_stale_sidecars(self, settings: dict) -> None:
+        """Remove the checkpoint and provenance a previous run left behind.
+
+        A streamed run starting afresh replaces its folder's files as it goes;
+        an older checkpoint or provenance left in place would describe another
+        run until this one writes its own, and a failure before its first year
+        end would leave another run's checkpoint to resume from.
+        """
+        path_dir = Path(settings["output_path"])
+        for name in (self._checkpoint_filename(settings["site"]), PROVENANCE_FILENAME):
+            path = path_dir / name
+            if path.exists():
+                logger_supy.info(
+                    "stream_chunk: removing %s left by a previous run.",
+                    path.resolve(),
+                )
+                path.unlink()
+
     def _run_streamed(
         self,
         df_forcing: pd.DataFrame,
@@ -1452,6 +1487,8 @@ class SUEWSSimulation:
         df_empty = None
         last_done = None
         checkpoint = self._checkpoint
+        if checkpoint is None:
+            self._remove_stale_sidecars(settings)
         # Files are started on first write and extended after; a run
         # continuing from a checkpoint keeps what the run up to it wrote.
         streamed_files = StreamedTextFiles(

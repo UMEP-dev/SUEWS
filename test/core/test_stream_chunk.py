@@ -138,14 +138,26 @@ def _replicate_sites(sim, list_gridiv):
     sim.update_config(config, auto_load_forcing=False)
 
 
-def _year_crossing_forcing(sim, end=None):
+def _set_site_clock(sim, timezone, startdls, enddls):
+    """Give every site a time zone and a daylight-saving window."""
+    config = sim.config.model_copy(deep=True)
+    for site in config.sites:
+        site.properties.timezone.value = timezone
+        site.properties.anthropogenic_emissions.startdls.value = startdls
+        site.properties.anthropogenic_emissions.enddls.value = enddls
+    sim.update_config(config, auto_load_forcing=False)
+
+
+def _year_crossing_forcing(sim, end=None, start=None):
     """The January short sample relabelled to run across 1 January.
 
-    With *end*, the forcing stops at that row.
+    With *start* or *end*, the forcing starts or stops at that row.
     """
     forcing = sim.forcing.df.copy()
     forcing.index -= pd.Timedelta(days=16)
     forcing.index.freq = forcing.index[1] - forcing.index[0]
+    if start is not None:
+        forcing = forcing.loc[pd.Timestamp(start) :]
     if end is not None:
         forcing = forcing.loc[: pd.Timestamp(end)]
     for col, values in (
@@ -168,12 +180,19 @@ def _year_crossing_sim(
     groups=GROUPS,
     clock=CLOCK_FOLLOW,
     end=None,
+    start=None,
+    site_clock=None,
 ):
-    """A simulation across 1 January saving *groups* to *path_out*."""
+    """A simulation across 1 January saving *groups* to *path_out*.
+
+    *site_clock* is ``(timezone, startdls, enddls)`` for every site.
+    """
     sim = short_sample_sim()
-    forcing = _year_crossing_forcing(sim, end=end)
+    forcing = _year_crossing_forcing(sim, end=end, start=start)
     if list_gridiv is not None:
         _replicate_sites(sim, list_gridiv)
+    if site_clock is not None:
+        _set_site_clock(sim, *site_clock)
     output = {
         "format": "txt",
         "freq": freq_s,
@@ -236,8 +255,18 @@ def saved_whole(short_sample_sim, tmp_path_factory):
     """``run()`` + ``save()`` output folders, made once per setting."""
     dict_dir = {}
 
-    def _saved_whole(freq_s, list_gridiv, groups, clock, end=None):
-        key = (freq_s, tuple(list_gridiv or ()), tuple(groups), clock, end)
+    def _saved_whole(
+        freq_s, list_gridiv, groups, clock, end=None, start=None, site_clock=None
+    ):
+        key = (
+            freq_s,
+            tuple(list_gridiv or ()),
+            tuple(groups),
+            clock,
+            end,
+            start,
+            site_clock,
+        )
         if key not in dict_dir:
             path = tmp_path_factory.mktemp("whole")
             sim = _year_crossing_sim(
@@ -249,6 +278,8 @@ def saved_whole(short_sample_sim, tmp_path_factory):
                 groups=groups,
                 clock=clock,
                 end=end,
+                start=start,
+                site_clock=site_clock,
             )
             sim.run()
             sim.save()
@@ -813,6 +844,175 @@ def test_default_run_does_not_stream(short_sample_sim, tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Review round 1: year of single-row files, stubs, sidecars, headers, clocks
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("stream_chunk", [1, 7, 366])
+def test_daily_output_across_new_year_matches_run_then_save(
+    short_sample_sim, saved_whole, tmp_path, stream_chunk
+):
+    """Daily output: 31 December's row stays in the old year's file.
+
+    With one-day chunks the last chunk of 2011 holds that single row,
+    labelled 1 January 00:00; the file it goes to is the year the save
+    selected it for, not the year of its label.
+    """
+    dir_whole = saved_whole(86400, None, GROUPS, CLOCK_FOLLOW)
+    sim = _year_crossing_sim(short_sample_sim, tmp_path, 86400, stream_chunk)
+    sim.run()
+
+    _compare_dirs(tmp_path, dir_whole)
+    path_2011 = next(dir_whole.glob("*_2011_SUEWS_1440.txt"))
+    assert _data_lines(path_2011)[-1].split("\t")[:4] == ["2012", "  1", "   0", "  0"]
+
+
+@pytest.mark.parametrize("clock", [CLOCK_FOLLOW, CLOCK_UTC], ids=["follow", "utc"])
+@pytest.mark.parametrize(
+    "start", ["2012-01-01 00:00", "2011-12-20 00:00"], ids=["new-year", "mid-year"]
+)
+def test_run_starting_at_midnight_matches_run_then_save(
+    short_sample_sim, saved_whole, tmp_path, start, clock
+):
+    """A run whose first row closes the previous day saves like run() + save()."""
+    dir_whole = saved_whole(3600, None, GROUPS, clock, start=start)
+    sim = _year_crossing_sim(
+        short_sample_sim, tmp_path, 3600, 1, clock=clock, start=start
+    )
+    sim.run()
+
+    _compare_dirs(tmp_path, dir_whole)
+    if start.startswith("2012-01-01") and clock == CLOCK_FOLLOW:
+        # The first hour, (31 December 23:00, 1 January 00:00], is kept in its
+        # own year's file rather than overwritten by the next year's.
+        [path_2011] = list(dir_whole.glob("*_2011_SUEWS_60.txt"))
+        assert len(_data_lines(path_2011)) == 1
+
+
+def test_leading_midnight_stub_joins_the_first_chunk():
+    """A mid-year run starting at 00:00 has no one-step first chunk."""
+    index = pd.date_range("2012-06-01 00:00", "2012-06-04 00:00", freq="h")
+
+    _, ar_chunk = forcing_chunk_keys(index, 3600, 1)
+
+    assert list(ar_chunk[:26]) == [0] * 25 + [1]
+    assert list(np.unique(ar_chunk)) == [0, 1, 2]
+
+
+def test_checkpoint_file_is_replaced_atomically(tmp_path, monkeypatch):
+    """An interrupted checkpoint write leaves the previous checkpoint intact."""
+    path = tmp_path / "site_SUEWS_checkpoint.json"
+    old = SUEWSCheckpoint.from_grid_states({1: "{}"}, last_timestamp="2012-01-01")
+    old.to_file(path)
+    text_old = path.read_text(encoding="utf-8")
+    new = SUEWSCheckpoint.from_grid_states({1: "{}"}, last_timestamp="2013-01-01")
+
+    def fail(src, dst):
+        raise OSError("interrupted")
+
+    monkeypatch.setattr("supy.suews_checkpoint.os.replace", fail)
+    with pytest.raises(OSError, match="interrupted"):
+        new.to_file(path)
+
+    assert path.read_text(encoding="utf-8") == text_old
+
+
+def test_final_checkpoint_is_written_once(short_sample_sim, tmp_path, monkeypatch):
+    """A streamed run writes its checkpoint at each year end and not again."""
+    calls = []
+    to_file = SUEWSCheckpoint.to_file
+
+    def spy(self, path):
+        calls.append(Path(path).name)
+        return to_file(self, path)
+
+    monkeypatch.setattr(SUEWSCheckpoint, "to_file", spy)
+    sim = _year_crossing_sim(short_sample_sim, tmp_path, 3600, 30)
+    sim.run()
+
+    assert len(calls) == 2
+    assert {Path(p).name for p in sim.save()} >= set(calls)
+
+
+def test_fresh_run_removes_a_previous_runs_sidecars(
+    short_sample_sim, tmp_path, monkeypatch
+):
+    """Starting afresh in a used folder, an early failure leaves no stale checkpoint."""
+    _year_crossing_sim(short_sample_sim, tmp_path, 3600, 30).run()
+    assert list(tmp_path.glob("*_checkpoint.json"))
+    assert (tmp_path / "provenance.json").exists()
+
+    sim = _year_crossing_sim(short_sample_sim, tmp_path, 3600, 1)
+    _run_failing_after(sim, 3, monkeypatch)
+
+    assert not list(tmp_path.glob("*_checkpoint.json"))
+    assert not (tmp_path / "provenance.json").exists()
+
+
+@pytest.mark.parametrize("damage", ["empty", "partial-header"])
+def test_resume_rewrites_a_file_without_a_whole_header(
+    short_sample_sim, tmp_path, monkeypatch, damage
+):
+    """A file left with no header, or half of one, is written anew on resume."""
+    dir_full = tmp_path / "full"
+    _year_crossing_sim(short_sample_sim, dir_full, 3600, 1).run()
+    dir_out = tmp_path / "out"
+    sim = _year_crossing_sim(short_sample_sim, dir_out, 3600, 1)
+    _run_failing_after(sim, N_CHUNK_2011 + 2, monkeypatch)
+    path = next(dir_out.glob("*_2012_SUEWS_60.txt"))
+    text = path.read_text(encoding="utf-8")
+    path.write_text(
+        "" if damage == "empty" else text[: text.index("\n") // 2], encoding="utf-8"
+    )
+
+    _resume(sim, dir_out)
+
+    _compare_dirs(dir_out, dir_full)
+
+
+SITE_CLOCKS = {
+    "tz+8": (8, 300, 80),
+    "tz-5": (-5, 300, 80),
+}
+
+
+@pytest.mark.parametrize("site_clock", SITE_CLOCKS.values(), ids=SITE_CLOCKS.keys())
+@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
+def test_non_zero_time_zone_matches_run_then_save(
+    short_sample_sim, saved_whole, tmp_path, clock, site_clock
+):
+    """With a time zone and a daylight-saving window, streamed equals whole."""
+    dir_whole = saved_whole(3600, [2, 1], GROUPS, clock, site_clock=site_clock)
+    sim = _year_crossing_sim(
+        short_sample_sim, tmp_path, 3600, 7, [2, 1], clock=clock, site_clock=site_clock
+    )
+    sim.run()
+
+    _compare_dirs(tmp_path, dir_whole)
+
+
+@pytest.mark.parametrize("site_clock", SITE_CLOCKS.values(), ids=SITE_CLOCKS.keys())
+@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
+def test_non_zero_time_zone_resume_matches_an_uninterrupted_run(
+    short_sample_sim, tmp_path, monkeypatch, clock, site_clock
+):
+    """Killed mid-year and resumed with a time zone, the files equal a whole run."""
+    dir_full = tmp_path / "full"
+    _year_crossing_sim(
+        short_sample_sim, dir_full, 3600, 1, clock=clock, site_clock=site_clock
+    ).run()
+    dir_out = tmp_path / "out"
+    sim = _year_crossing_sim(
+        short_sample_sim, dir_out, 3600, 1, clock=clock, site_clock=site_clock
+    )
+    _run_failing_after(sim, N_CHUNK_2011 + 3, monkeypatch)
+
+    _resume(sim, dir_out)
+
+    _compare_dirs(dir_out, dir_full)
+
+
+# ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
 
@@ -906,6 +1106,10 @@ def test_unsupported_settings_fail_before_running(short_sample_sim, tmp_path):
         (30, "freq", 25200, "divides one day"),
         (30, "timestamp_reference", "utc", "forcing clock"),
         (None, "stream_chunk", 30, "currently needs text output"),
+        (30, "stream_chunk", True, "not true"),
+        (30, "stream_chunk", 30.5, "integer"),
+        (30, "stream_chunk", 0, "from 1 to 366; got 0"),
+        (30, "stream_chunk", 367, "from 1 to 366; got 367"),
     ],
 )
 def test_settings_assigned_on_the_config_fail_before_running(
@@ -914,7 +1118,7 @@ def test_settings_assigned_on_the_config_fail_before_running(
     """A config changed by attribute assignment is checked again by run()."""
     sim = _year_crossing_sim(short_sample_sim, tmp_path / "out", 3600, stream_chunk)
     output = sim.config.model.control.output
-    if field == "stream_chunk":
+    if stream_chunk is None:
         output.format = OutputFormat.PARQUET
     setattr(output, field, value)
 

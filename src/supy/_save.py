@@ -1,4 +1,5 @@
 import csv
+import io
 import os
 import time
 from pathlib import Path
@@ -363,6 +364,24 @@ def _gen_df_datetime(idx_dt: pd.DatetimeIndex) -> pd.DataFrame:
     return df_datetime
 
 
+def _txt_header_names(df_year: pd.DataFrame) -> list:
+    """Return the header fields of a saved text table, padded as written."""
+    list_name_dt = ["Year", "DOY", "Hour", "Min", "Dectime"]
+    return list_name_dt[:4] + [
+        f"{name:>{max(8, len(name))}}"
+        for name in list_name_dt[4:] + list(df_year.columns)
+    ]
+
+
+def _txt_header_line(df_year: pd.DataFrame) -> str:
+    """Return the header line :func:`_write_df_txt` writes for *df_year*."""
+    buffer = io.StringIO(newline="")
+    csv.writer(buffer, delimiter="\t", lineterminator=os.linesep).writerow(
+        _txt_header_names(df_year)
+    )
+    return buffer.getvalue()
+
+
 def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False) -> None:
     r"""Write one grid-group-year table as SUEWS tab-separated text.
 
@@ -382,9 +401,7 @@ def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False) -
     df_datetime = _gen_df_datetime(df_year.index)
     list_name_dt = [str(name) for name in df_datetime.columns]
     list_name_var = list(df_year.columns)
-    list_header = list_name_dt[:4] + [
-        f"{name:>{max(8, len(name))}}" for name in list_name_dt[4:] + list_name_var
-    ]
+    list_header = _txt_header_names(df_year)
     fmt_dt = "\t".join(
         [f"%{max(3, len(name))}d" for name in list_name_dt[:4]] + ["%8.4f"]
     )
@@ -435,7 +452,7 @@ def _row_label(line: str) -> Optional[pd.Timestamp]:
     )
 
 
-def _keep_rows_up_to(path_out: Path, end_last: pd.Timestamp) -> None:
+def _keep_rows_up_to(path_out: Path, end_last: pd.Timestamp, header: str) -> bool:
     """Keep only the rows of a saved text file labelled at or before *end_last*.
 
     Saved rows are labelled by the end of the period they cover (DailyState
@@ -445,20 +462,27 @@ def _keep_rows_up_to(path_out: Path, end_last: pd.Timestamp) -> None:
     are dropped. The file is rewritten beside itself and renamed over, so an
     interruption leaves it either as it was or trimmed, and trimming again
     changes nothing.
+
+    Returns ``False``, leaving the file as it is, when its first line is not
+    *header* (an empty file, a header cut short, or another table's), so the
+    caller writes the file anew.
     """
+    with open(path_out, encoding="utf-8", newline="") as file_in:
+        if file_in.readline() != header:
+            return False
     path_tmp = path_out.with_name(path_out.name + ".tmp")
     with (
         open(path_out, encoding="utf-8", newline="") as file_in,
         open(path_tmp, "w", encoding="utf-8", newline="") as file_out,
     ):
-        header = file_in.readline()
-        file_out.write(header)
+        file_out.write(file_in.readline())
         for line in file_in:
             label = _row_label(line)
             if label is None or not line.endswith(("\n", "\r")) or label > end_last:
                 break
             file_out.write(line)
     os.replace(path_tmp, path_out)
+    return True
 
 
 class StreamedTextFiles:
@@ -484,15 +508,18 @@ class StreamedTextFiles:
         )
         self._set_started: set = set()
 
-    def open_append(self, path_out: Path) -> bool:
-        """Return whether to append to *path_out*, preparing it if needed."""
+    def open_append(self, path_out: Path, header: str) -> bool:
+        """Return whether to append to *path_out*, preparing it if needed.
+
+        *header* is the header line the file starts with; a resumed run
+        writes an existing file anew when its header is missing or differs.
+        """
         key = Path(path_out).resolve()
         if key in self._set_started:
             return True
         self._set_started.add(key)
         if self.resume_after is not None and Path(path_out).exists():
-            _keep_rows_up_to(Path(path_out), self.resume_after)
-            return True
+            return _keep_rows_up_to(Path(path_out), self.resume_after, header)
         return False
 
 
@@ -579,13 +606,18 @@ def save_df_grid_group(
     allow_irregular_timestamps=False,
     fallback_freq_s=300,
     streamed_files: Optional[StreamedTextFiles] = None,
+    year: Optional[int] = None,
 ):
     """Write one grid-group-year table as a text file; return its path.
 
     The frequency in the file name is *freq_s*, else inferred from the
     table's first two rows, else *fallback_freq_s* (the table's step) for a
-    table of one row. With *streamed_files*, the rows are appended to a file
-    this run has already started (see :class:`StreamedTextFiles`).
+    table of one row. *year* names the file; it is the year
+    :func:`_save_groups` selected the rows for, which differs from the year
+    of the first label when that label closes the previous year (a period
+    ending at 1 January 00:00). Without it, the first label's year is used.
+    With *streamed_files*, the rows are appended to a file this run has
+    already started (see :class:`StreamedTextFiles`).
     """
     # processing path
     path_dir = Path(dir_save)
@@ -609,10 +641,11 @@ def save_df_grid_group(
     # output frequency in min
     freq_min = int(freq.total_seconds() / 60)
     # starting year
-    try:
-        year = df_year.index[0].year
-    except (AttributeError, IndexError):
-        logger_supy.debug("Could not extract year from df_year index:\n%s", df_year)
+    if year is None:
+        try:
+            year = df_year.index[0].year
+        except (AttributeError, IndexError):
+            logger_supy.debug("Could not extract year from df_year index:\n%s", df_year)
 
     # sample file name: 'Kc98_2012_SUEWS_60.txt'
     timestamp_suffix = _timestamp_reference_filename_suffix(timestamp_reference)
@@ -621,7 +654,9 @@ def save_df_grid_group(
     file_out = file_out.replace("DailyState_1440", "DailyState")
     path_out = path_dir / file_out
     logger_supy.debug(f"writing out: {path_out}")
-    append = streamed_files is not None and streamed_files.open_append(path_out)
+    append = streamed_files is not None and streamed_files.open_append(
+        path_out, _txt_header_line(df_year)
+    )
     t_start = time.time()
     _write_df_txt(df_year, path_out, append=append)
     t_end = time.time()
@@ -762,6 +797,7 @@ def _save_groups(
                         allow_irregular_timestamps=allow_irregular_timestamps,
                         fallback_freq_s=step_s if step_s is not None else 300,
                         streamed_files=streamed_files,
+                        year=year,
                     )
                     list_path_save.append(path_save)
                 del df_year

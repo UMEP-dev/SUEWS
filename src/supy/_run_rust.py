@@ -1069,21 +1069,27 @@ def _check_max_workers(max_workers: int | None) -> None:
 
 
 def _check_state_grid_ids(
-    dict_state_json_by_grid: dict[int, str], list_gridiv: list[int]
+    dict_state_json_by_grid: dict[int, str],
+    list_gridiv: list[int],
+    kind: str = "State",
 ) -> None:
-    """Refuse states that do not cover exactly the configured grids."""
+    """Refuse states that do not cover exactly the configured grids.
+
+    *kind* names the states in the message (``"State"`` or ``"Checkpoint"``).
+    """
     config_grid_ids = set(list_gridiv)
     state_grid_ids = set(dict_state_json_by_grid)
     if state_grid_ids != config_grid_ids:
+        noun = "states" if kind == "State" else f"{kind.lower()} states"
         parts = []
         missing = sorted(config_grid_ids - state_grid_ids)
         unexpected = sorted(state_grid_ids - config_grid_ids)
         if missing:
-            parts.append(f"missing states for grids {missing}")
+            parts.append(f"missing {noun} for grids {missing}")
         if unexpected:
-            parts.append(f"unexpected states for grids {unexpected}")
+            parts.append(f"unexpected {noun} for grids {unexpected}")
         raise ValueError(
-            "State grid IDs do not match config.sites: " + "; ".join(parts)
+            f"{kind} grid IDs do not match config.sites: " + "; ".join(parts)
         )
 
 
@@ -1198,21 +1204,8 @@ def _check_chunk_grid_ids(
     """Reject duplicate grid IDs and checkpoints that do not match the sites."""
     list_gridiv = [_normalise_grid_id(s.gridiv) for s in config.sites]
     _check_unique_grid_ids(list_gridiv)
-
     if initial_state_json_by_grid:
-        checkpoint_grid_ids = set(initial_state_json_by_grid)
-        config_grid_ids = set(list_gridiv)
-        if checkpoint_grid_ids != config_grid_ids:
-            parts = []
-            missing = sorted(config_grid_ids - checkpoint_grid_ids)
-            unexpected = sorted(checkpoint_grid_ids - config_grid_ids)
-            if missing:
-                parts.append(f"missing checkpoint states for grids {missing}")
-            if unexpected:
-                parts.append(f"unexpected checkpoint states for grids {unexpected}")
-            raise ValueError(
-                "Checkpoint grid IDs do not match config.sites: " + "; ".join(parts)
-            )
+        _check_state_grid_ids(initial_state_json_by_grid, list_gridiv, "Checkpoint")
 
 
 def _iter_suews_rust_chunks(
@@ -1430,15 +1423,21 @@ def forcing_chunk_keys(
     consecutive chunks of up to *chunk_days* days counted from the year's
     first day in the run; a row belongs to the day its interval starts in,
     ``(t - tstep).floor("D")``, so a chunk boundary falls at 00:00 + tstep
-    and no resampling bin or DailyState row straddles two chunks. Rows of a
-    leading stub folded into the next year join its first chunk. With
-    ``chunk_days`` of 366 every year is one chunk.
+    and no resampling bin or DailyState row straddles two chunks. A leading
+    stub shorter than one day (a run starting at 00:00) joins the first
+    chunk, whether or not it closes the previous year. With ``chunk_days``
+    of 366 every year is one chunk.
     """
     ar_year = forcing_year_keys(index, tstep_s)
-    df_day = pd.DataFrame({
-        "year": ar_year,
-        "day": (index - pd.Timedelta(seconds=int(tstep_s))).floor("D"),
-    })
+    ser_day = pd.Series((index - pd.Timedelta(seconds=int(tstep_s))).floor("D"))
+    # A leading day shorter than one day (a run starting at 00:00, whose first
+    # row closes the day before) joins the next day, as the year keys fold a
+    # leading stub into the next year, so the first chunk is not a stub.
+    if len(ser_day) and (ser_day != ser_day.iloc[0]).any():
+        n_first = int((ser_day == ser_day.iloc[0]).sum())
+        if n_first * int(tstep_s) < 86400:
+            ser_day.iloc[:n_first] = ser_day.iloc[n_first]
+    df_day = pd.DataFrame({"year": ar_year, "day": ser_day.to_numpy()})
     grp_day = df_day.groupby("year")["day"]
     # The year's first day; a folded stub's day lies before it.
     in_year = df_day["day"].dt.year == df_day["year"]

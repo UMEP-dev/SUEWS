@@ -129,9 +129,9 @@ pub use sim::{
     run_from_config_str_and_forcing, run_from_config_str_and_forcing_into,
     run_from_config_str_and_forcing_with_state, run_from_config_str_and_forcing_with_state_into,
     run_simulation, run_simulation_into, KernelWarning, KernelWarnings, OutputBuffers,
-    SimulationInput, SimulationOutput, SimulationResult, SiteScalars, KERNEL_WARNING_MAX,
-    KERNEL_WARNING_TEXT_LEN, OUTPUT_ALL_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
-    OUTPUT_GROUP_LAYOUT, OUTPUT_SUEWS_COLS,
+    OutputMatrix, SimulationInput, SimulationOutput, SimulationResult, SiteScalars,
+    KERNEL_WARNING_MAX, KERNEL_WARNING_TEXT_LEN, OUTPUT_ALL_COLS, OUTPUT_DATA_COLS,
+    OUTPUT_DATETIME_COLS, OUTPUT_GROUP_LAYOUT, OUTPUT_SUEWS_COLS,
 };
 pub use snow::*;
 pub use snow_prm::*;
@@ -155,7 +155,7 @@ mod python_bindings {
     use crate::*;
     #[cfg(feature = "physics")]
     use pyo3::buffer::PyBuffer;
-    use pyo3::exceptions::{PyRuntimeError, PyValueError};
+    use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
     use pyo3::prelude::*;
     use pyo3::types::PyBytes;
     use std::collections::{BTreeMap, HashMap};
@@ -4335,25 +4335,34 @@ mod python_bindings {
             })
     }
 
-    /// Check that `obj` is a writable, Fortran-contiguous float64 buffer (a
-    /// NumPy array allocated with `order="F"`) of shape `(nrows, ncols)`, so
-    /// the kernel can write into it directly (gh#1849). `PyBuffer::get`
-    /// already refuses a buffer whose item type or alignment is not f64's.
+    /// A NumPy array lent to the kernel as one output table (gh#1849): a
+    /// float64 `(nrows, ncols)` table whose element `(r, c)` lies `c * ld + r`
+    /// elements after the first.
+    #[cfg(feature = "physics")]
+    struct LentOutput {
+        buffer: PyBuffer<f64>,
+        nrows: usize,
+        ncols: usize,
+        ld: usize,
+    }
+
+    /// Check that `obj` is a writable float64 table of shape `(nrows, ncols)`
+    /// laid out column-major, so the kernel can write into it directly
+    /// (gh#1849): rows adjacent, and columns `ld >= nrows` elements apart.
+    /// A Fortran-ordered array (`ld == nrows`) qualifies, and so does a block
+    /// of its rows such as `ar[i * n:(i + 1) * n]`, which is how several grids
+    /// share one output table. `PyBuffer::get` already refuses a buffer whose
+    /// item type or alignment is not f64's.
     #[cfg(feature = "physics")]
     fn lend_output_buffer(
         obj: &Bound<'_, PyAny>,
         nrows: usize,
         ncols: usize,
         name: &str,
-    ) -> PyResult<PyBuffer<f64>> {
+    ) -> PyResult<LentOutput> {
         let buffer = PyBuffer::<f64>::get(obj)?;
         if buffer.readonly() {
             return Err(PyValueError::new_err(format!("{name} must be writable")));
-        }
-        if !buffer.is_fortran_contiguous() {
-            return Err(PyValueError::new_err(format!(
-                "{name} must be Fortran-contiguous (order=\"F\")"
-            )));
         }
         if buffer.shape() != [nrows, ncols] {
             return Err(PyValueError::new_err(format!(
@@ -4361,36 +4370,91 @@ mod python_bindings {
                 buffer.shape()
             )));
         }
-        Ok(buffer)
+        // An axis of length one carries no layout, so its stride is not checked.
+        let item = std::mem::size_of::<f64>() as isize;
+        let strides = buffer.strides();
+        let rows_adjacent = nrows <= 1 || strides[0] == item;
+        let ld = match strides[1] {
+            _ if ncols <= 1 => Some(nrows),
+            stride if stride > 0 && stride % item == 0 => usize::try_from(stride / item).ok(),
+            _ => None,
+        };
+        match ld {
+            Some(ld) if rows_adjacent && ld >= nrows && buffer.suboffsets().is_none() => {
+                Ok(LentOutput {
+                    buffer,
+                    nrows,
+                    ncols,
+                    ld,
+                })
+            }
+            _ => Err(PyValueError::new_err(format!(
+                "{name} must be column-major: a Fortran-ordered array (order=\"F\") \
+                 or a block of its rows"
+            ))),
+        }
     }
 
-    /// Lend one grid's data and datetime output arrays, shaped
+    /// Copy the caller's forcing array into the row-major vector the kernel
+    /// reads (gh#1849). `obj` must be a C-contiguous float64 buffer (a NumPy
+    /// array with `order="C"`) of shape `(len_sim, MET_FORCING_COLS)`; it may
+    /// be read-only, since the kernel works on this copy. Taking the array
+    /// instead of a list avoids boxing every forcing value as a Python float.
+    #[cfg(feature = "physics")]
+    fn copy_forcing_buffer(obj: &Bound<'_, PyAny>, len_sim: usize) -> PyResult<Vec<f64>> {
+        let buffer = PyBuffer::<f64>::get(obj).map_err(|e| {
+            PyTypeError::new_err(format!("forcing_block must be a float64 array: {e}"))
+        })?;
+        if !buffer.is_c_contiguous() {
+            return Err(PyValueError::new_err(
+                "forcing_block must be C-contiguous (order=\"C\")",
+            ));
+        }
+        if buffer.shape() != [len_sim, crate::sim::MET_FORCING_COLS] {
+            return Err(PyValueError::new_err(format!(
+                "forcing_block has shape {:?}, expected [{len_sim}, {}]",
+                buffer.shape(),
+                crate::sim::MET_FORCING_COLS
+            )));
+        }
+        buffer.to_vec(obj.py())
+    }
+
+    /// Lend one grid's data and datetime output tables, shaped
     /// `(len_sim, OUTPUT_DATA_COLS)` and `(len_sim, OUTPUT_DATETIME_COLS)`.
     #[cfg(feature = "physics")]
     fn lend_output_pair(
         out_data: &Bound<'_, PyAny>,
         out_datetime: &Bound<'_, PyAny>,
         len_sim: usize,
-    ) -> PyResult<(PyBuffer<f64>, PyBuffer<f64>)> {
+    ) -> PyResult<(LentOutput, LentOutput)> {
         Ok((
             lend_output_buffer(out_data, len_sim, OUTPUT_DATA_COLS, "out_data")?,
             lend_output_buffer(out_datetime, len_sim, OUTPUT_DATETIME_COLS, "out_datetime")?,
         ))
     }
 
-    /// Reject output buffers that share memory: each is handed to the kernel
-    /// as its own mutable slice, so no two may alias.
+    /// Reject output tables that share memory: each is handed to the kernel
+    /// as its own exclusive table, so no two may overlap.
+    ///
+    /// A table occupies `ncols` runs of `nrows` elements, one per column, so
+    /// tables are disjoint exactly when no two of these runs overlap. Row
+    /// blocks of one array interleave column by column and pass as long as
+    /// their row ranges do not overlap; an overlapping row range, or a second
+    /// table over the same memory, is caught as two overlapping runs.
     #[cfg(feature = "physics")]
-    fn check_disjoint(buffers: &[PyBuffer<f64>]) -> PyResult<()> {
-        let mut spans: Vec<(usize, usize)> = buffers
-            .iter()
-            .map(|b| {
-                let start = b.buf_ptr() as usize;
-                (start, start + b.len_bytes())
-            })
-            .collect();
-        spans.sort_unstable();
-        if spans.windows(2).any(|w| w[1].0 < w[0].1) {
+    fn check_disjoint(tables: &[LentOutput]) -> PyResult<()> {
+        let item = std::mem::size_of::<f64>();
+        let mut runs: Vec<(usize, usize)> = Vec::new();
+        for table in tables.iter().filter(|t| t.nrows > 0) {
+            let start = table.buffer.buf_ptr() as usize;
+            runs.extend((0..table.ncols).map(|col| {
+                let run_start = start + col * table.ld * item;
+                (run_start, run_start + table.nrows * item)
+            }));
+        }
+        runs.sort_unstable();
+        if runs.windows(2).any(|w| w[1].0 < w[0].1) {
             return Err(PyValueError::new_err(
                 "output buffers must not share memory",
             ));
@@ -4398,48 +4462,74 @@ mod python_bindings {
         Ok(())
     }
 
-    /// View a lent buffer as the mutable slice the kernel writes into.
+    /// View a lent table as the output matrix the kernel writes into.
     ///
     /// # Safety
     ///
-    /// `buffer` must have passed [`lend_output_buffer`] and, together with
-    /// every other slice in use, [`check_disjoint`]; the GIL must stay held
-    /// while the slice lives, so no Python code can touch the memory.
+    /// `table` must have passed [`lend_output_buffer`] and, together with
+    /// every other table in use, [`check_disjoint`]; the GIL must stay held
+    /// while the matrix lives, so no Python code can touch the memory.
     #[cfg(feature = "physics")]
-    #[allow(clippy::mut_from_ref)] // the slice borrows the array's memory, not `buffer`
-    unsafe fn output_slice(buffer: &PyBuffer<f64>) -> &mut [f64] {
-        std::slice::from_raw_parts_mut(buffer.buf_ptr().cast::<f64>(), buffer.item_count())
+    unsafe fn output_matrix(table: &LentOutput) -> PyResult<OutputMatrix<'_>> {
+        let ptr = std::ptr::NonNull::new(table.buffer.buf_ptr().cast::<f64>())
+            .ok_or_else(|| PyValueError::new_err("output buffer has no memory"))?;
+        // SAFETY: lend_output_buffer checked the layout NumPy reports for the
+        // lent array, so every element (r, c) lies at c * ld + r inside it;
+        // check_disjoint and the caller's contract give exclusive access.
+        Ok(OutputMatrix::from_raw_parts(
+            ptr,
+            table.nrows,
+            table.ncols,
+            table.ld,
+        ))
+    }
+
+    /// The output destination of one grid, from its lent data and datetime
+    /// tables.
+    ///
+    /// # Safety
+    ///
+    /// As for [`output_matrix`], for both tables.
+    #[cfg(feature = "physics")]
+    unsafe fn output_buffers<'a>(
+        data: &'a LentOutput,
+        datetime: &'a LentOutput,
+    ) -> PyResult<OutputBuffers<'a>> {
+        // SAFETY: forwarded to the caller.
+        Ok(OutputBuffers {
+            data: output_matrix(data)?,
+            datetime: output_matrix(datetime)?,
+        })
     }
 
     /// Run one grid, writing its output straight into caller-owned NumPy
     /// arrays instead of returning a copy (gh#1849).
     ///
+    /// `forcing_block` is a float64 array with `order="C"`, shaped
+    /// `(len_sim, MET_FORCING_COLS)`, and is copied once for the kernel.
     /// `out_data` and `out_datetime` are float64 arrays with `order="F"`,
     /// shaped `(len_sim, OUTPUT_DATA_COLS)` and `(len_sim, OUTPUT_DATETIME_COLS)`
-    /// (see `output_buffer_ncolumns`). With `state_json`, the run continues
-    /// from that checkpoint. Returns `(state_json, len_sim, warnings)`.
+    /// (see `output_buffer_ncolumns`), or blocks of `len_sim` rows of taller
+    /// such arrays. With `state_json`, the run continues from that checkpoint.
+    /// Returns `(state_json, len_sim, warnings)`.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_into")]
     #[pyo3(signature = (config_yaml, forcing_block, len_sim, out_data, out_datetime, state_json=None))]
     fn run_suews_into_py(
         config_yaml: &str,
-        forcing_block: Vec<f64>,
+        forcing_block: &Bound<'_, PyAny>,
         len_sim: usize,
         out_data: &Bound<'_, PyAny>,
         out_datetime: &Bound<'_, PyAny>,
         state_json: Option<&str>,
     ) -> PyResult<(String, usize, PyKernelWarnings)> {
+        let forcing_block = copy_forcing_buffer(forcing_block, len_sim)?;
         let (data, datetime) = lend_output_pair(out_data, out_datetime, len_sim)?;
         let lent = [data, datetime];
         check_disjoint(&lent)?;
-        // SAFETY: both buffers passed lend_output_buffer and check_disjoint,
+        // SAFETY: both tables passed lend_output_buffer and check_disjoint,
         // outlive the run, and the GIL is held until this function returns.
-        let out = unsafe {
-            OutputBuffers {
-                data: output_slice(&lent[0]),
-                datetime: output_slice(&lent[1]),
-            }
-        };
+        let out = unsafe { output_buffers(&lent[0], &lent[1])? };
         let result = match state_json {
             Some(state) => run_from_config_str_and_forcing_with_state_into(
                 config_yaml,
@@ -4463,7 +4553,11 @@ mod python_bindings {
     /// Run several grids in parallel (Rayon), each writing into its own
     /// caller-owned NumPy arrays as in `run_suews_into` (gh#1849).
     ///
-    /// `out_data[i]` / `out_datetime[i]` receive grid `i`'s output; with
+    /// `forcing_block` is shared by all grids and copied once more per grid,
+    /// since the kernel modifies its forcing while it runs.
+    /// `out_data[i]` / `out_datetime[i]` receive grid `i`'s output; they may
+    /// be row blocks of one array shared by all grids, which then holds the
+    /// whole multi-grid output with no per-grid copy to join afterwards. With
     /// `state_jsons`, grid `i` continues from `state_jsons[i]`.
     /// Returns a list of `(grid_index, state_json, len_sim, warnings)`.
     #[cfg(feature = "physics")]
@@ -4471,7 +4565,7 @@ mod python_bindings {
     #[pyo3(signature = (config_jsons, forcing_block, len_sim, out_data, out_datetime, state_jsons=None, max_workers=None))]
     fn run_suews_multi_into_py(
         config_jsons: Vec<String>,
-        forcing_block: Vec<f64>,
+        forcing_block: &Bound<'_, PyAny>,
         len_sim: usize,
         out_data: Vec<Bound<'_, PyAny>>,
         out_datetime: Vec<Bound<'_, PyAny>>,
@@ -4495,6 +4589,7 @@ mod python_bindings {
             ));
         }
 
+        let forcing_block = copy_forcing_buffer(forcing_block, len_sim)?;
         let mut lent = Vec::with_capacity(2 * n_grid);
         for (data, datetime) in out_data.iter().zip(&out_datetime) {
             let (data, datetime) = lend_output_pair(data, datetime, len_sim)?;
@@ -4502,18 +4597,14 @@ mod python_bindings {
             lent.push(datetime);
         }
         check_disjoint(&lent)?;
-        // SAFETY: every buffer passed lend_output_buffer and, across all
-        // grids, check_disjoint; `lent` outlives the run and the GIL is held
-        // until this function returns.
-        let outs: Vec<OutputBuffers<'_>> = lent
+        // SAFETY: every table passed lend_output_buffer and, across all
+        // grids, check_disjoint, so each grid's tables are its own even when
+        // the grids are row blocks of one shared array; `lent` outlives the
+        // run and the GIL is held until this function returns.
+        let outs = lent
             .chunks(2)
-            .map(|pair| unsafe {
-                OutputBuffers {
-                    data: output_slice(&pair[0]),
-                    datetime: output_slice(&pair[1]),
-                }
-            })
-            .collect();
+            .map(|pair| unsafe { output_buffers(&pair[0], &pair[1]) })
+            .collect::<PyResult<Vec<OutputBuffers<'_>>>>()?;
 
         let run_parallel = || {
             outs.into_par_iter()
@@ -5757,8 +5848,9 @@ mod python_bindings {
         nhood_state_field_names()
     }
 
-    // The run_suews*_into functions write into caller-owned NumPy buffers and rely on
-    // the GIL being held for the whole run, so the module is not free-threaded (gh#1849).
+    // The run_suews*_into functions write into caller-owned NumPy buffers, including
+    // row blocks of one array shared by parallel grids, and rely on the GIL being held
+    // for the whole run, so the module is not free-threaded (gh#1849).
     #[pymodule(gil_used = true)]
     fn suews_bridge(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_class::<PyOhmModel>()?;

@@ -34,7 +34,6 @@ Style check: `/lint-code` | Docs check: `/audit-docs` | Build check: `/verify-bu
 
 - `/lint-code` - Check code style
 - `/audit-docs` - Docs sanity check (non-ASCII + bib topic-tags)
-- `/sync-docs` - Doc-code consistency
 - `/triage-issue` - Audit, rewrite, or split a GitHub issue (governance)
 - `/fix-issue` - Triage and implement a GitHub issue to PR-ready status
 - `/republish-docs` - Republish/revise released docs (move tag to clean anchor)
@@ -56,6 +55,7 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 - `.claude/README.md` - Full workspace documentation
 - `.claude/skills/` - Detailed skill workflows
 - `.claude/rules/` - Style conventions
+- `.claude/agents/` - Review subagents (`docs-reviewer` for doc-code drift and docs house style)
 
 ## Shared rule files
 
@@ -72,6 +72,7 @@ Read the unscoped rules below before making changes. Read scoped rules before wo
 - [.claude/rules/docs/release-docs-sanity.md](.claude/rules/docs/release-docs-sanity.md) - `docs/**/*`.
 - [.claude/rules/fortran/conventions.md](.claude/rules/fortran/conventions.md) - `src/suews/**/*.f9*`, `src/suews/**/*.f90`, `src/suews/**/*.f95`.
 - [.claude/rules/fortran/error-reporting.md](.claude/rules/fortran/error-reporting.md) - `src/suews/**/*.f9*`.
+- [.claude/rules/labels.md](.claude/rules/labels.md) - all work.
 - [.claude/rules/naming-convention.md](.claude/rules/naming-convention.md) - `src/supy/**/*.py`, `src/supy/**/*.yml`, `src/supy/**/*.yaml`, `docs/**/*`.
 - [.claude/rules/physics-change-evidence.md](.claude/rules/physics-change-evidence.md) - `src/suews/src/suews_phys_*.f95`, `test/fixtures/data_test/sample_output_2012-*.csv`, `test/fixtures/data_test/provenance.json`, `test/fixtures/data_test/stebbs_test/**`, `test/fixtures/benchmark1/**`.
 - [.claude/rules/python/api-approach.md](.claude/rules/python/api-approach.md) - `src/supy/**/*.py`, `docs/source/tutorials/**/*.py`.

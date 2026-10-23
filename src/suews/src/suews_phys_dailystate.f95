@@ -615,7 +615,8 @@ CONTAINS
                WUDay_M = MERGE(WUDay_M, 0D0, WUDay_M > 0)
 
                ! ---- total irrigation
-               WUDay_total = WUDay_P + WUDay_A + WUDay_M
+               ! WUDay_A already includes the ponding demand WUDay_P (gh#1864)
+               WUDay_total = WUDay_A + WUDay_M
 
                ! transfer values to WUDay_id
                WUDay_id([((i - 1)*3 + 1, i=1, 3)]) = WUDay_total
@@ -643,8 +644,10 @@ CONTAINS
       INTEGER :: days_prev
       REAL(KIND(1D0)) :: tstepcount
 
-      ! count of timesteps performed during day
-      tstepcount = (it*60 + imin)*60/tstep*1.
+      ! count of timesteps performed during day: the sums are reset at 00:00 and
+      ! accumulate every step from 00:00 to the current (last) step inclusive,
+      ! hence the +1 (gh#1878)
+      tstepcount = ((it*60 + imin)*60/tstep + 1)*1.
       ! Heating degree days (HDD) -------------
       HDD_id(1) = HDD_id(1)/tstepcount !Heating
       HDD_id(2) = HDD_id(2)/tstepcount !Cooling

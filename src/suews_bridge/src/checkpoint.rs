@@ -166,6 +166,29 @@ mod tests {
     }
 
     #[test]
+    fn checkpoint_json_parses_floats_exactly() {
+        // serde_json's default float parser can return a value one ulp away
+        // from the decimal it reads; the `float_roundtrip` feature makes it
+        // exact. Without it, every state carried across a chunk or checkpoint
+        // boundary picked up those ulps and chunked runs drifted from an
+        // uninterrupted run (gh#1849). These are the stored water and soil
+        // values that first moved in the sample run.
+        for text in [
+            "0.043194798455574876",
+            "120.00361625549799",
+            "120.00382255930185",
+        ] {
+            let parsed: f64 = serde_json::from_str(text).expect("JSON number should parse");
+            let exact: f64 = text.parse().expect("decimal should parse");
+            assert_eq!(
+                parsed.to_bits(),
+                exact.to_bits(),
+                "{text} did not round-trip"
+            );
+        }
+    }
+
+    #[test]
     fn legacy_state_payload_reports_missing_timer() {
         let state = suews_state_default_from_fortran().expect("default state should be available");
         let legacy_json = serde_json::to_string(&suews_state_to_nested_payload(&state))

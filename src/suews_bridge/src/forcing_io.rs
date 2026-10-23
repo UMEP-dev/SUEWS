@@ -8,6 +8,7 @@ use crate::forcing::{
     SuewsField,
     InterpKind,
     FIELD_DESCRIPTORS,
+    descriptor_by_index,
 };
 use crate::forcing_time::{
     TIME_COLUMNS,
@@ -148,8 +149,9 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
 
         if !found {
             return Err(format!(
-                "forcing header missing required column for `{}`",
-                d.field.name()
+                "forcing header missing required column for `{}` (accepted names: {})",
+                d.field.name(),
+                d.csv_names.join(", ")
             ));
         }
     }
@@ -215,6 +217,11 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         extras.insert(name.clone(), Vec::new());
     }
 
+    // A bulk water-use column fills any surface without its own column,
+    // whichever accepted spelling (`wuh` or `wu_mm`) the file uses.
+    let wuh_bulk_names =
+        descriptor_by_index(SuewsField::wu_mm.index()).map_or(&[][..], |d| d.csv_names);
+
     let mut block = Vec::new();
     let mut len_sim = 0_usize;
 
@@ -248,7 +255,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
                 &col_idx,
                 &parts,
                 line_no,
-                None,
+                &[],
             )?;
         }
         for field in per_landcover_fields("lai") {
@@ -258,7 +265,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
                 &col_idx,
                 &parts,
                 line_no,
-                Some("lai"),
+                &["lai"],
             )?;
         }
 
@@ -269,7 +276,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
                 &col_idx,
                 &parts,
                 line_no,
-                Some("wuh"),
+                wuh_bulk_names,
             )?;
         }
 
@@ -350,7 +357,7 @@ fn apply_field(
     col_idx: &HashMap<String, usize>,
     parts: &[&str],
     line_no: usize,
-    fallback: Option<&str>,
+    fallback: &[&str],
 ) -> Result<(), String> {
     let desc = FIELD_DESCRIPTORS
         .iter()
@@ -365,11 +372,11 @@ fn apply_field(
                 .map(|idx| (*name, idx))
         })
         .or_else(|| {
-            fallback.and_then(|fb| {
+            fallback.iter().find_map(|fb| {
                 col_idx
                     .get(&fb.to_ascii_lowercase())
                     .copied()
-                    .map(|idx| (fb, idx))
+                    .map(|idx| (*fb, idx))
             })
         });
 

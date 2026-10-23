@@ -705,12 +705,20 @@ CONTAINS
    ! to datetimeBlock instead. The caller can then hand dataOutBlockData to Python
    ! as the final output table with no gather or copy (gh#1849).
    ! Column order: SUEWS | Snow | BEERS | ESTM | EHC | DailyState | RSL | Debug | SPARTACUS | STEBBS | NHood
-   ! ncols_data = sum of all ncolumnsDataOut* constants minus 5 per group.
+   ! dataOutBlockData is (len_sim, ncols_data), where ncols_data is the sum of
+   ! all ncolumnsDataOut* constants minus 5 per group; datetimeBlock is (len_sim, 5).
+   !
+   ! Both blocks are assumed-shape, so the caller may pass a row block of a
+   ! larger column-major array (several grids sharing one output table): the
+   ! descriptor carries the column stride and no temporary copy is made. They
+   ! are INTENT(INOUT) because the rows outside this block belong to other
+   ! grids, possibly written by other threads during this call, and must be
+   ! left as they are.
    SUBROUTINE SUEWS_cal_multitsteps_dts( &
       timer, MetForcingBlock, len_sim, &
       config, siteInfo, &
       modState, &
-      dataOutBlockData, ncols_data, datetimeBlock)
+      dataOutBlockData, datetimeBlock)
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
                                   SUEWS_STATE, output_line
@@ -724,9 +732,8 @@ CONTAINS
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
-      INTEGER, INTENT(IN) :: ncols_data
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncols_data), INTENT(OUT) :: dataOutBlockData
-      REAL(KIND(1D0)), DIMENSION(len_sim, 5), INTENT(OUT) :: datetimeBlock
+      REAL(KIND(1D0)), DIMENSION(:, :), INTENT(INOUT) :: dataOutBlockData
+      REAL(KIND(1D0)), DIMENSION(:, :), INTENT(INOUT) :: datetimeBlock
 
       ! Local variables
       TYPE(SUEWS_FORCING) :: forcing
@@ -895,7 +902,7 @@ CONTAINS
                 RS, RA_h, RB, RAsnow, rss_surf, & ! for debugging QE
                 vsmd, conductancePrm%S1/conductancePrm%G_sm + conductancePrm%S2, &
                 conductancePrm%G_sm, &
-                conductancePrm%G_sm*(vsmd - conductancePrm%S1/conductancePrm%G_sm + conductancePrm%S2), & ! debug g_smd
+                conductancePrm%G_sm*(vsmd - (conductancePrm%S1/conductancePrm%G_sm + conductancePrm%S2)), & ! debug g_smd
                 g_kdown, g_dq, g_ta, g_smd, g_lai, & ! for debugging RS: surface resistance
                 vpd_hPa, lv_J_kg, avdens, avcp, s_hPa, psyc_hPa, & ! for debugging QE
                 i_iter*1D0, &
@@ -3155,6 +3162,22 @@ CONTAINS
                snowState%qm_rain = QmRain
                snowState%mwh = mwh
 
+               ! Grid totals of surface wetness and the soil water balance, as at the
+               ! end of SUEWS_cal_QE. Without them State and NWtrState stayed at the
+               ! zero set above and TotCh and smd_surf kept the values of the last
+               ! snow-free timestep (#1879).
+               state_per_tstep = DOT_PRODUCT(state_id_surf, sfr_surf)
+               IF (siteInfo%NonWaterFraction /= 0) THEN
+                  NWstate_per_tstep = DOT_PRODUCT(state_id_surf(1:nsurf - 1), sfr_surf(1:nsurf - 1)) &
+                                      /siteInfo%NonWaterFraction
+               END IF
+               CALL SUEWS_cal_SoilState( &
+                  config%SMDMethod, forcing%xsmd, siteInfo%NonWaterFraction, hydroState%soil_moist_cap, & !input
+                  SoilStoreCap, surf_chang_per_tstep, &
+                  soilstore_id, soilstore_id_in, sfr_surf, &
+                  hydroState%smd, hydroState%smd_surf, hydroState%tot_chang_per_tstep, hydroState%soil_state, & !output
+                  modState)
+
                dataOutLineSnow = [ &
                                  snowState%snow_pack(1:nsurf), mw_ind(1:nsurf), Qm_melt(1:nsurf), & !26
                                  Qm_rain(1:nsurf), Qm_freezState(1:nsurf), snowState%snow_fraction(1:(nsurf - 1)), & !46
@@ -4132,9 +4155,9 @@ CONTAINS
             RH2_pct = atmState%RH2*100.0
 
             ! translate water use to vegetated surfaces
-            wu_DecTr = hydroState%wu_surf(3)
-            wu_EveTr = hydroState%wu_surf(4)
-            wu_Grass = hydroState%wu_surf(5)
+            wu_EveTr = hydroState%wu_surf(ConifSurf)
+            wu_DecTr = hydroState%wu_surf(DecidSurf)
+            wu_Grass = hydroState%wu_surf(GrassSurf)
 
             !====================== update output line ==============================
             ! date & time:

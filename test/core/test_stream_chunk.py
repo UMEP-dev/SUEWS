@@ -10,12 +10,18 @@ so the period ending at 1 January 00:00, which an explicit output clock saves
 into the new year's file, is kept. While a chunk is held only the groups the
 text output saves are kept (``_KeptOutputStore``), which must be lossless.
 
+Parquet output streams too: each chunk's rows go to staging parts closed at
+every year end and joined into the one output file at the end of the run.
+Read back, that file must equal, bit for bit, the chosen groups of the frame
+a whole run saves as Parquet, and a resumed run must give the same file.
+
 The returned output holds no rows, so its row accessors raise. The checkpoint
 is replaced at the end of each calendar year; a run that fails part-way
 resumes from it, trims the files it writes back to what the run up to the
 checkpoint produced, and ends with the files of an uninterrupted run.
 """
 
+import gc
 import json
 import logging
 from pathlib import Path
@@ -24,6 +30,7 @@ import re
 from click.testing import CliRunner
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 from pydantic import ValidationError
 import pytest
 
@@ -34,7 +41,7 @@ from supy._run_rust import (
     forcing_year_keys,
     iter_suews_rust_streamed,
 )
-from supy._save import StreamedTextFiles, save_df_output
+from supy._save import StreamedParquetFile, StreamedTextFiles, save_df_output
 from supy.cmd.SUEWS import SUEWS as run_cmd
 from supy.data_model.core.model import ModelControl, OutputControl, OutputFormat
 import supy.suews_sim as suews_sim_module
@@ -182,10 +189,12 @@ def _year_crossing_sim(
     end=None,
     start=None,
     site_clock=None,
+    fmt="txt",
 ):
     """A simulation across 1 January saving *groups* to *path_out*.
 
-    *site_clock* is ``(timezone, startdls, enddls)`` for every site.
+    *site_clock* is ``(timezone, startdls, enddls)`` for every site; *fmt*
+    is the output format.
     """
     sim = short_sample_sim()
     forcing = _year_crossing_forcing(sim, end=end, start=start)
@@ -194,7 +203,7 @@ def _year_crossing_sim(
     if site_clock is not None:
         _set_site_clock(sim, *site_clock)
     output = {
-        "format": "txt",
+        "format": fmt,
         "freq": freq_s,
         "dir": str(path_out),
         "groups": groups,
@@ -256,7 +265,14 @@ def saved_whole(short_sample_sim, tmp_path_factory):
     dict_dir = {}
 
     def _saved_whole(
-        freq_s, list_gridiv, groups, clock, end=None, start=None, site_clock=None
+        freq_s,
+        list_gridiv,
+        groups,
+        clock,
+        end=None,
+        start=None,
+        site_clock=None,
+        fmt="txt",
     ):
         key = (
             freq_s,
@@ -266,6 +282,7 @@ def saved_whole(short_sample_sim, tmp_path_factory):
             end,
             start,
             site_clock,
+            fmt,
         )
         if key not in dict_dir:
             path = tmp_path_factory.mktemp("whole")
@@ -280,6 +297,7 @@ def saved_whole(short_sample_sim, tmp_path_factory):
                 end=end,
                 start=start,
                 site_clock=site_clock,
+                fmt=fmt,
             )
             sim.run()
             sim.save()
@@ -1013,6 +1031,380 @@ def test_non_zero_time_zone_resume_matches_an_uninterrupted_run(
 
 
 # ---------------------------------------------------------------------------
+# Parquet output
+# ---------------------------------------------------------------------------
+
+GROUPS_PARQUET = ["SUEWS", "DailyState", "RSL"]
+
+
+def _read_output_parquet(path_dir):
+    """The Parquet output file in *path_dir*, read back."""
+    [path] = path_dir.glob("*SUEWS_output*.parquet")
+    return pd.read_parquet(path)
+
+
+def _saved_groups(df_output, groups):
+    """The *groups* of a whole run's saved frame, without rows empty in them."""
+    mask = df_output.columns.get_level_values("group").isin(groups)
+    return df_output.loc[:, mask].dropna(how="all")
+
+
+def _assert_identical(df_streamed, df_whole):
+    """Equal values, bit for bit, with the same index, columns and dtypes."""
+    pd.testing.assert_frame_equal(df_streamed, df_whole, check_exact=True)
+    assert df_streamed.index.equals(df_whole.index)
+    assert df_streamed.columns.equals(df_whole.columns)
+    assert (df_streamed.dtypes == df_whole.dtypes).all()
+    ar_a, ar_b = df_streamed.to_numpy(), df_whole.to_numpy()
+    assert np.array_equal(np.isnan(ar_a), np.isnan(ar_b))
+    assert np.array_equal(
+        np.nan_to_num(ar_a).view(np.uint64), np.nan_to_num(ar_b).view(np.uint64)
+    )
+
+
+def _compare_parquet_dirs(dir_streamed, dir_whole, groups=GROUPS_PARQUET):
+    """Same files, the streamed output frame equal to the whole run's groups."""
+    names_a = sorted(p.name for p in dir_streamed.iterdir())
+    names_b = sorted(p.name for p in dir_whole.iterdir())
+    assert names_a == names_b
+    _assert_identical(
+        _read_output_parquet(dir_streamed),
+        _saved_groups(_read_output_parquet(dir_whole), groups),
+    )
+    [name_meta] = [n for n in names_a if "SUEWS_metadata" in n]
+    df_meta_a = pd.read_parquet(dir_streamed / name_meta)
+    df_meta_b = pd.read_parquet(dir_whole / name_meta)
+    # Only the creation time differs.
+    pd.testing.assert_frame_equal(
+        df_meta_a.drop(columns="creation_time"),
+        df_meta_b.drop(columns="creation_time"),
+    )
+    [name_ckpt] = [n for n in names_a if n.endswith("_checkpoint.json")]
+    ckpt_a = json.loads((dir_streamed / name_ckpt).read_text(encoding="utf-8"))
+    ckpt_b = json.loads((dir_whole / name_ckpt).read_text(encoding="utf-8"))
+    assert ckpt_a["last_timestamp"] == ckpt_b["last_timestamp"]
+    assert list(_numbers(ckpt_a)) == list(_numbers(ckpt_b))
+
+
+def _parquet_sim(short_sample_sim, path_out, freq_s, stream_chunk, **kwargs):
+    """``_year_crossing_sim`` saving GROUPS_PARQUET as Parquet."""
+    kwargs.setdefault("groups", GROUPS_PARQUET)
+    return _year_crossing_sim(
+        short_sample_sim, path_out, freq_s, stream_chunk, fmt="parquet", **kwargs
+    )
+
+
+@pytest.mark.parametrize("list_gridiv", [None, [2, 1]], ids=["1grid", "2grids"])
+@pytest.mark.parametrize("freq_s", [TSTEP_S, 3600, 86400])
+@pytest.mark.parametrize("stream_chunk", [1, 30, 366])
+def test_parquet_matches_run_then_save(
+    short_sample_sim, saved_whole, tmp_path, stream_chunk, freq_s, list_gridiv
+):
+    """Read back, streamed Parquet equals the saved groups of a whole run.
+
+    Daily output gives the row closing each chunk the same label as the
+    DailyState row of the next chunk's first day, so the two are joined.
+    """
+    dir_whole = saved_whole(
+        freq_s, list_gridiv, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet"
+    )
+    sim = _parquet_sim(
+        short_sample_sim, tmp_path, freq_s, stream_chunk, list_gridiv=list_gridiv
+    )
+    output = sim.run()
+
+    df_whole = _read_output_parquet(dir_whole)
+    assert set(df_whole.index.get_level_values("datetime").year) == {2011, 2012}
+    # A whole run's Parquet holds every group; the streamed file the chosen ones.
+    assert set(df_whole.columns.get_level_values("group")) > set(GROUPS_PARQUET)
+    _compare_parquet_dirs(tmp_path, dir_whole)
+    assert output.groups == GROUPS_PARQUET
+    provenance = read_provenance(tmp_path)
+    assert provenance["run"]["stream_chunk"] == stream_chunk
+    assert provenance["output"]["format"] == "parquet"
+
+
+@pytest.mark.parametrize("list_gridiv", [None, [2, 1]], ids=["1grid", "2grids"])
+@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
+@pytest.mark.parametrize("stream_chunk", [1, 366])
+def test_parquet_explicit_clock_matches_run_then_save(
+    short_sample_sim, saved_whole, tmp_path, stream_chunk, clock, list_gridiv
+):
+    """Explicit output clocks on the forcing clock give the same frame."""
+    dir_whole = saved_whole(3600, list_gridiv, GROUPS_PARQUET, clock, fmt="parquet")
+    sim = _parquet_sim(
+        short_sample_sim,
+        tmp_path,
+        3600,
+        stream_chunk,
+        list_gridiv=list_gridiv,
+        clock=clock,
+    )
+    sim.run()
+
+    _compare_parquet_dirs(tmp_path, dir_whole)
+
+
+@pytest.mark.parametrize("site_clock", SITE_CLOCKS.values(), ids=SITE_CLOCKS.keys())
+@pytest.mark.parametrize("clock", [CLOCK_UTC, CLOCK_LST], ids=["utc", "lst"])
+def test_parquet_non_zero_time_zone_matches_run_then_save(
+    short_sample_sim, saved_whole, tmp_path, clock, site_clock
+):
+    """With a time zone and a daylight-saving window, streamed equals whole."""
+    dir_whole = saved_whole(
+        3600, [2, 1], GROUPS_PARQUET, clock, site_clock=site_clock, fmt="parquet"
+    )
+    sim = _parquet_sim(
+        short_sample_sim,
+        tmp_path,
+        3600,
+        7,
+        list_gridiv=[2, 1],
+        clock=clock,
+        site_clock=site_clock,
+    )
+    sim.run()
+
+    _compare_parquet_dirs(tmp_path, dir_whole)
+
+
+def test_parquet_short_last_chunk_at_the_model_timestep(
+    short_sample_sim, saved_whole, tmp_path
+):
+    """A last chunk of two rows at the model timestep is not resampled alone."""
+    end = "2012-01-14 00:10"
+    dir_whole = saved_whole(
+        TSTEP_S, None, GROUPS_PARQUET, CLOCK_FOLLOW, end=end, fmt="parquet"
+    )
+    sim = _parquet_sim(short_sample_sim, tmp_path, TSTEP_S, 1, end=end)
+    sim.run()
+
+    _compare_parquet_dirs(tmp_path, dir_whole)
+
+
+def test_parquet_output_names_the_file_and_save_returns_it(short_sample_sim, tmp_path):
+    """The row accessors name the Parquet file; save() returns what was written."""
+    dir_out = tmp_path / "out"
+    sim = _parquet_sim(short_sample_sim, dir_out, 3600, 30)
+    output = sim.run()
+    dict_bytes = {p.name: p.read_bytes() for p in dir_out.iterdir()}
+
+    with pytest.raises(RuntimeError, match="read_parquet"):
+        _ = output.df
+    assert "one Parquet file" in repr(output)
+    paths = sim.save()
+    assert {Path(p).name for p in paths} == set(dict_bytes)
+    assert {p.name: p.read_bytes() for p in dir_out.iterdir()} == dict_bytes
+    with pytest.raises(ValueError, match="as Parquet"):
+        sim.save(format="txt")
+
+
+def test_fresh_parquet_run_removes_a_previous_runs_files(short_sample_sim, tmp_path):
+    """A fresh run replaces the output file and staging parts it finds."""
+    dir_out = tmp_path / "out"
+    _parquet_sim(short_sample_sim, dir_out, 3600, 30).run()
+    [path_output] = dir_out.glob("*SUEWS_output*.parquet")
+    path_parts = dir_out / f".{path_output.name}.parts"
+    path_parts.mkdir()
+    (path_parts / "grid1.part00000.parquet").write_bytes(b"stale")
+
+    _parquet_sim(short_sample_sim, dir_out, 3600, 30).run()
+
+    assert not path_parts.exists()
+    assert pd.read_parquet(path_output).shape[0] > 0
+
+
+@pytest.mark.parametrize(
+    "n_written", [N_CHUNK_2011, N_CHUNK_2011 + 3], ids=["at-year-end", "mid-year"]
+)
+@pytest.mark.parametrize("list_gridiv", [None, [2, 1]], ids=["1grid", "2grids"])
+@pytest.mark.parametrize("freq_s", [3600, 86400])
+@pytest.mark.medium
+def test_parquet_resumed_run_matches_an_uninterrupted_run(
+    short_sample_sim, tmp_path, monkeypatch, freq_s, list_gridiv, n_written
+):
+    """Killed at or after a year end and resumed, the output file is the same.
+
+    The mid-year case is resumed twice, the first resume itself failing part
+    of the way, so trimming the staging parts back to the checkpoint must be
+    repeatable.
+    """
+    dir_full = tmp_path / "full"
+    _parquet_sim(short_sample_sim, dir_full, freq_s, 1, list_gridiv=list_gridiv).run()
+
+    dir_out = tmp_path / "out"
+    sim = _parquet_sim(short_sample_sim, dir_out, freq_s, 1, list_gridiv=list_gridiv)
+    _run_failing_after(sim, n_written, monkeypatch)
+    names = {p.name for p in dir_out.iterdir()}
+    assert "provenance.json" not in names
+    # Only the staging parts exist until the run completes.
+    assert not any(name.endswith("SUEWS_output.parquet") for name in names)
+    ckpt = SUEWSCheckpoint.from_file(next(dir_out.glob("*_checkpoint.json")))
+    assert pd.Timestamp(ckpt.last_timestamp) == pd.Timestamp("2012-01-01 00:00")
+
+    if n_written > N_CHUNK_2011:
+        _resume(sim, dir_out, monkeypatch, fail_after=5)
+    _resume(sim, dir_out)
+
+    _compare_parquet_dirs(dir_out, dir_full)
+
+
+def _parts(dir_out):
+    """The staging part files in *dir_out*, oldest first."""
+    [path_parts] = [p for p in dir_out.iterdir() if p.name.endswith(".parts")]
+    return sorted(path_parts.iterdir())
+
+
+def _cut_footer(path):
+    """Cut a Parquet file short, as a process killed while writing leaves it.
+
+    The failed run's writers are collected first, so none closes the file
+    after it is cut.
+    """
+    gc.collect()
+    data = path.read_bytes()
+    path.write_bytes(data[: len(data) // 2])
+
+
+def test_parquet_resume_discards_a_part_cut_short(
+    short_sample_sim, tmp_path, monkeypatch
+):
+    """A last part left without its footer is reported and written again."""
+    dir_full = tmp_path / "full"
+    _parquet_sim(short_sample_sim, dir_full, 3600, 1).run()
+    dir_out = tmp_path / "out"
+    sim = _parquet_sim(short_sample_sim, dir_out, 3600, 1)
+    _run_failing_after(sim, N_CHUNK_2011 + 3, monkeypatch)
+    list_part = _parts(dir_out)
+    assert len(list_part) == 2  # 2011, closed at its end; 2012, cut short
+    _cut_footer(list_part[-1])
+
+    list_msg = []
+
+    class _Collect(logging.Handler):
+        def emit(self, record):
+            list_msg.append(record.getMessage())
+
+    logger = logging.getLogger("SuPy")
+    handler = _Collect(level=logging.WARNING)
+    level = logger.level
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    try:
+        _resume(sim, dir_out)
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(level)
+
+    assert any("left incomplete" in msg for msg in list_msg)
+    _compare_parquet_dirs(dir_out, dir_full)
+
+
+def test_parquet_resume_refuses_a_damaged_part_it_cannot_rewrite(
+    short_sample_sim, tmp_path, monkeypatch
+):
+    """A damaged part holding rows the checkpoint covers stops the resume."""
+    dir_out = tmp_path / "out"
+    sim = _parquet_sim(short_sample_sim, dir_out, 3600, 1)
+    _run_failing_after(sim, N_CHUNK_2011 + 3, monkeypatch)
+    list_part = _parts(dir_out)
+    _cut_footer(list_part[0])
+
+    with pytest.raises(RuntimeError, match="cannot be recovered"):
+        _resume(sim, dir_out)
+    assert list_part[0].exists()
+
+
+def test_parquet_killed_while_joining_resumes_from_the_year_before(
+    short_sample_sim, tmp_path, monkeypatch
+):
+    """The last checkpoint follows the output file, so a failure joining the
+    parts resumes from the previous year end with the parts intact."""
+    dir_full = tmp_path / "full"
+    _parquet_sim(short_sample_sim, dir_full, 3600, 30).run()
+    dir_out = tmp_path / "out"
+    sim = _parquet_sim(short_sample_sim, dir_out, 3600, 30)
+
+    def fail(self):
+        raise RuntimeError("simulated failure")
+
+    monkeypatch.setattr(StreamedParquetFile, "finish", fail)
+    with pytest.raises(RuntimeError, match="simulated failure"):
+        sim.run()
+    monkeypatch.undo()
+    ckpt = SUEWSCheckpoint.from_file(next(dir_out.glob("*_checkpoint.json")))
+    assert pd.Timestamp(ckpt.last_timestamp) == pd.Timestamp("2012-01-01 00:00")
+
+    _resume(sim, dir_out)
+
+    _compare_parquet_dirs(dir_out, dir_full)
+
+
+def _daily_chunk(day, list_grid=(2, 1)):
+    """A two-group output frame of one day, hourly, for *list_grid*."""
+    index_dt = pd.date_range(
+        pd.Timestamp(day) + pd.Timedelta(hours=1), periods=24, freq="h"
+    )
+    index = pd.MultiIndex.from_product(
+        [list(list_grid), index_dt], names=["grid", "datetime"]
+    )
+    columns = pd.MultiIndex.from_tuples(
+        [("SUEWS", "QH"), ("DailyState", "LAI")], names=["group", "var"]
+    )
+    rng = np.random.default_rng(pd.Timestamp(day).dayofyear)
+    df = pd.DataFrame(rng.random((len(index), 2)), index=index, columns=columns)
+    # DailyState only on the day's last row, as the model writes it.
+    df.loc[df.index.get_level_values("datetime") != index_dt[-1], "DailyState"] = np.nan
+    return df
+
+
+def test_parquet_parts_are_trimmed_to_the_checkpoint_chunk_by_chunk(tmp_path):
+    """A part holding chunks on both sides of the checkpoint keeps the first.
+
+    Resuming from a checkpoint earlier than the last year end (a copy kept
+    from before) rewrites the part with only the chunks the run up to it
+    wrote; the resumed chunks then give the frame of a run never stopped.
+    """
+    path_output = tmp_path / "SUEWS_output.parquet"
+    days = ["2012-01-01", "2012-01-02", "2012-01-03"]
+
+    def write(streamed, list_day):
+        for day in list_day:
+            streamed.write(path_output, _daily_chunk(day), lambda: [])
+
+    whole = StreamedParquetFile(path_output, resample=False)
+    whole.prepare()
+    write(whole, days)
+    whole.finish()
+    df_whole = pd.read_parquet(path_output)
+    assert df_whole.index.get_level_values("grid").unique().tolist() == [2, 1]
+
+    stopped = StreamedParquetFile(path_output, resample=False)
+    stopped.prepare()
+    write(stopped, days[:2])
+    stopped.end_year()
+    write(stopped, days[2:])
+    stopped.end_year()
+    resumed = StreamedParquetFile(
+        path_output, resume_after=pd.Timestamp("2012-01-02"), resample=False
+    )
+    resumed.prepare()
+    assert [pq.ParquetFile(p).num_row_groups for p in _parts(tmp_path)] == [1, 1]
+    write(resumed, days[1:])
+    resumed.finish()
+    resumed.cleanup()
+
+    _assert_identical(pd.read_parquet(path_output), df_whole)
+    assert not resumed.path_parts.exists()
+
+
+def test_parquet_stream_chunk_is_accepted():
+    """Parquet output with stream_chunk passes the YAML validation."""
+    output = OutputControl(format=OutputFormat.PARQUET, stream_chunk=30)
+    assert output.stream_chunk == 30
+
+
+# ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
 
@@ -1046,7 +1438,6 @@ def test_stream_chunk_unit_is_days():
 @pytest.mark.parametrize(
     ("output", "match"),
     [
-        ({"format": "parquet"}, "currently needs text output"),
         ({"freq": 25200}, "divides one day"),
         ({"timestamp_reference": "daylight"}, "forcing clock"),
     ],
@@ -1092,20 +1483,18 @@ def test_unsupported_settings_fail_before_running(short_sample_sim, tmp_path):
             {"model": {"control": {"output": {"freq": 25200}}}},
             auto_load_forcing=False,
         )
-    with pytest.raises(ValueError, match="currently needs text output"):
-        sim.update_config(
-            {"model": {"control": {"output": {"format": "parquet"}}}},
-            auto_load_forcing=False,
-        )
+    # Parquet output streams too.
+    sim.update_config(
+        {"model": {"control": {"output": {"format": "parquet"}}}},
+        auto_load_forcing=False,
+    )
 
 
 @pytest.mark.parametrize(
     ("stream_chunk", "field", "value", "match"),
     [
-        (30, "format", OutputFormat.PARQUET, "currently needs text output"),
         (30, "freq", 25200, "divides one day"),
         (30, "timestamp_reference", "utc", "forcing clock"),
-        (None, "stream_chunk", 30, "currently needs text output"),
         (30, "stream_chunk", True, "not true"),
         (30, "stream_chunk", 30.5, "integer"),
         (30, "stream_chunk", 0, "from 1 to 366; got 0"),
@@ -1118,8 +1507,6 @@ def test_settings_assigned_on_the_config_fail_before_running(
     """A config changed by attribute assignment is checked again by run()."""
     sim = _year_crossing_sim(short_sample_sim, tmp_path / "out", 3600, stream_chunk)
     output = sim.config.model.control.output
-    if stream_chunk is None:
-        output.format = OutputFormat.PARQUET
     setattr(output, field, value)
 
     with pytest.raises(ValueError, match=match):

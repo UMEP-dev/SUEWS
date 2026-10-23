@@ -79,13 +79,29 @@ grid, group and year, which later chunks extend), and the chunk is dropped
 before the next one runs. Only the groups listed in ``groups`` (default
 ``SUEWS`` and ``DailyState``) are kept from each chunk. The files are
 byte-identical to those of a run saved whole, for any chunk length. Streaming
-currently needs text output, an output frequency that divides one day, and
-output timestamps on the forcing clock (``timestamp_reference`` of ``follow``
-or the forcing's own reference); ``chunk_day`` is ignored. The log names the
-output folder at the start and reports each chunk as it is written.
+needs an output frequency that divides one day and output timestamps on the
+forcing clock (``timestamp_reference`` of ``follow`` or the forcing's own
+reference); ``chunk_day`` is ignored. The log names the output folder at the
+start and reports each chunk as it is written.
+
+With ``format: parquet`` the run streams to one Parquet output file, as a run
+saved whole writes. Each chunk's rows are written to staging files in a hidden
+folder beside it (``.<output file name>.parts``), closed at every year end;
+when the run ends they are joined into the output file, the metadata file is
+written, and the staging folder is removed. Read back with
+``pandas.read_parquet(path)``, the file holds exactly, value for value, the
+frame a run saved whole writes, with two differences to note:
+
+- A streamed Parquet file holds only the groups listed in ``groups``. Parquet
+  saved after a run that was not streamed ignores ``groups`` and holds every
+  group the model writes.
+- The values keep full double (float64) precision, where text files carry four
+  decimal places. Prefer Parquet for streamed runs whose output will be read
+  back for analysis.
 
 The output returned to Python holds no rows: read the written files back, for
-example with ``pandas.read_csv(path, sep=r"\s+")``. The checkpoint file is
+example with ``pandas.read_csv(path, sep=r"\s+")`` for text or
+``pandas.read_parquet(path)`` for Parquet. The checkpoint file is
 replaced at the end of every calendar year. A run that stops part-way can
 continue from it: load the checkpoint with
 :meth:`~supy.SUEWSSimulation.from_checkpoint` and run from one model timestep
@@ -94,10 +110,18 @@ of the year it stopped in and rewrites that year's files: in each file it
 writes, it keeps the rows up to the checkpoint and replaces everything after
 (a file whose header is missing or cut short is written anew), so it ends with
 the files of an uninterrupted run, and resuming again from the same checkpoint
-gives the same files. A streamed run that starts afresh, not from a
+gives the same files. With Parquet the same holds of the staging files: those
+of completed years are kept, the rows after the checkpoint are dropped, and a
+staging file the interruption left unreadable (it was still being written)
+holds only rows after the checkpoint, so it is discarded with a warning and
+written again; a damaged staging file holding earlier rows stops the run with
+an error naming it, since those rows cannot be recovered. The output file
+itself is written only when the run ends. A streamed run that starts afresh,
+not from a
 checkpoint, first removes the checkpoint and ``provenance.json`` a previous
-run left in the output folder, so a failure before its first year end leaves
-no checkpoint of another run to resume from.
+run left in the output folder (and, for Parquet, its output file and staging
+folder), so a failure before its first year end leaves no checkpoint of
+another run to resume from.
 
 Limitations:
 
@@ -109,10 +133,16 @@ Limitations:
   timestep saving ``SUEWS`` and ``DailyState`` hourly peaked at about 2.3 GB
   with ``stream_chunk: 30`` and 11 GB with ``stream_chunk: 366``, against
   92 GB for a run saved whole. A one-year single-grid run peaked at 1.5 GB with
-  ``stream_chunk: 366``, as when saved whole, and at 0.4 GB with 30.
+  ``stream_chunk: 366``, as when saved whole, and at 0.4 GB with 30. Written
+  as Parquet, the ten-year eight-grid run peaked at 2.2 GB with
+  ``stream_chunk: 30`` and 11 GB with 366, against 115 GB for a run saved
+  whole as Parquet; with one grid, at 1.0 GB and 2.1 GB against 15 GB.
 - The output exists only on disk. Values read back from the text files carry
   the saved text precision, four decimal places, not the full double precision
-  a run kept in memory holds.
+  a run kept in memory holds; Parquet keeps it.
+- Streamed Parquet needs disk space for about twice its output while the run
+  ends, as the staging files are joined into the output file before they are
+  removed.
 - Groups not listed in ``groups`` are not kept at all; to analyse another group,
   list it in ``groups`` before the run.
 

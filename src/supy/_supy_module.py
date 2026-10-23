@@ -244,9 +244,11 @@ def _save_supy(
         checkpoint JSON instead.
     forcing_timestamp_reference : str, optional
         Clock used by ``df_output`` before applying the saved-output policy.
-    streamed_files : StreamedTextFiles, optional
+    streamed_files : StreamedTextFiles or StreamedParquetFile, optional
         For one chunk of a run streamed to disk: text files the run has
-        already started are appended to (see ``supy._save.StreamedTextFiles``).
+        already started are appended to (see ``supy._save.StreamedTextFiles``),
+        or the chunk's rows are added to the run's Parquet file (see
+        ``supy._save.StreamedParquetFile``); it must match the output format.
 
     Returns
     -------
@@ -336,6 +338,7 @@ def _save_supy(
             site_metadata=site_metadata,
             timestamp_reference=output_timestamp_reference,
             forcing_timestamp_reference=forcing_timestamp_reference,
+            streamed_parquet=streamed_files,
         )
     else:
         # Save as text files (existing behavior)

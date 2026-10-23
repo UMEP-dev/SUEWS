@@ -1405,22 +1405,27 @@ class OutputControl(BaseModel):
             "Stream the output to disk during the run in chunks of this many "
             "days (1 to 366), so memory no longer grows with run length. The "
             "run goes through each calendar year in consecutive chunks; each "
-            "chunk's text files are written, or extended, exactly as a run "
-            "followed by save would write them, and the chunk is then dropped "
-            "from memory, keeping only the groups listed in 'groups'. 30 "
-            "(about a month) or 366 (a calendar year) are good choices. "
-            "Limitations: peak memory is still about one chunk of the model's "
-            "full output (all groups); values read back from the files carry "
-            "the text precision of four decimal places; groups not listed in "
+            "chunk's output is written to disk and then dropped from memory, "
+            "keeping only the groups listed in 'groups'. Text files are "
+            "written, or extended, exactly as a run followed by save would "
+            "write them. Parquet output is one file holding, when read back, "
+            "the frame a run followed by save writes, restricted to the "
+            "groups listed in 'groups' (unlike Parquet output saved after an "
+            "unstreamed run, which holds every group), at full float64 "
+            "precision; prefer it for streamed runs that will be read back "
+            "for analysis. 30 (about a month) or 366 (a calendar year) are "
+            "good choices. Limitations: peak memory is still about one chunk "
+            "of the model's full output (all groups); values read back from "
+            "text files carry four decimal places; groups not listed in "
             "'groups' are not kept at all. The checkpoint file is replaced "
             "at the end of every calendar year, so a run that stops part-way "
-            "continues from the start of the year it stopped in and rewrites "
-            "that year's files. The output returned to Python holds no rows: "
-            "read the written files. Currently needs 'format' to be 'txt', an "
-            "output frequency that divides one day (86400 s), and output "
-            "timestamps on the forcing clock ('timestamp_reference' of "
-            "'follow' or the forcing's own reference). Unset (the default) "
-            "keeps the whole output in memory until it is saved."
+            "continues from the start of the year it stopped in and writes "
+            "that year's output again. The output returned to Python holds no "
+            "rows: read the written files. Needs an output frequency that "
+            "divides one day (86400 s) and output timestamps on the forcing "
+            "clock ('timestamp_reference' of 'follow' or the forcing's own "
+            "reference). Unset (the default) keeps the whole output in memory "
+            "until it is saved."
         ),
         json_schema_extra={"unit": "d"},
     )
@@ -1481,37 +1486,29 @@ class OutputControl(BaseModel):
     def _check_stream_chunk(self):
         """Reject output settings that streaming in chunks cannot reproduce."""
         if self.stream_chunk is not None:
-            check_stream_chunk(
-                str(self.format), self.freq, str(self.timestamp_reference)
-            )
+            check_stream_chunk(self.freq, str(self.timestamp_reference))
         return self
 
 
 def check_stream_chunk(
-    output_format: str,
     freq_s: int | None,
     timestamp_reference: str,
     forcing_timestamp_reference: str | None = None,
 ) -> None:
     """Reject output settings that ``output.stream_chunk`` cannot reproduce.
 
-    The files must be what saving the whole run writes: text output has one
-    file per grid, group and year that each chunk extends (Parquet one file
-    for the run), an output frequency dividing one day keeps every
-    resampling bin inside one chunk, and saved timestamps on the forcing
-    clock keep every row in the chunk that computed it (a relabelling to
-    another clock moves rows across chunk boundaries). With
+    The files must be what saving the whole run writes (text: one file per
+    grid, group and year that each chunk extends; Parquet: one file for the
+    run that each chunk adds rows to): an output frequency dividing one day
+    keeps every resampling bin inside one chunk, and saved timestamps on the
+    forcing clock keep every row in the chunk that computed it (a
+    relabelling to another clock moves rows across chunk boundaries). With
     *forcing_timestamp_reference* unknown, only the daylight relabelling,
     which never follows the forcing, is rejected on the clock.
 
     Shared by the YAML validators and :meth:`SUEWSSimulation.run`, which
     checks again in case the config was changed by attribute assignment.
     """
-    if output_format != "txt":
-        raise ValueError(
-            "output.stream_chunk currently needs text output; "
-            f"output.format is {output_format!r}."
-        )
     if freq_s is not None and (freq_s <= 0 or 86400 % freq_s != 0):
         raise ValueError(
             "output.stream_chunk needs an output frequency that divides "
@@ -1749,7 +1746,6 @@ class ModelControl(BaseModel):
                 self.forcing.timestamp_reference,
             )
             check_stream_chunk(
-                str(output.format),
                 output.freq,
                 str(output.timestamp_reference),
                 str(source),

@@ -91,6 +91,7 @@ CONTAINS
       TYPE(PHENOLOGY_STATE) :: phenState_prev
 
       LOGICAL :: first_tstep_Q ! if this is the first tstep of a day
+      LOGICAL :: first_tstep_run_Q ! if this is the first tstep of the run
       LOGICAL :: last_tstep_Q ! if this is the last tstep of a day
       TYPE(datetime) :: time_now, time_prev, time_next
 
@@ -258,14 +259,20 @@ CONTAINS
                time_next = time_now + timedelta(seconds=tstep)
 
                ! test if time at now is the first/last tstep of today
-               first_tstep_Q = time_now%getDay() /= time_prev%getDay()
+               ! The first step of a run also starts a day, so a run that starts after
+               ! 00:00 begins its first day from that step rather than from the initial
+               ! state (gh#1919). The bridge starts a fresh run with dt_since_start = tstep;
+               ! a run continued from a checkpoint carries it on, so a chunk boundary
+               ! inside a day does not restart that day.
+               first_tstep_run_Q = dt_since_start == tstep
+               first_tstep_Q = time_now%getDay() /= time_prev%getDay() .OR. first_tstep_run_Q
                last_tstep_Q = time_now%getDay() /= time_next%getDay()
 
                ! --------------------------------------------------------------------------------
                ! On first timestep of each day, define whether the day each a workday or weekend
                IF ((first_tstep_Q) .AND. execute_subroutines) THEN
                   CALL update_DailyState_Start( &
-                     it, imin, & !input
+                     it, imin, first_tstep_run_Q, & !input
                      HDD_id) !inout
 
                   ! reset certain GDD columns
@@ -646,8 +653,10 @@ CONTAINS
 
       ! count of timesteps performed during day: the sums are reset at 00:00 and
       ! accumulate every step from 00:00 to the current (last) step inclusive,
-      ! hence the +1 (gh#1878)
-      tstepcount = ((it*60 + imin)*60/tstep + 1)*1.
+      ! hence the +1 (gh#1878); on the first day of a run that starts after 00:00
+      ! they start at the run's first step, so only dt_since_start/tstep steps
+      ! have been summed (gh#1919)
+      tstepcount = MIN((it*60 + imin)*60/tstep + 1, dt_since_start/tstep)*1.
       ! Heating degree days (HDD) -------------
       HDD_id(1) = HDD_id(1)/tstepcount !Heating
       HDD_id(2) = HDD_id(2)/tstepcount !Cooling
@@ -671,11 +680,12 @@ CONTAINS
    END SUBROUTINE update_HDD
 
    SUBROUTINE update_DailyState_Start( &
-      it, imin, & !input
+      it, imin, first_tstep_run_Q, & !input
       HDD_id) !output
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: it
       INTEGER, INTENT(IN) :: imin
+      LOGICAL, INTENT(IN) :: first_tstep_run_Q ! first step of the run (gh#1919)
 
       REAL(KIND(1D0)), DIMENSION(6), INTENT(INOUT) :: HDD_id
       REAL(KIND(1D0)) :: HDD_id_mav, HDD_id_daysSR
@@ -685,7 +695,7 @@ CONTAINS
       HDD_id_mav = HDD_id(4)
       ! Days Since Rain
       HDD_id_daysSR = HDD_id(6)
-      IF (it == 0 .AND. imin == 0) THEN
+      IF ((it == 0 .AND. imin == 0) .OR. first_tstep_run_Q) THEN
          HDD_id = 0
          HDD_id(4) = HDD_id_mav
          HDD_id(6) = HDD_id_daysSR

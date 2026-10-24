@@ -1338,7 +1338,8 @@ class OutputFormat(Enum):
     Output file format options.
 
     TXT: Traditional text files (one per year/grid/group)
-    PARQUET: Single Parquet file containing all output data (efficient columnar format)
+    PARQUET: Single Parquet file containing all output data (efficient columnar format);
+        with ``stream_chunk``, a folder holding one Parquet file per chunk
     """
 
     TXT = "txt"
@@ -1376,7 +1377,7 @@ class OutputControl(BaseModel):
 
     format: OutputFormat = Field(
         default=OutputFormat.TXT,
-        description="Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data",
+        description="Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data (with 'stream_chunk', a folder holding one Parquet file per chunk)",
     )
     freq: Optional[int] = Field(
         default=None,
@@ -1384,7 +1385,7 @@ class OutputControl(BaseModel):
     )
     groups: Optional[List[str]] = Field(
         default=None,
-        description="List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
+        description="List of output groups to save (applies to txt format, and to parquet format when 'stream_chunk' is set; Parquet saved after an unstreamed run holds every group). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
     )
     dir: Optional[str] = Field(
         default=None,
@@ -1500,8 +1501,8 @@ def check_stream_chunk(
     """Reject output settings that ``output.stream_chunk`` cannot reproduce.
 
     The files must be what saving the whole run writes (text: one file per
-    grid, group and year that each chunk extends; Parquet: one file for the
-    run that each chunk adds rows to): an output frequency dividing one day
+    grid, group and year that each chunk extends; Parquet: a folder with one
+    file per chunk): an output frequency dividing one day
     keeps every resampling bin inside one chunk, and saved timestamps on the
     forcing clock keep every row in the chunk that computed it (a
     relabelling to another clock moves rows across chunk boundaries). With

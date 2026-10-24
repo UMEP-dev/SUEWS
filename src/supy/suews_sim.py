@@ -36,6 +36,7 @@ from ._run_rust import (
     OUTPUT_GROUP_LAYOUT,
     KernelWarningLog,
     _check_rust_available,
+    forcing_year_keys,
     iter_suews_rust_streamed,
     run_suews_rust_chunked,
 )
@@ -1540,8 +1541,10 @@ class SUEWSSimulation:
             )
             # Before any chunk runs, and logged at the caller's level.
             streamed_files.prepare()
+            year_last = int(forcing_year_keys(df_forcing.index, tstep_s)[-1])
         else:
             streamed_files = StreamedTextFiles(resume_after=resume_after)
+            year_last = None
         # _save_supy sets the SuPy logger level on every call; keep the
         # caller's level so later chunks and the end-of-run summaries still log.
         log_level = logger_supy.level
@@ -1599,6 +1602,10 @@ class SUEWSSimulation:
                     last_timestamp,
                     folder,
                 )
+                if is_parquet and k_chunk == n_chunk and year == year_last:
+                    # The metadata file, once, before the last checkpoint, so
+                    # a failure writing it resumes from the year before.
+                    list_path_save = streamed_files.finish()
                 # The year's files are complete; record the state reached at
                 # its end so a later failure can resume from here.
                 if k_chunk == n_chunk and dict_state_chunk:
@@ -1619,9 +1626,6 @@ class SUEWSSimulation:
                     last_done[1],
                 )
             raise
-        if is_parquet:
-            # The metadata file, once, as save() writes it.
-            list_path_save = streamed_files.finish()
         return list_path_save, df_empty, dict_state_json, kernel_warnings
 
     def _start_run_metadata(

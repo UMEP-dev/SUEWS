@@ -40,6 +40,7 @@ from supy._run_rust import (
     forcing_year_keys,
     iter_suews_rust_streamed,
 )
+import supy._save as save_module
 from supy._save import StreamedTextFiles, save_df_output
 from supy.cmd.SUEWS import SUEWS as run_cmd
 from supy.data_model.core.model import ModelControl, OutputControl, OutputFormat
@@ -1323,6 +1324,10 @@ def test_fresh_parquet_run_removes_a_previous_runs_files(
     if previous == "streamed":
         (path_output / "part-2099-001.parquet").write_bytes(b"stale")
         (path_output / ".part-2099-002.parquet.tmp").write_bytes(b"stale")
+        # Not the run's files: left alone.
+        (path_output / "notes.txt").write_bytes(b"mine")
+        (path_output / ".part-analysis.tmp").write_bytes(b"mine")
+    (dir_out / "other.parquet").write_bytes(b"mine")
     assert path_meta.exists()
 
     # Stopped after its first chunk, the new run has already cleared the folder.
@@ -1331,9 +1336,12 @@ def test_fresh_parquet_run_removes_a_previous_runs_files(
     )
 
     assert path_output.is_dir()
-    assert _part_names(dir_out) == ["part-2011-001.parquet"]
-    assert not (path_output / ".part-2099-002.parquet.tmp").exists()
+    list_left = ["part-2011-001.parquet"]
+    if previous == "streamed":
+        list_left = [".part-analysis.tmp", "notes.txt", *list_left]
+    assert _part_names(dir_out) == list_left
     assert not path_meta.exists()
+    assert (dir_out / "other.parquet").read_bytes() == b"mine"
 
 
 @pytest.mark.parametrize(
@@ -1413,7 +1421,11 @@ def test_parquet_part_cut_short_is_never_left_half_written(
 def test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts(
     short_sample_sim, tmp_path
 ):
-    """Parts of the checkpoint's own year cannot be split by name: refused."""
+    """Parts of the checkpoint's own year cannot be split by name: refused.
+
+    So is continuing a completed run from its final checkpoint into the
+    same folder; nothing is deleted.
+    """
     dir_out = tmp_path / "out"
     _parquet_sim(short_sample_sim, dir_out, 3600, 1).run()
     sim_mid = _parquet_sim(short_sample_sim, tmp_path / "mid", 3600, None)
@@ -1427,6 +1439,54 @@ def test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts(
     with pytest.raises(ValueError, match="not at a year end"):
         sim.run(start_date=pd.Timestamp("2011-12-20 00:05"))
     assert len(_part_names(dir_out)) == n_part
+
+    sim_done = _parquet_sim(short_sample_sim, tmp_path / "done", 3600, 1)
+    sim_done.run(end_date="2012-01-10 00:00")
+    sim_next = SUEWSSimulation.from_checkpoint(sim_done.config, sim_done.checkpoint)
+    sim_next.update_forcing(sim_done.forcing.df)
+    n_part = len(_part_names(tmp_path / "done"))
+    with pytest.raises(ValueError, match="not at a year end"):
+        sim_next.run(start_date=pd.Timestamp("2012-01-10 00:05"))
+    assert len(_part_names(tmp_path / "done")) == n_part
+
+
+@pytest.mark.parametrize("freq_s", [3600, 86400])
+def test_parquet_group_without_values_keeps_every_interval(
+    short_sample_sim, saved_whole, tmp_path, freq_s
+):
+    """A group the run leaves empty still has a row per output interval."""
+    groups = ["EHC"]
+    dir_whole = saved_whole(freq_s, None, groups, CLOCK_FOLLOW, fmt="parquet")
+    sim = _parquet_sim(short_sample_sim, tmp_path, freq_s, 30, groups=groups)
+    sim.run()
+
+    df_streamed = _read_streamed(tmp_path)
+    assert df_streamed.isna().all().all()
+    _compare_with_whole(tmp_path, dir_whole, groups, freq_s)
+
+
+def test_parquet_failure_writing_metadata_resumes_from_the_year_before(
+    short_sample_sim, tmp_path, monkeypatch
+):
+    """The metadata file is written before the last checkpoint."""
+    dir_full = tmp_path / "full"
+    _parquet_sim(short_sample_sim, dir_full, 3600, 30).run()
+    dir_out = tmp_path / "out"
+    sim = _parquet_sim(short_sample_sim, dir_out, 3600, 30)
+
+    def fail(*args, **kwargs):
+        raise OSError("simulated failure")
+
+    monkeypatch.setattr(save_module, "_write_parquet_sidecars", fail)
+    with pytest.raises(OSError, match="simulated failure"):
+        sim.run()
+    monkeypatch.undo()
+    ckpt = SUEWSCheckpoint.from_file(next(dir_out.glob("*_checkpoint.json")))
+    assert pd.Timestamp(ckpt.last_timestamp) == pd.Timestamp("2012-01-01 00:00")
+
+    _resume(sim, dir_out)
+
+    _compare_streamed_dirs(dir_out, dir_full)
 
 
 def test_parquet_stream_chunk_is_accepted():

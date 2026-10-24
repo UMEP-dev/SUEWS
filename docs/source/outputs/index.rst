@@ -96,7 +96,8 @@ Compared with ``run()`` followed by ``save(format="parquet")``:
 
 - It holds only the groups listed in ``groups``. Parquet saved after a run that
   was not streamed ignores ``groups`` and holds every group the model writes.
-- The groups other than ``DailyState`` hold the same rows and values. Daily
+- The groups other than ``DailyState`` hold the same rows and values, a row
+  for every output interval even where the groups listed hold no value. Daily
   output saved whole also has a row labelled 00:00 on the run's first day that
   holds only that day's ``DailyState``; the folder has no such row.
 - ``DailyState`` keeps its own rows, one per grid and day at the day's last
@@ -125,9 +126,10 @@ the files of an uninterrupted run, and resuming again from the same checkpoint
 gives the same files. With Parquet, the part files of the completed years are
 kept as they are, the part files of the years after the checkpoint (chosen by
 the year in their names) are deleted and written again, and the temporary file
-of a write the interruption cut short is removed. A checkpoint inside a year
-(streamed runs only write them at year ends) is refused when part files of that
-year exist, since their names do not show which rows precede it. A streamed
+of a write the interruption cut short is removed. A checkpoint inside a year,
+such as the one a completed run writes at its end, is refused when part files
+of that year exist, since their names do not show which rows precede it: write
+a run continued from such a checkpoint to another folder. A streamed
 run that starts afresh, not from a checkpoint, first removes the checkpoint and
 ``provenance.json`` a previous run left in the output folder (and, for Parquet,
 its part files, or its output file saved whole, and its metadata file), so a
@@ -147,7 +149,8 @@ Limitations:
   ``stream_chunk: 366``, as when saved whole, and at 0.4 GB with 30. Written
   as Parquet, the ten-year eight-grid run peaked at 2.2 GB with
   ``stream_chunk: 30`` and 11 GB with 366, against 115 GB for a run saved
-  whole as Parquet; with one grid, at 1.0 GB and 2.1 GB against 15 GB.
+  whole as Parquet (224 s and 191 s against 587 s); with one grid, at 1.0 GB
+  and 2.1 GB against 15 GB.
 - The output exists only on disk. Values read back from the text files carry
   the saved text precision, four decimal places, not the full double precision
   a run kept in memory holds; Parquet keeps it.

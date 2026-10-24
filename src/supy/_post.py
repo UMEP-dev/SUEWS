@@ -227,7 +227,12 @@ def _index_freq_matches(df_output, freq):
 
 
 def _resample_output(
-    df_output, freq="60min", dict_aggm=dict_var_aggm, groups=None, freq_source=None
+    df_output,
+    freq="60min",
+    dict_aggm=dict_var_aggm,
+    groups=None,
+    freq_source=None,
+    drop_empty_rows=True,
 ):
     """Resample SUEWS simulation output to a different temporal frequency.
 
@@ -262,6 +267,11 @@ def _resample_output(
         ``freq_source`` equals ``freq``, instead of the cadence being
         inferred from its index, which needs at least three timestamps.
         Default (None) infers it.
+    drop_empty_rows : bool, optional
+        Drop the resampled rows that hold no value in any group resampled
+        (the default). ``False`` keeps a row for every interval the output
+        covers, as resampling every group of a run's output gives it, whichever
+        groups are resampled.
 
     Returns
     -------
@@ -319,7 +329,12 @@ def _resample_output(
     # frequency
     if freq_source is not None:
         to_offset = pd.tseries.frequencies.to_offset
-        if to_offset(freq_source).nanos == to_offset(freq).nanos:
+        try:
+            same_freq = to_offset(freq_source).nanos == to_offset(freq).nanos
+        except ValueError:
+            # A non-fixed frequency (e.g. month-end) never equals a time step.
+            same_freq = False
+        if same_freq:
             return df_output
     elif _index_freq_matches(df_output, freq):
         return df_output
@@ -402,7 +417,8 @@ def _resample_output(
     )
 
     # clean results
-    df_rsmp = df_rsmp.dropna(how="all", axis=0)
+    if drop_empty_rows:
+        df_rsmp = df_rsmp.dropna(how="all", axis=0)
 
     # Ensure the index has proper names (grid, datetime)
     # After concat, the datetime level may lose its name

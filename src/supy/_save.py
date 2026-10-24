@@ -525,6 +525,7 @@ class StreamedTextFiles:
 
 
 _PART_NAME = re.compile(r"^part-(?P<year>\d{4})-(?P<chunk>\d{3})\.parquet$")
+_PART_TMP_NAME = re.compile(r"^\.part-\d{4}-\d{3}\.parquet\.tmp$")
 
 
 class StreamedParquetParts:
@@ -547,9 +548,9 @@ class StreamedParquetParts:
     continuing from a checkpoint whose ``last_timestamp`` is *resume_after*
     keeps the part files of the years the checkpoint completes and deletes
     the later ones, which it writes again, choosing them by the year in
-    their names. Streamed runs checkpoint only at year ends; a checkpoint
-    inside a year whose part files exist is refused, because which of their
-    rows precede it cannot be told from the names.
+    their names. A checkpoint inside a year (a streamed run writes one only
+    at its end) is refused when part files of that year exist, because
+    which of their rows precede it cannot be told from the names.
 
     *tstep_s* is the model timestep: each chunk is resampled exactly when
     the whole run is, a short last chunk included.
@@ -595,6 +596,7 @@ class StreamedParquetParts:
             path_tmp, engine=_parquet_engine(), compression="snappy", index=True
         )
         os.replace(path_tmp, path_part)
+        self._chunk = None
 
     def finish(self) -> list:
         """Write the files saved beside the output folder; return every path.
@@ -616,9 +618,10 @@ class StreamedParquetParts:
             )
         path_dir.mkdir(parents=True, exist_ok=True)
         # A write the interruption cut short left only its temporary file.
-        for path_tmp in path_dir.glob(".part-*.tmp"):
-            logger_supy.info("stream_chunk: removing the unfinished %s.", path_tmp)
-            path_tmp.unlink()
+        for path_tmp in path_dir.iterdir():
+            if _PART_TMP_NAME.match(path_tmp.name):
+                logger_supy.info("stream_chunk: removing the unfinished %s.", path_tmp)
+                path_tmp.unlink()
         if self.resume_after is not None:
             self._delete_parts_after_checkpoint()
 
@@ -662,8 +665,8 @@ class StreamedParquetParts:
                     f"stream_chunk: the checkpoint at {ts} is not at a year end "
                     f"and {self.path_output} holds part files of {year_done} "
                     f"({', '.join(list_same)}) that may hold rows after it. "
-                    "Continue from a checkpoint at a year end, or into another "
-                    "folder."
+                    "Continue from a checkpoint at a year end, or write the "
+                    "continued run to another folder."
                 )
         for year, _, path in list_part:
             if year > year_done:
@@ -1339,10 +1342,11 @@ def _parquet_chunk_frame(
     """Return the rows one chunk of a streamed run writes to Parquet.
 
     Every group but DailyState is resampled to *freq_save* (left as it is at
-    the model timestep *tstep_s*); DailyState keeps its own rows, the last
-    step of each day, as the text output keeps them, rather than being
-    resampled. Columns follow ``df_output``; rows are sorted by grid, then
-    time.
+    the model timestep *tstep_s*), keeping a row for every output interval
+    even where those groups hold no value, as a run saved whole has one;
+    DailyState keeps its own rows, the last step of each day, as the text
+    output keeps them, rather than being resampled. Columns follow
+    ``df_output``; rows are sorted by grid, then time.
     """
     ser_group = df_output.columns.get_level_values("group")
     list_main = [g for g in ser_group.unique() if g != "DailyState"]
@@ -1350,7 +1354,11 @@ def _parquet_chunk_frame(
     if list_main:
         freq_source = pd.Timedelta(tstep_s, "s") if tstep_s is not None else None
         df_main = _resample_output(
-            df_output, freq_save, groups=list_main, freq_source=freq_source
+            df_output,
+            freq_save,
+            groups=list_main,
+            freq_source=freq_source,
+            drop_empty_rows=False,
         )
         mask_main = df_main.columns.get_level_values("group").isin(list_main)
         list_frame.append(df_main.loc[:, mask_main])

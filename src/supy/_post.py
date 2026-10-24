@@ -226,7 +226,9 @@ def _index_freq_matches(df_output, freq):
         return inferred == target_offset
 
 
-def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=None):
+def _resample_output(
+    df_output, freq="60min", dict_aggm=dict_var_aggm, groups=None, freq_source=None
+):
     """Resample SUEWS simulation output to a different temporal frequency.
 
     This function resamples time series data using variable-appropriate
@@ -254,6 +256,12 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=No
         of ``df_output``. Default (None) resamples every group. When
         ``df_output`` is already at ``freq`` it is returned unchanged, with
         all its groups.
+    freq_source : str or pandas.Timedelta, optional
+        The time step ``df_output`` is known to be at (the model timestep).
+        When given, ``df_output`` counts as already at ``freq`` exactly when
+        ``freq_source`` equals ``freq``, instead of the cadence being
+        inferred from its index, which needs at least three timestamps.
+        Default (None) infers it.
 
     Returns
     -------
@@ -309,7 +317,11 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=No
 
     # Skip resampling entirely when the data is already at the requested
     # frequency
-    if _index_freq_matches(df_output, freq):
+    if freq_source is not None:
+        to_offset = pd.tseries.frequencies.to_offset
+        if to_offset(freq_source).nanos == to_offset(freq).nanos:
+            return df_output
+    elif _index_freq_matches(df_output, freq):
         return df_output
 
     # Helper function to resample a group with specified parameters

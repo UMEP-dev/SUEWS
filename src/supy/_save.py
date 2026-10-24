@@ -4,7 +4,6 @@ import io
 import os
 from pathlib import Path
 import re
-import shutil
 import time
 from typing import Optional, Tuple
 
@@ -525,256 +524,156 @@ class StreamedTextFiles:
         return False
 
 
-_PART_NAME = re.compile(r"^grid(?P<grid>-?\d+)\.part(?P<seq>\d+)\.parquet$")
+_PART_NAME = re.compile(r"^part-(?P<year>\d{4})-(?P<chunk>\d{3})\.parquet$")
 
 
-class StreamedParquetFile:
-    """The Parquet output file of a run streamed to disk in chunks (gh#1849).
+class StreamedParquetParts:
+    """The Parquet output of a run streamed to disk in chunks (gh#1849).
 
-    Saving the whole run writes one file whose rows run grid by grid, each
-    grid in time order. A run streamed in chunks produces the rows chunk by
-    chunk, all grids at once, and a Parquet file can be neither reordered
-    nor extended once closed; a file still open when the process dies has no
-    footer and cannot be read. So each chunk's rows are written, one row
-    group per grid, into staging part files in a folder beside the output
-    file (``.<output name>.parts``). Every part is closed at each calendar
-    year end, before that year's checkpoint is written, so the rows a
-    checkpoint covers are always in complete files.
+    The output is a folder at *path_output*, the path a run saved whole
+    writes its one Parquet file to, holding one file per chunk,
+    ``part-<year>-<chunk>.parquet`` (the calendar year and the chunk's
+    1-based position in it), with that chunk's rows of the groups saved;
+    ``pandas.read_parquet(folder)`` reads them back as one frame. Each file
+    is written under a hidden temporary name (readers skip names starting
+    with a dot) and renamed over its final name, so it is either whole or
+    absent. :meth:`start_chunk` names the chunk the next :meth:`write`
+    holds; :meth:`finish` writes the files saved beside the folder once, at
+    the end of the run.
 
-    :meth:`finish` joins the parts into the output file, grid by grid, one
-    row group per chunk and grid, written beside it and renamed over it, then
-    writes the files saved beside it; :meth:`cleanup` removes the parts.
-    Read back, the file holds the frame saving the whole run writes. Where
-    two consecutive chunks give a row the same label (daily output: the day
-    that closes at a chunk boundary and the DailyState of the day that opens
-    there), the row is joined from both, as resampling the whole run joins
-    it.
+    :meth:`prepare` runs before the first chunk. A fresh run removes what a
+    previous run left at *path_output* (its part and temporary files, or an
+    output file saved whole) and the files *list_path_sidecar*. A run
+    continuing from a checkpoint whose ``last_timestamp`` is *resume_after*
+    keeps the part files of the years the checkpoint completes and deletes
+    the later ones, which it writes again, choosing them by the year in
+    their names. Streamed runs checkpoint only at year ends; a checkpoint
+    inside a year whose part files exist is refused, because which of their
+    rows precede it cannot be told from the names.
 
-    *path_output* is the output file (see :func:`parquet_output_path`).
-    :meth:`prepare`, called before the run's first chunk, removes another
-    run's output file and parts or, with *resume_after* (the
-    ``last_timestamp`` of the checkpoint a run continues from), drops from
-    each part the row groups (chunks) whose rows go past it, logging what it
-    drops; new parts then follow the remaining ones, and resuming again from
-    the same checkpoint gives the same file. A grid's last part left without
-    a footer by an interruption was opened after the last checkpoint, so all
-    its rows are written again: it is reported and discarded. Any other part
-    that cannot be read holds rows the checkpoint covers, which cannot be
-    recovered: the run stops with an error naming it.
-
-    *resample* is whether saving the whole run resamples it (``False`` when
-    the output frequency is the model timestep), so that every chunk, a
-    short last one included, is treated as the whole run is.
+    *tstep_s* is the model timestep: each chunk is resampled exactly when
+    the whole run is, a short last chunk included.
     """
 
     def __init__(
         self,
         path_output: Path,
+        list_path_sidecar=(),
         resume_after: Optional[pd.Timestamp] = None,
-        resample: bool = True,
+        tstep_s: Optional[int] = None,
     ) -> None:
         self.path_output = Path(path_output)
-        self.path_parts = self.path_output.with_name(f".{self.path_output.name}.parts")
+        self.list_path_sidecar = [Path(path) for path in list_path_sidecar]
         self.resume_after = (
             pd.Timestamp(resume_after) if resume_after is not None else None
         )
-        self.resample = resample
-        self._schema = None
-        self._list_grid: list = []
-        self._dict_writer: dict = {}
-        self._seq = 0
+        self.tstep_s = tstep_s
+        self._chunk: Optional[Tuple[int, int]] = None
         self._write_sidecars = None
 
-    def write(self, path_output: Path, df_frame: pd.DataFrame, write_sidecars) -> None:
-        """Write one chunk's rows, one row group per grid.
+    def start_chunk(self, year: int, chunk: int) -> None:
+        """Name the chunk the next :meth:`write` holds."""
+        self._chunk = (int(year), int(chunk))
 
-        *write_sidecars* writes the files saved beside the output file and
+    def write(self, path_output: Path, df_frame: pd.DataFrame, write_sidecars) -> None:
+        """Write one chunk's rows to its own part file.
+
+        *write_sidecars* writes the files saved beside the output folder and
         returns their paths; :meth:`finish` calls it once.
         """
-        import pyarrow as pa
-        import pyarrow.parquet as pq
-
         if Path(path_output) != self.path_output:
             raise ValueError(
                 f"stream_chunk: this run writes {self.path_output}, not {path_output}."
             )
+        if self._chunk is None:
+            raise RuntimeError("stream_chunk: start_chunk() must name the chunk first.")
         self._write_sidecars = write_sidecars
-        tbl = pa.Table.from_pandas(df_frame, preserve_index=True)
-        if self._schema is None:
-            self._schema = tbl.schema
-        else:
-            tbl = tbl.cast(self._schema)
-        ar_grid = df_frame.index.get_level_values("grid")
-        for grid in pd.unique(ar_grid):
-            if grid not in self._list_grid:
-                self._list_grid.append(grid)
-            tbl_grid = tbl.take(np.flatnonzero(ar_grid == grid))
-            if len(tbl_grid) == 0:
-                continue
-            writer = self._dict_writer.get(grid)
-            if writer is None:
-                path_part = self.path_parts / f"grid{grid}.part{self._seq:05d}.parquet"
-                self._seq += 1
-                writer = pq.ParquetWriter(path_part, self._schema, compression="snappy")
-                self._dict_writer[grid] = writer
-            writer.write_table(tbl_grid, row_group_size=max(len(tbl_grid), 1))
-
-    def end_year(self) -> None:
-        """Close the open parts, so the rows written so far can be read."""
-        for writer in self._dict_writer.values():
-            writer.close()
-        self._dict_writer = {}
+        year, chunk = self._chunk
+        path_part = self.path_output / f"part-{year:04d}-{chunk:03d}.parquet"
+        path_tmp = path_part.with_name(f".{path_part.name}.tmp")
+        df_frame.to_parquet(
+            path_tmp, engine=_parquet_engine(), compression="snappy", index=True
+        )
+        os.replace(path_tmp, path_part)
 
     def finish(self) -> list:
-        """Write the output file from the parts, then the files beside it.
+        """Write the files saved beside the output folder; return every path.
 
-        Returns the paths written, the output file first, as
-        :func:`save_df_output_parquet` returns them.
+        The output folder comes first, as :func:`save_df_output_parquet`
+        returns its output file first.
         """
-        import pyarrow.parquet as pq
-
-        self.end_year()
-        dict_part = self._parts()
-        list_grid = self._list_grid + sorted(set(dict_part) - set(self._list_grid))
-        path_tmp = self.path_output.with_name(self.path_output.name + ".tmp")
-        with pq.ParquetWriter(path_tmp, self._schema, compression="snappy") as writer:
-            for grid in list_grid:
-                tbl_last = None
-                for path_part in dict_part.get(grid, []):
-                    file_part = pq.ParquetFile(path_part)
-                    for i_group in range(file_part.num_row_groups):
-                        tbl = file_part.read_row_group(i_group).cast(self._schema)
-                        if tbl_last is not None:
-                            tbl = self._join_rows(tbl_last, tbl)
-                        # The last row may share its label with the next
-                        # chunk's first row; hold it until that is known.
-                        tbl_last = tbl.slice(len(tbl) - 1)
-                        if len(tbl) > 1:
-                            writer.write_table(tbl.slice(0, len(tbl) - 1))
-                if tbl_last is not None:
-                    writer.write_table(tbl_last)
-        os.replace(path_tmp, self.path_output)
-        logger_supy.info("Saved Parquet output to %s", self.path_output)
         return [self.path_output, *self._write_sidecars()]
 
-    def cleanup(self) -> None:
-        """Remove the staging parts once the output file is complete."""
-        if self.path_parts.exists():
-            shutil.rmtree(self.path_parts)
+    def prepare(self) -> None:
+        """Clear or trim the output folder before the run's first chunk."""
+        path_dir = self.path_output
+        if self.resume_after is None:
+            self._remove_previous_run()
+        elif path_dir.exists() and not path_dir.is_dir():
+            raise ValueError(
+                f"stream_chunk: {path_dir} is a Parquet file saved whole, not a "
+                "streamed run's folder, so the run cannot continue it."
+            )
+        path_dir.mkdir(parents=True, exist_ok=True)
+        # A write the interruption cut short left only its temporary file.
+        for path_tmp in path_dir.glob(".part-*.tmp"):
+            logger_supy.info("stream_chunk: removing the unfinished %s.", path_tmp)
+            path_tmp.unlink()
+        if self.resume_after is not None:
+            self._delete_parts_after_checkpoint()
 
-    def _join_rows(self, tbl_last, tbl):
-        """Put the held row *tbl_last* before *tbl*, joining equal labels.
-
-        Each row holds values only where the chunk that wrote it computed
-        them, so the joined row takes each value from whichever row has it.
-        """
-        import pyarrow as pa
-
-        label_last = tbl_last.column("datetime")[0]
-        if not label_last.equals(tbl.column("datetime")[0]):
-            return pa.concat_tables([tbl_last, tbl])
-        df_last = tbl_last.to_pandas()
-        df_first = tbl.slice(0, 1).to_pandas()
-        df_joined = df_last.where(df_last.notna(), df_first.to_numpy())
-        tbl_joined = pa.Table.from_pandas(df_joined, preserve_index=True)
-        return pa.concat_tables([tbl_joined.cast(self._schema), tbl.slice(1)])
-
-    def _parts(self) -> dict:
-        """Map each grid to its part files, in the order they were written."""
-        dict_part: dict = {}
-        for path in sorted(self.path_parts.iterdir()):
+    def _parts(self) -> list:
+        """Return (year, chunk, path) for each part file, sorted."""
+        list_part = []
+        for path in self.path_output.iterdir():
             match = _PART_NAME.match(path.name)
             if match is not None:
-                key = (int(match["seq"]), path)
-                dict_part.setdefault(int(match["grid"]), []).append(key)
-        return {grid: [path for _, path in sorted(v)] for grid, v in dict_part.items()}
+                list_part.append((int(match["year"]), int(match["chunk"]), path))
+        return sorted(list_part)
 
-    @staticmethod
-    def _last_label(file_part, i_group: int) -> pd.Timestamp:
-        """Return the latest row label in row group *i_group* of a part."""
-        tbl = file_part.read_row_group(i_group, columns=["datetime"])
-        return tbl.column("datetime").to_pandas().max()
-
-    def prepare(self) -> None:
-        """Prepare the staging folder before the run's first chunk."""
-        path_output = self.path_output
-        if self.resume_after is None:
-            # A fresh run: another run's parts or output must not mix in.
-            path_tmp = path_output.with_name(path_output.name + ".tmp")
-            for path in (self.path_parts, path_output, path_tmp):
-                if path.exists():
-                    logger_supy.info(
-                        "stream_chunk: removing %s left by a previous run.",
-                        path.resolve(),
-                    )
-                    if path.is_dir():
-                        shutil.rmtree(path)
-                    else:
-                        path.unlink()
-        self.path_parts.mkdir(parents=True, exist_ok=True)
-        if self.resume_after is not None:
-            self._trim_parts()
-
-    def _trim_parts(self) -> None:
-        """Keep in each part only the chunks the run up to the checkpoint wrote."""
-        import pyarrow as pa
-        import pyarrow.parquet as pq
-
-        dict_part = self._parts()
-        seq_max = -1
-        for list_path in dict_part.values():
-            for pos, path_part in enumerate(list_path):
-                seq_max = max(seq_max, int(_PART_NAME.match(path_part.name)["seq"]))
-                try:
-                    file_part = pq.ParquetFile(path_part)
-                except (pa.ArrowInvalid, OSError) as err:
-                    if pos < len(list_path) - 1:
-                        raise RuntimeError(
-                            f"stream_chunk: {path_part} cannot be read ({err}); it "
-                            f"holds output the checkpoint at {self.resume_after} "
-                            "covers, which cannot be recovered. Run again from the "
-                            "start, or from a checkpoint that ends before this "
-                            "file was written."
-                        ) from err
-                    logger_supy.warning(
-                        "stream_chunk: %s was left incomplete by the interrupted "
-                        "run (%s); its rows all follow the checkpoint at %s, so it "
-                        "is discarded and they are written again.",
-                        path_part,
-                        err,
-                        self.resume_after,
-                    )
-                    path_part.unlink()
-                    continue
-                n_group = file_part.num_row_groups
-                list_keep = [
-                    i_group
-                    for i_group in range(n_group)
-                    if self._last_label(file_part, i_group) <= self.resume_after
-                ]
-                if len(list_keep) == n_group:
-                    continue
-                n_row = file_part.metadata.num_rows - sum(
-                    file_part.metadata.row_group(i).num_rows for i in list_keep
-                )
+    def _remove_previous_run(self) -> None:
+        """Remove the output and sidecar files a previous run left."""
+        path_dir = self.path_output
+        list_remove = list(self.list_path_sidecar)
+        if path_dir.is_dir():
+            list_remove += [path for _, _, path in self._parts()]
+        elif path_dir.exists():
+            list_remove.append(path_dir)
+        for path in list_remove:
+            if path.exists():
                 logger_supy.info(
-                    "stream_chunk: dropping %d rows written after the checkpoint "
-                    "at %s from %s.",
-                    n_row,
-                    self.resume_after,
-                    path_part,
+                    "stream_chunk: removing %s left by a previous run.",
+                    path.resolve(),
                 )
-                if not list_keep:
-                    path_part.unlink()
-                    continue
-                path_tmp = path_part.with_name(path_part.name + ".tmp")
-                with pq.ParquetWriter(
-                    path_tmp, file_part.schema_arrow, compression="snappy"
-                ) as writer:
-                    for i_group in list_keep:
-                        writer.write_table(file_part.read_row_group(i_group))
-                os.replace(path_tmp, path_part)
-        self._seq = seq_max + 1
+                path.unlink()
+
+    def _delete_parts_after_checkpoint(self) -> None:
+        """Delete the part files of the years after the checkpoint."""
+        ts = self.resume_after
+        at_year_end = ts == pd.Timestamp(year=ts.year, month=1, day=1)
+        # Under the right-closed convention 1 January 00:00 closes the year
+        # before it.
+        year_done = ts.year - 1 if at_year_end else ts.year
+        list_part = self._parts()
+        if not at_year_end:
+            list_same = [path.name for year, _, path in list_part if year == year_done]
+            if list_same:
+                raise ValueError(
+                    f"stream_chunk: the checkpoint at {ts} is not at a year end "
+                    f"and {self.path_output} holds part files of {year_done} "
+                    f"({', '.join(list_same)}) that may hold rows after it. "
+                    "Continue from a checkpoint at a year end, or into another "
+                    "folder."
+                )
+        for year, _, path in list_part:
+            if year > year_done:
+                logger_supy.info(
+                    "stream_chunk: deleting %s, written after the checkpoint at "
+                    "%s; it is written again.",
+                    path,
+                    ts,
+                )
+                path.unlink()
 
 
 def _asfreq_frame(df_data: pd.DataFrame, freq) -> pd.DataFrame:
@@ -1422,13 +1321,44 @@ def _parquet_file_name(site: str, kind: str, timestamp_suffix: str) -> str:
     return f"{stem}{timestamp_suffix}.parquet"
 
 
-def parquet_output_path(path_dir_save: Path, site: str, timestamp_reference) -> Path:
-    """Path of the Parquet output file :func:`save_df_output_parquet` writes.
+def parquet_file_path(
+    path_dir_save: Path, site: str, kind: str, timestamp_reference
+) -> Path:
+    """Path of the Parquet file of *kind* :func:`save_df_output_parquet` writes.
 
-    *site* is the filesystem-safe site token.
+    *kind* is ``output``, ``metadata`` or ``state_final``; *site* is the
+    filesystem-safe site token.
     """
     timestamp_suffix = _timestamp_reference_filename_suffix(timestamp_reference)
-    return Path(path_dir_save) / _parquet_file_name(site, "output", timestamp_suffix)
+    return Path(path_dir_save) / _parquet_file_name(site, kind, timestamp_suffix)
+
+
+def _parquet_chunk_frame(
+    df_output: pd.DataFrame, freq_save: pd.Timedelta, tstep_s: Optional[int]
+) -> pd.DataFrame:
+    """Return the rows one chunk of a streamed run writes to Parquet.
+
+    Every group but DailyState is resampled to *freq_save* (left as it is at
+    the model timestep *tstep_s*); DailyState keeps its own rows, the last
+    step of each day, as the text output keeps them, rather than being
+    resampled. Columns follow ``df_output``; rows are sorted by grid, then
+    time.
+    """
+    ser_group = df_output.columns.get_level_values("group")
+    list_main = [g for g in ser_group.unique() if g != "DailyState"]
+    list_frame = []
+    if list_main:
+        freq_source = pd.Timedelta(tstep_s, "s") if tstep_s is not None else None
+        df_main = _resample_output(
+            df_output, freq_save, groups=list_main, freq_source=freq_source
+        )
+        mask_main = df_main.columns.get_level_values("group").isin(list_main)
+        list_frame.append(df_main.loc[:, mask_main])
+    if "DailyState" in ser_group:
+        list_frame.append(_dailystate_rows(df_output))
+    df_chunk = list_frame[0] if len(list_frame) == 1 else pd.concat(list_frame, axis=1)
+    columns = df_output.columns[ser_group.isin(df_chunk.columns.get_level_values(0))]
+    return df_chunk.reindex(columns=columns).sort_index()
 
 
 def _write_parquet_sidecars(
@@ -1449,11 +1379,10 @@ def _write_parquet_sidecars(
     from ._version import __version__
 
     engine = _parquet_engine()
-    timestamp_suffix = _timestamp_reference_filename_suffix(timestamp_reference)
     list_path_save = []
     if save_state:
-        path_state = path_dir_save / _parquet_file_name(
-            site, "state_final", timestamp_suffix
+        path_state = parquet_file_path(
+            path_dir_save, site, "state_final", timestamp_reference
         )
         df_state_final.to_parquet(
             path_state, engine=engine, compression="snappy", index=True
@@ -1471,7 +1400,7 @@ def _write_parquet_sidecars(
         "creation_time": pd.Timestamp.now().isoformat(),
         "version": __version__,
     }
-    path_meta = path_dir_save / _parquet_file_name(site, "metadata", timestamp_suffix)
+    path_meta = parquet_file_path(path_dir_save, site, "metadata", timestamp_reference)
     df_meta = pd.DataFrame([metadata])
     df_meta.to_parquet(path_meta, engine=engine)
     list_path_save.append(path_meta)
@@ -1489,7 +1418,7 @@ def save_df_output_parquet(
     site_metadata: Optional[str] = None,
     timestamp_reference="follow",
     forcing_timestamp_reference="local_standard_time",
-    streamed_parquet: Optional["StreamedParquetFile"] = None,
+    streamed_parquet: Optional[StreamedParquetParts] = None,
 ) -> list:
     """Save supy output to Parquet format.
 
@@ -1516,11 +1445,12 @@ def save_df_output_parquet(
         Saved timestamp reference. ``follow`` preserves the forcing clock.
     forcing_timestamp_reference : str, optional
         Clock used by ``df_output`` before any saved-output relabelling.
-    streamed_parquet : StreamedParquetFile, optional
+    streamed_parquet : StreamedParquetParts, optional
         Set when ``df_output`` is one chunk of a run streamed to disk: the
-        chunk's rows are handed to it, and the output file and the files
-        beside it are written once, when the run ends (see
-        :class:`StreamedParquetFile`). Only the output file's path is
+        chunk's rows, with DailyState at its own rows rather than resampled,
+        go to their own file in the output folder, and the files beside it
+        are written once, when the run ends (see
+        :class:`StreamedParquetParts`). Only the output folder's path is
         returned. ``None`` (the default) writes every file now.
 
     Returns
@@ -1534,12 +1464,9 @@ def save_df_output_parquet(
     df_save = df_output.copy(deep=False)
     freq_save = pd.Timedelta(freq_s, "s")
 
-    # A streamed chunk is resampled exactly when the whole run would be, so a
-    # short last chunk at the model timestep is not resampled on its own.
-    resample = not save_tstep and (
-        streamed_parquet is None or streamed_parquet.resample
-    )
-    if resample:
+    if streamed_parquet is not None:
+        df_to_save = _parquet_chunk_frame(df_save, freq_save, streamed_parquet.tstep_s)
+    elif not save_tstep:
         # Resample output
         df_rsmp = _resample_output(df_save, freq_save)
 
@@ -1562,7 +1489,7 @@ def save_df_output_parquet(
     )
 
     # Construct filenames
-    path_output = parquet_output_path(path_dir_save, site, timestamp_reference)
+    path_output = parquet_file_path(path_dir_save, site, "output", timestamp_reference)
     write_sidecars = partial(
         _write_parquet_sidecars,
         df_state_final,

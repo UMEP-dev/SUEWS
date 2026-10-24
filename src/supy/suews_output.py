@@ -32,8 +32,8 @@ def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
     )
     if list_parquet:
         where = (
-            f"Its Parquet output file is {folder / list_parquet[0]}; read it "
-            "back with pandas.read_parquet(path)"
+            f"Its Parquet output is the folder {folder / list_parquet[0]}, one "
+            "file per chunk; read it back with pandas.read_parquet(folder)"
         )
     else:
         text_files = sorted(p.name for p in paths if p.suffix == ".txt")
@@ -761,7 +761,7 @@ class SUEWSOutput:
         """One-line description of a streamed output (no rows held)."""
         folder = Path(self._streamed_paths[0]).resolve().parent
         n_text = sum(1 for p in self._streamed_paths if Path(p).suffix == ".txt")
-        files = f"{n_text} text files" if n_text else "one Parquet file"
+        files = f"{n_text} text files" if n_text else "a Parquet folder"
         return (
             f"SUEWSOutput(streamed to {folder}, {files}, "
             f"{len(self.groups)} groups; no rows held in memory)"

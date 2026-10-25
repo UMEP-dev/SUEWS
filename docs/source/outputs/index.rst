@@ -79,13 +79,42 @@ grid, group and year, which later chunks extend), and the chunk is dropped
 before the next one runs. Only the groups listed in ``groups`` (default
 ``SUEWS`` and ``DailyState``) are kept from each chunk. The files are
 byte-identical to those of a run saved whole, for any chunk length. Streaming
-currently needs text output, an output frequency that divides one day, and
-output timestamps on the forcing clock (``timestamp_reference`` of ``follow``
-or the forcing's own reference); ``chunk_day`` is ignored. The log names the
-output folder at the start and reports each chunk as it is written.
+needs an output frequency that divides one day and output timestamps on the
+forcing clock (``timestamp_reference`` of ``follow`` or the forcing's own
+reference); ``chunk_day`` is ignored. The log names the output folder at the
+start and reports each chunk as it is written.
+
+With ``format: parquet`` the output is a folder, at the path where a run saved
+whole writes its one Parquet file (for example ``KCL_SUEWS_output.parquet/``),
+holding one file per chunk named by calendar year and chunk within it
+(``part-2012-001.parquet``, ``part-2012-002.parquet``, ...). Each file is
+written under a hidden temporary name and then renamed, so it is either whole
+or absent. The metadata file is written beside the folder when the run ends.
+Read the folder back as one frame with ``pandas.read_parquet(folder)``; its rows
+come chunk by chunk, so sort them by grid and time with ``.sort_index()``.
+Compared with ``run()`` followed by ``save(format="parquet")``:
+
+- It holds only the groups listed in ``groups``. Parquet saved after a run that
+  was not streamed ignores ``groups`` and holds every group the model writes.
+- The groups other than ``DailyState`` hold the same rows and values, a row
+  for every output interval even where the groups listed hold no value. Daily
+  output saved whole also has a row labelled 00:00 on the run's first day that
+  holds only that day's ``DailyState``; the folder has no such row.
+- ``DailyState`` keeps its own rows, one per grid and day at the day's last
+  model step (23:55 with a 5-minute timestep), as the text output does, with
+  the same values. Saved whole, ``DailyState`` is resampled to the output
+  frequency and labelled at the start of the output interval that holds that
+  step (23:00 for hourly output, 00:00 of the same day for daily output); at
+  the model timestep the two agree. With an output frequency longer than the
+  model timestep, the folder therefore has one more row per grid and day,
+  holding ``DailyState`` only.
+- The values keep full double (float64) precision, where text files carry four
+  decimal places. Prefer Parquet for streamed runs whose output will be read
+  back for analysis.
 
 The output returned to Python holds no rows: read the written files back, for
-example with ``pandas.read_csv(path, sep=r"\s+")``. The checkpoint file is
+example with ``pandas.read_csv(path, sep=r"\s+")`` for text or
+``pandas.read_parquet(folder)`` for Parquet. The checkpoint file is
 replaced at the end of every calendar year. A run that stops part-way can
 continue from it: load the checkpoint with
 :meth:`~supy.SUEWSSimulation.from_checkpoint` and run from one model timestep
@@ -94,10 +123,18 @@ of the year it stopped in and rewrites that year's files: in each file it
 writes, it keeps the rows up to the checkpoint and replaces everything after
 (a file whose header is missing or cut short is written anew), so it ends with
 the files of an uninterrupted run, and resuming again from the same checkpoint
-gives the same files. A streamed run that starts afresh, not from a
-checkpoint, first removes the checkpoint and ``provenance.json`` a previous
-run left in the output folder, so a failure before its first year end leaves
-no checkpoint of another run to resume from.
+gives the same files. With Parquet, the part files of the completed years are
+kept as they are, the part files of the years after the checkpoint (chosen by
+the year in their names) are deleted and written again, and the temporary file
+of a write the interruption cut short is removed. A checkpoint inside a year,
+such as the one a completed run writes at its end, is refused when part files
+of that year exist, since their names do not show which rows precede it: write
+a run continued from such a checkpoint to another folder. A streamed
+run that starts afresh, not from a checkpoint, first removes the checkpoint and
+``provenance.json`` a previous run left in the output folder (and, for Parquet,
+its part files, or its output file saved whole, and its metadata file), so a
+failure before its first year end leaves no checkpoint of another run to resume
+from.
 
 Limitations:
 
@@ -109,10 +146,14 @@ Limitations:
   timestep saving ``SUEWS`` and ``DailyState`` hourly peaked at about 2.3 GB
   with ``stream_chunk: 30`` and 11 GB with ``stream_chunk: 366``, against
   92 GB for a run saved whole. A one-year single-grid run peaked at 1.5 GB with
-  ``stream_chunk: 366``, as when saved whole, and at 0.4 GB with 30.
+  ``stream_chunk: 366``, as when saved whole, and at 0.4 GB with 30. Written
+  as Parquet, the ten-year eight-grid run peaked at 2.2 GB with
+  ``stream_chunk: 30`` and 11 GB with 366, against 115 GB for a run saved
+  whole as Parquet (224 s and 191 s against 587 s); with one grid, at 1.0 GB
+  and 2.1 GB against 15 GB.
 - The output exists only on disk. Values read back from the text files carry
   the saved text precision, four decimal places, not the full double precision
-  a run kept in memory holds.
+  a run kept in memory holds; Parquet keeps it.
 - Groups not listed in ``groups`` are not kept at all; to analyse another group,
   list it in ``groups`` before the run.
 

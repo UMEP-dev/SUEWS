@@ -226,7 +226,14 @@ def _index_freq_matches(df_output, freq):
         return inferred == target_offset
 
 
-def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=None):
+def _resample_output(
+    df_output,
+    freq="60min",
+    dict_aggm=dict_var_aggm,
+    groups=None,
+    freq_source=None,
+    drop_empty_rows=True,
+):
     """Resample SUEWS simulation output to a different temporal frequency.
 
     This function resamples time series data using variable-appropriate
@@ -254,6 +261,17 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=No
         of ``df_output``. Default (None) resamples every group. When
         ``df_output`` is already at ``freq`` it is returned unchanged, with
         all its groups.
+    freq_source : str or pandas.Timedelta, optional
+        The time step ``df_output`` is known to be at (the model timestep).
+        When given, ``df_output`` counts as already at ``freq`` exactly when
+        ``freq_source`` equals ``freq``, instead of the cadence being
+        inferred from its index, which needs at least three timestamps.
+        Default (None) infers it.
+    drop_empty_rows : bool, optional
+        Drop the resampled rows that hold no value in any group resampled
+        (the default). ``False`` keeps a row for every interval the output
+        covers, as resampling every group of a run's output gives it, whichever
+        groups are resampled.
 
     Returns
     -------
@@ -309,7 +327,16 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=No
 
     # Skip resampling entirely when the data is already at the requested
     # frequency
-    if _index_freq_matches(df_output, freq):
+    if freq_source is not None:
+        to_offset = pd.tseries.frequencies.to_offset
+        try:
+            same_freq = to_offset(freq_source).nanos == to_offset(freq).nanos
+        except ValueError:
+            # A non-fixed frequency (e.g. month-end) never equals a time step.
+            same_freq = False
+        if same_freq:
+            return df_output
+    elif _index_freq_matches(df_output, freq):
         return df_output
 
     # Helper function to resample a group with specified parameters
@@ -390,7 +417,8 @@ def _resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, groups=No
     )
 
     # clean results
-    df_rsmp = df_rsmp.dropna(how="all", axis=0)
+    if drop_empty_rows:
+        df_rsmp = df_rsmp.dropna(how="all", axis=0)
 
     # Ensure the index has proper names (grid, datetime)
     # After concat, the datetime level may lose its name

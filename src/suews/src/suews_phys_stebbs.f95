@@ -28,17 +28,15 @@ CONTAINS
    !   vFR - volume Flow Rate [m3 s-1]
    !   Tout - temperature of water in vessel lost to drains [K]
    !   Tmains - Water mains (cold) temperature [K]
-   !   timeResolution - time resolution [s]
    ! Returns:
-   !   q_wt - energy lost to drains [J]
+   !   q_wt - rate of heat lost to drains [W]
    !-------------------------------------------------------------------
-   FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, Tmains, timeResolution) RESULT(q_wt)
+   FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, Tmains) RESULT(q_wt)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      INTEGER, INTENT(in) :: timeResolution
       REAL(KIND(1D0)), INTENT(in) :: rho, Cp, vFRo, Tout, Tmains
       REAL(KIND(1D0)) :: q_wt
-      q_wt = rho*Cp*(Tout - Tmains)*(vFRo*timeResolution)
+      q_wt = rho*Cp*(Tout - Tmains)*vFRo
    END FUNCTION
    !-------------------------------------------------------------------
    ! Function: indoorConvectionHeatTransfer
@@ -1633,7 +1631,7 @@ SUBROUTINE tstep( &
                       QHconv_extvesselwall_to_indair, & ! convective heat flux to external wall of vessels holding DHW in use in building
                       Qlw_net_extvesselwall_to_wall, &
                       Qlw_net_extvesselwall_to_indoormass, & ! radiative heat flux to external wall of vessels holding DHW in use in building
-                      Qloss_drain, & ! Heat loss as water held in use in building drains to sewer
+                      Qloss_drain, & ! Heat loss as water held in use in building drains to sewer [W]
                       QHwaste_dhw ! additional heat release from efficieny losses/gains of heating hot water
 
    REAL(KIND(1D0)) :: Qtotal_net_water_tank, Qtotal_net_intwall_tank, &
@@ -2245,8 +2243,8 @@ SUBROUTINE tstep( &
             Textwall_vessel = Textwall_vessel + dTextwall_vessel
          END IF
          Qloss_drain = &
-            waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, Tincomingwater_tank, resolution)
-         Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain
+            waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, Tincomingwater_tank)
+         Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain*resolution
          dVwater_vessel = (flowrate_water_supply - flowrate_water_drain)*resolution
          Vwater_vessel = Vwater_vessel + dVwater_vessel
          !IF (Vwater_vessel < minVwater_vessel) THEN

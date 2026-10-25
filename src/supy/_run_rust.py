@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Sequence
 from functools import cache
 from importlib import import_module
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -544,6 +545,7 @@ def _frame_from_output_store(
     ar_data: np.ndarray,
     ar_datetime: np.ndarray,
     list_grid_ids: list[int],
+    columns: pd.MultiIndex | None = None,
 ) -> pd.DataFrame:
     """Turn kernel-filled output arrays into the multi-group output frame.
 
@@ -551,6 +553,8 @@ def _frame_from_output_store(
     equal blocks of rows. The frame takes ``ar_data`` as its storage: the
     -999 sentinel is replaced in place and no copy is made. The per-grid
     indexes are joined as ``pd.concat`` joins the indexes of per-grid frames.
+    *columns* labels the columns of ``ar_data``; the default is every group
+    the kernel writes.
     """
     len_sim = ar_data.shape[0] // len(list_grid_ids)
     list_index = [
@@ -564,7 +568,9 @@ def _frame_from_output_store(
         list_index[0].append(list_index[1:]) if len(list_index) > 1 else list_index[0]
     )
     _replace_sentinel_in_place(ar_data)
-    return _wrap_output_frame(ar_data, _output_columns(), index)
+    if columns is None:
+        columns = _output_columns()
+    return _wrap_output_frame(ar_data, columns, index)
 
 
 def _frame_from_output_buffers(
@@ -642,7 +648,8 @@ def _run_grids_into(
     list_state_jsons: list[str] | None,
     use_rayon: bool,
     max_workers: int | None,
-) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
+    store: _KeptOutputStore | None = None,
+) -> tuple[pd.DataFrame | None, dict[int, str] | None, KernelWarningLog]:
     """Run every grid, all writing into one shared output array (gh#1849).
 
     Each grid's kernel writes into its own block of rows of one preallocated
@@ -652,9 +659,12 @@ def _run_grids_into(
     ID, so the frame comes out in the order the joined per-grid frames were
     sorted into. With *use_rayon* the grids run in parallel inside the
     bridge; otherwise one after another. Returns
-    ``(df_output, dict_state_json, warnings)``.
+    ``(df_output, dict_state_json, warnings)``. With *store*, each grid's kept
+    groups are copied out of the shared array into it, the array is released,
+    and ``df_output`` is ``None``.
     """
     ar_data, ar_datetime = _alloc_output_store(len(list_grid_ids), len_forcing)
+    list_row_start = _grid_row_starts(list_grid_ids, len_forcing)
     dict_state_json, kernel_warnings = _write_grids_output(
         rust_module,
         list_config_jsons,
@@ -666,8 +676,13 @@ def _run_grids_into(
         max_workers,
         ar_data=ar_data,
         ar_datetime=ar_datetime,
-        list_row_start=_grid_row_starts(list_grid_ids, len_forcing),
+        list_row_start=list_row_start,
     )
+    if store is not None:
+        store.take_table(
+            list_grid_ids, ar_data, ar_datetime, list_row_start, len_forcing
+        )
+        return None, dict_state_json or None, kernel_warnings
     df_output_all = _frame_from_grid_store(ar_data, ar_datetime, list_grid_ids)
     return df_output_all, dict_state_json or None, kernel_warnings
 
@@ -686,10 +701,15 @@ def _frame_from_grid_store(
     ar_data: np.ndarray,
     ar_datetime: np.ndarray,
     list_grid_ids: list[int],
+    columns: pd.MultiIndex | None = None,
 ) -> pd.DataFrame:
-    """Turn a table laid out by :func:`_grid_row_starts` into the output frame."""
+    """Turn a table laid out by :func:`_grid_row_starts` into the output frame.
+
+    *columns* labels the columns of ``ar_data``, as in
+    :func:`_frame_from_output_store`.
+    """
     df_output_all = _frame_from_output_store(
-        ar_data, ar_datetime, sorted(list_grid_ids)
+        ar_data, ar_datetime, sorted(list_grid_ids), columns=columns
     )
     # Unsorted forcing gives an unsorted frame; sort it, as joining did.
     if not df_output_all.index.is_monotonic_increasing:
@@ -765,6 +785,143 @@ def _write_grids_output(
     return dict_state_json, kernel_warnings
 
 
+def _kept_output_slices(
+    keep_groups: Sequence[str],
+) -> tuple[list[tuple[int, int]], pd.MultiIndex]:
+    """Locate the kept groups' data columns in the kernel output buffer.
+
+    Returns ``(list_slice, columns)``: one ``(start, stop)`` column range per
+    kept group, in kernel order, and the ``(group, var)`` labels of the kept
+    columns, which are those of the full output frame restricted to the kept
+    groups. Names are matched case-insensitively to the kernel group names.
+    """
+    dict_canonical = {name.lower(): name for name in _GROUP_ORDER}
+    set_keep: set[str] = set()
+    list_unknown: list[str] = []
+    for name in keep_groups:
+        canonical = dict_canonical.get(str(name).lower())
+        if canonical is None:
+            list_unknown.append(str(name))
+        else:
+            set_keep.add(canonical)
+    if list_unknown:
+        raise ValueError(
+            f"keep_groups names unknown output groups {list_unknown}; "
+            f"the kernel writes {list(_GROUP_ORDER)}"
+        )
+    if not set_keep:
+        raise ValueError("keep_groups must name at least one output group")
+
+    cols_all = _output_columns()
+    list_slice: list[tuple[int, int]] = []
+    list_pos: list[np.ndarray] = []
+    col_offset = 0
+    for group_name, n_data in _GROUP_DATA_COLS_BY_NAME.items():
+        if group_name in set_keep:
+            list_slice.append((col_offset, col_offset + n_data))
+            list_pos.append(np.arange(col_offset, col_offset + n_data))
+        col_offset += n_data
+    return list_slice, cols_all[np.concatenate(list_pos)]
+
+
+class _KeptOutputStore:
+    """Output frame storage that holds only the kept groups (gh#1849).
+
+    Allocated for one run of the forcing it is sized for (one chunk when
+    ``output.stream_chunk`` is set), laid out like that run's full
+    output table (:func:`_grid_row_starts`): one block of rows per grid, in
+    grid ID order. The kernel still writes every group into a full-width
+    table; :meth:`take_table` copies the kept groups out of that table,
+    group by group, and the table is then released, so the frame handed on
+    holds the kept columns rather than every group. :meth:`to_frame` returns
+    a frame whose values and labels equal the kept columns of the full
+    frame.
+    """
+
+    def __init__(
+        self, keep_groups: Sequence[str], list_grid_ids: Sequence[int], len_run: int
+    ) -> None:
+        self.list_slice, self.columns = _kept_output_slices(keep_groups)
+        self.list_grid_ids = [_normalise_grid_id(g) for g in list_grid_ids]
+        self.len_run = len_run
+        self._row_base = dict(
+            zip(
+                self.list_grid_ids,
+                _grid_row_starts(self.list_grid_ids, len_run),
+                strict=True,
+            )
+        )
+        self._row_next = dict.fromkeys(self.list_grid_ids, 0)
+        n_rows = len(self.list_grid_ids) * len_run
+        self.ar_data = np.empty(
+            (n_rows, len(self.columns)), dtype=np.float64, order="F"
+        )
+        # Zeros so a row never written keeps year 0, which
+        # _build_datetime_index rejects.
+        self.ar_datetime = np.zeros(
+            (n_rows, OUTPUT_TIME_COLS), dtype=np.float64, order="F"
+        )
+
+    @classmethod
+    def for_run(
+        cls,
+        keep_groups: Sequence[str] | None,
+        config: SUEWSConfig,
+        df_forcing: pd.DataFrame,
+    ) -> _KeptOutputStore | None:
+        """Return a store for this run, or ``None`` to keep every group."""
+        if keep_groups is None:
+            return None
+        return cls(keep_groups, [s.gridiv for s in config.sites], len(df_forcing))
+
+    def take_table(
+        self,
+        list_grid_ids: Sequence[int],
+        ar_data: np.ndarray,
+        ar_datetime: np.ndarray,
+        list_row_start: Sequence[int],
+        len_chunk: int,
+    ) -> None:
+        """Copy every grid's rows of a chunk's full-width table.
+
+        Grid ``list_grid_ids[i]`` holds *len_chunk* rows from
+        ``list_row_start[i]``, as written by :func:`_write_grids_output`.
+        """
+        for grid_id, row_start in zip(list_grid_ids, list_row_start, strict=True):
+            rows = slice(row_start, row_start + len_chunk)
+            self._take(grid_id, ar_data[rows], ar_datetime[rows])
+
+    def _take(self, grid_id: int, ar_data: np.ndarray, ar_datetime: np.ndarray) -> None:
+        """Copy one grid's chunk rows into the next rows of its block."""
+        grid_id = _normalise_grid_id(grid_id)
+        n_chunk = ar_data.shape[0]
+        if self._row_next[grid_id] + n_chunk > self.len_run:
+            raise RuntimeError(
+                f"Kept output for grid {grid_id} overflows the run length "
+                f"{self.len_run}"
+            )
+        row_start = self._row_base[grid_id] + self._row_next[grid_id]
+        rows = slice(row_start, row_start + n_chunk)
+        col_dest = 0
+        for col_start, col_stop in self.list_slice:
+            n_cols = col_stop - col_start
+            self.ar_data[rows, col_dest : col_dest + n_cols] = ar_data[
+                :, col_start:col_stop
+            ]
+            col_dest += n_cols
+        self.ar_datetime[rows] = ar_datetime
+        self._row_next[grid_id] += n_chunk
+
+    def to_frame(self) -> pd.DataFrame:
+        """Return the kept-groups output frame, wrapping the store's array."""
+        list_short = [g for g, n in self._row_next.items() if n != self.len_run]
+        if list_short:
+            raise RuntimeError(f"Kept output is incomplete for grids {list_short}")
+        return _frame_from_grid_store(
+            self.ar_data, self.ar_datetime, self.list_grid_ids, columns=self.columns
+        )
+
+
 def run_suews_rust(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,
@@ -832,7 +989,8 @@ def run_suews_rust_multi(
     df_forcing: pd.DataFrame,
     serial_mode: bool = False,
     max_workers: int | None = None,
-) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
+    store: _KeptOutputStore | None = None,
+) -> tuple[pd.DataFrame | None, dict[int, str] | None, KernelWarningLog]:
     """Run SUEWS via Rust bridge for all sites in configuration.
 
     Iterates over ``config.sites``, patches the serialised config dict
@@ -847,7 +1005,8 @@ def run_suews_rust_multi(
     Returns ``(df_output, dict_state_json, kernel_warnings)`` where
     *dict_state_json* maps each grid ID to its post-simulation state JSON
     string and *kernel_warnings* collects the non-fatal warnings raised by
-    the Fortran kernel for every grid (GH#1737).
+    the Fortran kernel for every grid (GH#1737). With *store*, the output
+    goes into it and ``df_output`` is ``None`` (see :class:`_KeptOutputStore`).
     """
     sites = config.sites
 
@@ -888,6 +1047,7 @@ def run_suews_rust_multi(
         None,
         use_rayon,
         max_workers,
+        store,
     )
 
 
@@ -909,21 +1069,27 @@ def _check_max_workers(max_workers: int | None) -> None:
 
 
 def _check_state_grid_ids(
-    dict_state_json_by_grid: dict[int, str], list_gridiv: list[int]
+    dict_state_json_by_grid: dict[int, str],
+    list_gridiv: list[int],
+    kind: str = "State",
 ) -> None:
-    """Refuse states that do not cover exactly the configured grids."""
+    """Refuse states that do not cover exactly the configured grids.
+
+    *kind* names the states in the message (``"State"`` or ``"Checkpoint"``).
+    """
     config_grid_ids = set(list_gridiv)
     state_grid_ids = set(dict_state_json_by_grid)
     if state_grid_ids != config_grid_ids:
+        noun = "states" if kind == "State" else f"{kind.lower()} states"
         parts = []
         missing = sorted(config_grid_ids - state_grid_ids)
         unexpected = sorted(state_grid_ids - config_grid_ids)
         if missing:
-            parts.append(f"missing states for grids {missing}")
+            parts.append(f"missing {noun} for grids {missing}")
         if unexpected:
-            parts.append(f"unexpected states for grids {unexpected}")
+            parts.append(f"unexpected {noun} for grids {unexpected}")
         raise ValueError(
-            "State grid IDs do not match config.sites: " + "; ".join(parts)
+            f"{kind} grid IDs do not match config.sites: " + "; ".join(parts)
         )
 
 
@@ -950,8 +1116,12 @@ def run_suews_rust_multi_with_state(
     dict_state_json_by_grid: dict[int, str],
     serial_mode: bool = False,
     max_workers: int | None = None,
-) -> tuple[pd.DataFrame, dict[int, str] | None, KernelWarningLog]:
-    """Run SUEWS via Rust bridge for all sites with injected states."""
+    store: _KeptOutputStore | None = None,
+) -> tuple[pd.DataFrame | None, dict[int, str] | None, KernelWarningLog]:
+    """Run SUEWS via Rust bridge for all sites with injected states.
+
+    With *store*, the output goes into it and ``df_output`` is ``None``.
+    """
     sites = config.sites
 
     list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
@@ -996,6 +1166,7 @@ def run_suews_rust_multi_with_state(
         list_state_jsons,
         use_rayon,
         max_workers,
+        store,
     )
 
 
@@ -1025,6 +1196,82 @@ def run_suews_rust_with_state(
     kernel_warnings = KernelWarningLog()
     kernel_warnings.add(grid_id, raw_warnings)
     return df_output, new_state_json, kernel_warnings
+
+
+def _check_chunk_grid_ids(
+    config: SUEWSConfig, initial_state_json_by_grid: dict[int, str]
+) -> None:
+    """Reject duplicate grid IDs and checkpoints that do not match the sites."""
+    list_gridiv = [_normalise_grid_id(s.gridiv) for s in config.sites]
+    _check_unique_grid_ids(list_gridiv)
+    if initial_state_json_by_grid:
+        _check_state_grid_ids(initial_state_json_by_grid, list_gridiv, "Checkpoint")
+
+
+def _iter_suews_rust_chunks(
+    config: SUEWSConfig,
+    grp_forcing_chunk: Any,
+    serial_mode: bool,
+    max_workers: int | None,
+    initial_state_json_by_grid: dict[int, str],
+    keep_groups: Sequence[str] | None = None,
+) -> Iterator[tuple[pd.DataFrame, dict[int, str], KernelWarningLog]]:
+    """Run forcing chunks in order, threading each grid's state forward.
+
+    *grp_forcing_chunk* is a pandas ``GroupBy`` over the forcing rows, one
+    group per chunk in time order. Yields ``(df_output_chunk,
+    dict_state_json, warnings_chunk)`` per chunk, where *dict_state_json* is
+    the state reached at the end of that chunk. The caller decides whether
+    to keep or drop each chunk's frame. With *keep_groups*, each chunk's
+    frame holds only those output groups (see :class:`_KeptOutputStore`).
+    """
+    n_chunk = len(grp_forcing_chunk)
+    dict_state_json: dict[int, str] = dict(initial_state_json_by_grid)
+    for chunk_idx, grp in enumerate(grp_forcing_chunk.groups):
+        df_forcing_chunk = grp_forcing_chunk.get_group(grp)
+        store = _KeptOutputStore.for_run(keep_groups, config, df_forcing_chunk)
+        # Only pass the store when there is one, so the default call is unchanged.
+        dict_store_kw = {"store": store} if store is not None else {}
+        logger_supy.debug(
+            "Rust backend: chunk %d/%d  (%s -> %s, %d rows)",
+            chunk_idx + 1,
+            n_chunk,
+            df_forcing_chunk.index[0],
+            df_forcing_chunk.index[-1],
+            len(df_forcing_chunk),
+        )
+
+        if dict_state_json:
+            df_output_chunk, dict_state_json_chunk, warnings_chunk = (
+                run_suews_rust_multi_with_state(
+                    config=config,
+                    df_forcing=df_forcing_chunk,
+                    dict_state_json_by_grid=dict_state_json,
+                    serial_mode=serial_mode,
+                    max_workers=max_workers,
+                    **dict_store_kw,
+                )
+            )
+        else:
+            df_output_chunk, dict_state_json_chunk, warnings_chunk = (
+                run_suews_rust_multi(
+                    config=config,
+                    df_forcing=df_forcing_chunk,
+                    serial_mode=serial_mode,
+                    max_workers=max_workers,
+                    **dict_store_kw,
+                )
+            )
+        if store is not None:
+            df_output_chunk = store.to_frame()
+
+        if dict_state_json_chunk:
+            dict_state_json.update(dict_state_json_chunk)
+        yield df_output_chunk, dict(dict_state_json), warnings_chunk
+        # Release this chunk before the next one is allocated, so a caller
+        # that drops each chunk holds one chunk at a time; the frame wraps the
+        # store's array, so the store goes too.
+        del df_output_chunk, store
 
 
 def run_suews_rust_chunked(
@@ -1074,24 +1321,7 @@ def run_suews_rust_chunked(
             chunk_day,
         )
 
-    sites = config.sites
-    list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
-    _check_unique_grid_ids(list_gridiv)
-
-    if initial_state_json_by_grid:
-        checkpoint_grid_ids = set(initial_state_json_by_grid)
-        config_grid_ids = set(list_gridiv)
-        if checkpoint_grid_ids != config_grid_ids:
-            parts = []
-            missing = sorted(config_grid_ids - checkpoint_grid_ids)
-            unexpected = sorted(checkpoint_grid_ids - config_grid_ids)
-            if missing:
-                parts.append(f"missing checkpoint states for grids {missing}")
-            if unexpected:
-                parts.append(f"unexpected checkpoint states for grids {unexpected}")
-            raise ValueError(
-                "Checkpoint grid IDs do not match config.sites: " + "; ".join(parts)
-            )
+    _check_chunk_grid_ids(config, initial_state_json_by_grid)
 
     if n_chunk <= 1:
         return run_suews_rust_multi_with_state(
@@ -1159,3 +1389,147 @@ def run_suews_rust_chunked(
 
     df_output_all = _frame_from_grid_store(ar_data, ar_datetime, list_grid_ids)
     return df_output_all, dict_state_json or None, kernel_warnings
+
+
+def forcing_year_keys(index: pd.DatetimeIndex, tstep_s: int) -> np.ndarray:
+    """Return the calendar year of each forcing row's interval.
+
+    Under the right-closed timestamp convention a row stamped ``t`` holds
+    ``(t - tstep, t]``, so the row stamped ``Y+1-01-01 00:00`` is the last
+    interval of year ``Y``. Rows are therefore keyed by the year of their
+    interval start, ``t - tstep``: the rows ``Y-01-01 00:00 + tstep`` to
+    ``Y+1-01-01 00:00`` share the key ``Y``, which is exactly the set of rows
+    that ``save()`` writes into the year-``Y`` files.
+
+    A leading key shorter than one day (for example a run that starts with
+    the single row ``Y-01-01 00:00``, the last interval of ``Y-1``) is
+    folded into the next year, so that no chunk is a stub of fewer than one
+    day; ``save()`` then writes that stub exactly as an unchunked run does.
+    """
+    ar_year = (index - pd.Timedelta(seconds=int(tstep_s))).year.to_numpy()
+    if len(ar_year) and (ar_year != ar_year[0]).any():
+        n_first = int((ar_year == ar_year[0]).sum())
+        if n_first * int(tstep_s) < 86400:
+            ar_year = np.where(ar_year == ar_year[0], ar_year[n_first], ar_year)
+    return ar_year
+
+
+def forcing_chunk_keys(
+    index: pd.DatetimeIndex, tstep_s: int, chunk_days: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the calendar year and the chunk within it of each forcing row.
+
+    Years follow :func:`forcing_year_keys`. Each year is cut into
+    consecutive chunks of up to *chunk_days* days counted from the year's
+    first day in the run; a row belongs to the day its interval starts in,
+    ``(t - tstep).floor("D")``, so a chunk boundary falls at 00:00 + tstep
+    and no resampling bin or DailyState row straddles two chunks. A leading
+    stub shorter than one day (a run starting at 00:00) joins the first
+    chunk, whether or not it closes the previous year. With ``chunk_days``
+    of 366 every year is one chunk.
+    """
+    ar_year = forcing_year_keys(index, tstep_s)
+    ser_day = pd.Series((index - pd.Timedelta(seconds=int(tstep_s))).floor("D"))
+    # A leading day shorter than one day (a run starting at 00:00, whose first
+    # row closes the day before) joins the next day, as the year keys fold a
+    # leading stub into the next year, so the first chunk is not a stub.
+    if len(ser_day) and (ser_day != ser_day.iloc[0]).any():
+        n_first = int((ser_day == ser_day.iloc[0]).sum())
+        if n_first * int(tstep_s) < 86400:
+            ser_day.iloc[:n_first] = ser_day.iloc[n_first]
+    df_day = pd.DataFrame({"year": ar_year, "day": ser_day.to_numpy()})
+    grp_day = df_day.groupby("year")["day"]
+    # The year's first day; a folded stub's day lies before it.
+    in_year = df_day["day"].dt.year == df_day["year"]
+    ser_origin = (
+        df_day["day"]
+        .where(in_year)
+        .groupby(df_day["year"])
+        .transform("min")
+        .fillna(grp_day.transform("min"))
+    )
+    ser_offset = (df_day["day"] - ser_origin).dt.days.clip(lower=0)
+    return ar_year, (ser_offset // int(chunk_days)).to_numpy()
+
+
+class StreamChunk(NamedTuple):
+    """One chunk of a run streamed to disk, as :func:`iter_suews_rust_streamed` yields it."""
+
+    df_output: pd.DataFrame
+    dict_state_json: dict[int, str]
+    kernel_warnings: KernelWarningLog
+    first_timestamp: pd.Timestamp
+    last_timestamp: pd.Timestamp
+    year: int
+    chunk: int
+    n_chunk: int
+
+
+def iter_suews_rust_streamed(
+    config: SUEWSConfig,
+    df_forcing: pd.DataFrame,
+    tstep_s: int,
+    chunk_days: int,
+    serial_mode: bool = False,
+    max_workers: int | None = None,
+    initial_state_json_by_grid: dict[int, str] | None = None,
+    keep_groups: Sequence[str] | None = None,
+) -> Iterator[StreamChunk]:
+    """Run SUEWS one chunk of days at a time, yielding each chunk's output.
+
+    Same state chaining as :func:`run_suews_rust_chunked`, but chunks follow
+    :func:`forcing_chunk_keys` (calendar years under the right-closed
+    convention, each cut into chunks of up to *chunk_days* days) and no
+    chunk is kept: the caller receives a :class:`StreamChunk` per chunk, in
+    time order, where ``dict_state_json`` is the state reached at
+    ``last_timestamp`` (the chunk's last forcing row), ``year`` the calendar
+    year the rows belong to, and ``chunk`` its 1-based position among the
+    ``n_chunk`` chunks of that year. The caller can write and drop the frame
+    before the next chunk runs, so memory no longer grows with run length.
+    With *keep_groups*, each chunk's frame holds only those output groups.
+    """
+    if df_forcing.empty:
+        raise ValueError("forcing data is empty")
+    initial_state_json_by_grid = {
+        _normalise_grid_id(grid_id): state_json
+        for grid_id, state_json in (initial_state_json_by_grid or {}).items()
+    }
+    _check_chunk_grid_ids(config, initial_state_json_by_grid)
+    ar_year, ar_chunk = forcing_chunk_keys(df_forcing.index, tstep_s, chunk_days)
+    list_key = [ar_year, ar_chunk]
+    grp_forcing_chunk = df_forcing.groupby(list_key)
+    # First and last forcing rows of each chunk, in the order the chunks run.
+    grp_index = pd.Series(df_forcing.index).groupby(list_key)
+    ser_first, ser_last = grp_index.min(), grp_index.max()
+    ser_n_chunk = ser_last.groupby(level=0).size()
+    logger_supy.debug(
+        "Rust backend: running %d chunks of up to %d days.",
+        len(grp_forcing_chunk),
+        chunk_days,
+    )
+    iter_chunk = _iter_suews_rust_chunks(
+        config,
+        grp_forcing_chunk,
+        serial_mode,
+        max_workers,
+        initial_state_json_by_grid,
+        keep_groups=keep_groups,
+    )
+    dict_pos: dict[int, int] = {}
+    for key, last_timestamp in ser_last.items():
+        year = key[0]
+        df_output_chunk, dict_state_json, warnings_chunk = next(iter_chunk)
+        dict_pos[year] = dict_pos.get(year, 0) + 1
+        yield StreamChunk(
+            df_output_chunk,
+            dict_state_json,
+            warnings_chunk,
+            ser_first.loc[key],
+            last_timestamp,
+            int(year),
+            dict_pos[year],
+            int(ser_n_chunk.loc[year]),
+        )
+        # Drop this frame before the next chunk is run, as the chunk
+        # generator does, so only one chunk is held at a time.
+        del df_output_chunk

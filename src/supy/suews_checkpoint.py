@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -206,12 +207,18 @@ class SUEWSCheckpoint:
         }
 
     def to_file(self, path: str | Path) -> Path:
-        """Write the checkpoint JSON file and return its path."""
+        """Write the checkpoint JSON file and return its path.
+
+        The file is written beside *path* and renamed over it, so an
+        interrupted write leaves any previous checkpoint at *path* intact.
+        """
         path = Path(path).expanduser().resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as checkpoint_file:
+        path_tmp = path.with_name(path.name + ".tmp")
+        with path_tmp.open("w", encoding="utf-8") as checkpoint_file:
             json.dump(self.to_dict(), checkpoint_file, indent=2)
             checkpoint_file.write("\n")
+        os.replace(path_tmp, path)
         return path
 
     def validate_for_continuation(self) -> None:

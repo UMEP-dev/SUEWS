@@ -554,7 +554,8 @@ CONTAINS
             IF (ABS(qe) <= eps_fp) THEN
                qStar_RSL = 10.**(-10) ! avoid the situation where qe=0, qstar_RSL=0 and the code breaks LB 21 May 2021
             ELSE
-               qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_heat
+               ! kinematic moisture flux qe/(lv*rho), as for TStar_RSL above (#1867)
+               qStar_RSL = -1.*(qe/(lv_J_kg*avdens))/UStar_heat
             END IF
             qa_gkg = RH2qa(avRH/100, Press_hPa, Temp_c)
 

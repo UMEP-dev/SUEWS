@@ -207,6 +207,7 @@ def _save_supy(
     output_format=None,
     save_state: bool = True,
     forcing_timestamp_reference="local_standard_time",
+    streamed_files=None,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -243,6 +244,12 @@ def _save_supy(
         checkpoint JSON instead.
     forcing_timestamp_reference : str, optional
         Clock used by ``df_output`` before applying the saved-output policy.
+    streamed_files : StreamedTextFiles or StreamedParquetParts, optional
+        For one chunk of a run streamed to disk: text files the run has
+        already started are appended to (see ``supy._save.StreamedTextFiles``),
+        or the chunk's rows go to their own file in the run's Parquet folder
+        (see ``supy._save.StreamedParquetParts``); it must match the output
+        format.
 
     Returns
     -------
@@ -332,6 +339,7 @@ def _save_supy(
             site_metadata=site_metadata,
             timestamp_reference=output_timestamp_reference,
             forcing_timestamp_reference=forcing_timestamp_reference,
+            streamed_parquet=streamed_files,
         )
     else:
         # Save as text files (existing behavior)
@@ -348,6 +356,7 @@ def _save_supy(
             timestamp_reference=output_timestamp_reference,
             forcing_timestamp_reference=forcing_timestamp_reference,
             df_state_final=df_state_final,
+            streamed_files=streamed_files,
         )
 
         # MP: Parquet saves this already - breaks the parquet save check

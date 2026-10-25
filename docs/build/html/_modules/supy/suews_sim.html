@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.10.23.dev11 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.10.25.dev1 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=9cb982c9"></script>
+    <script src="../../_static/documentation_options.js?v=01c2f3db"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.23.dev11" />
+  <meta name="docsearch:version" content="2026.10.25.dev1" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.23.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d" style="color: #31708f;">ac7b081</a>).
+        (2026.10.25.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f5ec7860757004776dd6e81d95f1e5701073deb2" style="color: #31708f;">f5ec786</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.25.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.25.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -591,10 +591,16 @@
     <span class="n">OUTPUT_GROUP_LAYOUT</span><span class="p">,</span>
     <span class="n">KernelWarningLog</span><span class="p">,</span>
     <span class="n">_check_rust_available</span><span class="p">,</span>
+    <span class="n">forcing_year_keys</span><span class="p">,</span>
     <span class="n">iter_suews_rust_streamed</span><span class="p">,</span>
     <span class="n">run_suews_rust_chunked</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">._save</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEFAULT_OUTPUT_GROUPS</span><span class="p">,</span> <span class="n">StreamedTextFiles</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._save</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_OUTPUT_GROUPS</span><span class="p">,</span>
+    <span class="n">StreamedParquetParts</span><span class="p">,</span>
+    <span class="n">StreamedTextFiles</span><span class="p">,</span>
+    <span class="n">parquet_file_path</span><span class="p">,</span>
+<span class="p">)</span>
 
 <span class="c1"># Import SuPy components directly</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_save_supy</span>
@@ -1394,15 +1400,29 @@
 <span class="sd">        chunk's text files are written into the configured output directory</span>
 <span class="sd">        by the same code as :meth:`save`, one file per grid, group and year,</span>
 <span class="sd">        which later chunks extend; the chunk is dropped and the model state</span>
-<span class="sd">        carried into the next chunk. Only the groups the text output saves</span>
-<span class="sd">        (``output.groups``, default SUEWS and DailyState) are kept from each</span>
-<span class="sd">        chunk. Peak memory then stays at about one chunk of the model's full</span>
-<span class="sd">        output (every group) however long the run. At the end of every</span>
+<span class="sd">        carried into the next chunk. Only the groups the streamed output</span>
+<span class="sd">        saves (``output.groups``, default SUEWS and DailyState) are kept from</span>
+<span class="sd">        each chunk. Peak memory then stays at about one chunk of the model's</span>
+<span class="sd">        full output (every group) however long the run. At the end of every</span>
 <span class="sd">        calendar year the checkpoint file that :meth:`save` writes</span>
 <span class="sd">        (``&lt;site&gt;_SUEWS_checkpoint.json``) is replaced by the state reached;</span>
 <span class="sd">        ``provenance.json`` is written once at the end, so a completed run</span>
 <span class="sd">        leaves the same files, byte for byte, as ``run()`` followed by</span>
 <span class="sd">        ``save()``, and :meth:`save` afterwards returns those files.</span>
+
+<span class="sd">        With ``output.format`` set to ``parquet``, the output is a folder</span>
+<span class="sd">        at the path of the Parquet file a run saved whole writes</span>
+<span class="sd">        (``&lt;site&gt;_SUEWS_output.parquet/``), holding one file per chunk,</span>
+<span class="sd">        ``part-&lt;year&gt;-&lt;chunk&gt;.parquet``; the metadata file is written beside</span>
+<span class="sd">        it when the run ends. ``pandas.read_parquet(folder)`` reads the</span>
+<span class="sd">        parts back as one frame. It holds only the groups in</span>
+<span class="sd">        ``output.groups`` (Parquet saved after an unstreamed run holds every</span>
+<span class="sd">        group), at full float64 precision. The groups other than DailyState</span>
+<span class="sd">        are resampled exactly as ``save(format="parquet")`` resamples them;</span>
+<span class="sd">        DailyState keeps its own rows, the last step of each day, as the text</span>
+<span class="sd">        output does, instead of being resampled to the output frequency.</span>
+<span class="sd">        See the outputs page of the documentation for how the frame compares</span>
+<span class="sd">        with a run saved whole.</span>
 
 <span class="sd">        A streamed run that stops part-way (an error, or the process being</span>
 <span class="sd">        killed) leaves a checkpoint whose ``last_timestamp`` is the last</span>
@@ -1424,7 +1444,11 @@
 <span class="sd">        the checkpoint produced, drops anything later (that year's partial</span>
 <span class="sd">        rows) and appends from there, so it ends with the files of an</span>
 <span class="sd">        uninterrupted run; resuming again from the same checkpoint gives the</span>
-<span class="sd">        same files. Its ``provenance.json`` describes the resumed segment</span>
+<span class="sd">        same files. For Parquet, it deletes the part files of the years after</span>
+<span class="sd">        the checkpoint, chosen by the year in their names, and writes them</span>
+<span class="sd">        again; each part file is written under a temporary name and renamed,</span>
+<span class="sd">        so an interruption never leaves one half written. Its</span>
+<span class="sd">        ``provenance.json`` describes the resumed segment</span>
 <span class="sd">        (``continued_from_checkpoint`` is true). The continuity check refuses</span>
 <span class="sd">        a ``start_date`` that does not follow the checkpoint.</span>
 
@@ -1753,11 +1777,17 @@
             <span class="c1"># nothing can be written again somewhere else.</span>
             <span class="n">streamed_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">parent</span>
             <span class="n">same_dir</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">]</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span> <span class="o">==</span> <span class="n">streamed_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-            <span class="n">as_text</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"output_format"</span><span class="p">]</span> <span class="ow">in</span> <span class="p">{</span><span class="kc">None</span><span class="p">,</span> <span class="s2">"txt"</span><span class="p">}</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">same_dir</span> <span class="ow">and</span> <span class="n">as_text</span><span class="p">):</span>
+            <span class="n">streamed_format</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">"parquet"</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">".parquet"</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_streamed_paths</span><span class="p">)</span>
+                <span class="k">else</span> <span class="s2">"txt"</span>
+            <span class="p">)</span>
+            <span class="n">same_format</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"output_format"</span><span class="p">]</span> <span class="ow">in</span> <span class="p">{</span><span class="kc">None</span><span class="p">,</span> <span class="n">streamed_format</span><span class="p">}</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">same_dir</span> <span class="ow">and</span> <span class="n">same_format</span><span class="p">):</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="s2">"Parquet"</span> <span class="k">if</span> <span class="n">streamed_format</span> <span class="o">==</span> <span class="s2">"parquet"</span> <span class="k">else</span> <span class="s2">"text"</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="s2">"This run streamed its output to "</span>
-                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">streamed_dir</span><span class="si">}</span><span class="s2"> as text (output.stream_chunk); its "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">streamed_dir</span><span class="si">}</span><span class="s2"> as </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> (output.stream_chunk); its "</span>
                     <span class="s2">"output is not held in memory, so it cannot be saved "</span>
                     <span class="s2">"again elsewhere or in another format. Rerun with "</span>
                     <span class="s2">"output.stream_chunk unset to save differently."</span>
@@ -1974,7 +2004,6 @@
         <span class="n">ref</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">output_config</span><span class="p">,</span> <span class="s2">"timestamp_reference"</span><span class="p">,</span> <span class="s2">"follow"</span><span class="p">)</span>
         <span class="n">source</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"forcing_timestamp_reference"</span><span class="p">]</span>
         <span class="n">check_stream_chunk</span><span class="p">(</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">output_config</span><span class="o">.</span><span class="n">format</span><span class="p">),</span>
             <span class="n">settings</span><span class="p">[</span><span class="s2">"freq_s"</span><span class="p">],</span>
             <span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">,</span> <span class="n">ref</span><span class="p">)),</span>
             <span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">,</span> <span class="n">source</span><span class="p">)),</span>
@@ -1993,11 +2022,12 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_groups_saved</span><span class="p">(</span><span class="n">output_config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">"""Return the kernel output groups the text output saves.</span>
+<span class="w">        </span><span class="sd">"""Return the kernel output groups a streamed run saves.</span>
 
-<span class="sd">        These are the groups :meth:`save` writes (``output.groups``, default</span>
-<span class="sd">        SUEWS and DailyState), restricted to those the kernel writes, in</span>
-<span class="sd">        kernel order; a streamed run keeps only these from each chunk.</span>
+<span class="sd">        These are the groups :meth:`save` writes as text (``output.groups``,</span>
+<span class="sd">        default SUEWS and DailyState), restricted to those the kernel writes,</span>
+<span class="sd">        in kernel order; a streamed run keeps only these from each chunk,</span>
+<span class="sd">        for Parquet output too.</span>
 <span class="sd">        """</span>
         <span class="n">list_save</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">output_config</span><span class="p">,</span> <span class="s2">"groups"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">list_save</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -2042,10 +2072,11 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Run in chunks of *stream_chunk* days, writing and dropping each.</span>
 
-<span class="sd">        Each chunk keeps only the groups *list_keep* that the text output</span>
+<span class="sd">        Each chunk keeps only the groups *list_keep* that the streamed output</span>
 <span class="sd">        saves. At the end of each calendar year the checkpoint file is</span>
 <span class="sd">        replaced by the state reached, so a run that stops part-way can</span>
-<span class="sd">        resume from the start of the year it stopped in.</span>
+<span class="sd">        resume from the start of the year it stopped in. Parquet output goes</span>
+<span class="sd">        to one file per chunk (see :class:`StreamedParquetParts`).</span>
 
 <span class="sd">        Returns ``(list_path_save, df_empty, dict_state_json,</span>
 <span class="sd">        kernel_warnings)``; ``df_empty`` has the output columns and no rows.</span>
@@ -2060,9 +2091,29 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_remove_stale_sidecars</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span>
         <span class="c1"># Files are started on first write and extended after; a run</span>
         <span class="c1"># continuing from a checkpoint keeps what the run up to it wrote.</span>
-        <span class="n">streamed_files</span> <span class="o">=</span> <span class="n">StreamedTextFiles</span><span class="p">(</span>
-            <span class="n">resume_after</span><span class="o">=</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">last_timestamp</span> <span class="k">if</span> <span class="n">checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">resume_after</span> <span class="o">=</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">last_timestamp</span> <span class="k">if</span> <span class="n">checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">output_format</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"output_format"</span><span class="p">]</span> <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="n">settings</span><span class="p">[</span><span class="s2">"output_config"</span><span class="p">]</span><span class="o">.</span><span class="n">format</span>
         <span class="p">)</span>
+        <span class="n">is_parquet</span> <span class="o">=</span> <span class="n">output_format</span> <span class="o">==</span> <span class="s2">"parquet"</span>
+        <span class="k">if</span> <span class="n">is_parquet</span><span class="p">:</span>
+            <span class="n">path_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"output_path"</span><span class="p">])</span>
+            <span class="n">site</span> <span class="o">=</span> <span class="n">safe_filename_component</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"site"</span><span class="p">])</span>
+            <span class="n">timestamp_reference</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"output_config"</span><span class="p">]</span><span class="o">.</span><span class="n">timestamp_reference</span>
+            <span class="n">streamed_files</span> <span class="o">=</span> <span class="n">StreamedParquetParts</span><span class="p">(</span>
+                <span class="n">parquet_file_path</span><span class="p">(</span><span class="n">path_dir</span><span class="p">,</span> <span class="n">site</span><span class="p">,</span> <span class="s2">"output"</span><span class="p">,</span> <span class="n">timestamp_reference</span><span class="p">),</span>
+                <span class="n">list_path_sidecar</span><span class="o">=</span><span class="p">[</span>
+                    <span class="n">parquet_file_path</span><span class="p">(</span><span class="n">path_dir</span><span class="p">,</span> <span class="n">site</span><span class="p">,</span> <span class="s2">"metadata"</span><span class="p">,</span> <span class="n">timestamp_reference</span><span class="p">)</span>
+                <span class="p">],</span>
+                <span class="n">resume_after</span><span class="o">=</span><span class="n">resume_after</span><span class="p">,</span>
+                <span class="n">tstep_s</span><span class="o">=</span><span class="n">tstep_s</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="c1"># Before any chunk runs, and logged at the caller's level.</span>
+            <span class="n">streamed_files</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
+            <span class="n">year_last</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">forcing_year_keys</span><span class="p">(</span><span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">tstep_s</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">streamed_files</span> <span class="o">=</span> <span class="n">StreamedTextFiles</span><span class="p">(</span><span class="n">resume_after</span><span class="o">=</span><span class="n">resume_after</span><span class="p">)</span>
+            <span class="n">year_last</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># _save_supy sets the SuPy logger level on every call; keep the</span>
         <span class="c1"># caller's level so later chunks and the end-of-run summaries still log.</span>
         <span class="n">log_level</span> <span class="o">=</span> <span class="n">logger_supy</span><span class="o">.</span><span class="n">level</span>
@@ -2097,6 +2148,8 @@
             <span class="p">):</span>
                 <span class="n">kernel_warnings</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">warnings_chunk</span><span class="p">)</span>
                 <span class="n">dict_state_json</span> <span class="o">=</span> <span class="n">dict_state_chunk</span>
+                <span class="k">if</span> <span class="n">is_parquet</span><span class="p">:</span>
+                    <span class="n">streamed_files</span><span class="o">.</span><span class="n">start_chunk</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">k_chunk</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_output_frame</span><span class="p">(</span>
                     <span class="n">df_chunk</span><span class="p">,</span> <span class="n">df_state_final</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">streamed_files</span>
                 <span class="p">):</span>
@@ -2118,6 +2171,10 @@
                     <span class="n">last_timestamp</span><span class="p">,</span>
                     <span class="n">folder</span><span class="p">,</span>
                 <span class="p">)</span>
+                <span class="k">if</span> <span class="n">is_parquet</span> <span class="ow">and</span> <span class="n">k_chunk</span> <span class="o">==</span> <span class="n">n_chunk</span> <span class="ow">and</span> <span class="n">year</span> <span class="o">==</span> <span class="n">year_last</span><span class="p">:</span>
+                    <span class="c1"># The metadata file, once, before the last checkpoint, so</span>
+                    <span class="c1"># a failure writing it resumes from the year before.</span>
+                    <span class="n">list_path_save</span> <span class="o">=</span> <span class="n">streamed_files</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
                 <span class="c1"># The year's files are complete; record the state reached at</span>
                 <span class="c1"># its end so a later failure can resume from here.</span>
                 <span class="k">if</span> <span class="n">k_chunk</span> <span class="o">==</span> <span class="n">n_chunk</span> <span class="ow">and</span> <span class="n">dict_state_chunk</span><span class="p">:</span>
@@ -3186,8 +3243,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.23.dev11 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d">ac7b081</a> |
+  <p>Version: 2026.10.25.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f5ec7860757004776dd6e81d95f1e5701073deb2">f5ec786</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

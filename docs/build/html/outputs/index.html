@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-10-23T18:18:12+00:00" />
-    <title>5. Output Files &#8212; SUEWS 2026.10.23.dev11 documentation</title>
+    <meta property="article:modified_time" content="2026-10-25T11:06:56+00:00" />
+    <title>5. Output Files &#8212; SUEWS 2026.10.25.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=9cb982c9"></script>
+    <script src="../_static/documentation_options.js?v=01c2f3db"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.10.3.4.5. Snow related parameters" href="../inputs/tables/Initial_Conditions/Snow_related_parameters.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.23.dev11" />
-    <meta name="docbuild:last-update" content="2026-10-23"/>
+  <meta name="docsearch:version" content="2026.10.25.dev1" />
+    <meta name="docbuild:last-update" content="2026-10-25"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.23.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d" style="color: #31708f;">ac7b081</a>).
+        (2026.10.25.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f5ec7860757004776dd6e81d95f1e5701073deb2" style="color: #31708f;">f5ec786</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.25.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.25.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -715,12 +715,41 @@ grid, group and year, which later chunks extend), and the chunk is dropped
 before the next one runs. Only the groups listed in <code class="docutils literal notranslate"><span class="pre">groups</span></code> (default
 <code class="docutils literal notranslate"><span class="pre">SUEWS</span></code> and <code class="docutils literal notranslate"><span class="pre">DailyState</span></code>) are kept from each chunk. The files are
 byte-identical to those of a run saved whole, for any chunk length. Streaming
-currently needs text output, an output frequency that divides one day, and
-output timestamps on the forcing clock (<code class="docutils literal notranslate"><span class="pre">timestamp_reference</span></code> of <code class="docutils literal notranslate"><span class="pre">follow</span></code>
-or the forcing’s own reference); <code class="docutils literal notranslate"><span class="pre">chunk_day</span></code> is ignored. The log names the
-output folder at the start and reports each chunk as it is written.</p>
+needs an output frequency that divides one day and output timestamps on the
+forcing clock (<code class="docutils literal notranslate"><span class="pre">timestamp_reference</span></code> of <code class="docutils literal notranslate"><span class="pre">follow</span></code> or the forcing’s own
+reference); <code class="docutils literal notranslate"><span class="pre">chunk_day</span></code> is ignored. The log names the output folder at the
+start and reports each chunk as it is written.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">format:</span> <span class="pre">parquet</span></code> the output is a folder, at the path where a run saved
+whole writes its one Parquet file (for example <code class="docutils literal notranslate"><span class="pre">KCL_SUEWS_output.parquet/</span></code>),
+holding one file per chunk named by calendar year and chunk within it
+(<code class="docutils literal notranslate"><span class="pre">part-2012-001.parquet</span></code>, <code class="docutils literal notranslate"><span class="pre">part-2012-002.parquet</span></code>, …). Each file is
+written under a hidden temporary name and then renamed, so it is either whole
+or absent. The metadata file is written beside the folder when the run ends.
+Read the folder back as one frame with <code class="docutils literal notranslate"><span class="pre">pandas.read_parquet(folder)</span></code>; its rows
+come chunk by chunk, so sort them by grid and time with <code class="docutils literal notranslate"><span class="pre">.sort_index()</span></code>.
+Compared with <code class="docutils literal notranslate"><span class="pre">run()</span></code> followed by <code class="docutils literal notranslate"><span class="pre">save(format=&quot;parquet&quot;)</span></code>:</p>
+<ul class="simple">
+<li><p>It holds only the groups listed in <code class="docutils literal notranslate"><span class="pre">groups</span></code>. Parquet saved after a run that
+was not streamed ignores <code class="docutils literal notranslate"><span class="pre">groups</span></code> and holds every group the model writes.</p></li>
+<li><p>The groups other than <code class="docutils literal notranslate"><span class="pre">DailyState</span></code> hold the same rows and values, a row
+for every output interval even where the groups listed hold no value. Daily
+output saved whole also has a row labelled 00:00 on the run’s first day that
+holds only that day’s <code class="docutils literal notranslate"><span class="pre">DailyState</span></code>; the folder has no such row.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DailyState</span></code> keeps its own rows, one per grid and day at the day’s last
+model step (23:55 with a 5-minute timestep), as the text output does, with
+the same values. Saved whole, <code class="docutils literal notranslate"><span class="pre">DailyState</span></code> is resampled to the output
+frequency and labelled at the start of the output interval that holds that
+step (23:00 for hourly output, 00:00 of the same day for daily output); at
+the model timestep the two agree. With an output frequency longer than the
+model timestep, the folder therefore has one more row per grid and day,
+holding <code class="docutils literal notranslate"><span class="pre">DailyState</span></code> only.</p></li>
+<li><p>The values keep full double (float64) precision, where text files carry four
+decimal places. Prefer Parquet for streamed runs whose output will be read
+back for analysis.</p></li>
+</ul>
 <p>The output returned to Python holds no rows: read the written files back, for
-example with <code class="docutils literal notranslate"><span class="pre">pandas.read_csv(path,</span> <span class="pre">sep=r&quot;\s+&quot;)</span></code>. The checkpoint file is
+example with <code class="docutils literal notranslate"><span class="pre">pandas.read_csv(path,</span> <span class="pre">sep=r&quot;\s+&quot;)</span></code> for text or
+<code class="docutils literal notranslate"><span class="pre">pandas.read_parquet(folder)</span></code> for Parquet. The checkpoint file is
 replaced at the end of every calendar year. A run that stops part-way can
 continue from it: load the checkpoint with
 <a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation.from_checkpoint" title="supy.SUEWSSimulation.from_checkpoint"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_checkpoint()</span></code></a> and run from one model timestep
@@ -729,10 +758,18 @@ of the year it stopped in and rewrites that year’s files: in each file it
 writes, it keeps the rows up to the checkpoint and replaces everything after
 (a file whose header is missing or cut short is written anew), so it ends with
 the files of an uninterrupted run, and resuming again from the same checkpoint
-gives the same files. A streamed run that starts afresh, not from a
-checkpoint, first removes the checkpoint and <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> a previous
-run left in the output folder, so a failure before its first year end leaves
-no checkpoint of another run to resume from.</p>
+gives the same files. With Parquet, the part files of the completed years are
+kept as they are, the part files of the years after the checkpoint (chosen by
+the year in their names) are deleted and written again, and the temporary file
+of a write the interruption cut short is removed. A checkpoint inside a year,
+such as the one a completed run writes at its end, is refused when part files
+of that year exist, since their names do not show which rows precede it: write
+a run continued from such a checkpoint to another folder. A streamed
+run that starts afresh, not from a checkpoint, first removes the checkpoint and
+<code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> a previous run left in the output folder (and, for Parquet,
+its part files, or its output file saved whole, and its metadata file), so a
+failure before its first year end leaves no checkpoint of another run to resume
+from.</p>
 <p>Limitations:</p>
 <ul class="simple">
 <li><p>Peak memory is about one chunk of the model’s full output, every output
@@ -743,10 +780,14 @@ with run length and grid count. A ten-year run of eight grids at a 5-minute
 timestep saving <code class="docutils literal notranslate"><span class="pre">SUEWS</span></code> and <code class="docutils literal notranslate"><span class="pre">DailyState</span></code> hourly peaked at about 2.3 GB
 with <code class="docutils literal notranslate"><span class="pre">stream_chunk:</span> <span class="pre">30</span></code> and 11 GB with <code class="docutils literal notranslate"><span class="pre">stream_chunk:</span> <span class="pre">366</span></code>, against
 92 GB for a run saved whole. A one-year single-grid run peaked at 1.5 GB with
-<code class="docutils literal notranslate"><span class="pre">stream_chunk:</span> <span class="pre">366</span></code>, as when saved whole, and at 0.4 GB with 30.</p></li>
+<code class="docutils literal notranslate"><span class="pre">stream_chunk:</span> <span class="pre">366</span></code>, as when saved whole, and at 0.4 GB with 30. Written
+as Parquet, the ten-year eight-grid run peaked at 2.2 GB with
+<code class="docutils literal notranslate"><span class="pre">stream_chunk:</span> <span class="pre">30</span></code> and 11 GB with 366, against 115 GB for a run saved
+whole as Parquet (224 s and 191 s against 587 s); with one grid, at 1.0 GB
+and 2.1 GB against 15 GB.</p></li>
 <li><p>The output exists only on disk. Values read back from the text files carry
 the saved text precision, four decimal places, not the full double precision
-a run kept in memory holds.</p></li>
+a run kept in memory holds; Parquet keeps it.</p></li>
 <li><p>Groups not listed in <code class="docutils literal notranslate"><span class="pre">groups</span></code> are not kept at all; to analyse another group,
 list it in <code class="docutils literal notranslate"><span class="pre">groups</span></code> before the run.</p></li>
 </ul>
@@ -928,7 +969,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-10-23.
+  Last updated on 2026-10-25.
   <br/>
 </p>
   </div>
@@ -936,8 +977,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.23.dev11 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d">ac7b081</a> |
+  <p>Version: 2026.10.25.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f5ec7860757004776dd6e81d95f1e5701073deb2">f5ec786</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for output control parameters" name="description" />
 <meta content="SUEWS, YAML, outputcontrol, parameters, configuration" name="keywords" />
 
-    <title>4.6.37. Output Control &#8212; SUEWS 2026.10.23.dev11 documentation</title>
+    <title>4.6.37. Output Control &#8212; SUEWS 2026.10.25.dev1 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=9cb982c9"></script>
+    <script src="../../../_static/documentation_options.js?v=01c2f3db"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.36. Seasonal/Wetness OHM Coefficients" href="ohm_coefficient_season_wetness.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.23.dev11" />
+  <meta name="docsearch:version" content="2026.10.25.dev1" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.23.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d" style="color: #31708f;">ac7b081</a>).
+        (2026.10.25.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f5ec7860757004776dd6e81d95f1e5701073deb2" style="color: #31708f;">f5ec786</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.25.dev1 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.25.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -574,7 +574,7 @@ The legacy string form (silently ignored since 2025.10.15) is dropped.</p>
 <dl class="input option" id="index-1">
 <dt class="sig sig-object input" id="input-option-format">
 <span class="sig-name descname"><span class="pre">format</span></span><a class="headerlink" href="#input-option-format" title="Link to this definition">#</a></dt>
-<dd><p>Output file format. Options: ‘txt’ for traditional text files (one per year/grid/group), ‘parquet’ for single Parquet file containing all data</p>
+<dd><p>Output file format. Options: ‘txt’ for traditional text files (one per year/grid/group), ‘parquet’ for single Parquet file containing all data (with ‘stream_chunk’, a folder holding one Parquet file per chunk)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Status<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Optional</p>
@@ -599,7 +599,7 @@ The legacy string form (silently ignored since 2025.10.15) is dropped.</p>
 <dl class="input option" id="index-3">
 <dt class="sig sig-object input" id="input-option-groups">
 <span class="sig-name descname"><span class="pre">groups</span></span><a class="headerlink" href="#input-option-groups" title="Link to this definition">#</a></dt>
-<dd><p>List of output groups to save (only applies to txt format). Available groups: ‘SUEWS’, ‘DailyState’, ‘snow’, ‘ESTM’, ‘RSL’, ‘BL’, ‘debug’. If not specified, defaults to [‘SUEWS’, ‘DailyState’]</p>
+<dd><p>List of output groups to save (applies to txt format, and to parquet format when ‘stream_chunk’ is set; Parquet saved after an unstreamed run holds every group). Available groups: ‘SUEWS’, ‘DailyState’, ‘snow’, ‘ESTM’, ‘RSL’, ‘BL’, ‘debug’. If not specified, defaults to [‘SUEWS’, ‘DailyState’]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Status<span class="colon">:</span></dt>
 <dd class="field-odd"><p>No default; not checked by the validator - supply a value</p>
@@ -635,7 +635,7 @@ The legacy string form (silently ignored since 2025.10.15) is dropped.</p>
 <dl class="input option" id="index-6">
 <dt class="sig sig-object input" id="input-option-stream_chunk">
 <span class="sig-name descname"><span class="pre">stream_chunk</span></span><a class="headerlink" href="#input-option-stream_chunk" title="Link to this definition">#</a></dt>
-<dd><p>Stream the output to disk during the run in chunks of this many days (1 to 366), so memory no longer grows with run length. The run goes through each calendar year in consecutive chunks; each chunk’s text files are written, or extended, exactly as a run followed by save would write them, and the chunk is then dropped from memory, keeping only the groups listed in ‘groups’. 30 (about a month) or 366 (a calendar year) are good choices. Limitations: peak memory is still about one chunk of the model’s full output (all groups); values read back from the files carry the text precision of four decimal places; groups not listed in ‘groups’ are not kept at all. The checkpoint file is replaced at the end of every calendar year, so a run that stops part-way continues from the start of the year it stopped in and rewrites that year’s files. The output returned to Python holds no rows: read the written files. Currently needs ‘format’ to be ‘txt’, an output frequency that divides one day (86400 s), and output timestamps on the forcing clock (‘timestamp_reference’ of ‘follow’ or the forcing’s own reference). Unset (the default) keeps the whole output in memory until it is saved.</p>
+<dd><p>Stream the output to disk during the run in chunks of this many days (1 to 366), so memory no longer grows with run length. The run goes through each calendar year in consecutive chunks; each chunk’s output is written to disk and then dropped from memory, keeping only the groups listed in ‘groups’. Text files are written, or extended, exactly as a run followed by save would write them. Parquet output becomes a folder at the output file’s path holding one file per chunk, read back together with pandas.read_parquet(folder): only the groups listed in ‘groups’ (unlike Parquet output saved after an unstreamed run, which holds every group), DailyState at its own daily rows as in text output rather than resampled, at full float64 precision; prefer it for streamed runs that will be read back for analysis. 30 (about a month) or 366 (a calendar year) are good choices. Limitations: peak memory is still about one chunk of the model’s full output (all groups); values read back from text files carry four decimal places; groups not listed in ‘groups’ are not kept at all. The checkpoint file is replaced at the end of every calendar year, so a run that stops part-way continues from the start of the year it stopped in and writes that year’s output again. The output returned to Python holds no rows: read the written files. Needs an output frequency that divides one day (86400 s) and output timestamps on the forcing clock (‘timestamp_reference’ of ‘follow’ or the forcing’s own reference). Unset (the default) keeps the whole output in memory until it is saved.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>d</p>
@@ -717,8 +717,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.23.dev11 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d">ac7b081</a> |
+  <p>Version: 2026.10.25.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f5ec7860757004776dd6e81d95f1e5701073deb2">f5ec786</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-10-15T00:23:59+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.10.23.dev11 documentation</title>
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.10.25.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=9cb982c9"></script>
+    <script src="../_static/documentation_options.js?v=01c2f3db"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="6. Python API Reference" href="../api.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.23.dev11" />
+  <meta name="docsearch:version" content="2026.10.25.dev1" />
     <meta name="docbuild:last-update" content="2026-10-15"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.23.dev11, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d" style="color: #31708f;">ac7b081</a>).
+        (2026.10.25.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f5ec7860757004776dd6e81d95f1e5701073deb2" style="color: #31708f;">f5ec786</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.23.dev11 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.25.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.25.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -1211,15 +1211,28 @@ up to N days, each starting at 00:00 plus one model timestep. Each
 chunk’s text files are written into the configured output directory
 by the same code as <a class="reference internal" href="#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save()</span></code></a>, one file per grid, group and year,
 which later chunks extend; the chunk is dropped and the model state
-carried into the next chunk. Only the groups the text output saves
-(<code class="docutils literal notranslate"><span class="pre">output.groups</span></code>, default SUEWS and DailyState) are kept from each
-chunk. Peak memory then stays at about one chunk of the model’s full
-output (every group) however long the run. At the end of every
+carried into the next chunk. Only the groups the streamed output
+saves (<code class="docutils literal notranslate"><span class="pre">output.groups</span></code>, default SUEWS and DailyState) are kept from
+each chunk. Peak memory then stays at about one chunk of the model’s
+full output (every group) however long the run. At the end of every
 calendar year the checkpoint file that <a class="reference internal" href="#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save()</span></code></a> writes
 (<code class="docutils literal notranslate"><span class="pre">&lt;site&gt;_SUEWS_checkpoint.json</span></code>) is replaced by the state reached;
 <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> is written once at the end, so a completed run
 leaves the same files, byte for byte, as <code class="docutils literal notranslate"><span class="pre">run()</span></code> followed by
 <code class="docutils literal notranslate"><span class="pre">save()</span></code>, and <a class="reference internal" href="#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save()</span></code></a> afterwards returns those files.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">output.format</span></code> set to <code class="docutils literal notranslate"><span class="pre">parquet</span></code>, the output is a folder
+at the path of the Parquet file a run saved whole writes
+(<code class="docutils literal notranslate"><span class="pre">&lt;site&gt;_SUEWS_output.parquet/</span></code>), holding one file per chunk,
+<code class="docutils literal notranslate"><span class="pre">part-&lt;year&gt;-&lt;chunk&gt;.parquet</span></code>; the metadata file is written beside
+it when the run ends. <code class="docutils literal notranslate"><span class="pre">pandas.read_parquet(folder)</span></code> reads the
+parts back as one frame. It holds only the groups in
+<code class="docutils literal notranslate"><span class="pre">output.groups</span></code> (Parquet saved after an unstreamed run holds every
+group), at full float64 precision. The groups other than DailyState
+are resampled exactly as <code class="docutils literal notranslate"><span class="pre">save(format=&quot;parquet&quot;)</span></code> resamples them;
+DailyState keeps its own rows, the last step of each day, as the text
+output does, instead of being resampled to the output frequency.
+See the outputs page of the documentation for how the frame compares
+with a run saved whole.</p>
 <p>A streamed run that stops part-way (an error, or the process being
 killed) leaves a checkpoint whose <code class="docutils literal notranslate"><span class="pre">last_timestamp</span></code> is the last
 forcing row of the last completed year; <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> is only
@@ -1240,7 +1253,11 @@ stopped in. In each file it writes, it keeps the rows the run up to
 the checkpoint produced, drops anything later (that year’s partial
 rows) and appends from there, so it ends with the files of an
 uninterrupted run; resuming again from the same checkpoint gives the
-same files. Its <code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> describes the resumed segment
+same files. For Parquet, it deletes the part files of the years after
+the checkpoint, chosen by the year in their names, and writes them
+again; each part file is written under a temporary name and renamed,
+so an interruption never leaves one half written. Its
+<code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> describes the resumed segment
 (<code class="docutils literal notranslate"><span class="pre">continued_from_checkpoint</span></code> is true). The continuity check refuses
 a <code class="docutils literal notranslate"><span class="pre">start_date</span></code> that does not follow the checkpoint.</p>
 <p class="rubric">Examples</p>
@@ -1816,8 +1833,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.23.dev11 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ac7b08165fd6531c71e72dc3b1e8cfd782551a8d">ac7b081</a> |
+  <p>Version: 2026.10.25.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f5ec7860757004776dd6e81d95f1e5701073deb2">f5ec786</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

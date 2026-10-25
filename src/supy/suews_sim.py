@@ -36,10 +36,16 @@ from ._run_rust import (
     OUTPUT_GROUP_LAYOUT,
     KernelWarningLog,
     _check_rust_available,
+    forcing_year_keys,
     iter_suews_rust_streamed,
     run_suews_rust_chunked,
 )
-from ._save import DEFAULT_OUTPUT_GROUPS, StreamedTextFiles
+from ._save import (
+    DEFAULT_OUTPUT_GROUPS,
+    StreamedParquetParts,
+    StreamedTextFiles,
+    parquet_file_path,
+)
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
@@ -829,15 +835,29 @@ class SUEWSSimulation:
         chunk's text files are written into the configured output directory
         by the same code as :meth:`save`, one file per grid, group and year,
         which later chunks extend; the chunk is dropped and the model state
-        carried into the next chunk. Only the groups the text output saves
-        (``output.groups``, default SUEWS and DailyState) are kept from each
-        chunk. Peak memory then stays at about one chunk of the model's full
-        output (every group) however long the run. At the end of every
+        carried into the next chunk. Only the groups the streamed output
+        saves (``output.groups``, default SUEWS and DailyState) are kept from
+        each chunk. Peak memory then stays at about one chunk of the model's
+        full output (every group) however long the run. At the end of every
         calendar year the checkpoint file that :meth:`save` writes
         (``<site>_SUEWS_checkpoint.json``) is replaced by the state reached;
         ``provenance.json`` is written once at the end, so a completed run
         leaves the same files, byte for byte, as ``run()`` followed by
         ``save()``, and :meth:`save` afterwards returns those files.
+
+        With ``output.format`` set to ``parquet``, the output is a folder
+        at the path of the Parquet file a run saved whole writes
+        (``<site>_SUEWS_output.parquet/``), holding one file per chunk,
+        ``part-<year>-<chunk>.parquet``; the metadata file is written beside
+        it when the run ends. ``pandas.read_parquet(folder)`` reads the
+        parts back as one frame. It holds only the groups in
+        ``output.groups`` (Parquet saved after an unstreamed run holds every
+        group), at full float64 precision. The groups other than DailyState
+        are resampled exactly as ``save(format="parquet")`` resamples them;
+        DailyState keeps its own rows, the last step of each day, as the text
+        output does, instead of being resampled to the output frequency.
+        See the outputs page of the documentation for how the frame compares
+        with a run saved whole.
 
         A streamed run that stops part-way (an error, or the process being
         killed) leaves a checkpoint whose ``last_timestamp`` is the last
@@ -859,7 +879,11 @@ class SUEWSSimulation:
         the checkpoint produced, drops anything later (that year's partial
         rows) and appends from there, so it ends with the files of an
         uninterrupted run; resuming again from the same checkpoint gives the
-        same files. Its ``provenance.json`` describes the resumed segment
+        same files. For Parquet, it deletes the part files of the years after
+        the checkpoint, chosen by the year in their names, and writes them
+        again; each part file is written under a temporary name and renamed,
+        so an interruption never leaves one half written. Its
+        ``provenance.json`` describes the resumed segment
         (``continued_from_checkpoint`` is true). The continuity check refuses
         a ``start_date`` that does not follow the checkpoint.
 
@@ -1185,11 +1209,17 @@ class SUEWSSimulation:
             # nothing can be written again somewhere else.
             streamed_dir = Path(self._streamed_paths[0]).parent
             same_dir = settings["output_path"].resolve() == streamed_dir.resolve()
-            as_text = settings["output_format"] in {None, "txt"}
-            if not (same_dir and as_text):
+            streamed_format = (
+                "parquet"
+                if any(Path(p).suffix == ".parquet" for p in self._streamed_paths)
+                else "txt"
+            )
+            same_format = settings["output_format"] in {None, streamed_format}
+            if not (same_dir and same_format):
+                label = "Parquet" if streamed_format == "parquet" else "text"
                 raise ValueError(
                     "This run streamed its output to "
-                    f"{streamed_dir} as text (output.stream_chunk); its "
+                    f"{streamed_dir} as {label} (output.stream_chunk); its "
                     "output is not held in memory, so it cannot be saved "
                     "again elsewhere or in another format. Rerun with "
                     "output.stream_chunk unset to save differently."
@@ -1405,7 +1435,6 @@ class SUEWSSimulation:
         ref = getattr(output_config, "timestamp_reference", "follow")
         source = settings["forcing_timestamp_reference"]
         check_stream_chunk(
-            str(output_config.format),
             settings["freq_s"],
             str(getattr(ref, "value", ref)),
             str(getattr(source, "value", source)),
@@ -1424,11 +1453,12 @@ class SUEWSSimulation:
 
     @staticmethod
     def _groups_saved(output_config) -> list[str]:
-        """Return the kernel output groups the text output saves.
+        """Return the kernel output groups a streamed run saves.
 
-        These are the groups :meth:`save` writes (``output.groups``, default
-        SUEWS and DailyState), restricted to those the kernel writes, in
-        kernel order; a streamed run keeps only these from each chunk.
+        These are the groups :meth:`save` writes as text (``output.groups``,
+        default SUEWS and DailyState), restricted to those the kernel writes,
+        in kernel order; a streamed run keeps only these from each chunk,
+        for Parquet output too.
         """
         list_save = getattr(output_config, "groups", None)
         if list_save is None:
@@ -1473,10 +1503,11 @@ class SUEWSSimulation:
     ) -> tuple:
         """Run in chunks of *stream_chunk* days, writing and dropping each.
 
-        Each chunk keeps only the groups *list_keep* that the text output
+        Each chunk keeps only the groups *list_keep* that the streamed output
         saves. At the end of each calendar year the checkpoint file is
         replaced by the state reached, so a run that stops part-way can
-        resume from the start of the year it stopped in.
+        resume from the start of the year it stopped in. Parquet output goes
+        to one file per chunk (see :class:`StreamedParquetParts`).
 
         Returns ``(list_path_save, df_empty, dict_state_json,
         kernel_warnings)``; ``df_empty`` has the output columns and no rows.
@@ -1491,9 +1522,29 @@ class SUEWSSimulation:
             self._remove_stale_sidecars(settings)
         # Files are started on first write and extended after; a run
         # continuing from a checkpoint keeps what the run up to it wrote.
-        streamed_files = StreamedTextFiles(
-            resume_after=checkpoint.last_timestamp if checkpoint is not None else None
+        resume_after = checkpoint.last_timestamp if checkpoint is not None else None
+        output_format = settings["output_format"] or str(
+            settings["output_config"].format
         )
+        is_parquet = output_format == "parquet"
+        if is_parquet:
+            path_dir = Path(settings["output_path"])
+            site = safe_filename_component(settings["site"])
+            timestamp_reference = settings["output_config"].timestamp_reference
+            streamed_files = StreamedParquetParts(
+                parquet_file_path(path_dir, site, "output", timestamp_reference),
+                list_path_sidecar=[
+                    parquet_file_path(path_dir, site, "metadata", timestamp_reference)
+                ],
+                resume_after=resume_after,
+                tstep_s=tstep_s,
+            )
+            # Before any chunk runs, and logged at the caller's level.
+            streamed_files.prepare()
+            year_last = int(forcing_year_keys(df_forcing.index, tstep_s)[-1])
+        else:
+            streamed_files = StreamedTextFiles(resume_after=resume_after)
+            year_last = None
         # _save_supy sets the SuPy logger level on every call; keep the
         # caller's level so later chunks and the end-of-run summaries still log.
         log_level = logger_supy.level
@@ -1528,6 +1579,8 @@ class SUEWSSimulation:
             ):
                 kernel_warnings.extend(warnings_chunk)
                 dict_state_json = dict_state_chunk
+                if is_parquet:
+                    streamed_files.start_chunk(year, k_chunk)
                 for path in self._write_output_frame(
                     df_chunk, df_state_final, settings, streamed_files
                 ):
@@ -1549,6 +1602,10 @@ class SUEWSSimulation:
                     last_timestamp,
                     folder,
                 )
+                if is_parquet and k_chunk == n_chunk and year == year_last:
+                    # The metadata file, once, before the last checkpoint, so
+                    # a failure writing it resumes from the year before.
+                    list_path_save = streamed_files.finish()
                 # The year's files are complete; record the state reached at
                 # its end so a later failure can resume from here.
                 if k_chunk == n_chunk and dict_state_chunk:

@@ -27,13 +27,24 @@ def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
     """
     paths = [Path(p) for p in streamed_paths]
     folder = paths[0].resolve().parent if paths else Path(".").resolve()
-    text_files = sorted(p.name for p in paths if p.suffix == ".txt")
-    example = f" (for example {text_files[0]})" if text_files else ""
+    list_parquet = sorted(
+        p.name for p in paths if p.suffix == ".parquet" and "SUEWS_output" in p.name
+    )
+    if list_parquet:
+        where = (
+            f"Its Parquet output is the folder {folder / list_parquet[0]}, one "
+            "file per chunk; read it back with pandas.read_parquet(folder)"
+        )
+    else:
+        text_files = sorted(p.name for p in paths if p.suffix == ".txt")
+        example = f" (for example {text_files[0]})" if text_files else ""
+        where = (
+            f"Its {len(text_files)} text output files are in {folder}{example}; "
+            "read one back with pandas.read_csv(path, sep=r'\\s+')"
+        )
     return RuntimeError(
         "This output was streamed to disk in chunks (output.stream_chunk) "
-        f"and holds no rows in memory. Its {len(text_files)} text output files "
-        f"are in {folder}{example}; read one back with "
-        "pandas.read_csv(path, sep=r'\\s+'), or rerun with "
+        f"and holds no rows in memory. {where}, or rerun with "
         "output.stream_chunk unset to keep the output in memory. The "
         "checkpoint, final state and kernel warnings are still available."
     )
@@ -750,8 +761,9 @@ class SUEWSOutput:
         """One-line description of a streamed output (no rows held)."""
         folder = Path(self._streamed_paths[0]).resolve().parent
         n_text = sum(1 for p in self._streamed_paths if Path(p).suffix == ".txt")
+        files = f"{n_text} text files" if n_text else "a Parquet folder"
         return (
-            f"SUEWSOutput(streamed to {folder}, {n_text} text files, "
+            f"SUEWSOutput(streamed to {folder}, {files}, "
             f"{len(self.groups)} groups; no rows held in memory)"
         )
 

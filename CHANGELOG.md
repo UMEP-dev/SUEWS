@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 28 Oct 2026
+
+- [change][experimental] Aerodynamic resistance now approaches its 120 s m-1 upper limit smoothly above 90 s m-1 in all storage heat methods, including EHC and OHM.
+  - This changes some stable-night results and their subsequent carried state; the 10 s m-1 floor is unchanged and upper-limit warnings still require raw resistance above 120 s m-1.
+
 ### 27 Oct 2026
 
 - [bugfix] Keep all-NaN sums missing when resampling output, including one- and two-row final chunks of text output at the model timestep; real zeroes and sums of observed values are preserved (#1934).

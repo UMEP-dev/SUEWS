@@ -4,6 +4,10 @@ MODULE module_phys_resist
    USE module_ctrl_const_physconst, ONLY: eps_fp
    IMPLICIT NONE
 
+   ! Smooth upper limit on aerodynamic resistance (see limit_ra_upper)
+   REAL(KIND(1D0)), PARAMETER :: RA_LIMIT_MAX = 120.0D0 ! asymptote [s m-1]
+   REAL(KIND(1D0)), PARAMETER :: RA_LIMIT_KNEE = 90.0D0 ! RA unchanged up to here [s m-1]
+
 CONTAINS
    SUBROUTINE AerodynamicResistance( &
       ZZD, & ! input:
@@ -26,7 +30,7 @@ CONTAINS
       ! Modified by HCW 03 Dec 2015 - changed lower limit on RA from 2 s m-1 to 10 s m-1 (to avoid unrealistically high evaporation rates)
       ! Modified by LJ in 12 April to not to be used with global variables
       ! To Do:
-      !       - Check whether the thresholds 2-200 s m-1 are suitable over a range of z0!! HCW 04 Mar 2015
+      !       - Check whether the limits (10 s m-1 below, smooth towards 120 s m-1 above) are suitable over a range of z0.
       ! OUTPUT: RA - Aerodynamic resistance [s m^-1]
       ! INPUT:  AerodynamicResistanceMethod = Method to calculate RA
       !         StabilityMethod = defines the method to calculate atmospheric stability
@@ -106,9 +110,13 @@ CONTAINS
       END IF
 
       !If RA outside permitted range, adjust extreme values !!Check whether these thresholds are suitable over a range of z0
-      IF (RA_h > 120) THEN !was 175
-         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA > 200 s m-1; RA set to 200 s m-1', RA_h, notUsed, notUsedI, modState)
-         RA_h = 120
+      ! Upper limit: smooth (C2), not a hard cap, so the surface-temperature
+      ! iteration does not see a kink in RA (was a hard cap at 120, earlier 175)
+      IF (RA_h > RA_LIMIT_KNEE) THEN
+         IF (RA_h > 120.0D0) &
+            CALL errorHint(7, 'AerodynamicResistance: calculated RA > 120 s m-1; limited smoothly towards 120 s m-1', &
+                           RA_h, notUsed, notUsedI, modState)
+         RA_h = limit_ra_upper(RA_h)
       ELSEIF (RA_h < 10) THEN !found  By Shiho - fix Dec 2012  !Threshold changed from 2 to 10 s m-1 (HCW 03 Dec 2015)
          CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA < 10 s m-1; RA set to 10 s m-1', RA_h, notUsed, notUsedI, modState)
          RA_h = 10
@@ -117,6 +125,27 @@ CONTAINS
 
       RETURN
    END SUBROUTINE AerodynamicResistance
+
+   PURE FUNCTION limit_ra_upper(ra) RESULT(ra_limited)
+      ! Smooth upper limit on aerodynamic resistance [s m-1]
+      ! Identity up to RA_LIMIT_KNEE; above it
+      !    RA_LIMIT_KNEE + w*TANH((ra - RA_LIMIT_KNEE)/w),  w = RA_LIMIT_MAX - RA_LIMIT_KNEE,
+      ! which matches the identity in value, slope (1) and curvature (0) at the knee,
+      ! is increasing (strictly until TANH rounds to 1 in double precision, ra > ~650),
+      ! and tends to RA_LIMIT_MAX from below.
+      ! Largest departure from the former hard cap MIN(ra, RA_LIMIT_MAX) is
+      ! w*(1 - TANH(1)) = 7.1 s m-1, at ra = RA_LIMIT_MAX.
+      REAL(KIND(1D0)), INTENT(IN) :: ra
+      REAL(KIND(1D0)) :: ra_limited
+      REAL(KIND(1D0)) :: width
+
+      width = RA_LIMIT_MAX - RA_LIMIT_KNEE
+      IF (ra <= RA_LIMIT_KNEE) THEN
+         ra_limited = ra
+      ELSE
+         ra_limited = RA_LIMIT_KNEE + width*TANH((ra - RA_LIMIT_KNEE)/width)
+      END IF
+   END FUNCTION limit_ra_upper
 
    SUBROUTINE SurfaceResistance( &
       id, it, & ! input:

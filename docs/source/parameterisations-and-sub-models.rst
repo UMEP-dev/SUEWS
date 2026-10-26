@@ -3,6 +3,28 @@
 Parameterisations and sub-models within SUEWS
 =============================================
 
+.. _aerodynamic_resistance_limit:
+
+Aerodynamic resistance
+----------------------
+
+SUEWS (Surface Urban Energy and Water Balance Scheme) applies a smooth upper limit to aerodynamic resistance in every storage heat method, including OHM and EHC.
+For raw resistance :math:`r_a` in s |m^-1|, the upper limiter is
+
+.. math::
+
+   r_{a,\mathrm{limited}} =
+   \begin{cases}
+   r_a, & r_a \leq 90, \\
+   90 + 30\tanh((r_a - 90)/30), & r_a > 90.
+   \end{cases}
+
+The value, slope and curvature are continuous at 90 s |m^-1|, and the upper limit approaches 120 s |m^-1|.
+The existing lower limit of 10 s |m^-1| is unchanged.
+Upper-limit warnings still occur only when the raw resistance exceeds 120 s |m^-1|; smoothing between 90 and 120 does not itself emit a warning.
+This experimental change removes the slope discontinuity of the former hard cap, with a maximum direct reduction of about 7.15 s |m^-1| at a raw resistance of 120 s |m^-1|.
+It can change stable, light-wind results and the state carried into subsequent timesteps, across all storage heat methods.
+
 Net all-wave radiation, Q\*
 ---------------------------
 

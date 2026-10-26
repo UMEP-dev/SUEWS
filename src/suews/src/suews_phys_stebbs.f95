@@ -28,17 +28,15 @@ CONTAINS
    !   vFR - volume Flow Rate [m3 s-1]
    !   Tout - temperature of water in vessel lost to drains [K]
    !   Tmains - Water mains (cold) temperature [K]
-   !   timeResolution - time resolution [s]
    ! Returns:
-   !   q_wt - energy lost to drains [J]
+   !   q_wt - rate of heat lost to drains [W]
    !-------------------------------------------------------------------
-   FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, Tmains, timeResolution) RESULT(q_wt)
+   FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, Tmains) RESULT(q_wt)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      INTEGER, INTENT(in) :: timeResolution
       REAL(KIND(1D0)), INTENT(in) :: rho, Cp, vFRo, Tout, Tmains
       REAL(KIND(1D0)) :: q_wt
-      q_wt = rho*Cp*(Tout - Tmains)*(vFRo*timeResolution)
+      q_wt = rho*Cp*(Tout - Tmains)*vFRo
    END FUNCTION
    !-------------------------------------------------------------------
    ! Function: indoorConvectionHeatTransfer
@@ -1633,7 +1631,7 @@ SUBROUTINE tstep( &
                       QHconv_extvesselwall_to_indair, & ! convective heat flux to external wall of vessels holding DHW in use in building
                       Qlw_net_extvesselwall_to_wall, &
                       Qlw_net_extvesselwall_to_indoormass, & ! radiative heat flux to external wall of vessels holding DHW in use in building
-                      Qloss_drain, & ! Heat loss as water held in use in building drains to sewer
+                      Qloss_drain, & ! Heat loss as water held in use in building drains to sewer [W]
                       QHwaste_dhw ! additional heat release from efficieny losses/gains of heating hot water
 
    REAL(KIND(1D0)) :: Qtotal_net_water_tank, Qtotal_net_intwall_tank, &
@@ -2231,7 +2229,7 @@ SUBROUTINE tstep( &
          
          IF (Vwater_vessel > 0.0) THEN
             dTwater_vessel = &
-               (Qtotal_net_water_vessel/(density_water*cp_water)*Vwater_vessel)*resolution
+               (Qtotal_net_water_vessel/((density_water*cp_water)*Vwater_vessel))*resolution
 
             Twater_vessel = Twater_vessel + dTwater_vessel
          END IF
@@ -2245,8 +2243,8 @@ SUBROUTINE tstep( &
             Textwall_vessel = Textwall_vessel + dTextwall_vessel
          END IF
          Qloss_drain = &
-            waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, Tincomingwater_tank, resolution)
-         Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain * resolution
+            waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, Tincomingwater_tank)
+         Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain*resolution
          dVwater_vessel = (flowrate_water_supply - flowrate_water_drain)*resolution
          Vwater_vessel = Vwater_vessel + dVwater_vessel
          !IF (Vwater_vessel < minVwater_vessel) THEN
@@ -2388,7 +2386,7 @@ SUBROUTINE tstep( &
       !energy consumption components (including sensible metabolism)
       QEC_heating_tstepFA = QHload_heating_tstepFA / heating_efficiency_air
       QEC_cooling_tstepFA = QHload_cooling_tstepFA / coeff_performance_cooling
-      QEC_dhw_tstepFA = QHload_dhw_tstepFA / heating_efficiency_air
+      QEC_dhw_tstepFA = QHload_dhw_tstepFA / heating_efficiency_water
       QEC_bldg_tstepFA = QEC_heating_tstepFA + QEC_cooling_tstepFA + QEC_dhw_tstepFA + QH_metabolism_tstepFA + QH_appliance_tstepFA + QH_lighting_tstepFA
       !Convection
       QH_bldg_tstepFA = QHconv_extwall_to_outair_tstepFA + QHconv_extroof_to_outair_tstepFA + QHconv_extwindow_to_outair_tstepFA
@@ -2627,8 +2625,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%emissivity_extwall_tank = stebbsPrm%hot_water_tank_wall_emissivity
    self%conductivity_wall_vessel = stebbsPrm%hot_water_vessel_wall_conductivity
    self%conv_coeff_intwall_vessel = stebbsPrm%hot_water_vessel_internal_wall_convection_coefficient
-   self%conv_coeff_extwall_vessel = stebbsPrm%hot_water_tank_external_wall_convection_coefficient ! # Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building
-   self%emissivity_extwall_vessel = stebbsPrm%hot_water_vessel_wall_conductivity ! # Effective External Wall emissivity of hot water being used within building
+   self%conv_coeff_extwall_vessel = stebbsPrm%hot_water_vessel_external_wall_convection_coefficient ! # Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building
+   self%emissivity_extwall_vessel = stebbsPrm%hot_water_vessel_wall_emissivity ! # Effective External Wall emissivity of hot water being used within building
 
    self%maxheatingpower_water = building_archtype%maximum_hot_water_heating_power ! # Watts
    self%heating_efficiency_water = stebbsPrm%hot_water_heating_efficiency

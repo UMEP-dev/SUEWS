@@ -662,7 +662,7 @@ jobs:
   #     SAVE, which would share it between parallel grid threads (gh#1741).
   #     Also a text scan that needs no build.
   #  4. Fortran physical-constant literals (273.15, Stefan-Boltzmann, pi,
-  #     degree-radian and time factors, cp and Lv) may not exceed their
+  #     degree-radian and time factors, cp and Lv) must match their
   #     committed per-file baseline. A text scan that needs no build.
   #
   # The job id and display name are unchanged so nothing that references

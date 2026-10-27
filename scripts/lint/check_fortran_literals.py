@@ -10,8 +10,8 @@ in a series of separate PRs. This lint stops new literals arriving while that
 happens.
 
 It counts, per file and per kind, the literals listed in ``GATED_KINDS`` in
-every ``*.f95`` and ``*.f90`` under ``src/suews/src`` (comments and quoted
-strings stripped) except the constants module in ``CONSTANT_MODULES``, where
+every ``*.f95`` and ``*.f90`` under ``src/suews/src`` (free-form continuations
+joined, comments and quoted strings stripped) except ``CONSTANT_MODULES``, where
 the named definitions live, and compares the counts with the committed baseline
 ``scripts/lint/fortran_literals_baseline.json``:
 
@@ -115,9 +115,9 @@ _NUMBER = re.compile(
 )
 
 
-def _strip_comment_and_strings(line: str) -> str:
-    """Drop a trailing ``!`` comment and blank out quoted strings."""
-    out, quote = [], None
+def _strip_comment_and_strings(line: str, quote: str | None) -> tuple[str, str | None]:
+    """Blank character data, retaining quote state across continuations."""
+    out = []
     for char in line:
         if quote:
             if char == quote:
@@ -130,16 +130,31 @@ def _strip_comment_and_strings(line: str) -> str:
             break
         else:
             out.append(char)
-    return "".join(out)
+    return "".join(out), quote
 
 
 def _code_lines(source: str) -> list[str]:
-    """Return executable and declaration text, one entry per physical line."""
+    """Return logical lines of code, joining free-form continuations."""
     lines = []
+    pending, quote = "", None
     for raw in source.splitlines():
-        if raw.lstrip().startswith("#"):  # preprocessor directive
+        # Comments and preprocessor directives can interrupt a continuation.
+        if not raw.strip() or raw.lstrip().startswith(("#", "!")):
             continue
-        lines.append(_strip_comment_and_strings(raw))
+        line = raw.lstrip()
+        if line.startswith("&"):
+            line = line[1:]
+        code, quote = _strip_comment_and_strings(line, quote)
+        code = code.rstrip()
+        if code.endswith("&"):
+            pending += code[:-1]
+        elif quote:
+            pending += code
+        else:
+            lines.append(pending + code)
+            pending = ""
+    if pending:
+        lines.append(pending)
     return lines
 
 
@@ -160,7 +175,8 @@ def count_kinds(
     """Count literals of each kind in one Fortran source."""
     counts = dict.fromkeys(kinds, 0)
     for line in _code_lines(source):
-        code = line
+        # Dotted operators delimit adjacent numbers just like symbolic ones.
+        code = re.sub(r"\.[a-zA-Z]+\.", " ", line)
         for kind, pattern in EXPRESSION_KINDS.items():
             if kind in kinds:
                 counts[kind] += len(pattern.findall(code))

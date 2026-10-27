@@ -112,6 +112,31 @@ def test_reported_kinds_are_counted_but_not_gated(tmp_path):
     assert _run(repo) == 0
 
 
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ("flag = tk.GT.273.15.AND.tk.LT.273.16", {"kelvin_offset": 2}),
+        ("tk = 273.&\n&15D0", {"kelvin_offset": 1}),
+        ("sec = 24 * & ! one day\n! continued below\n  & 3600", {"seconds_per_day": 1}),
+        ("ang = pi / &\n  180.0", {"degree_radian": 1}),
+        ("CALL hint('value &\n! comment between continuation lines\n&273.15')", {}),
+        ('CALL hint("value &\n&273.15")\ntk = 273.15', {"kelvin_offset": 1}),
+        ("CALL hint('it''s 273.15!')\ntk = 273.15_real64", {"kelvin_offset": 1}),
+        ("tk = .27315E3 + 27315D-2_8", {"kelvin_offset": 2}),
+        ("sec = 24.0_dp * 60D0 * 60_8", {"seconds_per_day": 1}),
+        ("ang = 180.0_real64 / PI", {"degree_radian": 1}),
+        ('tk = 273.15 + &\n#include "constants.inc"\n& 273.16', {"kelvin_offset": 2}),
+    ],
+)
+def test_fortran_lexical_boundaries(source, expected):
+    """Count code across continuations, excluding continued character data."""
+    counts = check_fortran_literals.count_kinds(
+        source, check_fortran_literals.GATED_KINDS
+    )
+
+    assert {kind: n for kind, n in counts.items() if n} == expected
+
+
 def test_matching_baseline_passes(tmp_path):
     repo = _make_repo(tmp_path, SOURCE, EXPECTED)
 

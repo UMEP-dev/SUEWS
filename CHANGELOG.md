@@ -79,7 +79,7 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
-- [maintenance] CI now fails when a Fortran source gains a physical-constant or unit-conversion literal (273.15, Stefan-Boltzmann, pi, degree-radian and time factors, reference pressure, `cp` and `Lv` values): `scripts/lint/check_fortran_literals.py` compares per-file counts with a committed baseline, which clean-up PRs lower as they replace literals with named constants
+- [maintenance] CI now fails when a Fortran source gains a physical-constant or unit-conversion literal (273.15, Stefan-Boltzmann, pi, degree-radian and time factors, reference pressure, `cp` and `Lv` values): `scripts/lint/check_fortran_literals.py` compares per-file counts with a committed baseline, which clean-up PRs lower as they replace literals with named constants (#1888)
 - [bugfix] The roughness-sublayer humidity scale `qStar_RSL` now divides the latent heat flux by air density instead of multiplying by it, so the RSL humidity profile, `Q2` and `RH2` no longer depart from the forcing humidity by about 1.4 times too much; the sample reference output is refreshed (#1867)
 - [bugfix] With snow enabled, the water body is now limited by its state limit, as when snow is off, instead of by the storage capacity of the drainage equation; on the first snow timestep the sample's 20000 mm water body drained to 0.5 mm and about 2800 mm (grid average) left as runoff (#1906)
 - [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)

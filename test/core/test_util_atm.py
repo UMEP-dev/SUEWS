@@ -12,8 +12,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from supy.util._atm import (
+# Unit tests intentionally exercise these internal helpers directly.
+from supy.util._atm import (  # ruff: ignore[import-private-name]
     cal_cp,
+    cal_cp_with_rh,
+    cal_dens_dry,
+    cal_dens_vap,
     cal_des_dta,
     cal_dq,
     cal_lat_vap,
@@ -375,7 +379,7 @@ class TestWindHeightCorrection(TestCase):
 
 
 class TestVapSatPressureUnit:
-    """`cal_vap_sat` must convert pressure the same way for every input shape.
+    """`cal_vap_sat` uses one pressure convention across supported input forms.
 
     One-dimensional inputs go through ``pd.Series``; 2-D inputs (a DataFrame)
     cannot, and take the fallback branch. Both must apply the same hPa -> kPa
@@ -383,20 +387,54 @@ class TestVapSatPressureUnit:
     passed as a Series.
     """
 
-    TEMP_C = np.array([-20.0, -5.0, 5.0, 20.0, 35.0])
+    TEMP_C = np.array([-20.0, -5.0, 0.0, 20.0, 35.0])
     PRES_HPA = np.array([1013.25, 950.0, 1000.0, 870.0, 700.0])
 
     def test_dataframe_matches_series(self):
         """The 2-D fallback branch gives the 1-D result, column by column."""
-        expected = cal_vap_sat(pd.Series(self.TEMP_C), pd.Series(self.PRES_HPA))
-
-        df_temp = pd.DataFrame({"a": self.TEMP_C, "b": self.TEMP_C[::-1]})
-        df_pres = pd.DataFrame({"a": self.PRES_HPA, "b": self.PRES_HPA[::-1]})
+        index = pd.date_range("2026-01-01", periods=len(self.TEMP_C), freq="h")
+        df_temp = pd.DataFrame({"a": self.TEMP_C, "b": self.TEMP_C[::-1]}, index=index)
+        df_pres = pd.DataFrame(
+            {"a": self.PRES_HPA, "b": self.PRES_HPA[::-1]}, index=index
+        )
+        df_expected = pd.DataFrame(
+            {col: cal_vap_sat(df_temp[col], df_pres[col]) for col in df_temp}
+        )
         result = cal_vap_sat(df_temp, df_pres)
 
-        assert isinstance(result, pd.DataFrame)
-        np.testing.assert_allclose(result["a"], expected, rtol=1e-12)
-        np.testing.assert_allclose(result["b"], expected[::-1], rtol=1e-12)
+        # Shape equivalence should differ only by floating-point round-off.
+        pd.testing.assert_frame_equal(result, df_expected, rtol=1e-12, atol=0)
+
+    def test_dataframe_with_scalar_pressure(self):
+        """Temperature alone can trigger the fallback; pressure still converts."""
+        df_temp = pd.DataFrame({"a": self.TEMP_C, "b": self.TEMP_C[::-1]})
+        pressure_hpa = 1013.25
+        ser_pres = pd.Series(pressure_hpa, index=df_temp.index)
+        df_expected = pd.DataFrame(
+            {col: cal_vap_sat(df_temp[col], ser_pres) for col in df_temp}
+        )
+
+        result = cal_vap_sat(df_temp, pressure_hpa)
+
+        pd.testing.assert_frame_equal(result, df_expected, rtol=1e-12, atol=0)
+
+    @pytest.mark.parametrize("calculate", [cal_dens_dry, cal_dens_vap, cal_cp_with_rh])
+    def test_density_and_heat_capacity_callers(self, calculate):
+        """Density and heat-capacity helpers retain column equivalence."""
+        df_temp = pd.DataFrame({"a": self.TEMP_C, "b": self.TEMP_C[::-1]})
+        df_pres = pd.DataFrame({"a": self.PRES_HPA, "b": self.PRES_HPA[::-1]})
+        df_rh = pd.DataFrame(60.0, index=df_temp.index, columns=df_temp.columns)
+
+        if calculate is cal_cp_with_rh:
+            args = (df_temp, df_rh, df_pres)
+        else:
+            args = (df_rh, df_temp, df_pres)
+        df_expected = pd.DataFrame(
+            {col: calculate(*(arg[col] for arg in args)) for col in df_temp}
+        )
+        result = calculate(*args)
+
+        pd.testing.assert_frame_equal(result, df_expected, rtol=1e-12, atol=0)
 
     def test_one_dimensional_inputs_agree(self):
         """Series, ndarray, list and scalar inputs share one conversion."""

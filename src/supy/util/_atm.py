@@ -185,8 +185,8 @@ def cal_psi_heat(zoL):
 
 # saturation vapour pressure [hPa]
 def cal_vap_sat(Temp_C, Press_hPa):
-    # The enhancement factor below takes pressure in kPa; convert on both
-    # branches so the unit does not depend on the input's shape.
+    # Preserve the existing 1-D and Fortran pressure convention (hPa -> kPa)
+    # on both branches, independently of the input's shape.
     try:
         ser_pres_kPa = pd.Series(Press_hPa) / 10
         ser_TaC = pd.Series(Temp_C)

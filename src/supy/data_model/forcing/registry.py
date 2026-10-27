@@ -1,8 +1,14 @@
 """Typed inventory models for the SUEWS forcing contract."""
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+if TYPE_CHECKING:
+    import numpy as np
+    import pandas as pd
+
+UnitValues = TypeVar("UnitValues", float, "np.ndarray", "pd.Series", "pd.DataFrame")
 
 ForcingDataType = Literal["integer", "number"]
 ForcingRole = Literal["coordinate", "driver", "observation", "reserved"]
@@ -89,6 +95,24 @@ class ForcingVariable(BaseModel):
         ):
             raise ValueError("a runtime scale requires a runtime unit")
         return self
+
+    def to_runtime_unit(self, values: UnitValues) -> UnitValues:
+        """Convert values from the forcing-file unit to the in-memory unit.
+
+        This is the one place the file-to-memory unit boundary is applied
+        (pressure: kPa in a forcing file, hPa in memory and in the kernel).
+        ``values`` may be a scalar, an array or a pandas object; it is scaled
+        as given, sentinels included, as the loader always has.
+        """
+        return values * self.runtime_scale
+
+    def to_file_unit(self, values: UnitValues) -> UnitValues:
+        """Convert values from the in-memory unit back to the forcing-file unit.
+
+        The inverse of :meth:`to_runtime_unit`. Callers that must preserve
+        missing-value sentinels mask them before calling.
+        """
+        return values / self.runtime_scale
 
 
 class RequirementRule(BaseModel):
@@ -278,6 +302,15 @@ class ForcingRegistry(BaseModel):
     def temporal_types(self) -> dict[str, TemporalSemantics]:
         """Return resampling semantics for canonical external columns."""
         return {variable.name: variable.temporal for variable in self.legacy_variables}
+
+    @property
+    def runtime_scaled_variables(self) -> tuple[ForcingVariable, ...]:
+        """Legacy columns whose in-memory unit differs from the file unit."""
+        return tuple(
+            variable
+            for variable in self.legacy_variables
+            if variable.runtime_unit is not None
+        )
 
     @property
     def runtime_validation_ranges(

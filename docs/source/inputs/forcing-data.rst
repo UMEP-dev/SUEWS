@@ -73,6 +73,17 @@ missing-value policies.
      - kdown
      - Must be :math:`\geq 0` (0 at night)
 
+.. note::
+
+   Pressure is the one column whose unit changes on loading. A forcing file
+   holds ``pres`` in kPa; :func:`~supy.util.read_forcing`,
+   :meth:`~supy.SUEWSForcing.from_file` and :class:`~supy.SUEWSSimulation`
+   convert it to hPa, the unit of the loaded forcing, of
+   :attr:`~supy.SUEWSSimulation.forcing` and of the model itself. A DataFrame
+   passed to :meth:`~supy.SUEWSSimulation.update_forcing` must therefore
+   already hold pressure in hPa; one whose pressure looks like kPa is rejected
+   with an error.
+
 **Time Information**
 
 Each row must include these timestamp columns. Their position is unrestricted
@@ -543,7 +554,8 @@ When using EPW data, set the forcing height to match the wind speed measurement:
    # 1. Read EPW file (wind speed at 10 m by default)
    df_epw = sp.util.read_epw(Path("weather.epw"))
 
-   # 2. Extract and rename columns for SUEWS forcing
+   # 2. Prepare file-unit forcing (kPa) for export to a text file.
+   #    For an in-memory DataFrame, divide EPW pressure by 100 for hPa.
    df_forcing = pd.DataFrame({
        'U': df_epw['Wind Speed'],
        'Tair': df_epw['Dry Bulb Temperature'],

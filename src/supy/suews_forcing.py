@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from ._load import ForcingConflictError  # noqa: F401  (public re-export)
-from .data_model.forcing import FORCING_REGISTRY
+from .data_model.forcing import FORCING_REGISTRY, ForcingVariable
 
 # Compatibility projections retained for downstream users of these module
 # constants. File aliases remain a separate registry namespace.
@@ -1078,7 +1078,9 @@ class SUEWSForcing:
         out["it"] = idx.hour.to_numpy(dtype=np.int64)
         out["imin"] = idx.minute.to_numpy(dtype=np.int64)
 
-        def _to_file_values(values: np.ndarray, variable=None) -> np.ndarray:
+        def _to_file_values(
+            values: np.ndarray, variable: Optional[ForcingVariable] = None
+        ) -> np.ndarray:
             values = np.asarray(values, dtype=np.float64)
             missing = ~np.isfinite(values) | (values <= SUEWS_MISSING_THRESHOLD)
             if variable is not None and variable.runtime_unit is not None:

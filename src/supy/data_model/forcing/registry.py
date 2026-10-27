@@ -1,8 +1,14 @@
 """Typed inventory models for the SUEWS forcing contract."""
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+if TYPE_CHECKING:
+    import numpy as np
+    import pandas as pd
+
+UnitValues = TypeVar("UnitValues", float, "np.ndarray", "pd.Series", "pd.DataFrame")
 
 ForcingDataType = Literal["integer", "number"]
 ForcingRole = Literal["coordinate", "driver", "observation", "reserved"]
@@ -90,7 +96,7 @@ class ForcingVariable(BaseModel):
             raise ValueError("a runtime scale requires a runtime unit")
         return self
 
-    def to_runtime_unit(self, values):
+    def to_runtime_unit(self, values: UnitValues) -> UnitValues:
         """Convert values from the forcing-file unit to the in-memory unit.
 
         This is the one place the file-to-memory unit boundary is applied
@@ -100,7 +106,7 @@ class ForcingVariable(BaseModel):
         """
         return values * self.runtime_scale
 
-    def to_file_unit(self, values):
+    def to_file_unit(self, values: UnitValues) -> UnitValues:
         """Convert values from the in-memory unit back to the forcing-file unit.
 
         The inverse of :meth:`to_runtime_unit`. Callers that must preserve

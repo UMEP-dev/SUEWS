@@ -8,23 +8,19 @@ timestep, so a 300 s model never reached the ``23:55`` daily-write point and
 ``DailyState`` stopped being saved. These tests pin the normalised behaviour.
 """
 
+from importlib.resources import as_file, files
+
 import numpy as np
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
 import pytest
 
-try:
-    from importlib.resources import files
-except ImportError:  # pragma: no cover - Python < 3.9 fallback
-    from importlib_resources import files
-
-from supy._misc import infer_freq_offset
 # ruff: disable[import-private-name]
 from supy._check import check_forcing
-from supy.data_model.forcing import FORCING_REGISTRY
+from supy._misc import infer_freq_offset
+from supy.suews_forcing import SUEWSForcing
 from supy.suews_sim import SUEWSSimulation
 from supy.util import read_forcing
-from supy.util._io import _PRESSURE_HPA_FLOOR
 
 # ruff: enable[import-private-name]
 
@@ -33,16 +29,12 @@ pytestmark = pytest.mark.api
 
 @pytest.fixture(scope="module")
 def sample_paths():
-    """Resolve the bundled sample config and hourly forcing file.
-
-    ``files(...)`` returns a meson-python editable traversable; ``str`` of a
-    file resolves to the real path, but the directory itself is not glob-able,
-    so each file is resolved individually.
-    """
-    return {
-        "config": str(files("supy").joinpath("sample_data/sample_config.yml")),
-        "forcing": str(files("supy").joinpath("sample_data/Kc_2012_data_60.txt")),
-    }
+    """Materialise the config and its sibling forcing for the fixture lifetime."""
+    with as_file(files("supy") / "sample_data") as path_sample:
+        yield {
+            "config": path_sample / "sample_config.yml",
+            "forcing": path_sample / "Kc_2012_data_60.txt",
+        }
 
 
 @pytest.fixture(scope="module")
@@ -66,10 +58,10 @@ class TestTimestepNormalisation:
         sim_df.update_forcing(hourly_forcing)
 
         # ASSERT: both resampled to the model timestep (5 min)
-        assert infer_freq_offset(sim_path._df_forcing.index) == to_offset("5min")
-        assert infer_freq_offset(sim_df._df_forcing.index) == to_offset("5min")
-        assert len(sim_df._df_forcing) == len(sim_path._df_forcing)
-        assert sim_df._df_forcing.index.equals(sim_path._df_forcing.index)
+        assert infer_freq_offset(sim_path.forcing.index) == to_offset("5min")
+        assert infer_freq_offset(sim_df.forcing.index) == to_offset("5min")
+        assert len(sim_df.forcing) == len(sim_path.forcing)
+        assert sim_df.forcing.index.equals(sim_path.forcing.index)
 
     @pytest.mark.core
     def test_hourly_input_is_upsampled(self, sample_paths, hourly_forcing):
@@ -80,10 +72,10 @@ class TestTimestepNormalisation:
         sim.update_config(str(sample_paths["config"]), auto_load_forcing=False)
         sim.update_forcing(hourly_forcing)
 
-        diffs = sim._df_forcing.index.to_series().diff().dropna()
+        diffs = sim.forcing.index.to_series().diff().dropna()
         assert (diffs == pd.Timedelta(seconds=300)).all()
         # 8784 hourly rows -> 12 per hour after upsampling.
-        assert len(sim._df_forcing) == len(hourly_forcing) * 12
+        assert len(sim.forcing) == len(hourly_forcing) * 12
 
     @pytest.mark.core
     def test_dailystate_written_for_dataframe_forcing(
@@ -107,45 +99,44 @@ class TestPressureUnitContract:
     """AC3: pressure must be in hPa; kPa is rejected early and clearly."""
 
     @pytest.mark.core
-    def test_kpa_pressure_rejected(self, hourly_forcing):
+    @pytest.mark.parametrize("wrapped", [False, True], ids=["dataframe", "forcing"])
+    def test_kpa_pressure_rejected(self, hourly_forcing, wrapped):
         """A DataFrame with kPa pressure raises a clear ValueError."""
         df_kpa = hourly_forcing.copy()
         df_kpa["pres"] /= 10.0  # hPa -> kPa
 
         sim = SUEWSSimulation()
         with pytest.raises(ValueError, match="kPa"):
-            sim.update_forcing(df_kpa)
+            sim.update_forcing(SUEWSForcing(df_kpa) if wrapped else df_kpa)
 
     @pytest.mark.core
-    def test_hpa_pressure_accepted(self, sample_paths, hourly_forcing):
+    @pytest.mark.parametrize("wrapped", [False, True], ids=["dataframe", "forcing"])
+    def test_hpa_pressure_accepted(self, sample_paths, hourly_forcing, wrapped):
         """Properly-converted hPa pressure passes the unit check."""
         sim = SUEWSSimulation()
         sim.update_config(str(sample_paths["config"]), auto_load_forcing=False)
-        sim.update_forcing(hourly_forcing)  # already hPa
-        assert sim._df_forcing["pres"].median() > 300
+        sim.update_forcing(
+            SUEWSForcing(hourly_forcing) if wrapped else hourly_forcing
+        )  # already hPa
+        assert sim.forcing["pres"].median() > 300
 
     @pytest.mark.core
-    def test_kpa_file_loads_as_hpa(self, sample_paths, hourly_forcing):
-        """The file's kPa values are held in hPa once loaded, scaled by the
-        factor the forcing registry declares (gh#1547)."""
-        pres = FORCING_REGISTRY.by_file_name("pres")
-        assert (pres.unit, pres.runtime_unit) == ("kPa", "hPa")
-        df_file = pd.read_csv(sample_paths["forcing"], sep=r"\s+")
+    @pytest.mark.parametrize("pressure", [68.0, 101.325, 130.0])
+    @pytest.mark.parametrize("loader", ["read_forcing", "from_file"])
+    def test_kpa_file_loads_as_hpa(self, sample_paths, tmp_path, pressure, loader):
+        """Both file APIs convert kPa to hPa once, including range endpoints."""
+        df_file = pd.read_csv(sample_paths["forcing"], sep=r"\s+").iloc[:24].copy()
+        df_file["pres"] = pressure
+        path_forcing = tmp_path / "forcing.txt"
+        df_file.to_csv(path_forcing, sep=" ", index=False)
 
-        np.testing.assert_allclose(
-            hourly_forcing["pres"].to_numpy(),
-            df_file["pres"].to_numpy() * pres.runtime_scale,
-            rtol=1e-12,
-        )
+        if loader == "read_forcing":
+            df_loaded = read_forcing(str(path_forcing), tstep_mod=None)
+        else:
+            df_loaded = SUEWSForcing.from_file(path_forcing).df
 
-    def test_kpa_detection_floor_separates_the_two_ranges(self):
-        """The kPa-detection floor lies above the file-unit range and below
-        the in-memory range, so it misreads neither unit."""
-        pres = FORCING_REGISTRY.by_file_name("pres")
-        file_max = pres.validation_range[1]
-        memory_min = pres.to_runtime_unit(pres.validation_range[0])
-
-        assert file_max < _PRESSURE_HPA_FLOOR < memory_min
+        # Independent physical unit oracle: one kPa is ten hPa.
+        np.testing.assert_allclose(df_loaded["pres"], pressure * 10.0, rtol=1e-12)
 
     def test_out_of_range_message_states_both_units(self, hourly_forcing):
         """A pressure outlier is reported in hPa (what the DataFrame holds)
@@ -173,9 +164,9 @@ class TestTemporalColumns:
         sim.update_config(str(sample_paths["config"]), auto_load_forcing=False)
         sim.update_forcing(df_no_isec)
 
-        assert "isec" in sim._df_forcing.columns
+        assert "isec" in sim.forcing.columns
         # 5-min boundaries have zero seconds.
-        assert (sim._df_forcing["isec"] == 0).all()
+        assert (sim.forcing["isec"] == 0).all()
 
     @pytest.mark.core
     def test_temporal_columns_track_index(self, sample_paths, hourly_forcing):
@@ -184,11 +175,11 @@ class TestTemporalColumns:
         sim.update_config(str(sample_paths["config"]), auto_load_forcing=False)
         sim.update_forcing(hourly_forcing)
 
-        idx = sim._df_forcing.index
-        assert (sim._df_forcing["iy"] == idx.year).all()
-        assert (sim._df_forcing["id"] == idx.day_of_year).all()
-        assert (sim._df_forcing["it"] == idx.hour).all()
-        assert (sim._df_forcing["imin"] == idx.minute).all()
+        idx = sim.forcing.index
+        assert (sim.forcing["iy"] == idx.year).all()
+        assert (sim.forcing["id"] == idx.day_of_year).all()
+        assert (sim.forcing["it"] == idx.hour).all()
+        assert (sim.forcing["imin"] == idx.minute).all()
 
 
 class TestValidationFailFast:

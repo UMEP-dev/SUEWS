@@ -25,11 +25,7 @@ from ._missing import from_nan
 # units without overlapping either; the units and the factor come from the
 # registry (gh#1547).
 _PRESSURE_HPA_FLOOR = 300.0
-_PRESSURE = next(
-    variable
-    for variable in FORCING_REGISTRY.runtime_scaled_variables
-    if variable.name == "pres"
-)
+_PRESSURE = FORCING_REGISTRY.by_file_name("pres")
 
 
 def read_suews(path_suews_file: str) -> pd.DataFrame:

@@ -128,7 +128,7 @@ EXAMPLES:
   - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.
   - Output timestamps are built from year and day of year by date arithmetic rather than by parsing integers with a format, keeping the resolution pandas used before (nanoseconds on pandas 2, microseconds on pandas 3); initial-condition columns are added under full MultiIndex keys.
   - No change in results: the full test suite passes on pandas 2.3 (Python 3.12) and pandas 3.1 (Python 3.14).
-- [maintenance] The forcing pressure unit boundary (kPa in a forcing file, hPa in memory and in the kernel) is now applied in one place, the forcing registry, instead of hand-written factors of 10 in the file loader, the range-check message, the UMEP-to-EPW converter and the forcing writer (#1547)
+- [maintenance] The file loader, range-check message, UMEP-to-EPW converter and forcing writer now apply the pressure unit boundary through helpers in the forcing registry (kPa in a forcing file, hPa in memory and in the kernel); the writer already used the registry's scale, while the other paths repeated the factor of 10 (#1547)
   - An out-of-range `pres` now reports both units, `[680, 1300] hPa in memory, which is [68, 130] kPa in a forcing file`, instead of a kPa range against hPa values, and the error for a kPa-looking DataFrame says which unit each entry point expects
   - The forcing-data page, `read_forcing` and `SUEWSForcing.from_file` state the contract; loaded values and the kernel input are unchanged
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)

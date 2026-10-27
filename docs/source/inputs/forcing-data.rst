@@ -554,12 +554,13 @@ When using EPW data, set the forcing height to match the wind speed measurement:
    # 1. Read EPW file (wind speed at 10 m by default)
    df_epw = sp.util.read_epw(Path("weather.epw"))
 
-   # 2. Extract and rename columns for SUEWS forcing
+   # 2. Prepare file-unit forcing (kPa) for export to a text file.
+   #    For an in-memory DataFrame, divide EPW pressure by 100 for hPa.
    df_forcing = pd.DataFrame({
        'U': df_epw['Wind Speed'],
        'Tair': df_epw['Dry Bulb Temperature'],
        'RH': df_epw['Relative Humidity'],
-       'pres': df_epw['Atmospheric Station Pressure'] / 1000,  # Pa to kPa (file unit; / 100 gives hPa for in-memory use)
+       'pres': df_epw['Atmospheric Station Pressure'] / 1000,  # Pa to kPa
        'kdown': df_epw['Global Horizontal Radiation'],
        'ldown': df_epw['Horizontal Infrared Radiation Intensity'],
        'rain': df_epw['Liquid Precipitation Depth'],

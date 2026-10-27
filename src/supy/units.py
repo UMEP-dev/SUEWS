@@ -13,6 +13,8 @@ deliberately rejects spellings UDUNITS-2 tolerates (carets, ``degK``,
 Soil water stores use mass per area (``kg m-2``). Volume fractions
 (``m3 m-3``) and mass fractions (``kg kg-1``) are also valid units, but
 converting either to a store requires physical information beyond units.
+The legacy ``SMDMethod=2`` gravimetric input is a mass fraction
+(``kg kg-1``), distinct from the mass per area used for a store.
 
 Quantities that have no unit at all, such as flags, physics selectors and
 integer codes, are not dimensionless: they are represented by

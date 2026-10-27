@@ -8,7 +8,11 @@ joined by single spaces (``W m-2``, ``kg m-3``, ``umol m-2 s-1``), or ``1``
 for a dimensionless quantity. Every string it accepts is a valid UDUNITS-2
 string with the same meaning; the reverse does not hold, because the subset
 deliberately rejects spellings UDUNITS-2 tolerates (carets, ``degK``,
-``days``, ``/``) so that each quantity has one spelling.
+``days``, ``/``) so that unit metadata follows one notation.
+
+Soil water stores use mass per area (``kg m-2``). Volume fractions
+(``m3 m-3``) and mass fractions (``kg kg-1``) are also valid units, but
+converting either to a store requires physical information beyond units.
 
 Quantities that have no unit at all, such as flags, physics selectors and
 integer codes, are not dimensionless: they are represented by
@@ -239,7 +243,7 @@ def parse_unit(text: str | Unit | None) -> Unit:
     for token in tokens:
         if token in _HINTS:
             raise _reject(text, _HINTS[token])
-        match = _TOKEN.match(token)
+        match = _TOKEN.fullmatch(token)
         if match is None:
             raise _reject(text, f"cannot read {token!r}")
         symbol = match.group("symbol")
@@ -276,15 +280,15 @@ def convert(
 
     Parameters
     ----------
-    values : scalar, array-like, pandas.Series or pandas.DataFrame
+    values : scalar, numpy.ndarray, pandas.Series or pandas.DataFrame
         Values in ``from_unit``.
     from_unit, to_unit : str or Unit
         Source and target units from the SUEWS vocabulary.
 
     Returns
     -------
-    Same type as ``values``
-        Values in ``to_unit``.
+    scalar, numpy.ndarray, pandas.Series or pandas.DataFrame
+        Values in ``to_unit``; integer inputs may produce floating-point values.
 
     Raises
     ------

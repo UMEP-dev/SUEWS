@@ -36,6 +36,9 @@ pytestmark = pytest.mark.api
         ("1", 1.0, (0, 0, 0, 0, 0, 0)),
         ("W m-2", 1.0, (0, 1, -3, 0, 0, 0)),
         ("kg m-3", 1.0, (-3, 1, 0, 0, 0, 0)),
+        ("kg m-2", 1.0, (-2, 1, 0, 0, 0, 0)),
+        ("m3 m-3", 1.0, (0, 0, 0, 0, 0, 0)),
+        ("kg kg-1", 1.0, (0, 0, 0, 0, 0, 0)),
         ("umol m-2 s-1", 1e-6, (-2, 0, -1, 0, 1, 0)),
         ("g kg-1", 1e-3, (0, 0, 0, 0, 0, 0)),
         ("m2 m-2", 1.0, (0, 0, 0, 0, 0, 0)),
@@ -68,6 +71,9 @@ def test_equivalent_units_share_a_dimension():
     ("text", "hint"),
     [
         ("W m^-2", "m-2"),
+        ("kg m^-2", "m-2"),
+        ("m^3 m^-3", "m-2"),
+        ("kg kg^-1", "m-2"),
         ("m**-2", "m-2"),
         ("m/s", "negative exponents"),
         ("W.m-2", "space"),
@@ -82,6 +88,8 @@ def test_equivalent_units_share_a_dimension():
         ("kg CO2 km-1", "substance"),
         ("umol cap-1 s-1", "per person"),
         ("W  m-2", "single spaces"),
+        ("kg\n m-2", "cannot read"),
+        ("kg\t m-2", "cannot read"),
         ("", "single spaces"),
         ("furlong", "unknown symbol"),
         ("m0", "cannot read"),
@@ -119,6 +127,9 @@ def test_parse_unit_passes_a_unit_through():
         (20.0, "degC", "K", 293.15),
         (293.15, "K", "degC", 20.0),
         (1500.0, "mm", "m", 1.5),
+        (2.5, "kg m-2", "g m-2", 2500.0),
+        (0.25, "m3 m-3", "1", 0.25),
+        (0.25, "kg kg-1", "1", 0.25),
         (0.012, "kg kg-1", "g kg-1", 12.0),
         (85.0, "%", "1", 0.85),
         (2.0, "ha", "m2", 20000.0),
@@ -155,7 +166,14 @@ def test_convert_keeps_pandas_index_and_round_trips():
 
 @pytest.mark.parametrize(
     ("from_unit", "to_unit"),
-    [("mm", "kg m-2"), ("W m-2", "W"), ("K", "m"), ("1", "m")],
+    [
+        ("mm", "kg m-2"),
+        ("m3 m-3", "kg m-2"),
+        ("kg kg-1", "kg m-2"),
+        ("W m-2", "W"),
+        ("K", "m"),
+        ("1", "m"),
+    ],
 )
 def test_conversion_between_dimensions_is_refused(from_unit, to_unit):
     """Water depth and water mass per area are equal in number, not in kind."""
@@ -177,7 +195,9 @@ def _si_text(dimension) -> str:
 def test_every_symbol_is_valid_udunits_with_the_same_scale(symbol):
     """Each symbol means in UDUNITS-2 what it means here (optional: needs
     cf_units, a test-only dependency)."""
-    cf_units = pytest.importorskip("cf_units")
+    cf_units = pytest.importorskip(
+        "cf_units", reason="UDUNITS comparison requires the optional cf-units package"
+    )
     scale, offset, dimension = VOCABULARY[symbol]
     cf_unit = cf_units.Unit(symbol)
 
@@ -195,3 +215,28 @@ def test_every_symbol_is_valid_udunits_with_the_same_scale(symbol):
         scale, rel=1e-12
     )
     assert cf_unit.convert(0.0, si) == pytest.approx(offset, abs=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("text", "si_text"),
+    [
+        ("kg m-2", "kg m-2"),
+        ("m3 m-3", "1"),
+        ("kg kg-1", "1"),
+        ("g m-2", "kg m-2"),
+        ("g kg-1", "1"),
+        ("W m-2", "kg s-3"),
+        ("umol m-2 s-1", "mol m-2 s-1"),
+        ("K d", "K s"),
+    ],
+)
+def test_compound_units_agree_with_udunits(text, si_text):
+    """Check exponents and products against an independent unit implementation."""
+    cf_units = pytest.importorskip(
+        "cf_units", reason="UDUNITS comparison requires the optional cf-units package"
+    )
+    values = np.array([0.0, 0.25, 1.0, 100.0])
+
+    expected = cf_units.Unit(text).convert(values, cf_units.Unit(si_text))
+
+    np.testing.assert_allclose(convert(values, text, si_text), expected, rtol=1e-12)

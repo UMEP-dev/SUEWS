@@ -12,13 +12,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from supy.util._atm import (
+# Unit tests intentionally exercise these internal helpers directly.
+from supy.util._atm import (  # ruff: ignore[import-private-name]
     cal_cp,
+    cal_cp_with_rh,
+    cal_dens_dry,
+    cal_dens_vap,
     cal_des_dta,
     cal_dq,
     cal_lat_vap,
     cal_qa,
     cal_rh,
+    cal_vap_sat,
     correct_wind_height,
 )
 
@@ -371,6 +376,80 @@ class TestWindHeightCorrection(TestCase):
         print(f"✓ Wind speed at 10 m: {ws_10m:.2f} m/s")
         print(f"✓ Wind speed at 50 m (urban, z0m=1.0): {ws_50m_urban:.2f} m/s")
         print(f"✓ Wind speed at 50 m (grass, z0m=0.01): {ws_50m_grass:.2f} m/s")
+
+
+class TestVapSatPressureUnit:
+    """`cal_vap_sat` uses one pressure convention across supported input forms.
+
+    One-dimensional inputs go through ``pd.Series``; 2-D inputs (a DataFrame)
+    cannot, and take the fallback branch. Both must apply the same hPa -> kPa
+    conversion, so a DataFrame column gives the same result as that column
+    passed as a Series.
+    """
+
+    TEMP_C = np.array([-20.0, -5.0, 0.0, 20.0, 35.0])
+    PRES_HPA = np.array([1013.25, 950.0, 1000.0, 870.0, 700.0])
+
+    def test_dataframe_matches_series(self):
+        """The 2-D fallback branch gives the 1-D result, column by column."""
+        index = pd.date_range("2026-01-01", periods=len(self.TEMP_C), freq="h")
+        df_temp = pd.DataFrame({"a": self.TEMP_C, "b": self.TEMP_C[::-1]}, index=index)
+        df_pres = pd.DataFrame(
+            {"a": self.PRES_HPA, "b": self.PRES_HPA[::-1]}, index=index
+        )
+        df_expected = pd.DataFrame(
+            {col: cal_vap_sat(df_temp[col], df_pres[col]) for col in df_temp}
+        )
+        result = cal_vap_sat(df_temp, df_pres)
+
+        # Shape equivalence should differ only by floating-point round-off.
+        pd.testing.assert_frame_equal(result, df_expected, rtol=1e-12, atol=0)
+
+    def test_dataframe_with_scalar_pressure(self):
+        """Temperature alone can trigger the fallback; pressure still converts."""
+        df_temp = pd.DataFrame({"a": self.TEMP_C, "b": self.TEMP_C[::-1]})
+        pressure_hpa = 1013.25
+        ser_pres = pd.Series(pressure_hpa, index=df_temp.index)
+        df_expected = pd.DataFrame(
+            {col: cal_vap_sat(df_temp[col], ser_pres) for col in df_temp}
+        )
+
+        result = cal_vap_sat(df_temp, pressure_hpa)
+
+        pd.testing.assert_frame_equal(result, df_expected, rtol=1e-12, atol=0)
+
+    @pytest.mark.parametrize("calculate", [cal_dens_dry, cal_dens_vap, cal_cp_with_rh])
+    def test_density_and_heat_capacity_callers(self, calculate):
+        """Density and heat-capacity helpers retain column equivalence."""
+        df_temp = pd.DataFrame({"a": self.TEMP_C, "b": self.TEMP_C[::-1]})
+        df_pres = pd.DataFrame({"a": self.PRES_HPA, "b": self.PRES_HPA[::-1]})
+        df_rh = pd.DataFrame(60.0, index=df_temp.index, columns=df_temp.columns)
+
+        if calculate is cal_cp_with_rh:
+            args = (df_temp, df_rh, df_pres)
+        else:
+            args = (df_rh, df_temp, df_pres)
+        df_expected = pd.DataFrame(
+            {col: calculate(*(arg[col] for arg in args)) for col in df_temp}
+        )
+        result = calculate(*args)
+
+        pd.testing.assert_frame_equal(result, df_expected, rtol=1e-12, atol=0)
+
+    def test_one_dimensional_inputs_agree(self):
+        """Series, ndarray, list and scalar inputs share one conversion."""
+        expected = cal_vap_sat(pd.Series(self.TEMP_C), pd.Series(self.PRES_HPA))
+
+        np.testing.assert_allclose(
+            cal_vap_sat(self.TEMP_C, self.PRES_HPA), expected, rtol=1e-12
+        )
+        np.testing.assert_allclose(
+            cal_vap_sat(list(self.TEMP_C), list(self.PRES_HPA)), expected, rtol=1e-12
+        )
+        for temp_c, pres_hpa, es_hpa in zip(self.TEMP_C, self.PRES_HPA, expected):
+            assert cal_vap_sat(temp_c, pres_hpa).iloc[0] == pytest.approx(
+                es_hpa, rel=1e-12
+            )
 
 
 if __name__ == "__main__":

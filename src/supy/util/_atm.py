@@ -185,11 +185,14 @@ def cal_psi_heat(zoL):
 
 # saturation vapour pressure [hPa]
 def cal_vap_sat(Temp_C, Press_hPa):
+    # Preserve the existing 1-D and Fortran pressure convention (hPa -> kPa)
+    # on both branches, independently of the input's shape.
     try:
-        ser_pres_kPa = pd.Series(Press_hPa / 10)
+        ser_pres_kPa = pd.Series(Press_hPa) / 10
         ser_TaC = pd.Series(Temp_C)
-    except:
-        ser_pres_kPa = Press_hPa
+    except (TypeError, ValueError):
+        # 2-D input (e.g. a DataFrame) cannot become a Series; keep its shape.
+        ser_pres_kPa = np.divide(Press_hPa, 10)
         ser_TaC = Temp_C
 
     # if ser_TaC is close to zero degC, set to 0.001 degC

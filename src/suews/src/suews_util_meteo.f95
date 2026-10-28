@@ -1,7 +1,7 @@
 !===================================================================================
 ! Main module following naming standard: matches filename
 MODULE module_util_meteo
-
+   USE module_ctrl_const_allocate, ONLY: RAD2DEG, DEG2RAD
    USE module_ctrl_const_physconst, ONLY: C2K
    USE module_ctrl_const_mathconst
    USE module_ctrl_error, ONLY: ErrorHint
@@ -9,8 +9,8 @@ MODULE module_util_meteo
    IMPLICIT NONE
 
    ! REAL (KIND(1d0)),PARAMETER ::  PI=3.141592654
-   REAL(KIND(1D0)), PARAMETER :: RAD2DEG = 57.29577951
-   REAL(KIND(1D0)), PARAMETER :: DEG2RAD = 0.017453292
+
+
 
    REAL(KIND(1D0)), PARAMETER :: MOLMASS_AIR = 0.028965 ! kg for 1 mol dry air
    REAL(KIND(1D0)), PARAMETER :: MOLMASS_CO2 = 0.04401 ! kg for 1 mol CO2

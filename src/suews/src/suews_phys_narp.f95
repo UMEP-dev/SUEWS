@@ -22,7 +22,7 @@ MODULE module_phys_narp
    ! 4 - LDOWN modelled from FCLD(Kdown); i.e. day FCLD only
    !     cloud fraction is kept constant throught the night (Offerle et al. 2003, JAM)
    ! 5 - Option 3 at night and 4 during the day (might cause discontinuities in LDOWN)
-
+   USE module_ctrl_const_allocate, ONLY: DEG2RAD
    !SUEWS   L. Jarvi - Oct 2010
    !Currently LDOWN options 4 and 5 commented out in order to reduce input files.
    !Last modified:
@@ -260,7 +260,7 @@ CONTAINS
                          qn_is, kup_is, lup_is, tsurf_is, & !Sub-surface radiation components
                          SF_all
 
-      REAL(KIND(1D0)), PARAMETER :: DEG2RAD = 0.017453292
+
       ! REAL(KIND(1D0)),PARAMETER   ::RAD2DEG=57.29577951
       REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = SBConst_567
 
@@ -1408,7 +1408,7 @@ CONTAINS
       REAL(KIND(1D0)) :: zenith, Isurf
       INTEGER :: doy
       REAL(KIND(1D0)) :: Rmean, Rse, cosZ, Itoa
-      REAL(KIND(1D0)), PARAMETER :: DEG2RAD = 0.017453292
+
 
       Rmean = 149.6 !Stull 1998
       Rse = solar_ESdist(doy)
@@ -1476,7 +1476,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Press_hPa, TemP_C_dew, zenith, G, trans
       REAL(KIND(1D0)) :: m, TrTpg, u, Tw, Ta, cosZ
       REAL(KIND(1D0)) :: Tdf
-      REAL(KIND(1D0)), PARAMETER :: DEG2RAD = 0.017453292
+
 
       IF (zenith > 80.*DEG2RAD) THEN
          cosZ = COS(80.*DEG2RAD)

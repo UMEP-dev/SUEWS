@@ -391,11 +391,11 @@ def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False, r
     header is written, so a file built from consecutive tables holds the
     same bytes as one written from their concatenation.
 
-    The layout is the one SuPy has always written: the date columns, then
-    every value as ``%.4f`` right-justified to ``max(8, len(name))`` with
-    missing values as -999. Rows are formatted and written a block at a
+    The layout retains the date columns and non-water values as ``%.4f``
+    right-justified to ``max(8, len(name))``. Water-rate columns use ``%.10e``
+    to retain small fluxes; missing values remain -999. Rows are written a block at a
     time, so no string copy of the whole table is built (gh#1849). The bytes
-    match formatting every cell to a ``str`` and writing the table with
+    of non-water columns match formatting each cell to a ``str`` and writing with
     ``pandas.DataFrame.to_csv(sep="\t", index=False)``: ``'%W.4f'`` and
     ``format(value, '>W.4f')`` share CPython's float formatting, and the
     header goes through the same csv writer settings pandas uses.

@@ -25,6 +25,7 @@ MODULE module_phys_beers
 
    ! USE module_ctrl_const_allocate, only: ncolumnsDataOutSol, deg2rad, rad2deg
    ! USE module_ctrl_const_default, only: notUsed, notUsedI
+   USE module_ctrl_const_physconst, ONLY: C2K
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutBEERS
    USE module_util_time, ONLY: DAYLEN
@@ -41,6 +42,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineBEERS) ! output
 
+      USE module_ctrl_const_physconst, ONLY: C2K
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, SUEWS_SITE, &
                                PHENOLOGY_STATE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                ROUGHNESS_STATE, HEAT_STATE, solar_State, &
@@ -228,7 +230,7 @@ CONTAINS
 
                   !Determination of clear-sky emissivity from Prata (1996) !TODO: Is this calcualted in NARP?
                   ea = 6.107*10**((7.5*Ta)/(237.3 + Ta))*(RH/100) !Vapor pressure
-                  msteg = 46.5*(ea/(Ta + 273.15))
+                  msteg = 46.5*(ea/(Ta + C2K))
                   emis_sky = (1 - (1 + msteg)*EXP(-((1.2 + 3.0*msteg)**0.5)))
 
                   ! DAYTIME
@@ -278,7 +280,7 @@ CONTAINS
                      END IF
 
                      ! Lup, daytime !!!!
-                     Lup2d = SBC*emis_ground*((shadowground*Tg + Ta + 273.15)**4)
+                     Lup2d = SBC*emis_ground*((shadowground*Tg + Ta + C2K)**4)
 
                      ! NIGHTTIME !!!!!!!!
                   ELSE
@@ -337,32 +339,32 @@ CONTAINS
                      Knorth = 0.0
 
                      ! Lup !!!
-                     Lup2d = SBC*emis_ground*((Ta + Tg + 273.15)**4)
+                     Lup2d = SBC*emis_ground*((Ta + Tg + C2K)**4)
 
                   END IF
 
                   ! Ldown !!!
                   IF (SOLWEIG_ldown == 1) THEN ! Third
                      ! ldown is calculated in BEERS as a function of Ta
-                     Ldown2d = (svf_roof + svf_veg - 1)*emis_sky*SBC*((Ta + 273.15)**4) &
-                               + (2 - svf_veg - svf_aveg)*emis_wall*SBC*((Ta + 273.15)**4) &
-                               + (svf_aveg - svf_roof)*emis_wall*SBC*((Ta + 273.15 + Tw)**4) &
-                               + (2 - svf_roof - svf_veg)*(1 - emis_wall)*emis_sky*SBC*((Ta + 273.15)**4)
+                     Ldown2d = (svf_roof + svf_veg - 1)*emis_sky*SBC*((Ta + C2K)**4) &
+                               + (2 - svf_veg - svf_aveg)*emis_wall*SBC*((Ta + C2K)**4) &
+                               + (svf_aveg - svf_roof)*emis_wall*SBC*((Ta + C2K + Tw)**4) &
+                               + (2 - svf_roof - svf_veg)*(1 - emis_wall)*emis_sky*SBC*((Ta + C2K)**4)
 
                      IF (CI < 0.95) THEN !non-clear conditions
                         c = 1 - CI
                         Ldown2d = Ldown2d*(1 - c) + c*( &
-                                  (svf_roof + svf_veg - 1)*SBC*((Ta + 273.15)**4) &
-                                  + (2 - svf_veg - svf_aveg)*emis_wall*SBC*((Ta + 273.15)**4) &
-                                  + (svf_aveg - svf_roof)*emis_wall*SBC*((Ta + 273.15 + Tw)**4) &
-                                  + (2 - svf_roof - svf_veg)*(1 - emis_wall)*SBC*((Ta + 273.15)**4))
+                                  (svf_roof + svf_veg - 1)*SBC*((Ta + C2K)**4) &
+                                  + (2 - svf_veg - svf_aveg)*emis_wall*SBC*((Ta + C2K)**4) &
+                                  + (svf_aveg - svf_roof)*emis_wall*SBC*((Ta + C2K + Tw)**4) &
+                                  + (2 - svf_roof - svf_veg)*(1 - emis_wall)*SBC*((Ta + C2K)**4))
                      END IF
 
                   ELSE
                      ! use ldown from SUEWS
                      Ldown2d = (svf_roof + svf_veg - 1)*ldown &
-                               + (2 - svf_veg - svf_aveg)*emis_wall*SBC*((Ta + 273.15)**4) &
-                               + (svf_aveg - svf_roof)*emis_wall*SBC*((Ta + 273.15 + Tw)**4) &
+                               + (2 - svf_veg - svf_aveg)*emis_wall*SBC*((Ta + C2K)**4) &
+                               + (svf_aveg - svf_roof)*emis_wall*SBC*((Ta + C2K + Tw)**4) &
                                + (2 - svf_roof - svf_veg)*(1 - emis_wall)*ldown
                   END IF
 
@@ -376,7 +378,7 @@ CONTAINS
                   ! Calculation of radiant flux density and Tmrt (Mean radiant temperature) !!!
                   Sstr = absK*(Kdown2d*Fup + Kup2d*Fup + Knorth*Fside + Keast*Fside + Ksouth*Fside + Kwest*Fside) &
                          + absL*(Ldown2d*Fup + Lup2d*Fup + Lnorth*Fside + Least*Fside + Lsouth*Fside + Lwest*Fside)
-                  Tmrt = SQRT(SQRT((Sstr/(absL*SBC)))) - 273.15
+                  Tmrt = SQRT(SQRT((Sstr/(absL*SBC)))) - C2K
 
                   dataOutLineBEERS = [azimuth_deg, altitude, radG, radD, radI, &
                                       Kdown2d, Kup2d, Ksouth, Kwest, Knorth, Keast, &
@@ -1105,7 +1107,7 @@ CONTAINS
 
       IF (SOLWEIG_ldown == 1) THEN
          c = 1 - CI
-         Lsky_allsky = emis_sky*SBC*((Ta + 273.15)**4)*(1 - c) + c*SBC*((Ta + 273.15)**4)
+         Lsky_allsky = emis_sky*SBC*((Ta + C2K)**4)*(1 - c) + c*SBC*((Ta + C2K)**4)
       ELSE
          Lsky_allsky = ldown
       END IF
@@ -1119,19 +1121,19 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaE)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (180 - t) .AND. azimuth <= (360 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + 273.15 + Tw*SIN(aziE*(pi/180)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziE*(pi/180)))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
-            Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*F_sh*0.5
+            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
             Lwallsun = 0
-            Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*0.5
+            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
          END IF
       ELSE !nighttime
          Lwallsun = 0
-         Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*0.5
+         Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
       END IF
       Lsky = ((svfE + svfEveg - 1)*Lsky_allsky)*viktsky*0.5
-      Lveg = SBC*emis_wall*((Ta + 273.15)**4)*viktveg*0.5
+      Lveg = SBC*emis_wall*((Ta + C2K)**4)*viktveg*0.5
       Lground = Lup2d*0.5
       Lrefl = (Ldown2d + Lup2d)*(viktrefl)*(1 - emis_wall)*0.5
       Least = Lsky + Lwallsun + Lwallsh + Lveg + Lground + Lrefl
@@ -1145,19 +1147,19 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaS)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth <= (90 - t) .OR. azimuth > (270 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + 273.15 + Tw*SIN(aziS*(pi/180)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziS*(pi/180)))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
-            Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*F_sh*0.5
+            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
             Lwallsun = 0
-            Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*0.5
+            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
          END IF
       ELSE !nighttime
          Lwallsun = 0
-         Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*0.5
+         Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
       END IF
       Lsky = ((svfS + svfSveg - 1)*Lsky_allsky)*viktsky*0.5
-      Lveg = SBC*emis_wall*((Ta + 273.15)**4)*viktveg*0.5
+      Lveg = SBC*emis_wall*((Ta + C2K)**4)*viktveg*0.5
       Lground = Lup2d*0.5
       Lrefl = (Ldown2d + Lup2d)*(viktrefl)*(1 - emis_wall)*0.5
       Lsouth = Lsky + Lwallsun + Lwallsh + Lveg + Lground + Lrefl
@@ -1171,19 +1173,19 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaW)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (360 - t) .OR. azimuth <= (180 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + 273.15 + Tw*SIN(aziW*(pi/180)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziW*(pi/180)))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
-            Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*F_sh*0.5
+            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
             Lwallsun = 0
-            Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*0.5
+            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
          END IF
       ELSE !nighttime
          Lwallsun = 0
-         Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*0.5
+         Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
       END IF
       Lsky = ((svfW + svfWveg - 1)*Lsky_allsky)*viktsky*0.5
-      Lveg = SBC*emis_wall*((Ta + 273.15)**4)*viktveg*0.5
+      Lveg = SBC*emis_wall*((Ta + C2K)**4)*viktveg*0.5
       Lground = Lup2d*0.5
       Lrefl = (Ldown2d + Lup2d)*(viktrefl)*(1 - emis_wall)*0.5
       Lwest = Lsky + Lwallsun + Lwallsh + Lveg + Lground + Lrefl
@@ -1197,19 +1199,19 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaN)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (90 - t) .AND. azimuth <= (270 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + 273.15 + Tw*SIN(aziN*(pi/180)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziN*(pi/180)))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
-            Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*F_sh*0.5
+            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
             Lwallsun = 0
-            Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*0.5
+            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
          END IF
       ELSE !nighttime
          Lwallsun = 0
-         Lwallsh = SBC*emis_wall*((Ta + 273.15)**4)*viktwall*0.5
+         Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
       END IF
       Lsky = ((svfN + svfNveg - 1)*Lsky_allsky)*viktsky*0.5
-      Lveg = SBC*emis_wall*((Ta + 273.15)**4)*viktveg*0.5
+      Lveg = SBC*emis_wall*((Ta + C2K)**4)*viktveg*0.5
       Lground = Lup2d*0.5
       Lrefl = (Ldown2d + Lup2d)*(viktrefl)*(1 - emis_wall)*0.5
       Lnorth = Lsky + Lwallsun + Lwallsh + Lveg + Lground + Lrefl

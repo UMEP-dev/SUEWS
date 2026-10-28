@@ -41,7 +41,7 @@ MODULE module_phys_narp
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-
+   USE module_ctrl_const_physconst, ONLY: C2K
    IMPLICIT NONE
 
 CONTAINS
@@ -272,9 +272,9 @@ CONTAINS
       ! DTIME=dectime
       ! KDOWN=avkdn
       KDOWN_HR = 0.
-      tsfc_surf_K = tsfc_surf + 273.15
+      tsfc_surf_K = tsfc_surf + C2K
       ! tsurf_0_K = tsurf_0 + 273.15
-      Temp_K = Temp_C + 273.15
+      Temp_K = Temp_C + C2K
       SIGMATK4 = SIGMA_SB*Temp_K**4
       TD = dewpoint_narp(Temp_C, RH)
       ! Sun postition is now calculated in the main loop, FL
@@ -412,7 +412,7 @@ CONTAINS
 
          !Net all wave
          QSTAR = KDOWN - KUP + LDOWN - LUP
-         TSURF_C = TSURF_K - 273.15
+         TSURF_C = TSURF_K - C2K
 
          !Define sub-surface radiation components
          qn1_ind_nosnow(is) = QSTAR
@@ -447,7 +447,7 @@ CONTAINS
             END IF
 
             QSTAR_SNOW = KDOWN - KUP_SNOW + LDOWN - LUP_SNOW
-            TSURF_SNOW_C = TSURF_SNOW_K - 273.15
+            TSURF_SNOW_C = TSURF_SNOW_K - C2K
 
          ELSE
             KUP_SNOW = 0

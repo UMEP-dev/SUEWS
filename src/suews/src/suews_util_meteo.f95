@@ -2,6 +2,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_util_meteo
 
+   USE module_ctrl_const_physconst, ONLY: C2K
    USE module_ctrl_const_mathconst
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
@@ -32,7 +33,7 @@ CONTAINS
       !c     units T (K) e (mb) P (mb)
       !c     f corrects for the fact that we are not dealing with pure water
       REAL(KIND(1D0)) :: TK, P, TC, es, e, f
-      TC = TK - 273.15
+      TC = TK - C2K
       IF (TC == 0) THEN
          TC = 0.001
       END IF
@@ -59,28 +60,28 @@ CONTAINS
       !LATENT HEAT OF VAPORIZATION (J/kg) BOLTON(1980)
       !TK = ABSOLUTE TEMPERATURE
       REAL(KIND(1D0)) :: TK
-      LATENTHEAT_V = 2.501E6 - 2370.*(TK - 273.15)
+      LATENTHEAT_V = 2.501E6 - 2370.*(TK - C2K)
    END FUNCTION LATENTHEAT_V
 
    REAL(KIND(1D0)) FUNCTION LATENTHEAT_M(TK)
       !LATENT HEAT OF MELTING (J/kg) VALID BELOW 0C BOLTON(1980)
       !TK = ABSOLUTE TEMPERATURE
       REAL(KIND(1D0)) :: TK, TC
-      TC = TK - 273.15
+      TC = TK - C2K
       LATENTHEAT_M = 3.3358E5 + TC*(2030.-10.46*TC)
    END FUNCTION LATENTHEAT_M
 
    REAL(KIND(1D0)) FUNCTION SPEC_HEAT_DRYAIR(TK)
       ! BEER (1991) APPLIED ENVIRONMETRICS METEOROLOGICAL TABLES
       REAL(KIND(1D0)) :: TK, TC
-      TC = TK - 273.15
+      TC = TK - C2K
       SPEC_HEAT_DRYAIR = 1005.+((TC + 23.15)**2)/3364.
    END FUNCTION SPEC_HEAT_DRYAIR
 
    REAL(KIND(1D0)) FUNCTION SPEC_HEAT_VAPOR(TK, RH)
       ! BEER (1991) APPLIED ENVIRONMETRICS METEOROLOGICAL TABLES
       REAL(KIND(1D0)) :: TK, TC_100, RH
-      TC_100 = (TK - 273.15)/100.
+      TC_100 = (TK - C2K)/100.
       SPEC_HEAT_VAPOR = 1859.+0.13*RH + (19.3 + 0.569*RH)*TC_100 + (10.+0.5*RH)*TC_100**2
    END FUNCTION SPEC_HEAT_VAPOR
 
@@ -546,7 +547,7 @@ CONTAINS
       REAL(KIND(1D0)) :: ea ! vapour pressure in hPa
       REAL(KIND(1D0)) :: qa_gkg ! specific humidity in (g kg-1)
 
-      es = sat_vap_press(Ta_degC + 273.15, pres_hPa)
+      es = sat_vap_press(Ta_degC + C2K, pres_hPa)
       ea = es*RH_dec ! Brutsaert (2005) section 2.1.2, eqn 2.3
       qa_gkg = 0.622*ea/(pres_hPa - 0.378*ea)*1000 ! eqn 2.2, 2.4 and 2.5.
 
@@ -566,7 +567,7 @@ CONTAINS
       REAL(KIND(1D0)) :: qa_kgkg !specific humidity in (kg kg-1)
 
       qa_kgkg = qa_gkg/1000
-      es = sat_vap_press(Ta_degC + 273.15, pres_hPa)
+      es = sat_vap_press(Ta_degC + C2K, pres_hPa)
       ea = 500*pres_hPa*qa_kgkg/(311 + 189*qa_kgkg)
       ! qa=0.622*ea/(pres_hPa-0.378*ea)*1000 ! eqn 2.2, 2.4 and 2.5.
       RH = ea/es ! Brutsaert (2005) section 2.1.2, eqn 2.3

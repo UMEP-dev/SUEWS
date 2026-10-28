@@ -1,7 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_const_physconst, ONLY: eps_fp, C2K
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
@@ -76,7 +76,7 @@ CONTAINS
          ! if simulation has been running less than one day
          len_cal_s = dt_since_start + tstep
       END IF
-      temp_k = temp_c + 273.15
+      temp_k = temp_c + C2K
       tair_av_next = tair_av_prev*(len_cal_s - tstep*1.)/len_cal_s + temp_k*tstep/len_cal_s
 
    END FUNCTION update_tair_av
@@ -89,7 +89,7 @@ CONTAINS
       lv_J_kg, lvS_J_kg, & ! output:
       es_hPa, Ea_hPa, VPd_hpa, VPD_Pa, dq, dens_dry, avcp, air_dens, &
       modState) ! optional: for thread-safe error logging
-
+      USE module_ctrl_const_physconst, ONLY: C2K
       USE meteo, ONLY: &
          sat_vap_press_x, spec_heat_beer, &
          lat_vap, lat_vapSublim, spec_hum_def
@@ -141,13 +141,13 @@ CONTAINS
       dq = spec_hum_def(vpd_hPa, Press_hPa) !Specific humidity deficit in g/kg
 
       !Vap density or absolute humidity         (kg/m3)
-      vap_dens = (Ea_hPa*100/((Temp_C + 273.15)*gas_ct_wv))
+      vap_dens = (Ea_hPa*100/((Temp_C + C2K)*gas_ct_wv))
 
       !density Dry Air Beer(1990)        kg/m3
-      dens_dry = ((Press_hPa - Ea_hPa)*100)/(gas_ct_dry*(273.15 + Temp_C))
+      dens_dry = ((Press_hPa - Ea_hPa)*100)/(gas_ct_dry*(C2K + Temp_C))
 
       !Air density in kg/m3
-      air_dens = (Press_hPa*100)/(gas_ct_dry*(Temp_C + 273.15))
+      air_dens = (Press_hPa*100)/(gas_ct_dry*(Temp_C + C2K))
 
       !Calculate specific heat capacity in J kg-1 K-1
       avcp = spec_heat_beer(Temp_C, avRh, vap_dens, dens_dry)
@@ -196,7 +196,7 @@ CONTAINS
       UStar, & !Friction velocity
       zL, & !Stability scale
       modState) ! optional: for thread-safe error logging
-
+      USE module_ctrl_const_physconst, ONLY: C2K
       USE module_ctrl_error_state, ONLY: supy_error_flag
       IMPLICIT NONE
       INTEGER, INTENT(in) :: StabilityMethod
@@ -236,7 +236,7 @@ CONTAINS
       H_init = QH_init/(avdens*avcp)
 
       IF (debug) WRITE (*, *) StabilityMethod, z0m, avU1, H_init, UStar, L_MOD
-      G_T_K = (Grav/(Temp_C + 273.15))*k !gravity constant/(Temperature*Von Karman Constant)
+      G_T_K = (Grav/(Temp_C + C2K))*k !gravity constant/(Temperature*Von Karman Constant)
       KUZ = k*AvU1 !Von Karman constant*mean wind speed
       IF (zzd < 0) THEN
          CALL ErrorHint(32, &

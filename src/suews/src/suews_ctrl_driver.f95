@@ -3864,6 +3864,7 @@ CONTAINS
                   UStar, & !Friction velocity
                   zL, & !Stability scale
                   modState)
+               IF (supy_error_flag()) RETURN
                ! Damp the pass-to-pass two-cycle in (z-d)/L; the first pass of a
                ! timestep takes the solve as it is
                IF (modState%flagState%i_iter > 1) THEN

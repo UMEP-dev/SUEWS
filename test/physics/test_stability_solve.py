@@ -30,6 +30,7 @@ PROBE_QH = (-14.718630457399422, -14.718630459294966, -14.718630459900247, -14.7
 
 PROBE = """program probe
 use module_phys_atmmoiststab, only: cal_Stab, stab_psi_mom, k, grav
+use module_ctrl_error_state, only: supy_error_flag, reset_supy_error
 implicit none
 integer :: mode, n, i, meth
 real(kind(1d0)) :: zzd, z0m, zdm, u, t, rhocp, x, qh, l, ts, us, zl, h, lm
@@ -40,6 +41,12 @@ do i = 1, n
     ! qh is the sensible heat flux [W m-2]; x is unused
     call cal_Stab(meth, zzd, z0m, zdm, u, t, qh, rhocp, 1d0, l, ts, us, zl)
     write(*, '(ES25.17)') zl
+  else if (mode == 3) then
+    ! fatal-error flag raised by cal_Stab for flux qh, then cleared
+    call reset_supy_error()
+    call cal_Stab(meth, zzd, z0m, zdm, u, t, qh, rhocp, 1d0, l, ts, us, zl)
+    write(*, '(ES25.17)') merge(1d0, 0d0, supy_error_flag())
+    call reset_supy_error()
   else
     ! residual f(z) - z at z = x for heat flux qh
     h = qh/rhocp
@@ -141,3 +148,11 @@ def test_stable_zl_is_monotone_in_the_flux(probe, method):
     qh = -np.linspace(0.01, 60.0, 3000)
     zl = probe(1, method, 0.0, qh)
     assert np.all(np.diff(zl) >= 0.0)
+
+
+def test_non_finite_flux_is_a_fatal_error_not_a_clip(probe):
+    """With every residual NaN the bracket never closes, so without a guard a
+    NaN flux would come back as the unstable clip and hide the upstream fault.
+    cal_Stab raises error 110 instead; a finite flux leaves no error."""
+    flags = probe(3, 3, 0.0, [float("nan"), float("inf"), -float("inf"), -14.7, 50.0])
+    np.testing.assert_array_equal(flags, [1.0, 1.0, 1.0, 0.0, 0.0])

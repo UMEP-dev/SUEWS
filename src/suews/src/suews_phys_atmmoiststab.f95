@@ -233,6 +233,7 @@ CONTAINS
       modState) ! optional: for thread-safe error logging
 
       USE module_ctrl_error_state, ONLY: supy_error_flag
+      USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_finite
       IMPLICIT NONE
       INTEGER, INTENT(in) :: StabilityMethod
 
@@ -274,6 +275,20 @@ CONTAINS
                         'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
                         Zzd, zdm, notUsedI, modState)
          IF (supy_error_flag()) RETURN
+      END IF
+
+      ! A non-finite input would make every residual NaN; the bracket would then
+      ! never close and the solve would return a clip, hiding the fault.
+      IF (.NOT. (ieee_is_finite(H_init) .AND. ieee_is_finite(avU1) .AND. ieee_is_finite(Temp_C) &
+                 .AND. ieee_is_finite(zzd) .AND. ieee_is_finite(z0m))) THEN
+         CALL set_supy_error(110, &
+                             'cal_Stab: non-finite sensible heat flux, wind speed, air temperature, '// &
+                             'height or roughness length passed to the (z-d)/L solve')
+         L_MOD = -999.0D0
+         TStar = -999.0D0
+         UStar = -999.0D0
+         zL = -999.0D0
+         RETURN
       END IF
 
       IF (LOG(zzd/z0m) < 0.001000) THEN

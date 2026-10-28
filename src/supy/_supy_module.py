@@ -49,17 +49,10 @@ logger_supy.setLevel(logging.INFO)
 
 _FUNCTIONAL_DEPRECATIONS = {
     "load_forcing_grid": "`SUEWSSimulation(path).forcing`",
-    "_save.save_df_output_parquet(streamed_parquet=None)": (
-        "chunked streaming Parquet output: set model.control.output.format='parquet' "
-        "and model.control.output.stream_chunk (e.g. 30 days) before "
-        "SUEWSSimulation.run()"
-    ),
 }
 
 
-def _warn_functional_deprecation(
-    name: str, *, removal: str = "a future release"
-) -> None:
+def _warn_functional_deprecation(name: str) -> None:
     """Emit a standardized deprecation warning for the legacy functional API.
 
     Uses ``FutureWarning`` so the message is visible to end users by default
@@ -70,7 +63,7 @@ def _warn_functional_deprecation(
     """
     replacement = _FUNCTIONAL_DEPRECATIONS.get(name, "the object-oriented API")
     warnings.warn(
-        f"`supy.{name}` is deprecated and will be removed in {removal}. "
+        f"`supy.{name}` is deprecated and will be removed in a future release. "
         f"Please migrate to {replacement}.",
         FutureWarning,
         stacklevel=3,

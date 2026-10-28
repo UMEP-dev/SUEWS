@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import time
 from typing import Optional, Tuple
+import warnings
 
 import f90nml
 import numpy as np
@@ -1475,13 +1476,16 @@ def save_df_output_parquet(
     engine = _parquet_engine()
 
     if streamed_parquet is None:
-        # Import here to avoid the save/module import cycle. Internal callers
-        # must warn too: this output mode, rather than the function, is retired.
-        from ._supy_module import _warn_functional_deprecation
-
-        _warn_functional_deprecation(
-            "_save.save_df_output_parquet(streamed_parquet=None)",
-            removal="the next release",
+        # The output mode, not the function, is retired, so internal callers
+        # warn too (gh#1955).
+        warnings.warn(
+            "Non-streaming Parquet output is deprecated and will be removed in "
+            "the next release. Please migrate to chunked streaming Parquet "
+            "output: set model.control.output.format='parquet' and "
+            "model.control.output.stream_chunk (e.g. 30 days) before "
+            "SUEWSSimulation.run().",
+            FutureWarning,
+            stacklevel=2,
         )
 
     # Resample if needed; values are not written in place (gh#1849)

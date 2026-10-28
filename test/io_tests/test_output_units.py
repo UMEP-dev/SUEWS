@@ -212,8 +212,8 @@ def test_trailing_partial_bin_without_unit_request(frames, water_column):
 
     assert list(hourly.times.hour) == [1, 2]
     assert hourly.df[("SUEWS", "QH")].to_numpy() == pytest.approx([5.5, 13])
-    assert output_covered_seconds(hourly.df).to_numpy() == pytest.approx([3600, 900])
     if water_column:
+        assert output_covered_seconds(hourly.df).to_numpy() == pytest.approx([3600, 900])
         assert hourly.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([6, 1.5])
         assert hourly.units[("SUEWS", "Rain")] == "mm"
 

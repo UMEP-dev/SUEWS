@@ -215,7 +215,7 @@ def test_relaxed_scales_and_neutral_cancellation(probe, method, previous, wind):
     assert ts * us == pytest.approx(12.0 / site["rhocp"], rel=1e-14)
     if abs(zl) <= 1e-12:
         # neutral: z/L of about 1e-12 and a finite RSL Lc/(Lc/L) round trip
-        assert abs(ratio) == pytest.approx(1e-12, rel=1e-12)
+        assert abs(ratio) == pytest.approx(1e-12, rel=1e-12, abs=0.0)
         for lc in (0.1, 3.0, 100.0):
             assert np.isfinite(lc / (lc / length))
     else:

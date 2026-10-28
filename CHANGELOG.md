@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [bugfix] Solve the Obukhov stability parameter (z-d)/L in the stability calculation to a residual tolerance instead of stopping once one iteration changed it by 0.001 or less, which near the stable fold stopped short of the solution and could return different values for fluxes 1e-10 W m-2 apart; when no consistent value lies inside the stable or unstable limit, the limit is returned explicitly, and of two consistent values the one nearer neutral is taken (#1962).
+  - Results move slightly on most steps (QH by about 0.01 W m-2 RMSD in the London sample and benchmark years, at most 0.6 W m-2), for stability methods 2, 3 and 4.
 - [change][stable] Deprecate non-streaming Parquet output with a FutureWarning for one release; it will be removed in the next release. Use chunked streaming Parquet output via `model.control.output.stream_chunk` instead. Existing non-streaming output is unchanged during the deprecation period (#1955).
 
 ### 27 Oct 2026

@@ -241,9 +241,9 @@ def test_save_df_output_files_unchanged(case, tmp_path):
     list_saved = _save_case(case, tmp_path)
 
     assert list_saved == [tuple(item) for item in _EXPECTED[case]]
-    # nothing else is written
+    # The tables retain their exact bytes; each has an auxiliary units sidecar.
     assert sorted(p.name for p in tmp_path.iterdir()) == sorted({
-        name for name, _ in list_saved
+        filename for name, _ in list_saved for filename in (name, name + ".units.json")
     })
 
 

@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [feature][experimental] Saved output carries its units: each text file gets a `<file>.units.json` sidecar, Parquet output carries per-field metadata and the output contract version, and `SUEWSOutput.units` maps each column to its unit with CF `cell_methods`, `interval` and `units_metadata` in `.metadata`; output values and text files are unchanged (#1903)
+  - `cell_methods` names the written interval after resampling, for example `time: sum (interval: 1 hour)`; DailyState keeps its daily interval and point values carry none
+  - Columns outside the output registry are marked `status: unknown`, with no inferred unit
 - [feature][experimental] Output catalogue entries carry CF `cell_methods` (`time: mean`, `sum`, `point`, `minimum` or `maximum`) and `units_metadata` (`temperature: on_scale` or `temperature: difference`), recorded in output contract `1.1.9`; unit strings, aggregation codes and values are unchanged (#1903)
   - The time base follows each variable's aggregation code, with explicit overrides for DailyState means, totals and extrema, whose daily statistic the kernel computes before the last daily record is selected
   - Temperature differences (for example BEERS `Tg` and `Tw`, `TStar`, degree-day indices) are marked as such; every other `degC` or `K` variable is on-scale

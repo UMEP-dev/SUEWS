@@ -15,6 +15,7 @@ from packaging.version import Version
 import pandas as pd
 
 from ._filename import safe_filename_component
+from ._output_metadata import OutputUnits
 from .suews_checkpoint import SUEWSCheckpoint
 
 
@@ -255,6 +256,28 @@ class SUEWSOutput:
         """Raise if this output was streamed to disk and holds no rows."""
         if self._streamed_paths is not None:
             raise streamed_output_error(self._streamed_paths)
+
+    @property
+    def units(self) -> OutputUnits:
+        """Read-only units keyed by column, with CF fields in ``.metadata``.
+
+        The held rows use the model timestep; streamed output uses the
+        configured output frequency. Without run context the interval is unknown.
+        """
+        interval_s = self._metadata.get("tstep_s")
+        if self._config is not None:
+            control = self._config.model.control
+            value = (
+                control.output.freq
+                if self._streamed_paths is not None
+                else control.tstep
+            )
+            interval_s = int(getattr(value, "value", value))
+        if "resampled_to" in self._metadata:
+            interval_s = int(
+                pd.Timedelta(self._metadata["resampled_to"]).total_seconds()
+            )
+        return OutputUnits(self._df_output.columns, interval_s)
 
     @property
     def df(self) -> pd.DataFrame:

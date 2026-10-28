@@ -13,6 +13,7 @@ py.install_sources(
         '_run_rust.py',
         '_run_output.py',
         '_save.py',
+        '_output_metadata.py',
         '_supy_module.py',
         '_var_metadata.py',
         '_version.py',

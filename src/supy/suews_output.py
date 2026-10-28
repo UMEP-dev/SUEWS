@@ -240,7 +240,8 @@ class SUEWSOutput:
         # accessors through `_group_for_caller`.
         interval_s = (metadata or {}).get("tstep_s")
         if interval_s is None and config is not None:
-            interval_s = config.model.control.tstep.value
+            value = config.model.control.tstep
+            interval_s = int(getattr(value, "value", value))
         self._df_output = prepare_output(df_output, units, interval_s=interval_s).copy(deep=False)
         self._df_state_final = (
             df_state_final.copy() if df_state_final is not None else None

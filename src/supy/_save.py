@@ -1567,7 +1567,7 @@ def save_df_output_parquet(
         interval_s = _native_interval_s(df_state_final)
 
     if interval_s is None:
-        interval_s = int(output_interval_seconds(df_to_save))
+        interval_s = int(output_interval_seconds(df_save))
     df_to_save = prepare_output(df_to_save, interval_s=interval_s, write=True)
     if streamed_parquet is not None:
         streamed_parquet.write(path_output, df_to_save, write_sidecars, interval_s)

@@ -291,7 +291,7 @@ def test_all_written_water_fluxes_are_interval_rates(tmp_path, frequency):
 
     catalogue = get_output_contract_catalogue().variables
     water = [(v.group, v.name) for v in catalogue if v.unit == "kg m-2 s-1" and v.group != "DailyState"]
-    columns = pd.MultiIndex.from_tuples(water + [("SUEWS", "SMD")], names=["group", "var"])
+    columns = pd.MultiIndex.from_tuples([(v.group, v.name) for v in catalogue if v.group in {"SUEWS", "snow", "debug"}], names=["group", "var"])
     index = pd.MultiIndex.from_product([[1], pd.date_range("2012-01-01 00:05", periods=288, freq="5min")], names=["grid", "datetime"])
     frame = pd.DataFrame(0.5, index=index, columns=columns)
     state = pd.DataFrame({("tstep", "0"): [300]}, index=[1])
@@ -335,7 +335,7 @@ def test_text_preserves_small_rain_rates(frames, tmp_path):
     assert metadata["columns"]["Rain"]["cell_methods"] == "time: mean (interval: 1 hour)"
 
 
-def test_daily_totals_use_daily_interval():
+def test_daily_totals_use_daily_interval(tmp_path):
     from supy._output_metadata import prepare_output
 
     columns = pd.MultiIndex.from_tuples(
@@ -346,3 +346,12 @@ def test_daily_totals_use_daily_interval():
     result = prepare_output(frame, interval_s=300, write=True)
     assert (result == 1.0).all().all()
     assert (prepare_output(result, interval_s=300, write=True) == 1.0).all().all()
+    from supy._save import save_df_grid_group
+
+    daily = frame["DailyState"].copy()
+    daily.index = pd.date_range("2012-01-02", periods=1, freq="D")
+    path = save_df_grid_group(daily, 1, "DailyState", tmp_path, "site", freq_s=86400)
+    saved = pd.read_csv(path, sep=r"\s+")
+    assert (saved[daily.columns] == 1.0).all().all()
+    metadata = json.loads(path.with_name(path.name + ".units.json").read_text(encoding="utf-8"))
+    assert metadata["columns"]["P_day"]["cell_methods"] == "time: mean (interval: 1 day)"

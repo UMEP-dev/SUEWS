@@ -355,3 +355,12 @@ def test_daily_totals_use_daily_interval(tmp_path):
     assert (saved[daily.columns] == 1.0).all().all()
     metadata = json.loads(path.with_name(path.name + ".units.json").read_text(encoding="utf-8"))
     assert metadata["columns"]["P_day"]["cell_methods"] == "time: mean (interval: 1 day)"
+
+
+
+def test_single_row_rate_request_uses_state_interval(frames):
+    frame, state = frames
+    single = frame.iloc[:1].copy()
+    single.index = single.index.remove_unused_levels()
+    converted = SUEWSOutput(single, state).to_units({"Rain": "mm h-1"})
+    assert converted.df[("SUEWS", "Rain")].iloc[0] == pytest.approx(6.0)

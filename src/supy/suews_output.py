@@ -239,9 +239,14 @@ class SUEWSOutput:
         # which shares it without exposing it to writes, and the group
         # accessors through `_group_for_caller`.
         interval_s = (metadata or {}).get("tstep_s")
-        if interval_s is None and config is not None:
-            value = config.model.control.tstep
-            interval_s = int(getattr(value, "value", value))
+        if units and interval_s is None:
+            if config is not None:
+                value = getattr(config.model.control, "tstep", None)
+                interval_s = getattr(value, "value", value)
+            if interval_s is None:
+                from ._save import _native_interval_s
+
+                interval_s = _native_interval_s(df_state_final)
         self._df_output = prepare_output(df_output, units, interval_s=interval_s).copy(deep=False)
         self._df_state_final = (
             df_state_final.copy() if df_state_final is not None else None

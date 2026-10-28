@@ -40,7 +40,7 @@ from dataclasses import dataclass
 import math
 import re
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Optional
 
 __all__ = ["NO_UNIT", "VOCABULARY", "Unit", "UnitError", "convert", "parse_unit"]
 
@@ -114,6 +114,9 @@ def _dim(**exponents: int) -> Dimension:
     return tuple(exponents.get(name, 0) for name in DIMENSION_NAMES)  # type: ignore[return-value]
 
 
+_TEMPERATURE_AXIS = DIMENSION_NAMES.index("temperature")
+
+
 _ENERGY = _dim(length=2, mass=1, time=-2)
 _POWER = _dim(length=2, mass=1, time=-3)
 _PRESSURE = _dim(length=-1, mass=1, time=-2)
@@ -153,6 +156,7 @@ VOCABULARY = MappingProxyType({
     # energy, power, pressure
     "J": (1.0, 0.0, _ENERGY),
     "W": (1.0, 0.0, _POWER),
+    "kW": (1e3, 0.0, _POWER),
     "Pa": (1.0, 0.0, _PRESSURE),
     "hPa": (1e2, 0.0, _PRESSURE),
     "kPa": (1e3, 0.0, _PRESSURE),
@@ -272,6 +276,8 @@ def convert(
     values: Any,
     from_unit: str | Unit,
     to_unit: str | Unit,
+    *,
+    units_metadata: Optional[str] = None,
 ) -> Any:
     """Convert values between two units of the same dimension.
 
@@ -286,6 +292,10 @@ def convert(
         Values in ``from_unit``.
     from_unit, to_unit : str or Unit
         Source and target units from the SUEWS vocabulary.
+
+    units_metadata : str, optional
+        CF temperature kind: ``temperature: on_scale`` (the default behaviour)
+        or ``temperature: difference`` (scale only, without an offset).
 
     Returns
     -------
@@ -311,9 +321,13 @@ def convert(
         raise UnitError("values without a unit cannot be converted")
     if source.dimension != target.dimension:
         raise UnitError(f"cannot convert {source} to {target}: the dimensions differ")
+    if units_metadata not in (None, "temperature: on_scale", "temperature: difference"):
+        raise UnitError(f"invalid units_metadata: {units_metadata!r}")
+    if units_metadata is not None and not source.dimension[_TEMPERATURE_AXIS]:
+        raise UnitError("temperature metadata requires a unit involving temperature")
     factor = source.scale / target.scale
     shift = (source.offset - target.offset) / target.scale
     result = values * factor
-    if shift:
+    if shift and units_metadata != "temperature: difference":
         result += shift
     return result

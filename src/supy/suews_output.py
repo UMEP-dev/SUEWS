@@ -15,7 +15,7 @@ from packaging.version import Version
 import pandas as pd
 
 from ._filename import safe_filename_component
-from ._output_metadata import OutputUnits
+from ._output_metadata import OutputUnits, prepare_output
 from .suews_checkpoint import SUEWSCheckpoint
 
 
@@ -201,6 +201,7 @@ class SUEWSOutput:
         checkpoint: Optional[SUEWSCheckpoint] = None,
         kernel_warnings: Optional[pd.DataFrame] = None,
         streamed_paths: list[str | Path] | None = None,
+        units: Optional[Dict] = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -217,6 +218,8 @@ class SUEWSOutput:
             Typed restart checkpoint from the Rust backend
         metadata : dict, optional
             Additional metadata (timing, version, etc.)
+        units : mapping, optional
+            Requested output units, applied after the run by the shared boundary.
         kernel_warnings : pd.DataFrame, optional
             Non-fatal warnings raised by the Fortran kernel (columns
             ``grid``, ``datetime``, ``location``, ``message``)
@@ -235,7 +238,7 @@ class SUEWSOutput:
         # (gh#1849). `.df` hands the table out through `_frame_for_caller`,
         # which shares it without exposing it to writes, and the group
         # accessors through `_group_for_caller`.
-        self._df_output = df_output.copy(deep=False)
+        self._df_output = prepare_output(df_output, units).copy(deep=False)
         self._df_state_final = (
             df_state_final.copy() if df_state_final is not None else None
         )
@@ -275,9 +278,13 @@ class SUEWSOutput:
             interval_s = int(getattr(value, "value", value))
         if "resampled_to" in self._metadata:
             interval_s = int(
-                pd.Timedelta(self._metadata["resampled_to"]).total_seconds()
+                pd.tseries.frequencies.to_offset(self._metadata["resampled_to"]).nanos
+                // 1_000_000_000
             )
-        return OutputUnits(self._df_output.columns, interval_s)
+        return OutputUnits(
+            self._df_output.columns, interval_s,
+            self._df_output.attrs.get("supy_output_units"),
+        )
 
     @property
     def df(self) -> pd.DataFrame:
@@ -651,12 +658,33 @@ class SUEWSOutput:
     # Export
     # =========================================================================
 
+    def to_units(self, units: Dict) -> "SUEWSOutput":
+        """Return a new output with the requested per-variable units.
+
+        Parameters
+        ----------
+        units : mapping
+            Variable names (or (group, variable) pairs) to target unit strings.
+
+        Returns
+        -------
+        SUEWSOutput
+            Output converted by the shared boundary, preserving run context.
+        """
+        self._require_rows()
+        return SUEWSOutput(
+            self._df_output, self._df_state_final, config=self._config,
+            metadata=copy.deepcopy(self._metadata), checkpoint=self._checkpoint,
+            kernel_warnings=self._kernel_warnings, units=units,
+        )
+
     def save(
         self,
         path: Union[str, Path] = ".",
         format: Optional[str] = None,
         freq_s: Optional[int] = None,
         groups: Optional[List[str]] = None,
+        units: Optional[Dict] = None,
     ) -> List[Path]:
         """
         Save output to files.
@@ -673,6 +701,8 @@ class SUEWSOutput:
             always overrides the configuration.
         freq_s : int, optional
             Output frequency in seconds (default: from config or 3600)
+        units : mapping, optional
+            Variable names or (group, variable) pairs to requested unit strings.
         groups : list, optional
             Groups to save (default: ['SUEWS', 'DailyState'])
 
@@ -723,6 +753,7 @@ class SUEWSOutput:
             output_format=format,
             save_state=False,
             forcing_timestamp_reference=forcing_timestamp_reference,
+            units=units,
         )
 
         if self._checkpoint is not None:

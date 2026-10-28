@@ -14,7 +14,7 @@ import pandas as pd
 # import ray
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
-from ._output_metadata import write_output_parquet, write_text_metadata
+from ._output_metadata import prepare_output, write_output_parquet, write_text_metadata
 from ._post import _resample_output, df_var as df_var_out
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
@@ -830,6 +830,7 @@ def save_df_grid_group(
         metadata_interval_s
         if metadata_interval_s is not None
         else int(freq.total_seconds()),
+        units=df_year.attrs.get("supy_output_units"),
     )
     logger_supy.debug(f"{path_out} saved in {t_end - t_start:.2f} s")
     return path_out
@@ -993,11 +994,14 @@ def save_df_output(
     forcing_timestamp_reference="local_standard_time",
     df_state_final: Optional[pd.DataFrame] = None,
     streamed_files: Optional[StreamedTextFiles] = None,
+    units: Optional[dict] = None,
 ) -> list:
     """save supy output dataframe to txt files
 
     Parameters
     ----------
+    units : mapping, optional
+        Requested output units by variable name or (group, variable) pair.
     df_output : pd.DataFrame
         output dataframe of supy simulation
     freq_s : int, optional
@@ -1039,6 +1043,7 @@ def save_df_output(
     ``df_output`` is never copied whole: groups are selected, resampled,
     relabelled and written one (grid, group) at a time (gh#1849).
     """
+    df_output = prepare_output(df_output, units)
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
 
@@ -1459,11 +1464,14 @@ def save_df_output_parquet(
     timestamp_reference="follow",
     forcing_timestamp_reference="local_standard_time",
     streamed_parquet: Optional[StreamedParquetParts] = None,
+    units: Optional[dict] = None,
 ) -> list:
     """Save supy output to Parquet format.
 
     Parameters
     ----------
+    units : mapping, optional
+        Requested output units by variable name or (group, variable) pair.
     df_output : pd.DataFrame
         Output dataframe from supy simulation
     df_state_final : pd.DataFrame
@@ -1499,6 +1507,7 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     _parquet_engine()
+    df_output = prepare_output(df_output, units)
 
     # Resample if needed; values are not written in place (gh#1849)
     df_save = df_output.copy(deep=False)

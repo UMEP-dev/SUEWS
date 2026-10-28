@@ -243,3 +243,25 @@ def test_compound_units_agree_with_udunits(text, si_text):
     expected = cf_units.Unit(text).convert(values, cf_units.Unit(si_text))
 
     np.testing.assert_allclose(convert(values, text, si_text), expected, rtol=1e-12)
+
+
+def test_temperature_difference_conversion():
+    values = pd.Series([0.0, 2.5, float("nan")])
+    pd.testing.assert_series_equal(
+        convert(values, "degC", "K", units_metadata="temperature: difference"), values
+    )
+    assert convert(1000.0, "W m-2", "kW m-2") == 1.0
+    with pytest.raises(UnitError, match="temperature metadata"):
+        convert(1.0, "Pa", "hPa", units_metadata="temperature: difference")
+
+
+def test_temperature_metadata_on_compound_units():
+    # Heat capacity and lapse rates carry temperature in a compound unit; the
+    # metadata is valid there and never adds an offset.
+    assert (
+        convert(1005.0, "J kg-1 K-1", "J kg-1 K-1", units_metadata="temperature: difference")
+        == 1005.0
+    )
+    assert convert(
+        0.0065, "K m-1", "K km-1", units_metadata="temperature: difference"
+    ) == pytest.approx(6.5)

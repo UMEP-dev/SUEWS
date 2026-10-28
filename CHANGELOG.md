@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [feature][experimental] Output can be written in requested units: `SUEWSOutput.to_units`, `SUEWSOutput.save(units=...)` and `SUEWSSimulation.save(units=...)` take per-variable target units (for example `{"QE": "kW m-2", "T2": "K"}`), converted after the run through `supy.units.convert`; the written units are recorded in the text sidecars, Parquet metadata and `SUEWSOutput.units`, and output without a request is unchanged (#1903)
+  - Temperature differences convert by scale only and on-scale temperatures with their offset; a unit of the wrong dimension, an unknown or ambiguous variable, or a variable without a unit is refused
+  - Streamed runs cannot be converted after writing, and say so
 - [feature][experimental] Saved output carries its units: each text file gets a `<file>.units.json` sidecar, Parquet output carries per-field metadata and the output contract version, and `SUEWSOutput.units` maps each column to its unit with CF `cell_methods`, `interval` and `units_metadata` in `.metadata`; output values and text files are unchanged (#1903)
   - `cell_methods` names the written interval after resampling, for example `time: sum (interval: 1 hour)`; DailyState keeps its daily interval and point values carry none
   - Columns outside the output registry are marked `status: unknown`, with no inferred unit

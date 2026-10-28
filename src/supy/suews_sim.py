@@ -1140,6 +1140,8 @@ class SUEWSSimulation:
             - **format** : str
                 Output format: 'txt' (default) or 'parquet'.
                 Note: This overrides config file settings.
+            - **units** : mapping
+                Requested output units by variable name or (group, variable) pair.
             - **command** : str
                 Command line that produced the run (recorded in the
                 ``provenance.json`` sidecar; set by ``suews run``).
@@ -1189,6 +1191,11 @@ class SUEWSSimulation:
         settings = self._resolve_save_settings(output_path, save_kwargs)
 
         if self._streamed_paths is not None:
+            if save_kwargs.get("units"):
+                raise ValueError(
+                    "Streamed output cannot be converted after writing; "
+                    "rerun without stream_chunk."
+                )
             # The run streamed every file to disk; the frame is gone, so
             # nothing can be written again somewhere else.
             streamed_dir = Path(self._streamed_paths[0]).parent
@@ -1285,6 +1292,7 @@ class SUEWSSimulation:
             "output_path": output_path,
             "output_format": output_format,
             "output_config": output_config,
+            "units": save_kwargs.get("units"),
             "forcing_timestamp_reference": forcing_timestamp_reference,
             "freq_s": int(freq_s),
             "site": site,
@@ -1315,6 +1323,7 @@ class SUEWSSimulation:
             save_state=False,
             forcing_timestamp_reference=settings["forcing_timestamp_reference"],
             streamed_files=streamed_files,
+            units=settings.get("units"),
         )
 
     def _write_save_sidecars(

@@ -8,8 +8,8 @@ MODULE module_phys_solweig
    ! USE module_ctrl_const_sues
    USE module_ctrl_const_default, ONLY: notUsed, notUsedI
    USE module_ctrl_const_physconst, ONLY: C2K, SBConst
+   USE module_ctrl_const_mathconst, ONLY: pi_r0_long, pi_r0_9
    IMPLICIT NONE
-
    ! REAL(KIND(1d0)) :: timestepdec !time step in decimal time
    ! REAL(KIND(1d0)) :: CIlatenight
    ! REAL(KIND(1d0)) :: timeadd
@@ -143,7 +143,7 @@ CONTAINS
       !Search directions for Ground View Factors (GVF)
       REAL(KIND(1D0)), PARAMETER :: azimuthA(1:18) = [(j*(360.0/18.0), j=0, 17)]
       ! temporary parameters and variables for testing
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_r0_long
       REAL(KIND(1D0)), PARAMETER :: SBC = SBConst
       !REAL(KIND(1D0)),PARAMETER   :: DEG2RAD=0.017453292,RAD2DEG=57.29577951 !Now defined in AllocateArray HCW 02 Dec 2014
 
@@ -529,7 +529,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: Kt
       REAL(KIND(1D0)) :: iG, Itoa, p
       REAL(KIND(1D0)), DIMENSION(4) :: G
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_r0_long
 
       ! Variable declarations
       REAL*8 :: a2 !>
@@ -633,7 +633,7 @@ CONTAINS
       INTEGER :: jday
       REAL(KIND(1D0)) :: b, D
 
-      b = 2*3.141592654*jday/365
+      b = 2*pi_r0_9*jday/365
       D = SQRT(1.00011 + 0.034221*COS(b) + 0.001280*SIN(b) + 0.000719*COS(2*b) + 0.000077*SIN(2*b))
 
    END SUBROUTINE sun_distance
@@ -643,7 +643,7 @@ CONTAINS
 
       IMPLICIT NONE
 
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_r0_long
       REAL(KIND(1D0)), INTENT(in) :: zen
       REAL(KIND(1D0)), DIMENSION(1, 1), INTENT(in) :: svfalfa !>
       REAL(KIND(1D0)), DIMENSION(1, 1), INTENT(out) :: F_sh
@@ -785,7 +785,7 @@ CONTAINS
 
       IMPLICIT NONE
 
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_r0_long
       REAL(KIND(1D0)), INTENT(in) :: radI
       REAL(KIND(1D0)), INTENT(in) :: radG
       REAL(KIND(1D0)), INTENT(in) :: radD
@@ -906,7 +906,7 @@ CONTAINS
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: Lground, Lrefl, Lsky, Lsky_allsky, Lveg, Lwallsh, Lwallsun
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: viktonlywall, viktaveg, svfvegbu
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: oneminussvfE, oneminussvfS, oneminussvfW, oneminussvfN
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_r0_long
       INTEGER, PARAMETER :: SOLWEIG_ldown = 0 !! force to 0, TS 13 Dec 2019
 
       REAL(KIND(1D0)), DIMENSION(1, 1) :: viktveg, viktsky, viktrefl, viktwall
@@ -1189,7 +1189,7 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(1, 1) :: a
 
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_r0_long
       REAL(KIND(1D0)), PARAMETER :: maxpos = 10000000000.0
       !real, allocatable, dimension(:,:)   :: a,f,temp !! Defined in matsize
       REAL(KIND(1D0)) :: degrees, azi, alt, dx, dy, dz, ds, absdx, absdy
@@ -1323,7 +1323,7 @@ CONTAINS
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: weightsumwall, weightsumsh, gvf1, gvf2
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: f, tempsh, tempbu, tempbub, tempwallsun, tempb, sh1
 
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_r0_long
       REAL(KIND(1D0)), PARAMETER :: maxpos = 10000000000.0
 
       ALLOCATE (weightsumwall(1, 1))

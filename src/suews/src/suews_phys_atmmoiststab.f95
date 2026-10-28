@@ -20,6 +20,7 @@ MODULE module_phys_atmmoiststab
    INTEGER, PARAMETER :: N_ZL_SCAN = 60 ! geometric scan points up to the clip
    REAL(KIND(1D0)), PARAMETER :: ZL_SOLVE_TOL = 1.0D-12 ! residual and bracket tolerance [-]
    INTEGER, PARAMETER :: MAX_ZL_SOLVE = 200 ! false-position iterations
+   REAL(KIND(1D0)), PARAMETER :: ZL_NEUTRAL = 1.0D-12 ! |(z-d)/L| treated as neutral [-]
 
    ! scheme code
    INTEGER, PARAMETER :: W16 = 2 ! Ward et al (2016) based on {unstable: Dyer (1974) modified Hogstrom (1988); and stable: Van Ulden & Holtslag (1985)}
@@ -433,10 +434,11 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: length, ustar, tstar
       REAL(KIND(1D0)) :: pm, pm0
 
-      IF (ABS(zl) <= 1.0D-12) THEN
-         ! Finite neutral length: downstream z/L stays finite and essentially
-         ! zero, without reusing a stale length or dividing by zero.
-         length = SIGN(HUGE(1.0D0), zl)
+      IF (ABS(zl) <= ZL_NEUTRAL) THEN
+         ! Neutral: a long but ordinary length (|z/L| = ZL_NEUTRAL), so z/L is
+         ! effectively zero downstream and reciprocals such as the RSL
+         ! Lc/(Lc/L) round trip stay finite. HUGE would overflow there.
+         length = zzd/SIGN(ZL_NEUTRAL, zl)
       ELSE
          length = zzd/zl
       END IF

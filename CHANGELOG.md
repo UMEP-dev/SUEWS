@@ -56,6 +56,12 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [change][experimental] Breaking: forcing contract 2.0.0 replaces observed `xsmd` with `sm`, the instantaneous liquid-water content of a specified soil layer in `kg m-2` (#1422)
+  - After validating the whole-store layer and interpolating content to model timestamps, SuPy derives `D = rho_w * theta_fc * d - sm`, clamped to `[0, AWC]`. The bulk store uses non-water area-weighted field-capacity content and available water capacity; `soil_store_capacity` remains AWC.
+  - YAML schema `2026.6.dev6` introduces `soil_moisture`, explicit observation layer bounds and optional `soil_field_capacity` (`m3 m-3`), required on each positive-area non-water surface in observed mode. Modelled runs do not require field capacity and retain their existing calculation.
+  - Legacy volumetric (SMDMethod 1) and gravimetric (SMDMethod 2, `kg kg-1`) observations require coordinated YAML and forcing conversion with confirmed layer geometry; changing a header is insufficient. The converter preserves inputs and references, records hashes and supports a dry-run report.
+  - An `xsmd` column that is entirely missing, as most existing forcing files carry, is still read as missing `sm` for modelled runs with a `FutureWarning`; observed runs and any `xsmd` with values are refused. The allowance ends at forcing contract 3.0.0.
+  - Sensor `smcap` is retired, so migrated observed runs may produce different deficits. Contents above field capacity or below the implied wilting reference are retained with warnings; only the derived deficit is clamped.
 - [maintenance] Unit metadata in the input data model and the output catalogue is written in the CF notation of `supy.units` (signed integer exponents, `1` for ratios, water stores in `kg m-2`); a test parses every unit string, and output contract `1.1.9` carries the relabelled units with every value unchanged (#1903)
 
 ### 23 Oct 2026

@@ -1005,7 +1005,29 @@ def _with_inferred_freq(df):
     return df
 
 # caching loaded met df for better performance in initialisation
-def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="error"):
+def _read_forcing_table(path, source_contract=None):
+    """Require a declared contract for positional files; never infer soil units."""
+    if source_contract not in (None, "2.0.0"):
+        raise ValueError("Legacy soil-moisture input requires explicit migration before loading contract 2.0.0.")
+    frame = pd.read_csv(path, sep=r"\s+", comment="!", on_bad_lines="error")
+    with open(path, encoding="utf-8") as stream:
+        first = next(line for line in stream if line.strip() and not line.lstrip().startswith("!"))
+    try:
+        [float(token) for token in first.split()]
+        positional = True
+    except ValueError:
+        positional = False
+    if positional:
+        if len(first.split()) != len(ORDERED_CANONICAL_FORCING_COLUMNS):
+            raise ValueError("Positional forcing contract 2.0.0 requires exactly 24 columns.")
+        if source_contract is None:
+            raise ValueError("Positional forcing requires explicit source_contract='2.0.0'; never guess soil units.")
+        frame = pd.read_csv(path, sep=r"\s+", comment="!", header=None,
+                            names=ORDERED_CANONICAL_FORCING_COLUMNS, on_bad_lines="error")
+    return frame
+
+
+def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="error", *, source_contract=None):
     """Load and concatenate SUEWS forcing files by *column name*.
 
     Header row is required and is read by name. Baseline-required columns
@@ -1060,9 +1082,7 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="err
     # the canonical names first, then datetime-index at the end.
     canonical_per_file = [
         _apply_named_column_matching(
-            pd.read_csv(
-                fn, sep=r"\s+", comment="!", on_bad_lines="error"
-            ).drop_duplicates()
+            _read_forcing_table(fn, source_contract).drop_duplicates()
         )
         for fn in list_file_MetForcing
     ]
@@ -1112,6 +1132,11 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     """
     import warnings
 
+    from .util._forcing import LEGACY_PLACEHOLDER_ATTR, accept_legacy_soil_placeholder
+
+    df_forcing_met = accept_legacy_soil_placeholder(df_forcing_met)
+    legacy_placeholder = bool(df_forcing_met.attrs.get(LEGACY_PLACEHOLDER_ATTR))
+
     # Build lowercase -> original-case header groups for case-insensitive
     # matching. Multiple files can spell the same canonical column with
     # different case; coalesce those variants rather than letting pandas
@@ -1127,6 +1152,9 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
         variable = FORCING_REGISTRY.by_file_name(normalised)
         group_name = variable.name if variable is not None else normalised
         header_groups.setdefault(group_name.lower(), []).append(col)
+    from .util._forcing import validate_soil_content
+
+    validate_soil_content(df_forcing_met.rename(columns={c: str(c).lstrip("%").lower() for c in df_forcing_met.columns}))
     canonical_lower = {c.lower() for c in CANONICAL_FORCING_COLUMNS}
 
     # 1) Baseline-required columns must be present (case-insensitive).
@@ -1195,10 +1223,12 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
         np.int64
     )
     df_canonical = set_index_dt(df_canonical)
+    if legacy_placeholder:
+        df_canonical.attrs[LEGACY_PLACEHOLDER_ATTR] = True
     return df_canonical
 
 
-def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error"):
+def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error", *, source_contract=None):
     """Load forcing for a YAML ``forcing.file`` entry (file, directory or list).
 
     Files are canonicalised individually and merged with
@@ -1228,9 +1258,7 @@ def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error"):
     # load_SUEWS_Forcing_met_df_pattern for the full rationale).
     canonical_per_file = [
         _apply_named_column_matching(
-            pd.read_csv(
-                fn, sep=r"\s+", comment="!", on_bad_lines="error"
-            ).drop_duplicates()
+            _read_forcing_table(fn, source_contract).drop_duplicates()
         )
         for fn in file_list
     ]

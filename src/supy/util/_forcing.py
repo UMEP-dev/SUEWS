@@ -1,242 +1,240 @@
-"""
-Utilities for handling observed soil moisture inputs (``xsmd``).
-
-SuPy accepts observed soil moisture as either volumetric (SMDMethod = 1) or
-gravimetric (SMDMethod = 2) measurements. The legacy Fortran reader (`MetRead`)
-converts these measurements to a soil moisture deficit (mm) before they enter
-the physics core. When SuPy feeds forcing data directly from pandas,
-that conversion never happens, which means the kernel receives
-raw volumetric/gravimetric values and the moisture stress logic is bypassed.
-
-This module reconstructs the missing conversion using the soil metadata
-stored in ``df_state`` so that observed soil moisture can be used as intended.
-"""
+"""Canonical liquid soil content, interpolation and kernel-deficit preparation."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-import logging
-from typing import Dict, Optional
+import warnings
 
 import numpy as np
 import pandas as pd
 
-try:  # pragma: no cover - fallback used only during isolated tests
-    from .._env import logger_supy
-except ImportError:  # pragma: no cover
-    logger_supy = logging.getLogger("SuPy")
+from ..units import convert, parse_unit
 
-# Matches the Fortran SUEWS convention for missing/undefined values
 MISSING_VALUE = -999.0
+LEGACY_SOIL_MESSAGE = (
+    "Legacy soil-moisture input requires explicit migration; xsmd and "
+    "SMDMethod=2 are not canonical sm inputs."
+)
 
 
 @dataclass(frozen=True)
 class SoilObservationMetadata:
-    """Aggregated metadata describing the observed soil moisture measurement."""
+    """Effective non-water store, with water-equivalent capacities in mm."""
 
-    depth_mm: float
-    smcap: float
-    soil_density: float
-    soil_not_rocks: float
+    layer_depth: float
+    layer_top: float
+    capacity: float
+    field_capacity: float
 
 
-def convert_observed_soil_moisture(
-    df_forcing: pd.DataFrame,
-    df_state_init: pd.DataFrame,
-) -> pd.DataFrame:
-    """Convert observed soil moisture to deficits when ``SMDMethod`` > 0.
+LEGACY_PLACEHOLDER_ATTR = "legacy_soil_placeholder"
+LEGACY_PLACEHOLDER_WARNING = (
+    "Forcing column 'xsmd' is deprecated: an entirely missing 'xsmd' placeholder "
+    "is read as missing 'sm' for modelled soil moisture only. Rename the header to "
+    "'sm' or run the soil-moisture converter; the placeholder will be refused from "
+    "forcing contract 3.0.0."
+)
 
-    Parameters
-    ----------
-    df_forcing
-        Forcing dataframe that contains the ``xsmd`` column (as volumetric or gravimetric values).
-    df_state_init
-        Initial state dataframe providing surface fractions and soil metadata.
 
-    Returns
-    -------
-    pandas.DataFrame
-        Copy of ``df_forcing`` with ``xsmd`` converted to mm deficits when needed.
+def _legacy_soil_columns(df: pd.DataFrame) -> list:
+    return [c for c in df.columns if str(c).lstrip("%").lower() in ("xsmd", "smd")]
+
+
+def _all_missing(series: pd.Series) -> bool:
+    values = pd.to_numeric(series, errors="coerce").to_numpy(dtype=float)
+    return bool((np.isnan(values) | (values == MISSING_VALUE)).all())
+
+
+def accept_legacy_soil_placeholder(df: pd.DataFrame) -> pd.DataFrame:
+    """Read an entirely missing legacy ``xsmd`` column as missing ``sm``.
+
+    .. deprecated:: 2026.6
+        The placeholder is accepted for modelled soil moisture only and will be
+        refused from forcing contract 3.0.0. Observed runs, and any ``xsmd``
+        column carrying values, still require the soil-moisture converter.
+
+    Returns ``df`` unchanged when no legacy column is present; otherwise a copy
+    with the column renamed to ``sm`` and marked so that observed runs refuse it.
     """
+    legacy = _legacy_soil_columns(df)
+    if not legacy:
+        return df
+    names = {str(c).lstrip("%").lower() for c in df.columns}
+    if "sm" in names or len(legacy) > 1:
+        raise ValueError("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.")
+    if not _all_missing(df[legacy[0]]):
+        raise ValueError(LEGACY_SOIL_MESSAGE)
+    warnings.warn(LEGACY_PLACEHOLDER_WARNING, FutureWarning, stacklevel=2)
+    result = df.rename(columns={legacy[0]: "sm"})
+    result.attrs[LEGACY_PLACEHOLDER_ATTR] = True
+    return result
 
-    if ("smdmethod", "0") not in df_state_init.columns:
-        # Nothing to do if the column is not present (legacy df_state)
-        return df_forcing
 
-    # NaN values in smdmethod are treated as 0 (no observation), which is the default
-    # Convert to numeric first to avoid FutureWarning about silent downcasting in fillna
-    smd_series = pd.to_numeric(df_state_init[("smdmethod", "0")], errors="coerce")
-    smd_methods = smd_series.fillna(0).astype(int)
-    active_methods = set(m for m in smd_methods if m > 0)
-    if not active_methods:
-        return df_forcing
-
-    if len(active_methods) > 1:
+def validate_soil_content(df: pd.DataFrame, *, required: bool = False) -> None:
+    """Validate public content before interpolation, including unchecked runs."""
+    legacy = _legacy_soil_columns(df)
+    if legacy:
+        names = {str(c).lstrip("%").lower() for c in df.columns}
+        if "sm" in names or len(legacy) > 1:
+            raise ValueError("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.")
+        if required or not _all_missing(df[legacy[0]]):
+            raise ValueError(LEGACY_SOIL_MESSAGE)
+        return
+    if required and df.attrs.get(LEGACY_PLACEHOLDER_ATTR):
+        raise ValueError(LEGACY_SOIL_MESSAGE)
+    if "sm" not in df:
+        if required:
+            raise ValueError("Observed soil moisture requires forcing column 'sm' in kg m-2.")
+        return
+    values = df["sm"].to_numpy(dtype=float)
+    missing = np.isnan(values) | (values == MISSING_VALUE)
+    invalid = ~missing & (~np.isfinite(values) | (values < 0))
+    if invalid.any():
+        first = np.flatnonzero(invalid)[0]
         raise ValueError(
-            "SuPy currently expects a single `SMDMethod` value across all grids. "
-            f"Got multiple values: {sorted(active_methods)}. "
-            "Please run grids with different soil moisture configurations separately."
+            "sm must be finite and non-negative in kg m-2, or a recognised missing value when observations are not required. "
+            f"First: {df.index[first]} ({values[first]})."
         )
-
-    smd_method = active_methods.pop()
-
-    metadata_per_grid: Dict[int, SoilObservationMetadata] = {}
-    for grid, row in df_state_init.iterrows():
-        if smd_methods[grid] > 0:
-            metadata_per_grid[grid] = _extract_soil_obs_metadata(row, grid)
-
-    if not metadata_per_grid:
-        # Should not happen, but guard against future regressions
-        return df_forcing
-
-    first_meta = next(iter(metadata_per_grid.values()))
-    for grid, meta in metadata_per_grid.items():
-        if not _metadata_close(meta, first_meta):
-            raise ValueError(
-                "Observed soil moisture metadata differ between grids, "
-                "but SuPy currently feeds a single forcing dataframe to all grids. "
-                f"Grid {grid} differs from the baseline. "
-                "Solution: Call `run_supy_ser()` separately for each grid group "
-                "with matching soil observation settings, or harmonise the metadata "
-                "in your soil configuration files (SUEWS_Soil.txt or YAML config)."
-            )
-
-    if "xsmd" not in df_forcing.columns:
+    if required and missing.any():
         raise ValueError(
-            "SMDMethod > 0 requires the `xsmd` column in `df_forcing`, "
-            "but it is missing."
+            "Observed soil moisture contains missing values; provide every required timestamp before running. "
+            f"First: {df.index[np.flatnonzero(missing)[0]]}."
         )
 
-    df_result = df_forcing.copy()
-    original_values = df_result["xsmd"].copy()
-    df_result["xsmd"] = _convert_xsmd_series(
-        df_result["xsmd"],
-        first_meta,
-        smd_method,
-    )
 
-    # Log conversion summary
-    valid_mask = original_values > (MISSING_VALUE + 1)
-    if np.any(valid_mask):
-        converted = df_result["xsmd"][valid_mask]
-        logger_supy.info(
-            f"Converted observed soil moisture (`xsmd`) to deficits using "
-            f"SMDMethod={smd_method}. depth={first_meta.depth_mm} mm, "
-            f"smcap={first_meta.smcap}, soil_density={first_meta.soil_density}, "
-            f"soil_not_rocks={first_meta.soil_not_rocks}"
-        )
-        logger_supy.debug(
-            f"Deficit statistics: min={converted.min():.2f} mm, "
-            f"max={converted.max():.2f} mm, mean={converted.mean():.2f} mm, "
-            f"n_valid={valid_mask.sum()}/{len(original_values)}"
-        )
-    return df_result
+def interpolate_soil_content(values: pd.Series, target: pd.DatetimeIndex) -> pd.Series:
+    """Interpolate only between valid adjacent observations; never extrapolate."""
+    source = values.astype(float).replace(MISSING_VALUE, np.nan)
+    union = source.index.union(target).sort_values()
+    expanded = source.reindex(union)
+    result = expanded.interpolate(method="time", limit_area="inside")
+    # Missing source observations are barriers, not points to fill across.
+    left = source.reindex(union, method="ffill")
+    right = source.reindex(union, method="bfill")
+    result = result.where(left.notna() & right.notna())
+    return result.reindex(target).rename("sm")
+
+
+def _extract_soil_obs_metadata(row: pd.Series, grid: object) -> SoilObservationMetadata:
+    """Extract effective geometry, field capacity and AWC from runtime state."""
+    def value(name: str, index: str = "0", default: float = np.nan) -> float:
+        raw = row.get((name, index), default)
+        return float(raw) if raw is not None else np.nan
+
+    if any((name, "0") in row.index for name in ("obs_sm_depth", "obs_sm_smcap")):
+        raise ValueError(LEGACY_SOIL_MESSAGE)
+    depth = value("obs_sm_layer_depth")
+    top = value("obs_sm_layer_top", default=0.0)
+    if not np.isfinite(depth) or depth <= 0:
+        raise ValueError("soil_observation.layer_depth must be finite and greater than 0 m. " f"Grid {grid}.")
+    if not np.isfinite(top) or top < 0:
+        raise ValueError("soil_observation.layer_top must be finite and greater than or equal to 0 m. " f"Grid {grid}.")
+    fractions = np.array([value("sfr_surf", f"({i},)") for i in range(7)])
+    if not np.isfinite(fractions).all() or (fractions < 0).any() or fractions[:6].sum() <= 0:
+        raise ValueError("Observed soil moisture requires valid surface fractions and a positive non-water area. " f"Grid {grid}.")
+    capacity = field_capacity = 0.0
+    for i, fraction in enumerate(fractions[:6]):
+        if fraction == 0:
+            continue
+        d = value("soildepth", f"({i},)")
+        c = value("soilstorecap_surf", f"({i},)")
+        theta = value("soil_field_capacity", f"({i},)")
+        if not np.isfinite([d, c]).all() or min(d, c) <= 0:
+            raise ValueError("Observed soil moisture requires finite positive soil_depth and soil_store_capacity for every non-water surface with positive area. " f"Grid {grid}, surface {i}.")
+        if not np.isfinite(theta) or not 0 < theta <= 1 or theta * d < c:
+            raise ValueError("Observed soil moisture requires soil_field_capacity in (0, 1] with field-capacity content >= soil_store_capacity. " f"Grid {grid}, surface {i}.")
+        if not np.isclose(top, 0, rtol=0, atol=1e-6) or not np.isclose(depth, d / 1000, rtol=0, atol=1e-6):
+            raise ValueError("Observed soil layer must match the full configured soil store; no layer extrapolation or truncation is applied. " f"Grid {grid}, surface {i}.")
+        capacity += fraction * c
+        field_capacity += fraction * theta * d
+    area = fractions[:6].sum()
+    return SoilObservationMetadata(depth, top, capacity / area, field_capacity / area)
 
 
 def _metadata_close(a: SoilObservationMetadata, b: SoilObservationMetadata) -> bool:
-    """Check whether two metadata objects are numerically equivalent."""
-
-    attrs = ("depth_mm", "smcap", "soil_density", "soil_not_rocks")
-    return all(
-        np.isclose(getattr(a, att), getattr(b, att), rtol=1e-6, atol=1e-9)
-        for att in attrs
-    )
+    return all(np.isclose(getattr(a, key), getattr(b, key), rtol=0, atol=1e-6)
+               for key in ("layer_depth", "layer_top", "capacity", "field_capacity"))
 
 
-def _convert_xsmd_series(
-    xsmd: pd.Series,
-    meta: SoilObservationMetadata,
-    smd_method: int,
+def convert_observed_soil_moisture(
+    df_forcing: pd.DataFrame, df_state_init: pd.DataFrame,
+) -> pd.DataFrame:
+    """Prepare a fresh kernel frame after content interpolation to model time.
+
+    Public ``sm`` is retained. Only the private ``_soil_deficit`` column is
+    copied to the kernel's xsmd slot. Modelled runs never convert content.
+    """
+    methods = df_state_init.get(("smdmethod", "0"), pd.Series(0, index=df_state_init.index))
+    methods = pd.to_numeric(methods, errors="raise").fillna(0)
+    if not methods.isin([0, 1]).all():
+        raise ValueError(LEGACY_SOIL_MESSAGE)
+    active = methods == 1
+    validate_soil_content(df_forcing, required=bool(active.any()))
+    result = df_forcing.copy()
+    if not active.any():
+        return result
+    metadata = [_extract_soil_obs_metadata(row, grid)
+                for grid, row in df_state_init.loc[active].iterrows()]
+    first = metadata[0]
+    if any(not _metadata_close(first, meta) for meta in metadata[1:]):
+        raise ValueError("Shared forcing requires matching soil-observation bounds and bulk soil-store capacity and field capacity; run incompatible grids separately.")
+    sm = result["sm"]
+    for mask, excess, message in (
+        (sm > first.field_capacity, sm - first.field_capacity,
+         "Observed soil content exceeds field capacity; derived deficit was limited to 0 mm and input sm was retained."),
+        (sm < first.field_capacity - first.capacity, first.field_capacity - first.capacity - sm,
+         "Observed soil content is below the wilting reference; derived deficit was limited to available water capacity and input sm was retained."),
+    ):
+        if mask.any():
+            warnings.warn(f"{message} Count={int(mask.sum())}; first timestamp={sm.index[mask][0]}; maximum excess={excess[mask].max():g} mm.", UserWarning, stacklevel=2)
+    result["_soil_deficit"] = (first.field_capacity - sm).clip(0, first.capacity)
+    return result
+
+
+def soil_moisture_to_content(
+    values, *, source_unit: str, layer_depth: float, layer_top: float = 0.0,
+    bulk_density: float | None = None, soil_not_rocks: float = 1.0,
+    volume_basis: str = "total_layer",
 ) -> pd.Series:
-    """Convert volumetric/gravimetric xsmd measurements to a soil moisture deficit.
+    """Convert liquid observations to ``sm`` (kg m-2), retaining layer provenance.
 
-    Dimensional analysis:
-    - SMDMethod=1 (volumetric): [m3/m3] * [mm] * [-] = [mm]
-    - SMDMethod=2 (gravimetric): [g/g] * [g/cm3] / [g/cm3] * [mm] * [-] = [mm]
-      (division by rho_water=1 g/cm3 is implicit in the formula)
+    ``layer_depth`` is a represented layer thickness in m, not sensor depth.
+    Density is dry soil mass per declared volume in kg m-3. Missing values
+    propagate as NaN. No capacity subtraction or saturation clipping occurs.
     """
-
-    values = xsmd.to_numpy(dtype=float, copy=True)
-    # Tolerance of 1.0 allows for slight numerical variations above -999
-    # while ensuring truly missing data (exactly -999) are excluded
-    mask_valid = values > (MISSING_VALUE + 1)
-    if not np.any(mask_valid):
-        return xsmd
-
-    if smd_method == 1:
-        # Volumetric: deficit [mm] = (theta_max - theta_obs) [fraction] * depth [mm] * soil_fraction
-        clipped = np.clip(values[mask_valid], 0.0, meta.smcap)
-        deficit = (meta.smcap - clipped) * meta.depth_mm * meta.soil_not_rocks
-    elif smd_method == 2:
-        # Gravimetric: deficit = (w_max - w_obs) * (rho_soil / rho_water) * depth * soil_fraction
-        # Since rho_water = 1 g/cm3, formula simplifies to: (w_max - w_obs) * rho_soil * depth * soil_fraction
-        clipped = np.clip(values[mask_valid], 0.0, meta.smcap)
-        deficit = (
-            (meta.smcap - clipped)
-            * meta.soil_density
-            * meta.depth_mm
-            * meta.soil_not_rocks
-        )
+    parse_unit(source_unit)
+    if source_unit not in {"m3 m-3", "kg kg-1", "mm"}:
+        raise ValueError("source_unit must be m3 m-3, kg kg-1 or mm; canonical sm uses kg m-2.")
+    if not np.isfinite(layer_depth) or layer_depth <= 0:
+        raise ValueError("soil_observation.layer_depth must be finite and greater than 0 m.")
+    if not np.isfinite(layer_top) or layer_top < 0:
+        raise ValueError("soil_observation.layer_top must be finite and greater than or equal to 0 m.")
+    if not np.isfinite(soil_not_rocks) or not 0 < soil_not_rocks <= 1:
+        raise ValueError("soil_not_rocks must be finite and in (0, 1].")
+    if volume_basis not in {"total_layer", "fine_earth"}:
+        raise ValueError("volume_basis must be total_layer or fine_earth.")
+    if volume_basis == "total_layer" and soil_not_rocks != 1:
+        raise ValueError("Non-unit soil_not_rocks requires explicit fine_earth volume_basis.")
+    if source_unit == "mm" and soil_not_rocks != 1:
+        raise ValueError("Water-equivalent mm is already layer content; do not apply soil_not_rocks.")
+    result = pd.Series(values, dtype=float, copy=True).replace(MISSING_VALUE, np.nan)
+    present = result.notna()
+    if (~np.isfinite(result[present])).any() or (result[present] < 0).any():
+        raise ValueError("Soil moisture must be finite and non-negative, or a recognised missing value.")
+    factor = soil_not_rocks if volume_basis == "fine_earth" else 1.0
+    if source_unit == "m3 m-3":
+        if (result[present] > 1).any():
+            raise ValueError("Volumetric soil moisture must be finite and in [0, 1] m3 m-3.")
+        result *= 1000 * layer_depth * factor
+    elif source_unit == "kg kg-1":
+        if bulk_density is None or not np.isfinite(bulk_density) or bulk_density <= 0:
+            raise ValueError("Gravimetric conversion requires finite positive dry bulk_density in kg m-3.")
+        result *= bulk_density * layer_depth * factor
     else:
-        raise ValueError(f"Unsupported SMDMethod {smd_method}.")
-
-    values[mask_valid] = deficit
-    return pd.Series(values, index=xsmd.index, name=xsmd.name)
-
-
-def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMetadata:
-    """Extract soil observation metadata from site-level config.
-
-    Site-level config uses columns with index "0" in df_state.
-    This is set via the `soil_observation` block in YAML site properties.
-    """
-
-    def get_site_value(column: str) -> Optional[float]:
-        """Get value from site-level column (index "0")."""
-        key = (column, "0")
-        if key not in row.index:
-            return None
-        val = row[key]
-        if val is None or pd.isna(val) or val <= (MISSING_VALUE + 1):
-            return None
-        return float(val)
-
-    depth = get_site_value("obs_sm_depth")
-    smcap = get_site_value("obs_sm_smcap")
-    soil_not_rocks = get_site_value("obs_sm_soil_not_rocks")
-    soil_density = get_site_value("obs_sm_bulk_density")
-
-    if any(v is None for v in (depth, smcap, soil_not_rocks, soil_density)):
-        raise ValueError(
-            f"Observed soil moisture requires complete metadata for grid {grid}. "
-            "Set `soil_observation` in site properties (YAML config) with: "
-            "depth, smcap, soil_not_rocks, and bulk_density."
-        )
-
-    meta = SoilObservationMetadata(
-        depth_mm=depth,
-        smcap=smcap,
-        soil_density=soil_density,
-        soil_not_rocks=soil_not_rocks,
-    )
-
-    # Defence-in-depth validation: Pydantic constraints in SoilObservationConfig
-    # already enforce these bounds, but this runtime check catches issues from
-    # non-YAML paths (e.g., direct df_state manipulation or legacy table loading).
-    if meta.depth_mm <= 0:
-        raise ValueError(
-            f"`depth` must be positive for grid {grid}. Got {meta.depth_mm}."
-        )
-    if not (0 < meta.soil_not_rocks <= 1):
-        raise ValueError(
-            f"`soil_not_rocks` must be in (0, 1]. Grid {grid} has {meta.soil_not_rocks}."
-        )
-    if meta.smcap <= 0:
-        raise ValueError(f"`smcap` must be positive for grid {grid}. Got {meta.smcap}.")
-    if meta.soil_density <= 0:
-        raise ValueError(
-            f"`bulk_density` must be positive for grid {grid}. Got {meta.soil_density}."
-        )
-
-    logger_supy.debug(f"Grid {grid}: using site-level soil observation config")
-    return meta
+        result[:] = convert(result.to_numpy(), "mm", "m") * 1000
+    result.name = "sm"
+    result.attrs.update(unit="kg m-2", layer_top=layer_top, layer_depth=layer_depth,
+                        source_unit=source_unit, volume_basis=volume_basis,
+                        soil_not_rocks=soil_not_rocks, bulk_density=bulk_density,
+                        water_phase="liquid")
+    return result

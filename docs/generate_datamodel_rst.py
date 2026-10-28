@@ -321,7 +321,7 @@ class RSTGenerator:
             "   * - Public path",
             "     - Choices",
             "     - Notes",
-            "   * - ``soil_moisture_deficit``",
+            "   * - ``soil_moisture``",
             "     - ``modelled``; ``observed``",
             "     - Selects water-balance SMD or forcing-file soil moisture.",
             "   * - ``water_use``",

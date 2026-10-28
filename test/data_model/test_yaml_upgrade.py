@@ -1078,3 +1078,58 @@ class TestOutputSubobjectRestructure:
         assert "output_file" not in out["model"]["control"]
         assert out["model"]["control"]["output"]["dir"] == "./new"
         assert out["model"]["control"]["output"]["format"] == "parquet"
+
+
+class TestSoilSchemaMigration:
+    """Active legacy configurations cannot be stamped without forcing evidence."""
+
+    @pytest.mark.parametrize("method", [1, 2, "1", "2", "observed", "SMDMethod.OBSERVED_GRAVIMETRIC"])
+    @pytest.mark.parametrize("wrapped", [False, True])
+    def test_active_refusal_is_transactional(self, tmp_path, method, wrapped):
+        from copy import deepcopy
+        from supy.data_model.configuration.migration import SchemaMigrator, migrate_config_file
+        from supy.util.converter.yaml_upgrade import SOIL_MIGRATION_MESSAGE, YamlUpgradeError
+        cfg = {"schema_version": "2026.6.dev5", "model": {"physics": {
+            "soil_moisture_deficit": {"value": method} if wrapped else method}}, "sites": []}
+        before = deepcopy(cfg)
+        with pytest.raises(YamlUpgradeError, match=SOIL_MIGRATION_MESSAGE):
+            SchemaMigrator().migrate(cfg)
+        assert cfg == before
+        source, dest = tmp_path / "old.yml", tmp_path / "new.yml"
+        source.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+        original = source.read_bytes()
+        dest.write_text("existing output", encoding="utf-8")
+        for operation in (lambda: upgrade_yaml(source, dest), lambda: migrate_config_file(str(source), str(dest))):
+            with pytest.raises(YamlUpgradeError, match=SOIL_MIGRATION_MESSAGE):
+                operation()
+            assert source.read_bytes() == original
+            assert dest.read_text(encoding="utf-8") == "existing output"
+
+    @pytest.mark.parametrize("method", [0, "modelled", {"value": 0}, {"value": "modelled"}])
+    def test_modelled_unattended_idempotent(self, method, capsys):
+        from supy.data_model.configuration.migration import SchemaMigrator
+        cfg = {"schema_version": "2026.6.dev5", "model": {"physics": {"soil_moisture_deficit": method}},
+               "sites": [{"properties": {"soil_observation": {"depth": 200, "smcap": 0.4}}}]}
+        migrator = SchemaMigrator()
+        result = migrator.migrate(cfg)
+        assert result["schema_version"] == CURRENT_SCHEMA_VERSION
+        assert "soil_moisture_deficit" not in result["model"]["physics"]
+        assert "soil_observation" not in result["sites"][0]["properties"]
+        assert migrator.migrate(result) == result
+        output = capsys.readouterr()
+        assert "Sensor saturation capacity is retired" in output.err + output.out
+
+
+def test_all_older_routes_refuse_active_method_two_transactionally():
+    from copy import deepcopy
+    from supy.data_model.configuration.migration import SchemaMigrator
+    from supy.util.converter.yaml_upgrade import _HANDLERS, YamlUpgradeError, SOIL_MIGRATION_MESSAGE
+    for source, target in _HANDLERS:
+        if target != CURRENT_SCHEMA_VERSION or source == target:
+            continue
+        cfg = {"schema_version": source, "model": {"physics": {
+            "soil_moisture_deficit": {"value": 2}}}, "sites": []}
+        before = deepcopy(cfg)
+        with pytest.raises(YamlUpgradeError, match=SOIL_MIGRATION_MESSAGE):
+            SchemaMigrator().migrate(cfg)
+        assert cfg == before

@@ -28,7 +28,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev5"`` describes the shape of the configuration
+``schema_version: "2026.6.dev6"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +41,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev5"
+   schema_version: "2026.6.dev6"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -348,3 +348,20 @@ FAQ
    No. The schema version tracks the YAML shape. The model version
    tracks the SUEWS code. One schema typically spans several model
    releases.
+
+Schema 2026.6.dev6: observed soil water
+-------------------------------------
+
+The source selector is now ``model.physics.soil_moisture`` (``modelled`` or
+``observed``). Observations describe a whole-store liquid-water layer using
+``soil_observation.layer_depth`` and ``layer_top`` in metres. Optional dry
+``bulk_density`` uses kg per cubic metre. Sensor ``smcap`` is retired.
+Each contributing non-water surface requires ``soil_field_capacity`` in
+volumetric units; the implied wilting point must be non-negative.
+
+Modelled configurations upgrade unattended. Active legacy observation methods
+require confirmed layer bounds and a completed forcing-conversion manifest;
+a configuration-only upgrade refuses to write output. The keyword-only
+``migration_context`` argument to the Python migration APIs carries this
+private evidence; it is not a runtime YAML field. The forcing conversion
+operation is supplied separately from this configuration-schema change.

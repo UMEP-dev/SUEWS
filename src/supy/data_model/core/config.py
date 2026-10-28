@@ -34,8 +34,8 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import FAIMethod, LAIMethod, Model, OutputTimestampReference
-from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
+from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
+from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
 from .type import SurfaceType
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
@@ -407,6 +407,51 @@ class SUEWSConfig(BaseModel):
                 "sw_dn_direct_frac",
                 float(fraction),
             )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_soil_observation(self) -> "SUEWSConfig":
+        """Observed content must represent every contributing whole soil store.
+
+        This scientific guard is unconditional, including when optional input
+        checks are disabled. Zero-area surfaces do not contribute.
+        """
+        if int(_unwrap_value(self.model.physics.soil_moisture)) != 1:
+            return self
+        signatures = []
+        for site in self.sites:
+            obs = site.properties.soil_observation
+            if obs is None:
+                raise ValueError("Observed soil moisture requires soil_observation layer bounds")
+            depth = float(_unwrap_value(obs.layer_depth))
+            top = float(_unwrap_value(obs.layer_top))
+            if abs(top) > 1e-6:
+                raise ValueError("Observed soil moisture requires a whole-store layer with layer_top zero")
+            area = capacity = field_content = 0.0
+            for name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+                surface = getattr(site.properties.land_cover, name)
+                fraction = float(_unwrap_value(surface.sfr))
+                if fraction <= 0:
+                    continue
+                d = _unwrap_value(surface.soil_depth)
+                c = _unwrap_value(surface.soil_store_capacity)
+                fc = _unwrap_value(surface.soil_field_capacity)
+                if d is None or not np.isfinite(d) or d <= 0:
+                    raise ValueError(f"{name}: observed soil moisture requires finite positive soil_depth")
+                if abs(depth - d / 1000.0) > 1e-6:
+                    raise ValueError("Observed soil moisture layer_depth must match every positive-area non-water soil_depth")
+                if c is None or not np.isfinite(c) or c <= 0:
+                    raise ValueError(f"{name}: observed soil moisture requires finite positive soil_store_capacity")
+                if fc is None or not np.isfinite(fc) or not 0 < fc <= 1 or fc * d < c:
+                    raise ValueError(f"{name}: soil_field_capacity must be finite in (0, 1] with rho_w theta_fc d >= soil_store_capacity")
+                area += fraction
+                capacity += fraction * c
+                field_content += fraction * fc * d
+            if area <= 0:
+                raise ValueError("Observed soil moisture requires positive non-water area")
+            signatures.append((top, depth, capacity / area, field_content / area))
+        if signatures and any(not np.allclose(signatures[0], item, rtol=0, atol=1e-6) for item in signatures[1:]):
+            raise ValueError("Shared forcing requires matching soil-observation bounds and bulk soil-store capacity; run incompatible grids separately.")
         return self
 
     # Class-level constant for STEBBS validation parameters
@@ -4836,7 +4881,29 @@ class SUEWSConfig(BaseModel):
                     e, config_data, had_signature=had_signature
                 ) from e
         else:
-            logger_supy.info("Validation disabled by user. Loading without checks.")
+            # Optional checks may be bypassed, but observed soil geometry and
+            # capacity remain mandatory. Parse only this scientific boundary;
+            # preserve the established unchecked semantics for unrelated fields.
+            raw_physics = config_data.get("model", {}).get("physics", {})
+            soil_keys = ("soil_moisture", "soil_moisture_deficit", "smdmethod", "smd_method")
+            soil_physics = ModelPhysics.model_validate({
+                key: raw_physics[key] for key in soil_keys if key in raw_physics
+            })
+            if int(_unwrap_value(soil_physics.soil_moisture)) == 1:
+                soil_sites = []
+                for raw_site in config_data.get("sites", []):
+                    props = raw_site.get("properties", {})
+                    obs = props.get("soil_observation")
+                    properties = SiteProperties.model_construct(
+                        soil_observation=SoilObservationConfig.model_validate(obs) if obs is not None else None,
+                        land_cover=LandCover.model_validate(props.get("land_cover", {})),
+                    )
+                    soil_sites.append(Site.model_construct(properties=properties))
+                probe = cls.model_construct(
+                    model=Model.model_construct(physics=soil_physics), sites=soil_sites,
+                )
+                probe._validate_soil_observation()
+            logger_supy.info("Optional validation disabled; mandatory soil observation checks retained.")
             return cls.model_construct(**config_data)
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:

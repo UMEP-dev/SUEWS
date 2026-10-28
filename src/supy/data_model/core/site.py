@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 from pydantic import ConfigDict, BaseModel, Field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
@@ -2931,93 +2932,76 @@ class SPARTACUSParams(BaseModel):
 
 
 class SoilObservationConfig(BaseModel):
-    """Configuration for observed soil moisture measurements.
+    """Bounds of a whole-store liquid-water observation and conversion metadata.
 
-    Required when SMDMethod = 1 (volumetric) or 2 (gravimetric).
-    These parameters describe the sensor installation and measurement setup,
-    not the physical soil properties used by the SUEWS water balance model.
-
-    Note:
-        - `depth`: Where the sensor is installed, not SUEWS's modelled soil depth
-        - `smcap`: Maximum observable moisture, not SUEWS's soil storage capacity
-        - `bulk_density`: Only used for gravimetric (SMDMethod=2) conversion
+    Density and fine-earth fraction are provenance for upstream conversion;
+    canonical content must not be multiplied by either at runtime.
     """
 
-    model_config = ConfigDict(title="Soil Observation Configuration")
+    model_config = ConfigDict(title="Soil Observation Configuration", extra="forbid")
 
-    depth: FlexibleRefValue(float) = Field(
+    layer_depth: FlexibleRefValue(float) = Field(
         gt=0,
-        description="Depth of the soil moisture sensor installation",
-        json_schema_extra={"unit": "mm", "display_name": "Observation Depth"},
+        description="Thickness of the represented soil layer",
+        json_schema_extra={"unit": "m"},
     )
-    smcap: FlexibleRefValue(float) = Field(
-        gt=0,
-        description=(
-            "Maximum observable soil moisture (saturated θ or w at sensor location). "
-            "For volumetric (SMDMethod=1), this is typically ≤1.0 (m³/m³). "
-            "For gravimetric (SMDMethod=2), values >1.0 are possible (g water/g dry soil)."
-        ),
-        json_schema_extra={
-            "unit": "1",
-            "display_name": "Saturation Capacity",
-        },
+    layer_top: FlexibleRefValue(float) = Field(
+        default=0.0, ge=0,
+        description="Upper layer boundary below local ground, positive downwards",
+        json_schema_extra={"unit": "m"},
+    )
+    bulk_density: Optional[FlexibleRefValue(float)] = Field(
+        default=None, gt=0,
+        description="Dry fine-earth bulk density, used only for source conversion",
+        json_schema_extra={"unit": "kg m-3"},
     )
     soil_not_rocks: FlexibleRefValue(float) = Field(
-        gt=0,
-        le=1,
-        description="Fraction of the measured soil volume that is soil (not rocks)",
-        json_schema_extra={"unit": "1", "display_name": "Soil Fraction"},
+        default=1.0, gt=0, le=1,
+        description="Fine-earth volume divided by total layer volume",
+        json_schema_extra={"unit": "1"},
     )
-    bulk_density: FlexibleRefValue(float) = Field(
-        gt=0,
-        description="Soil bulk density at the measurement point (used for gravimetric conversion)",
-        json_schema_extra={"unit": "g cm-3", "display_name": "Bulk Density"},
-    )
-
     ref: Optional[Reference] = None
 
-    # Map field names to df_state column names (all use obs_sm_ prefix)
     _FIELD_TO_COLUMN: ClassVar[Dict[str, str]] = {
-        "depth": "obs_sm_depth",
-        "smcap": "obs_sm_smcap",
+        "layer_depth": "obs_sm_layer_depth",
+        "layer_top": "obs_sm_layer_top",
         "soil_not_rocks": "obs_sm_soil_not_rocks",
         "bulk_density": "obs_sm_bulk_density",
     }
 
+    @model_validator(mode="after")
+    def _finite_observation_values(self):
+        for name in self._FIELD_TO_COLUMN:
+            value = getattr(self, name)
+            if value is None and name == "bulk_density":
+                continue
+            raw = value.value if isinstance(value, RefValue) else value
+            if raw is None or not math.isfinite(raw):
+                raise ValueError(f"{name} must be finite")
+        return self
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert soil observation config to DataFrame state format."""
+        """Preserve layer bounds and optional conversion metadata in state."""
         cols = {("gridiv", "0"): grid_id}
         for attr, col_name in self._FIELD_TO_COLUMN.items():
             field_val = getattr(self, attr)
-            val = field_val.value if isinstance(field_val, RefValue) else field_val
-            cols[(col_name, "0")] = val
-
+            if field_val is not None:
+                cols[(col_name, "0")] = field_val.value if isinstance(field_val, RefValue) else field_val
         return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
-    def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "SoilObservationConfig":
-        """Create SoilObservationConfig from DataFrame state format."""
+    def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> Optional["SoilObservationConfig"]:
+        """Restore current metadata; explicitly reject retired state fields."""
+        for name in ("obs_sm_depth", "obs_sm_smcap"):
+            if (name, "0") in df.columns:
+                raise ValueError(f"Retired soil observation field {name}; migrate the source configuration")
         params = {}
-
         for field_name, col_name in cls._FIELD_TO_COLUMN.items():
             if (col_name, "0") in df.columns:
-                val = df.loc[grid_id, (col_name, "0")]
-                if val is not None and not pd.isna(val) and val > -998:
-                    params[field_name] = RefValue(val)
-
-        # Return None if no valid parameters found (all 4 required)
-        if len(params) < 4:
-            if params:
-                # Log partial metadata for debugging
-                logger_supy.debug(
-                    "Grid %d: partial soil observation metadata found (%d/4 fields), "
-                    "skipping soil observation config",
-                    grid_id,
-                    len(params),
-                )
-            return None
-
-        return cls(**params)
+                value = df.loc[grid_id, (col_name, "0")]
+                if value is not None and not pd.isna(value):
+                    params[field_name] = RefValue(value)
+        return cls(**params) if params else None
 
 
 class LUMPSParams(BaseModel):

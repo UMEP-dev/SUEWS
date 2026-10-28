@@ -1,6 +1,7 @@
 import io
 from pathlib import Path
 import platform
+import shutil
 import sys
 import tempfile
 from time import time
@@ -339,15 +340,19 @@ class TestSuPy(TestCase):
         if not p_data_test.exists():
             self.assertTrue(True)
         else:
-            list_fn_fc = sp.util.gen_forcing_era5(
-                57.7081,
-                11.9653,
-                "20030101",
-                "20031231",
-                dir_save=p_data_test.as_posix(),
-            )
-            df_forcing = sp.util.read_suews(list_fn_fc[0])
-            ser_tair = df_forcing.Tair
+            # Generation must not rewrite the vendored legacy forcing header.
+            with tempfile.TemporaryDirectory() as generated:
+                for source in p_data_test.glob("*.csv"):
+                    shutil.copy2(source, Path(generated) / source.name)
+                list_fn_fc = sp.util.gen_forcing_era5(
+                    57.7081,
+                    11.9653,
+                    "20030101",
+                    "20031231",
+                    dir_save=generated,
+                )
+                df_forcing = sp.util.read_suews(list_fn_fc[0])
+                ser_tair = df_forcing.Tair
             # ds_sfc = xr.open_mfdataset(list_fn_sfc)
             # ser_t2 = ds_sfc.t2m.to_series()
             # res_dif = ((df_forcing.Tair + 273.15 - ser_t2.values) / 98).round(4)

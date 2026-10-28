@@ -1,8 +1,9 @@
 # command line tools
 from __future__ import annotations
 
-from contextlib import nullcontext, redirect_stdout
+from contextlib import nullcontext, redirect_stdout, redirect_stderr
 from io import StringIO
+import json
 from pathlib import Path
 import sys
 
@@ -14,7 +15,7 @@ from ..util.converter import (
     detect_table_version,
     list_ver_from,
 )
-from ..util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
+from ..util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml, upgrade_soil_observation
 from .json_envelope import (
     EXIT_OK,
     EXIT_USER_ERROR,
@@ -107,6 +108,16 @@ except ImportError:
     show_default=True,
     help="Output format. 'json' emits the standard SUEWS envelope on stdout.",
 )
+@click.option("--forcing", type=click.Path(exists=True, dir_okay=False), help="Legacy forcing table for coordinated soil conversion.")
+@click.option("--forcing-output", type=click.Path(dir_okay=False), help="New canonical forcing table.")
+@click.option("--manifest", type=click.Path(dir_okay=False), help="New JSON conversion manifest.")
+@click.option("--source-contract", help="Explicit contract for positional forcing (1.x or 2.0.0).")
+@click.option("--source-unit", type=click.Choice(["m3 m-3", "kg kg-1", "mm", "kg m-2"]), help="Confirmed legacy source unit when method provenance is ambiguous.")
+@click.option("--layer-top", type=float, help="Confirmed represented layer top in m (explicit 0 for the whole store).")
+@click.option("--layer-depth", type=float, help="Confirmed represented layer thickness in m.")
+@click.option("--legacy-depth-is-thickness", is_flag=True, help="Confirm old depth describes layer thickness.")
+@click.option("--drop-legacy", is_flag=True, help="Archive and drop unused method-0 xsmd values with a recorded reason.")
+@click.option("--dry-run", is_flag=True, help="Report conversion and missing decisions without writing files.")
 @click.pass_context
 def convert_table_cmd(  # noqa: PLR0912, PLR0915
     ctx: click.Context,
@@ -116,6 +127,9 @@ def convert_table_cmd(  # noqa: PLR0912, PLR0915
     debug_dir: str | None = None,
     no_validate_profiles: bool = False,
     output_format: str = "text",
+    forcing=None, forcing_output=None, manifest=None, source_contract=None,
+    source_unit=None, layer_top=None, layer_depth=None,
+    legacy_depth_is_thickness=False, drop_legacy=False, dry_run=False,
 ) -> None:
     """Convert any supported SUEWS input to a current-schema YAML.
 
@@ -160,6 +174,31 @@ def convert_table_cmd(  # noqa: PLR0912, PLR0915
 
     input_path = Path(input_file)
     output_path = Path(output_file)
+
+    if forcing is not None:
+        if not forcing_output or not manifest:
+            raise click.UsageError("Coordinated conversion requires --forcing-output and --manifest.")
+        try:
+            with silent_supy_logger(), redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                report = upgrade_soil_observation(
+                    input_path, Path(forcing), output_path, Path(forcing_output), Path(manifest),
+                    from_ver=fromVer, source_contract=source_contract, source_unit=source_unit,
+                    layer_top=layer_top, layer_depth=layer_depth,
+                    legacy_depth_is_thickness=legacy_depth_is_thickness,
+                    drop_legacy=drop_legacy, dry_run=dry_run,
+                )
+        except (YamlUpgradeError, ValueError, TypeError, OSError) as exc:
+            if json_mode:
+                _emit_error(str(exc), command=command, started_at=started_at, data={})
+            raise click.ClickException(str(exc)) from exc
+        if json_mode:
+            if report["errors"]:
+                _emit_error("; ".join(report["errors"]), command=command, started_at=started_at, data=report)
+            _emit_success(command=command, started_at=started_at, data=report, warnings=report.get("warnings", []))
+        click.echo(json.dumps(report, indent=2, ensure_ascii=True))
+        ctx.exit(2 if report["errors"] else 0)
+    if dry_run or any(x is not None for x in (forcing_output, manifest, source_contract, source_unit, layer_top, layer_depth)) or legacy_depth_is_thickness or drop_legacy:
+        raise click.UsageError("Soil conversion options require --forcing.")
 
     # Detect input type from file
     try:

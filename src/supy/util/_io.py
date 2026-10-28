@@ -14,6 +14,7 @@ from .._load import (
 )
 from ..data_model.forcing import FORCING_REGISTRY
 from ._missing import from_nan
+from ._forcing import interpolate_soil_content, validate_soil_content
 
 # Surface air pressure is never below ~300 hPa (that altitude is well into
 # the free troposphere, not a surface site). A DataFrame whose median
@@ -53,7 +54,7 @@ def read_suews(path_suews_file: str) -> pd.DataFrame:
     return df_suews
 
 
-def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error") -> pd.DataFrame:
+def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error", *, source_contract=None) -> pd.DataFrame:
     """Read in SUEWS forcing files as DataFrame ready for SuPy simulation.
 
     Parameters
@@ -87,7 +88,7 @@ def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error") -> pd
     str_pattern = path_suews_file.name
 
     df_forcing_raw = load_SUEWS_Forcing_met_df_pattern(
-        path_input, str_pattern, on_conflict=on_conflict
+        path_input, str_pattern, on_conflict=on_conflict, source_contract=source_contract
     )
     return resample_forcing_df(df_forcing_raw, tstep_mod=tstep_mod)
 
@@ -116,6 +117,7 @@ def resample_forcing_df(df_forcing_raw: pd.DataFrame, tstep_mod=300) -> pd.DataF
         Forcing aligned to ``tstep_mod`` (or unchanged if no resampling was
         required).
     """
+    validate_soil_content(df_forcing_raw)
     tstep_met_in = (
         df_forcing_raw.index.to_series().diff().iloc[-1] / pd.Timedelta("1s")
     )
@@ -129,6 +131,10 @@ def resample_forcing_df(df_forcing_raw: pd.DataFrame, tstep_mod=300) -> pd.DataF
             df_forcing_raw, tstep_met_in, tstep_mod, kdownzen=0
         )
         df_forcing = from_nan(df_forcing)
+        if "sm" in df_forcing_raw:
+            df_forcing["sm"] = interpolate_soil_content(
+                df_forcing_raw["sm"], df_forcing.index
+            ).fillna(FORCING_OPTIONAL_FILL)
 
     return df_forcing
 

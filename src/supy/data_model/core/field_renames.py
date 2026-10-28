@@ -46,7 +46,7 @@ MODELPHYSICS_RENAMES: Dict[str, str] = {
     "roughlenmommethod": "roughness_length_momentum",
     "roughlenheatmethod": "roughness_length_heat",
     "stabilitymethod": "stability",
-    "smdmethod": "soil_moisture_deficit",
+    "smdmethod": "soil_moisture",
     "waterusemethod": "water_use",
     "rslmethod": "roughness_sublayer",
     "faimethod": "frontal_area_index",
@@ -74,6 +74,11 @@ MODELPHYSICS_RENAMES: Dict[str, str] = {
 # CLI (``suews run``) on a Schema 2026.5 YAML should migrate via
 # ``suews-schema migrate --target-version 2026.5.dev2`` first.
 
+# Schema 2026.6.dev6: source selection no longer specifies observation units.
+MODELPHYSICS_SOIL_RENAMES: Dict[str, str] = {
+    "soil_moisture_deficit": "soil_moisture",
+}
+
 MODELPHYSICS_SUFFIX_RENAMES: Dict[str, str] = {
     # Suffix drop (8) -- enum type (e.g. NetRadiationMethod) carries "method"
     "net_radiation_method": "net_radiation",
@@ -85,7 +90,7 @@ MODELPHYSICS_SUFFIX_RENAMES: Dict[str, str] = {
     "water_use_method": "water_use",
     "stebbs_method": "stebbs",
     # Expand opaque domain abbreviations (4)
-    "smd_method": "soil_moisture_deficit",
+    "smd_method": "soil_moisture",
     "rsl_method": "roughness_sublayer",
     "rsl_level": "roughness_sublayer_level",
     "fai_method": "frontal_area_index",
@@ -1286,6 +1291,7 @@ def _compose_rename_chains(*tables: Mapping[str, str]) -> Dict[str, str]:
 # before they compare against the current sample schema.
 RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
     MODELPHYSICS_SUFFIX_RENAMES,
+    MODELPHYSICS_SOIL_RENAMES,
     MODELPHYSICS_DEV12_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
@@ -1324,6 +1330,7 @@ _MODELPHYSICS_ALL_RENAMES: Dict[str, str] = {
     # find a legacy ``outer_cap_fraction`` key. Spread before RENAMES so the
     # reverse map prefers the fused legacy ``rcmethod`` for ``capacitance``.
     **MODELPHYSICS_SUFFIX_RENAMES,
+    **MODELPHYSICS_SOIL_RENAMES,
     **PHYSICS_PUBLIC_KEY_ALIASES,
     **MODELPHYSICS_DEV12_RENAMES,
     **MODELPHYSICS_RENAMES,

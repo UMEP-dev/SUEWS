@@ -27,6 +27,7 @@ from ._attribution import (
 from ._debug import save_zip_debug
 from ._era5 import gen_forcing_era5
 from ._gap_filler import fill_gap_all
+from ._forcing import soil_moisture_to_content
 from ._gs import (
     cal_g_dq,
     cal_g_dq_noah,

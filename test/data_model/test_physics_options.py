@@ -315,10 +315,10 @@ class TestCoerceScalarNames:
             "value": 1
         }
         assert coerce_nested_to_flat("water_use", "modelled") == {"value": 0}
-        assert coerce_nested_to_flat("soil_moisture_deficit", "modelled") == {
+        assert coerce_nested_to_flat("soil_moisture", "modelled") == {
             "value": 0
         }
-        assert coerce_nested_to_flat("soil_moisture_deficit", "observed") == {
+        assert coerce_nested_to_flat("soil_moisture", "observed") == {
             "value": 1
         }
 
@@ -333,7 +333,7 @@ class TestCoerceScalarNames:
     @pytest.mark.parametrize("name", ["observed_volumetric", "observed_gravimetric"])
     def test_smd_unit_specific_names_are_not_public(self, name):
         with pytest.raises(ValueError, match="observed"):
-            coerce_nested_to_flat("soil_moisture_deficit", name)
+            coerce_nested_to_flat("soil_moisture", name)
 
     def test_unknown_scalar_name_rejected(self):
         with pytest.raises(ValueError, match="unknown scheme name"):
@@ -411,7 +411,7 @@ class TestRegistryEnumParity:
             "roughness_length_momentum": m.MomentumRoughnessMethod,
             "roughness_length_heat": m.HeatRoughnessMethod,
             "stability": m.StabilityMethod,
-            "soil_moisture_deficit": m.SMDMethod,
+            "soil_moisture": m.SMDMethod,
             "water_use": m.WaterUseMethod,
             "laimethod": m.LAIMethod,
             "roughness_sublayer": m.RSLMethod,
@@ -436,7 +436,7 @@ class TestRegistryEnumParity:
         # gh#1422/#1447: SMD's historical code 2 remains a numeric
         # compatibility path while the public readable surface converges on a
         # single observed soil-moisture source.
-        public_name_coverage_exceptions = {"soil_moisture_deficit": {2}}
+        public_name_coverage_exceptions = {}
 
         for field, enum_cls in field_to_enum.items():
             valid = {member.value for member in enum_cls}
@@ -534,7 +534,7 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
             "roughness_length_momentum",
             "roughness_length_heat",
             "stability",
-            "soil_moisture_deficit",
+            "soil_moisture",
             "water_use",
             "roughness_sublayer",
             "frontal_area_index",
@@ -547,7 +547,7 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
         "roughness_length_momentum": "fixed",
         "roughness_length_heat": "K09",
         "stability": "CN98",
-        "soil_moisture_deficit": "modelled",
+        "soil_moisture": "modelled",
         "water_use": "modelled",
         "roughness_sublayer": "variable",
         "frontal_area_index": "observed",
@@ -578,7 +578,7 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
         "roughness_length_momentum": int(_unwrap(parsed.roughness_length_momentum)),
         "roughness_length_heat": int(_unwrap(parsed.roughness_length_heat)),
         "stability": int(_unwrap(parsed.stability)),
-        "soil_moisture_deficit": int(_unwrap(parsed.soil_moisture_deficit)),
+        "soil_moisture": int(_unwrap(parsed.soil_moisture)),
         "water_use": int(_unwrap(parsed.water_use)),
         "roughness_sublayer": int(_unwrap(parsed.roughness_sublayer)),
         "frontal_area_index": int(_unwrap(parsed.frontal_area_index)),
@@ -607,7 +607,7 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
         "roughness_length_momentum": 1,
         "roughness_length_heat": 2,
         "stability": 3,
-        "soil_moisture_deficit": 0,
+        "soil_moisture": 0,
         "water_use": 0,
         "roughness_sublayer": 2,
         "frontal_area_index": 0,

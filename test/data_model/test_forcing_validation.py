@@ -172,10 +172,10 @@ def test_validate_forcing_columns_against_physics_rejects_nonfinite_data():
         validate_forcing_columns_against_physics,
     )
 
-    physics = SimpleNamespace(soil_moisture_deficit=1)
-    df = pd.DataFrame({"xsmd": [0.2, float("inf")]})
+    physics = SimpleNamespace(soil_moisture=1)
+    df = pd.DataFrame({"sm": [0.2, float("inf")]})
 
-    with pytest.raises(ValueError, match=r"xsmd.*valid data"):
+    with pytest.raises(ValueError, match=r"sm.*valid data"):
         validate_forcing_columns_against_physics(df, physics)
 
 

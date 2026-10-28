@@ -185,38 +185,37 @@ def test_inspect_unwraps_stebbs_enabled_refvalue() -> None:
     assert physics["stebbs"]["enabled"] is False
 
 
-def test_inspect_labels_smd_numeric_compatibility_code() -> None:
-    """SMD code 2 remains readable as the unified observed source choice."""
+def test_inspect_reports_retired_smd_code_without_a_name() -> None:
+    """Code 2 left the soil-moisture selector at schema 2026.6.dev6."""
     from supy.cmd.inspect_config import _physics_summary
 
     physics = _physics_summary(
         {
             "physics": {
-                "soil_moisture_deficit": {"value": 2},
+                "soil_moisture": {"value": 2},
             }
         }
     )
 
-    smd = physics["soil_moisture_deficit"]
+    smd = physics["soil_moisture"]
     assert smd["code"] == 2
-    assert smd["selected"] == "observed"
-    assert smd["selected_name_is_lossy"] is True
+    assert smd["selected"] is None
     assert smd["accepted_names"] == ["modelled", "observed"]
 
 
-def test_inspect_distinguishes_smd_observed_codes() -> None:
-    """SMD observed codes share a public name but code 2 is marked lossy."""
+def test_inspect_labels_observed_soil_moisture() -> None:
+    """Code 1 is the single observed soil-moisture source."""
     from supy.cmd.inspect_config import _physics_summary
 
     physics = _physics_summary(
         {
             "physics": {
-                "soil_moisture_deficit": {"value": 1},
+                "soil_moisture": {"value": 1},
             }
         }
     )
 
-    smd = physics["soil_moisture_deficit"]
+    smd = physics["soil_moisture"]
     assert smd["code"] == 1
     assert smd["selected"] == "observed"
     assert "selected_name_is_lossy" not in smd

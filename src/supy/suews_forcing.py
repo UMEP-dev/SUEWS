@@ -184,6 +184,7 @@ class SUEWSForcing:
         tstep_mod: int = 300,
         *,
         on_conflict: str = "error",
+        source_contract: Optional[str] = None,
     ) -> "SUEWSForcing":
         """
         Load forcing from file(s).
@@ -245,7 +246,7 @@ class SUEWSForcing:
                 if not file_path.exists():
                     raise FileNotFoundError(f"Forcing file not found: {file_path}")
                 df = read_forcing(
-                    str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict
+                    str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict, source_contract=source_contract
                 )
                 dfs.append(df)
                 sources.append(str(file_path))
@@ -261,7 +262,7 @@ class SUEWSForcing:
         if not file_path.exists():
             raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
-        df = read_forcing(str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict)
+        df = read_forcing(str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict, source_contract=source_contract)
         df_main, extras = cls._split_per_landcover_columns(df)
         instance = cls(df_main, source=str(file_path))
         instance._extras = extras

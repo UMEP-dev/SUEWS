@@ -1030,28 +1030,12 @@ class SUEWSSimulation:
                 if _check_observed_lai_nonneg(df_forcing_slice, lai_issues):
                     raise RuntimeError(lai_issues[0])
 
-        # Preserve observed-soil-moisture preprocessing from the retired
-        # DataFrame runner on the single canonical execution path.
-        soil_moisture_deficit = getattr(
-            self._config.model.physics,
-            "soil_moisture_deficit",
-            None,
-        )
-        if soil_moisture_deficit is None:
-            soil_moisture_deficit = getattr(
-                self._config.model.physics,
-                "smdmethod",
-                None,
-            )
-        if hasattr(soil_moisture_deficit, "value"):
-            soil_moisture_deficit = soil_moisture_deficit.value
-        if soil_moisture_deficit is not None and int(soil_moisture_deficit) > 0:
-            from .util._forcing import convert_observed_soil_moisture
+        # Mandatory even with check_input=False; the public frame remains content.
+        from .util._forcing import convert_observed_soil_moisture
 
-            df_forcing_slice = convert_observed_soil_moisture(
-                df_forcing_slice.copy(),
-                self._df_state_init,
-            )
+        df_forcing_slice = convert_observed_soil_moisture(
+            df_forcing_slice, self._df_state_init,
+        )
 
         # Snapshot the identity of the inputs as they are handed to the
         # kernel, so a later update_config/update_forcing without a rerun

@@ -22,10 +22,13 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract is published at ``1.2.0`` and the output contract at
+The forcing contract is published at ``2.0.0`` and the output contract at
 ``1.1.9``. Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
-requiredness to reflect its physics-dependent use. Output ``1.1.0`` adds
+requiredness to reflect its physics-dependent use. Forcing ``2.0.0`` replaces
+selector-dependent ``xsmd`` with instantaneous liquid content ``sm`` in
+``kg m-2`` at the same position 20. The internal deficit is derived from
+field capacity and available water capacity after content interpolation. Output ``1.1.0`` adds
 configurable saved-output timestamp references while retaining the forcing
 clock by default; ``1.1.1`` corrects the descriptions of five water-balance
 variables to match what the kernel computes, leaving every name, unit, group

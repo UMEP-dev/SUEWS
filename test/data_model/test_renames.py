@@ -404,7 +404,7 @@ class TestDeprecationWarnings:
             (ModelPhysics, "net_radiation_method", "net_radiation", 3),
             (ModelPhysics, "rsl_method", "roughness_sublayer", 2),
             (ModelPhysics, "gs_model", "surface_conductance", 2),
-            (ModelPhysics, "smd_method", "soil_moisture_deficit", 0),
+            (ModelPhysics, "smd_method", "soil_moisture", 0),
             # dev12 Column D: rcmethod / rc_method / dev11 outer_cap_fraction
             # all resolve to the final `capacitance` (gh#1392 follow-up).
             (ModelPhysics, "rc_method", "capacitance", 1),

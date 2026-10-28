@@ -255,6 +255,11 @@ class SurfaceProperties(BaseModel):
         description="Depth of soil layer below surface for hydrological calculations, controlling sub-surface water storage and drainage processes. Site-specific value typically determined from soil surveys or borehole data",
         json_schema_extra={"unit": "mm", "display_name": "Soil Depth"},
     )
+    soil_field_capacity: Optional[FlexibleRefValue(float)] = Field(
+        default=None, gt=0, le=1,
+        description="Volumetric liquid-water content at field capacity",
+        json_schema_extra={"unit": "m3 m-3", "display_name": "Soil Field Capacity"},
+    )
     soil_store_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
@@ -377,6 +382,7 @@ class SurfaceProperties(BaseModel):
             ("ohm_threshold_summer_winter", "ohm_threshsw"),
             ("ohm_threshold_wet_dry", "ohm_threshwd"),
             ("soil_depth", "soildepth"),
+            ("soil_field_capacity", "soil_field_capacity"),
             ("soil_store_capacity", "soilstorecap"),
             ("state_limit", "statelimit"),
             ("wet_threshold", "wetthresh"),
@@ -429,6 +435,10 @@ class SurfaceProperties(BaseModel):
                     }
                     value = defaults.get(field_name, 0.0)
                 cols[(f"{col_name}_surf", f"({surf_idx},)")] = value
+            elif field_name == "soil_field_capacity":
+                if self.soil_field_capacity is not None and surf_idx != 6:
+                    cols[(col_name, f"({surf_idx},)")] = (self.soil_field_capacity.value
+                        if isinstance(self.soil_field_capacity, RefValue) else self.soil_field_capacity)
             elif field_name == "rho_cp_anohm":  # Moved to cp in df_state
                 value = getattr(self, field_name)
                 value = value.value if isinstance(value, RefValue) else value
@@ -494,6 +504,7 @@ class SurfaceProperties(BaseModel):
             ("ohm_threshsw", "ohm_threshold_summer_winter"),
             ("ohm_threshwd", "ohm_threshold_wet_dry"),
             ("soildepth", "soil_depth"),
+            ("soil_field_capacity", "soil_field_capacity"),
             ("soilstorecap", "soil_store_capacity"),
             ("statelimit", "state_limit"),
             ("wetthresh", "wet_threshold"),

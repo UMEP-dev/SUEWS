@@ -40,6 +40,7 @@ def make_surface_vars(base_name, unit, description_template, aggregation, *, int
         unit: Physical unit
         description_template: Description with {} placeholder for surface type
         aggregation: Aggregation method
+        interval_water_flux: Kernel amount written as an interval-mean water rate
 
     Returns:
         List of OutputVariable instances for all surface types

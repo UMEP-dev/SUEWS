@@ -1148,9 +1148,9 @@ def save_df_output(
         metadata_interval_s = fallback_frequency_s
         if save_tstep and df_save is df_output:
             metadata_interval_s = _native_interval_s(df_state_final)
-        df_save = prepare_output(df_save, interval_s=metadata_interval_s, write=True)
+        df_written = prepare_output(df_save, interval_s=metadata_interval_s, write=True)
         list_path_save += _save_groups(
-            df_save,
+            df_written,
             list_group,
             index_save,
             path_dir_save,

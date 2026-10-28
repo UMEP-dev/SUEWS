@@ -1,16 +1,16 @@
 """Prepare output values and project their units at the external boundary."""
 
+import json
 from collections.abc import Mapping
 from copy import deepcopy
 from functools import cache
-import json
 from types import MappingProxyType
 from typing import Optional
 
 import pandas as pd
 
 from . import units as unit_conversion
-
+from ._misc import infer_freq_offset
 from .data_model.output.registry import get_output_contract_catalogue
 from .data_model.output.version import CURRENT_OUTPUT_VERSION
 
@@ -29,9 +29,10 @@ def output_covered_seconds(df_output, interval_s=None):
     """
     coverage = df_output.attrs.get("supy_output_coverage_s")
     if coverage is not None:
-        output_interval_seconds(df_output, interval_s, required=False)
+        nominal_s = output_interval_seconds(df_output, interval_s, required=False)
+        default_s = nominal_s if nominal_s is not None else float("nan")
         return pd.Series(
-            [coverage.get(f"{row[0]}|{row[1].isoformat()}", float("nan")) for row in df_output.index],
+            [coverage.get(f"{row[0]}|{row[1].isoformat()}", default_s) for row in df_output.index],
             index=df_output.index, dtype=float,
         )
     return pd.Series(output_interval_seconds(df_output, interval_s), index=df_output.index)
@@ -57,7 +58,7 @@ def _interval(seconds: Optional[int]) -> Optional[str]:
 def output_interval_seconds(df_output: pd.DataFrame, interval_s: Optional[int] = None, *, required=True) -> Optional[float]:
     """Return an explicit interval or the regular cadence of output rows."""
     stored = df_output.attrs.get("supy_output_interval_s")
-    if interval_s is not None and stored is not None and float(interval_s) != stored:
+    if interval_s is not None and "supy_output_interval_s" in df_output.attrs and interval_s != stored:
         raise ValueError("Output interval_s disagrees with the frame's declared interval")
     if interval_s is None:
         interval_s = stored
@@ -72,7 +73,7 @@ def output_interval_seconds(df_output: pd.DataFrame, interval_s: Optional[int] =
         index = index.levels[index.names.index("datetime")]
     frequency = getattr(index, "freq", None)
     if frequency is None and len(index) >= 3:
-        frequency = pd.infer_freq(index)
+        frequency = infer_freq_offset(index)
     if frequency is None and len(index) == 2 and index[1] > index[0]:
         return (index[1] - index[0]).total_seconds()
     if frequency is None:
@@ -145,7 +146,21 @@ def prepare_output(
         return df_output
     df_result = df_output.copy(deep=False)
     dict_units = deepcopy(df_output.attrs.get("supy_output_units", {}))
+    list_water_columns = [
+        column for column in dict_targets
+        if (column if isinstance(column, tuple) else (group, column)) in dict_water
+        and (column[0] if isinstance(column, tuple) else group) != "DailyState"
+    ]
+    if list_water_columns:
+        output_interval_seconds(df_output, interval_s, required=False)
     ser_coverage = None
+    if any(dict_metadata[column]["units"] == "mm" for column in list_water_columns):
+        nominal_s = output_interval_seconds(
+            df_output, interval_s,
+            required="supy_output_coverage_s" not in df_output.attrs,
+        )
+        ser_coverage = output_covered_seconds(df_output, nominal_s)
+        df_result.attrs["supy_output_interval_s"] = nominal_s
     for column, target in dict_targets.items():
         metadata = dict_metadata[column]
         try:
@@ -154,22 +169,10 @@ def prepare_output(
                 raise unit_conversion.UnitError("target unit must be a unit string")
             identity = column if isinstance(column, tuple) else (group, column)
             if identity in dict_water:
-                if identity[0] != "DailyState":
-                    output_interval_seconds(df_output, interval_s, required=False)
                 source = metadata["units"]
                 values = df_output[column]
                 if source == "mm":
-                    if identity[0] == "DailyState":
-                        values = values / 86400
-                    else:
-                        if ser_coverage is None:
-                            nominal_s = output_interval_seconds(
-                                df_output, interval_s,
-                                required="supy_output_coverage_s" not in df_output.attrs,
-                            )
-                            ser_coverage = output_covered_seconds(df_output, nominal_s)
-                            df_result.attrs["supy_output_interval_s"] = nominal_s
-                        values = values / ser_coverage
+                    values = values / (86400 if identity[0] == "DailyState" else ser_coverage)
                     source = "kg m-2 s-1"
                 values = unit_conversion.convert_water_rate(values, source, parsed)
             else:

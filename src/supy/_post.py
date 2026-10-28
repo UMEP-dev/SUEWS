@@ -3,6 +3,7 @@ import pandas as pd
 
 from ._env import logger_supy
 from ._misc import infer_freq_offset
+from ._output_metadata import output_covered_seconds, water_flux_variables
 from .data_model.output import OUTPUT_REGISTRY
 
 
@@ -341,8 +342,6 @@ def _resample_output(
     elif _index_freq_matches(df_output, freq):
         return df_output
 
-    from ._output_metadata import output_covered_seconds, water_flux_variables
-
     dict_units = df_output.attrs.get("supy_output_units", {})
     water_columns = [c for c in df_output.columns if c in water_flux_variables() and c[0] != "DailyState"]
     rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
@@ -351,7 +350,7 @@ def _resample_output(
         try:
             source_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
         except ValueError:
-            pass  # Calendar rows already carry their individual coverage.
+            source_s = None  # Calendar rows carry their individual coverage.
     ser_coverage = output_covered_seconds(df_output, source_s) if water_columns else None
     dict_coverage = {}
 
@@ -403,11 +402,17 @@ def _resample_output(
         if columns_rate:
             df_to_resample = df_to_resample.copy(deep=False)
             df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(covered, axis=0)
-        result = df_to_resample.resample(freq, closed="right", label=label).agg(
+        bins = df_to_resample.resample(freq, closed="right", label=label)
+        result = bins.agg(
             {name: method for name, method in dict_aggm_group.items() if name in df_to_resample.columns}
         )
         if columns_rate:
             result[columns_rate] = result[columns_rate].div(target.where(target > 0), axis=0)
+        # Some calendar offsets produce an empty boundary bin. Trim only
+        # empty edges, preserving internal gaps and a covered partial last bin.
+        occupied = bins.size().loc[lambda counts: counts > 0].index
+        if len(occupied):
+            result = result.loc[occupied[0]:occupied[-1]]
         return result
 
     # get grid and group names
@@ -466,7 +471,16 @@ def _resample_output(
         interval_s = None
     df_rsmp.attrs["supy_output_interval_s"] = interval_s
     if dict_coverage:
-        df_rsmp.attrs["supy_output_coverage_s"] = dict_coverage
+        # Fixed intervals need only exceptions (partial bins and daily-only
+        # rows); calendar intervals retain all durations. This keeps attrs
+        # small on long runs, where pandas copies them on column selection.
+        dict_actual = {
+            f"{grid}|{date.isoformat()}": dict_coverage.get(f"{grid}|{date.isoformat()}", 0.0)
+            for grid, date in df_rsmp.index
+        }
+        df_rsmp.attrs["supy_output_coverage_s"] = {
+            key: value for key, value in dict_actual.items() if value != interval_s
+        }
     return df_rsmp
 
 

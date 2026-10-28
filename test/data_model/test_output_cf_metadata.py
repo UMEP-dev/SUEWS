@@ -134,3 +134,13 @@ def test_daily_statistics_describe_the_producer(name, method, temperature):
     assert variable.aggregation == "L"
     assert variable.cell_methods == method
     assert variable.units_metadata == temperature
+
+
+@pytest.mark.parametrize("declared,expected", [(False, "time: sum"), (True, "time: mean")])
+def test_written_rate_metadata_requires_explicit_declaration(declared, expected):
+    """The unit spelling alone does not change an amount's time operation."""
+    variable = OutputVariable(
+        name="example", unit="kg m-2 s-1", description="Example",
+        aggregation="S", group="SUEWS", level=0, interval_water_flux=declared,
+    )
+    assert variable.cell_methods == expected

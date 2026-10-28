@@ -90,6 +90,7 @@ class OutputVariable(BaseModel):
         unit: Physical units
         description: Long-form description
         aggregation: Resampling aggregation method
+        interval_water_flux: Kernel water amount converted to a rate at output
         cell_methods: CF time operation; empty for datetime coordinates
         units_metadata: CF temperature kind, or None for non-temperature units
         group: Output group membership

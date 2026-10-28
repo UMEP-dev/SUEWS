@@ -65,7 +65,7 @@ MODULE module_phys_bluews
    USE module_phys_bluews_cbl
    USE meteo, ONLY: qsatf, sat_vap_press_x
    USE module_ctrl_error, ONLY: ErrorHint
-
+   USE module_ctrl_const_physconst, ONLY: lv_wetbulb_sp
    IMPLICIT NONE
 CONTAINS
    ! Note: INTERVAL is now set to 3600 s in Initial (it is no longer set in RunControl) HCW 29 Jan 2015
@@ -263,7 +263,7 @@ CONTAINS
          !tm_K_zm=tm_K+cbldata(10)*cbldata(2)/(k*cbldata(8)*cbldata(6)*cbldata(4))
          Temp_C = tm_K/((1000/cbldata(9))**(gas_ct_dry/cbldata(6))) - C2K
          es_hPa = sat_vap_press_x(Temp_C, cbldata(9), 1, dectime)
-         lv = (2500.25 - 2.365*Temp_C)*1000
+         lv = (lv_wetbulb_sp - 2.365*Temp_C)*1000
          !qm_gkg_zm=qm_gkg+cbldata(10)*cbldata(3)/(k*cbldata(8)*cbldata(4)*lv)
          avrh = 100*((qm_gkg*cbldata(9)/(622 + qm_gkg))/es_hPa) !check pressure
          IF (avrh > 100) THEN
@@ -281,7 +281,7 @@ CONTAINS
          !tm_K_zm=tm_K+cbldata(10)*cbldata(2)/(k*cbldata(8)*cbldata(6)*cbldata(4))
          Temp_C1 = tm_K/((1000/cbldata(9))**(gas_ct_dry/cbldata(6))) - C2K
          es_hPa1 = sat_vap_press_x(Temp_C1, cbldata(9), 1, dectime)
-         lv = (2500.25 - 2.365*Temp_C1)*1000
+         lv = (lv_wetbulb_sp - 2.365*Temp_C1)*1000
          !qm_gkg_zm=qm_gkg+cbldata(10)*cbldata(3)/(k*cbldata(8)*cbldata(4)*lv)
          avrh1 = 100*((qm_gkg*cbldata(9)/(622 + qm_gkg))/es_hPa1) ! should be cbldata(9), i.e., Press_hPa
          IF (avrh1 > 100) THEN
@@ -381,7 +381,7 @@ CONTAINS
       USE module_ctrl_const_gis
       USE module_ctrl_const_wherewhen
       USE meteo, ONLY: sat_vap_press_x
-
+      USE module_ctrl_const_physconst, ONLY: lv_wetbulb_sp
       IMPLICIT NONE
 
       REAL(KIND(1D0)) :: qh_use, qe_use, tm_K_zm, qm_gkg_zm
@@ -439,7 +439,7 @@ CONTAINS
          tm_K = tm_K_zm - psih*qh_use/(k*UStar*avcp*avdens)
          es_hPa = sat_vap_press_x(Temp_C, Press_hPa, 1, dectime)
          qm_gkg_zm = 622*avrh/(100*Press_hPa/es_hPa - avrh)
-         lv = (2500.25 - 2.365*temp_C)*1000
+         lv = (lv_wetbulb_sp - 2.365*temp_C)*1000
          qm_gkg = qm_gkg_zm - psih*qe_use/(k*UStar*avdens*lv)
          tp_K = tm_K
          qp_gkg = qm_gkg
@@ -451,7 +451,7 @@ CONTAINS
          tm_K = tm_K_zm - psih*qh_use/(k*UStar*avcp*avdens)
          es_hPa = sat_vap_press_x(Temp_C, Press_hPa, 1, dectime)
          qm_gkg_zm = 622*avrh/(100*Press_hPa/es_hPa - avrh)
-         lv = (2500.25 - 2.365*temp_C)*1000
+         lv = (lv_wetbulb_sp - 2.365*temp_C)*1000
          qm_gkg = es_hPa - psih*qe_use/(k*UStar*avdens*lv)
          tp_K = tm_K
          qp_gkg = qm_gkg
@@ -549,7 +549,7 @@ CONTAINS
 
       Temp_C = tm_K/((1000/Press_hPa)**(gas_ct_dry/avcp)) - C2K
       es_hPa = sat_vap_press_x(Temp_C, Press_hPa, 1, dectime)
-      lv = (2500.25 - 2.365*Temp_C)*1000
+      lv = (lv_wetbulb_sp - 2.365*Temp_C)*1000
       !qm_gkg_zm=qm_gkg+cbldata(10)*cbldata(3)/(k*cbldata(8)*cbldata(4)*lv)
       avrh = 100*((qm_gkg*Press_hPa/(622 + qm_gkg))/es_hPa) !check pressure
       IF (avrh > 100) THEN
@@ -583,7 +583,7 @@ CONTAINS
          tm_K = tm_K_zm - psih*qh_use/(k*UStar*avcp*avdens)
          es_hPa = sat_vap_press_x(Temp_C, Press_hPa, 1, dectime)
          qm_gkg_zm = 622*avrh/(100*Press_hPa/es_hPa - avrh)
-         lv = (2500.25 - 2.365*temp_C)*1000
+         lv = (lv_wetbulb_sp - 2.365*temp_C)*1000
          qm_gkg = qm_gkg_zm - psih*qe_use/(k*UStar*avdens*lv)
          tp_K = tm_K
          qp_gkg = qm_gkg
@@ -595,7 +595,7 @@ CONTAINS
          tm_K = tm_K_zm - psih*qh_use/(k*UStar*avcp*avdens)
          es_hPa = sat_vap_press_x(Temp_C, Press_hPa, 1, dectime)
          qm_gkg_zm = 622*avrh/(100*Press_hPa/es_hPa - avrh)
-         lv = (2500.25 - 2.365*temp_C)*1000
+         lv = (lv_wetbulb_sp - 2.365*temp_C)*1000
          qm_gkg = es_hPa - psih*qe_use/(k*UStar*avdens*lv)
          tp_K = tm_K
          qp_gkg = qm_gkg

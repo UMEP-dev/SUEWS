@@ -38,7 +38,7 @@ MODULE module_phys_spartacus
    !==============================================================================================
    USE module_ctrl_const_allocate, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
-   USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
+   USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp, p_ref_pa_d0
    USE module_phys_beers, ONLY: diffusefraction
    USE module_ctrl_error_state, ONLY: set_supy_error
    USE module_ctrl_type, ONLY: error_state
@@ -1435,9 +1435,9 @@ CONTAINS
       ELSE IF (Press_hPa > 100.0D0) THEN
          press_pa = Press_hPa*100.0D0
       ELSE
-         press_pa = 101325.0D0
+         press_pa = p_ref_pa_d0
       END IF
-      abs_airmass = MIN(max_airmass, rel_airmass*press_pa/101325.0D0)
+      abs_airmass = MIN(max_airmass, rel_airmass*press_pa/p_ref_pa_d0)
       kt_prime_factor = 1.031D0*EXP(-1.4D0/(0.9D0 + 9.4D0/abs_airmass)) + 0.1D0
       kt_prime = kt/kt_prime_factor
       kt_prime = MIN(1.0D0, MAX(0.0D0, kt_prime))

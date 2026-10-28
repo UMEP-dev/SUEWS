@@ -141,8 +141,34 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         col_idx.insert(col.trim_start_matches('%').to_ascii_lowercase(), idx);
     }
 
-    if col_idx.contains_key("xsmd") || col_idx.contains_key("smd") {
-        return Err("Legacy soil-moisture input requires explicit migration; xsmd is not canonical sm".into());
+    // An entirely missing legacy `xsmd` placeholder is read as missing `sm`
+    // for modelled runs (deprecated; refused from forcing contract 3.0.0).
+    // Any legacy column carrying values still needs the converter.
+    let legacy: Vec<String> = ["xsmd", "smd"]
+        .iter()
+        .filter(|name| col_idx.contains_key(**name))
+        .map(|name| name.to_string())
+        .collect();
+    if !legacy.is_empty() {
+        if col_idx.contains_key("sm") || legacy.len() > 1 {
+            return Err("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.".into());
+        }
+        let idx = col_idx[&legacy[0]];
+        let all_missing = lines.clone().all(|line| {
+            line.split_whitespace()
+                .nth(idx)
+                .and_then(|token| token.parse::<f64>().ok())
+                .map_or(true, |value| value.is_nan() || value == -999.0)
+        });
+        if !all_missing {
+            return Err("Legacy soil-moisture input requires explicit migration; xsmd is not canonical sm".into());
+        }
+        eprintln!(
+            "warning: forcing column '{}' is deprecated; an entirely missing placeholder is read as missing 'sm' for modelled runs only and will be refused from forcing contract 3.0.0",
+            legacy[0]
+        );
+        col_idx.remove(&legacy[0]);
+        col_idx.insert("sm".to_string(), idx);
     }
 
     // Baseline-required columns must all be present (case-insensitive).
@@ -211,7 +237,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
             extras_targets.push((canonical, idx));
             continue;
         }
-        if is_canonical(&lowered) {
+        if is_canonical(&lowered) || legacy.contains(&lowered) {
             continue;
         }
         eprintln!("warning: forcing column '{header}' is not canonical; ignored (gh#1372)");
@@ -603,13 +629,29 @@ mod tests {
         for (header, value, expected) in [
             ("sm", "50", "Raw sm execution"),
             ("sm", "inf", "Raw sm execution"),
-            ("xsmd", "-999", "explicit migration"),
+            ("xsmd", "5", "explicit migration"),
         ] {
             fs::write(&path, format!(
                 "iy id it imin Tair RH U pres kdown rain {header}\n2012 1 1 0 10 50 2 101.3 100 0 {value}\n"
             )).unwrap();
             assert!(read_forcing_block(&path).unwrap_err().contains(expected));
         }
+    }
+
+    #[test]
+    fn missing_legacy_placeholder_reads_as_missing_sm() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("legacy.txt");
+        fs::write(&path,
+            "iy id it imin Tair RH U pres kdown rain xsmd\n2012 1 1 0 10 50 2 101.3 100 0 -999\n2012 1 1 5 10 50 2 101.3 100 0 -999\n"
+        ).unwrap();
+        let forcing = read_forcing_block(&path).expect("missing xsmd placeholder should parse");
+        assert_eq!(forcing.len_sim, 2);
+
+        fs::write(&path,
+            "iy id it imin Tair RH U pres kdown rain xsmd sm\n2012 1 1 0 10 50 2 101.3 100 0 -999 -999\n"
+        ).unwrap();
+        assert!(read_forcing_block(&path).unwrap_err().contains("Both legacy and canonical"));
     }
 
     #[test]

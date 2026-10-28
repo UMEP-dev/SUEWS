@@ -89,6 +89,18 @@ UMEP processor. The rest of the former procedural simulation API was removed
 in the phase-3 closeout. Do not add compatibility names without a concrete
 supported external workflow.
 
+## Currently Deprecated Input Formats
+
+Input-format deprecations warn with ``DeprecationWarning`` at read time and state
+their removal condition in the warning, the reader's docstring and the user docs.
+
+- **Forcing column ``xsmd`` as an entirely missing placeholder** (forcing
+  contract 2.0.0, #1422). Read as missing ``sm`` for modelled soil moisture only,
+  by both the Python reader (``supy.util._forcing.accept_legacy_soil_placeholder``)
+  and the Rust reader (``suews_bridge`` ``read_forcing_block``). Observed runs and
+  any ``xsmd`` column carrying values are refused. **Removal:** refused from forcing
+  contract 3.0.0.
+
 ---
 
 ## Testing Deprecation Warnings

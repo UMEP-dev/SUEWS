@@ -107,7 +107,7 @@ def _minimal_forcing_frame() -> pd.DataFrame:
             "ldown": [300.0, 305.0],
             "fcld": [0.0, 0.0],
             "Wuh": [0.0, 0.0],
-            "xsmd": [5.0, 5.0],
+            "sm": [-999.0, -999.0],
             "lai": [2.0, 2.2],
         },
         index=index,

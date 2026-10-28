@@ -1132,6 +1132,11 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     """
     import warnings
 
+    from .util._forcing import LEGACY_PLACEHOLDER_ATTR, accept_legacy_soil_placeholder
+
+    df_forcing_met = accept_legacy_soil_placeholder(df_forcing_met)
+    legacy_placeholder = bool(df_forcing_met.attrs.get(LEGACY_PLACEHOLDER_ATTR))
+
     # Build lowercase -> original-case header groups for case-insensitive
     # matching. Multiple files can spell the same canonical column with
     # different case; coalesce those variants rather than letting pandas
@@ -1218,6 +1223,8 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
         np.int64
     )
     df_canonical = set_index_dt(df_canonical)
+    if legacy_placeholder:
+        df_canonical.attrs[LEGACY_PLACEHOLDER_ATTR] = True
     return df_canonical
 
 

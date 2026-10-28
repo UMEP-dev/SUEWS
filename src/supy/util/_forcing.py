@@ -27,12 +27,60 @@ class SoilObservationMetadata:
     field_capacity: float
 
 
+LEGACY_PLACEHOLDER_ATTR = "legacy_soil_placeholder"
+LEGACY_PLACEHOLDER_WARNING = (
+    "Forcing column 'xsmd' is deprecated: an entirely missing 'xsmd' placeholder "
+    "is read as missing 'sm' for modelled soil moisture only. Rename the header to "
+    "'sm' or run the soil-moisture converter; the placeholder will be refused from "
+    "forcing contract 3.0.0."
+)
+
+
+def _legacy_soil_columns(df: pd.DataFrame) -> list:
+    return [c for c in df.columns if str(c).lstrip("%").lower() in ("xsmd", "smd")]
+
+
+def _all_missing(series: pd.Series) -> bool:
+    values = pd.to_numeric(series, errors="coerce").to_numpy(dtype=float)
+    return bool((np.isnan(values) | (values == MISSING_VALUE)).all())
+
+
+def accept_legacy_soil_placeholder(df: pd.DataFrame) -> pd.DataFrame:
+    """Read an entirely missing legacy ``xsmd`` column as missing ``sm``.
+
+    .. deprecated:: 2026.6
+        The placeholder is accepted for modelled soil moisture only and will be
+        refused from forcing contract 3.0.0. Observed runs, and any ``xsmd``
+        column carrying values, still require the soil-moisture converter.
+
+    Returns ``df`` unchanged when no legacy column is present; otherwise a copy
+    with the column renamed to ``sm`` and marked so that observed runs refuse it.
+    """
+    legacy = _legacy_soil_columns(df)
+    if not legacy:
+        return df
+    names = {str(c).lstrip("%").lower() for c in df.columns}
+    if "sm" in names or len(legacy) > 1:
+        raise ValueError("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.")
+    if not _all_missing(df[legacy[0]]):
+        raise ValueError(LEGACY_SOIL_MESSAGE)
+    warnings.warn(LEGACY_PLACEHOLDER_WARNING, DeprecationWarning, stacklevel=2)
+    result = df.rename(columns={legacy[0]: "sm"})
+    result.attrs[LEGACY_PLACEHOLDER_ATTR] = True
+    return result
+
+
 def validate_soil_content(df: pd.DataFrame, *, required: bool = False) -> None:
     """Validate public content before interpolation, including unchecked runs."""
-    names = {str(c).lower() for c in df.columns}
-    if names & {"xsmd", "smd"}:
-        if "sm" in names:
+    legacy = _legacy_soil_columns(df)
+    if legacy:
+        names = {str(c).lstrip("%").lower() for c in df.columns}
+        if "sm" in names or len(legacy) > 1:
             raise ValueError("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.")
+        if required or not _all_missing(df[legacy[0]]):
+            raise ValueError(LEGACY_SOIL_MESSAGE)
+        return
+    if required and df.attrs.get(LEGACY_PLACEHOLDER_ATTR):
         raise ValueError(LEGACY_SOIL_MESSAGE)
     if "sm" not in df:
         if required:

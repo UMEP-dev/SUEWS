@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from supy import SUEWSForcing
-from supy.util._forcing import interpolate_soil_content
+from supy.util._forcing import interpolate_soil_content, validate_soil_content
 from supy.util._io import prepare_dataframe_forcing, read_forcing
 
 # ruff: enable[import-private-name]
@@ -43,11 +43,40 @@ def test_positional_contract_is_explicit(tmp_path):
         read_forcing(str(path), source_contract="1.2.0")
 
 
-def test_old_header_is_rejected_even_if_missing(tmp_path):
+def _legacy_file(tmp_path, value=None):
+    lines = FIXTURE.read_text(encoding="utf-8").splitlines()
+    header = lines[0].split()
+    col = header.index("sm")
+    header[col] = "xsmd"
+    rows = [line.split() for line in lines[1:]]
+    if value is not None:
+        rows[0][col] = value
     path = tmp_path / "legacy.txt"
-    path.write_text(FIXTURE.read_text(encoding="utf-8").replace(" sm ", " xsmd "), encoding="utf-8")
-    with pytest.raises(ValueError, match="Legacy"):
-        read_forcing(str(path))
+    path.write_text("\n".join(" ".join(r) for r in [header, *rows]) + "\n", encoding="utf-8")
+    return path
+
+
+def test_missing_legacy_placeholder_reads_as_missing_sm_with_warning(tmp_path):
+    with pytest.warns(DeprecationWarning, match="contract 3.0.0"):
+        frame = read_forcing(str(_legacy_file(tmp_path)), tstep_mod=None)
+    assert "xsmd" not in frame.columns
+    assert frame["sm"].eq(-999).all()
+
+
+def test_legacy_column_with_values_is_refused(tmp_path):
+    with pytest.raises(ValueError, match="Legacy soil-moisture input requires explicit migration"):
+        read_forcing(str(_legacy_file(tmp_path, value="0.25")), tstep_mod=None)
+
+
+def test_observed_run_refuses_legacy_placeholder(tmp_path):
+    with pytest.warns(DeprecationWarning):
+        frame = read_forcing(str(_legacy_file(tmp_path)), tstep_mod=None)
+    with pytest.raises(ValueError, match="Legacy soil-moisture input requires explicit migration"):
+        validate_soil_content(frame, required=True)
+    raw = pd.DataFrame({"xsmd": [-999.0, -999.0]})
+    with pytest.raises(ValueError, match="Legacy soil-moisture input requires explicit migration"):
+        validate_soil_content(raw, required=True)
+    validate_soil_content(raw)
 
 
 def test_coarsening_samples_content_at_endpoint():

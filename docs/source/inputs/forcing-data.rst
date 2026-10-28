@@ -780,8 +780,12 @@ attributes (units, phase and layer bounds) with the configuration provenance;
 a text column alone does not record layer geometry. No per-field YAML unit
 overrides are accepted. ``soil_moisture`` is an accessor alias for ``sm``.
 
-Legacy ``xsmd`` and ``smd`` headers are refused; simply renaming populated old
-columns is not a conversion. Sensor saturation capacity is retired; deficit now
+Legacy ``xsmd`` and ``smd`` columns that carry values are refused; simply
+renaming populated old columns is not a conversion. An ``xsmd`` column that is
+entirely missing (``-999``), the placeholder most existing forcing files carry,
+is still read as missing ``sm`` for modelled soil moisture, with a deprecation
+warning; observed runs refuse it. This allowance will be withdrawn from forcing
+contract 3.0.0, so rename the header to ``sm`` or run the converter. Sensor saturation capacity is retired; deficit now
 uses the configured model soil-store capacity and field-capacity reference.
 Positional imports require ``source_contract="2.0.0"``. The direct Rust file
 runner refuses populated ``sm`` until it can prepare deficits with site

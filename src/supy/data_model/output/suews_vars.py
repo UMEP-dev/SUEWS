@@ -192,7 +192,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="State",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state, area-weighted over all surfaces including water",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -200,7 +200,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="NWtrState",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state of the non-water surfaces (per unit non-water area)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -219,7 +219,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="SMD",
-        unit="mm",
+        unit="kg m-2",
         description="Soil moisture deficit",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -330,7 +330,7 @@ SUEWS_VARIABLES = [
     # Soil moisture deficit by surface type
     OutputVariable(
         name="SMDPaved",
-        unit="mm",
+        unit="kg m-2",
         description="Soil moisture deficit for paved surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -338,7 +338,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="SMDBldgs",
-        unit="mm",
+        unit="kg m-2",
         description="Soil moisture deficit for building surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -346,7 +346,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="SMDEveTr",
-        unit="mm",
+        unit="kg m-2",
         description="Soil moisture deficit for evergreen tree surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -354,7 +354,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="SMDDecTr",
-        unit="mm",
+        unit="kg m-2",
         description="Soil moisture deficit for deciduous tree surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -362,7 +362,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="SMDGrass",
-        unit="mm",
+        unit="kg m-2",
         description="Soil moisture deficit for grass surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -370,7 +370,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="SMDBSoil",
-        unit="mm",
+        unit="kg m-2",
         description="Soil moisture deficit for bare soil surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -379,7 +379,7 @@ SUEWS_VARIABLES = [
     # Surface wetness state by surface type
     OutputVariable(
         name="StPaved",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state for paved surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -387,7 +387,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="StBldgs",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state for building surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -395,7 +395,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="StEveTr",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state for evergreen tree surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -403,7 +403,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="StDecTr",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state for deciduous tree surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -411,7 +411,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="StGrass",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state for grass surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -419,7 +419,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="StBSoil",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state for bare soil surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -427,7 +427,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="StWater",
-        unit="mm",
+        unit="kg m-2",
         description="Surface wetness state for water surface",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
@@ -452,7 +452,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="AlbBulk",
-        unit="-",
+        unit="1",
         description="Bulk albedo",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
@@ -460,7 +460,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="Fcld",
-        unit="-",
+        unit="1",
         description="Cloud fraction",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
@@ -493,7 +493,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="zL",
-        unit="-",
+        unit="1",
         description=(
             "Stability parameter (z - d)/L: measurement height above the "
             "displacement height over the Obukhov length"
@@ -618,7 +618,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="AlbSnow",
-        unit="-",
+        unit="1",
         description=(
             "Albedo of the snowpack, one value shared by all snow-covered "
             "surfaces: it decreases as the snow ages (linearly below 0 degC, "
@@ -656,7 +656,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="SWE",
-        unit="mm",
+        unit="kg m-2",
         description="Snow water equivalent",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
@@ -672,7 +672,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="MeltWStore",
-        unit="mm",
+        unit="kg m-2",
         description="Liquid water held in the snowpack",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,

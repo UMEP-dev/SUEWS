@@ -88,7 +88,7 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="beta",
-        unit="-",
+        unit="1",
         description="Roughness-sublayer attenuation coefficient beta of Harman (2012). Missing when MOST is used; after resampling, the mean over the timesteps that used RST.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
@@ -120,7 +120,7 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="Scc",
-        unit="-",
+        unit="1",
         description="Schmidt number for temperature and humidity. Missing when MOST is used; after resampling, the mean over the timesteps that used RST.",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
@@ -128,7 +128,7 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="f",
-        unit="-",
+        unit="1",
         description=(
             "Roughness-sublayer parameter f of Harman and Finnigan (2008), "
             "derived from the Schmidt number Scc, which sets the in-canopy decay "
@@ -164,7 +164,7 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="FAI",
-        unit="-",
+        unit="1",
         description="Frontal area index",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
@@ -172,7 +172,7 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="PAI",
-        unit="-",
+        unit="1",
         description="Plan area index",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
@@ -180,7 +180,7 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="flag_RSL",
-        unit="-",
+        unit="1",
         description=(
             "Profile scheme used at the timestep: 1 when roughness-sublayer "
             "theory (RST) was used, 0 when Monin-Obukhov similarity theory "

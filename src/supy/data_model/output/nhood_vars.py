@@ -14,7 +14,7 @@ from .variables import (
 NHOOD_VARIABLES = [
     OutputVariable(
         name="iter_count",
-        unit="-",
+        unit="1",
         description=(
             "Iteration count of the convergence loop; not yet written by the "
             "kernel, so always missing"

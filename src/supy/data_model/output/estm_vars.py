@@ -53,7 +53,7 @@ def make_layer_vars(base_name, description_template, layer_positions):
     return [
         OutputVariable(
             name=f"{base_name}{i}",
-            unit="degK",
+            unit="K",
             description=description_template.format(f"{i} ({layer_positions[i]})"),
             aggregation=AggregationMethod.AVERAGE,
             group=OutputGroup.ESTM,
@@ -145,7 +145,7 @@ TIBLD_VARS = make_layer_vars(
 INDOOR_TEMP_VAR = [
     OutputVariable(
         name="TaBLD",
-        unit="degK",
+        unit="K",
         description="Indoor air temperature",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.ESTM,

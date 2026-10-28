@@ -57,7 +57,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="DaysSR",
-        unit="days",
+        unit="d",
         description="Days since rain",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -133,7 +133,7 @@ DAILYSTATE_VARIABLES = [
     # Daylight hours
     OutputVariable(
         name="DLHrs",
-        unit="hours",
+        unit="h",
         description="Day length: hours with incoming shortwave radiation above 10 W m-2",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -167,7 +167,7 @@ DAILYSTATE_VARIABLES = [
     # Vegetation properties
     OutputVariable(
         name="DecidCap",
-        unit="mm",
+        unit="kg m-2",
         description=(
             "Water storage capacity of deciduous trees, varying with LAI between its "
             "minimum and maximum"
@@ -178,7 +178,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="Porosity",
-        unit="-",
+        unit="1",
         description=(
             "Porosity of deciduous trees, varying inversely with LAI; used in the plan "
             "and frontal area indices"
@@ -190,7 +190,7 @@ DAILYSTATE_VARIABLES = [
     # Albedo by vegetation type
     OutputVariable(
         name="AlbEveTr",
-        unit="-",
+        unit="1",
         description="Albedo for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -198,7 +198,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="AlbDecTr",
-        unit="-",
+        unit="1",
         description="Albedo for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -206,7 +206,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="AlbGrass",
-        unit="-",
+        unit="1",
         description="Albedo for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -290,7 +290,7 @@ DAILYSTATE_VARIABLES = [
     # LUMPS LAI
     OutputVariable(
         name="LAIlumps",
-        unit="-",
+        unit="1",
         description=(
             "Vegetation phenology factor for LUMPS (0 to 1): the "
             "surface-weighted leaf area index of the vegetated surfaces over their "
@@ -303,7 +303,7 @@ DAILYSTATE_VARIABLES = [
     # Snow albedo
     OutputVariable(
         name="AlbSnow",
-        unit="-",
+        unit="1",
         description=(
             "Albedo of the snowpack, one value shared by all snow-covered "
             "surfaces: it decreases as the snow ages (linearly below 0 degC, "
@@ -375,7 +375,7 @@ DAILYSTATE_VARIABLES = [
     # OHM coefficients at the end of the day: QS = a1*Q* + a2*dQ*/dt + a3
     OutputVariable(
         name="a1",
-        unit="-",
+        unit="1",
         description=(
             "Surface-weighted OHM coefficient a1 (multiplies net all-wave radiation)"
         ),
@@ -404,7 +404,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="a1_bldg",
-        unit="-",
+        unit="1",
         description=(
             "Dynamic OHM coefficient a1 for buildings (multiplies net all-wave "
             "radiation); zero unless dynamic OHM is used"

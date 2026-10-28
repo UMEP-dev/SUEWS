@@ -15,7 +15,7 @@ from .variables import (
 BEERS_VARIABLES = [
     OutputVariable(
         name="azimuth",
-        unit="degrees",
+        unit="degree",
         description="Solar azimuth angle",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
@@ -23,7 +23,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="altitude",
-        unit="degrees",
+        unit="degree",
         description="Solar altitude angle",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
@@ -167,7 +167,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="CI",
-        unit="-",
+        unit="1",
         description="Clearness index (global over clear-sky shortwave radiation), used to estimate Ldown",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
@@ -175,7 +175,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="SH_Ground",
-        unit="-",
+        unit="1",
         description=(
             "Sunlit fraction of the ground (0=fully shaded, 1=fully sunlit; 0 at night)"
         ),
@@ -185,7 +185,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="SH_Walls",
-        unit="-",
+        unit="1",
         description=(
             "Sunlit fraction of the canyon walls (0=fully shaded; at most 0.5 "
             "as one wall is always shaded; 0 at night)"
@@ -196,7 +196,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="SVF_Ground",
-        unit="-",
+        unit="1",
         description="Sky view factor at the ground, from the canyon height-to-width ratio",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
@@ -204,7 +204,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="SVF_Roof",
-        unit="-",
+        unit="1",
         description="Sky view factor at the roof, from the canyon height-to-width ratio",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
@@ -212,7 +212,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="SVF_BdVeg",
-        unit="-",
+        unit="1",
         description=(
             "Sky view factor at the ground accounting for both buildings and "
             "vegetation; vegetation is not yet represented, so it equals SVF_Ground"
@@ -223,7 +223,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="Emis_Sky",
-        unit="-",
+        unit="1",
         description="Clear-sky emissivity from Prata (1996)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,

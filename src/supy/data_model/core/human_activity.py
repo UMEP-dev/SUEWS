@@ -23,13 +23,13 @@ class IrrigationParams(
     h_maintain: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Water depth to maintain through irrigation",
-        json_schema_extra={"unit": "mm", "display_name": "Maintain Height"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Maintain Height"},
     )
     faut: FlexibleRefValue(float) = Field(
         default=0.0,
         description="Fraction of automatic irrigation",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Automatic Fraction",
         },
         ge=0.0,
@@ -38,43 +38,43 @@ class IrrigationParams(
     ie_start: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Day of year when irrigation starts",
-        json_schema_extra={"unit": "DOY", "display_name": "Irrigation Start Day"},
+        json_schema_extra={"unit": "1", "display_name": "Irrigation Start Day"},
     )
     ie_end: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Day of year when irrigation ends",
-        json_schema_extra={"unit": "DOY", "display_name": "Irrigation End Day"},
+        json_schema_extra={"unit": "1", "display_name": "Irrigation End Day"},
     )
     internalwateruse_h: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Internal water use rate",
         json_schema_extra={
-            "unit": "mm h^-1",
+            "unit": "mm h-1",
             "display_name": "Internal Water Use Rate",
         },
     )
     daywatper: WeeklyProfile = Field(
         default_factory=WeeklyProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Weekly Water Use Fraction",
         },
     )
     daywat: WeeklyProfile = Field(
         default_factory=WeeklyProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "Weekly Water Use"},
+        json_schema_extra={"unit": None, "display_name": "Weekly Water Use"},
     )
     wuprofa_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Water Use Profile Automatic (24hr)",
         },
     )
     wuprofm_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Water Use Profile Manual (24hr)",
         },
     )
@@ -203,13 +203,13 @@ class AnthropogenicHeat(
     qf0_beu: DayProfile = Field(
         description="Base anthropogenic heat flux for buildings, equipment and urban metabolism",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "W m^-2", "display_name": "Base Energy Use QF"},
+        json_schema_extra={"unit": "W m-2", "display_name": "Base Energy Use QF"},
     )
     qf_a: DayProfile = Field(
         description="Coefficient a for anthropogenic heat flux calculation",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "QF Coefficient A",
             "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
         },
@@ -218,7 +218,7 @@ class AnthropogenicHeat(
         description="Coefficient b for anthropogenic heat flux calculation",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "QF Coefficient B",
             "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
         },
@@ -227,7 +227,7 @@ class AnthropogenicHeat(
         description="Coefficient c for anthropogenic heat flux calculation",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "QF Coefficient C",
             "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
         },
@@ -254,7 +254,7 @@ class AnthropogenicHeat(
         description="Minimum anthropogenic heat flux",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "W m^-2",
+            "unit": "W m-2",
             "display_name": "Minimum Anthropogenic Heat",
             "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
         },
@@ -263,7 +263,7 @@ class AnthropogenicHeat(
         description="Slope of anthropogenic heat vs cooling degree days",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "W m^-2 K^-1",
+            "unit": "W m-2 K-1",
             "display_name": "Anthropogenic Heat Slope (Cooling)",
             "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
@@ -272,7 +272,7 @@ class AnthropogenicHeat(
         description="Slope of anthropogenic heat vs heating degree days",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "W m^-2 K^-1",
+            "unit": "W m-2 K-1",
             "display_name": "Anthropogenic Heat Slope (Heating)",
             "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
@@ -281,7 +281,7 @@ class AnthropogenicHeat(
         description="24-hour profile of anthropogenic heat flux",
         default_factory=HourlyProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Anthropogenic Heat Profile (24hr)",
         },
     )
@@ -289,7 +289,7 @@ class AnthropogenicHeat(
         description="Daytime population density",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "people ha^-1",
+            "unit": "ha-1",
             "display_name": "Daytime Population Density",
         },
     )
@@ -297,7 +297,7 @@ class AnthropogenicHeat(
         default=10.0,
         description="Nighttime population density",
         json_schema_extra={
-            "unit": "people ha^-1",
+            "unit": "ha-1",
             "display_name": "Nighttime Population Density",
         },
         ge=0.0,
@@ -306,7 +306,7 @@ class AnthropogenicHeat(
         description="24-hour profile of population density",
         default_factory=HourlyProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Population Profile (24hr)",
         },
     )
@@ -423,13 +423,13 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
     emission_co2_point_source: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Whole-grid CO2 point-source emission expressed as carbon mass",
-        json_schema_extra={"unit": "kg C day^-1", "display_name": "CO2 Point Source"},
+        json_schema_extra={"unit": "kg d-1", "display_name": "CO2 Point Source"},
     )
     emission_factor_co2_fuel: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="CO2 emission factor per unit of fuel energy",
         json_schema_extra={
-            "unit": "umol J^-1",
+            "unit": "umol J-1",
             "display_name": "Emission Factor (umol CO2/J)",
             "default_description": "Sample benchmark value: 1.159 umol J^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
@@ -438,7 +438,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default=None,
         description="Vehicle energy consumption per unit distance",
         json_schema_extra={
-            "unit": "J km^-1",
+            "unit": "J km-1",
             "display_name": "Energy Emission Factor Vehicles",
             "range_description": "Sample range from benchmark/sample tables: 3.97e6-4.11e6 J km^-1; calibrate by site.",
         },
@@ -447,7 +447,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         description="Vehicle CO2 emission factor per unit distance",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "kg CO2 km^-1",
+            "unit": "kg km-1",
             "display_name": "Fuel Carbon Emission Factor Vehicles",
             "default_description": "Sample benchmark value: 0.285 kg CO2 km^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
@@ -460,7 +460,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default=None,
         description="Fraction of heating energy from fossil fuels",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Fossil Fuel Fraction Heating",
             "range_description": "Sample range from benchmark/sample tables: 0.05-0.7 (depends on local energy mix).",
         },
@@ -471,7 +471,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default=None,
         description="Fraction of non-heating energy from fossil fuels",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Fossil Fuel Fraction Non-Heating",
             "range_description": "Sample range from benchmark/sample tables: 0.0-0.7 (depends on local energy mix).",
         },
@@ -482,7 +482,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default=None,
         description="Maximum daytime metabolic CO2 emission per capita",
         json_schema_extra={
-            "unit": "umol cap^-1 s^-1",
+            "unit": "umol s-1",
             "display_name": "Maximum Metabolic CO2 Flux",
             "default_description": "Sample value from benchmark/sample tables: 280.0 umol cap^-1 s^-1; calibrate by site.",
         },
@@ -491,7 +491,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default=None,
         description="Maximum daytime metabolic heat emission per capita",
         json_schema_extra={
-            "unit": "W cap^-1",
+            "unit": "W",
             "display_name": "Maximum Metabolic Heat Flux",
             "default_description": "Sample value from benchmark/sample tables: 175.0 W cap^-1; calibrate by site.",
         },
@@ -500,7 +500,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default=None,
         description="Minimum night-time metabolic CO2 emission per capita",
         json_schema_extra={
-            "unit": "umol cap^-1 s^-1",
+            "unit": "umol s-1",
             "display_name": "Minimum Metabolic CO2 Flux",
             "default_description": "Sample value from benchmark/sample tables: 120.0 umol cap^-1 s^-1; calibrate by site.",
         },
@@ -509,7 +509,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default=None,
         description="Minimum night-time metabolic heat emission per capita",
         json_schema_extra={
-            "unit": "W cap^-1",
+            "unit": "W",
             "display_name": "Minimum Metabolic Heat Flux",
             "default_description": "Sample value from benchmark/sample tables: 75.0 W cap^-1; calibrate by site.",
         },
@@ -519,7 +519,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default_factory=DayProfile,
         json_schema_extra={
             "unit": (
-                "vehicle km m^-2 day^-1 (type 1) or vehicle km cap^-1 day^-1 (type 2)"
+                "vehicle km m-2 day-1 (type 1) or vehicle km cap-1 day-1 (type 2)"
             ),
             "display_name": "Traffic Rate",
         },
@@ -532,7 +532,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         default=None,
         description="Traffic-rate basis: 1 for per area, 2 for per capita",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": None,
             "display_name": "Traffic Rate Type",
         },
     )
@@ -540,7 +540,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         description="24-hour profile of traffic rate",
         default_factory=HourlyProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Traffic Profile (24hr)",
         },
     )
@@ -552,7 +552,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         description="24-hour profile of human activity",
         default_factory=HourlyProfile,
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Human Activity Profile (24hr)",
         },
     )
@@ -715,14 +715,14 @@ class AnthropogenicEmissions(BaseModel):
         ge=1,
         le=366,
         description="Start of daylight savings time in decimal day of year",
-        json_schema_extra={"unit": "DOY", "display_name": "Daylight Saving Start"},
+        json_schema_extra={"unit": "1", "display_name": "Daylight Saving Start"},
     )
     enddls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         ge=1,
         le=366,
         description="End of daylight savings time in decimal day of year",
-        json_schema_extra={"unit": "DOY", "display_name": "Daylight Saving End"},
+        json_schema_extra={"unit": "1", "display_name": "Daylight Saving End"},
     )
     heat: AnthropogenicHeat = Field(
         description="Anthropogenic heat emission parameters",

@@ -51,7 +51,7 @@ class ThermalLayers(BaseModel):
             "same exposed-surface-to-interior order as dz"
         ),
         json_schema_extra={
-            "unit": "W m^-1 K^-1",
+            "unit": "W m-1 K-1",
             "display_name": "Thermal Conductivity",
         },
     )
@@ -62,7 +62,7 @@ class ThermalLayers(BaseModel):
             "the same exposed-surface-to-interior order as dz"
         ),
         json_schema_extra={
-            "unit": "J m^-3 K^-1",
+            "unit": "J m-3 K-1",
             "display_name": "Volumetric Heat Capacity",
         },
     )
@@ -197,21 +197,21 @@ class SurfaceProperties(BaseModel):
         ge=0,
         le=1,
         description="Surface fraction of grid area covered by this surface type",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Surface Fraction"},
+        json_schema_extra={"unit": "1", "display_name": "Surface Fraction"},
         default=1.0 / 7,
     )
     emis: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
         description="Surface emissivity for longwave radiation",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Emissivity"},
+        json_schema_extra={"unit": "1", "display_name": "Emissivity"},
         default=0.95,
     )
     ch_anohm: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Bulk transfer coefficient for this surface. Option: AnOHM",
         json_schema_extra={
-            "unit": "J m^-3 K^-1",
+            "unit": "J m-3 K-1",
             "display_name": "ANOHM Bulk Transfer Coefficient",
             "internal_only": True,
         },
@@ -220,7 +220,7 @@ class SurfaceProperties(BaseModel):
         default=1200.0,
         description="Volumetric heat capacity for this surface to use in AnOHM",
         json_schema_extra={
-            "unit": "J m^-3 K^-1",
+            "unit": "J m-3 K-1",
             "display_name": "ANOHM Volumetric Heat Capacity",
             "internal_only": True,
         },
@@ -229,7 +229,7 @@ class SurfaceProperties(BaseModel):
         default=0.4,
         description="Thermal conductivity for this surface to use in AnOHM",
         json_schema_extra={
-            "unit": "W m^-1 K^-1",
+            "unit": "W m-1 K-1",
             "display_name": "ANOHM Thermal Conductivity",
             "internal_only": True,
         },
@@ -243,7 +243,7 @@ class SurfaceProperties(BaseModel):
         default=0.0,
         description="Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "OHM Winter Dry Threshold",
         },
     )
@@ -258,12 +258,12 @@ class SurfaceProperties(BaseModel):
     soil_store_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
-        json_schema_extra={"unit": "mm", "display_name": "Soil Store Capacity"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Soil Store Capacity"},
     )
     state_limit: FlexibleRefValue(float) = Field(
         default=10.0,  # TODO: Check if this is an appropriate default
         description="Upper limit to the surface water state",
-        json_schema_extra={"unit": "mm", "display_name": "State Limit"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "State Limit"},
     )
     wet_threshold: FlexibleRefValue(float) = Field(
         default=0.5,
@@ -272,7 +272,7 @@ class SurfaceProperties(BaseModel):
             "fully wet and surface resistance becomes zero"
         ),
         json_schema_extra={
-            "unit": "mm",
+            "unit": "kg m-2",
             "display_name": "Wetness Threshold",
         },
     )
@@ -280,7 +280,7 @@ class SurfaceProperties(BaseModel):
         default=None,
         description="Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
         json_schema_extra={
-            "unit": "mm s^-1",
+            "unit": "mm s-1",
             "display_name": "Saturated Hydraulic Conductivity",
         },
     )
@@ -288,7 +288,7 @@ class SurfaceProperties(BaseModel):
         default=None,
         description="Bulk soil density",
         json_schema_extra={
-            "unit": "g cm^-3",
+            "unit": "g cm-3",
             "display_name": "Soil Density",
         },
     )
@@ -303,7 +303,7 @@ class SurfaceProperties(BaseModel):
     snowpack_limit: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Limit of snow that can be held on surface",
-        json_schema_extra={"unit": "mm", "display_name": "Snow Pack Limit"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Snow Pack Limit"},
     )
     thermal_layers: ThermalLayers = Field(
         default_factory=ThermalLayers,
@@ -316,7 +316,7 @@ class SurfaceProperties(BaseModel):
         default=0.0,
         description="Fraction of surface area that can be irrigated",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Irrigation Fraction",
         },
     )
@@ -576,7 +576,7 @@ class NonVegetatedSurfaceProperties(SurfaceProperties):
         ge=0,
         le=1,
         description="Surface albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Albedo"},
+        json_schema_extra={"unit": "1", "display_name": "Albedo"},
         default=0.1,
     )
 
@@ -716,14 +716,14 @@ class BuildingLayer(
         ge=0,
         le=1,
         description="Surface albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Albedo"},
+        json_schema_extra={"unit": "1", "display_name": "Albedo"},
         default=0.1,
     )
     emis: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
         description="Surface emissivity",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Emissivity"},
+        json_schema_extra={"unit": "1", "display_name": "Emissivity"},
         default=0.95,
     )
     thermal_layers: ThermalLayers = Field(
@@ -736,18 +736,18 @@ class BuildingLayer(
     state_limit: FlexibleRefValue(float) = Field(
         default=10.0,
         description="Minimum water storage capacity for state change",
-        json_schema_extra={"unit": "mm", "display_name": "State Limit"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "State Limit"},
     )
     soil_store_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Maximum water storage capacity of soil",
-        json_schema_extra={"unit": "mm", "display_name": "Soil Store Capacity"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Soil Store Capacity"},
     )
     wet_threshold: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Surface wetness threshold for OHM calculations",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Wetness Threshold",
         },
     )
@@ -759,7 +759,7 @@ class BuildingLayer(
             "ignored for wall facets"
         ),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Roof Albedo Direct Multiplier",
         },
     )
@@ -770,7 +770,7 @@ class BuildingLayer(
             "ignored for roof facets"
         ),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Wall Specular Fraction",
         },
     )
@@ -935,7 +935,7 @@ class BldgsProperties(
         default=None,
         description="Frontal area index of buildings",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Building Frontal Area Index",
         },
     )
@@ -1058,7 +1058,7 @@ class WaterProperties(NonVegetatedSurfaceProperties):
     flowchange: FlexibleRefValue(float) = Field(
         default=0.0,
         description="Change in water flow for water bodies",
-        json_schema_extra={"unit": "mm h^-1", "display_name": "Flow Change"},
+        json_schema_extra={"unit": "mm h-1", "display_name": "Flow Change"},
     )
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -1115,7 +1115,7 @@ class VerticalLayers(BaseModel):
             "Number of SPARTACUS vertical layers between ground level and the "
             "maximum building height"
         ),
-        json_schema_extra={"unit": "dimensionless", "display_name": "Number of Layers"},
+        json_schema_extra={"unit": "1", "display_name": "Number of Layers"},
         ge=1,
         le=15,  # SPARTACUS-Surface supports at most 15 vertical layers.
     )
@@ -1135,7 +1135,7 @@ class VerticalLayers(BaseModel):
             "obstruction and is not required to equal total tree land-cover fraction."
         ),
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "Vegetation Fraction",
         },
     )
@@ -1145,7 +1145,7 @@ class VerticalLayers(BaseModel):
             "Scaling factor for vegetation in each SPARTACUS vertical layer; "
             "length must be nlayer"
         ),
-        json_schema_extra={"unit": "dimensionless", "display_name": "Vegetation Scale"},
+        json_schema_extra={"unit": "1", "display_name": "Vegetation Scale"},
     )
     veg_ext: FlexibleRefValue(List[float]) = Field(
         default=[-999.0, -999.0, -999.0],
@@ -1165,7 +1165,7 @@ class VerticalLayers(BaseModel):
             "decreasing with height; length must be nlayer"
         ),
         json_schema_extra={
-            "unit": "-",
+            "unit": "1",
             "display_name": "Building Fraction",
         },
     )

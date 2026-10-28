@@ -12,7 +12,7 @@ class OHMCoefficients(BaseModel):
     a1: Optional[FlexibleRefValue(float)] = Field(
         description="OHM coefficient a1: dimensionless coefficient relating storage heat flux to net radiation",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "1",
             "display_name": "OHM Coefficient a1",
         },
         default=None,
@@ -24,7 +24,7 @@ class OHMCoefficients(BaseModel):
     )
     a3: Optional[FlexibleRefValue(float)] = Field(
         description="OHM coefficient a3: constant offset term for storage heat flux",
-        json_schema_extra={"unit": "W m^-2", "display_name": "OHM Coefficient a3"},
+        json_schema_extra={"unit": "W m-2", "display_name": "OHM Coefficient a3"},
         default=None,
     )
 

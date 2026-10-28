@@ -83,9 +83,10 @@ def test_parquet_metadata_roundtrip(frames, tmp_path, frequency, interval, strea
             check_metadata(metadata, name, interval)
     saved = pd.read_parquet(paths[0])
     assert len(saved) == (24 if frequency == 300 else 2)
-    assert saved[("SUEWS", "Rain")].sum() == 12
+    assert saved[("SUEWS", "Rain")].sum() * frequency == pytest.approx(12)
     if frequency == 300:
-        pd.testing.assert_frame_equal(saved, df_output)
+        from supy._output_metadata import prepare_output
+        pd.testing.assert_frame_equal(saved, prepare_output(df_output, interval_s=300, write=True))
 
 
 @pytest.mark.parametrize("frequency,interval", [(300, "5 minutes"), (3600, "1 hour")])
@@ -133,8 +134,9 @@ def test_native_parquet_uses_state_timestep(frames, tmp_path):
         path_dir_save=tmp_path,
     )
     metadata = pq.read_schema(paths[0]).field(str(("SUEWS", "Rain"))).metadata
-    assert metadata[b"cell_methods"] == b"time: sum (interval: 5 minutes)"
-    pd.testing.assert_frame_equal(pd.read_parquet(paths[0]), df_output)
+    assert metadata[b"cell_methods"] == b"time: mean (interval: 5 minutes)"
+    from supy._output_metadata import prepare_output
+    pd.testing.assert_frame_equal(pd.read_parquet(paths[0]), prepare_output(df_output, interval_s=300, write=True))
 
 
 def test_text_unknown_and_daily_time_base(tmp_path):
@@ -281,3 +283,66 @@ def test_every_registered_unit_converts_to_itself():
         assert convert(
             1.0, entry.unit, entry.unit, units_metadata=entry.units_metadata
         ) == pytest.approx(1.0), (entry.group, entry.name)
+
+
+@pytest.mark.parametrize("frequency", [3600, 86400])
+def test_all_written_water_fluxes_are_interval_rates(tmp_path, frequency):
+    import numpy as np
+
+    catalogue = get_output_contract_catalogue().variables
+    water = [(v.group, v.name) for v in catalogue if v.unit == "kg m-2 s-1" and v.group != "DailyState"]
+    columns = pd.MultiIndex.from_tuples(water + [("SUEWS", "SMD")], names=["group", "var"])
+    index = pd.MultiIndex.from_product([[1], pd.date_range("2012-01-01 00:05", periods=288, freq="5min")], names=["grid", "datetime"])
+    frame = pd.DataFrame(0.5, index=index, columns=columns)
+    state = pd.DataFrame({("tstep", "0"): [300]}, index=[1])
+    paths = save_df_output_parquet(frame, state, freq_s=frequency, path_dir_save=tmp_path, save_state=False)
+    saved = pd.read_parquet(paths[0])
+    np.testing.assert_allclose(saved[water], 0.5 / 300)
+    np.testing.assert_allclose(saved[("SUEWS", "SMD")], 0.5)
+    schema = pq.read_schema(paths[0])
+    for column in water:
+        metadata = schema.field(str(column)).metadata
+        assert metadata[b"units"] == b"kg m-2 s-1"
+        assert metadata[b"cell_methods"].startswith(b"time: mean")
+    np.testing.assert_allclose(frame, 0.5)
+
+
+@pytest.mark.parametrize("unit,expected", [("mm h-1", 6), ("mm d-1", 144)])
+def test_water_rate_requests_resample_and_round_trip(frames, tmp_path, unit, expected):
+    import numpy as np
+
+    frame, state = frames
+    output = SUEWSOutput(frame, state, metadata={"tstep_s": 300})
+    converted = output.to_units({"Rain": unit})
+    hourly = converted.resample("h")
+    np.testing.assert_allclose(hourly.df[("SUEWS", "Rain")], expected)
+    restored = hourly.to_units({"Rain": "kg m-2 s-1"})
+    np.testing.assert_allclose(restored.df[("SUEWS", "Rain")], 0.5 / 300)
+    paths = save_df_output_parquet(frame, state, freq_s=3600, path_dir_save=tmp_path, save_state=False, units={"Rain": unit})
+    np.testing.assert_allclose(pd.read_parquet(paths[0])[("SUEWS", "Rain")], expected)
+    metadata = pq.read_schema(paths[0]).field(str(("SUEWS", "Rain"))).metadata
+    assert metadata[b"units"] == unit.encode()
+
+
+def test_text_preserves_small_rain_rates(frames, tmp_path):
+    frame, _ = frames
+    frame[("SUEWS", "Rain")] = 0.00003
+    paths = save_df_output(frame, freq_s=3600, path_dir_save=tmp_path, output_groups=["SUEWS"])
+    saved = pd.read_csv(paths[0], sep=r"\s+")
+    assert saved.Rain.to_numpy() == pytest.approx(1e-7, rel=1e-10, abs=0)
+    metadata = json.loads(paths[0].with_name(paths[0].name + ".units.json").read_text(encoding="utf-8"))
+    assert metadata["columns"]["Rain"]["units"] == "kg m-2 s-1"
+    assert metadata["columns"]["Rain"]["cell_methods"] == "time: mean (interval: 1 hour)"
+
+
+def test_daily_totals_use_daily_interval():
+    from supy._output_metadata import prepare_output
+
+    columns = pd.MultiIndex.from_tuples(
+        [(v.group, v.name) for v in get_output_contract_catalogue().variables if v.group == "DailyState" and v.unit == "kg m-2 s-1"],
+        names=["group", "var"],
+    )
+    frame = pd.DataFrame(86400.0, index=[0], columns=columns)
+    result = prepare_output(frame, interval_s=300, write=True)
+    assert (result == 1.0).all().all()
+    assert (prepare_output(result, interval_s=300, write=True) == 1.0).all().all()

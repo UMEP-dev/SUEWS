@@ -384,7 +384,7 @@ def _txt_header_line(df_year: pd.DataFrame) -> str:
     return buffer.getvalue()
 
 
-def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False) -> None:
+def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False, rate_columns=()) -> None:
     r"""Write one grid-group-year table as SUEWS tab-separated text.
 
     With *append*, the rows are added to the end of an existing file and no
@@ -407,7 +407,10 @@ def _write_df_txt(df_year: pd.DataFrame, path_out: Path, append: bool = False) -
     fmt_dt = "\t".join(
         [f"%{max(3, len(name))}d" for name in list_name_dt[:4]] + ["%8.4f"]
     )
-    fmt_var = "\t".join(f"%{max(8, len(name))}.4f" for name in list_name_var)
+    fmt_var = "\t".join(
+        f"%{max(8, len(name))}.10e" if name in rate_columns else f"%{max(8, len(name))}.4f"
+        for name in list_name_var
+    )
 
     list_dt = list(zip(*(df_datetime[name].tolist() for name in df_datetime.columns)))
     ar_value = df_year.to_numpy(dtype=np.float64)
@@ -816,7 +819,15 @@ def save_df_grid_group(
         path_out, _txt_header_line(df_year)
     )
     t_start = time.time()
-    _write_df_txt(df_year, path_out, append=append)
+    df_year = prepare_output(
+        df_year, group=group, write=True,
+        interval_s=metadata_interval_s if metadata_interval_s is not None else int(freq.total_seconds()),
+    )
+    rate_columns = [
+        name for name in df_year.columns
+        if (group, name) in df_year.attrs.get("supy_water_rate_columns", [])
+    ]
+    _write_df_txt(df_year, path_out, append=append, rate_columns=rate_columns)
     t_end = time.time()
     # remove freq info from `DailyState` file
     if "DailyState" in path_out.name:
@@ -1043,7 +1054,7 @@ def save_df_output(
     ``df_output`` is never copied whole: groups are selected, resampled,
     relabelled and written one (grid, group) at a time (gh#1849).
     """
-    df_output = prepare_output(df_output, units)
+    df_output = prepare_output(df_output, units, interval_s=_native_interval_s(df_state_final))
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
 
@@ -1507,7 +1518,7 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     _parquet_engine()
-    df_output = prepare_output(df_output, units)
+    df_output = prepare_output(df_output, units, interval_s=_native_interval_s(df_state_final))
 
     # Resample if needed; values are not written in place (gh#1849)
     df_save = df_output.copy(deep=False)
@@ -1555,6 +1566,7 @@ def save_df_output_parquet(
     if save_tstep and streamed_parquet is None:
         interval_s = _native_interval_s(df_state_final)
 
+    df_to_save = prepare_output(df_to_save, interval_s=interval_s, write=True)
     if streamed_parquet is not None:
         streamed_parquet.write(path_output, df_to_save, write_sidecars, interval_s)
         return [path_output]

@@ -238,7 +238,10 @@ class SUEWSOutput:
         # (gh#1849). `.df` hands the table out through `_frame_for_caller`,
         # which shares it without exposing it to writes, and the group
         # accessors through `_group_for_caller`.
-        self._df_output = prepare_output(df_output, units).copy(deep=False)
+        interval_s = (metadata or {}).get("tstep_s")
+        if interval_s is None and config is not None:
+            interval_s = config.model.control.tstep.value
+        self._df_output = prepare_output(df_output, units, interval_s=interval_s).copy(deep=False)
         self._df_state_final = (
             df_state_final.copy() if df_state_final is not None else None
         )
@@ -284,6 +287,7 @@ class SUEWSOutput:
         return OutputUnits(
             self._df_output.columns, interval_s,
             self._df_output.attrs.get("supy_output_units"),
+            native=self._streamed_paths is None,
         )
 
     @property

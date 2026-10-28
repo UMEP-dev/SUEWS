@@ -58,8 +58,8 @@ DAILYSTATE_VARIABLES = [
     # Precipitation and days since rain
     OutputVariable(
         name="P_day",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Daily total precipitation",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -236,8 +236,8 @@ DAILYSTATE_VARIABLES = [
     # water use is modelled
     OutputVariable(
         name="WU_EveTr1",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily total irrigation water use for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -245,8 +245,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_EveTr2",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily automatic irrigation water use for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -254,8 +254,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_EveTr3",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily manual irrigation water use for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -263,8 +263,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr1",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily total irrigation water use for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -272,8 +272,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr2",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily automatic irrigation water use for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -281,8 +281,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr3",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily manual irrigation water use for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -290,8 +290,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass1",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily total irrigation water use for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -299,8 +299,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass2",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily automatic irrigation water use for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -308,8 +308,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass3",
-        cell_methods="time: sum",
-        unit="mm",
+        cell_methods="time: mean",
+        unit="kg m-2 s-1",
         description="Modelled daily manual irrigation water use for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,

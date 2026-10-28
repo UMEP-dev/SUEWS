@@ -1,6 +1,5 @@
 """CF metadata contracts across the complete output registry."""
 
-from hashlib import sha256
 import importlib.resources
 import json
 
@@ -40,32 +39,24 @@ def test_registry_cf_metadata(variable):
         assert variable.units_metadata is None
 
 
-def test_existing_output_contract_is_unchanged():
-    """Preserve released fields apart from the authorised CF unit relabelling."""
+def test_only_water_flux_fields_change_from_previous_contract():
+    """Keep stores, names and layouts unchanged across the rate migration."""
     previous = json.loads(
-        importlib.resources
-        .files("supy.data_model.output")
-        .joinpath("artefacts/1.1.8/catalogue.json")
-        .read_text(encoding="utf-8")
+        importlib.resources.files("supy.data_model.output")
+        .joinpath("artefacts/1.1.9/catalogue.json").read_text(encoding="utf-8")
     )
     current = get_output_contract_catalogue().model_dump(mode="json")
-    for variable in current["variables"]:
-        variable.pop("cell_methods")
-        variable.pop("units_metadata")
-
-    # Catalogue digest from units-cf f05f452a3f, before CF metadata was added.
-    # This retains the exact unit and field check against unreleased 1.1.9.
-    content = json.dumps(
-        current, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
-        allow_nan=False,
-    ) + "\n"
-    assert sha256(content.encode("utf-8")).hexdigest() == (
-        "916aeec44fd5e9839715c3082b8d8593672f492cd15df9eeda3d84d536a99380"
-    )
-    for catalogue in (current, previous):
-        for variable in catalogue["variables"]:
-            variable.pop("unit")
-    assert current == previous
+    for before, after in zip(previous["variables"], current["variables"]):
+        if before["unit"] == "mm":
+            assert after["unit"] == "kg m-2 s-1"
+            assert after["cell_methods"] == "time: mean"
+            expected = dict(before, unit="kg m-2 s-1", cell_methods="time: mean")
+            if expected["aggregation"] == "A":
+                expected["aggregation"] = "S"
+            assert after == expected
+        else:
+            assert after == before
+    assert len(current["variables"]) == len(previous["variables"])
 
 
 @pytest.mark.parametrize("name", ["Tg", "Tw"])
@@ -127,7 +118,7 @@ def test_unknown_cf_metadata_is_rejected(invalid):
         ("HDD1_h", "time: mean", "temperature: difference"),
         ("HDD2_c", "time: mean", "temperature: difference"),
         ("HDD3_Tmean", "time: mean", "temperature: on_scale"),
-        ("P_day", "time: sum", None),
+        ("P_day", "time: mean", None),
         ("DLHrs", "time: sum", None),
         ("Tmin", "time: minimum", "temperature: on_scale"),
         ("Tmax", "time: maximum", "temperature: on_scale"),

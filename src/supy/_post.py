@@ -438,7 +438,23 @@ def _resample_output(
     mask = (rsmp_dt_idx >= dt_min_floor) & (rsmp_dt_idx <= dt_max)
     df_rsmp = df_rsmp[mask]
 
+    # Requested water rates retain their amount-conserving aggregation:
+    # integrate each source rate, sum, then average over the target interval.
+    from ._output_metadata import output_interval_seconds
+
+    dict_units = df_output.attrs.get("supy_output_units", {})
+    rate_columns = [
+        (v.group, v.name) for v in OUTPUT_REGISTRY.variables
+        if v.unit == "kg m-2 s-1" and v.group != "DailyState"
+        and v.name in dict_units.get(v.group, {})
+        and (v.group, v.name) in df_rsmp.columns
+    ]
+    if rate_columns:
+        source_s = output_interval_seconds(df_output, freq_source.total_seconds() if freq_source is not None else None)
+        target_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
+        df_rsmp.loc[:, rate_columns] *= source_s / target_s
     df_rsmp.attrs = df_output.attrs.copy()
+    df_rsmp.attrs["supy_output_interval_s"] = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
     return df_rsmp
 
 

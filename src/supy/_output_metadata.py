@@ -31,8 +31,26 @@ def _interval(seconds: Optional[int]) -> Optional[str]:
             return f"{count} {label}{'s' if count != 1 else ''}"
 
 
+def output_interval_seconds(df_output: pd.DataFrame, interval_s: Optional[int] = None) -> float:
+    """Return an explicit interval or the regular cadence of output rows."""
+    if interval_s is not None:
+        if interval_s <= 0:
+            raise ValueError("Output interval must be positive")
+        return float(interval_s)
+    index = df_output.index
+    if isinstance(index, pd.MultiIndex):
+        index = index.levels[index.names.index("datetime")]
+    frequency = getattr(index, "freq", None)
+    if frequency is None and len(index) >= 3:
+        frequency = pd.infer_freq(index)
+    if frequency is None:
+        raise ValueError("Water-rate conversion requires an explicit output interval or regular timestamps")
+    return pd.tseries.frequencies.to_offset(frequency).nanos / 1e9
+
+
 def prepare_output(
     df_output: pd.DataFrame, units: Optional[Mapping] = None, group: Optional[str] = None,
+    *, interval_s: Optional[int] = None, write: bool = False,
 ) -> pd.DataFrame:
     """Return output in requested units, leaving the input and kernel untouched.
 
@@ -56,17 +74,28 @@ def prepare_output(
     ValueError
         If a variable is missing, ambiguous, unitless or dimensionally incompatible.
     """
-    if units is None:
+    if units is None and not write:
         return df_output
-    if not isinstance(units, Mapping):
+    if units is not None and not isinstance(units, Mapping):
         raise TypeError("units must be a mapping from output variables to unit strings")
-    if not units:
+    if not units and not write:
         return df_output
     dict_metadata = project_output_metadata(
-        df_output.columns, None, group, df_output.attrs.get("supy_output_units")
+        df_output.columns, None, group, df_output.attrs.get("supy_output_units"), native=True
     )
+    dict_water = {
+        (entry.group, entry.name): entry
+        for entry in get_output_contract_catalogue().variables
+        if entry.unit == "kg m-2 s-1"
+    }
     dict_targets = {}
-    for key, target in units.items():
+    if write:
+        for column in df_output.columns:
+            identity = column if isinstance(column, tuple) else (group, column)
+            if identity in dict_water:
+                dict_targets[column] = df_output.attrs.get("supy_output_units", {}).get(identity[0], {}).get(identity[1], "kg m-2 s-1")
+    declared = set()
+    for key, target in (units or {}).items():
         matches = [
             column for column in df_output.columns
             if column == key or (isinstance(column, tuple) and column[1] == key)
@@ -75,9 +104,12 @@ def prepare_output(
             reason = "ambiguous; use (group, variable)" if matches else "not present"
             raise ValueError(f"Output variable {key!r} is {reason}")
         column = matches[0]
-        if column in dict_targets:
+        if column in declared:
             raise ValueError(f"Multiple unit requests for output variable {column!r}")
+        declared.add(column)
         dict_targets[column] = target
+    if not dict_targets:
+        return df_output
     df_result = df_output.copy(deep=False)
     dict_units = deepcopy(df_output.attrs.get("supy_output_units", {}))
     for column, target in dict_targets.items():
@@ -86,21 +118,35 @@ def prepare_output(
             parsed = unit_conversion.parse_unit(target)
             if not isinstance(target, str):
                 raise unit_conversion.UnitError("target unit must be a unit string")
-            values = unit_conversion.convert(
-                df_output[column], metadata.get("units"), parsed,
-                units_metadata=metadata.get("units_metadata"),
-            )
+            identity = column if isinstance(column, tuple) else (group, column)
+            if identity in dict_water:
+                source = metadata["units"]
+                values = df_output[column]
+                if source == "mm":
+                    seconds = 86400 if identity[0] == "DailyState" else output_interval_seconds(df_output, df_output.attrs.get("supy_output_interval_s", interval_s))
+                    values = values / seconds
+                    source = "kg m-2 s-1"
+                values = unit_conversion.convert_water_rate(values, source, parsed)
+            else:
+                values = unit_conversion.convert(
+                    df_output[column], metadata.get("units"), parsed,
+                    units_metadata=metadata.get("units_metadata"),
+                )
         except unit_conversion.UnitError as exc:
             raise unit_conversion.UnitError(f"Output variable {column!r}: {exc}") from exc
         df_result[column] = values
         identity = column if isinstance(column, tuple) else (group, column)
         dict_units.setdefault(identity[0], {})[identity[1]] = target
+    df_result.attrs["supy_water_rate_columns"] = [
+        identity for identity in dict_water
+        if identity[1] in dict_units.get(identity[0], {})
+    ]
     df_result.attrs["supy_output_units"] = dict_units
     return df_result
 
 
 def project_output_metadata(
-    columns, interval_s: Optional[int], group=None, units=None,
+    columns, interval_s: Optional[int], group=None, units=None, *, native=False,
 ) -> dict:
     """Project metadata for the supplied column identities and written interval.
 
@@ -121,11 +167,14 @@ def project_output_metadata(
             dict_result[column] = {"status": "unknown"}
             continue
         interval = _interval(86400 if identity[0] == "DailyState" else interval_s)
-        methods = entry.cell_methods
+        unit = (units or {}).get(identity[0], {}).get(identity[1])
+        if unit is None:
+            unit = "mm" if native and entry.unit == "kg m-2 s-1" else entry.unit
+        methods = "time: sum" if entry.unit == "kg m-2 s-1" and unit == "mm" else entry.cell_methods
         if interval and methods and methods != "time: point":
             methods = f"{methods} (interval: {interval})"
         dict_metadata = {
-            "units": (units or {}).get(identity[0], {}).get(identity[1], entry.unit),
+            "units": unit,
             "cell_methods": methods,
             "description": entry.description,
         }
@@ -144,7 +193,8 @@ class OutputUnits(Mapping):
     Keys match the output's columns, including their group level.
     """
 
-    def __init__(self, columns, interval_s: Optional[int], units=None) -> None:
+    def __init__(self, columns, interval_s: Optional[int], units=None, *, native=True) -> None:
+        self._native = native
         self._units = deepcopy(units)
         self._columns = tuple(columns)
         self._interval_s = interval_s
@@ -155,7 +205,7 @@ class OutputUnits(Mapping):
         return MappingProxyType({
             key: MappingProxyType(value)
             for key, value in project_output_metadata(
-                self._columns, self._interval_s, units=self._units
+                self._columns, self._interval_s, units=self._units, native=self._native
             ).items()
         })
 

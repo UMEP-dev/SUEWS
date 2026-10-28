@@ -295,6 +295,11 @@ def write_output_parquet(df_output, path, interval_s: Optional[int]) -> None:
         })
     dict_schema = dict(table.schema.metadata or {})
     dict_schema[b"output_contract_version"] = CURRENT_OUTPUT_VERSION.encode("utf-8")
+    # Table.from_pandas preserves axes, but does not write the PANDAS_ATTRS
+    # key that pandas.read_parquet uses to restore DataFrame attributes.
+    # Persist units, the held interval and timestamp-keyed partial coverage
+    # together so reloaded rates are neither converted twice nor misweighted.
+    dict_schema[b"PANDAS_ATTRS"] = json.dumps(df_output.attrs).encode("utf-8")
     schema = pa.schema(fields, metadata=dict_schema)
     table = pa.Table.from_arrays(table.columns, schema=schema)
     pq.write_table(table, path, compression="snappy")

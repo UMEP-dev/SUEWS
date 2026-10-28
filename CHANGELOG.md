@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [bugfix] Persist output units, nominal intervals and partial-row coverage in Parquet schema metadata so reloaded water rates retain their values and resampling weights after clock changes (#1967).
+
 - [change][experimental] Retain trailing partial resampling bins for all output variables, including without a unit request; water rates use the seconds actually covered by each bin (#1967).
 
 - [change][experimental] Write accumulated water fluxes as interval-mean `kg m-2 s-1` rates in output contract 2.0.0, with rate conversions and matching text/Parquet metadata; retain water stores and native in-memory amounts (#1903).

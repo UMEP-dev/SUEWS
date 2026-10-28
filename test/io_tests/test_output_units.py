@@ -581,7 +581,27 @@ def test_partial_coverage_survives_saved_clock_change(frames, tmp_path):
     )
     saved = pd.read_parquet(paths[0])
     assert list(saved.index.get_level_values("datetime").hour) == [10, 11, 12]
+    assert saved[("SUEWS", "Rain")].to_numpy() == pytest.approx([6, 12, 24])
+    schema = pq.read_schema(paths[0])
+    rain = schema.field(str(("SUEWS", "Rain"))).metadata
+    assert rain[b"units"] == b"mm h-1"
+    assert rain[b"cell_methods"] == b"time: mean (interval: 1 hour)"
+    attributes = json.loads(schema.metadata[b"PANDAS_ATTRS"])
+    assert attributes["supy_output_interval_s"] == 3600
+    assert saved.attrs == attributes
+    assert saved.attrs["supy_output_coverage_s"] == {
+        "1|2012-01-01T10:00:00": 1800,
+        "1|2012-01-01T12:00:00": 900,
+    }
     reloaded = SUEWSOutput(saved, state).to_units({"Rain": "mm h-1"})
+    assert reloaded.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([6, 12, 24])
     assert reloaded.units.metadata[("SUEWS", "Rain")]["interval"] == "1 hour"
     daily = reloaded.resample("D")
     assert daily.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([21 / 1.75])
+    (tmp_path / "again").mkdir()
+    paths_again = save_df_output_parquet(
+        reloaded.df, state, freq_s=3600, path_dir_save=tmp_path / "again",
+        save_state=False, save_tstep=True,
+    )
+    saved_again = pd.read_parquet(paths_again[0])
+    pd.testing.assert_frame_equal(saved_again, saved)

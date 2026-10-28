@@ -402,6 +402,7 @@ CONTAINS
    !-------------------------------------------------------------------
    FUNCTION cal_mainsWaterTemperature(dayOfYear, To_annual_C, dTo_month_C) RESULT(Tmains)
       USE module_phys_stebbs_precision
+      USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
 
       INTEGER, INTENT(IN) :: dayOfYear
@@ -428,7 +429,7 @@ CONTAINS
       Tmains_C = (To_annual_C + 3.33) + ratio*(dTo_month_C/2.0)*SIN(angle_rad)
 
       ! Convert water mains temperature from degC to K
-      Tmains = Tmains_C + 273.15
+      Tmains = Tmains_C + C2K
 
    END FUNCTION cal_mainsWaterTemperature
 
@@ -488,6 +489,7 @@ CONTAINS
    FUNCTION indoor_airdensity(Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor) RESULT(air_dens)
       !assume indoor and outdoor vapour pressure are identical
       USE module_phys_stebbs_precision
+      USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor
       REAL(KIND(1D0)), PARAMETER :: Rd = 287.058   ! gas constant for dry air
@@ -501,7 +503,7 @@ CONTAINS
       !Partial pressure of dry air
       Pd = P_hpa * 100 - e
       !Air density in kg/m3
-      air_dens = Pd /  (Rd * (Ta_indoor + 273.15)) + e / (Rv * (Ta_indoor + 273.15))
+      air_dens = Pd /  (Rd * (Ta_indoor + C2K)) + e / (Rv * (Ta_indoor + C2K))
    END FUNCTION indoor_airdensity
 
    Function find_layer(h, layer_h, nlayer) RESULT(i_layer)
@@ -591,6 +593,7 @@ CONTAINS
                                HEAT_STATE, SUEWS_STATE, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, &
                                STEBBS_BLDG
       USE module_util_time, ONLY: cal_weekday_index
+      USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -860,22 +863,22 @@ CONTAINS
             building_is_active = buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants_state
             SELECT CASE (config%setpointmethod)
             CASE (0) !constant setpoint
-               buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + 273.15
-               buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + 273.15
+               buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + C2K
+               buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + C2K
             CASE (1) !setpoints dependent on occupant activity
                IF (building_is_active) THEN
-                  buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + 273.15
-                  buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + 273.15
+                  buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + C2K
+                  buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + C2K
                ELSE
-                  buildings(1)%ts(1) = Unused_heating_setpoint_C + 273.15
-                  buildings(1)%ts(2) = Unused_cooling_setpoint_C + 273.15
+                  buildings(1)%ts(1) = Unused_heating_setpoint_C + C2K
+                  buildings(1)%ts(2) = Unused_cooling_setpoint_C + C2K
                END IF
             CASE (2) !scheduled setpoints
-               buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature_profile(idx, iu) + 273.15
-               buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature_profile(idx, iu) + 273.15
+               buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature_profile(idx, iu) + C2K
+               buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature_profile(idx, iu) + C2K
             CASE DEFAULT
-               buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + 273.15
-               buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + 273.15
+               buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + C2K
+               buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + C2K
             END SELECT
             !calculate water mains temperature 
             T_watermains_K = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
@@ -928,14 +931,14 @@ CONTAINS
             ! END DO
 
             DO i_layer = 1, nlayer
-               buildings(1)%textwall_c(i_layer) = Textwall - 273.15
-               buildings(1)%textroof_c(i_layer) = Textroof - 273.15               
+               buildings(1)%textwall_c(i_layer) = Textwall - C2K
+               buildings(1)%textroof_c(i_layer) = Textroof - C2K               
             END DO
 
             stebbsState%QS_stebbs = QS_bldg_tstepFA 
             dataOutLineSTEBBS = [ &
                                 ! Forcing
-                                ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, T_watermains_K - 273.15, &
+                                ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, T_watermains_K - C2K, &
                                 Kroof_sout, Lroof_sout, Kwall_sout, Lwall_sout, &
                                 ! energy balance heat flux 
                                 QN_bldg_tstepFA, QEC_bldg_tstepFA, QS_total_tstepFA, QH_bldg_tstepFA, QBAE_bldg_tstepFA, QWaste_bldg_tstepFA, &
@@ -996,6 +999,7 @@ SUBROUTINE suewsstebbscouple(self, sout, resolution, datetimeLine, &
    USE module_phys_stebbs_func, ONLY: ext_conv_coeff, int_conv_coeff, indoor_airdensity
    USE module_phys_stebbs_couple, ONLY: suewsprop
    USE module_ctrl_type, ONLY: SUEWS_STATE, STEBBS_BLDG
+   USE module_ctrl_const_physconst, ONLY: C2K
    IMPLICIT NONE
    TYPE(SUEWS_STATE) :: modState
    TYPE(STEBBS_BLDG) :: self
@@ -1097,11 +1101,11 @@ SUBROUTINE suewsstebbscouple(self, sout, resolution, datetimeLine, &
    ! CASE = self%case_id
    Area = self%a_footprint
    DO tstep = 1, sout%ntstep, 1
-      Tair_out = sout%Tair + 273.15
-      Tair_out_bh = sout%Tair_exch_bh + 273.15
-      Tair_out_hbh = sout%Tair_exch_hbh + 273.15
-      Tground_deep = 273.15 + sout%Tground_deep
-      Tsurf = sout%Tsurf + 273.15
+      Tair_out = sout%Tair + C2K
+      Tair_out_bh = sout%Tair_exch_bh + C2K
+      Tair_out_hbh = sout%Tair_exch_hbh + C2K
+      Tground_deep = C2K + sout%Tground_deep
+      Tsurf = sout%Tsurf + C2K
       ws_out_bh = sout%ws_exch_bh
       ws_out_hbh = sout%ws_exch_hbh
       density_air_out = sout%density_air_exch
@@ -1122,7 +1126,7 @@ SUBROUTINE suewsstebbscouple(self, sout, resolution, datetimeLine, &
       self%h_i(4) = int_conv_coeff(dT = (self%t_int_ground_floor - self%Tair_ind), surf_type = 3) !floor
       self%h_i(5) = int_conv_coeff(dT = (self%t_indoor_mass - self%Tair_ind), surf_type = 1) !nternal mass,assume vertical
       !calculate indoor air density
-      self%density_air_ind = indoor_airdensity(sout%Tair_exch_hbh, self%Tair_ind - 273.15, sout%pres_exch, sout%RH_exch) 
+      self%density_air_ind = indoor_airdensity(sout%Tair_exch_hbh, self%Tair_ind - C2K, sout%pres_exch, sout%RH_exch) 
       !Assume indoor/outdoor specific heat capacity are identical  
       self%cp_air_ind = cp_air_out
       CALL timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
@@ -2419,6 +2423,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
 
    USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG, error_state
    USE module_phys_stebbs_func, ONLY: calculate_x1
+   USE module_ctrl_const_physconst, ONLY: C2K
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self
@@ -2561,40 +2566,40 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%roofTAR = (/self%roof_transmissivity_state, self%roof_absorptivity, self%roof_reflectivity/)
 
 
-   self%Tair_ind = stebbsState%indoor_air_start_temperature + 273.15 ! # Indoor air temperature (K)
-   self%t_indoor_mass = stebbsState%indoor_mass_start_temperature + 273.15 ! # Indoor mass temperature (K)
-   self%t_int_wall = stebbsState%wall_indoor_surface_temperature + 273.15 ! # Wall indoor surface temperature (K)
-   self%t_int_roof = stebbsState%roof_indoor_surface_temperature + 273.15 ! # Roof indoor surface temperature (K)
-   self%t_ext_wall = stebbsState%wall_outdoor_surface_temperature + 273.15 ! # Wall outdoor surface temperature (K)
-   self%t_ext_roof = stebbsState%roof_outdoor_surface_temperature + 273.15 ! # Roof outdoor surface temperature (K)
-   self%t_int_window = stebbsState%window_indoor_surface_temperature + 273.15 ! # Window indoor surface temperature (K)
-   self%t_ext_window = stebbsState%window_outdoor_surface_temperature + 273.15 ! # Window outdoor surface temperature (K)
-   self%t_int_ground_floor = stebbsState%ground_floor_indoor_surface_temperature + 273.15 ! # Ground floor indoor surface temperature (K)
-   self%t_ext_ground_floor = stebbsState%ground_floor_outdoor_surface_temperature + 273.15 ! # Ground floor outdoor surface temperature (K)
+   self%Tair_ind = stebbsState%indoor_air_start_temperature + C2K ! # Indoor air temperature (K)
+   self%t_indoor_mass = stebbsState%indoor_mass_start_temperature + C2K ! # Indoor mass temperature (K)
+   self%t_int_wall = stebbsState%wall_indoor_surface_temperature + C2K ! # Wall indoor surface temperature (K)
+   self%t_int_roof = stebbsState%roof_indoor_surface_temperature + C2K ! # Roof indoor surface temperature (K)
+   self%t_ext_wall = stebbsState%wall_outdoor_surface_temperature + C2K ! # Wall outdoor surface temperature (K)
+   self%t_ext_roof = stebbsState%roof_outdoor_surface_temperature + C2K ! # Roof outdoor surface temperature (K)
+   self%t_int_window = stebbsState%window_indoor_surface_temperature + C2K ! # Window indoor surface temperature (K)
+   self%t_ext_window = stebbsState%window_outdoor_surface_temperature + C2K ! # Window outdoor surface temperature (K)
+   self%t_int_ground_floor = stebbsState%ground_floor_indoor_surface_temperature + C2K ! # Ground floor indoor surface temperature (K)
+   self%t_ext_ground_floor = stebbsState%ground_floor_outdoor_surface_temperature + C2K ! # Ground floor outdoor surface temperature (K)
    IF (config%setpointmethod == 2) THEN
-      self%ts = (/building_archtype%heating_setpoint_temperature_profile(0, 1) + 273.15, &
-                   building_archtype%cooling_setpoint_temperature_profile(0, 1) + 273.15/)
+      self%ts = (/building_archtype%heating_setpoint_temperature_profile(0, 1) + C2K, &
+                   building_archtype%cooling_setpoint_temperature_profile(0, 1) + C2K/)
    ELSE
-      self%ts = (/building_archtype%heating_setpoint_temperature + 273.15, &
-                   building_archtype%cooling_setpoint_temperature + 273.15/)
+      self%ts = (/building_archtype%heating_setpoint_temperature + C2K, &
+                   building_archtype%cooling_setpoint_temperature + C2K/)
    END IF
    self%initTs = self%ts
    self%h_ts_average = (/18 + 273.15, 18 + 273.15, 18 + 273.15/) ! #
    self%HWTsAverage = (/10 + 273.15, 10 + 273.15, 10 + 273.15/)
 
-   self%Twater_tank = stebbsState%water_tank_temperature_state + 273.15 ! # Water temperature (K) in Hot Water Tank
-   self%Tintwall_tank = stebbsState%internal_wall_water_tank_temperature + 273.15 ! # Hot water tank internal wall temperature (K)
-   self%Textwall_tank = stebbsState%external_wall_water_tank_temperature + 273.15 ! # Hot water tank external wall temperature (K)
+   self%Twater_tank = stebbsState%water_tank_temperature_state + C2K ! # Water temperature (K) in Hot Water Tank
+   self%Tintwall_tank = stebbsState%internal_wall_water_tank_temperature + C2K ! # Hot water tank internal wall temperature (K)
+   self%Textwall_tank = stebbsState%external_wall_water_tank_temperature + C2K ! # Hot water tank external wall temperature (K)
    self%thickness_tankwall = stebbsPrm%hot_water_tank_wall_thickness ! # Hot water tank wall thickness (m)
-   self%Tincomingwater_tank = stebbsState%mains_water_temperature + 273.15 ! # Water temperature (K) of Water coming into the Water Tank
+   self%Tincomingwater_tank = stebbsState%mains_water_temperature + C2K ! # Water temperature (K) of Water coming into the Water Tank
    self%Vwater_tank = building_archtype%hot_water_tank_volume ! # Volume of Water in Hot Water Tank (m^3)  h = 1.5, (2/(1.5*3.14))^0.5 = r =
    self%Asurf_tank = stebbsPrm%hot_water_tank_surface_area ! # Surface Area of Hot Water Tank(m^2) - cylinder h= 1.5
    self%Vwall_tank = self%Asurf_tank*self%thickness_tankwall ! # Wall volume of Hot Water Tank(m^2)
-   self%setTwater_tank = stebbsPrm%hot_water_heating_setpoint_temperature + 273.15 ! # Water Tank setpoint temperature (K)
-   self%init_wtTs = stebbsPrm%hot_water_heating_setpoint_temperature + 273.15 ! # Initial Water Tank setpoint temperature (K)
-   self%Twater_vessel = stebbsState%domestic_hot_water_temperature_in_use_in_building + 273.15 ! # Water temperature (K) of water held in use in Building
-   self%Tintwall_vessel = stebbsState%internal_wall_dhw_vessel_temperature + 273.15 ! # Hot water vessel internal wall temperature (K)
-   self%Textwall_vessel = stebbsState%external_wall_dhw_vessel_temperature + 273.15 ! # Hot water vessel external wall temperature (K)
+   self%setTwater_tank = stebbsPrm%hot_water_heating_setpoint_temperature + C2K ! # Water Tank setpoint temperature (K)
+   self%init_wtTs = stebbsPrm%hot_water_heating_setpoint_temperature + C2K ! # Initial Water Tank setpoint temperature (K)
+   self%Twater_vessel = stebbsState%domestic_hot_water_temperature_in_use_in_building + C2K ! # Water temperature (K) of water held in use in Building
+   self%Tintwall_vessel = stebbsState%internal_wall_dhw_vessel_temperature + C2K ! # Hot water vessel internal wall temperature (K)
+   self%Textwall_vessel = stebbsState%external_wall_dhw_vessel_temperature + C2K ! # Hot water vessel external wall temperature (K)
    self%thickness_wall_vessel = stebbsPrm%hot_water_vessel_wall_thickness ! # DHW vessels wall thickness (m)
 
    self%Vwater_vessel = stebbsPrm%hot_water_volume ! # Volume of water held in use in building (m^3)

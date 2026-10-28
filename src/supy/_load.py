@@ -2,7 +2,7 @@ import functools
 import json
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 import f90nml
 import numpy as np
@@ -786,7 +786,7 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
 
 # load raw data: met forcing
 def load_SUEWS_Forcing_met_df_raw(
-    path_input, filecode, grid, tstep_met_in, multiplemetfiles
+    path_input, filecode, grid, tstep_met_in, multiplemetfiles, *, units=None
 ):
     # file name pattern for met files
     forcingfile_met_pattern = "{site}{grid}_*_{tstep}.txt".format(
@@ -796,7 +796,7 @@ def load_SUEWS_Forcing_met_df_raw(
     )
     # path_forcing_pattern = path_input / forcingfile_met_pattern
     df_forcing_met = load_SUEWS_Forcing_met_df_pattern(
-        path_input, forcingfile_met_pattern
+        path_input, forcingfile_met_pattern, units=units
     )
     return df_forcing_met
 
@@ -1027,7 +1027,10 @@ def _read_forcing_table(path, source_contract=None):
     return frame
 
 
-def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="error", *, source_contract=None):
+def load_SUEWS_Forcing_met_df_pattern(
+    path_input, file_pattern, on_conflict="error", *, source_contract=None,
+    units: Optional[Mapping[str, str]] = None,
+):
     """Load and concatenate SUEWS forcing files by *column name*.
 
     Header row is required and is read by name. Baseline-required columns
@@ -1082,7 +1085,7 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern, on_conflict="err
     # the canonical names first, then datetime-index at the end.
     canonical_per_file = [
         _apply_named_column_matching(
-            _read_forcing_table(fn, source_contract).drop_duplicates()
+            _read_forcing_table(fn, source_contract).drop_duplicates(), units=units
         )
         for fn in list_file_MetForcing
     ]
@@ -1119,7 +1122,64 @@ def _validate_integer_timestamp_columns(
         )
 
 
-def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
+def _convert_forcing_units(
+    df_forcing: pd.DataFrame, units: Optional[Mapping[str, str]] = None
+) -> pd.DataFrame:
+    """Convert declared file units to registry units, preserving missing values.
+
+    An absent declaration returns the original frame untouched. File aliases
+    follow the same registry lookup as header matching. Conversion precedes
+    validation, timestamp construction and the existing file-to-runtime step.
+    """
+    from .units import UnitError, convert, parse_unit
+
+    if units is None:
+        return df_forcing
+    if not isinstance(units, Mapping):
+        raise TypeError("forcing units must be a mapping from column to unit string")
+    if not units:
+        return df_forcing
+    df_result = df_forcing.copy()
+    declared = set()
+    for column, unit in units.items():
+        variable = (
+            FORCING_REGISTRY.by_file_name(column)
+            if isinstance(column, str) else None
+        )
+        if variable is None:
+            raise ValueError(f"forcing column {column!r}: unknown column in units declaration")
+        if variable.name in declared:
+            raise ValueError(f"forcing column {column!r}: duplicate units declaration")
+        declared.add(variable.name)
+        if not isinstance(unit, str):
+            raise TypeError(f"forcing column {column!r}: unit must be a string")
+        if variable.unit is None:
+            raise ValueError(f"forcing column {column!r}: no unconditional registry unit")
+        columns = [
+            name for name in df_result.columns
+            if FORCING_REGISTRY.by_file_name(str(name).lstrip("%")) == variable
+        ]
+        if not columns:
+            raise ValueError(f"forcing column {column!r}: declared column is absent from file")
+        try:
+            source = parse_unit(unit)
+            # Validate dimensions even for columns containing only missing values.
+            for name in columns:
+                values = df_result[name]
+                valid = values.notna() & (values != FORCING_OPTIONAL_FILL)
+                converted = convert(
+                    values.loc[valid], source, variable.unit,
+                    units_metadata=getattr(variable, "units_metadata", None),
+                )
+                df_result[name] = values.where(~valid, converted)
+        except UnitError as exc:
+            raise ValueError(f"forcing column {column!r}: {exc}") from exc
+    return df_result
+
+
+def _apply_named_column_matching(
+    df_forcing_met: pd.DataFrame, *, units: Optional[Mapping[str, str]] = None
+) -> pd.DataFrame:
     """Reindex a raw forcing DataFrame against canonical names (gh#1372).
 
     Shared between :func:`load_SUEWS_Forcing_met_df_pattern` and
@@ -1134,6 +1194,7 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
 
     from .util._forcing import LEGACY_PLACEHOLDER_ATTR, accept_legacy_soil_placeholder
 
+    df_forcing_met = _convert_forcing_units(df_forcing_met, units)
     df_forcing_met = accept_legacy_soil_placeholder(df_forcing_met)
     legacy_placeholder = bool(df_forcing_met.attrs.get(LEGACY_PLACEHOLDER_ATTR))
 
@@ -1228,7 +1289,10 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     return df_canonical
 
 
-def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error", *, source_contract=None):
+def load_SUEWS_Forcing_met_df_yaml(
+    path_forcing, on_conflict="error", *, source_contract=None,
+    units: Optional[Mapping[str, str]] = None,
+):
     """Load forcing for a YAML ``forcing.file`` entry (file, directory or list).
 
     Files are canonicalised individually and merged with
@@ -1258,7 +1322,7 @@ def load_SUEWS_Forcing_met_df_yaml(path_forcing, on_conflict="error", *, source_
     # load_SUEWS_Forcing_met_df_pattern for the full rationale).
     canonical_per_file = [
         _apply_named_column_matching(
-            _read_forcing_table(fn, source_contract).drop_duplicates()
+            _read_forcing_table(fn, source_contract).drop_duplicates(), units=units
         )
         for fn in file_list
     ]

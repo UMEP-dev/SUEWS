@@ -7,7 +7,7 @@ meteorological forcing data for SUEWS simulations.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Mapping, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -185,6 +185,7 @@ class SUEWSForcing:
         *,
         on_conflict: str = "error",
         source_contract: Optional[str] = None,
+        units: Optional[Mapping[str, str]] = None,
     ) -> "SUEWSForcing":
         """
         Load forcing from file(s).
@@ -205,6 +206,12 @@ class SUEWSForcing:
             every policy, and a value missing in one file (``NaN`` or
             ``-999``) is filled from the other rather than treated as a
             conflict.
+
+        units : mapping of str to str, optional
+            File column names (or file aliases) mapped to their declared units.
+            Values are converted through supy.units.convert to registry units
+            before the existing runtime conversion (pressure to hPa). Undeclared
+            columns retain their historical interpretation.
 
         Returns
         -------
@@ -246,7 +253,7 @@ class SUEWSForcing:
                 if not file_path.exists():
                     raise FileNotFoundError(f"Forcing file not found: {file_path}")
                 df = read_forcing(
-                    str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict, source_contract=source_contract
+                    str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict, source_contract=source_contract, units=units
                 )
                 dfs.append(df)
                 sources.append(str(file_path))
@@ -262,7 +269,7 @@ class SUEWSForcing:
         if not file_path.exists():
             raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
-        df = read_forcing(str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict, source_contract=source_contract)
+        df = read_forcing(str(file_path), tstep_mod=tstep_mod, on_conflict=on_conflict, source_contract=source_contract, units=units)
         df_main, extras = cls._split_per_landcover_columns(df)
         instance = cls(df_main, source=str(file_path))
         instance._extras = extras

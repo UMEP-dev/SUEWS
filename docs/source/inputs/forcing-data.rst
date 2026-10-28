@@ -84,6 +84,47 @@ missing-value policies.
    already hold pressure in hPa; one whose pressure looks like kPa is rejected
    with an error.
 
+Declaring file units in Python
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Files normally hold the registry units listed above. If a file holds other
+units, pass a ``units=`` mapping from column names to unit strings when loading
+it. For example, for air temperature in kelvin, pressure in hPa and rainfall
+in metres:
+
+.. code-block:: python
+
+   from supy import SUEWSSimulation
+
+   sim = SUEWSSimulation(
+       "site.yml",
+       units={"Tair": "K", "pres": "hPa", "rain": "m"},
+   )
+
+The mapping describes the file named by the existing YAML forcing block; it
+is a Python argument, not a YAML field. It is also accepted by
+:meth:`~supy.SUEWSSimulation.update_config`,
+:meth:`~supy.SUEWSSimulation.update_forcing` for file inputs,
+:meth:`~supy.SUEWSForcing.from_file`, :func:`~supy.util.read_forcing` and
+:func:`~supy.load_forcing_grid`. One mapping applies to every file in a list
+or directory and only to that load. Use separate loads when files use
+different units.
+
+Declared columns are converted through :func:`~supy.units.convert` to their
+registry file units before validation and resampling. Temperature is on-scale:
+273.15 K becomes 0 degrees Celsius. Pressure then follows the existing
+kPa-to-hPa runtime conversion exactly once. Rainfall remains an accumulated
+depth per forcing interval, even when declared in metres.
+
+Undeclared columns keep their existing interpretation; omitting ``units``
+leaves loading unchanged. Missing-value sentinels are preserved. Column names
+and file aliases are case-insensitive. Unknown or absent columns, columns
+without an unconditional registry unit, non-string units, unsupported unit
+strings and dimension mismatches raise errors naming the column. Unit strings
+must be accepted by :func:`~supy.units.parse_unit`; mass per area is not
+interchangeable with water depth. In-memory forcing already uses runtime units
+and does not accept a file-unit declaration.
+
 **Time Information**
 
 Each row must include these timestamp columns. Their position is unrestricted

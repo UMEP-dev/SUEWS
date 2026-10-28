@@ -8,7 +8,7 @@ Provides a user-friendly wrapper around the existing SuPy infrastructure.
 import copy
 from enum import Enum
 from pathlib import Path, PurePosixPath
-from typing import Any, Optional, Union
+from typing import Any, Mapping, Optional, Union
 import warnings
 
 import pandas as pd
@@ -104,7 +104,10 @@ class SUEWSSimulation:
 
     """
 
-    def __init__(self, config: Union[str, Path, dict, Any] = None):
+    def __init__(
+        self, config: Union[str, Path, dict, Any] = None, *,
+        units: Optional[Mapping[str, str]] = None,
+    ):
         """
         Initialize SUEWS simulation.
 
@@ -117,6 +120,11 @@ class SUEWSSimulation:
               through ``SUEWSConfig`` exactly like a YAML file)
             - SUEWSConfig object
             - None to create empty simulation
+        units : mapping of str to str, optional
+            Units held in the forcing files, keyed by column name. Applied
+            only to this load, through the shared file reader; never stored
+            in YAML. In-memory forcing already uses runtime units.
+
         """
         self._config = None
         self._config_path = None
@@ -137,12 +145,14 @@ class SUEWSSimulation:
         self._run_metadata = None
 
         if config is not None:
-            self.update_config(config)
+            self.update_config(config, units=units)
 
     def update_config(
         self,
         config: Union[str, Path, dict, SUEWSConfig],
         auto_load_forcing: bool = True,
+        *,
+        units: Optional[Mapping[str, str]] = None,
     ) -> "SUEWSSimulation":
         """
         Update simulation configuration.
@@ -169,6 +179,11 @@ class SUEWSSimulation:
             - You want explicit control over forcing data loading
             - Forcing file paths in config are placeholders
             - You plan to provide forcing data programmatically
+
+        units : mapping of str to str, optional
+            Units held in the forcing files, keyed by column name. Applied
+            only to this load, through the shared file reader; never stored
+            in YAML. In-memory forcing already uses runtime units.
 
         Returns
         -------
@@ -202,7 +217,7 @@ class SUEWSSimulation:
 
             # Optionally try to load forcing from config
             if auto_load_forcing:
-                self._try_load_forcing_from_config()
+                self._try_load_forcing_from_config(units=units)
 
         elif isinstance(config, dict):
             if self._config is None:
@@ -224,7 +239,7 @@ class SUEWSSimulation:
                 # in the config. Relative paths resolve against the CWD
                 # here (no file anchor); failures warn rather than raise.
                 if auto_load_forcing:
-                    self._try_load_forcing_from_config()
+                    self._try_load_forcing_from_config(units=units)
             else:
                 # Merge the partial update onto the existing config, then
                 # re-validate the whole configuration so enum coercion,
@@ -239,6 +254,9 @@ class SUEWSSimulation:
                     yaml_path=str(self._config_path) if self._config_path else None,
                 )
 
+                if auto_load_forcing and units is not None:
+                    self._try_load_forcing_from_config(units=units)
+
             # Regenerate state DataFrame
             self._df_state_init = self._config.to_df_state()
 
@@ -247,6 +265,8 @@ class SUEWSSimulation:
             self._config = config
             self._config_identity = None
             self._df_state_init = self._config.to_df_state()
+            if auto_load_forcing and units is not None:
+                self._try_load_forcing_from_config(units=units)
 
         return self
 
@@ -436,6 +456,7 @@ class SUEWSSimulation:
         forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing],
         *,
         on_conflict: str = "error",
+        units: Optional[Mapping[str, str]] = None,
     ) -> "SUEWSSimulation":
         """
         Update meteorological forcing data.
@@ -457,6 +478,11 @@ class SUEWSSimulation:
             ``"first"`` / ``"last"`` resolve them by list order (earlier /
             later file wins) and log a warning. Ignored for DataFrame and
             SUEWSForcing inputs.
+
+        units : mapping of str to str, optional
+            Units held in the forcing files, keyed by column name. Applied
+            only to this load, through the shared file reader; never stored
+            in YAML. In-memory forcing already uses runtime units.
 
         Returns
         -------
@@ -500,6 +526,8 @@ class SUEWSSimulation:
 
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
+        if units is not None and isinstance(forcing_data, (SUEWSForcing, pd.DataFrame)):
+            raise ValueError("units declarations apply only to forcing files, not in-memory data")
         if isinstance(forcing_data, SUEWSForcing):
             self._df_forcing = prepare_dataframe_forcing(
                 forcing_data.to_dataframe(include_extras=True), tstep_mod=tstep_mod
@@ -515,7 +543,7 @@ class SUEWSSimulation:
         elif isinstance(forcing_data, list):
             # Handle list of files
             self._df_forcing = SUEWSSimulation._load_forcing_from_list(
-                forcing_data, tstep_mod=tstep_mod, on_conflict=on_conflict
+                forcing_data, tstep_mod=tstep_mod, on_conflict=on_conflict, units=units
             )
             self._forcing_sources = self._describe_forcing_sources(
                 "files",
@@ -526,7 +554,7 @@ class SUEWSSimulation:
             if not forcing_path.exists():
                 raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
             self._df_forcing = SUEWSSimulation._load_forcing_file(
-                forcing_path, tstep_mod=tstep_mod, on_conflict=on_conflict
+                forcing_path, tstep_mod=tstep_mod, on_conflict=on_conflict, units=units
             )
             if forcing_path.is_dir():
                 dir_files = []
@@ -575,7 +603,7 @@ class SUEWSSimulation:
                 record["description"] = description
         return record
 
-    def _try_load_forcing_from_config(self):
+    def _try_load_forcing_from_config(self, *, units: Optional[Mapping[str, str]] = None):
         """Try to load forcing data from configuration if not explicitly provided."""
         if self._config is None:
             return
@@ -608,9 +636,11 @@ class SUEWSSimulation:
                         if self._config_path:
                             forcing_value = self._resolve_forcing_paths(forcing_value)
 
-                        self.update_forcing(forcing_value)
+                        self.update_forcing(forcing_value, units=units)
 
         except Exception as e:
+            if units is not None:
+                raise
             warnings.warn(f"Could not load forcing from config: {e}", stacklevel=2)
 
     def _forcing_declared_runtime(self) -> bool:
@@ -688,6 +718,7 @@ class SUEWSSimulation:
         forcing_list: list[Union[str, Path]],
         tstep_mod: int = 300,
         on_conflict: str = "error",
+        units: Optional[Mapping[str, str]] = None,
     ) -> pd.DataFrame:
         """Load and merge forcing data from a list of files.
 
@@ -713,7 +744,7 @@ class SUEWSSimulation:
                     "Directories are not allowed in lists."
                 )
 
-            df = read_forcing(str(path), tstep_mod=tstep_mod, on_conflict=on_conflict)
+            df = read_forcing(str(path), tstep_mod=tstep_mod, on_conflict=on_conflict, units=units)
             dfs.append(df)
             sources.append(str(path))
 
@@ -721,7 +752,8 @@ class SUEWSSimulation:
 
     @staticmethod
     def _load_forcing_file(
-        forcing_path: Path, tstep_mod: int = 300, on_conflict: str = "error"
+        forcing_path: Path, tstep_mod: int = 300, on_conflict: str = "error", *,
+        units: Optional[Mapping[str, str]] = None
     ) -> pd.DataFrame:
         """Load forcing data from file or directory."""
         if forcing_path.is_dir():
@@ -745,7 +777,7 @@ class SUEWSSimulation:
 
             # Merge all files, reconciling overlapping timestamps
             dfs = [
-                read_forcing(str(file), tstep_mod=tstep_mod, on_conflict=on_conflict)
+                read_forcing(str(file), tstep_mod=tstep_mod, on_conflict=on_conflict, units=units)
                 for file in forcing_files
             ]
             return merge_forcing_frames(
@@ -753,7 +785,7 @@ class SUEWSSimulation:
             )
         else:
             return read_forcing(
-                str(forcing_path), tstep_mod=tstep_mod, on_conflict=on_conflict
+                str(forcing_path), tstep_mod=tstep_mod, on_conflict=on_conflict, units=units
             )
 
     def run(

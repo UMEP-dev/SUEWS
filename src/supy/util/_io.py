@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Mapping, Optional
 
 import numpy as np
 import pandas as pd
@@ -54,7 +55,10 @@ def read_suews(path_suews_file: str) -> pd.DataFrame:
     return df_suews
 
 
-def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error", *, source_contract=None) -> pd.DataFrame:
+def read_forcing(
+    path_suews_file: str, tstep_mod=300, on_conflict="error", *,
+    source_contract=None, units: Optional[Mapping[str, str]] = None,
+) -> pd.DataFrame:
     """Read in SUEWS forcing files as DataFrame ready for SuPy simulation.
 
     Parameters
@@ -73,6 +77,12 @@ def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error", *, so
         :func:`supy._load.merge_forcing_frames`. The default rejects
         conflicts with :class:`supy._load.ForcingConflictError`.
 
+    units : mapping of str to str, optional
+        File column names (or file aliases) mapped to their declared units.
+        Values are converted through supy.units.convert to registry units
+        before the existing runtime conversion (pressure to hPa). Undeclared
+        columns retain their historical interpretation.
+
     Returns
     -------
     pd.DataFrame
@@ -88,7 +98,7 @@ def read_forcing(path_suews_file: str, tstep_mod=300, on_conflict="error", *, so
     str_pattern = path_suews_file.name
 
     df_forcing_raw = load_SUEWS_Forcing_met_df_pattern(
-        path_input, str_pattern, on_conflict=on_conflict, source_contract=source_contract
+        path_input, str_pattern, on_conflict=on_conflict, source_contract=source_contract, units=units
     )
     return resample_forcing_df(df_forcing_raw, tstep_mod=tstep_mod)
 

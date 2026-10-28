@@ -2310,11 +2310,8 @@ END MODULE WhereWhen
 MODULE module_ctrl_const_mathconst
 
    REAL(KIND(1D0)), PARAMETER :: pi = 3.14159265359
-   REAL(KIND(1D0)), PARAMETER :: pi_d0 = 3.141592653589793D0
-   REAL(KIND(1D0)), PARAMETER :: pi_dplus0 = 3.141592653589793D+0
-   REAL(KIND(1.0)), PARAMETER :: pi_r0_long = 3.141592653589793
-   REAL(KIND(1.0)), PARAMETER :: pi_r0_9 = 3.141592654
-   REAL(KIND(1.0)), PARAMETER :: pi_r0_7 = 3.1415927
+   REAL(KIND(1D0)), PARAMETER :: pi_d0 = 3.141592653589793D0 ! pi to double precision; differs from pi, which holds the single-precision value
+   REAL, PARAMETER :: pi_sp = 3.14159265359 ! default-REAL pi, for expressions evaluated in default REAL; same value as pi
    REAL(KIND(1D0)), PARAMETER :: dtr = 0.0174532925, rtd = 57.2957795
 
 END MODULE module_ctrl_const_mathconst

@@ -216,7 +216,7 @@ CONTAINS
       ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
       USE module_ctrl_const_physconst, ONLY: C2K
-      USE module_ctrl_const_mathconst, ONLY: pi_r0_7
+      USE module_ctrl_const_mathconst, ONLY: pi_sp
       IMPLICIT NONE
       !!!!!!!!!!!!!! Set objects and variables !!!!!!!!!!!!!!
 
@@ -548,7 +548,7 @@ CONTAINS
 
       ! set cos_sza, nlay, ncol, ntotlay
       ! Guard against negative night-time values to keep radiation geometry physical.
-      canopy_props%cos_sza = MAX(0.0D0, COS(zenith_deg*pi_r0_7/180))
+      canopy_props%cos_sza = MAX(0.0D0, COS(zenith_deg*pi_sp/180))
       canopy_props%nlay = nlay
       canopy_props%ncol = ncol
       canopy_props%ntotlay = nlayer

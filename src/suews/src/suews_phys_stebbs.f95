@@ -403,7 +403,7 @@ CONTAINS
    FUNCTION cal_mainsWaterTemperature(dayOfYear, To_annual_C, dTo_month_C) RESULT(Tmains)
       USE module_phys_stebbs_precision
       USE module_ctrl_const_physconst, ONLY: C2K
-      USE module_ctrl_const_mathconst, ONLY: pi_r0_long
+      USE module_ctrl_const_mathconst, ONLY: pi_sp
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: dayOfYear
       REAL(KIND(1D0)), INTENT(in) :: To_annual_C
@@ -415,7 +415,7 @@ CONTAINS
       REAL(KIND(1D0)) :: angle_deg
       REAL(KIND(1D0)) :: angle_rad
       REAL(KIND(1D0)) :: Tmains_C
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_r0_long
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
 
       ! EnergyPlus empirical coefficients in SI units
       ratio = 0.28 + 0.018*To_annual_C

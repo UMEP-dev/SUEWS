@@ -218,7 +218,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "roughness_length_momentum",
         "roughness_length_heat",
         "stability",
-        "soil_moisture_deficit",
+        "soil_moisture",
         "water_use",
         "roughness_sublayer",
         "frontal_area_index",
@@ -611,12 +611,12 @@ def validate_smdmethod_dependency(smdmethod, yaml_data):
     Notes
     -----
     - If SMDMethod is set to observed, each site must include a 'soil_observation' block in its properties.
-    - The 'soil_observation' block should contain: depth, smcap, soil_not_rocks, and bulk_density.
+    - The 'soil_observation' block should contain: layer_depth and optional layer_top, soil_not_rocks and bulk_density.
     - If any site is missing this block, an error is returned with a suggested fix.
     """
     results = []
 
-    # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
+    smdmethod = _method_code(smdmethod, "soil_moisture")
     if smdmethod:  # Truthy check: skips None and 0 (modelled), validates 1+ (observed)
         sites = yaml_data.get("sites", [])
         sites_missing_soil_obs = []
@@ -640,7 +640,7 @@ def validate_smdmethod_dependency(smdmethod, yaml_data):
                     ),
                     suggested_value=(
                         "Add 'soil_observation' block to site properties with: "
-                        "depth, smcap, soil_not_rocks, and bulk_density"
+                        "layer_depth and optional layer_top, soil_not_rocks and bulk_density"
                     ),
                 )
             )
@@ -697,7 +697,7 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     stabilitymethod = read_physics_key(physics, "stability")
     storageheatmethod = read_physics_key(physics, "storage_heat")
     ohmincqf = read_physics_key(physics, "ohm_inc_qf")
-    smdmethod = read_physics_key(physics, "soil_moisture_deficit")
+    smdmethod = read_physics_key(physics, "soil_moisture")
     netradiationmethod = read_physics_key(physics, "net_radiation")
     stebbsmethod = get_stebbsmethod_value(physics)
     rcmethod = get_value_safe(get_stebbs_block(physics), "capacitance")

@@ -10,6 +10,7 @@ import yaml
 from .field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
+    MODELPHYSICS_SOIL_RENAMES,
     apply_field_renames,
     fold_stebbs_physics,
 )
@@ -406,17 +407,10 @@ class StabilityMethod(Enum):
 
 
 class SMDMethod(Enum):
-    """
-    Method for determining soil moisture deficit (SMD).
-
-    0: MODELLED - SMD calculated from water balance using soil parameters
-    1: OBSERVED_VOLUMETRIC - Uses observed volumetric soil moisture content (m³/m³) from forcing file
-    2: OBSERVED_GRAVIMETRIC - Uses observed gravimetric soil moisture content (kg/kg) from forcing file
-    """
+    """Soil moisture source: modelled water balance or observed liquid content."""
 
     MODELLED = 0
-    OBSERVED_VOLUMETRIC = 1
-    OBSERVED_GRAVIMETRIC = 2
+    OBSERVED = 1
 
     def __int__(self):
         return self.value
@@ -891,6 +885,7 @@ class ModelPhysics(BaseModel):
             values = apply_field_renames(
                 values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__
             )
+            values = apply_field_renames(values, MODELPHYSICS_SOIL_RENAMES, cls.__name__)
             # gh#1483: expose OHMIncQF under the storage_heat selector while
             # preserving the flat field used by the internal/Fortran state.
             values = fold_storage_heat_ohm_inc_qf(values, cls.__name__)
@@ -1054,7 +1049,7 @@ class ModelPhysics(BaseModel):
             "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
         },
     )
-    soil_moisture_deficit: FlexibleRefValue(SMDMethod) = Field(
+    soil_moisture: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
         description=_enum_description(SMDMethod),
         json_schema_extra={"unit": None},
@@ -1150,7 +1145,7 @@ class ModelPhysics(BaseModel):
         ("roughness_length_momentum", "roughlenmommethod"),
         ("roughness_length_heat", "roughlenheatmethod"),
         ("stability", "stabilitymethod"),
-        ("soil_moisture_deficit", "smdmethod"),
+        ("soil_moisture", "smdmethod"),
         ("water_use", "waterusemethod"),
         ("laimethod", "laimethod"),
         ("roughness_sublayer", "rslmethod"),
@@ -1236,7 +1231,7 @@ class ModelPhysics(BaseModel):
             ("roughlenmommethod", "roughness_length_momentum"),
             ("roughlenheatmethod", "roughness_length_heat"),
             ("stabilitymethod", "stability"),
-            ("smdmethod", "soil_moisture_deficit"),
+            ("smdmethod", "soil_moisture"),
             ("waterusemethod", "water_use"),
             ("rslmethod", "roughness_sublayer"),
             ("faimethod", "frontal_area_index"),

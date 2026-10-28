@@ -1189,7 +1189,7 @@ def precheck_model_physics_params(data: dict) -> dict:
         - roughness_length_momentum
         - roughness_length_heat
         - stability
-        - soil_moisture_deficit
+        - soil_moisture
         - water_use
         - roughness_sublayer
         - frontal_area_index
@@ -1221,7 +1221,7 @@ def precheck_model_physics_params(data: dict) -> dict:
         "roughness_length_momentum",
         "roughness_length_heat",
         "stability",
-        "soil_moisture_deficit",
+        "soil_moisture",
         "water_use",
         "roughness_sublayer",
         "frontal_area_index",

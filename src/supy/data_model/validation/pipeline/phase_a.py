@@ -32,7 +32,7 @@ PHYSICS_OPTIONS = {
     "roughness_length_momentum",
     "roughness_length_heat",
     "stability",
-    "soil_moisture_deficit",
+    "soil_moisture",
     "water_use",
     "roughness_sublayer",
     "frontal_area_index",

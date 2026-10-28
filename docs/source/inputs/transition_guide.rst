@@ -215,6 +215,48 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev6_soil_migration:
+
+Upgrading to Schema 2026.6.dev6
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``soil_moisture_deficit`` becomes ``soil_moisture`` with ``modelled`` (0)
+and ``observed`` (1); method 2 is no longer a current-schema option.
+For modelled configurations, run:
+
+.. code-block:: bash
+
+   suews convert -i old.yml -o new.yml --from 2026.6.dev5
+
+Alternatively use ``suews-schema migrate`` with target version
+``2026.6.dev6``. Inactive legacy observation blocks are removed with a logged
+reason. Current observation blocks are preserved. A second upgrade is a no-op.
+
+Active legacy observations require confirmed represented thickness and upper
+boundary, plus evidence that legacy forcing was converted. Without that
+evidence the upgrade fails before writing an output configuration:
+
+.. code-block:: text
+
+   Soil-moisture migration requires confirmed layer bounds and conversion of legacy xsmd forcing; no output configuration was written
+
+The Python migration APIs accept keyword-only ``migration_context`` containing
+confirmed bounds, original method and a completed forcing manifest. Historical
+``depth`` is not automatically assumed to be a layer thickness. Once confirmed,
+its millimetres convert to metres and density converts from grams to kilograms
+per corresponding cubic unit (factor 1000). References are retained.
+The coordinated forcing converter is separate follow-on work; this schema
+change does not convert forcing files.
+
+``smcap`` is retired because deficits use the configured model soil store.
+``soil_store_capacity`` is available water capacity, while the new per-surface
+``soil_field_capacity`` specifies volumetric water content at field capacity.
+For each positive-area non-water surface, require
+:math:`1000\,\theta_{fc}\,d \ge C`, with depth in metres and capacity in
+kilograms per square metre. Observation top must be zero and thickness must
+match every contributing soil depth within an absolute tolerance of one
+micrometre. Modelled runs require no observation metadata or field capacity.
+
 .. _schema_dev5_shortwave_migration:
 
 Upgrading to Schema 2026.6.dev5

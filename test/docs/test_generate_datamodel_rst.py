@@ -196,8 +196,8 @@ CHOICE_RESOLVERS = {
     "emissions.co2.biogenic": _resolve_emissions_biogenic,
     "storage_heat": _resolve_storage_heat_family,
     "storage_heat.ohm.include_qf": _resolve_storage_heat_include_qf,
-    "soil_moisture_deficit": lambda choice: resolve_scalar_name(
-        "soil_moisture_deficit", choice
+    "soil_moisture": lambda choice: resolve_scalar_name(
+        "soil_moisture", choice
     ),
     "water_use": lambda choice: resolve_scalar_name("water_use", choice),
     "leaf_area_index": lambda choice: resolve_scalar_name("laimethod", choice),

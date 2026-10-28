@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev5"
+CURRENT_SCHEMA_VERSION = "2026.6.dev6"
 
 # Schema version history and descriptions.
 #
@@ -34,6 +34,12 @@ CURRENT_SCHEMA_VERSION = "2026.6.dev5"
 # that shipped it, so the YAML-upgrade dispatcher can reason about real
 # schema identities rather than synthetic labels.
 SCHEMA_VERSIONS: dict[str, str] = {
+    "2026.6.dev6": (
+        "Observed soil-water configuration (#1422): soil_moisture source selector, "
+        "explicit whole-store layer bounds in metres, optional SI density and "
+        "surface field capacity; retire sensor saturation capacity. Active legacy "
+        "observations require confirmed bounds and a completed forcing manifest."
+    ),
     "2025.12": (
         "Initial formal YAML schema for the 2025.10.15 / 2025.11.20 releases "
         "(pre-#879 STEBBS layout: Wallx1 / Roofx1, DHWVesselEmissivity, "

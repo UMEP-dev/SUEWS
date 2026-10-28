@@ -12,6 +12,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from pathlib import Path
+from copy import deepcopy
+from dataclasses import dataclass
+from functools import wraps
+import math
 import sys
 from typing import Callable
 
@@ -43,6 +47,16 @@ from ...data_model.core.field_renames import (
 )
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
+
+# Historical rename steps must retain their outgoing dev5 spelling. The new
+# delta owns the soil selector rename, including for explicit intermediate stops.
+ALL_FIELD_RENAMES = {key: ("soil_moisture_deficit" if value == "soil_moisture" else value)
+                     for key, value in ALL_FIELD_RENAMES.items()}
+MODELPHYSICS_SUFFIX_RENAMES = {
+    key: ("soil_moisture_deficit" if value == "soil_moisture" else value)
+    for key, value in MODELPHYSICS_SUFFIX_RENAMES.items()
+    if key != "soil_moisture_deficit"
+}
 
 # ---------------------------------------------------------------------------
 # Package-version -> schema-version resolver
@@ -1331,6 +1345,146 @@ def _migrate_2026_6_dev4_to_2026_6_dev5(cfg: dict) -> dict:
     return cfg
 
 
+SOIL_MIGRATION_MESSAGE = (
+    "Soil-moisture migration requires confirmed layer bounds and conversion of legacy xsmd forcing; no output configuration was written"
+)
+
+
+@dataclass(frozen=True)
+class SoilMigrationContext:
+    """Explicit evidence supplied by the coordinated forcing converter.
+
+    Bounds are indexed by site position and expressed in metres. The completed
+    manifest records original_method, source_unit, input_sha256 and output_sha256.
+    This context is never serialised as runtime configuration.
+    """
+
+    layer_bounds: dict[int, tuple[float, float]]
+    original_method: int
+    forcing_manifest: dict
+    legacy_depth_is_thickness: bool = False
+
+
+def _soil_raw(value):
+    if isinstance(value, dict) and "value" in value:
+        return _soil_raw(value["value"])
+    if hasattr(value, "value"):
+        return _soil_raw(value.value)
+    return value
+
+
+def _soil_method(value):
+    raw = _soil_raw(value)
+    if isinstance(raw, str):
+        raw = raw.strip().lower().rsplit(".", 1)[-1]
+        raw = {"modelled": 0, "observed_volumetric": 1,
+               "observed_gravimetric": 2, "observed": "observed"}.get(raw, raw)
+        if isinstance(raw, str) and raw in ("0", "1", "2"):
+            raw = int(raw)
+    if raw not in (0, 1, 2, "observed"):
+        raise YamlUpgradeError(f"Unknown legacy soil-moisture method {raw!r}")
+    return raw
+
+
+def _scaled_soil_value(value, scale):
+    if isinstance(value, dict):
+        result = deepcopy(value)
+        result["value"] = float(_soil_raw(value)) * scale
+        return result
+    return float(_soil_raw(value)) * scale
+
+
+def _migrate_2026_6_dev5_to_2026_6_dev6(cfg: dict, *, migration_context=None) -> dict:
+    """Apply the soil delta transactionally, retaining original method evidence."""
+    result = deepcopy(cfg)
+    physics = result.get("model", {}).get("physics", {})
+    aliases = ("soil_moisture", "soil_moisture_deficit", "smdmethod", "smd_method")
+    present = [key for key in aliases if key in physics]
+    if len(present) > 1:
+        raise YamlUpgradeError("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.")
+    key = present[0] if present else None
+    method = _soil_method(physics[key]) if key else 0
+    active = method != 0
+    context = migration_context
+    sites = result.get("sites", [])
+    if active:
+        if not isinstance(context, SoilMigrationContext):
+            raise YamlUpgradeError(SOIL_MIGRATION_MESSAGE)
+        manifest = context.forcing_manifest
+        expected_unit = {1: "m3 m-3", 2: "kg kg-1"}.get(context.original_method)
+        if (expected_unit is None or (method != "observed" and method != context.original_method)
+                or manifest.get("completed") is not True
+                or manifest.get("original_method") != context.original_method
+                or manifest.get("source_unit") != expected_unit
+                or any(not isinstance(manifest.get(k), str) or len(manifest[k]) != 64
+                       or any(c not in "0123456789abcdef" for c in manifest[k])
+                       for k in ("input_sha256", "output_sha256"))
+                or any(i not in context.layer_bounds for i in range(len(sites)))):
+            raise YamlUpgradeError(SOIL_MIGRATION_MESSAGE)
+    logs = []
+    for i, site in enumerate(sites):
+        props = site.get("properties", {})
+        old = props.get("soil_observation")
+        if not active:
+            if old is not None and any(k in old for k in ("depth", "smcap", "obs_sm_depth", "obs_sm_smcap")):
+                if "smcap" in old:
+                    logs.append("Sensor saturation capacity is retired; deficit now uses the configured model soil-store capacity")
+                props.pop("soil_observation")
+                logs.append(f"sites[{i}].soil_observation removed: inactive legacy sensor metadata cannot establish represented layer bounds")
+            continue
+        old = old or {}
+        if any(k in old for k in ("layer_depth", "layer_top")):
+            raise YamlUpgradeError("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.")
+        top, depth = context.layer_bounds[i]
+        if not math.isfinite(top) or not math.isfinite(depth) or abs(top) > 1e-6 or depth <= 0:
+            raise YamlUpgradeError(SOIL_MIGRATION_MESSAGE)
+        new = {"layer_top": top, "layer_depth": depth}
+        if "depth" in old:
+            new["layer_depth"] = _scaled_soil_value(old["depth"], 0.001)
+            if context.legacy_depth_is_thickness and not math.isclose(_soil_raw(new["layer_depth"]), depth, rel_tol=0, abs_tol=1e-6):
+                raise YamlUpgradeError(SOIL_MIGRATION_MESSAGE)
+            if context.legacy_depth_is_thickness:
+                logs.append(f"sites[{i}].depth -> layer_depth: confirmed thickness, mm to m, scale 0.001")
+            else:
+                if isinstance(new["layer_depth"], dict):
+                    new["layer_depth"]["value"] = depth
+                else:
+                    new["layer_depth"] = depth
+                logs.append(f"sites[{i}].depth retired as installation depth; explicit confirmed layer thickness used")
+        for name in ("ref", "soil_not_rocks"):
+            if name in old:
+                new[name] = old[name]
+        if "bulk_density" in old:
+            new["bulk_density"] = _scaled_soil_value(old["bulk_density"], 1000)
+            logs.append(f"sites[{i}].bulk_density: g cm-3 to kg m-3, scale 1000")
+        if "smcap" in old:
+            logs.append("Sensor saturation capacity is retired; deficit now uses the configured model soil-store capacity")
+        unknown = set(old) - {"depth", "smcap", "bulk_density", "soil_not_rocks", "ref"}
+        if unknown:
+            raise YamlUpgradeError(f"Unrecognised legacy soil observation fields: {sorted(unknown)}")
+        props["soil_observation"] = new
+    if key:
+        entry = physics.pop(key)
+        if isinstance(entry, dict):
+            entry["value"] = "observed" if active else "modelled"
+        else:
+            entry = "observed" if active else "modelled"
+        physics["soil_moisture"] = entry
+        logs.append(f"{key} -> soil_moisture; original method {method}")
+    if active:
+        # Validate all sites before returning any current-shaped configuration.
+        from ...data_model.core.config import SUEWSConfig
+        candidate = deepcopy(result)
+        candidate["schema_version"] = CURRENT_SCHEMA_VERSION
+        SUEWSConfig.model_validate(candidate)
+        logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
+                    f"input_sha256={context.forcing_manifest['input_sha256']}; "
+                    f"output_sha256={context.forcing_manifest['output_sha256']}")
+    for message in logs:
+        _log(f"[yaml-upgrade]   {message}")
+    return result
+
+
 def _migrate_2026_6_dev3_to_current(cfg: dict) -> dict:
     """Chain the optional STEBBS controls and the shortwave selector rename."""
     cfg = _migrate_2026_6_dev3_to_2026_6_dev4(cfg)
@@ -1426,6 +1580,31 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
 }
 
 
+# Snapshot the outgoing routes before wrapping; intermediate dev5 targets keep
+# their original bodies. Every older-to-current edge composes the delta once.
+def _with_soil_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = handler(deepcopy(cfg))
+        return _migrate_2026_6_dev5_to_2026_6_dev6(cfg, migration_context=migration_context)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev5")] = _handler
+        _HANDLERS[(_source, _target)] = _with_soil_delta(_handler)
+_HANDLERS[("2026.6.dev5", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev5_to_2026_6_dev6
+
+
+def apply_migration_handler(handler, cfg, *, migration_context=None):
+    """Pass private context only to handlers declaring that keyword."""
+    from inspect import signature
+    if "migration_context" in signature(handler, follow_wrapped=False).parameters:
+        return handler(cfg, migration_context=migration_context)
+    return handler(cfg)
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -1471,6 +1650,8 @@ def upgrade_yaml(
     input_path: str | Path,
     output_path: str | Path,
     from_ver: str | None = None,
+    *,
+    migration_context: SoilMigrationContext | None = None,
 ) -> None:
     """Upgrade a YAML configuration written for an earlier release.
 
@@ -1529,7 +1710,7 @@ def upgrade_yaml(
         source_schema, target_schema
     ):
         _log(f"[yaml-upgrade] Applying handler {from_s} -> {to_s}: {handler.__name__}")
-        cfg = handler(cfg)
+        cfg = apply_migration_handler(handler, cfg, migration_context=migration_context)
 
     cfg["schema_version"] = target_schema
 
@@ -1541,6 +1722,7 @@ def upgrade_yaml(
 
 
 __all__ = [
+    "SoilMigrationContext",
     "YamlUpgradeError",
     "upgrade_yaml",
 ]

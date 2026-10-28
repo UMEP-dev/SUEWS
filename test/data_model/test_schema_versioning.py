@@ -535,3 +535,27 @@ def test_sample_config_includes_complete_reference_metadata_example():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+def test_every_older_current_route_applies_soil_delta_once(monkeypatch):
+    from supy.util.converter import yaml_upgrade as upgrade
+    from supy.data_model.configuration.migration import SchemaMigrator
+    calls = []
+    original = upgrade._migrate_2026_6_dev5_to_2026_6_dev6
+
+    def tracked(cfg, *, migration_context=None):
+        calls.append(True)
+        return original(cfg, migration_context=migration_context)
+
+    monkeypatch.setattr(upgrade, "_migrate_2026_6_dev5_to_2026_6_dev6", tracked)
+    monkeypatch.setitem(upgrade._HANDLERS, ("2026.6.dev5", CURRENT_SCHEMA_VERSION), tracked)
+    sources = [source for source, target in upgrade._HANDLERS
+               if target == CURRENT_SCHEMA_VERSION and source != target]
+    assert len(sources) >= 9
+    for source in sources:
+        calls.clear()
+        cfg = {"schema_version": source, "model": {"physics": {"soil_moisture_deficit": 0}}, "sites": []}
+        result = SchemaMigrator().migrate(cfg)
+        assert len(calls) == 1, source
+        assert "soil_moisture" in result["model"]["physics"]
+        assert "soil_moisture_deficit" not in result["model"]["physics"]

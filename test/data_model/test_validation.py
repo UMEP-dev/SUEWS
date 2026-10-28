@@ -4503,7 +4503,7 @@ model:
     roughness_length_momentum: {value: 1}
     roughness_length_heat: {value: 2}
     stability: {value: 3}
-    soil_moisture_deficit: {value: 0}
+    soil_moisture: {value: 0}
     water_use: {value: 0}
     roughness_sublayer: {value: 1}
     roughness_sublayer_level: {value: 1}
@@ -4578,7 +4578,7 @@ model:
     roughness_length_momentum: {value: 1}
     roughness_length_heat: {value: 2}
     stability: {value: 3}
-    soil_moisture_deficit: {value: 0}
+    soil_moisture: {value: 0}
     water_use: {value: 0}
     roughness_sublayer: {value: 1}
     frontal_area_index: {value: 1}
@@ -4664,7 +4664,7 @@ model:
     roughness_length_momentum: {value: 1}
     roughness_length_heat: {value: 2}
     stability: {value: 3}
-    soil_moisture_deficit: {value: 0}
+    soil_moisture: {value: 0}
     water_use: {value: 0}
     roughness_sublayer: {value: 1}
     frontal_area_index: {value: 1}
@@ -5027,7 +5027,7 @@ class TestPhaseBRenameAwareLookups:
     _REQUIRED_FLAT_PHYSICS = [
         "net_radiation", "emissions", "storage_heat", "ohm_inc_qf",
         "roughness_length_momentum", "roughness_length_heat", "stability",
-        "soil_moisture_deficit", "water_use", "roughness_sublayer",
+        "soil_moisture", "water_use", "roughness_sublayer",
         "frontal_area_index", "roughness_sublayer_level", "surface_conductance",
         "snow_use",
     ]

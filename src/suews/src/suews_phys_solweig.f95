@@ -826,7 +826,7 @@ CONTAINS
       CALL Kvikt_veg(svfE, svfEveg, vikttot, viktveg, viktwall)
       svfviktbuveg = (viktwall + (viktveg)*(1 - psi))
       IF (azimuth > (360 - t) .OR. azimuth <= (180 - t)) THEN
-         Keast = radI*shadow*COS(altitude*(deg2rad_pi_d0))*SIN(aziE*(deg2rad_pi_d0)) + &
+         Keast = radI*shadow*COS(altitude*deg2rad_pi_d0)*SIN(aziE*deg2rad_pi_d0) + &
                  radD*(1 - svfviktbuveg) + radG*albedo*svfviktbuveg*(1 - F_sh) !*sin(altitude*(pi/180));
       ELSE
          Keast = radD*(1 - svfviktbuveg) + radG*albedo*svfviktbuveg*(1 - F_sh) !*sin(altitude*(pi/180));
@@ -835,7 +835,7 @@ CONTAINS
       CALL Kvikt_veg(svfS, svfSveg, vikttot, viktveg, viktwall)
       svfviktbuveg = (viktwall + (viktveg)*(1 - psi))
       IF (azimuth > (90 - t) .AND. azimuth <= (270 - t)) THEN
-         Ksouth = radI*shadow*COS(altitude*(deg2rad_pi_d0))*SIN(aziS*(deg2rad_pi_d0)) + &
+         Ksouth = radI*shadow*COS(altitude*deg2rad_pi_d0)*SIN(aziS*deg2rad_pi_d0) + &
                   radD*(1 - svfviktbuveg) + radG*albedo*svfviktbuveg*(1 - F_sh) !*sin(altitude*(pi/180));
       ELSE
          Ksouth = radD*(1 - svfviktbuveg) + radG*albedo*svfviktbuveg*(1 - F_sh) !*sin(altitude*(pi/180));
@@ -844,7 +844,7 @@ CONTAINS
       CALL Kvikt_veg(svfW, svfWveg, vikttot, viktveg, viktwall)
       svfviktbuveg = (viktwall + (viktveg)*(1 - psi))
       IF (azimuth > (180 - t) .AND. azimuth <= (360 - t)) THEN
-         Kwest = radI*shadow*COS(altitude*(deg2rad_pi_d0))*SIN(aziW*(deg2rad_pi_d0)) + &
+         Kwest = radI*shadow*COS(altitude*deg2rad_pi_d0)*SIN(aziW*deg2rad_pi_d0) + &
                  radD*(1 - svfviktbuveg) + radG*albedo*svfviktbuveg*(1 - F_sh) !*sin(altitude*(pi/180));
       ELSE
          Kwest = radD*(1 - svfviktbuveg) + radG*albedo*svfviktbuveg*(1 - F_sh) !*sin(altitude*(pi/180));
@@ -853,7 +853,7 @@ CONTAINS
       CALL Kvikt_veg(svfN, svfNveg, vikttot, viktveg, viktwall)
       svfviktbuveg = (viktwall + (viktveg)*(1 - psi))
       IF (azimuth <= (90 - t) .OR. azimuth > (270 - t)) THEN
-         Knorth = radI*shadow*COS(altitude*(deg2rad_pi_d0))*SIN(aziN*(deg2rad_pi_d0)) + &
+         Knorth = radI*shadow*COS(altitude*deg2rad_pi_d0)*SIN(aziN*deg2rad_pi_d0) + &
                   radD*(1 - svfviktbuveg) + radG*albedo*svfviktbuveg*(1 - F_sh) !*sin(altitude*(pi/180));
       ELSE
          Knorth = radD*(1 - svfviktbuveg) + radG*albedo*svfviktbuveg*(1 - F_sh) !*sin(altitude*(pi/180));
@@ -989,7 +989,7 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaE)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (180 - t) .AND. azimuth <= (360 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziE*(deg2rad_pi_d0)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziE*deg2rad_pi_d0))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
             Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
@@ -1015,7 +1015,7 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaS)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth <= (90 - t) .OR. azimuth > (270 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziS*(deg2rad_pi_d0)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziS*deg2rad_pi_d0))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
             Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
@@ -1041,7 +1041,7 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaW)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (360 - t) .OR. azimuth <= (180 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziW*(deg2rad_pi_d0)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziW*deg2rad_pi_d0))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
             Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
@@ -1067,7 +1067,7 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaN)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (90 - t) .AND. azimuth <= (270 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziN*(deg2rad_pi_d0)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziN*deg2rad_pi_d0))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
             Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
@@ -1338,7 +1338,7 @@ CONTAINS
       ALLOCATE (tempb(1, 1))
       ALLOCATE (sh1(1, 1))
 
-      iazimuth = iazimuthA*(deg2rad_pi_d0)
+      iazimuth = iazimuthA*deg2rad_pi_d0
       !special cases
       IF (iazimuth == 0) THEN
          iazimuth = iazimuth + 0.000001

@@ -260,7 +260,6 @@ CONTAINS
                          qn_is, kup_is, lup_is, tsurf_is, & !Sub-surface radiation components
                          SF_all
 
-
       ! REAL(KIND(1D0)),PARAMETER   ::RAD2DEG=57.29577951
       REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = SBConst_567
 
@@ -1409,7 +1408,6 @@ CONTAINS
       INTEGER :: doy
       REAL(KIND(1D0)) :: Rmean, Rse, cosZ, Itoa
 
-
       Rmean = 149.6 !Stull 1998
       Rse = solar_ESdist(doy)
       IF (zenith < 90.*DEG2RAD) THEN
@@ -1476,7 +1474,6 @@ CONTAINS
       REAL(KIND(1D0)) :: Press_hPa, TemP_C_dew, zenith, G, trans
       REAL(KIND(1D0)) :: m, TrTpg, u, Tw, Ta, cosZ
       REAL(KIND(1D0)) :: Tdf
-
 
       IF (zenith > 80.*DEG2RAD) THEN
          cosZ = COS(80.*DEG2RAD)

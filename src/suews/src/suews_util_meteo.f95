@@ -10,8 +10,6 @@ MODULE module_util_meteo
 
    ! REAL (KIND(1d0)),PARAMETER ::  PI=3.141592654
 
-
-
    REAL(KIND(1D0)), PARAMETER :: MOLMASS_AIR = 0.028965 ! kg for 1 mol dry air
    REAL(KIND(1D0)), PARAMETER :: MOLMASS_CO2 = 0.04401 ! kg for 1 mol CO2
    REAL(KIND(1D0)), PARAMETER :: MOLMASS_H2O = 0.0180153 ! kg for 1 mol water vapor

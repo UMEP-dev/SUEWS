@@ -1121,7 +1121,7 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaE)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (180 - t) .AND. azimuth <= (360 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziE*(deg2rad_pi_d0)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziE*deg2rad_pi_d0))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
             Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
@@ -1147,7 +1147,7 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaS)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth <= (90 - t) .OR. azimuth > (270 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziS*(deg2rad_pi_d0)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziS*deg2rad_pi_d0))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
             Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
@@ -1173,7 +1173,7 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaW)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (360 - t) .OR. azimuth <= (180 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziW*(deg2rad_pi_d0)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziW*deg2rad_pi_d0))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
             Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
@@ -1199,7 +1199,7 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaN)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (90 - t) .AND. azimuth <= (270 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziN*(deg2rad_pi_d0)))**4)* &
+            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziN*deg2rad_pi_d0))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
             Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE

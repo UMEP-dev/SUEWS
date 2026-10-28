@@ -91,7 +91,8 @@ supported external workflow.
 
 ## Currently Deprecated Input Formats
 
-Input-format deprecations warn with ``DeprecationWarning`` at read time and state
+Input-format deprecations warn with ``FutureWarning`` at read time (visible to end
+users by default, as for ``_warn_functional_deprecation``) and state
 their removal condition in the warning, the reader's docstring and the user docs.
 
 - **Forcing column ``xsmd`` as an entirely missing placeholder** (forcing

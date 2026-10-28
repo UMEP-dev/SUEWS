@@ -57,7 +57,7 @@ def _legacy_file(tmp_path, value=None):
 
 
 def test_missing_legacy_placeholder_reads_as_missing_sm_with_warning(tmp_path):
-    with pytest.warns(DeprecationWarning, match="contract 3.0.0"):
+    with pytest.warns(FutureWarning, match="contract 3.0.0"):
         frame = read_forcing(str(_legacy_file(tmp_path)), tstep_mod=None)
     assert "xsmd" not in frame.columns
     assert frame["sm"].eq(-999).all()
@@ -69,7 +69,7 @@ def test_legacy_column_with_values_is_refused(tmp_path):
 
 
 def test_observed_run_refuses_legacy_placeholder(tmp_path):
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(FutureWarning):
         frame = read_forcing(str(_legacy_file(tmp_path)), tstep_mod=None)
     with pytest.raises(ValueError, match="Legacy soil-moisture input requires explicit migration"):
         validate_soil_content(frame, required=True)

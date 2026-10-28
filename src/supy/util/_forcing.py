@@ -64,7 +64,7 @@ def accept_legacy_soil_placeholder(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.")
     if not _all_missing(df[legacy[0]]):
         raise ValueError(LEGACY_SOIL_MESSAGE)
-    warnings.warn(LEGACY_PLACEHOLDER_WARNING, DeprecationWarning, stacklevel=2)
+    warnings.warn(LEGACY_PLACEHOLDER_WARNING, FutureWarning, stacklevel=2)
     result = df.rename(columns={legacy[0]: "sm"})
     result.attrs[LEGACY_PLACEHOLDER_ATTR] = True
     return result

@@ -14,6 +14,7 @@ import pandas as pd
 # import ray
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
+from ._output_metadata import write_output_parquet, write_text_metadata
 from ._post import _resample_output, df_var as df_var_out
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
@@ -576,7 +577,9 @@ class StreamedParquetParts:
         """Name the chunk the next :meth:`write` holds."""
         self._chunk = (int(year), int(chunk))
 
-    def write(self, path_output: Path, df_frame: pd.DataFrame, write_sidecars) -> None:
+    def write(
+        self, path_output: Path, df_frame: pd.DataFrame, write_sidecars, interval_s=None
+    ) -> None:
         """Write one chunk's rows to its own part file.
 
         *write_sidecars* writes the files saved beside the output folder and
@@ -592,9 +595,7 @@ class StreamedParquetParts:
         year, chunk = self._chunk
         path_part = self.path_output / f"part-{year:04d}-{chunk:03d}.parquet"
         path_tmp = path_part.with_name(f".{path_part.name}.tmp")
-        df_frame.to_parquet(
-            path_tmp, engine=_parquet_engine(), compression="snappy", index=True
-        )
+        write_output_parquet(df_frame, path_tmp, interval_s)
         os.replace(path_tmp, path_part)
         self._chunk = None
 
@@ -763,6 +764,7 @@ def save_df_grid_group(
     fallback_freq_s=300,
     streamed_files: Optional[StreamedTextFiles] = None,
     year: Optional[int] = None,
+    metadata_interval_s: Optional[int] = None,
 ):
     """Write one grid-group-year table as a text file; return its path.
 
@@ -821,6 +823,14 @@ def save_df_grid_group(
         str_fn_dd = str(path_out).replace("DailyState_5", "DailyState")
         path_out.rename(Path(str_fn_dd))
         path_out = Path(str_fn_dd)
+    write_text_metadata(
+        path_out,
+        [name.strip() for name in _txt_header_names(df_year)],
+        group,
+        metadata_interval_s
+        if metadata_interval_s is not None
+        else int(freq.total_seconds()),
+    )
     logger_supy.debug(f"{path_out} saved in {t_end - t_start:.2f} s")
     return path_out
 
@@ -899,6 +909,7 @@ def _save_groups(
     timestamps_are_final=False,
     dict_group_frequency_s=None,
     step_s=None,
+    metadata_interval_s=None,
     streamed_files: Optional[StreamedTextFiles] = None,
 ) -> list:
     """Save ``list_group`` of ``df_save`` one grid, group and year at a time.
@@ -954,6 +965,9 @@ def _save_groups(
                         fallback_freq_s=step_s if step_s is not None else 300,
                         streamed_files=streamed_files,
                         year=year,
+                        metadata_interval_s=86400
+                        if group == "DailyState"
+                        else metadata_interval_s,
                     )
                     list_path_save.append(path_save)
                 del df_year
@@ -1111,6 +1125,9 @@ def save_df_output(
             df_state_final,
             step_s=fallback_frequency_s,
         )
+        metadata_interval_s = fallback_frequency_s
+        if save_tstep and df_save is df_output:
+            metadata_interval_s = _native_interval_s(df_state_final)
         list_path_save += _save_groups(
             df_save,
             list_group,
@@ -1122,6 +1139,7 @@ def save_df_output(
             timestamps_are_final=timestamps_are_final,
             dict_group_frequency_s=dict_group_frequency_s,
             step_s=fallback_frequency_s,
+            metadata_interval_s=metadata_interval_s,
             streamed_files=streamed_files,
         )
     return list_path_save
@@ -1306,6 +1324,20 @@ def save_initcond_nml(
     return list_path_nml
 
 
+def _native_interval_s(df_state_final) -> Optional[int]:
+    """Return the model timestep held in final state, or None without one.
+
+    Legacy callers may supply no state: the interval is then left unspecified
+    rather than inferred from the output index.
+    """
+    if df_state_final is None or df_state_final.empty:
+        return None
+    try:
+        return int(_state_scalar(df_state_final, df_state_final.index[0], "tstep"))
+    except (KeyError, ValueError):
+        return None
+
+
 def _parquet_engine() -> str:
     """Return the Parquet engine, raising a helpful error without pyarrow."""
     try:
@@ -1466,7 +1498,7 @@ def save_df_output_parquet(
     list
         List containing paths to saved Parquet files
     """
-    engine = _parquet_engine()
+    _parquet_engine()
 
     # Resample if needed; values are not written in place (gh#1849)
     df_save = df_output.copy(deep=False)
@@ -1510,17 +1542,16 @@ def save_df_output_parquet(
         timestamp_reference,
     )
 
+    interval_s = freq_s
+    if save_tstep and streamed_parquet is None:
+        interval_s = _native_interval_s(df_state_final)
+
     if streamed_parquet is not None:
-        streamed_parquet.write(path_output, df_to_save, write_sidecars)
+        streamed_parquet.write(path_output, df_to_save, write_sidecars, interval_s)
         return [path_output]
 
     # Write output data
-    df_to_save.to_parquet(
-        path_output,
-        engine=engine,
-        compression="snappy",
-        index=True,  # Preserve multi-index
-    )
+    write_output_parquet(df_to_save, path_output, interval_s)
     list_path_save = [path_output, *write_sidecars()]
 
     logger_supy.info(f"Saved Parquet output to {path_output}")

@@ -84,6 +84,7 @@ class OutputVariableRSTGenerator:
         else:  # tabbed (default)
             index_content = self._generate_index_tabbed()
 
+        index_content += self._output_metadata_reference()
         index_file = output_dir / "index.rst"
         with open(index_file, "w", encoding="utf-8") as f:
             f.write(index_content)
@@ -91,6 +92,59 @@ class OutputVariableRSTGenerator:
 
         print(f"\nGenerated documentation for {len(self.groups)} output groups")
         print(f"Total variables documented: {len(self.registry.variables)}")
+
+    @staticmethod
+    def _output_metadata_reference() -> str:
+        """Document writer projections alongside the registry reference."""
+        return """
+
+Units in saved output
+---------------------
+
+The output registry owns units, time operations and temperature kinds. Writers
+project these fields without converting values or changing text table bytes.
+These serialisation annotations sit outside the output contract catalogue and
+need no independent contract release. The catalogue version is recorded as
+``output_contract_version`` (currently the unreleased ``1.1.9``).
+
+Every text output table has a neighbouring ``<filename>.units.json`` file.
+Sidecars are auxiliary files; save methods retain their primary-file return lists.
+Its ``columns`` object uses the exact table headers, including date coordinates.
+Each known column contains ``units``, ``cell_methods``, ``description`` (the long
+registry description), ``interval`` and, where set, ``units_metadata``.
+Unregistered columns contain ``{"status": "unknown"}``; units are never guessed.
+
+Parquet output carries the same strings in each data field's Arrow metadata,
+and ``output_contract_version`` in the file schema metadata. This applies to
+whole files and every part of a streamed output folder. Pandas index metadata
+is retained. Final-state and run-summary Parquet files have different schemas
+and are not output-registry tables.
+
+The interval comes from the writer's output frequency, after resampling.
+For example, hourly Rain has ``units: mm``, ``interval: 1 hour`` and
+``cell_methods: time: sum (interval: 1 hour)``. Native five-minute output uses
+``5 minutes``. DailyState retains ``1 day``; point values retain ``time: point``.
+An interval qualifies a time operation, not the physical unit string.
+Legacy native-step Parquet calls without model state cannot supply an interval;
+they omit it rather than infer a timestep from the index.
+
+``output.units[("SUEWS", "Rain")]`` returns the unit string. The read-only
+``output.units.metadata`` mapping exposes the same CF fields, including
+``units_metadata`` for temperature kind. Its interval describes the held rows
+(or the configured written frequency for streamed output). A resampled output
+object reports its new interval. Without run context, its interval is unknown.
+Both levels of the metadata mapping are read-only.
+
+.. code-block:: python
+
+   import json
+   import pyarrow.parquet as pq
+
+   schema = pq.read_schema("site_SUEWS_output.parquet")
+   field_metadata = schema.field(0).metadata
+   with open("site1_2012_SUEWS_60.txt.units.json", encoding="utf-8") as stream:
+       units = json.load(stream)["columns"]["Rain"]
+"""
 
     def _format_group(self, group: OutputGroup, variables: list) -> str:
         """Format a single output group as RST."""

@@ -25,7 +25,7 @@ MODULE module_phys_anohm
    USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day, SBConst_567, C2K
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day, SBConst_567, C2K, cp_air_anohm_sp, lv_anohm_sp
    IMPLICIT NONE
 CONTAINS
 
@@ -1079,8 +1079,8 @@ CONTAINS
       REAL(kind=8), DIMENSION(:), ALLOCATABLE :: qs ! Saturated specific humidity at surface,kg kg-1
 
       ! thermodynamic values at standard temperature (293.15 K) and pressure (101325 pascals):
-      REAL(kind=8), PARAMETER :: cp_air = 1006.38 ! specific heat capacity of air, J kg-1 K-1
-      REAL(kind=8), PARAMETER :: Lv_air = 2264.705E3 ! latent heat of vaporization of water, J kg-1
+      REAL(kind=8), PARAMETER :: cp_air = cp_air_anohm_sp ! specific heat capacity of air, J kg-1 K-1
+      REAL(kind=8), PARAMETER :: Lv_air = lv_anohm_sp ! latent heat of vaporization of water, J kg-1
 
       INTEGER :: lenDay, i, err, nVar, nPrm
 

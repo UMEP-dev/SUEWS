@@ -1,7 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: eps_fp, C2K
+   USE module_ctrl_const_physconst, ONLY: eps_fp, C2K, sec_per_day_sp
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
@@ -64,7 +64,7 @@ CONTAINS
 
       REAL(KIND(1D0)) :: tair_av_next
 
-      REAL(KIND(1D0)), PARAMETER :: len_day_s = 24.*3600. ! day length in seconds
+      REAL(KIND(1D0)), PARAMETER :: len_day_s = sec_per_day_sp ! day length in seconds
       REAL(KIND(1D0)) :: len_cal_s ! length of average period in seconds
       REAL(KIND(1D0)) :: temp_k ! temp in K
 

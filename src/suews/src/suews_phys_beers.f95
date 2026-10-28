@@ -25,7 +25,7 @@ MODULE module_phys_beers
 
    ! USE module_ctrl_const_allocate, only: ncolumnsDataOutSol, deg2rad, rad2deg
    ! USE module_ctrl_const_default, only: notUsed, notUsedI
-   USE module_ctrl_const_physconst, ONLY: C2K, p_ref_clearness_int
+   USE module_ctrl_const_physconst, ONLY: C2K, p_ref_clearness_int, min_per_day_sp
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutBEERS
    USE module_util_time, ONLY: DAYLEN
@@ -571,7 +571,7 @@ CONTAINS
       zen_sunmax = 90.
       DO WHILE (sunmaximum <= 90.-zen_sunmax)
          sunmaximum = 90.-zen_sunmax
-         fifteen = fifteen + 15./1440.
+         fifteen = fifteen + 15./min_per_day_sp
          dectimemax = FLOOR(dectime) + 10/24.+fifteen
          CALL NARP_cal_SunPosition( &
             REAL(iy, KIND(1D0)), & !input:

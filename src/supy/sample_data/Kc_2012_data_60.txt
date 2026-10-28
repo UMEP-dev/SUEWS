@@ -1,4 +1,4 @@
-iy   id  it imin qn   qh   qe   qs   qf   U     RH    Tair  pres   rain kdown  snow ldown fcld wuh  xsmd lai  kdiff kdir wdir
+iy   id  it imin qn   qh   qe   qs   qf   U     RH    Tair  pres   rain kdown  snow ldown fcld wuh  sm lai  kdiff kdir wdir
 2012 1   1  0    -999 -999 -999 -999 -999 4.61  85.47 11.77 100.15 0    0.16   -999 -999  -999 -999 -999 -999 -999  -999 -999
 2012 1   2  0    -999 -999 -999 -999 -999 4.08  85.31 11.87 100.18 0    0      -999 -999  -999 -999 -999 -999 -999  -999 -999
 2012 1   3  0    -999 -999 -999 -999 -999 4.75  87.26 11.62 100.13 0    0      -999 -999  -999 -999 -999 -999 -999  -999 -999

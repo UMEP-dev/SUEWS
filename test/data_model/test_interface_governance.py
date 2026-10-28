@@ -12,8 +12,8 @@ pytestmark = pytest.mark.api
 
 
 def test_forcing_and_output_have_initial_releases() -> None:
-    assert CURRENT_FORCING_VERSION == "1.2.0"
-    assert list(FORCING_VERSIONS) == ["1.0.0", "1.1.0", "1.2.0"]
+    assert CURRENT_FORCING_VERSION == "2.0.0"
+    assert list(FORCING_VERSIONS) == ["1.0.0", "1.1.0", "1.2.0", "2.0.0"]
     assert all(digest.startswith("sha256:") for digest in FORCING_VERSIONS.values())
     assert CURRENT_OUTPUT_VERSION == "1.1.9"
     assert list(OUTPUT_VERSIONS) == ["1.0.0", "1.1.0", "1.1.1", "1.1.2", "1.1.3", "1.1.6", "1.1.7", "1.1.8", "1.1.9"]

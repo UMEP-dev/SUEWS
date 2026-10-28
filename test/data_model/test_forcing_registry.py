@@ -133,7 +133,7 @@ def test_registry_matches_current_python_requiredness_and_temporal_types() -> No
             ),
             "driver",
         ),
-        "xsmd": "observation",
+        "sm": "observation",
         "lai": "observation",
         **{f"lai_{suffix}": "observation" for suffix in LAI_LANDCOVER_SUFFIXES},
         "wdir": "reserved",
@@ -360,12 +360,11 @@ def test_publication_metadata_is_fully_resolved() -> None:
 
     assert dict_variables["Wuh"].unit == "mm"
     assert dict_variables["Wuh"].validation_range == (0.0, None)
-    assert dict_variables["xsmd"].unit is None
-    assert dict_variables["xsmd"].unit_selector == "soil_moisture_deficit"
-    assert dict_variables["xsmd"].units_by_value == {
-        1: "m3 m-3",
-        2: "kg kg-1",
-    }
+    assert dict_variables["sm"].unit == "kg m-2"
+    assert dict_variables["sm"].unit_selector is None
+    assert dict_variables["sm"].units_by_value == {}
+    assert dict_variables["sm"].legacy_position == 20
+    assert dict_variables["sm"].accessor_aliases == ("soil_moisture",)
     assert dict_variables["snow"].description == "Observed surface snow-cover fraction"
     assert dict_variables["snow"].requiredness == "conditional"
     assert all(
@@ -409,10 +408,10 @@ def test_snow_requirement_records_the_approved_conjunction() -> None:
 def test_variable_units_are_unconditional_or_selector_complete() -> None:
     """Reject unresolved or conflicting unit metadata before publication."""
     xsmd = next(
-        variable for variable in FORCING_REGISTRY.variables if variable.name == "xsmd"
+        variable for variable in FORCING_REGISTRY.variables if variable.name == "sm"
     )
     unresolved = xsmd.model_dump()
-    unresolved.update(unit_selector=None, units_by_value={})
+    unresolved.update(unit=None, unit_selector=None, units_by_value={})
     with pytest.raises(ValidationError, match="conditional-unit declaration"):
         ForcingVariable.model_validate(unresolved)
 

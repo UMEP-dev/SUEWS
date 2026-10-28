@@ -141,6 +141,10 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         col_idx.insert(col.trim_start_matches('%').to_ascii_lowercase(), idx);
     }
 
+    if col_idx.contains_key("xsmd") || col_idx.contains_key("smd") {
+        return Err("Legacy soil-moisture input requires explicit migration; xsmd is not canonical sm".into());
+    }
+
     // Baseline-required columns must all be present (case-insensitive).
     for d in FIELD_DESCRIPTORS.iter().filter(|d| d.required) {
         let found = d.csv_names.iter().any(|name| {
@@ -280,6 +284,13 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
             )?;
         }
 
+        // This direct reader has no site geometry and cannot derive a deficit.
+        // Refuse raw content rather than placing it into the kernel xsmd slot.
+        let content = row[SuewsField::xsmd.index()];
+        if content != FORCING_OPTIONAL_FILL && !content.is_nan() {
+            return Err("Raw sm execution requires Python soil-content preparation with site metadata".into());
+        }
+        row[SuewsField::xsmd.index()] = FORCING_OPTIONAL_FILL;
         validate_wuh_fields(&row, line_no)?;
 
         // Convert pressure from kPa (SUEWS input convention) to hPa (Fortran internal).
@@ -575,7 +586,7 @@ mod tests {
 
     #[test]
     fn parse_fixture_header_and_rows() {
-        let path = Path::new("../../test/fixtures/benchmark1/forcing/Kc1_2011_data_5_short.txt");
+        let path = Path::new("../../test/fixtures/soil_observation/modelled_content_short.txt");
         let forcing = read_forcing_block(path).expect("fixture forcing should parse");
         assert!(forcing.len_sim > 10);
         assert_eq!(forcing.block.len(), forcing.len_sim * FORCING_BLOCK_STRIDE);
@@ -583,6 +594,22 @@ mod tests {
         assert_eq!(forcing.block[1], 1.0);
         assert_eq!(forcing.block[2], 0.0);
         assert_eq!(forcing.block[3], 5.0);
+    }
+
+    #[test]
+    fn soil_content_cannot_enter_deficit_slot() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("soil.txt");
+        for (header, value, expected) in [
+            ("sm", "50", "Raw sm execution"),
+            ("sm", "inf", "Raw sm execution"),
+            ("xsmd", "-999", "explicit migration"),
+        ] {
+            fs::write(&path, format!(
+                "iy id it imin Tair RH U pres kdown rain {header}\n2012 1 1 0 10 50 2 101.3 100 0 {value}\n"
+            )).unwrap();
+            assert!(read_forcing_block(&path).unwrap_err().contains(expected));
+        }
     }
 
     #[test]
@@ -751,8 +778,8 @@ mod tests {
     #[test]
     fn shuffled_header_yields_identical_block() {
         let canonical =
-            Path::new("../../test/fixtures/benchmark1/forcing/Kc1_2011_data_5_tiny.txt");
-        let shuffled = Path::new("../../test/fixtures/forcing/kc_shuffled.txt");
+            Path::new("../../test/fixtures/soil_observation/modelled_content.txt");
+        let shuffled = Path::new("../../test/fixtures/soil_observation/content_shuffled.txt");
         let a = read_forcing_block(canonical).expect("canonical");
         let b = read_forcing_block(shuffled).expect("shuffled");
         assert_eq!(a.len_sim, b.len_sim);
@@ -818,7 +845,7 @@ mod tests {
 
     #[test]
     fn per_landcover_columns_loaded_into_extras() {
-        let path = Path::new("../../test/fixtures/forcing/kc_per_landcover.txt");
+        let path = Path::new("../../test/fixtures/soil_observation/content_per_landcover.txt");
         let forcing = read_forcing_block(path).expect("per-landcover fixture");
         assert!(forcing.extras.contains_key("lai_evetr"));
         assert!(forcing.extras.contains_key("wuh_paved"));

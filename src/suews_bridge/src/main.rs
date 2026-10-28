@@ -763,6 +763,9 @@ fn run_physics_command(config_path: &str) -> Result<(), String> {
     let config_yaml = fs::read_to_string(&config_path)
         .map_err(|e| format!("failed to read config {}: {e}", config_path.display()))?;
     let run_cfg = load_run_config(&config_path)?;
+    if run_cfg.config.smd_method != 0 {
+        return Err("Observed soil moisture requires Python soil-content preparation; use SUEWSSimulation".into());
+    }
     let raw_forcing = read_forcing_block(&run_cfg.forcing_path)?;
     let forcing = interpolate_forcing(&raw_forcing, run_cfg.timer.tstep)?;
 

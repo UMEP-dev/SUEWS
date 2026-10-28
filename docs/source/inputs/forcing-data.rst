@@ -112,7 +112,7 @@ may use any column order:
 
 .. code-block:: text
 
-   iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  xsmd  lai  kdiff  kdir  wdir
+   iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  sm  lai  kdiff  kdir  wdir
 
 Where:
 
@@ -125,7 +125,7 @@ Where:
 
 .. code-block:: text
 
-   iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  xsmd  lai  kdiff  kdir  wdir
+   iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  sm  lai  kdiff  kdir  wdir
    2020  1  1   0  -999  -999  -999  -999  -999  2.1  85  5.2  101.3  0.0  0  -999  315  -999  -999  -999  -999  -999  -999  -999
    2020  1  2   0  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
    2020  1  3   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
@@ -189,7 +189,7 @@ matched, case-insensitively, against the canonical column list above.
   column is provided, in which case its value overrides the bulk value.
   Fallback is based on column absence: an explicitly supplied ``-999`` does
   not request the bulk value and is invalid while that physics path is active.
-  Soil-moisture deficit (``xsmd``) is a bulk site-level quantity and is
+  Liquid soil-water content (``sm``, ``kg m-2``) is a bulk non-water-area quantity and is
   intentionally not land-cover-specific.
 * **Unknown columns**: any column not in the canonical or whitelisted
   sets emits a ``UserWarning`` and is dropped.
@@ -723,3 +723,66 @@ See Also
 - :doc:`/inputs/yaml/validation` - Complete validation system documentation
 - :doc:`/inputs/tables/RunControl/RunControl` - Legacy model physics options reference
 - :doc:`/troubleshooting` - Common forcing data issues and solutions
+
+Observed liquid soil water
+-------------------------
+
+Forcing contract ``2.0.0`` uses ``sm`` at column position 20: instantaneous
+liquid-water content in ``kg m-2`` over the non-water footprint. The CF
+quantity ``mass_content_of_water_in_soil_layer`` includes all phases; this
+input deliberately includes liquid water only. A point probe must first be
+assigned a representative whole-store layer by the data provider.
+
+Set ``model.physics.soil_moisture: observed`` and provide
+``soil_observation.layer_top: 0`` and ``layer_depth`` in metres. Every
+positive-area non-water surface must have the same soil depth as this layer,
+and a finite ``soil_field_capacity`` in ``m3 m-3``. Water and zero-area
+surfaces do not contribute. Modelled mode needs none of this metadata.
+
+For non-water fractions :math:`f_i`, let :math:`F=\sum_i f_i`,
+:math:`FC=\sum_i f_i 1000\theta_{fc,i}d_i/F` and
+:math:`C=\sum_i f_i C_i/F`, with depths :math:`d_i` in metres and
+available water capacities :math:`C_i` in ``kg m-2``. The kernel deficit is
+:math:`D=\min(C,\max(0,FC-sm))` in mm, using the fixed liquid-water
+convention ``1 kg m-2 = 1 mm``. Field-capacity content must be at least AWC,
+so the implied wilting reference is non-negative.
+
+SuPy interpolates content linearly between adjacent valid observations before
+clamping the deficit. It neither bridges missing observations nor extrapolates
+beyond their coverage. Observed runs require every model timestamp, including
+when general input checking is disabled. Negative content and infinities fail;
+NaN and ``-999`` represent missing observations. Modelled mode permits missing
+content. Values above field capacity or below the wilting reference are retained
+with warnings stating the count, first timestamp and maximum excess. Only the
+derived deficit is clamped. Shared observed forcing requires matching layer
+bounds, effective AWC and field capacity across grids.
+
+Use :func:`supy.util.soil_moisture_to_content` for explicit preprocessing:
+
+.. code-block:: python
+
+   from supy.util import soil_moisture_to_content
+
+   # Both routes give 50 kg m-2 over a 0.2 m layer.
+   sm = soil_moisture_to_content([0.25], source_unit="m3 m-3", layer_depth=0.2)
+   sm = soil_moisture_to_content(
+       [0.20], source_unit="kg kg-1", layer_depth=0.2, bulk_density=1250,
+   )
+   # Fine-earth volume basis gives 40 kg m-2; the correction is applied once.
+   sm = soil_moisture_to_content(
+       [0.25], source_unit="m3 m-3", layer_depth=0.2,
+       volume_basis="fine_earth", soil_not_rocks=0.8,
+   )
+
+The helper also accepts liquid water-equivalent ``mm``. Density is dry bulk
+density in ``kg m-3``, never particle or wet density. Keep the returned Series
+attributes (units, phase and layer bounds) with the configuration provenance;
+a text column alone does not record layer geometry. No per-field YAML unit
+overrides are accepted. ``soil_moisture`` is an accessor alias for ``sm``.
+
+Legacy ``xsmd`` and ``smd`` headers are refused; simply renaming populated old
+columns is not a conversion. Sensor saturation capacity is retired; deficit now
+uses the configured model soil-store capacity and field-capacity reference.
+Positional imports require ``source_contract="2.0.0"``. The direct Rust file
+runner refuses populated ``sm`` until it can prepare deficits with site
+metadata; use :class:`~supy.SUEWSSimulation` for observed runs.

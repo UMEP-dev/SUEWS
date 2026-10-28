@@ -365,6 +365,7 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("water_use_method", "waterusemethod"),
     ("stebbs_method", "stebbsmethod"),
     ("smd_method", "smdmethod"),
+    ("soil_moisture_deficit", "smdmethod"),
     ("rsl_method", "rslmethod"),
     ("rsl_level", "rsllevel"),
     ("fai_method", "faimethod"),

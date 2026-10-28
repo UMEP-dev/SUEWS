@@ -269,18 +269,17 @@ _FORCING_VARIABLES = (
         legacy_position=19,
     ),
     _variable(
-        "xsmd",
-        None,
-        "Observed soil-moisture deficit input",
+        "sm",
+        "kg m-2",
+        "Instantaneous liquid-water content of the full soil layer per non-water area; "
+        "mass_content_of_water_in_soil_layer restricted to liquid water (not all phases)",
         "observation",
         "inst",
         "conditional",
         "sentinel",
-        accessor_aliases=("soil_moisture", "smd"),
+        accessor_aliases=("soil_moisture",),
         validation_range=(0, None),
         legacy_position=20,
-        unit_selector="soil_moisture_deficit",
-        units_by_value={1: "m3 m-3", 2: "kg kg-1"},
     ),
     _variable(
         "lai",
@@ -485,9 +484,9 @@ _FORCING_REQUIREMENT_RULES = (
         legacy_conditions={"emissionsmethod": (0,)},
     ),
     RequirementRule(
-        conditions={"soil_moisture_deficit": (1, 2)},
-        alternatives=(("xsmd",),),
-        legacy_conditions={"smdmethod": (1, 2)},
+        conditions={"soil_moisture": (1,)},
+        alternatives=(("sm",),),
+        legacy_conditions={"smdmethod": (1,)},
     ),
     RequirementRule(
         conditions={"laimethod": (0,)},

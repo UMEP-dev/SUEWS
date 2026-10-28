@@ -20,7 +20,7 @@ Friction velocity, temperature scale and Obukhov length are then recomputed from
 This avoids accepting a small iteration step as convergence near the stable fold, where the previous fixed-point iteration could stop far from a solution.
 
 The clip bounds the product :math:`r_a U`, not :math:`r_a`, so resistance can exceed 120 s |m^-1| at light wind.
-In the London sample and benchmark years this happens on 0.2 to 0.5% of 5-min steps, with a largest value of about 280 s |m^-1|.
+Across stability methods 2 to 4 and their supported roughness-sublayer options in the London sample and benchmark years, this happens on 0.2 to 0.6% of 5-min steps, with a largest value of about 295 s |m^-1|.
 
 Without the cap, the outer surface-temperature iteration can settle into a two-cycle on near-neutral nights: one pass is unstable with a low :math:`r_a`, the next sits on the stable clip with a high :math:`r_a`, and the residual sensible heat flux changes sign each time.
 To damp this, :math:`(z-d)/L` is under-relaxed between passes of the iteration,

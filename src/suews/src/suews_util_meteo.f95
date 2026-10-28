@@ -2,7 +2,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_util_meteo
    USE module_ctrl_const_allocate, ONLY: RAD2DEG, DEG2RAD
-   USE module_ctrl_const_physconst, ONLY: C2K
+   USE module_ctrl_const_physconst, ONLY: C2K, lv_bolton_sp, lv_wetbulb_sp, cp_air_beer_sp
    USE module_ctrl_const_mathconst
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
@@ -58,7 +58,7 @@ CONTAINS
       !LATENT HEAT OF VAPORIZATION (J/kg) BOLTON(1980)
       !TK = ABSOLUTE TEMPERATURE
       REAL(KIND(1D0)) :: TK
-      LATENTHEAT_V = 2.501E6 - 2370.*(TK - C2K)
+      LATENTHEAT_V = lv_bolton_sp - 2370.*(TK - C2K)
    END FUNCTION LATENTHEAT_V
 
    REAL(KIND(1D0)) FUNCTION LATENTHEAT_M(TK)
@@ -73,7 +73,7 @@ CONTAINS
       ! BEER (1991) APPLIED ENVIRONMETRICS METEOROLOGICAL TABLES
       REAL(KIND(1D0)) :: TK, TC
       TC = TK - C2K
-      SPEC_HEAT_DRYAIR = 1005.+((TC + 23.15)**2)/3364.
+      SPEC_HEAT_DRYAIR = cp_air_beer_sp+((TC + 23.15)**2)/3364.
    END FUNCTION SPEC_HEAT_DRYAIR
 
    REAL(KIND(1D0)) FUNCTION SPEC_HEAT_VAPOR(TK, RH)
@@ -312,7 +312,7 @@ CONTAINS
 
       !lv=1.91846E6*(Temp_K/(Temp_K-33.91))**2
 
-      lv_J_kg = (2500.25 - 2.365*temp_C)*1000 !First guess for lv in units J/kg
+      lv_J_kg = (lv_wetbulb_sp - 2.365*temp_C)*1000 !First guess for lv in units J/kg
 
       tw = Temp_C/2. !First estimate for wet bulb temperature
       incr = 3.
@@ -339,7 +339,7 @@ CONTAINS
 
          ea_est = es_tw - psyc*(temp_C - tw)
 
-         lv_J_kg = (2500.25 - 2.365*tw)*1E3
+         lv_J_kg = (lv_wetbulb_sp - 2.365*tw)*1E3
 
          IF (switch1 .AND. switch2) THEN
             incr = incr/10.

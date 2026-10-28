@@ -2676,7 +2676,7 @@ END SUBROUTINE gen_building
 
 SUBROUTINE create_building(CASE, self, icase)
    USE module_ctrl_type, ONLY: STEBBS_BLDG
-   USE module_ctrl_const_physconst, ONLY: C2K_sp
+   USE module_ctrl_const_physconst, ONLY: C2K_sp, cp_air_indoor_int
    IMPLICIT NONE
    INTEGER, INTENT(in) :: icase
    CHARACTER(len=256) :: CASE
@@ -2733,7 +2733,7 @@ SUBROUTINE create_building(CASE, self, icase)
    self%cp_groundfloor = 1500
    self%cp_window = 840
    self%cp_indoormass = 1000
-   self%cp_air_ind = 1005
+   self%cp_air_ind = cp_air_indoor_int
    self%emissivity_extwall = 0.85
    self%emissivity_intwall = 0.85
    self%emissivity_extroof = 0.85

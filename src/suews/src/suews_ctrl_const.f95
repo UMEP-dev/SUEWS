@@ -2333,6 +2333,12 @@ MODULE module_ctrl_const_physconst
    REAL(KIND(1D0)), PARAMETER :: SBConst_567 = 5.67E-8 ! Stefan-Boltzmann constant to three figures, as NARP, AnOHM and STEBBS use it; differs from SBConst [W m-2 K-4]
    REAL(KIND(1D0)), PARAMETER :: JtoumolPAR = 4.6 ! Convert PAR from W m-2 to umol m-2 s-1
    REAL(KIND(1D0)), PARAMETER :: KdntoPAR = 0.46 ! Conversion from Kdn to PAR, originally from Tsubo and Walker (2005), used in Bellucco et al. (2017)
+   REAL(KIND(1.0)), PARAMETER :: lv_bolton_sp = 2.501E6 ! Bolton (1980) Lv intercept [J kg-1]; differs from Lv_air in AnOHM
+   REAL(KIND(1.0)), PARAMETER :: lv_wetbulb_sp = 2500.25 ! Wet-bulb Lv intercept [kJ kg-1]; differs from lv_bolton_sp after unit conversion
+   REAL(KIND(1.0)), PARAMETER :: cp_air_beer_sp = 1005. ! Beer (1991) dry-air heat capacity intercept [J kg-1 K-1]; differs from cp_air in AnOHM
+   INTEGER, PARAMETER :: cp_air_indoor_int = 1005 ! Indoor air heat capacity [J kg-1 K-1]; differs in type from cp_air_beer_sp
+   INTEGER, PARAMETER :: p_ref_clearness_int = 1013 ! Clearness-index reference pressure [hPa]; differs from p_ref_pa_d0 after unit conversion
+   REAL(KIND(1D0)), PARAMETER :: p_ref_pa_d0 = 101325.0D0 ! Standard reference pressure [Pa]; differs from p_ref_clearness_int after unit conversion
    REAL(KIND(1D0)), PARAMETER :: eps_fp = 1.0E-12 !Epsilon for floating-point near-zero comparisons
 
 END MODULE module_ctrl_const_physconst

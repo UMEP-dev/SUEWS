@@ -25,7 +25,7 @@ MODULE module_phys_beers
 
    ! USE module_ctrl_const_allocate, only: ncolumnsDataOutSol, deg2rad, rad2deg
    ! USE module_ctrl_const_default, only: notUsed, notUsedI
-   USE module_ctrl_const_physconst, ONLY: C2K
+   USE module_ctrl_const_physconst, ONLY: C2K, p_ref_clearness_int
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutBEERS
    USE module_util_time, ONLY: DAYLEN
@@ -678,7 +678,7 @@ CONTAINS
       REAL*8 :: u !>
 
       IF (P_kPa == -999) THEN
-         p = 1013 !Pressure in millibars
+         p = p_ref_clearness_int !Pressure in millibars
       ELSE
          p = P_kPa*10 !Convert from hPa to millibars
       END IF

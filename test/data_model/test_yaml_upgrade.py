@@ -1096,14 +1096,14 @@ class TestSoilSchemaMigration:
             SchemaMigrator().migrate(cfg)
         assert cfg == before
         source, dest = tmp_path / "old.yml", tmp_path / "new.yml"
-        source.write_text(yaml.safe_dump(cfg))
+        source.write_text(yaml.safe_dump(cfg), encoding="utf-8")
         original = source.read_bytes()
-        dest.write_text("existing output")
+        dest.write_text("existing output", encoding="utf-8")
         for operation in (lambda: upgrade_yaml(source, dest), lambda: migrate_config_file(str(source), str(dest))):
             with pytest.raises(YamlUpgradeError, match=SOIL_MIGRATION_MESSAGE):
                 operation()
             assert source.read_bytes() == original
-            assert dest.read_text() == "existing output"
+            assert dest.read_text(encoding="utf-8") == "existing output"
 
     @pytest.mark.parametrize("method", [0, "modelled", {"value": 0}, {"value": "modelled"}])
     def test_modelled_unattended_idempotent(self, method, capsys):

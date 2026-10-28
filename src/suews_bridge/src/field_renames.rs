@@ -47,7 +47,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("roughness_length_momentum", "roughlenmommethod"),
     ("roughness_length_heat", "roughlenheatmethod"),
     ("stability", "stabilitymethod"),
-    ("soil_moisture_deficit", "smdmethod"),
+    ("soil_moisture", "smdmethod"),
     ("water_use", "waterusemethod"),
     ("roughness_sublayer", "rslmethod"),
     ("frontal_area_index", "faimethod"),
@@ -853,7 +853,7 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
             ("bh71", 4),
         ],
     ),
-    ("soil_moisture_deficit", &[("modelled", 0), ("observed", 1)]),
+    ("soil_moisture", &[("modelled", 0), ("observed", 1)]),
     ("water_use", &[("modelled", 0), ("observed", 1)]),
     ("laimethod", &[("observed", 0), ("modelled", 1)]),
     (

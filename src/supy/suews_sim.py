@@ -1034,7 +1034,7 @@ class SUEWSSimulation:
         # DataFrame runner on the single canonical execution path.
         soil_moisture_deficit = getattr(
             self._config.model.physics,
-            "soil_moisture_deficit",
+            "soil_moisture",
             None,
         )
         if soil_moisture_deficit is None:

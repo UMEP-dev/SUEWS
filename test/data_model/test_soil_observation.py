@@ -17,7 +17,7 @@ SAMPLE = Path(__file__).parents[2] / "src/supy/sample_data/sample_config.yml"
 
 @pytest.fixture
 def observed_config():
-    cfg = yaml.safe_load(SAMPLE.read_text())
+    cfg = yaml.safe_load(SAMPLE.read_text(encoding="utf-8"))
     cfg["model"]["physics"]["soil_moisture"] = "observed"
     for site in cfg["sites"]:
         props = site["properties"]

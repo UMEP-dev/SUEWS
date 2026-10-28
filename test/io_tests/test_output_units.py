@@ -166,6 +166,68 @@ def test_resampled_units_describe_held_rows(frames):
     )
 
 
+@pytest.mark.parametrize("writer", ["text", "parquet"])
+@pytest.mark.parametrize("units", [None, {"Rain": "mm h-1"}])
+def test_save_tstep_preserves_resampled_water_interval(frames, tmp_path, writer, units):
+    """Saving held hourly rows uses their coverage, including the final quarter-hour."""
+    frame, state = frames
+    hourly = SUEWSOutput(frame.iloc[:15], state).resample("h")
+    kwargs = dict(
+        df_state_final=state, freq_s=3600, save_tstep=True,
+        path_dir_save=tmp_path, units=units,
+    )
+    if writer == "text":
+        paths = save_df_output(hourly.df, output_groups=["SUEWS"], **kwargs)
+        saved = pd.read_csv(paths[0], sep=r"\s+")
+        values = saved["Rain"]
+        metadata = json.loads(
+            paths[0].with_name(paths[0].name + ".units.json").read_text(encoding="utf-8")
+        )["columns"]["Rain"]
+    else:
+        paths = save_df_output_parquet(hourly.df, save_state=False, **kwargs)
+        values = pd.read_parquet(paths[0])[("SUEWS", "Rain")]
+        metadata = {
+            key.decode(): value.decode()
+            for key, value in pq.read_schema(paths[0]).field(str(("SUEWS", "Rain"))).metadata.items()
+        }
+    expected = 6 if units else 0.5 / 300
+    assert values.to_numpy() == pytest.approx([expected, expected])
+    assert metadata["units"] == ("mm h-1" if units else "kg m-2 s-1")
+    assert metadata["interval"] == "1 hour"
+    assert metadata["cell_methods"] == "time: mean (interval: 1 hour)"
+
+
+@pytest.mark.parametrize("water_column", [False, True])
+def test_trailing_partial_bin_without_unit_request(frames, water_column):
+    """A run ending at 01:15 retains the 02:00 bin for ordinary variables too."""
+    from supy._output_metadata import output_covered_seconds
+
+    frame, state = frames
+    columns = [("SUEWS", "QH")]
+    if water_column:
+        columns.append(("SUEWS", "Rain"))
+    frame = frame.iloc[:15].loc[:, columns].copy()
+    frame[("SUEWS", "QH")] = list(range(15))
+    hourly = SUEWSOutput(frame, state).resample("h")
+
+    assert list(hourly.times.hour) == [1, 2]
+    assert hourly.df[("SUEWS", "QH")].to_numpy() == pytest.approx([5.5, 13])
+    assert output_covered_seconds(hourly.df).to_numpy() == pytest.approx([3600, 900])
+    if water_column:
+        assert hourly.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([6, 1.5])
+        assert hourly.units[("SUEWS", "Rain")] == "mm"
+
+
+def test_empty_coverage_uses_regular_cadence(frames):
+    """An empty coverage mapping is equivalent to absent coverage."""
+    from supy._output_metadata import output_covered_seconds
+
+    frame, _ = frames
+    expected = output_covered_seconds(frame)
+    frame.attrs["supy_output_coverage_s"] = {}
+    pd.testing.assert_series_equal(output_covered_seconds(frame), expected)
+
+
 def test_requested_units_affine_scale_and_repeated_conversion(frames):
     from supy._output_metadata import prepare_output
 

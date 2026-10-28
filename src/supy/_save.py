@@ -1155,7 +1155,7 @@ def save_df_output(
         )
         metadata_interval_s = fallback_frequency_s
         if save_tstep and df_save is df_output:
-            metadata_interval_s = _native_interval_s(df_state_final)
+            metadata_interval_s = _held_interval_s(df_output, df_state_final)
         df_written = prepare_output(df_save, interval_s=metadata_interval_s, write=True)
         list_path_save += _save_groups(
             df_written,
@@ -1588,7 +1588,7 @@ def save_df_output_parquet(
 
     interval_s = freq_s
     if save_tstep and streamed_parquet is None:
-        interval_s = _native_interval_s(df_state_final)
+        interval_s = _held_interval_s(df_output, df_state_final)
 
     if interval_s is None:
         interval_s = int(output_interval_seconds(df_save))

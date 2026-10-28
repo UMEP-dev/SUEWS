@@ -28,7 +28,7 @@ def output_covered_seconds(df_output, interval_s=None):
     preserve it without embedding pandas objects in DataFrame attributes.
     """
     coverage = df_output.attrs.get("supy_output_coverage_s")
-    if coverage is not None:
+    if coverage:
         nominal_s = output_interval_seconds(df_output, interval_s, required=False)
         default_s = nominal_s if nominal_s is not None else float("nan")
         return pd.Series(

@@ -114,6 +114,9 @@ def _dim(**exponents: int) -> Dimension:
     return tuple(exponents.get(name, 0) for name in DIMENSION_NAMES)  # type: ignore[return-value]
 
 
+_TEMPERATURE_AXIS = DIMENSION_NAMES.index("temperature")
+
+
 _ENERGY = _dim(length=2, mass=1, time=-2)
 _POWER = _dim(length=2, mass=1, time=-3)
 _PRESSURE = _dim(length=-1, mass=1, time=-2)
@@ -320,8 +323,8 @@ def convert(
         raise UnitError(f"cannot convert {source} to {target}: the dimensions differ")
     if units_metadata not in (None, "temperature: on_scale", "temperature: difference"):
         raise UnitError(f"invalid units_metadata: {units_metadata!r}")
-    if units_metadata is not None and source.dimension != _dim(temperature=1):
-        raise UnitError("temperature metadata requires a temperature unit")
+    if units_metadata is not None and not source.dimension[_TEMPERATURE_AXIS]:
+        raise UnitError("temperature metadata requires a unit involving temperature")
     factor = source.scale / target.scale
     shift = (source.offset - target.offset) / target.scale
     result = values * factor

@@ -268,3 +268,16 @@ def test_converted_output_resample_and_public_saves(frames, tmp_path):
         saved = pd.read_parquet(path)
         assert saved[("SUEWS", "T2")].to_numpy() == pytest.approx(273.65)
         assert saved[("SUEWS", "QE")].to_numpy() == pytest.approx(0.0005)
+
+
+def test_every_registered_unit_converts_to_itself():
+    """A native-unit request is valid for every variable that has a unit."""
+    from supy.data_model.output import get_output_contract_catalogue
+    from supy.units import convert, parse_unit
+
+    for entry in get_output_contract_catalogue().variables:
+        if not entry.unit or parse_unit(entry.unit).is_no_unit:
+            continue
+        assert convert(
+            1.0, entry.unit, entry.unit, units_metadata=entry.units_metadata
+        ) == pytest.approx(1.0), (entry.group, entry.name)

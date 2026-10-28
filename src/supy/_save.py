@@ -1054,7 +1054,7 @@ def save_df_output(
     ``df_output`` is never copied whole: groups are selected, resampled,
     relabelled and written one (grid, group) at a time (gh#1849).
     """
-    df_output = prepare_output(df_output, units, interval_s=_native_interval_s(df_state_final))
+    df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
 
@@ -1084,8 +1084,8 @@ def save_df_output(
     if list_group_no_daily:
         df_rsmp = _resample_output(
             df_output, freq_save, groups=list_group_no_daily,
-            freq_source=pd.Timedelta(_native_interval_s(df_state_final), "s")
-            if _native_interval_s(df_state_final) is not None else None,
+            freq_source=pd.Timedelta(_held_interval_s(df_output, df_state_final), "s")
+            if _held_interval_s(df_output, df_state_final) is not None else None,
         )
         list_group_rsmp = [
             g
@@ -1345,6 +1345,13 @@ def save_initcond_nml(
     return list_path_nml
 
 
+def _held_interval_s(df_output, df_state_final) -> Optional[int]:
+    """Use the held output cadence when rows have already been resampled."""
+    if "supy_output_interval_s" in df_output.attrs:
+        return df_output.attrs["supy_output_interval_s"]
+    return _native_interval_s(df_state_final)
+
+
 def _native_interval_s(df_state_final) -> Optional[int]:
     """Return the model timestep held in final state, or None without one.
 
@@ -1530,7 +1537,7 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     _parquet_engine()
-    df_output = prepare_output(df_output, units, interval_s=_native_interval_s(df_state_final))
+    df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
 
     # Resample if needed; values are not written in place (gh#1849)
     df_save = df_output.copy(deep=False)
@@ -1542,8 +1549,8 @@ def save_df_output_parquet(
         # Resample output
         df_rsmp = _resample_output(
             df_save, freq_save,
-            freq_source=pd.Timedelta(_native_interval_s(df_state_final), "s")
-            if _native_interval_s(df_state_final) is not None else None,
+            freq_source=pd.Timedelta(_held_interval_s(df_output, df_state_final), "s")
+            if _held_interval_s(df_output, df_state_final) is not None else None,
         )
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?

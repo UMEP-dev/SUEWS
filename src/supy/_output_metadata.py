@@ -145,6 +145,7 @@ def prepare_output(
         return df_output
     df_result = df_output.copy(deep=False)
     dict_units = deepcopy(df_output.attrs.get("supy_output_units", {}))
+    ser_coverage = None
     for column, target in dict_targets.items():
         metadata = dict_metadata[column]
         try:
@@ -158,12 +159,17 @@ def prepare_output(
                 source = metadata["units"]
                 values = df_output[column]
                 if source == "mm":
-                    seconds = 86400 if identity[0] == "DailyState" else output_covered_seconds(df_output, interval_s)
-                    values = values / seconds
-                    if identity[0] != "DailyState":
-                        df_result.attrs["supy_output_interval_s"] = output_interval_seconds(
-                            df_output, interval_s, required=False
-                        )
+                    if identity[0] == "DailyState":
+                        values = values / 86400
+                    else:
+                        if ser_coverage is None:
+                            nominal_s = output_interval_seconds(
+                                df_output, interval_s,
+                                required="supy_output_coverage_s" not in df_output.attrs,
+                            )
+                            ser_coverage = output_covered_seconds(df_output, nominal_s)
+                            df_result.attrs["supy_output_interval_s"] = nominal_s
+                        values = values / ser_coverage
                     source = "kg m-2 s-1"
                 values = unit_conversion.convert_water_rate(values, source, parsed)
             else:

@@ -465,11 +465,14 @@ def test_text_requested_rain_rate_and_sidecar(frames, tmp_path):
     assert payload["columns"]["Rain"]["cell_methods"] == "time: mean (interval: 1 hour)"
 
 
-def test_inconsistent_interval_is_rejected(frames):
+@pytest.mark.parametrize("converted", [False, True])
+def test_inconsistent_interval_is_rejected(frames, converted):
     from supy._output_metadata import prepare_output
 
     frame, state = frames
     hourly = SUEWSOutput(frame, state).resample("h")
+    if converted:
+        hourly = hourly.to_units({"Rain": "mm h-1"})
     with pytest.raises(ValueError, match="interval_s disagrees"):
         prepare_output(hourly.df, {"Rain": "mm h-1"}, interval_s=300)
     assert hourly.to_units({"Rain": "mm h-1"}).df[("SUEWS", "Rain")].to_numpy() == pytest.approx([6, 6])
@@ -479,3 +482,20 @@ def test_water_flux_amount_unit_is_rejected(frames):
     frame, state = frames
     with pytest.raises(ValueError, match="Rain"):
         SUEWSOutput(frame, state).to_units({"Rain": "m"})
+
+
+@pytest.mark.parametrize("convert_first", [False, True])
+def test_monthly_rates_use_each_months_coverage(frames, convert_first):
+    frame, state = frames
+    frame = frame.iloc[:1].copy()
+    frame = pd.concat([frame] * 60, ignore_index=True)
+    frame.index = pd.MultiIndex.from_product(
+        [[1], pd.date_range("2012-01-01", periods=60, freq="D")],
+        names=["grid", "datetime"],
+    )
+    state[("tstep", "0")] = 86400
+    output = SUEWSOutput(frame, state)
+    if convert_first:
+        output = output.to_units({"Rain": "mm d-1"})
+    monthly = output.resample("ME").to_units({"Rain": "mm d-1"})
+    assert monthly.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([0.5, 0.5])

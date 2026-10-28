@@ -401,7 +401,8 @@ CONTAINS
    !   Tmains      - water mains temperature [K]
    !-------------------------------------------------------------------
    FUNCTION cal_mainsWaterTemperature(dayOfYear, To_annual_C, dTo_month_C) RESULT(Tmains)
-      USE module_phys_stebbs_precision; USE module_ctrl_const_physconst, ONLY: C2K
+      USE module_phys_stebbs_precision
+      USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
 
       INTEGER, INTENT(IN) :: dayOfYear
@@ -487,7 +488,8 @@ CONTAINS
 
    FUNCTION indoor_airdensity(Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor) RESULT(air_dens)
       !assume indoor and outdoor vapour pressure are identical
-      USE module_phys_stebbs_precision; USE module_ctrl_const_physconst, ONLY: C2K
+      USE module_phys_stebbs_precision
+      USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor
       REAL(KIND(1D0)), PARAMETER :: Rd = 287.058   ! gas constant for dry air
@@ -590,7 +592,8 @@ CONTAINS
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
                                HEAT_STATE, SUEWS_STATE, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, &
                                STEBBS_BLDG
-      USE module_util_time, ONLY: cal_weekday_index; USE module_ctrl_const_physconst, ONLY: C2K
+      USE module_util_time, ONLY: cal_weekday_index
+      USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -995,7 +998,8 @@ SUBROUTINE suewsstebbscouple(self, sout, resolution, datetimeLine, &
    USE module_phys_stebbs_precision
    USE module_phys_stebbs_func, ONLY: ext_conv_coeff, int_conv_coeff, indoor_airdensity
    USE module_phys_stebbs_couple, ONLY: suewsprop
-   USE module_ctrl_type, ONLY: SUEWS_STATE, STEBBS_BLDG; USE module_ctrl_const_physconst, ONLY: C2K
+   USE module_ctrl_type, ONLY: SUEWS_STATE, STEBBS_BLDG
+   USE module_ctrl_const_physconst, ONLY: C2K
    IMPLICIT NONE
    TYPE(SUEWS_STATE) :: modState
    TYPE(STEBBS_BLDG) :: self
@@ -2418,7 +2422,8 @@ END SUBROUTINE reinitialiseTemperatures
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer, errorState)
 
    USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG, error_state
-   USE module_phys_stebbs_func, ONLY: calculate_x1; USE module_ctrl_const_physconst, ONLY: C2K
+   USE module_phys_stebbs_func, ONLY: calculate_x1
+   USE module_ctrl_const_physconst, ONLY: C2K
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self

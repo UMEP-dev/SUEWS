@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 27 Oct 2026
+
+- [bugfix] Keep all-NaN sums missing when resampling output, including one- and two-row final chunks of text output at the model timestep; real zeroes and sums of observed values are preserved (#1934).
+
 ### 23 Oct 2026
 
 - [bugfix] Corrected three slips in the STEBBS hot-water formulas (#1880, #1881)

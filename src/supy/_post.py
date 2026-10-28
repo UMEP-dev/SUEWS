@@ -240,7 +240,7 @@ def _resample_output(
     aggregation methods. Different variable types are handled correctly:
 
     - **Instantaneous** (temperature, humidity, wind): averaged (mean)
-    - **Accumulated** (rainfall, runoff): summed
+    - **Accumulated** (rainfall, runoff): summed, with all-NaN bins kept as NaN
     - **State** (soil moisture, daily state): last value
 
     Parameters
@@ -358,26 +358,39 @@ def _resample_output(
         if group_name == "DailyState":
             # DailyState contains sparse data (values only at end of each day)
             # Use dropna(how='all') to preserve rows with partial data
-            df_with_data = df_group.dropna(how="all")
+            df_to_resample = df_group.dropna(how="all")
 
-            if df_with_data.empty:
+            if df_to_resample.empty:
                 # No data at all - return empty DataFrame with proper structure
                 return pd.DataFrame(
                     index=pd.DatetimeIndex([]), columns=df_group.columns
                 )
 
-            # Resample the non-empty data and return directly
             # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
-            return df_with_data.resample(freq, closed="right", label=label).agg(
-                dict_aggm_group
-            )
         else:
             df_to_resample = df_group
 
-        return df_to_resample.resample(freq, closed="right", label=label).agg(
-            dict_aggm_group
+        resampler = df_to_resample.resample(freq, closed="right", label=label)
+        list_sum = [var for var, method in dict_aggm_group.items() if method == "sum"]
+        if not list_sum:
+            return resampler.agg(dict_aggm_group)
+
+        # Use pandas' vectorised sum with an explicit missing-data contract.
+        # Passing min_count to the mixed agg() would also pass it to mean/last
+        # and custom callables, which need not accept that keyword.
+        df_sum = resampler[list_sum].sum(min_count=1)
+        dict_other = {
+            var: method
+            for var, method in dict_aggm_group.items()
+            if var not in list_sum
+        }
+        if not dict_other:
+            return df_sum
+        df_other = resampler.agg(dict_other)
+        return pd.concat([df_sum, df_other], axis=1).reindex(
+            columns=list(dict_aggm_group)
         )
 
     # get grid and group names

@@ -22,14 +22,15 @@ class _ForcingResult:
         return self._df_forcing
 
 
-def test_load_forcing_grid_warns_and_forwards_to_simulation(monkeypatch):
+@pytest.mark.parametrize("units", [None, {"Tair": "K"}])
+def test_load_forcing_grid_warns_and_forwards_to_simulation(monkeypatch, units):
     """The UMEP shim delegates YAML loading to ``SUEWSSimulation``."""
     df_forcing = pd.DataFrame({"Tair": [10.0]})
     calls = []
 
     class FakeSimulation:
-        def __init__(self, path_init):
-            calls.append(path_init)
+        def __init__(self, path_init, *, units=None):
+            calls.append((path_init, units))
             self.forcing = _ForcingResult(df_forcing)
 
     monkeypatch.setattr("supy.suews_sim.SUEWSSimulation", FakeSimulation)
@@ -40,10 +41,11 @@ def test_load_forcing_grid_warns_and_forwards_to_simulation(monkeypatch):
             "sample.yml",
             grid=0,
             df_state_init=object(),
+            units=units,
         )
 
     assert result is df_forcing
-    assert calls == [Path("sample.yml")]
+    assert calls == [(Path("sample.yml"), units)]
     assert [item.category for item in caught] == [FutureWarning]
     assert "SUEWSSimulation(path).forcing" in str(caught[0].message)
 

@@ -156,6 +156,7 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="TStar_RSL",
+        units_metadata="temperature: difference",
         unit="K",
         description="Temperature scale (friction temperature) used in the RSL profile calculation, from QH and UStar_heat",
         aggregation=AggregationMethod.AVERAGE,

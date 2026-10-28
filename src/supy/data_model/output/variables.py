@@ -5,11 +5,17 @@ transitioning from Fortran-first to Python-first architecture.
 """
 
 from enum import Enum
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Literal, Optional
 
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+CellMethods = Literal[
+    "", "time: mean", "time: sum", "time: point", "time: minimum", "time: maximum"
+]
+TemperatureMetadata = Literal["temperature: on_scale", "temperature: difference"]
 
 
 class AggregationMethod(str, Enum):
@@ -84,6 +90,8 @@ class OutputVariable(BaseModel):
         unit: Physical units
         description: Long-form description
         aggregation: Resampling aggregation method
+        cell_methods: CF time operation; empty for datetime coordinates
+        units_metadata: CF temperature kind, or None for non-temperature units
         group: Output group membership
         level: Output priority level (vestigial - not used in modern output system)
     """
@@ -92,6 +100,13 @@ class OutputVariable(BaseModel):
     unit: str = Field(description="Physical units")
     description: str = Field(description="Long-form description")
     aggregation: AggregationMethod = Field(description="Resampling aggregation method")
+    cell_methods: CellMethods = Field(
+        default="", description="CF time operation; empty for datetime coordinates"
+    )
+    units_metadata: Optional[TemperatureMetadata] = Field(
+        default=None,
+        description="CF temperature kind, absent for non-temperature units",
+    )
     group: OutputGroup = Field(description="Output group membership")
     level: OutputLevel = Field(
         description="Output priority level (vestigial - not used in modern output system)"
@@ -101,6 +116,24 @@ class OutputVariable(BaseModel):
         use_enum_values=True,
         extra="forbid",  # Reject extra fields - all fields must be explicitly defined
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def derive_cf_metadata(cls, data: object) -> object:
+        """Derive metadata defaults while preserving explicit producer overrides."""
+        if not isinstance(data, dict):
+            return data
+        data = data.copy()
+        dict_methods = {
+            "A": "time: mean",
+            "S": "time: sum",
+            "L": "time: point",
+            "T": "",
+        }
+        data.setdefault("cell_methods", dict_methods.get(data.get("aggregation"), ""))
+        if data.get("unit") in {"degC", "K"}:
+            data.setdefault("units_metadata", "temperature: on_scale")
+        return data
 
 
 class OutputVariableRegistry(BaseModel):

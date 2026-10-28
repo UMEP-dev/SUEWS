@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [feature][experimental] Output catalogue entries carry CF `cell_methods` (`time: mean`, `sum`, `point`, `minimum` or `maximum`) and `units_metadata` (`temperature: on_scale` or `temperature: difference`), recorded in output contract `1.1.9`; unit strings, aggregation codes and values are unchanged (#1903)
+  - The time base follows each variable's aggregation code, with explicit overrides for DailyState means, totals and extrema, whose daily statistic the kernel computes before the last daily record is selected
+  - Temperature differences (for example BEERS `Tg` and `Tw`, `TStar`, degree-day indices) are marked as such; every other `degC` or `K` variable is on-scale
 - [maintenance] The conductance soil-moisture parameter `g_sm` is labelled `m2 kg-1` instead of `mm-1`, matching soil water in `kg m-2`; values are unchanged because 1 mm of water is 1 kg m-2 (#1903)
 - [change][experimental] Breaking: forcing contract 2.0.0 replaces observed `xsmd` with `sm`, the instantaneous liquid-water content of a specified soil layer in `kg m-2` (#1422)
   - After validating the whole-store layer and interpolating content to model timestamps, SuPy derives `D = rho_w * theta_fc * d - sm`, clamped to `[0, AWC]`. The bulk store uses non-water area-weighted field-capacity content and available water capacity; `soil_store_capacity` remains AWC.

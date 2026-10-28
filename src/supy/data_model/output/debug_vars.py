@@ -186,6 +186,8 @@ DEBUG_VARIABLES = [
         unit=unit,
         description=description,
         aggregation=_get_agg_method(aggm),
+        **({"units_metadata": "temperature: difference"}
+           if name in {"avcp", "s_hPa", "psyc_hPa"} else {}),
         group=OutputGroup.DEBUG,
         level=OutputLevel.DEFAULT,
     )

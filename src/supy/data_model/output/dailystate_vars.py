@@ -12,10 +12,15 @@ from .variables import (
 )
 
 
+# LAST selects the sparse daily record; it does not describe the operation
+# already performed by update_DailyState_Day/update_HDD/update_WaterUse.
+# Explicit CF methods below describe those kernel-produced daily statistics.
 DAILYSTATE_VARIABLES = [
     # Heating/Cooling Degree Days
     OutputVariable(
         name="HDD1_h",
+        units_metadata="temperature: difference",
+        cell_methods="time: mean",
         unit="degC",
         description="Heating degree days: daily mean of the amount by which air temperature falls below the heating base temperature; air temperature is the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
@@ -24,6 +29,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="HDD2_c",
+        units_metadata="temperature: difference",
+        cell_methods="time: mean",
         unit="degC",
         description="Cooling degree days: daily mean of the amount by which air temperature exceeds the cooling base temperature; air temperature is the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
@@ -32,6 +39,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="HDD3_Tmean",
+        cell_methods="time: mean",
         unit="degC",
         description="Daily mean air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
@@ -40,6 +48,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="HDD4_T5d",
+        cell_methods="time: mean",
         unit="degC",
         description="5-day running mean of the daily mean air temperature in HDD3_Tmean (fewer days at the start of a run)",
         aggregation=AggregationMethod.LAST,
@@ -49,6 +58,7 @@ DAILYSTATE_VARIABLES = [
     # Precipitation and days since rain
     OutputVariable(
         name="P_day",
+        cell_methods="time: sum",
         unit="mm",
         description="Daily total precipitation",
         aggregation=AggregationMethod.LAST,
@@ -66,6 +76,7 @@ DAILYSTATE_VARIABLES = [
     # Growing Degree Days by vegetation type
     OutputVariable(
         name="GDD_EveTr",
+        units_metadata="temperature: difference",
         unit="degC",
         description="Growing degree days for evergreen trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
@@ -74,6 +85,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="GDD_DecTr",
+        units_metadata="temperature: difference",
         unit="degC",
         description="Growing degree days for deciduous trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
@@ -82,6 +94,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="GDD_Grass",
+        units_metadata="temperature: difference",
         unit="degC",
         description="Growing degree days for grass, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
@@ -91,6 +104,7 @@ DAILYSTATE_VARIABLES = [
     # Senescence Degree Days by vegetation type
     OutputVariable(
         name="SDD_EveTr",
+        units_metadata="temperature: difference",
         unit="degC",
         description="Senescence degree days for evergreen trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
@@ -99,6 +113,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="SDD_DecTr",
+        units_metadata="temperature: difference",
         unit="degC",
         description="Senescence degree days for deciduous trees, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
@@ -107,6 +122,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="SDD_Grass",
+        units_metadata="temperature: difference",
         unit="degC",
         description="Senescence degree days for grass, from the mean of the daily minimum and maximum air temperature (Tmin, Tmax)",
         aggregation=AggregationMethod.LAST,
@@ -116,6 +132,7 @@ DAILYSTATE_VARIABLES = [
     # Temperature extremes
     OutputVariable(
         name="Tmin",
+        cell_methods="time: minimum",
         unit="degC",
         description="Daily minimum air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
@@ -124,6 +141,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="Tmax",
+        cell_methods="time: maximum",
         unit="degC",
         description="Daily maximum air temperature: the forcing air temperature, or T2 when roughness_sublayer_level is basic, or the RSL profile temperature T_10 when it is detailed",
         aggregation=AggregationMethod.LAST,
@@ -133,6 +151,7 @@ DAILYSTATE_VARIABLES = [
     # Daylight hours
     OutputVariable(
         name="DLHrs",
+        cell_methods="time: sum",
         unit="h",
         description="Day length: hours with incoming shortwave radiation above 10 W m-2",
         aggregation=AggregationMethod.LAST,
@@ -217,6 +236,7 @@ DAILYSTATE_VARIABLES = [
     # water use is modelled
     OutputVariable(
         name="WU_EveTr1",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily total irrigation water use for evergreen trees",
         aggregation=AggregationMethod.LAST,
@@ -225,6 +245,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_EveTr2",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily automatic irrigation water use for evergreen trees",
         aggregation=AggregationMethod.LAST,
@@ -233,6 +254,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_EveTr3",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily manual irrigation water use for evergreen trees",
         aggregation=AggregationMethod.LAST,
@@ -241,6 +263,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr1",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily total irrigation water use for deciduous trees",
         aggregation=AggregationMethod.LAST,
@@ -249,6 +272,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr2",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily automatic irrigation water use for deciduous trees",
         aggregation=AggregationMethod.LAST,
@@ -257,6 +281,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr3",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily manual irrigation water use for deciduous trees",
         aggregation=AggregationMethod.LAST,
@@ -265,6 +290,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass1",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily total irrigation water use for grass",
         aggregation=AggregationMethod.LAST,
@@ -273,6 +299,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass2",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily automatic irrigation water use for grass",
         aggregation=AggregationMethod.LAST,
@@ -281,6 +308,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass3",
+        cell_methods="time: sum",
         unit="mm",
         description="Modelled daily manual irrigation water use for grass",
         aggregation=AggregationMethod.LAST,

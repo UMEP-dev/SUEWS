@@ -34,7 +34,7 @@ MODULE module_phys_narp
    ! in the main program
    ! LJ Oct 2012 - Zenith angle change in the calculation of albedo added
    ! sg feb 2012 - Allocatable array module added
-
+   USE module_ctrl_const_mathconst, ONLY: pi_d0, pi_sp
    !==============================================================================================
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
@@ -799,7 +799,7 @@ CONTAINS
       !REAL(KIND(1D0)) :: R2_terms      !>
       !REAL(KIND(1D0)) :: R3_terms      !>
       !REAL(KIND(1D0)), dimension(3) :: R4_terms      !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the earth position relative to the sun, using
       ! tabulated values.
@@ -958,7 +958,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(252) :: nutation_terms1 !>
       REAL(KIND(1D0)), DIMENSION(4, 63) :: nutation_terms
       INTEGER :: i
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the nutation in longtitude and in obliquity, in
       ! degrees.
@@ -1146,7 +1146,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: sun_rigth_ascension !>
       REAL(KIND(1D0)) :: argument_denominator !>
       REAL(KIND(1D0)) :: argument_numerator !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the sun rigth ascension.
 
@@ -1168,7 +1168,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: sun_geocentric_declination !>
       REAL(KIND(1D0)), INTENT(in) :: sun_geocentric_positionlatitude !>
       REAL(KIND(1D0)) :: argument !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       argument = (SIN(sun_geocentric_positionlatitude*pi/180.0)*COS(corr_obliquity*pi/180.0)) + &
                  (COS(sun_geocentric_positionlatitude*pi/180.0)*SIN(corr_obliquity*pi/180)*SIN(apparent_sun_longitude*pi/180.0))
@@ -1212,7 +1212,7 @@ CONTAINS
       REAL(KIND(1D0)) :: u !>
       REAL(KIND(1D0)) :: x !>
       REAL(KIND(1D0)) :: y !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! topocentric_sun_positionrigth_ascension_parallax
       ! This function compute the sun position (rigth ascension and declination)
@@ -1277,7 +1277,7 @@ CONTAINS
       REAL(KIND(1D0)) :: refraction_corr !>
       REAL(KIND(1D0)) :: sunazimuth !>
       REAL(KIND(1D0)) :: sunzenith !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D+0
+      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
       ! This function compute the sun zenith angle, taking into account the
       ! atmospheric refraction. A default temperature of 283K and a
       ! default pressure of 1010 mbar are used.
@@ -1432,7 +1432,7 @@ CONTAINS
       e = 0.0167
       a = 146.457
 
-      MA = 2.*3.141592654*(doy - 3)/365.25463 !Mean anomaly
+      MA = 2.*pi_sp*(doy - 3)/365.25463 !Mean anomaly
       nu = MA + 0.0333988*SIN(MA) + .0003486*SIN(2.*MA) + 5E-6*SIN(3.*MA) !true anomaly
       Rse = a*(1 - e*e)/(1 + e*COS(nu))
 

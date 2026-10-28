@@ -29,7 +29,7 @@ MODULE module_phys_beers
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutBEERS
    USE module_util_time, ONLY: DAYLEN
-
+   USE module_ctrl_const_mathconst, ONLY: pi_sp
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: pi = ATAN(1.)*4
    REAL(KIND(1D0)), PARAMETER :: DEG2RAD = pi/180
@@ -759,7 +759,7 @@ CONTAINS
       INTEGER :: jday
       REAL(KIND(1D0)) :: b, D
 
-      b = 2*3.141592654*jday/365
+      b = 2*pi_sp*jday/365
       D = SQRT(1.00011 + 0.034221*COS(b) + 0.001280*SIN(b) + 0.000719*COS(2*b) + 0.000077*SIN(2*b))
 
    END SUBROUTINE sun_distance

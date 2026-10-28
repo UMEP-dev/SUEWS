@@ -1010,7 +1010,7 @@ def _read_forcing_table(path, source_contract=None):
     if source_contract not in (None, "2.0.0"):
         raise ValueError("Legacy soil-moisture input requires explicit migration before loading contract 2.0.0.")
     frame = pd.read_csv(path, sep=r"\s+", comment="!", on_bad_lines="error")
-    with open(path) as stream:
+    with open(path, encoding="utf-8") as stream:
         first = next(line for line in stream if line.strip() and not line.lstrip().startswith("!"))
     try:
         [float(token) for token in first.split()]

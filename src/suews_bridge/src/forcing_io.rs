@@ -158,7 +158,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
             line.split_whitespace()
                 .nth(idx)
                 .and_then(|token| token.parse::<f64>().ok())
-                .map_or(true, |value| value.is_nan() || value == -999.0)
+                .is_none_or(|value| value.is_nan() || value == -999.0)
         });
         if !all_missing {
             return Err("Legacy soil-moisture input requires explicit migration; xsmd is not canonical sm".into());

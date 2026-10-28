@@ -238,13 +238,19 @@ class SUEWSOutput:
         # (gh#1849). `.df` hands the table out through `_frame_for_caller`,
         # which shares it without exposing it to writes, and the group
         # accessors through `_group_for_caller`.
-        interval_s = (metadata or {}).get("tstep_s")
+        interval_s = (metadata or {}).get(
+            "tstep_s", df_output.attrs.get("supy_output_interval_s")
+        )
         if "resampled_to" in (metadata or {}):
             try:
                 interval_s = pd.tseries.frequencies.to_offset(metadata["resampled_to"]).nanos / 1e9
             except ValueError:
                 interval_s = None
-        if units and interval_s is None and "resampled_to" not in (metadata or {}):
+        if (
+            units and interval_s is None
+            and "resampled_to" not in (metadata or {})
+            and "supy_output_interval_s" not in df_output.attrs
+        ):
             if config is not None:
                 value = getattr(config.model.control, "tstep", None)
                 interval_s = getattr(value, "value", value)
@@ -281,8 +287,10 @@ class SUEWSOutput:
         The held rows use the model timestep; streamed output uses the
         configured output frequency. Without run context the interval is unknown.
         """
-        interval_s = self._metadata.get("tstep_s")
-        if self._config is not None:
+        interval_s = self._metadata.get(
+            "tstep_s", self._df_output.attrs.get("supy_output_interval_s")
+        )
+        if self._config is not None and "supy_output_interval_s" not in self._df_output.attrs:
             control = self._config.model.control
             value = (
                 control.output.freq
@@ -638,6 +646,9 @@ class SUEWSOutput:
         if "resampled_to" in self._metadata:
             return self._metadata["resampled_to"]
         seconds = self._metadata.get("tstep_s")
+        if seconds is None and "supy_output_interval_s" in self._df_output.attrs:
+            seconds = self._df_output.attrs["supy_output_interval_s"]
+            return pd.Timedelta(seconds, "s") if seconds is not None else None
         if seconds is None and self._config is not None:
             value = self._config.model.control.tstep
             seconds = getattr(value, "value", value)

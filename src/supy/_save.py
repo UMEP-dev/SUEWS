@@ -264,6 +264,14 @@ def relabel_output_timestamps(
 
     df_relabelled = df_output.copy()
     df_relabelled.index = index
+    coverage = df_output.attrs.get("supy_output_coverage_s")
+    if coverage:
+        # Coverage follows row identity when a writer changes its clock.
+        df_relabelled.attrs["supy_output_coverage_s"] = {
+            f"{new_grid}|{new_date.isoformat()}": coverage[f"{grid}|{date.isoformat()}"]
+            for (grid, date), (new_grid, new_date) in zip(df_output.index, index)
+            if f"{grid}|{date.isoformat()}" in coverage
+        }
     return df_relabelled
 
 

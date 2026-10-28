@@ -499,3 +499,27 @@ def test_monthly_rates_use_each_months_coverage(frames, convert_first):
         output = output.to_units({"Rain": "mm d-1"})
     monthly = output.resample("ME").to_units({"Rain": "mm d-1"})
     assert monthly.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([0.5, 0.5])
+
+
+
+def test_partial_coverage_survives_saved_clock_change(frames, tmp_path):
+    """Reloaded rates retain their weights after timestamp relabelling."""
+    frame, state = frames
+    frame = frame.iloc[:21].copy()
+    frame.index = pd.MultiIndex.from_product(
+        [[1], pd.date_range("2012-01-01 10:35", periods=21, freq="5min")],
+        names=["grid", "datetime"],
+    )
+    frame[("SUEWS", "Rain")] = [0.5] * 6 + [1.0] * 12 + [2.0] * 3
+    state[("timezone", "0")] = 1.0
+    paths = save_df_output_parquet(
+        frame, state, freq_s=3600, path_dir_save=tmp_path, save_state=False,
+        timestamp_reference="utc", forcing_timestamp_reference="local_standard_time",
+        units={"Rain": "mm h-1"},
+    )
+    saved = pd.read_parquet(paths[0])
+    assert list(saved.index.get_level_values("datetime").hour) == [10, 11, 12]
+    reloaded = SUEWSOutput(saved, state).to_units({"Rain": "mm h-1"})
+    assert reloaded.units.metadata[("SUEWS", "Rain")]["interval"] == "1 hour"
+    daily = reloaded.resample("D")
+    assert daily.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([21 / 1.75])

@@ -2313,6 +2313,8 @@ MODULE module_ctrl_const_mathconst
    REAL(KIND(1D0)), PARAMETER :: pi_d0 = 3.141592653589793D0 ! pi to double precision; differs from pi, which holds the single-precision value
    REAL, PARAMETER :: pi_sp = 3.14159265359 ! default-REAL pi, for expressions evaluated in default REAL; same value as pi
    REAL(KIND(1D0)), PARAMETER :: dtr = 0.0174532925, rtd = 57.2957795
+   REAL(KIND(1D0)), PARAMETER :: deg2rad_pi_d0 = pi/180 ! degrees to radians from legacy pi; differs from dtr
+   REAL(KIND(1D0)), PARAMETER :: deg2rad_daylen_d0 = REAL(3.14159, KIND(1D0))/180.0 ! DAYLEN degrees to radians; differs from dtr
 
 END MODULE module_ctrl_const_mathconst
 

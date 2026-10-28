@@ -21,9 +21,9 @@
 !===============================================================================
 ! Main module following naming standard: matches filename
 MODULE module_util_time
+   USE module_ctrl_const_mathconst, ONLY: deg2rad_daylen_d0
    IMPLICIT NONE
    PRIVATE :: SUEWS_cal_local_standard_timer
-
 CONTAINS
    SUBROUTINE day2month(b, mb, md, seas, year, latitude)
       IMPLICIT NONE
@@ -239,7 +239,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: XLAT
       REAL(KIND(1D0)), INTENT(OUT) :: DEC, DAYL, SNDN, SNUP
       REAL(KIND(1D0)) :: SOC
-      REAL(KIND(1D0)), PARAMETER :: PI = 3.14159, RAD = PI/180.0
+      REAL(KIND(1D0)), PARAMETER :: PI = 3.14159, RAD = deg2rad_daylen_d0
 
       !-----------------------------------------------------------------------
       !     Calculation of declination of sun (Eqn. 16). Amplitude= +/-23.45

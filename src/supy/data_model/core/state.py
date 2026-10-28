@@ -26,45 +26,45 @@ class SurfaceInitialState(BaseModel):
 
     state: FlexibleRefValue(float) = Field(
         description="Initial water state of the surface",
-        json_schema_extra={"unit": "mm", "display_name": "Initial Surface Water State"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Initial Surface Water State"},
         default=0.0,
         ge=0,
     )  # Default set to 0.0 means dry surface.
     soilstore: FlexibleRefValue(float) = Field(
         description="Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
-        json_schema_extra={"unit": "mm", "display_name": "Initial Soil Store"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Initial Soil Store"},
         default=150.0,
         ge=10,
     )  # Default set to 150.0 (wet soil) and ge=10 (less than 10 would be too dry) are physically reasonable for a model run.
     snowfrac: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Snow fraction",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Fraction"},
+        json_schema_extra={"unit": "1", "display_name": "Snow Fraction"},
         default=0.0,
         ge=0,
         le=1,
     )  # Default set to 0.0 means no snow on the ground.
     snowpack: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Snow pack",
-        json_schema_extra={"unit": "mm", "display_name": "Snow Pack"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Snow Pack"},
         default=0.0,
         ge=0,
     )
     icefrac: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Ice fraction",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Ice Fraction"},
+        json_schema_extra={"unit": "1", "display_name": "Ice Fraction"},
         default=0.0,
         ge=0,
         le=1,
     )
     snowwater: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Snow water",
-        json_schema_extra={"unit": "mm", "display_name": "Snow Water"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Snow Water"},
         default=0.0,
         ge=0,
     )
     snowdens: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Snow density",
-        json_schema_extra={"unit": "kg m^-3", "display_name": "Snow Density"},
+        json_schema_extra={"unit": "kg m-3", "display_name": "Snow Density"},
         default=0.0,
         ge=0,
     )
@@ -385,7 +385,7 @@ class InitialStateVeg(SurfaceInitialState):
             "than bark), while grass follows a reversed relationship (denser grass "
             "-> lower albedo as soil is more reflective than grass blades)."
         ),
-        json_schema_extra={"unit": "dimensionless", "display_name": "Initial Albedo"},
+        json_schema_extra={"unit": "1", "display_name": "Initial Albedo"},
         default=None,
         ge=0.0,
         le=1.0,
@@ -393,7 +393,7 @@ class InitialStateVeg(SurfaceInitialState):
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",
         json_schema_extra={
-            "unit": "m^2 m^-2",
+            "unit": "m2 m-2",
             "display_name": "Initial Leaf Area Index",
         },
         default=1.0,
@@ -401,7 +401,7 @@ class InitialStateVeg(SurfaceInitialState):
     gdd_id: FlexibleRefValue(float) = Field(
         description="Growing degree days at the start of the model run",
         json_schema_extra={
-            "unit": "degC d",
+            "unit": "K d",
             "display_name": "Initial Growing Degree Days",
         },
         default=0,
@@ -409,7 +409,7 @@ class InitialStateVeg(SurfaceInitialState):
     sdd_id: FlexibleRefValue(float) = Field(
         description="Senescence degree days at the start of the model run",
         json_schema_extra={
-            "unit": "degC d",
+            "unit": "K d",
             "display_name": "Initial Senescence Degree Days",
         },
         default=0,
@@ -577,14 +577,14 @@ class InitialStateDectr(InitialStateVeg):
 
     porosity_id: FlexibleRefValue(float) = Field(
         description="Porosity for deciduous trees at the start of the model run",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Initial Porosity"},
+        json_schema_extra={"unit": "1", "display_name": "Initial Porosity"},
         default=0.2,
         ge=0,
         le=1,
     )
     decidcap_id: FlexibleRefValue(float) = Field(
         description="Deciduous capacity for deciduous trees at the start of the model run",
-        json_schema_extra={"unit": "mm", "display_name": "Initial Deciduous Capacity"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Initial Deciduous Capacity"},
         default=0.3,
         ge=0,
     )
@@ -716,7 +716,7 @@ class InitialStateWater(SurfaceInitialState):
     # Override soilstore for water surfaces to allow 0 (water doesn't have soil)
     soilstore: FlexibleRefValue(float) = Field(
         description="Initial soil store (not applicable for water surfaces)",
-        json_schema_extra={"unit": "mm", "display_name": "Initial Soil Store"},
+        json_schema_extra={"unit": "kg m-2", "display_name": "Initial Soil Store"},
         default=0.0,
         ge=0,  # Water surfaces can have 0 soilstore
     )
@@ -889,7 +889,7 @@ class InitialStates(BaseModel):
 
     snowalb: FlexibleRefValue(float) = Field(
         description="Snow albedo at the start of the model run",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo"},
+        json_schema_extra={"unit": "1", "display_name": "Snow Albedo"},
         default=0.5,
         ge=0,
         le=1,

@@ -59,7 +59,7 @@ def make_surface_vars(base_name, unit, description_template, aggregation):
 
 # Snow water equivalent by surface
 SWE_VARS = make_surface_vars(
-    "SWE", "mm", "Snow water equivalent for {}", AggregationMethod.AVERAGE
+    "SWE", "kg m-2", "Snow water equivalent for {}", AggregationMethod.AVERAGE
 )
 
 # Meltwater by surface
@@ -88,7 +88,7 @@ QMFR_VARS = make_surface_vars(
 
 # Fraction of snow by surface (excluding Water)
 FR_VARS = make_surface_vars(
-    "fr", "-", "Fraction of {} covered by snow", AggregationMethod.AVERAGE
+    "fr", "1", "Fraction of {} covered by snow", AggregationMethod.AVERAGE
 )[:-1]  # No fr_Water
 
 # Rain on snow by surface
@@ -132,7 +132,7 @@ FRMELT_VARS = make_surface_vars(
 
 # Meltwater store by surface
 MWSTORE_VARS = make_surface_vars(
-    "MwStore", "mm", "Liquid water held in the snowpack on {}", AggregationMethod.AVERAGE
+    "MwStore", "kg m-2", "Liquid water held in the snowpack on {}", AggregationMethod.AVERAGE
 )
 
 # Snow density by surface
@@ -155,7 +155,7 @@ TSNOW_VARS = make_surface_vars(
 SNOW_ALB_VAR = [
     OutputVariable(
         name="SnowAlb",
-        unit="-",
+        unit="1",
         description=(
             "Albedo of the snowpack, one value shared by all snow-covered "
             "surfaces: it decreases as the snow ages (linearly below 0 degC, "

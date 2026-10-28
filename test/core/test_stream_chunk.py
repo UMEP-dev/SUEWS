@@ -373,6 +373,35 @@ def test_year_end_stub_of_one_row_matches_run_then_save(
     _compare_dirs(tmp_path, dir_whole)
 
 
+@pytest.mark.parametrize("tail_rows", [1, 2])
+def test_text_short_last_chunk_at_the_model_timestep(
+    two_day_output, tmp_path, tail_rows
+):
+    """Short text tails keep missing sums exactly as a whole run saves them."""
+    # ARRANGE: real output for two grids, with missing rainfall in the tail.
+    df_output, df_state = two_day_output
+    dates = df_output.index.get_level_values("datetime")
+    list_dates = dates.unique()[: 3 + tail_rows]
+    df_output = df_output.loc[dates.isin(list_dates)].copy()
+    tail = df_output.index.get_level_values("datetime") > list_dates[2]
+    df_output.loc[tail, ("SUEWS", "Rain")] = np.nan
+    streamed = StreamedTextFiles()
+
+    # ACT: write the same frame whole and in two successive chunks.
+    _save(df_output, df_state, tmp_path / "whole", freq_s=TSTEP_S)
+    for df_chunk in (df_output.loc[~tail], df_output.loc[tail]):
+        _save(
+            df_chunk,
+            df_state,
+            tmp_path / "chunked",
+            freq_s=TSTEP_S,
+            streamed_files=streamed,
+        )
+
+    # ASSERT: the missing-value representation and every saved byte agree.
+    _compare_dirs(tmp_path / "chunked", tmp_path / "whole")
+
+
 def test_each_chunk_keeps_only_the_saved_groups(
     short_sample_sim, tmp_path, monkeypatch
 ):

@@ -215,7 +215,7 @@ CONTAINS
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
       ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
-
+      USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
 
       !!!!!!!!!!!!!! Set objects and variables !!!!!!!!!!!!!!
@@ -621,11 +621,11 @@ CONTAINS
       END IF
 
       ! set temperature
-      tsfc_surf_K = tsfc_surf + 273.15 ! convert surface temperature to Kelvin
-      tsfc_roof_K = tsfc_roof + 273.15 ! convert surface temperature to Kelvin
-      tsfc_wall_K = tsfc_wall + 273.15 ! convert surface temperature to Kelvin
-      tair_K = Tair_hbh_C + 273.15 ! convert air temperature to Kelvin
-      tair_veg_K = Tair_veg_C + 273.15 ! convert vegetation air temperature to Kelvin
+      tsfc_surf_K = tsfc_surf + C2K ! convert surface temperature to Kelvin
+      tsfc_roof_K = tsfc_roof + C2K ! convert surface temperature to Kelvin
+      tsfc_wall_K = tsfc_wall + C2K ! convert surface temperature to Kelvin
+      tair_K = Tair_hbh_C + C2K ! convert air temperature to Kelvin
+      tair_veg_K = Tair_veg_C + C2K ! convert vegetation air temperature to Kelvin
 
       ! set ground temperature as the area-weighted average of the surface temperature of all land covers but buildings
       IF (1.0D0 - sfr_surf(BldgSurf) > eps_fp) THEN

@@ -29,30 +29,42 @@ PROBE_SITE = dict(zzd=25.8, z0m=1.9, zdm=14.2, u=2.43, tair=23.39, rhocp=1201.69
 PROBE_QH = (-14.718630457399422, -14.718630459294966, -14.718630459900247, -14.718630460531088)
 
 PROBE = """program probe
-use module_phys_atmmoiststab, only: cal_Stab, stab_psi_mom, k, grav
-use module_ctrl_error_state, only: supy_error_flag, reset_supy_error
+use module_phys_atmmoiststab, only: cal_Stab, stab_psi_mom, stability_scales, relax_zl, k, grav
+use module_phys_resist, only: AerodynamicResistance
+use module_ctrl_error_state, only: get_supy_error, reset_supy_error
 implicit none
-integer :: mode, n, i, meth
-real(kind(1d0)) :: zzd, z0m, zdm, u, t, rhocp, x, qh, l, ts, us, zl, h, lm
+integer :: mode, n, i, meth, code
+character(len=512) :: message
+real(kind(1d0)) :: zzd, z0m, zdm, u, t, rhocp, x, qh, l, ts, us, zl, h, lm, expected, ra, z0v
 read(*, *) mode, n, meth, zzd, z0m, zdm, u, t, rhocp
 do i = 1, n
   read(*, *) x, qh
   if (mode == 1) then
     ! qh is the sensible heat flux [W m-2]; x is unused
     call cal_Stab(meth, zzd, z0m, zdm, u, t, qh, rhocp, 1d0, l, ts, us, zl)
-    write(*, '(ES25.17)') zl
+    write(*, '(ES26.17E3)') zl
   else if (mode == 3) then
-    ! fatal-error flag raised by cal_Stab for flux qh, then cleared
+    ! Fatal code and every output sentinel, then clear the thread-local store.
     call reset_supy_error()
     call cal_Stab(meth, zzd, z0m, zdm, u, t, qh, rhocp, 1d0, l, ts, us, zl)
-    write(*, '(ES25.17)') merge(1d0, 0d0, supy_error_flag())
+    call get_supy_error(code, message)
+    write(*, '(5ES26.17E3)') real(code, kind(1d0)), l, ts, us, zl
     call reset_supy_error()
+  else if (mode == 4) then
+    ! Relax from x towards 0.5, then check the momentum and heat identities.
+    zl = relax_zl(x, 0.5d0, 2)
+    h = qh/rhocp
+    call stability_scales(meth, zzd, z0m, u, h, zl, l, us, ts)
+    expected = max(1d-12, k*u/(log(zzd/z0m) - stab_psi_mom(meth, zl) &
+                 + stab_psi_mom(meth, zl*z0m/zzd)))
+    call AerodynamicResistance(zzd, z0m, u, l, us, 0d0, 2, meth, 2, ra, z0v)
+    write(*, '(7ES26.17E3)') zl, l, us, ts, expected, ra, zzd/l
   else
     ! residual f(z) - z at z = x for heat flux qh
     h = qh/rhocp
     lm = zzd/x
     us = max(1d-12, k*u/(log(zzd/z0m) - stab_psi_mom(meth, x) + stab_psi_mom(meth, z0m/lm)))
-    write(*, '(ES25.17)') -zzd*((grav/(t + 273.15))*k)*h/us**3 - x
+    write(*, '(ES26.17E3)') -zzd*((grav/(t + 273.15))*k)*h/us**3 - x
   end if
 end do
 end program
@@ -137,6 +149,13 @@ def test_returned_zl_is_a_root_or_the_clip(probe, method):
     interior = ~(at_stable_clip | at_unstable_clip)
     # at a clip the flux implies more stability (or instability) than the clip
     assert np.all(g[at_stable_clip] > 0.0) and np.all(g[at_unstable_clip] < 0.0)
+    # A positive endpoint alone can hide a pair of interior roots. Check all
+    # clipped cases against a fine grid on the entire corresponding branch.
+    for clipped, limit, sign in ((at_stable_clip, ZL_STABLE_MAX, 1),
+                                 (at_unstable_clip, ZL_UNSTABLE_MIN, -1)):
+        grid = np.linspace(limit / 10000, limit, 10000)
+        residual = probe(2, method, grid[:, None], qh[clipped][None, :])
+        assert np.all(sign * residual > 0.0)
     # inside the clips the returned value is consistent with the flux
     assert np.all(np.abs(g[interior]) <= RESIDUAL_TOL * np.maximum(1.0, np.abs(zl[interior])))
 
@@ -150,9 +169,52 @@ def test_stable_zl_is_monotone_in_the_flux(probe, method):
     assert np.all(np.diff(zl) >= 0.0)
 
 
-def test_non_finite_flux_is_a_fatal_error_not_a_clip(probe):
-    """With every residual NaN the bracket never closes, so without a guard a
-    NaN flux would come back as the unstable clip and hide the upstream fault.
-    cal_Stab raises error 110 instead; a finite flux leaves no error."""
-    flags = probe(3, 3, 0.0, [float("nan"), float("inf"), -float("inf"), -14.7, 50.0])
-    np.testing.assert_array_equal(flags, [1.0, 1.0, 1.0, 0.0, 0.0])
+@pytest.mark.parametrize("field", ["qh", "u", "tair", "zzd", "z0m"])
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
+def test_non_finite_input_contract(probe, field, value):
+    site = PROBE_SITE.copy()
+    qh = -14.7
+    if field == "qh":
+        qh = value
+    else:
+        site[field] = value
+    result = probe(3, 3, 0.0, qh, site)
+    np.testing.assert_array_equal(result, [110, -999, -999, -999, -999])
+
+
+def test_finite_inputs_leave_no_error(probe):
+    result = probe(3, 3, 0.0, [-14.7, 0.0, 50.0]).reshape(-1, 5)
+    np.testing.assert_array_equal(result[:, 0], 0)
+    assert np.isfinite(result).all()
+    assert not (result[:, 1:] == -999).any()
+
+
+@pytest.mark.parametrize("qh", [-12.65377713054404, -12.654])
+def test_two_roots_between_scan_points_select_nearest_neutral(probe, qh):
+    # Both crossings sit inside the old scan cell, whose endpoints are positive.
+    grid = np.linspace(0.1836629282, 0.2564509649, 10001)
+    residual = probe(2, 4, grid, qh)
+    crossings = np.flatnonzero(residual[:-1] * residual[1:] < 0)
+    assert len(crossings) == 2
+    assert residual[0] > 0 and residual[-1] > 0
+    zl = probe(1, 4, 0.0, qh)[0]
+    first = crossings[0]
+    assert grid[first] <= zl <= grid[first + 1]
+    assert abs(probe(2, 4, zl, qh)[0]) <= RESIDUAL_TOL
+
+
+@pytest.mark.parametrize("method", STABILITY_METHODS)
+@pytest.mark.parametrize("previous", [0.1, -0.5, -3 / 14])
+@pytest.mark.parametrize("wind", [2.43, 0.0])
+def test_relaxed_scales_and_neutral_cancellation(probe, method, previous, wind):
+    site = {**PROBE_SITE, "u": wind}
+    zl, length, us, ts, expected, ra, ratio = probe(4, method, previous, -12.0, site)
+    assert np.isfinite([zl, length, us, ts, ra, ratio]).all()
+    assert us >= 1e-12
+    assert us == pytest.approx(expected, rel=1e-14)
+    assert ts * us == pytest.approx(12.0 / site["rhocp"], rel=1e-14)
+    if abs(zl) <= 1e-12:
+        assert abs(length) == np.finfo(float).max
+        assert abs(ratio) < 1e-300
+    else:
+        assert ratio == pytest.approx(zl, rel=1e-14)

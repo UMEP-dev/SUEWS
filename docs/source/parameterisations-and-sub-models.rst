@@ -8,32 +8,38 @@ Parameterisations and sub-models within SUEWS
 Aerodynamic resistance and stability
 ------------------------------------
 
-SUEWS (Surface Urban Energy and Water Balance Scheme) bounds the stability correction to aerodynamic resistance through a single constraint: the stability parameter :math:`(z-d)/L` is clipped to :math:`[-2, 0.5]` in the stability calculation.
-There is no upper limit on the aerodynamic resistance :math:`r_a` itself; the former hard cap of 120 s |m^-1| has been removed, as has the 0.001 m |s^-1| floor on friction velocity, which is replaced by a numerical division guard of 1e-12 m |s^-1|.
-The lower limit of 10 s |m^-1| on :math:`r_a` is unchanged.
+SUEWS (Surface Urban Energy and Water Balance Scheme) bounds stability in ``cal_Stab`` by clipping :math:`(z-d)/L` to :math:`[-2, 0.5]`.
+The core aerodynamic-resistance calculation has no upper limit on :math:`r_a`; its former cap of 120 s |m^-1| has been removed.
+The 0.001 m |s^-1| friction-velocity floor in ``cal_Stab`` is replaced by a numerical division guard of 1e-12 m |s^-1|.
+The lower limit of 10 s |m^-1| on core :math:`r_a` is unchanged.
+These changes do not remove the diagnostic MOST/RSL friction-velocity floors of 0.001 and 0.15 m |s^-1|, the RSL :math:`L_c/L` clip, or the experimental EHC resistance cap.
 
 The inner stability calculation solves for :math:`(z-d)/L` consistent with the current sensible heat flux.
-The flux sign selects the stable or unstable branch; the residual is scanned outwards from neutral, and the first bracketed root is refined to a tolerance of :math:`10^{-12}`.
-This selects the root nearest neutral; if no root is bracketed before the branch limit, the calculation returns the stable clip of 0.5 or the unstable clip of -2.
+The flux sign selects the stable or unstable branch, and residual samples are taken outwards from neutral.
+A positive sampled local minimum triggers golden-section minimisation over its neighbouring cells, including a descending final cell at the clip, so a pair of roots between positive scan points can be detected.
+The first root is bracketed between the inner sample and the minimum, or between samples with opposite signs, and refined by Illinois false position until the residual magnitude or bracket width is at most :math:`10^{-12}`.
+The root nearest neutral is selected; if there is no root before the branch limit, the calculation returns the stable clip of 0.5 or the unstable clip of -2.
 Zero sensible heat flux gives neutral stability.
-Friction velocity, temperature scale and Obukhov length are then recomputed from the returned stability parameter.
-This avoids accepting a small iteration step as convergence near the stable fold, where the previous fixed-point iteration could stop far from a solution.
+Friction velocity, temperature scale and Obukhov length are recomputed from the accepted stability parameter, including after relaxation.
+For :math:`| (z-d)/L | \leq 10^{-12}`, Obukhov length is the largest finite double-precision value with the sign of the stability parameter: downstream height-to-length ratios remain finite and effectively zero.
+This avoids a zero or stale Obukhov length at neutral cancellation.
 
 The clip bounds the product :math:`r_a U`, not :math:`r_a`, so resistance can exceed 120 s |m^-1| at light wind.
-Across stability methods 2 to 4 and their supported roughness-sublayer options in the London sample and benchmark years, this happens on 0.2 to 0.6% of 5-min steps, with a largest value of about 295 s |m^-1|.
-
-Without the cap, the outer surface-temperature iteration can settle into a two-cycle on near-neutral nights: one pass is unstable with a low :math:`r_a`, the next sits on the stable clip with a high :math:`r_a`, and the residual sensible heat flux changes sign each time.
+Without the cap, the outer surface-temperature iteration can alternate between unstable conditions with a low :math:`r_a` and the stable clip with a high :math:`r_a`, while residual sensible heat flux changes sign.
 To damp this, :math:`(z-d)/L` is under-relaxed between passes of the iteration,
 
 .. math::
 
-   \zeta_n = \zeta_{n-1} + 0.3\,(\zeta^{*}_n - \zeta_{n-1}),
+   \zeta_n = \zeta_{n-1} + \alpha_n\,(\zeta^{*}_n - \zeta_{n-1}),
 
-where :math:`\zeta^{*}_n` is the value solved from the current sensible heat flux and :math:`\zeta_{n-1}` the value used in the previous pass.
-The first pass of each timestep takes the solved value unchanged.
-After ten passes the factor 0.3 decays by 0.7 per pass.
-Near the stable fold the solved value itself jumps, from a small :math:`(z-d)/L` to the stable clip, as the downward sensible heat flux grows, so there may be no consistent value to converge to; a fixed factor would keep stepping across the jump until the pass limit, whereas the decaying factor lets the iteration settle at the jump.
-A converged value of the plain iteration is also a converged value of the relaxed one, so the relaxation changes how the iteration reaches its answer, not the physics it converges to; it can change results within the 0.05 K convergence tolerance, on the few steps that settle at a jump, and in the state carried into subsequent timesteps.
+where :math:`\zeta^{*}_n` is solved from the current sensible heat flux and :math:`\zeta_{n-1}` was used in the previous pass.
+The first pass takes the solved value unchanged; passes 2 to 10 use :math:`\alpha_n=0.3`.
+After ten passes the factor decays by 0.7 per pass, whether or not a stable fold has been diagnosed.
+The decay leaves earlier passes unchanged relative to fixed-factor relaxation.
+Near the stable fold the solved value can jump from a small :math:`(z-d)/L` to the stable clip as downward sensible heat flux grows.
+The decaying factor can then end the iteration on the successive-temperature 0.05 K test without reaching a fixed point (decay-assisted termination).
+Passing that test does not establish a vanishing unrelaxed stability residual or bound differences from the unrelaxed model.
+After the loop, any required flux-sign reconciliation uses the unrelaxed solve and recomputes its dependent scales.
 
 Net all-wave radiation, Q\*
 ---------------------------

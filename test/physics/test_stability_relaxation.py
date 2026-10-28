@@ -192,6 +192,7 @@ def test_former_sign_flip_steps_converge_without_the_cap(sample_run_cached):
     assert passes.loc[window].max() < MAX_OUTER_PASSES
     assert (passes < MAX_OUTER_PASSES).all()
     assert ra.max() > RA_FORMER_CAP
+    assert (df_output[("SUEWS", "QH")] * df_output[("SUEWS", "zL")] <= 0).all()
 
 
 @pytest.mark.medium
@@ -211,7 +212,9 @@ def test_sample_year_converges_with_roughness_sublayer_off(method):
     simulation.update_forcing(sample.forcing.df)
 
     # ACT
-    passes = simulation.run(n_jobs=1).df[("debug", "iter")]
+    output = simulation.run(n_jobs=1).df
+    passes = output[("debug", "iter")]
+    assert (output[("SUEWS", "QH")] * output[("SUEWS", "zL")] <= 0).all()
 
     # ASSERT
     assert (passes < MAX_OUTER_PASSES).all()

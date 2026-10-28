@@ -171,7 +171,7 @@ class Conductance(BaseModel):
         default=None,
         description="Conductance parameter related to soil moisture",
         json_schema_extra={
-            "unit": "mm-1",
+            "unit": "m2 kg-1",
             "display_name": "Soil Moisture Response Parameter",
         },
     )

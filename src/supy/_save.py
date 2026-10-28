@@ -14,7 +14,7 @@ import pandas as pd
 # import ray
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
-from ._output_metadata import prepare_output, write_output_parquet, write_text_metadata
+from ._output_metadata import output_interval_seconds, prepare_output, write_output_parquet, write_text_metadata
 from ._post import _resample_output, df_var as df_var_out
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
@@ -1566,6 +1566,8 @@ def save_df_output_parquet(
     if save_tstep and streamed_parquet is None:
         interval_s = _native_interval_s(df_state_final)
 
+    if interval_s is None:
+        interval_s = int(output_interval_seconds(df_to_save))
     df_to_save = prepare_output(df_to_save, interval_s=interval_s, write=True)
     if streamed_parquet is not None:
         streamed_parquet.write(path_output, df_to_save, write_sidecars, interval_s)

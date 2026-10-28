@@ -43,6 +43,8 @@ def output_interval_seconds(df_output: pd.DataFrame, interval_s: Optional[int] =
     frequency = getattr(index, "freq", None)
     if frequency is None and len(index) >= 3:
         frequency = pd.infer_freq(index)
+    if frequency is None and len(index) == 2 and index[1] > index[0]:
+        return (index[1] - index[0]).total_seconds()
     if frequency is None:
         raise ValueError("Water-rate conversion requires an explicit output interval or regular timestamps")
     return pd.tseries.frequencies.to_offset(frequency).nanos / 1e9
@@ -60,9 +62,14 @@ def prepare_output(
         Output columns, normally identified by (group, variable).
     units : mapping, optional
         Variable names or (group, variable) pairs mapped to target unit strings.
-        Ambiguous names require a pair. No request returns the original frame.
+        Ambiguous names require a pair. Without writing or a request, return the original frame.
     group : str, optional
         Group identity for a single-group frame with flat columns.
+
+    interval_s : int, optional
+        Duration represented by a row; required when timestamps do not give it.
+    write : bool, optional
+        Convert all water amounts to canonical rates at the writing boundary.
 
     Returns
     -------

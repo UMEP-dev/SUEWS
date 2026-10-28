@@ -8,6 +8,13 @@ MODULE module_phys_atmmoiststab
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
    REAL(KIND(1D0)), PARAMETER :: grav = 9.80665 !g - gravity - physics today august 1987
+   ! (z-d)/L solve in cal_Stab (#1962)
+   REAL(KIND(1D0)), PARAMETER :: ZL_STABLE_MAX = 0.5D0 ! stable clip [-]
+   REAL(KIND(1D0)), PARAMETER :: ZL_UNSTABLE_MIN = -2.0D0 ! unstable clip [-]
+   REAL(KIND(1D0)), PARAMETER :: ZL_SCAN_MIN = 1.0D-9 ! smallest |(z-d)/L| scanned [-]
+   INTEGER, PARAMETER :: N_ZL_SCAN = 60 ! geometric scan points up to the clip
+   REAL(KIND(1D0)), PARAMETER :: ZL_SOLVE_TOL = 1.0D-12 ! residual and bracket tolerance [-]
+   INTEGER, PARAMETER :: MAX_ZL_SOLVE = 200 ! false-position iterations
 
    ! scheme code
    INTEGER, PARAMETER :: W16 = 2 ! Ward et al (2016) based on {unstable: Dyer (1974) modified Hogstrom (1988); and stable: Van Ulden & Holtslag (1985)}
@@ -219,16 +226,12 @@ CONTAINS
 
       REAL(KIND(1D0)) :: G_T_K, &
                          KUZ, &
-                         LOLD, &
-                         zLOLD, &
                          psim, &
                          z0l, &
                          psimz0, &
                          H_init, &
                          h
       INTEGER, PARAMETER :: notUsedI = -55
-
-      INTEGER :: i
 
       LOGICAL, PARAMETER :: debug = .FALSE.
 
@@ -245,87 +248,37 @@ CONTAINS
          IF (supy_error_flag()) RETURN
       END IF
 
-      UStar = KUZ/LOG(Zzd/z0m) ! Initial guess for UStar assuming neutral conditions — used only to seed the iteration
-!       IF (ABS(H_init) < 0.001) THEN ! prevent zero TStar
-!          h = 0.001 * (h_init/ABS(h_init))
-!       ELSE
-!          h = H_init
-!       END IF
-      H = H_init
-      IF (ABS(H) <= eps_fp) THEN
-         TStar = 0.
-         L_MOD = 0.
-         zL = 0.
-      ELSE
-         TStar = (-H/UStar)
-         L_MOD = (UStar**2)/(G_T_K*TStar)
-         zL = zzd/L_MOD
-      END IF
-
       IF (LOG(zzd/z0m) < 0.001000) THEN
          ! PRINT*, 1/(z0m-z0m)
          CALL ErrorHint(17, 'In stability subroutine, (z-zd) < z0.', zzd, z0m, notUsedI, modState)
          IF (supy_error_flag()) RETURN
       END IF
-      i = 1
-      LOLD = -999.
-      zLOLD = -999.
-      z0L = z0m/L_MOD !z0m roughness length
 
-      !DO WHILE ((ABS(LOLD - L_MOD) > 0.01) .AND. (i < 330)) !NT: add error threshold !Iteration starts
-      DO WHILE ((ABS(zLOLD - zL) > 0.001) .AND. (i < 330))
-         ! cap L_MOD to be within [-500,500]
-         ! LOLD = MIN(MAX(-2000., L_MOD), 2000.)
-         LOLD = L_MOD
-         zLOLD = zL
-         zL = zzd/L_MOD
-         zL = MIN(0.5, MAX(-2., zL))
+      H = H_init
+      IF (ABS(H) <= eps_fp) THEN
+         ! no buoyancy flux: neutral
+         TStar = 0.
+         L_MOD = 0.
+         zL = 0.
+         UStar = MAX(0.001, KUZ/LOG(Zzd/z0m))
+      ELSE
+         ! (z-d)/L has the sign of -H: stable for downward H, unstable for upward
+         IF (H < 0) THEN
+            zL = solve_zl_branch(1.0D0, ZL_STABLE_MAX)
+         ELSE
+            zL = -solve_zl_branch(-1.0D0, -ZL_UNSTABLE_MIN)
+         END IF
+         ! state consistent with the returned (z-d)/L
          L_MOD = zzd/zL
-         z0L = z0m/L_MOD !z0m roughness length
-
-         ! IF (zL>2)THEN
-         !    CALL ErrorHint(73,'LUMPS_atmos_functions_stab.f95: stability scale (z/L), UStar',zL,UStar,notUsedI)
-         !    RETURN !MO-theory not necessarily valid above zL>2. Still causes problematic UStar values and correct limit might be 0.3.
-         !    !Needs more investigations.
-         ! END IF
-
+         z0L = z0m/L_MOD
          psim = stab_psi_mom(StabilityMethod, zL)
          psimz0 = stab_psi_mom(StabilityMethod, z0L)
-
          UStar = KUZ/(LOG(Zzd/z0m) - psim + psimz0) !Friction velocity in non-neutral situation
          ! TS 11 Feb 2021: limit UStar and TStar to reasonable ranges
          ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
          UStar = MAX(0.001, UStar)
-         ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
-
-         IF (ABS(H) <= eps_fp) THEN
-            TStar = 0.
-            L_MOD = 0.
-            zL = 0.
-         ELSE
-            TStar = (-H/UStar)
-            L_MOD = (UStar**2)/(G_T_K*TStar)
-            zL = zzd/L_MOD
-            zL = MIN(0.5, MAX(-2., zL))
-            L_MOD = zzd/zL
-            z0L = z0m/L_MOD
-         END IF
-         ! cap L_MOD to be within [-500,500]
-         ! L_MOD = MIN(MAX(-2000., L_MOD), 2000.)
-
-         ! IF(UStar<0.001000)THEN       !If u* too small
-         !    UStar=KUZ/(LOG(Zzd/z0m))
-         !    PRINT*, 'UStar info',UStar,KUZ,(LOG(Zzd/z0m)),Zzd,z0m
-         !    CALL ErrorHint(30,'SUBROUTINE STAB_lumps:[ u*< 0.001] zl,dectime',zl,dectime,notUsedI)
-         !    CALL ErrorHint(30,'SUBROUTINE STAB_lumps:[ u*< 0.001] z0l,UStar',z0l,UStar,notUsedI)
-         !    CALL ErrorHint(30,'SUBROUTINE STAB_lumps:[ u*< 0.001] psim,psimz0',psim,psimz0,notUsedI)
-         !    CALL ErrorHint(30,'SUBROUTINE STAB_lumps:[ u*< 0.001] AVU1,log(zzd/z0m)',AVU1,LOG(zzd/z0m),notUsedI)
-         !
-         !    ! RETURN
-         ! ENDIF
-
-         i = i + 1
-      END DO
+         TStar = (-H/UStar)
+      END IF
 
       ! limit zL to be within [-2,2]
 !       zL = MIN(2., MAX(-2., zL))
@@ -371,6 +324,81 @@ CONTAINS
       !   print*, 1/(L_MOD-L_MOD)
       !
       ! end if
+
+   CONTAINS
+
+      FUNCTION zl_residual(sgn, mag) RESULT(g)
+         ! g = |(z-d)/L implied by u*(zL)| - |zL| at zL = sgn*mag  [-]
+         ! A root of g is a (z-d)/L consistent with H; g > 0 means the
+         ! implied stability is larger than the trial value.
+         REAL(KIND(1D0)), INTENT(IN) :: sgn, mag
+         REAL(KIND(1D0)) :: g
+         REAL(KIND(1D0)) :: z, lm, us, pm, pm0
+
+         z = sgn*mag
+         lm = zzd/z
+         pm = stab_psi_mom(StabilityMethod, z)
+         pm0 = stab_psi_mom(StabilityMethod, z0m/lm)
+         us = MAX(0.001, KUZ/(LOG(Zzd/z0m) - pm + pm0))
+         ! implied (z-d)/L = zzd*G_T_K*TStar/u*^2 with TStar = -H/u*
+         g = sgn*(-zzd*G_T_K*H/us**3) - mag
+      END FUNCTION zl_residual
+
+      FUNCTION solve_zl_branch(sgn, mag_max) RESULT(mag)
+         ! Magnitude of (z-d)/L on one stability branch, in (0, mag_max].
+         ! Takes the root nearest neutral (the branch continuous with
+         ! neutral); if the residual stays positive up to the clip, there is
+         ! no consistent value inside the clip and the clip is returned.
+         ! Replaces a fixed-point loop that stopped on a small step, which
+         ! near the stable fold stopped short of its solution (#1962).
+         REAL(KIND(1D0)), INTENT(IN) :: sgn, mag_max
+         REAL(KIND(1D0)) :: mag
+         REAL(KIND(1D0)) :: a, b, ga, gb, c, gc
+         INTEGER :: j, side
+
+         ! scan outward from neutral for the first sign change
+         a = ZL_SCAN_MIN
+         ga = zl_residual(sgn, a)
+         IF (ga <= 0.0D0) THEN
+            mag = a ! consistent value indistinguishable from neutral
+            RETURN
+         END IF
+         b = a
+         gb = ga
+         DO j = 1, N_ZL_SCAN
+            a = b
+            ga = gb
+            b = ZL_SCAN_MIN*(mag_max/ZL_SCAN_MIN)**(REAL(j, KIND(1D0))/N_ZL_SCAN)
+            IF (j == N_ZL_SCAN) b = mag_max
+            gb = zl_residual(sgn, b)
+            IF (gb <= 0.0D0) EXIT
+         END DO
+         IF (gb > 0.0D0) THEN
+            mag = mag_max ! no root inside the clip
+            RETURN
+         END IF
+
+         ! Illinois false position on [a, b], ga > 0 >= gb
+         side = 0
+         mag = b
+         DO j = 1, MAX_ZL_SOLVE
+            c = (a*gb - b*ga)/(gb - ga)
+            gc = zl_residual(sgn, c)
+            mag = c
+            IF (ABS(gc) <= ZL_SOLVE_TOL .OR. b - a <= ZL_SOLVE_TOL) EXIT
+            IF (gc > 0.0D0) THEN
+               a = c
+               ga = gc
+               IF (side == 1) gb = 0.5D0*gb
+               side = 1
+            ELSE
+               b = c
+               gb = gc
+               IF (side == -1) ga = 0.5D0*ga
+               side = -1
+            END IF
+         END DO
+      END FUNCTION solve_zl_branch
 
    END SUBROUTINE cal_Stab
 

@@ -3,6 +3,44 @@
 Parameterisations and sub-models within SUEWS
 =============================================
 
+.. _aerodynamic_resistance_limit:
+
+Aerodynamic resistance and stability
+------------------------------------
+
+SUEWS (Surface Urban Energy and Water Balance Scheme) bounds stability in ``cal_Stab`` by clipping :math:`(z-d)/L` to :math:`[-2, 0.5]`.
+The core aerodynamic-resistance calculation has no upper limit on :math:`r_a`; its former cap of 120 s |m^-1| has been removed.
+The 0.001 m |s^-1| friction-velocity floor in ``cal_Stab`` is replaced by a numerical division guard of 1e-12 m |s^-1|.
+The lower limit of 10 s |m^-1| on core :math:`r_a` is unchanged.
+These changes do not remove the diagnostic MOST/RSL friction-velocity floors of 0.001 and 0.15 m |s^-1|, the RSL :math:`L_c/L` clip, or the experimental EHC resistance cap.
+
+The inner stability calculation solves for :math:`(z-d)/L` consistent with the current sensible heat flux.
+The flux sign selects the stable or unstable branch, and residual samples are taken outwards from neutral.
+A positive sampled local minimum triggers golden-section minimisation over its neighbouring cells, including a descending final cell at the clip, so a pair of roots between positive scan points can be detected.
+The first root is bracketed between the inner sample and the minimum, or between samples with opposite signs, and refined by Illinois false position until the residual magnitude or bracket width is at most :math:`10^{-12}`.
+The root nearest neutral is selected; if there is no root before the branch limit, the calculation returns the stable clip of 0.5 or the unstable clip of -2.
+Zero sensible heat flux gives neutral stability.
+Friction velocity, temperature scale and Obukhov length are recomputed from the accepted stability parameter, including after relaxation.
+For :math:`| (z-d)/L | \leq 10^{-12}`, Obukhov length is the largest finite double-precision value with the sign of the stability parameter: downstream height-to-length ratios remain finite and effectively zero.
+This avoids a zero or stale Obukhov length at neutral cancellation.
+
+The clip bounds the product :math:`r_a U`, not :math:`r_a`, so resistance can exceed 120 s |m^-1| at light wind.
+Without the cap, the outer surface-temperature iteration can alternate between unstable conditions with a low :math:`r_a` and the stable clip with a high :math:`r_a`, while residual sensible heat flux changes sign.
+To damp this, :math:`(z-d)/L` is under-relaxed between passes of the iteration,
+
+.. math::
+
+   \zeta_n = \zeta_{n-1} + \alpha_n\,(\zeta^{*}_n - \zeta_{n-1}),
+
+where :math:`\zeta^{*}_n` is solved from the current sensible heat flux and :math:`\zeta_{n-1}` was used in the previous pass.
+The first pass takes the solved value unchanged; passes 2 to 10 use :math:`\alpha_n=0.3`.
+After ten passes the factor decays by 0.7 per pass, whether or not a stable fold has been diagnosed.
+The decay leaves earlier passes unchanged relative to fixed-factor relaxation.
+Near the stable fold the solved value can jump from a small :math:`(z-d)/L` to the stable clip as downward sensible heat flux grows.
+The decaying factor can then end the iteration on the successive-temperature 0.05 K test without reaching a fixed point (decay-assisted termination).
+Passing that test does not establish a vanishing unrelaxed stability residual or bound differences from the unrelaxed model.
+After the loop, any required flux-sign reconciliation uses the unrelaxed solve and recomputes its dependent scales.
+
 Net all-wave radiation, Q\*
 ---------------------------
 

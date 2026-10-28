@@ -8,6 +8,19 @@ MODULE module_phys_atmmoiststab
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
    REAL(KIND(1D0)), PARAMETER :: grav = 9.80665 !g - gravity - physics today august 1987
+   ! Under-relaxation of (z-d)/L between outer surface-temperature passes
+   REAL(KIND(1D0)), PARAMETER :: ZL_RELAX = 0.3D0 ! factor for the first passes [-]
+   INTEGER, PARAMETER :: ZL_RELAX_PASSES = 10 ! passes at the full factor [-]
+   REAL(KIND(1D0)), PARAMETER :: ZL_RELAX_DECAY = 0.7D0 ! per-pass decay after that [-]
+
+   ! (z-d)/L solve in cal_Stab (#1962)
+   REAL(KIND(1D0)), PARAMETER :: ZL_STABLE_MAX = 0.5D0 ! stable clip [-]
+   REAL(KIND(1D0)), PARAMETER :: ZL_UNSTABLE_MIN = -2.0D0 ! unstable clip [-]
+   REAL(KIND(1D0)), PARAMETER :: ZL_SCAN_MIN = 1.0D-9 ! smallest |(z-d)/L| scanned [-]
+   INTEGER, PARAMETER :: N_ZL_SCAN = 60 ! geometric scan points up to the clip
+   REAL(KIND(1D0)), PARAMETER :: ZL_SOLVE_TOL = 1.0D-12 ! residual and bracket tolerance [-]
+   INTEGER, PARAMETER :: MAX_ZL_SOLVE = 200 ! false-position iterations
+   REAL(KIND(1D0)), PARAMETER :: ZL_NEUTRAL = 1.0D-12 ! |(z-d)/L| treated as neutral [-]
 
    ! scheme code
    INTEGER, PARAMETER :: W16 = 2 ! Ward et al (2016) based on {unstable: Dyer (1974) modified Hogstrom (1988); and stable: Van Ulden & Holtslag (1985)}
@@ -15,6 +28,29 @@ MODULE module_phys_atmmoiststab
    INTEGER, PARAMETER :: B71 = 4 ! Businger et al (1971) modifed  Hogstrom (1988)
    INTEGER, PARAMETER :: J12 = 5 ! Cheng and Brutsaert (2005)
 CONTAINS
+   PURE FUNCTION relax_zl(zl_prev, zl_new, i_pass) RESULT(zl_relaxed)
+      ! Under-relaxed (z-d)/L for the next outer surface-temperature pass.
+      ! Fed straight back, the flux -> (z-d)/L -> RA -> QE -> residual QH map can
+      ! two-cycle near QH = 0 (one pass unstable, the next on the stable clip),
+      ! most often on near-neutral nights. Moving only part of the way towards
+      ! the new solve damps that cycle; a fixed point of the plain map is still
+      ! a fixed point here.
+      ! Near the stable fold the solve itself jumps (from a small (z-d)/L to the
+      ! clip as the downward flux grows), and there may be no consistent value
+      ! to converge to: a fixed factor then keeps stepping across the jump. After
+      ! ZL_RELAX_PASSES passes the factor therefore decays geometrically, so the
+      ! iterate settles at the jump instead of cycling to the pass limit.
+      REAL(KIND(1D0)), INTENT(IN) :: zl_prev ! (z-d)/L used in the previous pass [-]
+      REAL(KIND(1D0)), INTENT(IN) :: zl_new ! (z-d)/L from this pass's solve [-]
+      INTEGER, INTENT(IN) :: i_pass ! outer pass number within the timestep [-]
+      REAL(KIND(1D0)) :: zl_relaxed
+      REAL(KIND(1D0)) :: alpha
+
+      alpha = ZL_RELAX
+      IF (i_pass > ZL_RELAX_PASSES) alpha = ZL_RELAX*ZL_RELAX_DECAY**(i_pass - ZL_RELAX_PASSES)
+      zl_relaxed = zl_prev + alpha*(zl_new - zl_prev)
+   END FUNCTION relax_zl
+
 
    SUBROUTINE SUEWS_update_atmState(timer, forcing, modState)
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -198,6 +234,7 @@ CONTAINS
       modState) ! optional: for thread-safe error logging
 
       USE module_ctrl_error_state, ONLY: supy_error_flag
+      USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_finite
       IMPLICIT NONE
       INTEGER, INTENT(in) :: StabilityMethod
 
@@ -219,18 +256,25 @@ CONTAINS
 
       REAL(KIND(1D0)) :: G_T_K, &
                          KUZ, &
-                         LOLD, &
-                         zLOLD, &
-                         psim, &
-                         z0l, &
-                         psimz0, &
                          H_init, &
                          h
       INTEGER, PARAMETER :: notUsedI = -55
 
-      INTEGER :: i
-
       LOGICAL, PARAMETER :: debug = .FALSE.
+
+      ! A non-finite input would make every residual NaN; the bracket would then
+      ! never close and the solve would return a clip, hiding the fault.
+      IF (.NOT. (ieee_is_finite(QH_init) .AND. ieee_is_finite(avU1) .AND. ieee_is_finite(Temp_C) &
+                 .AND. ieee_is_finite(zzd) .AND. ieee_is_finite(z0m))) THEN
+         CALL set_supy_error(110, &
+                             'cal_Stab: non-finite sensible heat flux, wind speed, air temperature, '// &
+                             'height or roughness length passed to the (z-d)/L solve')
+         L_MOD = -999.0D0
+         TStar = -999.0D0
+         UStar = -999.0D0
+         zL = -999.0D0
+         RETURN
+      END IF
 
       !Kinematic sensible heat flux [K m s-1] used to calculate friction velocity
       H_init = QH_init/(avdens*avcp)
@@ -245,134 +289,164 @@ CONTAINS
          IF (supy_error_flag()) RETURN
       END IF
 
-      UStar = KUZ/LOG(Zzd/z0m) ! Initial guess for UStar assuming neutral conditions — used only to seed the iteration
-!       IF (ABS(H_init) < 0.001) THEN ! prevent zero TStar
-!          h = 0.001 * (h_init/ABS(h_init))
-!       ELSE
-!          h = H_init
-!       END IF
-      H = H_init
-      IF (ABS(H) <= eps_fp) THEN
-         TStar = 0.
-         L_MOD = 0.
-         zL = 0.
-      ELSE
-         TStar = (-H/UStar)
-         L_MOD = (UStar**2)/(G_T_K*TStar)
-         zL = zzd/L_MOD
-      END IF
-
       IF (LOG(zzd/z0m) < 0.001000) THEN
          ! PRINT*, 1/(z0m-z0m)
          CALL ErrorHint(17, 'In stability subroutine, (z-zd) < z0.', zzd, z0m, notUsedI, modState)
          IF (supy_error_flag()) RETURN
       END IF
-      i = 1
-      LOLD = -999.
-      zLOLD = -999.
-      z0L = z0m/L_MOD !z0m roughness length
 
-      !DO WHILE ((ABS(LOLD - L_MOD) > 0.01) .AND. (i < 330)) !NT: add error threshold !Iteration starts
-      DO WHILE ((ABS(zLOLD - zL) > 0.001) .AND. (i < 330))
-         ! cap L_MOD to be within [-500,500]
-         ! LOLD = MIN(MAX(-2000., L_MOD), 2000.)
-         LOLD = L_MOD
-         zLOLD = zL
-         zL = zzd/L_MOD
-         zL = MIN(0.5, MAX(-2., zL))
-         L_MOD = zzd/zL
-         z0L = z0m/L_MOD !z0m roughness length
+      H = H_init
+      IF (ABS(H) <= eps_fp) THEN
+         zL = 0.0D0
+         H = 0.0D0
+      ELSE IF (H < 0.0D0) THEN
+         zL = solve_zl_branch(1.0D0, ZL_STABLE_MAX)
+      ELSE
+         zL = -solve_zl_branch(-1.0D0, -ZL_UNSTABLE_MIN)
+      END IF
+      CALL stability_scales(StabilityMethod, zzd, z0m, avU1, H, zL, L_MOD, UStar, TStar)
 
-         ! IF (zL>2)THEN
-         !    CALL ErrorHint(73,'LUMPS_atmos_functions_stab.f95: stability scale (z/L), UStar',zL,UStar,notUsedI)
-         !    RETURN !MO-theory not necessarily valid above zL>2. Still causes problematic UStar values and correct limit might be 0.3.
-         !    !Needs more investigations.
-         ! END IF
+   CONTAINS
 
-         psim = stab_psi_mom(StabilityMethod, zL)
-         psimz0 = stab_psi_mom(StabilityMethod, z0L)
+      FUNCTION zl_residual(sgn, mag) RESULT(g)
+         ! g = |(z-d)/L implied by u*(zL)| - |zL| at zL = sgn*mag  [-]
+         ! A root of g is a (z-d)/L consistent with H; g > 0 means the
+         ! implied stability is larger than the trial value.
+         REAL(KIND(1D0)), INTENT(IN) :: sgn, mag
+         REAL(KIND(1D0)) :: g
+         REAL(KIND(1D0)) :: z, us, pm, pm0
 
-         UStar = KUZ/(LOG(Zzd/z0m) - psim + psimz0) !Friction velocity in non-neutral situation
-         ! TS 11 Feb 2021: limit UStar and TStar to reasonable ranges
-         ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
-         UStar = MAX(0.001, UStar)
-         ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
+         z = sgn*mag
+         pm = stab_psi_mom(StabilityMethod, z)
+         pm0 = stab_psi_mom(StabilityMethod, z*z0m/zzd)
+         us = MAX(1.0D-12, KUZ/(LOG(Zzd/z0m) - pm + pm0))
+         ! implied (z-d)/L = zzd*G_T_K*TStar/u*^2 with TStar = -H/u*
+         g = sgn*(-zzd*G_T_K*H/us**3) - mag
+      END FUNCTION zl_residual
 
-         IF (ABS(H) <= eps_fp) THEN
-            TStar = 0.
-            L_MOD = 0.
-            zL = 0.
-         ELSE
-            TStar = (-H/UStar)
-            L_MOD = (UStar**2)/(G_T_K*TStar)
-            zL = zzd/L_MOD
-            zL = MIN(0.5, MAX(-2., zL))
-            L_MOD = zzd/zL
-            z0L = z0m/L_MOD
+      FUNCTION solve_zl_branch(sgn, mag_max) RESULT(mag)
+         ! Magnitude of (z-d)/L on one stability branch, in (0, mag_max].
+         ! Takes the root nearest neutral (the branch continuous with
+         ! neutral); if the residual stays positive up to the clip, there is
+         ! no consistent value inside the clip and the clip is returned.
+         ! Replaces a fixed-point loop that stopped on a small step, which
+         ! near the stable fold stopped short of its solution (#1962).
+         REAL(KIND(1D0)), INTENT(IN) :: sgn, mag_max
+         REAL(KIND(1D0)) :: mag
+         REAL(KIND(1D0)) :: a, b, ga, gb, c, gc
+         REAL(KIND(1D0)) :: x(0:N_ZL_SCAN), g(0:N_ZL_SCAN)
+         INTEGER :: j, side
+
+         ! Retain samples so a positive sampled minimum can reveal two roots
+         ! hidden in one cell. Only such minima need the more expensive search.
+         x(0) = 0.0D0
+         g(0) = zl_residual(sgn, x(0))
+         DO j = 1, N_ZL_SCAN
+            x(j) = ZL_SCAN_MIN*(mag_max/ZL_SCAN_MIN)**(REAL(j - 1, KIND(1D0))/(N_ZL_SCAN - 1))
+            IF (j == N_ZL_SCAN) x(j) = mag_max
+            g(j) = zl_residual(sgn, x(j))
+            a = x(j - 1)
+            ga = g(j - 1)
+            b = x(j)
+            gb = g(j)
+            IF (gb <= 0.0D0) EXIT
+            IF (j >= 2) THEN
+               IF ((g(j - 1) < g(j - 2) .AND. g(j - 1) <= g(j)) .OR. &
+                   (j == N_ZL_SCAN .AND. g(j) < g(j - 1))) THEN
+                  CALL minimum_zl_residual(sgn, x(j - 2), x(j), b, gb)
+                  a = x(j - 2)
+                  ga = g(j - 2)
+                  IF (gb <= 0.0D0) EXIT
+               END IF
+            END IF
+         END DO
+         IF (gb > 0.0D0) THEN
+            mag = mag_max ! no root inside the clip
+            RETURN
          END IF
-         ! cap L_MOD to be within [-500,500]
-         ! L_MOD = MIN(MAX(-2000., L_MOD), 2000.)
 
-         ! IF(UStar<0.001000)THEN       !If u* too small
-         !    UStar=KUZ/(LOG(Zzd/z0m))
-         !    PRINT*, 'UStar info',UStar,KUZ,(LOG(Zzd/z0m)),Zzd,z0m
-         !    CALL ErrorHint(30,'SUBROUTINE STAB_lumps:[ u*< 0.001] zl,dectime',zl,dectime,notUsedI)
-         !    CALL ErrorHint(30,'SUBROUTINE STAB_lumps:[ u*< 0.001] z0l,UStar',z0l,UStar,notUsedI)
-         !    CALL ErrorHint(30,'SUBROUTINE STAB_lumps:[ u*< 0.001] psim,psimz0',psim,psimz0,notUsedI)
-         !    CALL ErrorHint(30,'SUBROUTINE STAB_lumps:[ u*< 0.001] AVU1,log(zzd/z0m)',AVU1,LOG(zzd/z0m),notUsedI)
-         !
-         !    ! RETURN
-         ! ENDIF
+         ! Illinois false position on [a, b], ga > 0 >= gb
+         side = 0
+         mag = b
+         DO j = 1, MAX_ZL_SOLVE
+            c = (a*gb - b*ga)/(gb - ga)
+            gc = zl_residual(sgn, c)
+            mag = c
+            IF (ABS(gc) <= ZL_SOLVE_TOL .OR. b - a <= ZL_SOLVE_TOL) EXIT
+            IF (gc > 0.0D0) THEN
+               a = c
+               ga = gc
+               IF (side == 1) gb = 0.5D0*gb
+               side = 1
+            ELSE
+               b = c
+               gb = gc
+               IF (side == -1) ga = 0.5D0*ga
+               side = -1
+            END IF
+         END DO
+      END FUNCTION solve_zl_branch
 
-         i = i + 1
-      END DO
+      SUBROUTINE minimum_zl_residual(sgn, left, right, xmin, gmin)
+         ! Golden-section minimisation on the two cells around a sampled turn.
+         REAL(KIND(1D0)), INTENT(IN) :: sgn, left, right
+         REAL(KIND(1D0)), INTENT(OUT) :: xmin, gmin
+         REAL(KIND(1D0)), PARAMETER :: GOLDEN = 0.6180339887498948482D0
+         REAL(KIND(1D0)) :: lo, hi, c, d, gc, gd
+         INTEGER :: j
 
-      ! limit zL to be within [-2,2]
-!       zL = MIN(2., MAX(-2., zL))
-      ! limit other output variables as well as z/L
-      ! L_MOD = zzd/zL
-      ! limit L_mod to 3.e4 for consistency with output
-      ! IF (ABS(L_MOD) > 3E4) L_MOD = L_MOD/ABS(L_MOD)*3E4
-      ! z0L = z0m/L_MOD
-      ! psim = stab_psi_mom(StabilityMethod, zL)
-      ! psimz0 = stab_psi_mom(StabilityMethod, z0L)
-
-      ! TS 01 Aug 2018:
-      ! TS: limit UStar and TStar to reasonable values
-      ! to prevent potential issues in other stability-related calcualtions
-      ! 02 Aug 2018: set a low limit at 0.15 m/s (Schumann 1988, BLM, DOI: 10.1007/BF00123019)
-      ! UStar = KUZ/(LOG(Zzd/z0m) - psim + psimz0)
-      ! UStar = MAX(0.15, UStar)
-      ! TStar = (-H/UStar)
-
-      ! IF (UStar < 0.0001) THEN       !If u* still too small after iteration, then force quit simulation and write out error info
-      !    ! UStar=KUZ/(LOG(Zzd/z0m))
-      !    PRINT *, 'UStar', UStar, KUZ, (LOG(Zzd/z0m)), Zzd, z0m
-      !    CALL ErrorHint(30, 'SUBROUTINE cal_Stab:[ u*< 0.0001] zl,L_MOD', zl, L_MOD, notUsedI)
-      !    CALL ErrorHint(30, 'SUBROUTINE cal_Stab:[ u*< 0.0001] z0l,UStar', z0l, UStar, notUsedI)
-      !    CALL ErrorHint(30, 'SUBROUTINE cal_Stab:[ u*< 0.0001] psim,psimz0', psim, psimz0, notUsedI)
-      !    CALL ErrorHint(30, 'SUBROUTINE cal_Stab:[ u*< 0.0001] AVU1,log(zzd/z0m)', AVU1, LOG(zzd/z0m), notUsedI)
-
-      !    ! RETURN
-      ! ENDIF
-
-      ! TS 11 Feb 2021: limit UStar and TStar to reasonable ranges
-      ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
-      ! also limit UStar to max 3 m s-1 to prevent potential issues in other stability-related calcualtions
-      ! UStar = MIN(MAX(0.001, UStar), 3.0)
-      ! ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
-      ! IF (z0L < -neut_limit) UStar = MAX(0.15, UStar)
-
-      ! ! update associated variables
-      ! zL = zzd/L_MOD
-
-      ! if ( L_MOD<-990 ) then
-      !   print*, 'L_MOD too low',L_MOD
-      !   print*, 1/(L_MOD-L_MOD)
-      !
-      ! end if
+         lo = left
+         hi = right
+         c = hi - GOLDEN*(hi - lo)
+         d = lo + GOLDEN*(hi - lo)
+         gc = zl_residual(sgn, c)
+         gd = zl_residual(sgn, d)
+         DO j = 1, MAX_ZL_SOLVE
+            IF (hi - lo <= ZL_SOLVE_TOL) EXIT
+            IF (gc < gd) THEN
+               hi = d
+               d = c
+               gd = gc
+               c = hi - GOLDEN*(hi - lo)
+               gc = zl_residual(sgn, c)
+            ELSE
+               lo = c
+               c = d
+               gc = gd
+               d = lo + GOLDEN*(hi - lo)
+               gd = zl_residual(sgn, d)
+            END IF
+         END DO
+         xmin = c
+         gmin = gc
+         IF (gd < gc) THEN
+            xmin = d
+            gmin = gd
+         END IF
+      END SUBROUTINE minimum_zl_residual
 
    END SUBROUTINE cal_Stab
+
+   SUBROUTINE stability_scales(method, zzd, z0m, wind, heat_flux, zl, length, ustar, tstar)
+      ! Derive all dependent scales from the accepted (possibly relaxed) zL.
+      INTEGER, INTENT(IN) :: method
+      REAL(KIND(1D0)), INTENT(IN) :: zzd, z0m, wind, heat_flux, zl
+      REAL(KIND(1D0)), INTENT(OUT) :: length, ustar, tstar
+      REAL(KIND(1D0)) :: pm, pm0
+
+      IF (ABS(zl) <= ZL_NEUTRAL) THEN
+         ! Neutral: a long but ordinary length (|z/L| = ZL_NEUTRAL), so z/L is
+         ! effectively zero downstream and reciprocals such as the RSL
+         ! Lc/(Lc/L) round trip stay finite. HUGE would overflow there.
+         length = zzd/SIGN(ZL_NEUTRAL, zl)
+      ELSE
+         length = zzd/zl
+      END IF
+      pm = stab_psi_mom(method, zl)
+      pm0 = stab_psi_mom(method, zl*z0m/zzd)
+      ustar = MAX(1.0D-12, k*wind/(LOG(zzd/z0m) - pm + pm0))
+      tstar = -heat_flux/ustar
+   END SUBROUTINE stability_scales
 
    !==================================================================
    ! TS 20210208: restructure stability corrections funtions;

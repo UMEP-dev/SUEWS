@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [change][experimental] Remove the 120 s m-1 upper cap on aerodynamic resistance and replace the 0.001 m s-1 friction-velocity floor with a 1e-12 m s-1 division guard, leaving the (z-d)/L clip as the physical stability constraint (#1956).
+  - Under-relax (z-d)/L between surface-temperature passes with factor 0.3, decaying by 0.7 per pass after ten passes, to damp near-neutral two-cycles and settle at the stable fold.
+  - Solve the inner stability residual for the root nearest neutral, or return the clip when no root is bracketed, instead of accepting a small fixed-point step before reaching a solution (#1962).
+  - Resistance can exceed 120 s m-1 at light wind; the 10 s m-1 lower limit is unchanged. Night-time and light-wind outputs and subsequent carried state change in all storage heat methods.
 - [change][stable] Deprecate non-streaming Parquet output with a FutureWarning for one release; it will be removed in the next release. Use chunked streaming Parquet output via `model.control.output.stream_chunk` instead. Existing non-streaming output is unchanged during the deprecation period (#1955).
 
 ### 27 Oct 2026

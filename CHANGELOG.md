@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [change][experimental] Require a time unit for explicitly declared rain and water-use forcing; accept water mass flux and depth rates while retaining undeclared interval amounts (forcing contract 2.1.0; #1903).
+
 - [feature][experimental] Forcing files can declare their units: `SUEWSForcing.from_file`, `supy.util.read_forcing`, `load_forcing_grid` and `SUEWSSimulation(config, units=...)` take a mapping such as `{"Tair": "K", "pres": "hPa"}`, and declared columns are converted on load through `supy.units.convert` to the forcing registry's units before validation; undeclared columns load exactly as before, and neither the forcing contract nor the YAML schema changes (#1903)
 - [feature][experimental] Output can be written in requested units: `SUEWSOutput.to_units`, `SUEWSOutput.save(units=...)` and `SUEWSSimulation.save(units=...)` take per-variable target units (for example `{"QE": "kW m-2", "T2": "K"}`), converted after the run through `supy.units.convert`; the written units are recorded in the text sidecars, Parquet metadata and `SUEWSOutput.units`, and output without a request is unchanged (#1903)
   - Temperature differences convert by scale only and on-scale temperatures with their offset; a unit of the wrong dimension, an unknown or ambiguous variable, or a variable without a unit is refused

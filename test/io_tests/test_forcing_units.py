@@ -174,3 +174,17 @@ def test_declared_water_rates(seconds, unit, value, column):
 def test_water_amount_declaration_requires_time(column, unit):
     with pytest.raises(ValueError, match=f"{column}.*time unit"):
         _load._convert_forcing_units(pd.DataFrame({column: [-999.0]}), {column: unit})
+
+
+@pytest.mark.parametrize("seconds", [300, 3600])
+@pytest.mark.parametrize("unit,value", [("kg m-2 s-1", 1 / 3600), ("mm h-1", 1), ("mm d-1", 24)])
+def test_loaded_rain_rate(canonical_path, tmp_path, seconds, unit, value):
+    raw = pd.read_csv(canonical_path, sep=r"\s+").iloc[:4].copy()
+    dates = pd.date_range("2012-01-01", periods=4, freq=f"{seconds}s")
+    for column, values in {"iy": dates.year, "id": dates.dayofyear, "it": dates.hour, "imin": dates.minute}.items():
+        raw[column] = values
+    raw["rain"] = value
+    path = tmp_path / "rate.txt"
+    raw.to_csv(path, sep="\t", index=False)
+    actual = read_forcing(str(path), tstep_mod=None, units={"rain": unit})
+    np.testing.assert_allclose(actual.rain, seconds / 3600)

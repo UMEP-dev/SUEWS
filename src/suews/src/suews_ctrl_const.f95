@@ -2326,6 +2326,7 @@ MODULE module_ctrl_const_physconst
 
    INTEGER, PARAMETER :: sec_per_hour = 3600, sec_per_day = 86400, min_per_day = 1440
    REAL(KIND(1D0)), PARAMETER :: C2K = 273.15 !Celsius to Kelvin
+   REAL, PARAMETER :: C2K_sp = 273.15 ! default-REAL spelling of C2K, for expressions that are evaluated in default REAL
    REAL(KIND(1D0)), PARAMETER :: SBConst = 5.67051E-8 !Stefan Boltzmann constant [W m-2 K-4]
    REAL(KIND(1D0)), PARAMETER :: SBConst_567 = 5.67E-8 ! Stefan-Boltzmann constant to three figures, as NARP, AnOHM and STEBBS use it; differs from SBConst [W m-2 K-4]
    REAL(KIND(1D0)), PARAMETER :: JtoumolPAR = 4.6 ! Convert PAR from W m-2 to umol m-2 s-1

@@ -25,7 +25,7 @@ MODULE module_phys_anohm
    USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day, SBConst_567
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day, SBConst_567, C2K
    IMPLICIT NONE
 CONTAINS
 
@@ -678,7 +678,6 @@ CONTAINS
 
       !   constant
       REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
-      REAL(KIND(1D0)), PARAMETER :: C2K = 273.15 ! degC to K
 
       !   local variables:
       REAL(KIND(1D0)), ALLOCATABLE :: tHrDay(:) ! daytime tHr when Sd>0
@@ -1078,9 +1077,6 @@ CONTAINS
       REAL(kind=8), DIMENSION(:), ALLOCATABLE :: Ts ! surface temperature, degC
       REAL(kind=8), DIMENSION(:), ALLOCATABLE :: qa ! specific humidity, kg kg-1
       REAL(kind=8), DIMENSION(:), ALLOCATABLE :: qs ! Saturated specific humidity at surface,kg kg-1
-
-      ! conversion constant:
-      REAL(kind=8), PARAMETER :: C2K = 273.15 ! degC to K
 
       ! thermodynamic values at standard temperature (293.15 K) and pressure (101325 pascals):
       REAL(kind=8), PARAMETER :: cp_air = 1006.38 ! specific heat capacity of air, J kg-1 K-1

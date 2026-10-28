@@ -1122,7 +1122,6 @@ def _validate_integer_timestamp_columns(
         )
 
 
-
 def _forcing_interval_seconds(df_forcing: pd.DataFrame) -> float:
     """Read the regular forcing interval through the existing timestamp parser."""
     if isinstance(df_forcing.index, pd.DatetimeIndex) and df_forcing.index.freq is not None:
@@ -1191,7 +1190,7 @@ def _convert_forcing_units(
                     )
                     if interval_s is None:
                         interval_s = _forcing_interval_seconds(df_forcing)
-                    converted = converted * interval_s
+                    converted *= interval_s
                 else:
                     converted = convert(
                         values.loc[valid], source, variable.unit,

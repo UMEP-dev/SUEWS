@@ -26,6 +26,10 @@ class ForcingVariable(BaseModel):
     unit: str | None = Field(
         description="Unconditional input unit, or None for selector-dependent units"
     )
+    declared_rate_unit: str | None = Field(
+        default=None,
+        description="Canonical water rate for explicit units declarations; legacy files retain unit",
+    )
     unit_selector: str | None = Field(
         default=None,
         description="Physics selector controlling the input unit",

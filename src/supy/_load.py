@@ -1122,6 +1122,23 @@ def _validate_integer_timestamp_columns(
         )
 
 
+
+def _forcing_interval_seconds(df_forcing: pd.DataFrame) -> float:
+    """Read the regular forcing interval through the existing timestamp parser."""
+    if isinstance(df_forcing.index, pd.DatetimeIndex) and df_forcing.index.freq is not None:
+        return df_forcing.index.freq.nanos / 1e9
+    dict_coordinates = {}
+    for column in df_forcing.columns:
+        variable = FORCING_REGISTRY.by_file_name(str(column))
+        if variable is not None and variable.role == "coordinate":
+            dict_coordinates[variable.name] = df_forcing[column]
+    df_time = pd.DataFrame(dict_coordinates)
+    _validate_integer_timestamp_columns(df_time, list(BASELINE_DATETIME_FORCING_COLUMNS))
+    if len(df_time) < 2:
+        raise ValueError("declared water rates require at least two forcing timestamps")
+    return set_index_dt(df_time).index.freq.nanos / 1e9
+
+
 def _convert_forcing_units(
     df_forcing: pd.DataFrame, units: Optional[Mapping[str, str]] = None
 ) -> pd.DataFrame:
@@ -1131,7 +1148,7 @@ def _convert_forcing_units(
     follow the same registry lookup as header matching. Conversion precedes
     validation, timestamp construction and the existing file-to-runtime step.
     """
-    from .units import UnitError, convert, parse_unit
+    from .units import UnitError, convert, convert_water_rate, parse_unit
 
     if units is None:
         return df_forcing
@@ -1141,6 +1158,7 @@ def _convert_forcing_units(
         return df_forcing
     df_result = df_forcing.copy()
     declared = set()
+    interval_s = None
     for column, unit in units.items():
         variable = (
             FORCING_REGISTRY.by_file_name(column)
@@ -1167,10 +1185,18 @@ def _convert_forcing_units(
             for name in columns:
                 values = df_result[name]
                 valid = values.notna() & (values != FORCING_OPTIONAL_FILL)
-                converted = convert(
-                    values.loc[valid], source, variable.unit,
-                    units_metadata=getattr(variable, "units_metadata", None),
-                )
+                if variable.declared_rate_unit is not None:
+                    converted = convert_water_rate(
+                        values.loc[valid], source, variable.declared_rate_unit,
+                    )
+                    if interval_s is None:
+                        interval_s = _forcing_interval_seconds(df_forcing)
+                    converted = converted * interval_s
+                else:
+                    converted = convert(
+                        values.loc[valid], source, variable.unit,
+                        units_metadata=getattr(variable, "units_metadata", None),
+                    )
                 df_result[name] = values.where(~valid, converted)
         except UnitError as exc:
             raise ValueError(f"forcing column {column!r}: {exc}") from exc

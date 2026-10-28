@@ -62,6 +62,8 @@ def _format_unit(unit: str) -> str:
 
 
 def _unit(variable) -> str:
+    if variable.declared_rate_unit is not None:
+        return f"{variable.declared_rate_unit} when declared; {variable.unit} per interval without units="
     if variable.unit is not None:
         return _format_unit(variable.unit)
     return "; ".join(

@@ -35,7 +35,7 @@ def canonical_path(sample_path, tmp_path):
 def alternate_file(canonical_path, tmp_path):
     raw = pd.read_csv(canonical_path, sep=r"\s+")
     for column, source, target in (
-        ("Tair", "degC", "K"), ("pres", "kPa", "hPa"), ("rain", "mm", "m")
+        ("Tair", "degC", "K"), ("pres", "kPa", "hPa")
     ):
         raw[column] = convert(raw[column], source, target)
     path = tmp_path / "alternate.txt"
@@ -61,7 +61,7 @@ def test_boundary_without_mapping_returns_same_object():
 
 @pytest.mark.parametrize("entry", ["read", "oop", "list", "yaml_reader", "simulation", "simulation_list", "directory"])
 def test_alternate_units_round_trip(canonical_path, alternate_file, entry):
-    units = {"Tair": "K", "pres": "hPa", "rain": "m"}
+    units = {"Tair": "K", "pres": "hPa", "rain": "mm h-1"}
     if entry == "read":
         actual = read_forcing(str(alternate_file), units=units)
     elif entry in {"oop", "list"}:
@@ -88,7 +88,7 @@ def test_yaml_python_declaration(canonical_path, alternate_file, tmp_path, entry
     config["model"]["control"]["forcing"]["file"] = {"value": alternate_file.name}
     path = tmp_path / "config.yml"
     path.write_text(yaml.safe_dump(config), encoding="utf-8")
-    units = {"Tair": "K", "pres": "hPa", "rain": "m"}
+    units = {"Tair": "K", "pres": "hPa", "rain": "mm h-1"}
     if entry == "constructor":
         actual = SUEWSSimulation(path, units=units).forcing.df
     elif entry == "update_config":
@@ -130,8 +130,9 @@ def test_no_registry_unit(monkeypatch):
 
 
 def test_alias_sentinels_affine_and_scale():
-    frame = pd.DataFrame({"temp_c": [273.15, 293.15, -999, np.nan], "rain": [0.001, 0, -999, np.nan]})
-    actual = _load._convert_forcing_units(frame, {"tair": "K", "rain": "m"})
+    frame = pd.DataFrame({"temp_c": [273.15, 293.15, -999, np.nan], "rain": [1.0, 0, -999, np.nan]})
+    frame.index = pd.date_range("2020-01-01", periods=4, freq="h")
+    actual = _load._convert_forcing_units(frame, {"tair": "K", "rain": "mm h-1"})
     np.testing.assert_allclose(actual.temp_c, [0, 20, -999, np.nan], atol=1e-12)
     np.testing.assert_allclose(actual.rain, [1, 0, -999, np.nan])
     np.testing.assert_allclose(frame.temp_c, [273.15, 293.15, -999, np.nan])
@@ -145,7 +146,7 @@ def test_in_memory_declaration_refused(sample_path):
 
 @pytest.mark.parametrize("units,error,match", [
     ({"Tair": "K", "temp_c": "K"}, ValueError, "temp_c.*duplicate"),
-    ({"rain": "m"}, ValueError, "rain.*absent"),
+    ({"rain": "mm h-1"}, ValueError, "rain.*absent"),
     ({1: "K"}, ValueError, "1.*unknown"),
     (["K"], TypeError, "mapping"),
 ])
@@ -157,3 +158,19 @@ def test_invalid_mapping(units, error, match):
 def test_all_missing_values_still_check_dimension():
     with pytest.raises(ValueError, match="Tair.*dimensions"):
         _load._convert_forcing_units(pd.DataFrame({"Tair": [-999, np.nan]}), {"Tair": "m"})
+
+
+@pytest.mark.parametrize("seconds", [300, 3600])
+@pytest.mark.parametrize("unit,value", [("kg m-2 s-1", 1 / 3600), ("mm h-1", 1), ("mm d-1", 24)])
+@pytest.mark.parametrize("column", ["rain", "Wuh", "wuh_paved", "wuh_bldgs", "wuh_evetr", "wuh_dectr", "wuh_grass", "wuh_bsoil", "wuh_water"])
+def test_declared_water_rates(seconds, unit, value, column):
+    frame = pd.DataFrame({column: [value, -999, np.nan]}, index=pd.date_range("2020-01-01", periods=3, freq=f"{seconds}s"))
+    actual = _load._convert_forcing_units(frame, {column: unit})
+    np.testing.assert_allclose(actual[column], [seconds / 3600, -999, np.nan])
+
+
+@pytest.mark.parametrize("unit", ["mm", "kg m-2"])
+@pytest.mark.parametrize("column", ["rain", "Wuh", "wuh_grass"])
+def test_water_amount_declaration_requires_time(column, unit):
+    with pytest.raises(ValueError, match=f"{column}.*time unit"):
+        _load._convert_forcing_units(pd.DataFrame({column: [-999.0]}), {column: unit})

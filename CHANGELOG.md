@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 28 Oct 2026
+
+- [maintenance] Unit metadata in the input data model and the output catalogue is written in the CF notation of `supy.units` (signed integer exponents, `1` for ratios, water stores in `kg m-2`); a test parses every unit string, and output contract `1.1.9` carries the relabelled units with every value unchanged (#1903)
+
 ### 23 Oct 2026
 
 - [bugfix] Corrected three slips in the STEBBS hot-water formulas (#1880, #1881)

@@ -679,7 +679,6 @@ CONTAINS
       !   constant
       REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
 
-
       !   local variables:
       REAL(KIND(1D0)), ALLOCATABLE :: tHrDay(:) ! daytime tHr when Sd>0
       REAL(KIND(1D0)), ALLOCATABLE :: selX(:) ! daytime sublist of met variable when Sd>0
@@ -1078,9 +1077,6 @@ CONTAINS
       REAL(kind=8), DIMENSION(:), ALLOCATABLE :: Ts ! surface temperature, degC
       REAL(kind=8), DIMENSION(:), ALLOCATABLE :: qa ! specific humidity, kg kg-1
       REAL(kind=8), DIMENSION(:), ALLOCATABLE :: qs ! Saturated specific humidity at surface,kg kg-1
-
-      ! conversion constant:
-
 
       ! thermodynamic values at standard temperature (293.15 K) and pressure (101325 pascals):
       REAL(kind=8), PARAMETER :: cp_air = 1006.38 ! specific heat capacity of air, J kg-1 K-1

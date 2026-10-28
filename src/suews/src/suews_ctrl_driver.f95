@@ -485,7 +485,10 @@ CONTAINS
                CALL SUEWS_cal_Resistance( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
-               IF (supy_error_flag()) RETURN
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_09_resist = modState
                END IF
@@ -537,7 +540,10 @@ CONTAINS
                   CALL SUEWS_cal_Resistance( &
                      timer, config, forcing, siteInfo, & ! input
                      modState) ! input/output:
-                  IF (supy_error_flag()) RETURN
+                  IF (supy_error_flag()) THEN
+                     CALL sync_error_to_state(modState, timer)
+                     RETURN
+                  END IF
                END IF
 
                ! ============ update surface temperature of this iteration ===============
@@ -590,7 +596,10 @@ CONTAINS
                CALL SUEWS_cal_Resistance( &
                   timer, config, forcing, siteInfo, & ! input
                   modState, skip_relaxation=.TRUE.) ! input/output:
-               IF (supy_error_flag()) RETURN
+               IF (supy_error_flag()) THEN
+                  CALL sync_error_to_state(modState, timer)
+                  RETURN
+               END IF
             END IF
 
             !==============================================================

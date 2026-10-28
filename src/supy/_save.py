@@ -1430,6 +1430,12 @@ def save_df_output_parquet(
 ) -> list:
     """Save supy output to Parquet format.
 
+    .. deprecated:: 2026.10.28
+        Non-streaming output (``streamed_parquet=None``) is retained for one
+        release and will be removed in the next release. Use chunked streaming
+        Parquet output by setting ``model.control.output.stream_chunk`` before
+        :meth:`~supy.SUEWSSimulation.run` instead.
+
     Parameters
     ----------
     df_output : pd.DataFrame
@@ -1467,6 +1473,16 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     engine = _parquet_engine()
+
+    if streamed_parquet is None:
+        # Import here to avoid the save/module import cycle. Internal callers
+        # must warn too: this output mode, rather than the function, is retired.
+        from ._supy_module import _warn_functional_deprecation
+
+        _warn_functional_deprecation(
+            "_save.save_df_output_parquet(streamed_parquet=None)",
+            removal="the next release",
+        )
 
     # Resample if needed; values are not written in place (gh#1849)
     df_save = df_output.copy(deep=False)

@@ -18,6 +18,17 @@ large-scale SUEWS simulations.
 Output Files
 ------------
 
+.. warning::
+
+   Non-streaming Parquet output, including ``output.save(format="parquet")``
+   after an in-memory run, is deprecated and emits a ``FutureWarning``.
+   It remains available unchanged for one release and will be removed in the next release.
+   Use :ref:`chunked streaming Parquet output <output_stream_chunk>` instead:
+   set ``model.control.output.format: parquet`` and
+   ``model.control.output.stream_chunk: 30`` before running the simulation.
+   Streaming writes a folder of part files; read it with ``pandas.read_parquet(folder)``.
+   The single-file layout below describes the deprecated path.
+
 When using parquet format through the object-oriented API, SUEWS produces the
 analysis output parquet file and a checkpoint JSON restart artefact:
 

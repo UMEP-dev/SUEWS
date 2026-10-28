@@ -73,8 +73,7 @@ OPTION_VALUES_REFUSED = {
     # sample's net_radiation=3 is not; varying one option at a time cannot
     # satisfy the pair.
     ("storage_heat", 7): "requires SPARTACUS-Surface net radiation",
-    ("soil_moisture_deficit", 1): "forcing column 'xsmd'",
-    ("soil_moisture_deficit", 2): "forcing column 'xsmd'",
+    ("soil_moisture", 1): "forcing column 'xsmd'",
     ("water_use", 1): "forcing column 'wuh'",
     ("laimethod", 0): "forcing column 'lai'",
     # W16 has no phi implementation for the sample's RSL path (GH#1784).

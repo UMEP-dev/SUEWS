@@ -31,7 +31,7 @@ model:
       value: 2
     stability:
       value: 3
-    soil_moisture_deficit:
+    soil_moisture:
       value: 0
     water_use:
       value: 0

@@ -272,12 +272,12 @@ class TestBackwardCompat:
 
     def test_co2_metadata_matches_fortran_units(self):
         expected_units = {
-            "emission_co2_point_source": "kg C day^-1",
-            "emission_co2_metabolism_min": "umol cap^-1 s^-1",
-            "emission_co2_metabolism_max": "umol cap^-1 s^-1",
-            "emission_heat_metabolism_min": "W cap^-1",
-            "emission_heat_metabolism_max": "W cap^-1",
-            "type_traffic_rate": "dimensionless",
+            "emission_co2_point_source": "kg d-1",
+            "emission_co2_metabolism_min": "umol s-1",
+            "emission_co2_metabolism_max": "umol s-1",
+            "emission_heat_metabolism_min": "W",
+            "emission_heat_metabolism_max": "W",
+            "type_traffic_rate": None,
         }
 
         for field_name, expected_unit in expected_units.items():

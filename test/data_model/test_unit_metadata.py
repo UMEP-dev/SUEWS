@@ -67,7 +67,7 @@ def _input_units():
                 # Report a shared inherited field once under its declaring class.
                 owner = next(
                     cls for cls in model.__mro__
-                    if name in cls.__dict__.get("__annotations__", {})
+                    if name in inspect.get_annotations(cls)
                 )
                 path = f"{owner.__name__}.{name}"
                 if path in units:

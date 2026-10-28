@@ -1,8 +1,8 @@
 {
-  "description": "Pre-guard W16/MOST baseline for GH#1783, GH#1784 and PR#1853; no existing reference outputs were regenerated. Refreshed for GH#1878 (DailyState daily means divided by one step too few): only the rows at 2012-01-01 23:55 and 2012-01-02 00:00 changed. Refreshed for GH#1919 (a run's first day now starts at its first step): again only the rows at 2012-01-01 23:55 and 2012-01-02 00:00 changed.",
-  "source_ref": "sunt05-claude/gh1919-first-day-reset",
-  "source_commit": "92b528b44c",
-  "generated_date": "2026-10-23",
+  "description": "Pre-guard W16/MOST baseline for GH#1783, GH#1784 and PR#1853; no existing reference outputs were regenerated. Refreshed for GH#1878 (DailyState daily means divided by one step too few): only the rows at 2012-01-01 23:55 and 2012-01-02 00:00 changed. Refreshed for GH#1919 (a run's first day now starts at its first step): again only the rows at 2012-01-01 23:55 and 2012-01-02 00:00 changed. Refreshed for PR#1956 ((z-d)/L relaxed between outer surface-temperature passes; r_a cap and u* floor removed): every row changed, by at most 0.76 W m-2 in QH and QE, 0.04 degC in T2 and 0.015 m s-1 in U10.",
+  "source_ref": "sunt05/ra-smooth-limit",
+  "source_commit": "bdfc9b2b08",
+  "generated_date": "2026-10-28",
   "platform": "Linux x86_64",
   "compiler": "GNU Fortran (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)",
   "python": "3.12.12",
@@ -18,5 +18,5 @@
   "csv_format": "output.df['SUEWS'][['QH', 'QE', 'T2', 'U10']].to_csv(path, float_format='%.17g')",
   "sample_config_sha256": "dbf6d57acf4fa5222308999c58ae4e32303c0b0c567539577a2573f35aafa281",
   "hourly_forcing_sha256": "952a1fd3422aad584e214e190c32688d9c2070c04e956835ecb1641e2d0aa029",
-  "csv_sha256": "dc5bdd9fd92d2bbb5d002b37b5a9c6448ed8093da6bd4b37e30e0e6c4d6cdab5"
+  "csv_sha256": "fb439158b1c5e8f4e67c1ede957c0385781e11f4b143deba77b790e1994a8098"
 }

@@ -42,6 +42,7 @@ def test_committed_forcing_contract_is_current() -> None:
         "1.1.0",
         "1.2.0",
         "2.0.0",
+        "2.1.0",
     ]
 
 
@@ -70,7 +71,7 @@ def test_audit_rejects_tampered_and_extra_files(tmp_path: Path) -> None:
         audit.audit_forcing_contract(tmp_path)
 
 
-@pytest.mark.parametrize("version", ("1.0.0", "1.1.0", "1.2.0", "2.0.0"))
+@pytest.mark.parametrize("version", ("1.0.0", "1.1.0", "1.2.0", "2.0.0", "2.1.0"))
 def test_published_forcing_contract_is_packaged(version: str) -> None:
     """Expose the versioned contract through installed package resources."""
     contract = importlib.resources.files("supy.data_model.forcing").joinpath(

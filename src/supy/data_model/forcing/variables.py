@@ -204,6 +204,7 @@ _FORCING_VARIABLES = (
         "forbidden",
         accessor_aliases=("precipitation", "rainfall", "precip"),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         legacy_position=14,
     ),
     _variable(
@@ -266,6 +267,7 @@ _FORCING_VARIABLES = (
         accessor_aliases=("water_use", "external_water", "wu_mm"),
         file_aliases=("wu_mm",),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         legacy_position=19,
     ),
     _variable(
@@ -375,6 +377,7 @@ _FORCING_VARIABLES = (
         "fallback",
         file_aliases=("wu_mm_paved",),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         fallback="Wuh",
     ),
     _variable(
@@ -387,6 +390,7 @@ _FORCING_VARIABLES = (
         "fallback",
         file_aliases=("wu_mm_bldgs",),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         fallback="Wuh",
     ),
     _variable(
@@ -399,6 +403,7 @@ _FORCING_VARIABLES = (
         "fallback",
         file_aliases=("wu_mm_evetr",),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         fallback="Wuh",
     ),
     _variable(
@@ -411,6 +416,7 @@ _FORCING_VARIABLES = (
         "fallback",
         file_aliases=("wu_mm_dectr",),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         fallback="Wuh",
     ),
     _variable(
@@ -423,6 +429,7 @@ _FORCING_VARIABLES = (
         "fallback",
         file_aliases=("wu_mm_grass",),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         fallback="Wuh",
     ),
     _variable(
@@ -435,6 +442,7 @@ _FORCING_VARIABLES = (
         "fallback",
         file_aliases=("wu_mm_bsoil",),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         fallback="Wuh",
     ),
     _variable(
@@ -447,6 +455,7 @@ _FORCING_VARIABLES = (
         "fallback",
         file_aliases=("wu_mm_water",),
         validation_range=(0, None),
+        declared_rate_unit="kg m-2 s-1",
         fallback="Wuh",
     ),
 )

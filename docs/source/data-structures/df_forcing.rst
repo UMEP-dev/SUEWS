@@ -5,7 +5,7 @@
 Forcing variable reference
 ==========================
 
-This reference is generated from forcing contract ``2.0.0``.
+This reference is generated from forcing contract ``2.1.0``.
 It describes the ``df_forcing`` columns supplied in an external forcing file.
 For file layout and preparation, see :doc:`/inputs/forcing-data`; for the loaded
 Python object, see :doc:`/api/io-data-structures`.
@@ -154,7 +154,7 @@ Every forcing row must contain valid values for these variables.
 .. option:: rain
 
    :Description: Precipitation accumulated over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: always
    :Missing values: not allowed
@@ -231,7 +231,7 @@ These are required only when selected by the requirements table above.
 .. option:: Wuh
 
    :Description: Bulk external water use accumulated over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: only for selected physics; see the requirements above
    :Missing values: ``-999`` only while this column is optional or inactive
@@ -340,7 +340,7 @@ These may replace the corresponding bulk LAI or water-use column.
 .. option:: wuh_paved
 
    :Description: External water-use depth for the paved surface over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: only for selected physics; see the requirements above
    :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
@@ -349,7 +349,7 @@ These may replace the corresponding bulk LAI or water-use column.
 .. option:: wuh_bldgs
 
    :Description: External water-use depth for the building surface over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: only for selected physics; see the requirements above
    :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
@@ -358,7 +358,7 @@ These may replace the corresponding bulk LAI or water-use column.
 .. option:: wuh_evetr
 
    :Description: External water-use depth for evergreen trees over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: only for selected physics; see the requirements above
    :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
@@ -367,7 +367,7 @@ These may replace the corresponding bulk LAI or water-use column.
 .. option:: wuh_dectr
 
    :Description: External water-use depth for deciduous trees over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: only for selected physics; see the requirements above
    :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
@@ -376,7 +376,7 @@ These may replace the corresponding bulk LAI or water-use column.
 .. option:: wuh_grass
 
    :Description: External water-use depth for grass over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: only for selected physics; see the requirements above
    :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
@@ -385,7 +385,7 @@ These may replace the corresponding bulk LAI or water-use column.
 .. option:: wuh_bsoil
 
    :Description: External water-use depth for bare soil over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: only for selected physics; see the requirements above
    :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing
@@ -394,7 +394,7 @@ These may replace the corresponding bulk LAI or water-use column.
 .. option:: wuh_water
 
    :Description: External water-use depth for open water over the forcing interval
-   :Input unit: mm
+   :Input unit: kg m-2 s-1 when declared; mm per interval without units=
    :Interval basis: total accumulated over the forcing interval
    :Required: only for selected physics; see the requirements above
    :Missing values: use ``Wuh`` only when this column is absent; an explicit ``-999`` remains missing

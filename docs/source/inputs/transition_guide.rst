@@ -704,3 +704,14 @@ families, so the orthogonal form rejects unsupported "CO2-only"
 combinations rather than assigning misleading semantics. Non-biogenic
 flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
 but their CO2 fluxes are discarded by the driver.
+
+Declared water forcing rates
+----------------------------
+
+Forcing contract 2.1.0 adds ``declared_rate_unit`` to the registry.
+When supplying ``units=``, rain, bulk water use and all seven surface water-use columns require a rate, canonically ``kg m-2 s-1``.
+Declarations such as ``mm h-1`` and ``mm d-1`` are converted using the forcing interval; bare ``mm`` and ``kg m-2`` are refused because they omit time.
+For example, use ``units={"rain": "mm h-1"}`` when the file contains hourly rates.
+Files with no unit declaration retain their existing per-interval amounts and numerical behaviour.
+This compatibility stage adds an explicit declaration contract without changing the legacy file layout or the kernel's per-step amounts.
+Soil moisture remains a water-content state in ``kg m-2``.

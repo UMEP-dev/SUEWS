@@ -30,6 +30,37 @@ See :doc:`../inputs/yaml/index` for configuration details.
    legacy_text_columns
 
 
+Requested output units
+----------------------
+
+Use :meth:`~supy.SUEWSOutput.to_units` after a run to obtain output in other
+units without changing the model state or the original output:
+
+.. code-block:: python
+
+   from supy import SUEWSSimulation
+
+   sim = SUEWSSimulation.from_sample_data()
+   output = sim.run()
+   converted = output.to_units(units={"QE": "kW m-2", "T2": "K"})
+   converted.save("output", format="parquet")
+
+The same ``units=`` mapping can be supplied to
+:meth:`~supy.SUEWSOutput.save` or :meth:`~supy.SUEWSSimulation.save` to convert
+only the saved output. All these paths use the shared output boundary and
+:func:`~supy.units.convert`, once per column. Temperature values use affine
+conversion; quantities marked ``temperature: difference`` use scale only.
+Unit strings must parse with :func:`~supy.units.parse_unit`. Incompatible units,
+unknown or unitless variables, and ambiguous names raise an error; use a
+``(group, variable)`` key to disambiguate a name.
+
+The units accessor, text JSON sidecars and Parquet field metadata report the
+unit actually written, including when converted output is saved again or
+resampled. Omitting ``units`` preserves the original values. Files already
+streamed to disk cannot be converted by a later ``save`` call; retain the
+output in memory when requesting units through these public methods.
+
+
 Restart Checkpoint
 ------------------
 

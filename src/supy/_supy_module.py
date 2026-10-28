@@ -208,6 +208,7 @@ def _save_supy(
     save_state: bool = True,
     forcing_timestamp_reference="local_standard_time",
     streamed_files=None,
+    units: Optional[dict] = None,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -340,6 +341,7 @@ def _save_supy(
             timestamp_reference=output_timestamp_reference,
             forcing_timestamp_reference=forcing_timestamp_reference,
             streamed_parquet=streamed_files,
+            units=units,
         )
     else:
         # Save as text files (existing behavior)
@@ -357,6 +359,7 @@ def _save_supy(
             forcing_timestamp_reference=forcing_timestamp_reference,
             df_state_final=df_state_final,
             streamed_files=streamed_files,
+            units=units,
         )
 
         # MP: Parquet saves this already - breaks the parquet save check

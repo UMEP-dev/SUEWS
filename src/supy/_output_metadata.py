@@ -1,9 +1,14 @@
-"""Project registry metadata onto output columns without changing their values."""
+"""Prepare output values and project their units at the external boundary."""
 
 from collections.abc import Mapping
+from copy import deepcopy
 import json
 from types import MappingProxyType
 from typing import Optional
+
+import pandas as pd
+
+from . import units as unit_conversion
 
 from .data_model.output.registry import get_output_contract_catalogue
 from .data_model.output.version import CURRENT_OUTPUT_VERSION
@@ -26,7 +31,77 @@ def _interval(seconds: Optional[int]) -> Optional[str]:
             return f"{count} {label}{'s' if count != 1 else ''}"
 
 
-def project_output_metadata(columns, interval_s: Optional[int], group=None) -> dict:
+def prepare_output(
+    df_output: pd.DataFrame, units: Optional[Mapping] = None, group: Optional[str] = None,
+) -> pd.DataFrame:
+    """Return output in requested units, leaving the input and kernel untouched.
+
+    Parameters
+    ----------
+    df_output : pandas.DataFrame
+        Output columns, normally identified by (group, variable).
+    units : mapping, optional
+        Variable names or (group, variable) pairs mapped to target unit strings.
+        Ambiguous names require a pair. No request returns the original frame.
+    group : str, optional
+        Group identity for a single-group frame with flat columns.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Converted columns and their units in attrs, or the unchanged input.
+
+    Raises
+    ------
+    ValueError
+        If a variable is missing, ambiguous, unitless or dimensionally incompatible.
+    """
+    if units is None:
+        return df_output
+    if not isinstance(units, Mapping):
+        raise TypeError("units must be a mapping from output variables to unit strings")
+    if not units:
+        return df_output
+    dict_metadata = project_output_metadata(
+        df_output.columns, None, group, df_output.attrs.get("supy_output_units")
+    )
+    dict_targets = {}
+    for key, target in units.items():
+        matches = [
+            column for column in df_output.columns
+            if column == key or (isinstance(column, tuple) and column[1] == key)
+        ]
+        if len(matches) != 1:
+            reason = "ambiguous; use (group, variable)" if matches else "not present"
+            raise ValueError(f"Output variable {key!r} is {reason}")
+        column = matches[0]
+        if column in dict_targets:
+            raise ValueError(f"Multiple unit requests for output variable {column!r}")
+        dict_targets[column] = target
+    df_result = df_output.copy(deep=False)
+    dict_units = deepcopy(df_output.attrs.get("supy_output_units", {}))
+    for column, target in dict_targets.items():
+        metadata = dict_metadata[column]
+        try:
+            parsed = unit_conversion.parse_unit(target)
+            if not isinstance(target, str):
+                raise unit_conversion.UnitError("target unit must be a unit string")
+            values = unit_conversion.convert(
+                df_output[column], metadata.get("units"), parsed,
+                units_metadata=metadata.get("units_metadata"),
+            )
+        except unit_conversion.UnitError as exc:
+            raise unit_conversion.UnitError(f"Output variable {column!r}: {exc}") from exc
+        df_result[column] = values
+        identity = column if isinstance(column, tuple) else (group, column)
+        dict_units.setdefault(identity[0], {})[identity[1]] = target
+    df_result.attrs["supy_output_units"] = dict_units
+    return df_result
+
+
+def project_output_metadata(
+    columns, interval_s: Optional[int], group=None, units=None,
+) -> dict:
     """Project metadata for the supplied column identities and written interval.
 
     DailyState retains its daily time base. Unknown columns are marked explicitly;
@@ -50,7 +125,7 @@ def project_output_metadata(columns, interval_s: Optional[int], group=None) -> d
         if interval and methods and methods != "time: point":
             methods = f"{methods} (interval: {interval})"
         dict_metadata = {
-            "units": entry.unit,
+            "units": (units or {}).get(identity[0], {}).get(identity[1], entry.unit),
             "cell_methods": methods,
             "description": entry.description,
         }
@@ -69,7 +144,8 @@ class OutputUnits(Mapping):
     Keys match the output's columns, including their group level.
     """
 
-    def __init__(self, columns, interval_s: Optional[int]) -> None:
+    def __init__(self, columns, interval_s: Optional[int], units=None) -> None:
+        self._units = deepcopy(units)
         self._columns = tuple(columns)
         self._interval_s = interval_s
 
@@ -79,7 +155,7 @@ class OutputUnits(Mapping):
         return MappingProxyType({
             key: MappingProxyType(value)
             for key, value in project_output_metadata(
-                self._columns, self._interval_s
+                self._columns, self._interval_s, units=self._units
             ).items()
         })
 
@@ -93,11 +169,11 @@ class OutputUnits(Mapping):
         return len(self._columns)
 
 
-def write_text_metadata(path, columns, group: str, interval_s: int) -> None:
+def write_text_metadata(path, columns, group: str, interval_s: int, units=None) -> None:
     """Write a JSON sidecar next to a text output file."""
     payload = {
         "output_contract_version": CURRENT_OUTPUT_VERSION,
-        "columns": project_output_metadata(columns, interval_s, group),
+        "columns": project_output_metadata(columns, interval_s, group, units),
     }
     path.with_name(path.name + ".units.json").write_text(
         json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8"
@@ -110,7 +186,9 @@ def write_output_parquet(df_output, path, interval_s: Optional[int]) -> None:
     import pyarrow.parquet as pq
 
     table = pa.Table.from_pandas(df_output, preserve_index=True)
-    dict_columns = project_output_metadata(df_output.columns, interval_s)
+    dict_columns = project_output_metadata(
+        df_output.columns, interval_s, units=df_output.attrs.get("supy_output_units")
+    )
     fields = list(table.schema)
     for position, metadata in enumerate(dict_columns.values()):
         fields[position] = fields[position].with_metadata({

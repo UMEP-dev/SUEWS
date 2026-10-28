@@ -162,3 +162,109 @@ def test_resampled_units_describe_held_rows(frames):
         hourly.units.metadata[("SUEWS", "Rain")]["cell_methods"]
         == "time: sum (interval: 1 hour)"
     )
+
+
+def test_requested_units_affine_scale_and_repeated_conversion(frames):
+    from supy._output_metadata import prepare_output
+
+    df_output, df_state = frames
+    df_output[("BL", "Press_hPa")] = 1000.0
+    original = df_output.copy(deep=True)
+    output = SUEWSOutput(df_output, df_state, units={"QE": "kW m-2", "T2": "K", "Press_hPa": "Pa"})
+    assert output.df[("SUEWS", "QE")].iloc[0] == 0.0005
+    assert output.df[("SUEWS", "T2")].iloc[0] == 273.65
+    assert output.df[("BL", "Press_hPa")].iloc[0] == 100000.0
+    assert output.units[("SUEWS", "T2")] == "K"
+    assert output.units.metadata[("SUEWS", "T2")]["units_metadata"] == "temperature: on_scale"
+    pd.testing.assert_frame_equal(df_output, original)
+    assert prepare_output(df_output) is df_output
+    assert prepare_output(df_output, {}) is df_output
+    again = output.to_units({"T2": "K", "QE": "W m-2"})
+    assert again.df[("SUEWS", "T2")].iloc[0] == 273.65
+    assert again.df[("SUEWS", "QE")].iloc[0] == 0.5
+
+
+def test_temperature_difference_uses_registry_kind(frames):
+    df_output, df_state = frames
+    difference = next(v for v in get_output_contract_catalogue().variables
+                      if v.unit == "K" and v.units_metadata == "temperature: difference")
+    key = (difference.group, difference.name)
+    df_output[key] = 2.5
+    output = SUEWSOutput(df_output, df_state).to_units({key: "degC"})
+    assert (output.df[key] == 2.5).all()
+    assert (output.to_units({key: "K"}).df[key] == 2.5).all()
+    assert output.units.metadata[key]["units_metadata"] == "temperature: difference"
+
+
+@pytest.mark.parametrize("unit_request,match", [
+    ({"QE": "K"}, "QE.*dimensions differ"),
+    ({"QE": "watts"}, "QE.*"),
+    ({"QE": None}, "QE.*unit string"),
+    ({"missing": "K"}, "missing.*not present"),
+    ({"unknown": "1"}, "unknown.*without a unit"),
+])
+def test_invalid_output_unit_requests(frames, unit_request, match):
+    df_output, df_state = frames
+    df_output[("extra", "unknown")] = 1
+    original = df_output.copy(deep=True)
+    with pytest.raises(ValueError, match=match):
+        SUEWSOutput(df_output, df_state, units=unit_request)
+    pd.testing.assert_frame_equal(df_output, original)
+
+
+@pytest.mark.parametrize("frequency", [300, 3600])
+@pytest.mark.parametrize("streamed", [False, True])
+def test_converted_writer_values_and_metadata(frames, tmp_path, frequency, streamed):
+    from supy._save import StreamedTextFiles
+
+    df_output, df_state = frames
+    request = {"QE": "kW m-2", "T2": "K"}
+    path_txt = tmp_path / "txt"
+    path_txt.mkdir()
+    stream = None
+    text_stream = None
+    if streamed:
+        stream = StreamedParquetParts(tmp_path / "SUEWS_output.parquet", tstep_s=300)
+        stream.prepare()
+        stream.start_chunk(2012, 0)
+        text_stream = StreamedTextFiles()
+    paths = save_df_output_parquet(df_output, df_state, freq_s=frequency,
+                                  path_dir_save=tmp_path, save_state=False,
+                                  streamed_parquet=stream, units=request)
+    file = next(paths[0].glob("*.parquet")) if streamed else paths[0]
+    saved = pd.read_parquet(file)
+    assert (saved[("SUEWS", "QE")] == 0.0005).all()
+    assert (saved[("SUEWS", "T2")] == 273.65).all()
+    schema = pq.read_schema(file)
+    for name, unit in request.items():
+        assert schema.field(str(("SUEWS", name))).metadata[b"units"] == unit.encode()
+    text_paths = save_df_output(df_output, freq_s=frequency, path_dir_save=path_txt,
+                               streamed_files=text_stream, units=request)
+    text = pd.read_csv(text_paths[0], sep=r"\s+")
+    assert (text["QE"] == 0.0005).all()
+    assert (text["T2"] == 273.65).all()
+    metadata = json.loads(text_paths[0].with_name(text_paths[0].name + ".units.json").read_text(encoding="utf-8"))
+    for name, unit in request.items():
+        assert metadata["columns"][name]["units"] == unit
+
+
+def test_converted_output_resample_and_public_saves(frames, tmp_path):
+    from supy.suews_sim import SUEWSSimulation
+
+    df_output, df_state = frames
+    df_state[("snowuse", "0")] = 0
+    output = SUEWSOutput(df_output, df_state).to_units({"T2": "K"})
+    resampled = output.resample("h")
+    assert resampled.units[("SUEWS", "T2")] == "K"
+    for label, owner in [("output", output), ("simulation", SUEWSSimulation())]:
+        if label == "simulation":
+            owner._df_output = df_output
+            owner._df_state_final = df_state
+            owner._run_completed = True
+            # Exercise the real save settings and output writer, excluding run provenance.
+            owner._write_save_sidecars = lambda paths, settings, **kwargs: paths
+        paths = owner.save(tmp_path / label, format="parquet", units={"T2": "K", "QE": "kW m-2"})
+        path = next(p for p in paths if str(p).endswith("SUEWS_output.parquet"))
+        saved = pd.read_parquet(path)
+        assert (saved[("SUEWS", "T2")] == 273.65).all()
+        assert (saved[("SUEWS", "QE")] == 0.0005).all()

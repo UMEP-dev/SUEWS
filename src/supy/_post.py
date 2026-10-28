@@ -438,6 +438,7 @@ def _resample_output(
     mask = (rsmp_dt_idx >= dt_min_floor) & (rsmp_dt_idx <= dt_max)
     df_rsmp = df_rsmp[mask]
 
+    df_rsmp.attrs = df_output.attrs.copy()
     return df_rsmp
 
 

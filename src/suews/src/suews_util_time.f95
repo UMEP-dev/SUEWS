@@ -305,7 +305,7 @@ CONTAINS
       timer, & ! input
       nsh, nsh_real, tstep_real) ! output
       USE module_ctrl_type, ONLY: SUEWS_TIMER
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_hour
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -317,7 +317,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: tstep_real ! tstep in type real
 
       tstep = timer%tstep
-      nsh = 3600/tstep
+      nsh = sec_per_hour/tstep
       nsh_real = nsh*1.0
       tstep_real = tstep*1.0
 
@@ -414,7 +414,7 @@ CONTAINS
       ! Derive the site's fixed-offset standard clock without changing the
       ! forcing/main clock. Daylight-saving time is deliberately not applied.
       USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE
-
+      USE module_ctrl_const_physconst, ONLY: min_per_day
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -434,25 +434,25 @@ CONTAINS
          offset_minutes = NINT(siteInfo%timezone*60.0D0)
       END IF
 
-      total_minutes = (timer%id - 1)*1440 + timer%it*60 + timer%imin + offset_minutes
+      total_minutes = (timer%id - 1)*min_per_day + timer%it*60 + timer%imin + offset_minutes
       timer_st%iy = timer%iy
 
       DO
          CALL LeapYearCalc(timer_st%iy, year_days)
-         minutes_in_year = year_days*1440
+         minutes_in_year = year_days*min_per_day
          IF (total_minutes >= 0 .AND. total_minutes < minutes_in_year) EXIT
          IF (total_minutes < 0) THEN
             timer_st%iy = timer_st%iy - 1
             CALL LeapYearCalc(timer_st%iy, year_days)
-            total_minutes = total_minutes + year_days*1440
+            total_minutes = total_minutes + year_days*min_per_day
          ELSE
             total_minutes = total_minutes - minutes_in_year
             timer_st%iy = timer_st%iy + 1
          END IF
       END DO
 
-      timer_st%id = total_minutes/1440 + 1
-      day_minutes = MOD(total_minutes, 1440)
+      timer_st%id = total_minutes/min_per_day + 1
+      day_minutes = MOD(total_minutes, min_per_day)
       timer_st%it = day_minutes/60
       timer_st%imin = MOD(day_minutes, 60)
    END SUBROUTINE SUEWS_cal_local_standard_timer

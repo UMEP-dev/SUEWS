@@ -9,7 +9,7 @@ MODULE module_phys_ohm
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
-
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour
    IMPLICIT NONE
 
    REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_TEMP_TRANSITION_HALF_WIDTH = 0.25D0 ! [degC]
@@ -69,7 +69,7 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: ndepth
       USE module_util_datetime, ONLY: datetime, timedelta
       USE module_ctrl_type, ONLY: SUEWS_TIMER
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
       TYPE(SUEWS_TIMER) :: timer
       INTEGER, INTENT(in) :: StorageHeatMethod !
@@ -195,15 +195,15 @@ CONTAINS
             last_tstep_Q = time_now%getDay() /= time_next%getDay()
 
             IF (dt_since_start /= dt_since_start_prev) THEN
-               IF (dt_since_start < 86400) THEN
+               IF (dt_since_start < sec_per_day) THEN
                   ws_rav = ws_rav + (ws - ws_rav)/(dt_since_start/tstep)
                   DO i_surf = 1, nsurf
                      qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(dt_since_start/tstep)
                   END DO
                ELSE
-                  ws_rav = ws_rav + (ws - ws_rav)/(86400/tstep)
+                  ws_rav = ws_rav + (ws - ws_rav)/(sec_per_day/tstep)
                   DO i_surf = 1, nsurf
-                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(86400/tstep)
+                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(sec_per_day/tstep)
                   END DO
                END IF
             END IF
@@ -693,7 +693,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: dqndt_prev ! dQ* per dt for 60 min [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(out) :: qn1_av_next ! weighted average of qn1 [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! dQ* per dt for 60 min [W m-2 h-1]
-      REAL(KIND(1D0)), PARAMETER :: dt0_thresh = 3600 ! threshold for period of dqndt0 [s]
+      REAL(KIND(1D0)), PARAMETER :: dt0_thresh = sec_per_hour ! threshold for period of dqndt0 [s]
       REAL(KIND(1D0)), PARAMETER :: window_hr = 2 ! window size for Difference calculation [hr]
 
       INTEGER :: dt0 ! period of dqndt0 [s]

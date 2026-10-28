@@ -25,7 +25,7 @@ MODULE module_phys_anohm
    USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day
    IMPLICIT NONE
 CONTAINS
 
@@ -317,7 +317,7 @@ CONTAINS
 
       ! constant:
       REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
-      REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(24*60*60) ! augular velocity of Earth
+      REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(sec_per_day) ! augular velocity of Earth
 
       SELECT CASE (sfc_typ)
       CASE (1:6) ! land surfaces
@@ -338,7 +338,7 @@ CONTAINS
       END SELECT
 
       ! for a local time xTHr (in hour):
-      xTs = ATs*SIN(OMEGA*(xTHr - tSd + 6)*3600 - gamma) + mTs
+      xTs = ATs*SIN(OMEGA*(xTHr - tSd + 6)*sec_per_hour - gamma) + mTs
 
    END SUBROUTINE AnOHM_xTs
    !========================================================================================
@@ -379,7 +379,7 @@ CONTAINS
       !   constant
       REAL(KIND(1D0)), PARAMETER :: SIGMA = 5.67E-8 ! Stefan-Boltzman
       REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
-      REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(24*60*60) ! augular velocity of Earth
+      REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(sec_per_day) ! augular velocity of Earth
 
       !   local variables:
       REAL(KIND(1D0)) :: beta ! inverse Bowen ratio
@@ -483,7 +483,7 @@ CONTAINS
 
       !   a2:
       xa2 = (ceta*SIN(xlag))/(OMEGA*cphi)
-      xa2 = xa2/3600 ! convert the unit from s-1 to h-1
+      xa2 = xa2/sec_per_hour ! convert the unit from s-1 to h-1
 
       !   a3: Sun et al. (2017) Eq.25/27 (radiation baseline minus the
       !   first-order anthropogenic-heat term).
@@ -540,7 +540,7 @@ CONTAINS
       !   constant
       REAL(KIND(1D0)), PARAMETER :: SIGMA = 5.67E-8 ! Stefan-Boltzman
       REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
-      REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(24*60*60) ! augular velocity of Earth
+      REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(sec_per_day) ! augular velocity of Earth
 
       !   local variables:
       REAL(KIND(1D0)) :: beta ! inverse Bowen ratio
@@ -637,7 +637,7 @@ CONTAINS
       !   write(*,*) 'ceta,xlag,cphi:', ceta,xlag,cphi
       !   a2:
       xa2 = (czeta*SIN(xlag))/(OMEGA*ctheta)
-      xa2 = xa2/3600 ! convert the unit from s-1 to h-1
+      xa2 = xa2/sec_per_hour ! convert the unit from s-1 to h-1
 
       !   a3:
       xa3 = mSd*(xalb - 1)*(xeta + (fT - fL*xeta)/f*xa1)

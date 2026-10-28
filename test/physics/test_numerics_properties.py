@@ -20,7 +20,7 @@ draws the same examples on every machine: a failure in the physics lane must
 be reproducible locally, not a seed nobody can recover.
 """
 
-from hypothesis import HealthCheck, given, settings, strategies as st
+from hypothesis import HealthCheck, example, given, settings, strategies as st
 from hypothesis.extra.numpy import array_shapes, arrays
 import numpy as np
 import pandas as pd
@@ -162,6 +162,14 @@ def test_shapley_forcing_profile_closes(F_A, F_B, R_A, R_B, S_A, S_B):
     d_storage=factors,
     total_contribution=factors,
 )
+# A large flux with a tiny change: forming flux_B and subtracting flux_A
+# again loses digits to cancellation (failed CI on Windows with rtol alone).
+@example(
+    flux_A=np.array([32.0]),
+    d_radiation=np.array([0.0]),
+    d_storage=np.array([1e-6]),
+    total_contribution=np.array([1.0]),
+)
 def test_flux_budget_decomposition_closes(
     flux_A, d_radiation, d_storage, total_contribution
 ):
@@ -195,11 +203,22 @@ def test_flux_budget_decomposition_closes(
     # Near-zero flux change is documented as NaN (the share is undefined
     # there), so those timesteps are excluded rather than asserted upon.
     resolved = np.abs(d_flux) >= 1e-10
+    # Each share is d_component / d_flux, and d_flux is recovered as
+    # flux_B - flux_A, which carries the rounding of operands as large as the
+    # fluxes themselves. The shares' relative error therefore grows like
+    # eps * |flux| / |d_flux|; scale the absolute tolerance by that ratio so
+    # the bound tracks the cancellation rather than loosening rtol for all.
+    flux_scale = np.maximum(np.abs(flux_A), np.abs(flux_B))[resolved]
+    # About eight roundings sit on the path from the inputs to each share.
+    share_error = 8 * np.finfo(np.float64).eps * flux_scale / np.abs(d_flux[resolved])
+    cancellation_atol = float(
+        np.max(np.abs(total_contribution[resolved]) * share_error, initial=0.0)
+    )
     np.testing.assert_allclose(
         total[resolved],
         total_contribution[resolved],
         rtol=1e-9,
-        atol=closure_atol(total_contribution),
+        atol=closure_atol(total_contribution) + cancellation_atol,
     )
 
 

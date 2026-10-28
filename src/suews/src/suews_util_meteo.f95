@@ -2,7 +2,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_util_meteo
    USE module_ctrl_const_allocate, ONLY: RAD2DEG, DEG2RAD
-   USE module_ctrl_const_physconst, ONLY: C2K, lv_bolton_sp, lv_wetbulb_sp, cp_air_beer_sp
+   USE module_ctrl_const_physconst, ONLY: C2K, lv_bolton_sp, lv_wetbulb_sp, cp_air_sp
    USE module_ctrl_const_mathconst
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
@@ -73,7 +73,7 @@ CONTAINS
       ! BEER (1991) APPLIED ENVIRONMETRICS METEOROLOGICAL TABLES
       REAL(KIND(1D0)) :: TK, TC
       TC = TK - C2K
-      SPEC_HEAT_DRYAIR = cp_air_beer_sp+((TC + 23.15)**2)/3364.
+      SPEC_HEAT_DRYAIR = cp_air_sp+((TC + 23.15)**2)/3364.
    END FUNCTION SPEC_HEAT_DRYAIR
 
    REAL(KIND(1D0)) FUNCTION SPEC_HEAT_VAPOR(TK, RH)
@@ -261,7 +261,7 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       !Garratt equation a20 (1992)
-      CPd = 1005.0 + ((Temp_C + 23.16)**2)/3364.0 !Changed from 23.15 to 23.16
+      CPd = cp_air_sp + ((Temp_C + 23.16)**2)/3364.0 !Changed from 23.15 to 23.16
 
       !Beer (1990) for water vapor
       cpm = 1859 + 0.13*rH + (19.3 + 0.569*rH)*(Temp_C/100.) + &

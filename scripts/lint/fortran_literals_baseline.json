@@ -8,7 +8,7 @@
     "pi": 3,
     "seconds_per_day": 3,
     "seconds_per_hour": 8,
-    "specific_heat_air": 2
+    "specific_heat_air": 1
   },
   "files": {
     "src/suews/src/suews_phys_anohm.f95": {
@@ -47,9 +47,6 @@
     "src/suews/src/suews_util_datetime.f95": {
       "seconds_per_day": 2,
       "seconds_per_hour": 2
-    },
-    "src/suews/src/suews_util_meteo.f95": {
-      "specific_heat_air": 1
     },
     "src/suews/src/suews_util_time.f95": {
       "pi": 1

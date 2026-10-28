@@ -132,6 +132,8 @@ def prepare_output(
                 if source == "mm":
                     seconds = 86400 if identity[0] == "DailyState" else output_interval_seconds(df_output, df_output.attrs.get("supy_output_interval_s", interval_s))
                     values = values / seconds
+                    if identity[0] != "DailyState":
+                        df_result.attrs["supy_output_interval_s"] = seconds
                     source = "kg m-2 s-1"
                 values = unit_conversion.convert_water_rate(values, source, parsed)
             else:

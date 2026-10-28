@@ -450,7 +450,10 @@ def _resample_output(
         and (v.group, v.name) in df_rsmp.columns
     ]
     if rate_columns:
-        source_s = output_interval_seconds(df_output, freq_source.total_seconds() if freq_source is not None else None)
+        source_s = df_output.attrs.get("supy_output_interval_s")
+        if source_s is None and freq_source is not None:
+            source_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
+        source_s = output_interval_seconds(df_output, source_s)
         target_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
         df_rsmp.loc[:, rate_columns] *= source_s / target_s
     df_rsmp.attrs = df_output.attrs.copy()

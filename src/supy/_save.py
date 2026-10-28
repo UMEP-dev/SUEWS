@@ -1414,7 +1414,12 @@ def _parquet_chunk_frame(
         list_frame.append(_dailystate_rows(df_output))
     df_chunk = list_frame[0] if len(list_frame) == 1 else pd.concat(list_frame, axis=1)
     columns = df_output.columns[ser_group.isin(df_chunk.columns.get_level_values(0))]
-    return df_chunk.reindex(columns=columns).sort_index()
+    df_chunk = df_chunk.reindex(columns=columns).sort_index()
+    # Main rows and sparse daily rows have different interval attributes;
+    # concat otherwise drops the explicit unit declarations they share.
+    df_chunk.attrs = df_output.attrs.copy()
+    df_chunk.attrs["supy_output_interval_s"] = freq_save.total_seconds()
+    return df_chunk
 
 
 def _write_parquet_sidecars(

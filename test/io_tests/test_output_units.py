@@ -364,3 +364,25 @@ def test_single_row_rate_request_uses_state_interval(frames):
     single.index = single.index.remove_unused_levels()
     converted = SUEWSOutput(single, state).to_units({"Rain": "mm h-1"})
     assert converted.df[("SUEWS", "Rain")].iloc[0] == pytest.approx(6.0)
+
+
+
+def test_streamed_requested_water_rates_keep_daily_metadata(frames, tmp_path):
+    import numpy as np
+
+    frame, state = frames
+    frame[("DailyState", "P_day")] = np.nan
+    frame.loc[frame.index[-1], ("DailyState", "P_day")] = 24.0
+    stream = StreamedParquetParts(tmp_path / "SUEWS_output.parquet", tstep_s=300)
+    stream.prepare()
+    stream.start_chunk(2012, 0)
+    paths = save_df_output_parquet(
+        frame, state, freq_s=3600, path_dir_save=tmp_path, save_state=False,
+        streamed_parquet=stream, units={"Rain": "mm h-1", "P_day": "mm h-1"},
+    )
+    saved = pd.read_parquet(paths[0])
+    np.testing.assert_allclose(saved[("SUEWS", "Rain")].dropna(), 6)
+    np.testing.assert_allclose(saved[("DailyState", "P_day")].dropna(), 1)
+    schema = pq.read_schema(next(paths[0].glob("*.parquet")))
+    for column in [("SUEWS", "Rain"), ("DailyState", "P_day")]:
+        assert schema.field(str(column)).metadata[b"units"] == b"mm h-1"

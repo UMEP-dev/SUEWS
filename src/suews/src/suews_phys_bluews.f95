@@ -65,7 +65,7 @@ MODULE module_phys_bluews
    USE module_phys_bluews_cbl
    USE meteo, ONLY: qsatf, sat_vap_press_x
    USE module_ctrl_error, ONLY: ErrorHint
-   USE module_ctrl_const_physconst, ONLY: lv_wetbulb_sp
+   USE module_ctrl_const_physconst, ONLY: lv_wetbulb_sp, sec_per_hour_sp
    IMPLICIT NONE
 CONTAINS
    ! Note: INTERVAL is now set to 3600 s in Initial (it is no longer set in RunControl) HCW 29 Jan 2015
@@ -195,7 +195,7 @@ CONTAINS
       ! print *, 'cbldata'
       ! print *, cbldata(1),tm_K
 
-      secs0 = cbldata(1)*3600.
+      secs0 = cbldata(1)*sec_per_hour_sp
       secs1 = secs0 + float(tstep) ! time in seconds
       ! Kinematic fluxes
       fhbl_Kms = cbldata(2)/(cbldata(4)*cbldata(6)) !qh_use/(avdens*avcp)      ! units: degK * m/s

@@ -2327,6 +2327,12 @@ END MODULE MathConstants
 MODULE module_ctrl_const_physconst
 
    INTEGER, PARAMETER :: sec_per_hour = 3600, sec_per_day = 86400, min_per_day = 1440
+   REAL, PARAMETER :: sec_per_hour_sp = 3600. ! seconds per hour, default REAL
+   REAL, PARAMETER :: sec_per_day_sp = 86400. ! seconds per day, default REAL
+   REAL, PARAMETER :: min_per_day_sp = 1440. ! minutes per day, default REAL
+   INTEGER, PARAMETER :: arcsec_per_deg = 3600 ! arcseconds per degree
+   REAL, PARAMETER :: cp_air_anohm_sp = 1006.38 ! AnOHM air heat capacity [J kg-1 K-1]; differs from cp_air_sp
+   REAL, PARAMETER :: lv_anohm_sp = 2264.705E3 ! AnOHM Lv [J kg-1]; differs from lv_bolton_sp and lv_wetbulb_sp
    REAL(KIND(1D0)), PARAMETER :: C2K = 273.15 !Celsius to Kelvin
    REAL, PARAMETER :: C2K_sp = 273.15 ! default-REAL spelling of C2K, for expressions that are evaluated in default REAL
    REAL(KIND(1D0)), PARAMETER :: SBConst = 5.67051E-8 !Stefan Boltzmann constant [W m-2 K-4]

@@ -2423,7 +2423,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
 
    USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG, error_state
    USE module_phys_stebbs_func, ONLY: calculate_x1
-   USE module_ctrl_const_physconst, ONLY: C2K, C2K_sp
+   USE module_ctrl_const_physconst, ONLY: C2K, C2K_sp, sec_per_hour_sp
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self
@@ -2527,7 +2527,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%Vair_ind = &
       (self%a_footprint*self%height_building)* &
       (1 - self%internal_volume_ratio) ! # Multiplied by factor that accounts for internal mass
-   self%ventilation_rate = self%Vair_ind*stebbsPrm%ventilation_rate/3600.0 ! Fixed at begining to have no natural ventilation. Given in units of volume of air per second
+   self%ventilation_rate = self%Vair_ind*stebbsPrm%ventilation_rate/sec_per_hour_sp ! Fixed at begining to have no natural ventilation. Given in units of volume of air per second
    self%a_wall = (self%wall_external_area*(1 - self%ratio_window_wall))
    self%a_roof = self%a_footprint
    self%v_wall = self%a_wall*self%thickness_wall

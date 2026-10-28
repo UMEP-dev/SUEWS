@@ -9,7 +9,7 @@ MODULE module_phys_ohm
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
-   USE module_ctrl_const_physconst, ONLY: sec_per_hour
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_hour_sp
    IMPLICIT NONE
 
    REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_TEMP_TRANSITION_HALF_WIDTH = 0.25D0 ! [degC]
@@ -709,7 +709,7 @@ CONTAINS
       END IF
 
       ! get weighted average at a previous time specified by `window_hr`
-      qn1_av_0 = qn1_av_prev - dqndt_prev*(window_hr - dt/3600.)
+      qn1_av_0 = qn1_av_prev - dqndt_prev*(window_hr - dt/sec_per_hour_sp)
 
       ! averaged qn1 for previous period = dt0_thresh
       qn1_av_next = (qn1_av_prev*(dt0 - dt) + qn1*dt)/(dt0)

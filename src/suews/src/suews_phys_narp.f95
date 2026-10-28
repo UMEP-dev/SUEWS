@@ -41,7 +41,7 @@ MODULE module_phys_narp
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day, SBConst_567
+   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day, SBConst_567, arcsec_per_deg
    IMPLICIT NONE
 
 CONTAINS
@@ -1076,7 +1076,7 @@ CONTAINS
            &p(1)*U**10 + p(2)*U**9 + p(3)*U**8 + p(4)*U**7 + p(5)*U**6 + p(6)*U**5 + p(7)*U**4 + &
            &p(8)*U**3 + p(9)*U**2 + p(10)*U + p(11)
 
-      corr_obliquity = (mean_obliquity/3600) + nutationobliquity
+      corr_obliquity = (mean_obliquity/arcsec_per_deg) + nutationobliquity
    END SUBROUTINE corr_obliquity_calculation
 
    SUBROUTINE abberation_correction_calculation(earth_heliocentric_positionradius, aberration_correction)
@@ -1088,7 +1088,7 @@ CONTAINS
       ! This function compute the aberration_correction, as a function of the
       ! earth-sun distance.
 
-      aberration_correction = -20.4898/(3600*earth_heliocentric_positionradius)
+      aberration_correction = -20.4898/(arcsec_per_deg*earth_heliocentric_positionradius)
 
    END SUBROUTINE abberation_correction_calculation
 
@@ -1218,7 +1218,7 @@ CONTAINS
       ! with respect to the observer local position at the Earth surface.
 
       ! Equatorial horizontal parallax of the sun in degrees
-      eq_horizontal_parallax = 8.794/(3600*earth_heliocentric_positionradius)
+      eq_horizontal_parallax = 8.794/(arcsec_per_deg*earth_heliocentric_positionradius)
 
       ! Term u, used in the following calculations (in radians)
       u = ATAN(0.99664719*TAN(locationlatitude*pi/180))

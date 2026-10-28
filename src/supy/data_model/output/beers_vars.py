@@ -239,6 +239,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="Tg",
+        units_metadata="temperature: difference",
         unit="degC",
         description=(
             "Excess of the ground surface temperature over the air temperature Ta, "
@@ -250,6 +251,7 @@ BEERS_VARIABLES = [
     ),
     OutputVariable(
         name="Tw",
+        units_metadata="temperature: difference",
         unit="degC",
         description=(
             "Excess of the wall surface temperature over the air temperature Ta, "

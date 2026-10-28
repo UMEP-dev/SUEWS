@@ -95,6 +95,8 @@ def test_catalogue_is_an_exact_registry_projection():
             projected.unit,
             projected.description,
             projected.aggregation,
+            projected.cell_methods,
+            projected.units_metadata,
             projected.level,
         ) == (
             group,
@@ -103,6 +105,8 @@ def test_catalogue_is_an_exact_registry_projection():
             registered.unit,
             registered.description,
             _value(registered.aggregation),
+            registered.cell_methods,
+            registered.units_metadata,
             _value(registered.level),
         )
         set_identities.add((projected.group, projected.name))

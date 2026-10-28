@@ -512,6 +512,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="TStar",
+        units_metadata="temperature: difference",
         unit="K",
         description="Temperature scale (friction temperature)",
         aggregation=AggregationMethod.AVERAGE,

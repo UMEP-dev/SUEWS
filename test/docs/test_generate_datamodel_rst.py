@@ -898,16 +898,16 @@ def test_published_example_fields_use_physically_consistent_units() -> None:
     }
 
     # ASSERT
-    assert fields["Conductance"]["g_k"]["unit"] == "W m^-2"
-    assert fields["Conductance"]["g_sm"]["unit"] == "mm^-1"
+    assert fields["Conductance"]["g_k"]["unit"] == "W m-2"
+    assert fields["Conductance"]["g_sm"]["unit"] == "mm-1"
     assert fields["Conductance"]["g_q_base"]["unit"] == "model-dependent"
     assert fields["Conductance"]["g_q_shape"]["unit"] == "model-dependent"
-    assert fields["LAIPowerCoefficients"]["growth_gdd"]["unit"] == "K^-1 d^-1"
-    assert fields["LAIPowerCoefficients"]["senescence_sdd"]["unit"] == ("K^-1 d^-1")
+    assert fields["LAIPowerCoefficients"]["growth_gdd"]["unit"] == "K-1 d-1"
+    assert fields["LAIPowerCoefficients"]["senescence_sdd"]["unit"] == ("K-1 d-1")
     assert fields["PavedProperties"]["state_limit"]["description"] == (
         "Upper limit to the surface water state"
     )
-    assert fields["PavedProperties"]["wet_threshold"]["unit"] == "mm"
+    assert fields["PavedProperties"]["wet_threshold"]["unit"] == "kg m-2"
     assert (
         "surface resistance becomes zero"
         in fields["PavedProperties"]["wet_threshold"]["description"]
@@ -925,7 +925,7 @@ def test_published_example_fields_use_physically_consistent_units() -> None:
     conductance_rendered = "\n".join(
         module.RSTGenerator({})._format_parameter_examples(fields["Conductance"]["g_k"])
     )
-    assert "``0.48`` mm" in wet_threshold_rendered
+    assert "``0.48`` kg |m^-2|" in wet_threshold_rendered
     assert "``566.0923`` W |m^-2|" in conductance_rendered
 
 

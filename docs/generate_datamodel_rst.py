@@ -11,6 +11,7 @@ To run this script, navigate to the `docs/` directory and execute:
 import argparse
 import json
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -838,11 +839,13 @@ class RSTGenerator:
             "d^-2",
         ]
 
-        if part in known_patterns:
-            return f"|{part}|"
+        cf_part = re.sub(r"^([A-Za-z]+)(-?\d+)$", r"\1^\2", part)
+        if cf_part in known_patterns:
+            return f"|{cf_part}|"
 
-        # Handle compound units
-        words = part.split()
+        # Handle compound units. CF exponents ("m-2", "s-1", "m3") become the
+        # caret form ("m^-2") that the rst_prolog substitution macros use.
+        words = [re.sub(r"^([A-Za-z]+)(-?\d+)$", r"\1^\2", w) for w in part.split()]
         formatted = []
         for word in words:
             if word in known_patterns or (

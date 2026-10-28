@@ -9,10 +9,10 @@ MODULE module_phys_stebbs_precision
 END MODULE
 
 MODULE module_phys_stebbs_core
-
+   USE module_ctrl_const_physconst, ONLY: SBConst_567
    USE module_phys_stebbs_precision
 
-   REAL(rprc), PARAMETER :: sigma = 5.670E-8
+   REAL(rprc), PARAMETER :: sigma = SBConst_567
 
 END MODULE module_phys_stebbs_core
 MODULE module_phys_stebbs_func

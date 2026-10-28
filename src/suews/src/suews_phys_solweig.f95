@@ -7,7 +7,7 @@ MODULE module_phys_solweig
    ! USE module_ctrl_const_initialcond
    ! USE module_ctrl_const_sues
    USE module_ctrl_const_default, ONLY: notUsed, notUsedI
-   USE module_ctrl_const_physconst, ONLY: C2K
+   USE module_ctrl_const_physconst, ONLY: C2K, SBConst
    IMPLICIT NONE
 
    ! REAL(KIND(1d0)) :: timestepdec !time step in decimal time
@@ -144,7 +144,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: azimuthA(1:18) = [(j*(360.0/18.0), j=0, 17)]
       ! temporary parameters and variables for testing
       REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
-      REAL(KIND(1D0)), PARAMETER :: SBC = 5.67051E-8
+      REAL(KIND(1D0)), PARAMETER :: SBC = SBConst
       !REAL(KIND(1D0)),PARAMETER   :: DEG2RAD=0.017453292,RAD2DEG=57.29577951 !Now defined in AllocateArray HCW 02 Dec 2014
 
       INTEGER, PARAMETER :: onlyglobal = 1 !! force to calculate direct and diffuse components, TS 13 Dec 2019

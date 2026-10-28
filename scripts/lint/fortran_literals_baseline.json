@@ -9,15 +9,13 @@
     "reference_pressure": 4,
     "seconds_per_day": 3,
     "seconds_per_hour": 8,
-    "specific_heat_air": 4,
-    "stefan_boltzmann": 6
+    "specific_heat_air": 4
   },
   "files": {
     "src/suews/src/suews_phys_anohm.f95": {
       "kelvin_offset": 2,
       "latent_heat_vaporisation": 1,
-      "specific_heat_air": 1,
-      "stefan_boltzmann": 2
+      "specific_heat_air": 1
     },
     "src/suews/src/suews_phys_atmmoiststab.f95": {
       "seconds_per_day": 1
@@ -26,8 +24,7 @@
       "degree_radian": 5,
       "minutes_per_day": 1,
       "pi": 1,
-      "reference_pressure": 1,
-      "stefan_boltzmann": 1
+      "reference_pressure": 1
     },
     "src/suews/src/suews_phys_bluews.f95": {
       "kelvin_offset": 1,
@@ -37,8 +34,7 @@
     "src/suews/src/suews_phys_narp.f95": {
       "degree_radian": 48,
       "pi": 8,
-      "seconds_per_hour": 3,
-      "stefan_boltzmann": 1
+      "seconds_per_hour": 3
     },
     "src/suews/src/suews_phys_ohm.f95": {
       "seconds_per_hour": 1
@@ -49,8 +45,7 @@
     "src/suews/src/suews_phys_solweig.f95": {
       "degree_radian": 14,
       "pi": 8,
-      "reference_pressure": 1,
-      "stefan_boltzmann": 1
+      "reference_pressure": 1
     },
     "src/suews/src/suews_phys_spartacus.f95": {
       "degree_radian": 3,
@@ -62,8 +57,7 @@
       "kelvin_offset": 38,
       "pi": 1,
       "seconds_per_hour": 1,
-      "specific_heat_air": 1,
-      "stefan_boltzmann": 1
+      "specific_heat_air": 1
     },
     "src/suews/src/suews_util_datetime.f95": {
       "seconds_per_day": 2,

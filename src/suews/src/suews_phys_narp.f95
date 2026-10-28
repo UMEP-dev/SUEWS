@@ -41,7 +41,7 @@ MODULE module_phys_narp
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day
+   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day, SBConst_567
    IMPLICIT NONE
 
 CONTAINS
@@ -262,7 +262,7 @@ CONTAINS
 
       REAL(KIND(1D0)), PARAMETER :: DEG2RAD = 0.017453292
       ! REAL(KIND(1D0)),PARAMETER   ::RAD2DEG=57.29577951
-      REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = 5.67E-8
+      REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = SBConst_567
 
       ! NB: NARP_G is not assigned with a value in SUEWS_translate.
       ! 3.0 is used here as annual average for mid-latitude areas. TS 24 Oct 2017

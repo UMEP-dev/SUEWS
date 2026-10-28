@@ -24,7 +24,9 @@ To damp this, :math:`(z-d)/L` is under-relaxed between passes of the iteration,
 
 where :math:`\zeta^{*}_n` is the value solved from the current sensible heat flux and :math:`\zeta_{n-1}` the value used in the previous pass.
 The first pass of each timestep takes the solved value unchanged.
-A converged value of the plain iteration is also a converged value of the relaxed one, so the relaxation changes how the iteration reaches its answer, not the physics it converges to; it can change results within the 0.05 K convergence tolerance and the state carried into subsequent timesteps.
+After ten passes the factor 0.3 decays by 0.7 per pass.
+Near the stable fold the solved value itself jumps, from a small :math:`(z-d)/L` to the stable clip, as the downward sensible heat flux grows, so there may be no consistent value to converge to; a fixed factor would keep stepping across the jump until the pass limit, whereas the decaying factor lets the iteration settle at the jump.
+A converged value of the plain iteration is also a converged value of the relaxed one, so the relaxation changes how the iteration reaches its answer, not the physics it converges to; it can change results within the 0.05 K convergence tolerance, on the few steps that settle at a jump, and in the state carried into subsequent timesteps.
 
 Net all-wave radiation, Q\*
 ---------------------------

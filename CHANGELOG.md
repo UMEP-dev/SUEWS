@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
-- [change][experimental] Remove the 120 s m-1 upper cap on aerodynamic resistance and the 0.001 m s-1 floor on friction velocity, leaving the (z-d)/L clip as the only bound on stability, and under-relax (z-d)/L between passes of the surface-temperature iteration so it no longer two-cycles on near-neutral nights.
+- [change][experimental] Remove the 120 s m-1 upper cap on aerodynamic resistance and the 0.001 m s-1 floor on friction velocity, leaving the (z-d)/L clip as the only bound on stability, and under-relax (z-d)/L between passes of the surface-temperature iteration (factor 0.3, decaying after ten passes) so it no longer two-cycles on near-neutral nights.
   - Resistance can now exceed 120 s m-1 at light wind; the 10 s m-1 lower limit is unchanged. This changes some night-time and light-wind results and their subsequent carried state in all storage heat methods.
 - [change][stable] Deprecate non-streaming Parquet output with a FutureWarning for one release; it will be removed in the next release. Use chunked streaming Parquet output via `model.control.output.stream_chunk` instead. Existing non-streaming output is unchanged during the deprecation period (#1955).
 

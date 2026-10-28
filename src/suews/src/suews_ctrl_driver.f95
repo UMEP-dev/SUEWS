@@ -3867,7 +3867,7 @@ CONTAINS
                ! Damp the pass-to-pass two-cycle in (z-d)/L; the first pass of a
                ! timestep takes the solve as it is
                IF (modState%flagState%i_iter > 1) THEN
-                  zL = relax_zl(zL_prev_pass, zL)
+                  zL = relax_zl(zL_prev_pass, zL, modState%flagState%i_iter)
                   IF (ABS(zL) > 1.0D-12) L_mod = zzd/zL
                END IF
 

@@ -17,11 +17,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import supy
+
 pytestmark = [pytest.mark.physics, pytest.mark.core]
 
 RA_FORMER_CAP = 120.0  # removed hard cap [s m-1]
 RA_FLOOR = 10.0  # retained lower limit [s m-1]
-ZL_RELAX = 0.3  # relaxation factor in module_phys_atmmoiststab
+ZL_RELAX = 0.3  # relaxation factor for the first passes (module_phys_atmmoiststab)
+ZL_RELAX_PASSES = 10  # passes at the full factor
+ZL_RELAX_DECAY = 0.7  # per-pass decay after that
 MAX_OUTER_PASSES = 60  # max_iter_default in the driver
 # Neutral method: RA = ln(zzd/z0m)**2 / (k2 * U); k2 is a single-precision 0.16
 # in the Fortran, so a double-precision reconstruction agrees to ~1e-8 only.
@@ -37,15 +41,16 @@ use module_phys_atmmoiststab, only: relax_zl
 use module_ctrl_type, only: SUEWS_STATE
 use module_ctrl_const_datain, only: SuppressWarnings
 implicit none
-integer :: mode, n, i
-real(kind(1d0)) :: zzd, z0m, u, ra, z0v, a, b
+integer :: mode, n, i, ipass
+real(kind(1d0)) :: zzd, z0m, u, ra, z0v, a, b, c
 type(SUEWS_STATE) :: state
 SuppressWarnings = 0
 read(*, *) mode, n
 do i = 1, n
   if (mode == 1) then
-    read(*, *) a, b
-    write(*, '(ES25.17)') relax_zl(a, b)
+    read(*, *) a, b, c
+    ipass = nint(c)
+    write(*, '(ES25.17)') relax_zl(a, b, ipass)
   else
     read(*, *) zzd, z0m, u
     ! neutral method (1); stability inputs are unused by it
@@ -138,9 +143,10 @@ def test_relax_zl_keeps_fixed_points_and_moves_part_way(probe):
     # ARRANGE: previous and new (z-d)/L across both stability regimes and the clips
     prev = np.array([-2.0, -0.18, 0.0, 0.1, 0.5, 0.3])
     new = np.array([-2.0, 0.5, -0.47, 0.1, -0.18, 0.5])
+    passes = np.full(prev.shape, 2.0)
 
     # ACT
-    out = probe(1, np.column_stack([prev, new]))
+    out = probe(1, np.column_stack([prev, new, passes]))
 
     # ASSERT: a converged pass is left exactly where it is, and otherwise the
     # step is the stated fraction of the change, so it stays inside the clips
@@ -148,6 +154,26 @@ def test_relax_zl_keeps_fixed_points_and_moves_part_way(probe):
     np.testing.assert_array_equal(out[fixed], prev[fixed])
     np.testing.assert_allclose(out, prev + ZL_RELAX * (new - prev), rtol=0, atol=1e-15)
     assert np.all(out >= np.minimum(prev, new)) and np.all(out <= np.maximum(prev, new))
+
+
+def test_relax_zl_factor_decays_after_the_first_passes(probe):
+    """A fixed factor keeps stepping across a jump in the stability solve; the
+    factor holds for the first passes and then decays geometrically."""
+    # ARRANGE: the same unit change at every pass number up to the limit
+    passes = np.arange(2, 61, dtype=float)
+    rows = np.column_stack([np.zeros_like(passes), np.ones_like(passes), passes])
+
+    # ACT: with zl_prev = 0 and zl_new = 1 the result is the factor itself
+    factor = probe(1, rows)
+
+    # ASSERT
+    expected = np.where(
+        passes <= ZL_RELAX_PASSES,
+        ZL_RELAX,
+        ZL_RELAX * ZL_RELAX_DECAY ** (passes - ZL_RELAX_PASSES),
+    )
+    np.testing.assert_allclose(factor, expected, rtol=1e-14, atol=0)
+    assert np.all(np.diff(factor) <= 0.0)
 
 
 def test_former_sign_flip_steps_converge_without_the_cap(sample_run_cached):
@@ -166,3 +192,26 @@ def test_former_sign_flip_steps_converge_without_the_cap(sample_run_cached):
     assert passes.loc[window].max() < MAX_OUTER_PASSES
     assert (passes < MAX_OUTER_PASSES).all()
     assert ra.max() > RA_FORMER_CAP
+
+
+@pytest.mark.medium
+@pytest.mark.parametrize("method", [2, 3, 4])
+def test_sample_year_converges_with_roughness_sublayer_off(method):
+    """With roughness_sublayer = 0, a fixed relaxation factor left 4, 6 and 8
+    steps on 13 April 2012 cycling to the pass limit for methods 2, 3 and 4:
+    the stability solve jumps between a small (z-d)/L and the stable clip there.
+    The decaying factor settles them, as the capped code did."""
+    # ARRANGE
+    sample = supy.SUEWSSimulation.from_sample_data()
+    config = sample.config.model_copy(deep=True)
+    config.model.physics.stability = method
+    config.model.physics.roughness_sublayer = 0
+    simulation = supy.SUEWSSimulation()
+    simulation.update_config(config, auto_load_forcing=False)
+    simulation.update_forcing(sample.forcing.df)
+
+    # ACT
+    passes = simulation.run(n_jobs=1).df[("debug", "iter")]
+
+    # ASSERT
+    assert (passes < MAX_OUTER_PASSES).all()

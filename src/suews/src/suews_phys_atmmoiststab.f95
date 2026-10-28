@@ -8,8 +8,10 @@ MODULE module_phys_atmmoiststab
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
    REAL(KIND(1D0)), PARAMETER :: grav = 9.80665 !g - gravity - physics today august 1987
-   ! Under-relaxation of (z-d)/L between outer surface-temperature passes [-]
-   REAL(KIND(1D0)), PARAMETER :: ZL_RELAX = 0.3D0
+   ! Under-relaxation of (z-d)/L between outer surface-temperature passes
+   REAL(KIND(1D0)), PARAMETER :: ZL_RELAX = 0.3D0 ! factor for the first passes [-]
+   INTEGER, PARAMETER :: ZL_RELAX_PASSES = 10 ! passes at the full factor [-]
+   REAL(KIND(1D0)), PARAMETER :: ZL_RELAX_DECAY = 0.7D0 ! per-pass decay after that [-]
 
    ! scheme code
    INTEGER, PARAMETER :: W16 = 2 ! Ward et al (2016) based on {unstable: Dyer (1974) modified Hogstrom (1988); and stable: Van Ulden & Holtslag (1985)}
@@ -17,18 +19,27 @@ MODULE module_phys_atmmoiststab
    INTEGER, PARAMETER :: B71 = 4 ! Businger et al (1971) modifed  Hogstrom (1988)
    INTEGER, PARAMETER :: J12 = 5 ! Cheng and Brutsaert (2005)
 CONTAINS
-   PURE FUNCTION relax_zl(zl_prev, zl_new) RESULT(zl_relaxed)
+   PURE FUNCTION relax_zl(zl_prev, zl_new, i_pass) RESULT(zl_relaxed)
       ! Under-relaxed (z-d)/L for the next outer surface-temperature pass.
       ! Fed straight back, the flux -> (z-d)/L -> RA -> QE -> residual QH map can
       ! two-cycle near QH = 0 (one pass unstable, the next on the stable clip),
       ! most often on near-neutral nights. Moving only part of the way towards
       ! the new solve damps that cycle; a fixed point of the plain map is still
-      ! a fixed point here, so the converged answer is unchanged.
+      ! a fixed point here.
+      ! Near the stable fold the solve itself jumps (from a small (z-d)/L to the
+      ! clip as the downward flux grows), and there may be no consistent value
+      ! to converge to: a fixed factor then keeps stepping across the jump. After
+      ! ZL_RELAX_PASSES passes the factor therefore decays geometrically, so the
+      ! iterate settles at the jump instead of cycling to the pass limit.
       REAL(KIND(1D0)), INTENT(IN) :: zl_prev ! (z-d)/L used in the previous pass [-]
       REAL(KIND(1D0)), INTENT(IN) :: zl_new ! (z-d)/L from this pass's solve [-]
+      INTEGER, INTENT(IN) :: i_pass ! outer pass number within the timestep [-]
       REAL(KIND(1D0)) :: zl_relaxed
+      REAL(KIND(1D0)) :: alpha
 
-      zl_relaxed = zl_prev + ZL_RELAX*(zl_new - zl_prev)
+      alpha = ZL_RELAX
+      IF (i_pass > ZL_RELAX_PASSES) alpha = ZL_RELAX*ZL_RELAX_DECAY**(i_pass - ZL_RELAX_PASSES)
+      zl_relaxed = zl_prev + alpha*(zl_new - zl_prev)
    END FUNCTION relax_zl
 
 

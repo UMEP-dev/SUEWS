@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from functools import wraps
 import math
 import sys
-from typing import Callable
+from typing import Callable, Optional, Union
 
 import yaml
 
@@ -1721,10 +1721,32 @@ def upgrade_yaml(
     _log(f"[yaml-upgrade] Wrote upgraded YAML to {output_path}")
 
 
+def upgrade_soil_observation(
+    input_path: Union[str, Path], forcing_path: Union[str, Path],
+    output_path: Union[str, Path], forcing_output: Union[str, Path],
+    manifest_path: Union[str, Path], *, from_ver: Optional[str] = None,
+    source_contract: Optional[str] = None, source_unit: Optional[str] = None,
+    layer_top: Optional[float] = None, layer_depth: Optional[float] = None,
+    legacy_depth_is_thickness: bool = False, drop_legacy: bool = False,
+    dry_run: bool = False,
+) -> dict:
+    """Upgrade a coordinated YAML/forcing pair; see the file converter API."""
+    from .soil_forcing import convert_soil_observation_files
+
+    return convert_soil_observation_files(
+        input_path, forcing_path, output_path, forcing_output, manifest_path,
+        from_ver=from_ver, source_contract=source_contract, source_unit=source_unit,
+        layer_top=layer_top, layer_depth=layer_depth,
+        legacy_depth_is_thickness=legacy_depth_is_thickness,
+        drop_legacy=drop_legacy, dry_run=dry_run,
+    )
+
+
 __all__ = [
     "SoilMigrationContext",
     "YamlUpgradeError",
     "upgrade_yaml",
+    "upgrade_soil_observation",
 ]
 
 

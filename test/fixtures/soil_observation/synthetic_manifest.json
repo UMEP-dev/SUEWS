@@ -1,0 +1,35 @@
+{
+  "provenance": "Synthetic algebra cases; no observed measurements or refreshed numerical baseline.",
+  "source_contract": "1.2.0",
+  "target_contract": "2.0.0",
+  "source_schema": "2026.6.dev5",
+  "target_schema": "2026.6.dev6",
+  "layer_top_m": 0,
+  "layer_depth_m": 0.2,
+  "density_kg_m3": 1250,
+  "volume_basis": "fine_earth",
+  "soil_not_rocks": 0.8,
+  "awc_kg_m2": 80,
+  "field_capacity_kg_m2": 120,
+  "expected_sm_kg_m2": [
+    0,
+    50,
+    120,
+    160
+  ],
+  "expected_deficit_mm": [
+    80,
+    70,
+    0,
+    0
+  ],
+  "input_sha256": {
+    "legacy_gap.txt": "49bdf31229c3210864b77bc9a93cef286742686a5d223d3b6272a24172e604c7",
+    "legacy_method1.txt": "d52a3c9a00f228e8c16bc829bcda231b8c4ccc0cf2abb6052e833f726862ff72",
+    "legacy_method1.yml": "89d3e87d5d620935366cc2dadef354e411e2267b3df032b072e3c74d0ed0abc0",
+    "legacy_method2.txt": "6598244635cda2d17299fd12705db127a9c1147e7cd14a3ee37441c298bd1fe2",
+    "legacy_method2.yml": "df5445036cb8857003470bebbd4730c7e8443d375a486aa7483f5729159b3ef7"
+  },
+  "canonical_sha256": "58be4bc1abd780f791341f00293ff8324edc1df09e7f900bc4a393906097d106",
+  "canonical_yaml_sha256": "09d67184877f6af7c3b74e769f56116fb873e8b591f60232d1014baf1a06b843"
+}

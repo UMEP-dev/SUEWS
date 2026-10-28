@@ -97,6 +97,7 @@ py.install_sources(
             'util/converter/table/rules.csv',
             'util/converter/yaml.py',
             'util/converter/yaml_upgrade.py',
+            'util/converter/soil_forcing.py',
         ],
         [
             'sample_data/sample_config.yml',

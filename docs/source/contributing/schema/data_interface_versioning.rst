@@ -22,7 +22,7 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract is published at ``2.1.0`` and the current output contract is ``2.0.0``.
+The forcing contract is published at ``2.1.0`` and the unreleased output contract is ``2.0.0``.
 Forcing ``2.1.0`` adds a canonical declared water-rate unit while retaining legacy undeclared amounts.
 Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover

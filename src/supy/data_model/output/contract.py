@@ -86,6 +86,7 @@ class OutputContractVariable(BaseModel):
     name: str
     ordinal: int = Field(ge=0)
     unit: str
+    interval_water_flux: bool = False
     description: str
     aggregation: AggregationMethod
     cell_methods: CellMethods
@@ -135,6 +136,7 @@ def _project_output_contract(
                 name=variable.name,
                 ordinal=dict_next_ordinal[group_name],
                 unit=variable.unit,
+                interval_water_flux=variable.interval_water_flux,
                 description=variable.description,
                 aggregation=AggregationMethod(_enum_value(variable.aggregation)),
                 cell_methods=variable.cell_methods,

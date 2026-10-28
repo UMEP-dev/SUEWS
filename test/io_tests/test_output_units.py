@@ -386,3 +386,96 @@ def test_streamed_requested_water_rates_keep_daily_metadata(frames, tmp_path):
     schema = pq.read_schema(next(paths[0].glob("*.parquet")))
     for column in [("SUEWS", "Rain"), ("DailyState", "P_day")]:
         assert schema.field(str(column)).metadata[b"units"] == b"mm h-1"
+
+
+@pytest.mark.parametrize("frequency", ["ME", "MS", "W", "YE"])
+@pytest.mark.parametrize("rates", [False, True])
+def test_calendar_resample(frames, frequency, rates):
+    """Calendar bins accept native amounts and explicitly requested rates."""
+    frame, state = frames
+    output = SUEWSOutput(frame, state)
+    if rates:
+        output = output.to_units({"Rain": "mm h-1"})
+    result = output.resample(frequency)
+    assert len(result.df) == 1
+    assert result.df[("SUEWS", "Rain")].iloc[0] == pytest.approx(6 if rates else 12)
+    assert result.units[("SUEWS", "Rain")] == ("mm h-1" if rates else "mm")
+    converted = result.to_units({"Rain": "mm h-1"})
+    assert converted.df[("SUEWS", "Rain")].iloc[0] == pytest.approx(6)
+
+
+@pytest.mark.parametrize("frequency", ["ME", "MS", "W", "YE"])
+def test_calendar_resample_without_water_columns(frames, frequency):
+    frame, state = frames
+    result = SUEWSOutput(frame.loc[:, [("SUEWS", "QH")]], state).resample(frequency)
+    assert result.df[("SUEWS", "QH")].to_numpy() == pytest.approx([0.5])
+
+
+@pytest.mark.parametrize("convert_first", [False, True])
+def test_partial_bins_use_covered_seconds(frames, convert_first):
+    """A 10:30-12:15 run covers 30, 60 and 15 minutes in its hourly bins."""
+    frame, state = frames
+    frame = frame.iloc[:21].copy()
+    frame.index = pd.MultiIndex.from_product(
+        [[1], pd.date_range("2012-01-01 10:35", periods=21, freq="5min")],
+        names=["grid", "datetime"],
+    )
+    # Distinct bin rates expose incorrect weighting on a second resample.
+    frame[("SUEWS", "Rain")] = [0.5] * 6 + [1.0] * 12 + [2.0] * 3
+    output = SUEWSOutput(frame, state)
+    if convert_first:
+        output = output.to_units({"Rain": "mm h-1"})
+    hourly = output.resample("h").to_units({"Rain": "mm h-1"})
+    assert list(hourly.df.index.get_level_values("datetime").hour) == [11, 12, 13]
+    assert hourly.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([6, 12, 24])
+    daily = hourly.resample("D")
+    assert daily.df[("SUEWS", "Rain")].to_numpy() == pytest.approx([21 / 1.75])
+
+
+@pytest.mark.parametrize("writer", ["text", "parquet", "streamed"])
+def test_partial_written_bins(frames, tmp_path, writer):
+    frame, state = frames
+    frame = frame.iloc[:21].copy()
+    frame.index = pd.MultiIndex.from_product(
+        [[1], pd.date_range("2012-01-01 10:35", periods=21, freq="5min")],
+        names=["grid", "datetime"],
+    )
+    if writer == "text":
+        paths = save_df_output(frame, freq_s=3600, path_dir_save=tmp_path, output_groups=["SUEWS"])
+        values = pd.read_csv(paths[0], sep=r"\s+")["Rain"]
+    else:
+        stream = None
+        if writer == "streamed":
+            stream = StreamedParquetParts(tmp_path / "SUEWS_output.parquet", tstep_s=300)
+            stream.prepare()
+            stream.start_chunk(2012, 0)
+        paths = save_df_output_parquet(frame, state, freq_s=3600, path_dir_save=tmp_path,
+                                      save_state=False, streamed_parquet=stream)
+        values = pd.read_parquet(paths[0])[("SUEWS", "Rain")]
+    assert values.to_numpy() == pytest.approx([0.5 / 300] * 3)
+
+
+def test_text_requested_rain_rate_and_sidecar(frames, tmp_path):
+    frame, _ = frames
+    paths = save_df_output(frame, units={"Rain": "mm h-1"}, freq_s=3600,
+                           path_dir_save=tmp_path, output_groups=["SUEWS"])
+    assert pd.read_csv(paths[0], sep=r"\s+")["Rain"].to_numpy() == pytest.approx([6, 6])
+    payload = json.loads(paths[0].with_name(paths[0].name + ".units.json").read_text(encoding="utf-8"))
+    assert payload["columns"]["Rain"]["units"] == "mm h-1"
+    assert payload["columns"]["Rain"]["cell_methods"] == "time: mean (interval: 1 hour)"
+
+
+def test_inconsistent_interval_is_rejected(frames):
+    from supy._output_metadata import prepare_output
+
+    frame, state = frames
+    hourly = SUEWSOutput(frame, state).resample("h")
+    with pytest.raises(ValueError, match="interval_s disagrees"):
+        prepare_output(hourly.df, {"Rain": "mm h-1"}, interval_s=300)
+    assert hourly.to_units({"Rain": "mm h-1"}).df[("SUEWS", "Rain")].to_numpy() == pytest.approx([6, 6])
+
+
+def test_water_flux_amount_unit_is_rejected(frames):
+    frame, state = frames
+    with pytest.raises(ValueError, match="Rain"):
+        SUEWSOutput(frame, state).to_units({"Rain": "m"})

@@ -323,6 +323,8 @@ def _resample_output(
     """
     # Unwrap SUEWSOutput to raw DataFrame if needed
     if hasattr(df_output, "_df_output"):
+        if freq_source is None:
+            freq_source = df_output._output_frequency()
         df_output = df_output._df_output
 
     # Skip resampling entirely when the data is already at the requested
@@ -339,8 +341,22 @@ def _resample_output(
     elif _index_freq_matches(df_output, freq):
         return df_output
 
+    from ._output_metadata import output_covered_seconds, water_flux_variables
+
+    dict_units = df_output.attrs.get("supy_output_units", {})
+    water_columns = [c for c in df_output.columns if c in water_flux_variables() and c[0] != "DailyState"]
+    rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
+    source_s = None
+    if freq_source is not None:
+        try:
+            source_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
+        except ValueError:
+            pass  # Calendar rows already carry their individual coverage.
+    ser_coverage = output_covered_seconds(df_output, source_s) if water_columns else None
+    dict_coverage = {}
+
     # Helper function to resample a group with specified parameters
-    def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
+    def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None, grid=None):
         """Resample a dataframe group with specified aggregation rules.
 
         Args:
@@ -371,14 +387,28 @@ def _resample_output(
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
             return df_with_data.resample(freq, closed="right", label=label).agg(
-                dict_aggm_group
+                {name: method for name, method in dict_aggm_group.items() if name in df_with_data.columns}
             )
         else:
             df_to_resample = df_group
 
-        return df_to_resample.resample(freq, closed="right", label=label).agg(
-            dict_aggm_group
+        # Restore amounts before aggregation, then divide by actual coverage.
+        # This also weights repeated resampling of partial or calendar bins.
+        columns_rate = [name for group, name in rate_columns if group == group_name]
+        covered = None
+        if ser_coverage is not None:
+            covered = ser_coverage.xs(grid, level="grid")
+            target = covered.resample(freq, closed="right", label=label).sum()
+            dict_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in target.items()})
+        if columns_rate:
+            df_to_resample = df_to_resample.copy(deep=False)
+            df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(covered, axis=0)
+        result = df_to_resample.resample(freq, closed="right", label=label).agg(
+            {name: method for name, method in dict_aggm_group.items() if name in df_to_resample.columns}
         )
+        if columns_rate:
+            result[columns_rate] = result[columns_rate].div(target.where(target > 0), axis=0)
+        return result
 
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()
@@ -404,6 +434,7 @@ def _resample_output(
                         else "left",  # DailyState uses 'left' label
                         dict_aggm[group],
                         group_name=group,
+                        grid=grid,
                     )
                     for group in list_group
                     if group in dict_aggm  # Only process groups that are in dict_aggm
@@ -426,38 +457,16 @@ def _resample_output(
         if df_rsmp.index.names[1] is None:
             df_rsmp.index = df_rsmp.index.set_names(["grid", "datetime"])
 
-    # Filter to actual data range to ensure consistent behaviour across Pandas versions
-    # Pandas 3.0 may create extra boundary bins that fall outside the actual data range.
-    # Use floor/ceil of the data range to allow for label='left' convention (DailyState)
-    # where the label can be up to one period before the first data point.
-    dt_idx = df_output.index.get_level_values("datetime")
-    dt_min, dt_max = dt_idx.min(), dt_idx.max()
-    # Extend dt_min by one period to allow for 'left' labels
-    dt_min_floor = dt_min.floor(freq)
-    rsmp_dt_idx = df_rsmp.index.get_level_values("datetime")
-    mask = (rsmp_dt_idx >= dt_min_floor) & (rsmp_dt_idx <= dt_max)
-    df_rsmp = df_rsmp[mask]
-
-    # Requested water rates retain their amount-conserving aggregation:
-    # integrate each source rate, sum, then average over the target interval.
-    from ._output_metadata import output_interval_seconds
-
-    dict_units = df_output.attrs.get("supy_output_units", {})
-    rate_columns = [
-        (v.group, v.name) for v in OUTPUT_REGISTRY.variables
-        if v.unit == "kg m-2 s-1" and v.group != "DailyState"
-        and v.name in dict_units.get(v.group, {})
-        and (v.group, v.name) in df_rsmp.columns
-    ]
-    if rate_columns:
-        source_s = df_output.attrs.get("supy_output_interval_s")
-        if source_s is None and freq_source is not None:
-            source_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
-        source_s = output_interval_seconds(df_output, source_s)
-        target_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
-        df_rsmp.loc[:, rate_columns] *= source_s / target_s
+    # Pandas owns calendar boundaries. Retain the last partial bin even
+    # though its right-hand label lies after the final source timestamp.
     df_rsmp.attrs = df_output.attrs.copy()
-    df_rsmp.attrs["supy_output_interval_s"] = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
+    try:
+        interval_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
+    except ValueError:
+        interval_s = None
+    df_rsmp.attrs["supy_output_interval_s"] = interval_s
+    if dict_coverage:
+        df_rsmp.attrs["supy_output_coverage_s"] = dict_coverage
     return df_rsmp
 
 

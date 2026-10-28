@@ -1082,7 +1082,11 @@ def save_df_output(
     df_rsmp = None
     list_group_rsmp = []
     if list_group_no_daily:
-        df_rsmp = _resample_output(df_output, freq_save, groups=list_group_no_daily)
+        df_rsmp = _resample_output(
+            df_output, freq_save, groups=list_group_no_daily,
+            freq_source=pd.Timedelta(_native_interval_s(df_state_final), "s")
+            if _native_interval_s(df_state_final) is not None else None,
+        )
         list_group_rsmp = [
             g
             for g in df_rsmp.columns.get_level_values("group").unique()
@@ -1144,6 +1148,7 @@ def save_df_output(
         metadata_interval_s = fallback_frequency_s
         if save_tstep and df_save is df_output:
             metadata_interval_s = _native_interval_s(df_state_final)
+        df_save = prepare_output(df_save, interval_s=metadata_interval_s, write=True)
         list_path_save += _save_groups(
             df_save,
             list_group,
@@ -1418,6 +1423,8 @@ def _parquet_chunk_frame(
     # Main rows and sparse daily rows have different interval attributes;
     # concat otherwise drops the explicit unit declarations they share.
     df_chunk.attrs = df_output.attrs.copy()
+    if list_main:
+        df_chunk.attrs.update(df_main.attrs)
     df_chunk.attrs["supy_output_interval_s"] = freq_save.total_seconds()
     return df_chunk
 
@@ -1533,7 +1540,11 @@ def save_df_output_parquet(
         df_to_save = _parquet_chunk_frame(df_save, freq_save, streamed_parquet.tstep_s)
     elif not save_tstep:
         # Resample output
-        df_rsmp = _resample_output(df_save, freq_save)
+        df_rsmp = _resample_output(
+            df_save, freq_save,
+            freq_source=pd.Timedelta(_native_interval_s(df_state_final), "s")
+            if _native_interval_s(df_state_final) is not None else None,
+        )
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution
@@ -1545,13 +1556,6 @@ def save_df_output_parquet(
         df_to_save = df_rsmp
     else:
         df_to_save = df_save
-
-    df_to_save = relabel_output_timestamps(
-        df_to_save,
-        timestamp_reference,
-        forcing_timestamp_reference,
-        df_state_final,
-    )
 
     # Construct filenames
     path_output = parquet_file_path(path_dir_save, site, "output", timestamp_reference)
@@ -1574,6 +1578,13 @@ def save_df_output_parquet(
     if interval_s is None:
         interval_s = int(output_interval_seconds(df_save))
     df_to_save = prepare_output(df_to_save, interval_s=interval_s, write=True)
+    df_to_save = relabel_output_timestamps(
+        df_to_save,
+        timestamp_reference,
+        forcing_timestamp_reference,
+        df_state_final,
+    )
+
     if streamed_parquet is not None:
         streamed_parquet.write(path_output, df_to_save, write_sidecars, interval_s)
         return [path_output]

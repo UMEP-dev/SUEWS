@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from copy import deepcopy
+from functools import cache
 import json
 from types import MappingProxyType
 from typing import Optional
@@ -12,6 +13,28 @@ from . import units as unit_conversion
 
 from .data_model.output.registry import get_output_contract_catalogue
 from .data_model.output.version import CURRENT_OUTPUT_VERSION
+
+
+@cache
+def water_flux_variables() -> dict:
+    """Read the catalogue's explicit kernel-amount to written-rate declarations."""
+    return {(v.group, v.name): v for v in get_output_contract_catalogue().variables if v.interval_water_flux}
+
+
+def output_covered_seconds(df_output, interval_s=None):
+    """Return actual row coverage, or the declared source step for native rows.
+
+    Coverage uses serialisable row keys so frame slicing and Parquet round trips
+    preserve it without embedding pandas objects in DataFrame attributes.
+    """
+    coverage = df_output.attrs.get("supy_output_coverage_s")
+    if coverage is not None:
+        output_interval_seconds(df_output, interval_s, required=False)
+        return pd.Series(
+            [coverage.get(f"{row[0]}|{row[1].isoformat()}", float("nan")) for row in df_output.index],
+            index=df_output.index, dtype=float,
+        )
+    return pd.Series(output_interval_seconds(df_output, interval_s), index=df_output.index)
 
 
 def _interval(seconds: Optional[int]) -> Optional[str]:
@@ -27,16 +50,23 @@ def _interval(seconds: Optional[int]) -> Optional[str]:
         (1, "second"),
     ):
         if seconds % divisor == 0:
-            count = seconds // divisor
+            count = int(seconds // divisor)
             return f"{count} {label}{'s' if count != 1 else ''}"
 
 
-def output_interval_seconds(df_output: pd.DataFrame, interval_s: Optional[int] = None) -> float:
+def output_interval_seconds(df_output: pd.DataFrame, interval_s: Optional[int] = None, *, required=True) -> Optional[float]:
     """Return an explicit interval or the regular cadence of output rows."""
+    stored = df_output.attrs.get("supy_output_interval_s")
+    if interval_s is not None and stored is not None and float(interval_s) != stored:
+        raise ValueError("Output interval_s disagrees with the frame's declared interval")
+    if interval_s is None:
+        interval_s = stored
     if interval_s is not None:
         if interval_s <= 0:
             raise ValueError("Output interval must be positive")
         return float(interval_s)
+    if not required:
+        return None
     index = df_output.index
     if isinstance(index, pd.MultiIndex):
         index = index.levels[index.names.index("datetime")]
@@ -90,11 +120,7 @@ def prepare_output(
     dict_metadata = project_output_metadata(
         df_output.columns, None, group, df_output.attrs.get("supy_output_units"), native=True
     )
-    dict_water = {
-        (entry.group, entry.name): entry
-        for entry in get_output_contract_catalogue().variables
-        if entry.unit == "kg m-2 s-1"
-    }
+    dict_water = water_flux_variables()
     dict_targets = {}
     if write:
         for column in df_output.columns:
@@ -127,13 +153,17 @@ def prepare_output(
                 raise unit_conversion.UnitError("target unit must be a unit string")
             identity = column if isinstance(column, tuple) else (group, column)
             if identity in dict_water:
+                if identity[0] != "DailyState":
+                    output_interval_seconds(df_output, interval_s, required=False)
                 source = metadata["units"]
                 values = df_output[column]
                 if source == "mm":
-                    seconds = 86400 if identity[0] == "DailyState" else output_interval_seconds(df_output, df_output.attrs.get("supy_output_interval_s", interval_s))
+                    seconds = 86400 if identity[0] == "DailyState" else output_covered_seconds(df_output, interval_s)
                     values = values / seconds
                     if identity[0] != "DailyState":
-                        df_result.attrs["supy_output_interval_s"] = seconds
+                        df_result.attrs["supy_output_interval_s"] = output_interval_seconds(
+                            df_output, interval_s, required=False
+                        )
                     source = "kg m-2 s-1"
                 values = unit_conversion.convert_water_rate(values, source, parsed)
             else:
@@ -178,8 +208,8 @@ def project_output_metadata(
         interval = _interval(86400 if identity[0] == "DailyState" else interval_s)
         unit = (units or {}).get(identity[0], {}).get(identity[1])
         if unit is None:
-            unit = "mm" if native and entry.unit == "kg m-2 s-1" else entry.unit
-        methods = "time: sum" if entry.unit == "kg m-2 s-1" and unit == "mm" else entry.cell_methods
+            unit = "mm" if native and identity in water_flux_variables() else entry.unit
+        methods = "time: sum" if identity in water_flux_variables() and unit == "mm" else entry.cell_methods
         if interval and methods and methods != "time: point":
             methods = f"{methods} (interval: {interval})"
         dict_metadata = {

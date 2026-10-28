@@ -239,7 +239,12 @@ class SUEWSOutput:
         # which shares it without exposing it to writes, and the group
         # accessors through `_group_for_caller`.
         interval_s = (metadata or {}).get("tstep_s")
-        if units and interval_s is None:
+        if "resampled_to" in (metadata or {}):
+            try:
+                interval_s = pd.tseries.frequencies.to_offset(metadata["resampled_to"]).nanos / 1e9
+            except ValueError:
+                interval_s = None
+        if units and interval_s is None and "resampled_to" not in (metadata or {}):
             if config is not None:
                 value = getattr(config.model.control, "tstep", None)
                 interval_s = getattr(value, "value", value)
@@ -286,10 +291,10 @@ class SUEWSOutput:
             )
             interval_s = int(getattr(value, "value", value))
         if "resampled_to" in self._metadata:
-            interval_s = int(
-                pd.tseries.frequencies.to_offset(self._metadata["resampled_to"]).nanos
-                // 1_000_000_000
-            )
+            try:
+                interval_s = pd.tseries.frequencies.to_offset(self._metadata["resampled_to"]).nanos / 1e9
+            except ValueError:
+                interval_s = None
         return OutputUnits(
             self._df_output.columns, interval_s,
             self._df_output.attrs.get("supy_output_units"),
@@ -627,6 +632,20 @@ class SUEWSOutput:
     # =========================================================================
     # Manipulation (domain-specific)
     # =========================================================================
+
+    def _output_frequency(self):
+        """Return the held cadence from output context before consulting the index."""
+        if "resampled_to" in self._metadata:
+            return self._metadata["resampled_to"]
+        seconds = self._metadata.get("tstep_s")
+        if seconds is None and self._config is not None:
+            value = self._config.model.control.tstep
+            seconds = getattr(value, "value", value)
+        if seconds is None:
+            from ._save import _native_interval_s
+
+            seconds = _native_interval_s(self._df_state_final)
+        return pd.Timedelta(seconds, "s") if seconds is not None else None
 
     def resample(self, freq: str) -> "SUEWSOutput":
         """

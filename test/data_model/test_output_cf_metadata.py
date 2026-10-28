@@ -50,12 +50,12 @@ def test_only_water_flux_fields_change_from_previous_contract():
         if before["unit"] == "mm":
             assert after["unit"] == "kg m-2 s-1"
             assert after["cell_methods"] == "time: mean"
-            expected = dict(before, unit="kg m-2 s-1", cell_methods="time: mean")
+            expected = dict(before, unit="kg m-2 s-1", cell_methods="time: mean", interval_water_flux=True)
             if expected["aggregation"] == "A":
                 expected["aggregation"] = "S"
             assert after == expected
         else:
-            assert after == before
+            assert after == dict(before, interval_water_flux=False)
     assert len(current["variables"]) == len(previous["variables"])
 
 

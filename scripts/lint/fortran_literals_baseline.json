@@ -2,7 +2,7 @@
   "description": "Per-file counts of gated Fortran literal kinds; see scripts/lint/check_fortran_literals.py. Counts may only go down.",
   "totals": {
     "degree_radian": 74,
-    "kelvin_offset": 86,
+    "kelvin_offset": 41,
     "latent_heat_vaporisation": 11,
     "minutes_per_day": 6,
     "pi": 25,
@@ -70,7 +70,7 @@
     },
     "src/suews/src/suews_phys_stebbs.f95": {
       "degree_radian": 1,
-      "kelvin_offset": 83,
+      "kelvin_offset": 38,
       "pi": 1,
       "seconds_per_hour": 1,
       "specific_heat_air": 1,

@@ -171,8 +171,8 @@ def test_requested_units_affine_scale_and_repeated_conversion(frames):
     df_output[("BL", "Press_hPa")] = 1000.0
     original = df_output.copy(deep=True)
     output = SUEWSOutput(df_output, df_state, units={"QE": "kW m-2", "T2": "K", "Press_hPa": "Pa"})
-    assert output.df[("SUEWS", "QE")].iloc[0] == 0.0005
-    assert output.df[("SUEWS", "T2")].iloc[0] == 273.65
+    assert output.df[("SUEWS", "QE")].iloc[0] == pytest.approx(0.0005)
+    assert output.df[("SUEWS", "T2")].iloc[0] == pytest.approx(273.65)
     assert output.df[("BL", "Press_hPa")].iloc[0] == 100000.0
     assert output.units[("SUEWS", "T2")] == "K"
     assert output.units.metadata[("SUEWS", "T2")]["units_metadata"] == "temperature: on_scale"
@@ -180,7 +180,7 @@ def test_requested_units_affine_scale_and_repeated_conversion(frames):
     assert prepare_output(df_output) is df_output
     assert prepare_output(df_output, {}) is df_output
     again = output.to_units({"T2": "K", "QE": "W m-2"})
-    assert again.df[("SUEWS", "T2")].iloc[0] == 273.65
+    assert again.df[("SUEWS", "T2")].iloc[0] == pytest.approx(273.65)
     assert again.df[("SUEWS", "QE")].iloc[0] == 0.5
 
 
@@ -233,16 +233,16 @@ def test_converted_writer_values_and_metadata(frames, tmp_path, frequency, strea
                                   streamed_parquet=stream, units=request)
     file = next(paths[0].glob("*.parquet")) if streamed else paths[0]
     saved = pd.read_parquet(file)
-    assert (saved[("SUEWS", "QE")] == 0.0005).all()
-    assert (saved[("SUEWS", "T2")] == 273.65).all()
+    assert saved[("SUEWS", "QE")].to_numpy() == pytest.approx(0.0005)
+    assert saved[("SUEWS", "T2")].to_numpy() == pytest.approx(273.65)
     schema = pq.read_schema(file)
     for name, unit in request.items():
         assert schema.field(str(("SUEWS", name))).metadata[b"units"] == unit.encode()
     text_paths = save_df_output(df_output, freq_s=frequency, path_dir_save=path_txt,
                                streamed_files=text_stream, units=request)
     text = pd.read_csv(text_paths[0], sep=r"\s+")
-    assert (text["QE"] == 0.0005).all()
-    assert (text["T2"] == 273.65).all()
+    assert text["QE"].to_numpy() == pytest.approx(0.0005)
+    assert text["T2"].to_numpy() == pytest.approx(273.65)
     metadata = json.loads(text_paths[0].with_name(text_paths[0].name + ".units.json").read_text(encoding="utf-8"))
     for name, unit in request.items():
         assert metadata["columns"][name]["units"] == unit
@@ -266,5 +266,5 @@ def test_converted_output_resample_and_public_saves(frames, tmp_path):
         paths = owner.save(tmp_path / label, format="parquet", units={"T2": "K", "QE": "kW m-2"})
         path = next(p for p in paths if str(p).endswith("SUEWS_output.parquet"))
         saved = pd.read_parquet(path)
-        assert (saved[("SUEWS", "T2")] == 273.65).all()
-        assert (saved[("SUEWS", "QE")] == 0.0005).all()
+        assert saved[("SUEWS", "T2")].to_numpy() == pytest.approx(273.65)
+        assert saved[("SUEWS", "QE")].to_numpy() == pytest.approx(0.0005)

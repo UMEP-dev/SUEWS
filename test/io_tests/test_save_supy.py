@@ -188,7 +188,8 @@ class TestSaveSuPy:
         output = self._make_output(sample_output, OutputFormat.PARQUET)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            list_files = output.save(path=tmpdir)
+            with pytest.warns(FutureWarning, match="chunked streaming Parquet output"):
+                list_files = output.save(path=tmpdir)
 
             parquet_files = [Path(f) for f in list_files if str(f).endswith(".parquet")]
             txt_files = [Path(f) for f in list_files if str(f).endswith(".txt")]

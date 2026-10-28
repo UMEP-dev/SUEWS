@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import time
 from typing import Optional, Tuple
+import warnings
 
 import f90nml
 import numpy as np
@@ -1430,6 +1431,12 @@ def save_df_output_parquet(
 ) -> list:
     """Save supy output to Parquet format.
 
+    .. deprecated:: 2026.10.28
+        Non-streaming output (``streamed_parquet=None``) is retained for one
+        release and will be removed in the next release. Use chunked streaming
+        Parquet output by setting ``model.control.output.stream_chunk`` before
+        :meth:`~supy.SUEWSSimulation.run` instead.
+
     Parameters
     ----------
     df_output : pd.DataFrame
@@ -1467,6 +1474,19 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     engine = _parquet_engine()
+
+    if streamed_parquet is None:
+        # The output mode, not the function, is retired, so internal callers
+        # warn too (gh#1955).
+        warnings.warn(
+            "Non-streaming Parquet output is deprecated and will be removed in "
+            "the next release. Please migrate to chunked streaming Parquet "
+            "output: set model.control.output.format='parquet' and "
+            "model.control.output.stream_chunk (e.g. 30 days) before "
+            "SUEWSSimulation.run().",
+            FutureWarning,
+            stacklevel=2,
+        )
 
     # Resample if needed; values are not written in place (gh#1849)
     df_save = df_output.copy(deep=False)

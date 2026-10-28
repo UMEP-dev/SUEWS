@@ -28,7 +28,7 @@ MODULE SUEWS_Driver
    USE module_type_surface, ONLY: ANOHM_MAX_SAMPLES, ANOHM_MIN_VALID_SAMPLES
    USE module_phys_anohm, ONLY: AnOHM
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
-   USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
+   USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState, relax_zl
    USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
    USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_perez, split_shortwave_forcing, split_shortwave_reindl
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
@@ -3746,6 +3746,7 @@ CONTAINS
       INTEGER, PARAMETER :: AerodynamicResistanceMethod = 2 !method to calculate RA [-]
 
       REAL(KIND(1D0)) :: Tair ! air temperature [degC]
+      REAL(KIND(1D0)) :: zL_prev_pass ! (z-d)/L used in the previous outer pass [-]
       REAL(KIND(1D0)) :: ehc_ra_heat_factor
       REAL(KIND(1D0)) :: ehc_ra_heat_max_factor
       REAL(KIND(1D0)) :: ehc_ra_state_boost
@@ -3846,6 +3847,8 @@ CONTAINS
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling STAB_lumps...'
                !u* and Obukhov length out
+               ! (z-d)/L carried from the previous outer pass (atmState is iteration-safe)
+               zL_prev_pass = zL
                CALL cal_Stab( &
                   StabilityMethod, & ! input
                   zzd, & !Active measurement height (meas. height-displac. height)
@@ -3861,6 +3864,12 @@ CONTAINS
                   UStar, & !Friction velocity
                   zL, & !Stability scale
                   modState)
+               ! Damp the pass-to-pass two-cycle in (z-d)/L; the first pass of a
+               ! timestep takes the solve as it is
+               IF (modState%flagState%i_iter > 1) THEN
+                  zL = relax_zl(zL_prev_pass, zL)
+                  IF (ABS(zL) > 1.0D-12) L_mod = zzd/zL
+               END IF
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling AerodynamicResistance...'
                CALL AerodynamicResistance( &

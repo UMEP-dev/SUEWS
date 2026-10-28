@@ -5,25 +5,26 @@ Parameterisations and sub-models within SUEWS
 
 .. _aerodynamic_resistance_limit:
 
-Aerodynamic resistance
-----------------------
+Aerodynamic resistance and stability
+------------------------------------
 
-SUEWS (Surface Urban Energy and Water Balance Scheme) applies a smooth upper limit to aerodynamic resistance in every storage heat method, including OHM and EHC.
-For raw resistance :math:`r_a` in s |m^-1|, the upper limiter is
+SUEWS (Surface Urban Energy and Water Balance Scheme) bounds the stability correction to aerodynamic resistance through a single constraint: the stability parameter :math:`(z-d)/L` is clipped to :math:`[-2, 0.5]` in the stability calculation.
+There is no upper limit on the aerodynamic resistance :math:`r_a` itself; the former hard cap of 120 s |m^-1| has been removed, as has the 0.001 m |s^-1| floor on friction velocity, which is kept only as a numerical guard against division by zero.
+The lower limit of 10 s |m^-1| on :math:`r_a` is unchanged.
+
+The clip bounds the product :math:`r_a U`, not :math:`r_a`, so resistance can exceed 120 s |m^-1| at light wind.
+In the London sample and benchmark years this happens on 0.2 to 0.5% of 5-min steps, with a largest value of about 280 s |m^-1|.
+
+Without the cap, the outer surface-temperature iteration can settle into a two-cycle on near-neutral nights: one pass is unstable with a low :math:`r_a`, the next sits on the stable clip with a high :math:`r_a`, and the residual sensible heat flux changes sign each time.
+To damp this, :math:`(z-d)/L` is under-relaxed between passes of the iteration,
 
 .. math::
 
-   r_{a,\mathrm{limited}} =
-   \begin{cases}
-   r_a, & r_a \leq 90, \\
-   90 + 30\tanh((r_a - 90)/30), & r_a > 90.
-   \end{cases}
+   \zeta_n = \zeta_{n-1} + 0.3\,(\zeta^{*}_n - \zeta_{n-1}),
 
-The value, slope and curvature are continuous at 90 s |m^-1|, and the upper limit approaches 120 s |m^-1|.
-The existing lower limit of 10 s |m^-1| is unchanged.
-Upper-limit warnings still occur only when the raw resistance exceeds 120 s |m^-1|; smoothing between 90 and 120 does not itself emit a warning.
-This experimental change removes the slope discontinuity of the former hard cap, with a maximum direct reduction of about 7.15 s |m^-1| at a raw resistance of 120 s |m^-1|.
-It can change stable, light-wind results and the state carried into subsequent timesteps, across all storage heat methods.
+where :math:`\zeta^{*}_n` is the value solved from the current sensible heat flux and :math:`\zeta_{n-1}` the value used in the previous pass.
+The first pass of each timestep takes the solved value unchanged.
+A converged value of the plain iteration is also a converged value of the relaxed one, so the relaxation changes how the iteration reaches its answer, not the physics it converges to; it can change results within the 0.05 K convergence tolerance and the state carried into subsequent timesteps.
 
 Net all-wave radiation, Q\*
 ---------------------------

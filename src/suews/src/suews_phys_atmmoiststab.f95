@@ -8,6 +8,8 @@ MODULE module_phys_atmmoiststab
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
    REAL(KIND(1D0)), PARAMETER :: grav = 9.80665 !g - gravity - physics today august 1987
+   ! Under-relaxation of (z-d)/L between outer surface-temperature passes [-]
+   REAL(KIND(1D0)), PARAMETER :: ZL_RELAX = 0.3D0
 
    ! scheme code
    INTEGER, PARAMETER :: W16 = 2 ! Ward et al (2016) based on {unstable: Dyer (1974) modified Hogstrom (1988); and stable: Van Ulden & Holtslag (1985)}
@@ -15,6 +17,20 @@ MODULE module_phys_atmmoiststab
    INTEGER, PARAMETER :: B71 = 4 ! Businger et al (1971) modifed  Hogstrom (1988)
    INTEGER, PARAMETER :: J12 = 5 ! Cheng and Brutsaert (2005)
 CONTAINS
+   PURE FUNCTION relax_zl(zl_prev, zl_new) RESULT(zl_relaxed)
+      ! Under-relaxed (z-d)/L for the next outer surface-temperature pass.
+      ! Fed straight back, the flux -> (z-d)/L -> RA -> QE -> residual QH map can
+      ! two-cycle near QH = 0 (one pass unstable, the next on the stable clip),
+      ! most often on near-neutral nights. Moving only part of the way towards
+      ! the new solve damps that cycle; a fixed point of the plain map is still
+      ! a fixed point here, so the converged answer is unchanged.
+      REAL(KIND(1D0)), INTENT(IN) :: zl_prev ! (z-d)/L used in the previous pass [-]
+      REAL(KIND(1D0)), INTENT(IN) :: zl_new ! (z-d)/L from this pass's solve [-]
+      REAL(KIND(1D0)) :: zl_relaxed
+
+      zl_relaxed = zl_prev + ZL_RELAX*(zl_new - zl_prev)
+   END FUNCTION relax_zl
+
 
    SUBROUTINE SUEWS_update_atmState(timer, forcing, modState)
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -293,9 +309,9 @@ CONTAINS
          psimz0 = stab_psi_mom(StabilityMethod, z0L)
 
          UStar = KUZ/(LOG(Zzd/z0m) - psim + psimz0) !Friction velocity in non-neutral situation
-         ! TS 11 Feb 2021: limit UStar and TStar to reasonable ranges
-         ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
-         UStar = MAX(0.001, UStar)
+         ! Numerical guard only [m s-1]: TStar divides by UStar. Stability is
+         ! bounded by the (z-d)/L clip, not by a floor on UStar.
+         UStar = MAX(1.0D-12, UStar)
          ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
 
          IF (ABS(H) <= eps_fp) THEN

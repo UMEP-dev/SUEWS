@@ -56,8 +56,8 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
-- [change][experimental] Aerodynamic resistance now approaches its 120 s m-1 upper limit smoothly above 90 s m-1 in all storage heat methods, including EHC and OHM.
-  - This changes some stable-night results and their subsequent carried state; the 10 s m-1 floor is unchanged and upper-limit warnings still require raw resistance above 120 s m-1.
+- [change][experimental] Remove the 120 s m-1 upper cap on aerodynamic resistance and the 0.001 m s-1 floor on friction velocity, leaving the (z-d)/L clip as the only bound on stability, and under-relax (z-d)/L between passes of the surface-temperature iteration so it no longer two-cycles on near-neutral nights.
+  - Resistance can now exceed 120 s m-1 at light wind; the 10 s m-1 lower limit is unchanged. This changes some night-time and light-wind results and their subsequent carried state in all storage heat methods.
 
 ### 27 Oct 2026
 

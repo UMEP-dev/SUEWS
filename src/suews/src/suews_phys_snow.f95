@@ -2,7 +2,7 @@
 MODULE module_phys_snow
    USE module_phys_evap, ONLY: cal_evap
    USE module_ctrl_const_allocate, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
-
+   USE module_ctrl_const_physconst, ONLY: sec_per_day
    IMPLICIT NONE
 
 CONTAINS
@@ -1432,7 +1432,7 @@ CONTAINS
       ! INTEGER::is
       REAL(KIND(1D0)) :: alb_change !Change in snow albedo
       REAL(KIND(1D0)) :: dens_change !Change in snow density
-      REAL(KIND(1D0)), PARAMETER :: tau_1 = 24*60*60 !Number of seconds in a day
+      REAL(KIND(1D0)), PARAMETER :: tau_1 = sec_per_day !Number of seconds in a day
 
       !Initialize
       alb_change = 0
@@ -1498,7 +1498,7 @@ CONTAINS
       REAL(KIND(1D0)) :: SnowAlb_next
 
       REAL(KIND(1D0)) :: alb_change !Change in snow albedo
-      REAL(KIND(1D0)), PARAMETER :: tau_1 = 24*60*60 !Number of seconds in a day
+      REAL(KIND(1D0)), PARAMETER :: tau_1 = sec_per_day !Number of seconds in a day
 
       !==========================================================
       !Calculation of snow albedo by Lemonsu et al. 2010
@@ -1542,7 +1542,7 @@ CONTAINS
 
       INTEGER :: is
 
-      REAL(KIND(1D0)), PARAMETER :: tau_1 = 24*60*60
+      REAL(KIND(1D0)), PARAMETER :: tau_1 = sec_per_day
       ! INTEGER,parameter::nsurf=7
 
       !Update snow density: There is a mistake in Järvi et al. (2014): tau_h should be tau_1

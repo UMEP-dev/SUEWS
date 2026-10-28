@@ -41,7 +41,7 @@ MODULE module_phys_narp
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: C2K
+   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day
    IMPLICIT NONE
 
 CONTAINS
@@ -642,7 +642,7 @@ CONTAINS
       modState) ! input/output
 
       USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, SUEWS_STATE
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -653,7 +653,7 @@ CONTAINS
       REAL(KIND(1D0)) :: idectime
 
       year = REAL(timer%iy, KIND(1D0))
-      idectime = timer%dectime - timer%tstep/2/86400
+      idectime = timer%dectime - timer%tstep/2/sec_per_day
 
       CALL NARP_cal_SunPosition( &
          year, idectime, timer%tz_solar, &
@@ -723,7 +723,7 @@ CONTAINS
       julianday = FLOOR(365.25*(Y + 4716.)) + FLOOR(30.6001*(M + 1)) + D + B - 1524.5
 
       delta_t = 0. ! 33.184;
-      julianephemeris_day = julianday + (delta_t/86400)
+      julianephemeris_day = julianday + (delta_t/sec_per_day)
 
       juliancentury = (julianday - 2451545.)/36525.
 

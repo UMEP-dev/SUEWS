@@ -29,7 +29,7 @@ ext_lib/spartacus-surface/utilities/yomhook.o: ext_lib/spartacus-surface/utiliti
 src/suews_ctrl_driver.o: src/suews_ctrl_const.o src/suews_ctrl_error.o src/suews_ctrl_type.o src/suews_ctrl_ver.o src/suews_phys_anohm.o src/suews_phys_anthro.o src/suews_phys_atmmoiststab.o src/suews_phys_beers.o src/suews_phys_biogenco2.o src/suews_phys_dailystate.o src/suews_phys_ehc.o src/suews_phys_evap.o src/suews_phys_lumps.o src/suews_phys_narp.o src/suews_phys_ohm.o src/suews_phys_resist.o src/suews_phys_rslprof.o src/suews_phys_snow.o src/suews_phys_solweig.o src/suews_phys_spartacus.o src/suews_phys_stebbs.o src/suews_phys_waterdist.o src/suews_type_surface.o src/suews_util_meteo.o src/suews_util_time.o
 src/suews_ctrl_error.o: src/suews_ctrl_const.o src/suews_ctrl_type.o
 src/suews_ctrl_type.o: src/suews_ctrl_const.o src/suews_type_anthro.o src/suews_type_atmosphere.o src/suews_type_ehc.o src/suews_type_heat.o src/suews_type_hydro.o src/suews_type_landcover.o src/suews_type_snow.o src/suews_type_soil.o src/suews_type_spartacus.o src/suews_type_stebbs.o src/suews_type_surface.o src/suews_type_vegetation.o src/suews_type_waterdist.o
-src/suews_phys_anohm.o: src/suews_ctrl_error.o src/suews_ctrl_type.o src/suews_phys_ohm.o
+src/suews_phys_anohm.o: src/suews_ctrl_const.o src/suews_ctrl_error.o src/suews_ctrl_type.o src/suews_phys_ohm.o
 src/suews_phys_anthro.o: src/suews_ctrl_error.o src/suews_ctrl_type.o src/suews_util_profile.o src/suews_util_time.o
 src/suews_phys_atmmoiststab.o: src/suews_ctrl_const.o src/suews_ctrl_error.o src/suews_ctrl_type.o src/suews_util_meteo.o
 src/suews_phys_beers.o: src/suews_ctrl_const.o src/suews_ctrl_type.o src/suews_phys_narp.o src/suews_util_time.o
@@ -59,4 +59,4 @@ src/suews_type_surface.o: src/suews_ctrl_const.o
 src/suews_type_vegetation.o: src/suews_ctrl_const.o
 src/suews_util_meteo.o: src/suews_ctrl_const.o src/suews_ctrl_error.o src/suews_ctrl_type.o
 src/suews_util_profile.o: src/suews_ctrl_const.o src/suews_ctrl_error.o src/suews_ctrl_type.o
-src/suews_util_time.o: src/suews_ctrl_type.o
+src/suews_util_time.o: src/suews_ctrl_const.o src/suews_ctrl_type.o

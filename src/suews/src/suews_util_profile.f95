@@ -16,7 +16,7 @@ CONTAINS
 ! get interpolated profile values at specified time
 ! NO normalisation performed
    FUNCTION get_Prof_SpecTime_inst(Hour, Min, Sec, Prof_24h) RESULT(Prof_CurrTime)
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_hour
       IMPLICIT NONE
 
       INTEGER :: i, j !Used to count over hours and sub-hourly timesteps
@@ -27,7 +27,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Prof_CurrTime
 
       total_sec = Min*60 + Sec
-      SecPerHour = 3600
+      SecPerHour = sec_per_hour
 
       i = hour
       j = i + 1
@@ -42,7 +42,7 @@ CONTAINS
 ! get interpolated profile values at specified time
 ! normalise so the AVERAGE of the multipliers is equal to 1
    FUNCTION get_Prof_SpecTime_mean(Hour, Min, Sec, Prof_24h) RESULT(Prof_CurrTime)
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_hour
       IMPLICIT NONE
 
       INTEGER :: i, j !Used to count over hours and sub-hourly timesteps
@@ -54,7 +54,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Prof_CurrTime
 
       total_sec = Min*60 + Sec
-      SecPerHour = 3600
+      SecPerHour = sec_per_hour
 
       Prof_24h_mean = MERGE(Prof_24h/(SUM(Prof_24h)/SIZE(Prof_24h, dim=1)), 0.D0, SUM(Prof_24h) /= 0) ! prevent zero-division
       ! print*, Prof_24h_mean
@@ -74,7 +74,7 @@ CONTAINS
 ! get interpolated profile values at specified time
 ! normalise so the SUM of the multipliers is equal to 1
    FUNCTION get_Prof_SpecTime_sum(Hour, Min, Sec, Prof_24h, dt) RESULT(Prof_CurrTime)
-
+      USE module_ctrl_const_physconst, ONLY: sec_per_hour
       IMPLICIT NONE
 
       INTEGER :: i, j !Used to count over hours and sub-hourly timesteps
@@ -86,7 +86,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Prof_CurrTime
 
       total_sec = Min*60 + Sec
-      SecPerHour = 3600
+      SecPerHour = sec_per_hour
 
       Prof_24h_sum = MERGE(Prof_24h/(SUM(Prof_24h)), 0.D0, SUM(Prof_24h) /= 0) ! prevent zero-division
 

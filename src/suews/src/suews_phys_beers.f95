@@ -42,7 +42,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineBEERS) ! output
 
-      USE module_ctrl_const_physconst, ONLY: C2K
+      USE module_ctrl_const_physconst, ONLY: C2K, SBConst
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, SUEWS_SITE, &
                                PHENOLOGY_STATE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                ROUGHNESS_STATE, HEAT_STATE, solar_State, &
@@ -97,7 +97,7 @@ CONTAINS
       !REAL(KIND(1d0)), PARAMETER :: azimuthA(1:18) = [(j*(360.0/18.0), j=0, 17)]
       ! temporary parameters and variables for testing
       ! REAL(KIND(1d0)), PARAMETER   :: pi = 3.141592653589793
-      REAL(KIND(1D0)), PARAMETER :: SBC = 5.67051E-8
+      REAL(KIND(1D0)), PARAMETER :: SBC = SBConst
 
       INTEGER, PARAMETER :: onlyglobal = 1 !! force to calculate direct and diffuse components, TS 13 Dec 2019 !TODO: should be input parameter FL
       !INTEGER, PARAMETER:: usevegdem = 0  !! force not to use vegetation DEM based calculations, TS 13 Dec 2019

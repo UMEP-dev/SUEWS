@@ -9,8 +9,15 @@ Aerodynamic resistance and stability
 ------------------------------------
 
 SUEWS (Surface Urban Energy and Water Balance Scheme) bounds the stability correction to aerodynamic resistance through a single constraint: the stability parameter :math:`(z-d)/L` is clipped to :math:`[-2, 0.5]` in the stability calculation.
-There is no upper limit on the aerodynamic resistance :math:`r_a` itself; the former hard cap of 120 s |m^-1| has been removed, as has the 0.001 m |s^-1| floor on friction velocity, which is kept only as a numerical guard against division by zero.
+There is no upper limit on the aerodynamic resistance :math:`r_a` itself; the former hard cap of 120 s |m^-1| has been removed, as has the 0.001 m |s^-1| floor on friction velocity, which is replaced by a numerical division guard of 1e-12 m |s^-1|.
 The lower limit of 10 s |m^-1| on :math:`r_a` is unchanged.
+
+The inner stability calculation solves for :math:`(z-d)/L` consistent with the current sensible heat flux.
+The flux sign selects the stable or unstable branch; the residual is scanned outwards from neutral, and the first bracketed root is refined to a tolerance of :math:`10^{-12}`.
+This selects the root nearest neutral; if no root is bracketed before the branch limit, the calculation returns the stable clip of 0.5 or the unstable clip of -2.
+Zero sensible heat flux gives neutral stability.
+Friction velocity, temperature scale and Obukhov length are then recomputed from the returned stability parameter.
+This avoids accepting a small iteration step as convergence near the stable fold, where the previous fixed-point iteration could stop far from a solution.
 
 The clip bounds the product :math:`r_a U`, not :math:`r_a`, so resistance can exceed 120 s |m^-1| at light wind.
 In the London sample and benchmark years this happens on 0.2 to 0.5% of 5-min steps, with a largest value of about 280 s |m^-1|.

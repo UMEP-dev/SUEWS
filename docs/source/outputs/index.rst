@@ -123,6 +123,11 @@ written under a hidden temporary name and then renamed, so it is either whole
 or absent. The metadata file is written beside the folder when the run ends.
 Read the folder back as one frame with ``pandas.read_parquet(folder)``; its rows
 come chunk by chunk, so sort them by grid and time with ``.sort_index()``.
+Completed Parquet folders preserve partial-bin coverage from all parts in the first part's schema, which folder readers use.
+Completion atomically rewrites the first chunk once to attach this combined metadata, keeping memory bounded by one chunk.
+Each part also retains its own coverage metadata.
+Only SuPy-owned output attributes are persisted; arbitrary user DataFrame attributes are excluded.
+
 Compared with ``run()`` followed by ``save(format="parquet")``:
 
 - It holds only the groups listed in ``groups``. Parquet saved after a run that

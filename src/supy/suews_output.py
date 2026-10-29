@@ -15,7 +15,7 @@ from packaging.version import Version
 import pandas as pd
 
 from ._filename import safe_filename_component
-from ._output_metadata import OutputUnits, prepare_output
+from ._output_metadata import OutputUnits, prepare_output, with_daily_coverage
 from .suews_checkpoint import SUEWSCheckpoint
 
 
@@ -247,7 +247,7 @@ class SUEWSOutput:
             except ValueError:
                 interval_s = None
         if (
-            units and interval_s is None
+            interval_s is None
             and "resampled_to" not in (metadata or {})
             and "supy_output_interval_s" not in df_output.attrs
         ):
@@ -258,6 +258,8 @@ class SUEWSOutput:
                 from ._save import _native_interval_s
 
                 interval_s = _native_interval_s(df_state_final)
+        if not df_output.empty:
+            df_output = with_daily_coverage(df_output, interval_s)
         self._df_output = prepare_output(df_output, units, interval_s=interval_s).copy(deep=False)
         self._df_state_final = (
             df_state_final.copy() if df_state_final is not None else None

@@ -714,8 +714,13 @@ def test_daily_water_without_model_step_keeps_amounts(tmp_path, regular):
     converted = output.to_units({"P_day": "m"})
     assert converted.df.dropna().iloc[0, 0] == pytest.approx(0.009)
     for writer in (save_df_output, save_df_output_parquet):
-        paths = writer(output.df, df_state_final=None, path_dir_save=tmp_path)
-        assert paths
+        options = {"save_state": False} if writer is save_df_output_parquet else {}
+        paths = writer(output.df, df_state_final=None, path_dir_save=tmp_path, **options)
+        if writer is save_df_output_parquet:
+            values = pd.read_parquet(paths[0])[("DailyState", "P_day")].dropna()
+        else:
+            values = pd.read_csv(paths[0], sep=r"\s+")["P_day"]
+        assert values.to_numpy() == pytest.approx([9.0])
 
 
 def test_daily_coverage_counts_rows_with_configured_step(frames):

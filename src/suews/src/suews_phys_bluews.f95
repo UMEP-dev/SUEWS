@@ -2,6 +2,9 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_bluews_cbl
 
+   USE module_ctrl_const_physconst, ONLY: C2K
+   IMPLICIT NONE
+
    INTEGER :: EntrainmentType, & ! Entrainment type choice
               CO2_included, & ! CO2 included
               InitialData_use, & ! 1 read initial data, 0 do not
@@ -22,7 +25,6 @@ MODULE module_phys_bluews_cbl
               nEqn = 6, & !NT changed from 4 to 6
               iCBLcount, &
               nlineInData
-   REAL(KIND(1D0)) :: C2K = 273.15
 
    REAL(KIND(1D0)) :: usbl, ftbl, fqbl, fcbl, gamt, gamq, gamc, tpp, qpp, cp0 !,tk
 

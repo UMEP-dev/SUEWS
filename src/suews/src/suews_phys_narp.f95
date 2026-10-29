@@ -34,14 +34,14 @@ MODULE module_phys_narp
    ! in the main program
    ! LJ Oct 2012 - Zenith angle change in the calculation of albedo added
    ! sg feb 2012 - Allocatable array module added
-   USE module_ctrl_const_mathconst, ONLY: pi_d0, pi_sp
+   USE module_ctrl_const_mathconst, ONLY: pi_sp, RAD2DEG
    !==============================================================================================
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day, SBConst_567, arcsec_per_deg
+   USE module_ctrl_const_physconst, ONLY: C2K, sec_per_day, SBConst, arcsec_per_deg
    IMPLICIT NONE
 
 CONTAINS
@@ -261,7 +261,7 @@ CONTAINS
                          SF_all
 
       ! REAL(KIND(1D0)),PARAMETER   ::RAD2DEG=57.29577951
-      REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = SBConst_567
+      REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = SBConst
 
       ! NB: NARP_G is not assigned with a value in SUEWS_translate.
       ! 3.0 is used here as annual average for mid-latitude areas. TS 24 Oct 2017
@@ -798,7 +798,6 @@ CONTAINS
       !REAL(KIND(1D0)) :: R2_terms      !>
       !REAL(KIND(1D0)) :: R3_terms      !>
       !REAL(KIND(1D0)), dimension(3) :: R4_terms      !>
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the earth position relative to the sun, using
       ! tabulated values.
@@ -857,7 +856,7 @@ CONTAINS
       earth_heliocentric_positionlongitude = &
            &(L0 + (L1*JME) + (L2*JME**2) + (L3*JME**3) + (L4*JME**4) + (L5*JME**5))/1E8
       ! Convert the longitude to degrees.
-      earth_heliocentric_positionlongitude = earth_heliocentric_positionlongitude*180./pi
+      earth_heliocentric_positionlongitude = earth_heliocentric_positionlongitude*RAD2DEG
       ! Limit the range to [0,360[;
       earth_heliocentric_positionlongitude = set_to_range(earth_heliocentric_positionlongitude)
 
@@ -873,7 +872,7 @@ CONTAINS
 
       earth_heliocentric_positionlatitude = (L0 + (L1*JME))/1E8
       ! Convert the latitude to degrees.
-      earth_heliocentric_positionlatitude = earth_heliocentric_positionlatitude*180/pi
+      earth_heliocentric_positionlatitude = earth_heliocentric_positionlatitude*RAD2DEG
       ! Limit the range to [0,360];
       earth_heliocentric_positionlatitude = set_to_range(earth_heliocentric_positionlatitude)
 
@@ -957,7 +956,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(252) :: nutation_terms1 !>
       REAL(KIND(1D0)), DIMENSION(4, 63) :: nutation_terms
       INTEGER :: i
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the nutation in longtitude and in obliquity, in
       ! degrees.
@@ -1042,7 +1040,7 @@ CONTAINS
       DO i = 1, 63
          tabulated_argument(i) = ((Y_terms(1, i)*Xi(1)) &
                                   + (Y_terms(2, i)*Xi(2)) + (Y_terms(3, i)*Xi(3)) &
-                                  + (Y_terms(4, i)*Xi(4)) + (Y_terms(5, i)*Xi(5)))*pi/180
+                                  + (Y_terms(4, i)*Xi(4)) + (Y_terms(5, i)*Xi(5)))*DEG2RAD
       END DO
 
       delta_longitude = ((nutation_terms(1, :) + (nutation_terms(2, :)*JCE)))*SIN(tabulated_argument)
@@ -1119,7 +1117,6 @@ CONTAINS
       REAL(KIND(1D0)) :: JC !>
       REAL(KIND(1D0)) :: JD !>
       REAL(KIND(1D0)) :: mean_stime !>
-      REAL(KIND(1D0)), PARAMETER :: pi = 3.14159265358979D+0
 
       ! This function compute the apparent sideral time at Greenwich.
 
@@ -1132,7 +1129,7 @@ CONTAINS
       ! Limit the range to [0-360];
       mean_stime = set_to_range(mean_stime)
 
-      apparent_stime_at_greenwich = mean_stime + (nutationlongitude*COS(corr_obliquity*pi/180))
+      apparent_stime_at_greenwich = mean_stime + (nutationlongitude*COS(corr_obliquity*DEG2RAD))
    END SUBROUTINE apparent_stime_at_greenwich_calculation
 
    SUBROUTINE sun_rigth_ascension_calculation(apparent_sun_longitude, corr_obliquity, &
@@ -1145,15 +1142,14 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: sun_rigth_ascension !>
       REAL(KIND(1D0)) :: argument_denominator !>
       REAL(KIND(1D0)) :: argument_numerator !>
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! This function compute the sun rigth ascension.
 
-      argument_numerator = (SIN(apparent_sun_longitude*pi/180.0)*COS(corr_obliquity*pi/180.0)) - &
-                           (TAN(sun_geocentric_positionlatitude*pi/180.0)*SIN(corr_obliquity*pi/180.0))
-      argument_denominator = COS(apparent_sun_longitude*pi/180.0)
+      argument_numerator = (SIN(apparent_sun_longitude*DEG2RAD)*COS(corr_obliquity*DEG2RAD)) - &
+                           (TAN(sun_geocentric_positionlatitude*DEG2RAD)*SIN(corr_obliquity*DEG2RAD))
+      argument_denominator = COS(apparent_sun_longitude*DEG2RAD)
 
-      sun_rigth_ascension = ATAN2(argument_numerator, argument_denominator)*180.0/pi
+      sun_rigth_ascension = ATAN2(argument_numerator, argument_denominator)*RAD2DEG
       ! Limit the range to [0,360];
       sun_rigth_ascension = set_to_range(sun_rigth_ascension)
    END SUBROUTINE sun_rigth_ascension_calculation
@@ -1167,12 +1163,11 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: sun_geocentric_declination !>
       REAL(KIND(1D0)), INTENT(in) :: sun_geocentric_positionlatitude !>
       REAL(KIND(1D0)) :: argument !>
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
-      argument = (SIN(sun_geocentric_positionlatitude*pi/180.0)*COS(corr_obliquity*pi/180.0)) + &
-                 (COS(sun_geocentric_positionlatitude*pi/180.0)*SIN(corr_obliquity*pi/180)*SIN(apparent_sun_longitude*pi/180.0))
+      argument = (SIN(sun_geocentric_positionlatitude*DEG2RAD)*COS(corr_obliquity*DEG2RAD)) + &
+                 (COS(sun_geocentric_positionlatitude*DEG2RAD)*SIN(corr_obliquity*DEG2RAD)*SIN(apparent_sun_longitude*DEG2RAD))
 
-      sun_geocentric_declination = ASIN(argument)*180.0/pi
+      sun_geocentric_declination = ASIN(argument)*RAD2DEG
    END SUBROUTINE sun_geocentric_declination_calculation
 
    SUBROUTINE observer_local_hour_calculation(apparent_stime_at_greenwich, locationlongitude, &
@@ -1211,7 +1206,6 @@ CONTAINS
       REAL(KIND(1D0)) :: u !>
       REAL(KIND(1D0)) :: x !>
       REAL(KIND(1D0)) :: y !>
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       ! topocentric_sun_positionrigth_ascension_parallax
       ! This function compute the sun position (rigth ascension and declination)
@@ -1221,31 +1215,31 @@ CONTAINS
       eq_horizontal_parallax = 8.794/(arcsec_per_deg*earth_heliocentric_positionradius)
 
       ! Term u, used in the following calculations (in radians)
-      u = ATAN(0.99664719*TAN(locationlatitude*pi/180))
+      u = ATAN(0.99664719*TAN(locationlatitude*DEG2RAD))
 
       ! Term x, used in the following calculations
-      x = COS(u) + ((locationaltitude/6378140)*COS(locationaltitude*pi/180))
+      x = COS(u) + ((locationaltitude/6378140)*COS(locationaltitude*DEG2RAD))
 
       ! Term y, used in the following calculations
-      y = (0.99664719D+0*SIN(u)) + ((locationaltitude/6378140)*SIN(locationlatitude*pi/180))
+      y = (0.99664719D+0*SIN(u)) + ((locationaltitude/6378140)*SIN(locationlatitude*DEG2RAD))
 
       ! Parallax in the sun rigth ascension (in radians)
-      nominator = -x*SIN(eq_horizontal_parallax*pi/180.0)*SIN(observer_local_hour*pi/180.0)
-      denominator = COS(sun_geocentric_declination*pi/180.0) - &
-                    (x*SIN(eq_horizontal_parallax*pi/180.0)*COS(observer_local_hour*pi/180.0))
+      nominator = -x*SIN(eq_horizontal_parallax*DEG2RAD)*SIN(observer_local_hour*DEG2RAD)
+      denominator = COS(sun_geocentric_declination*DEG2RAD) - &
+                    (x*SIN(eq_horizontal_parallax*DEG2RAD)*COS(observer_local_hour*DEG2RAD))
       sun_rigth_ascension_parallax = ATAN2(nominator, denominator)
       ! Conversion to degrees.
-      topocentric_sun_positionrigth_ascension_parallax = sun_rigth_ascension_parallax*180.0/pi
+      topocentric_sun_positionrigth_ascension_parallax = sun_rigth_ascension_parallax*RAD2DEG
 
       ! Topocentric sun rigth ascension (in degrees)
-      topocentric_sun_positionrigth_ascension = sun_rigth_ascension + (sun_rigth_ascension_parallax*180.0/pi)
+      topocentric_sun_positionrigth_ascension = sun_rigth_ascension + (sun_rigth_ascension_parallax*RAD2DEG)
 
       ! Topocentric sun declination (in degrees)
-      nominator = (SIN(sun_geocentric_declination*pi/180.0) - (y*SIN(eq_horizontal_parallax*pi/180.0)))&
+      nominator = (SIN(sun_geocentric_declination*DEG2RAD) - (y*SIN(eq_horizontal_parallax*DEG2RAD)))&
                  & *COS(sun_rigth_ascension_parallax)
-      denominator = COS(sun_geocentric_declination*pi/180.0) - (y*SIN(eq_horizontal_parallax*pi/180.0))&
-                   & *COS(observer_local_hour*pi/180.0)
-      topocentric_sun_positiondeclination = ATAN2(nominator, denominator)*180.0/pi
+      denominator = COS(sun_geocentric_declination*DEG2RAD) - (y*SIN(eq_horizontal_parallax*DEG2RAD))&
+                   & *COS(observer_local_hour*DEG2RAD)
+      topocentric_sun_positiondeclination = ATAN2(nominator, denominator)*RAD2DEG
    END SUBROUTINE topocentric_sun_position_calculate
 
    SUBROUTINE topocentric_local_hour_calculate(observer_local_hour, topocentric_sun_positionrigth_ascension_parallax,&
@@ -1276,20 +1270,19 @@ CONTAINS
       REAL(KIND(1D0)) :: refraction_corr !>
       REAL(KIND(1D0)) :: sunazimuth !>
       REAL(KIND(1D0)) :: sunzenith !>
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
       ! This function compute the sun zenith angle, taking into account the
       ! atmospheric refraction. A default temperature of 283K and a
       ! default pressure of 1010 mbar are used.
 
       ! Topocentric elevation, without atmospheric refraction
-      argument = (SIN(locationlatitude*pi/180.0)*SIN(topocentric_sun_positiondeclination*pi/180.0)) + &
-           (COS(locationlatitude*pi/180.0)*COS(topocentric_sun_positiondeclination*pi/180.0)* &
-           &COS(topocentric_local_hour*pi/180.0))
-      corr_elevation = ASIN(argument)*180.0/pi
+      argument = (SIN(locationlatitude*DEG2RAD)*SIN(topocentric_sun_positiondeclination*DEG2RAD)) + &
+           (COS(locationlatitude*DEG2RAD)*COS(topocentric_sun_positiondeclination*DEG2RAD)* &
+           &COS(topocentric_local_hour*DEG2RAD))
+      corr_elevation = ASIN(argument)*RAD2DEG
 
       ! Atmospheric refraction correction (in degrees)
       argument = corr_elevation + (10.3/(corr_elevation + 5.11))
-      refraction_corr = 1.02/(60*TAN(argument*pi/180.0))
+      refraction_corr = 1.02/(60*TAN(argument*DEG2RAD))
 
       ! For exact pressure and temperature correction, use this,
       ! with P the pressure in mbar amd T the temperature in Kelvins:
@@ -1303,10 +1296,10 @@ CONTAINS
       ! Topocentric azimuth angle. The +180 conversion is to pass from astronomer
       ! notation (westward from south) to navigation notation (eastward from
       ! north);
-      nominator = SIN(topocentric_local_hour*pi/180.0)
-      denominator = (COS(topocentric_local_hour*pi/180.0)*SIN(locationlatitude*pi/180.0)) - &
-                    (TAN(topocentric_sun_positiondeclination*pi/180.0)*COS(locationlatitude*pi/180.0))
-      sunazimuth = (ATAN2(nominator, denominator)*180.0/pi) + 180.0
+      nominator = SIN(topocentric_local_hour*DEG2RAD)
+      denominator = (COS(topocentric_local_hour*DEG2RAD)*SIN(locationlatitude*DEG2RAD)) - &
+                    (TAN(topocentric_sun_positiondeclination*DEG2RAD)*COS(locationlatitude*DEG2RAD))
+      sunazimuth = (ATAN2(nominator, denominator)*RAD2DEG) + 180.0
       ! Set the range to [0-360]
       sunazimuth = set_to_range(sunazimuth)
 

@@ -56,6 +56,8 @@ EXAMPLES:
 
 ### 29 Oct 2026
 
+- [bugfix] Unify Stefan-Boltzmann radiation calculations on the CODATA constant, use shared double-precision angle conversions, and reuse the Kelvin offset in BLUEWS and STEBBS (#1953).
+
 - [bugfix] Keep DailyState `P_day` and `WU_EveTr1-3`, `WU_DecTr1-3`, `WU_Grass1-3` as daily totals in mm with `time: sum` in unreleased output contract 2.0.0. Preserve raw partial-day totals and informational coverage, accept amount-unit conversions, reject rate units, and sum totals when resampling. Per-step water fluxes remain kg m-2 s-1.
 
 - [bugfix] Use covered model-step seconds for DailyState water rates, preserve later streamed Parquet partial-bin coverage, exclude user attrs from Parquet metadata, and explain the calendar-output/save_tstep conflict (#1903, #1967).

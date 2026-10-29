@@ -717,7 +717,7 @@ def test_daily_water_without_model_step_keeps_amounts(tmp_path, regular):
         options = {"save_state": False} if writer is save_df_output_parquet else {}
         paths = writer(output.df, df_state_final=None, path_dir_save=tmp_path, **options)
         if writer is save_df_output_parquet:
-            values = pd.read_parquet(paths[0])[("DailyState", "P_day")].dropna()
+            values = pd.read_parquet(paths[0])["DailyState", "P_day"].dropna()
         else:
             values = pd.read_csv(paths[0], sep=r"\s+")["P_day"]
         assert values.to_numpy() == pytest.approx([9.0])
@@ -772,23 +772,23 @@ DAILY_WATER_NAMES = ["P_day"] + [f"WU_{surface}{part}" for surface in ("EveTr", 
 @pytest.mark.parametrize("unit,expected", [("mm", 12), ("m", 0.012), ("kg m-2", 12)])
 def test_daily_water_amount_units(frames, name, unit, expected):
     frame, state = frames
-    frame[("DailyState", name)] = float("nan")
+    frame["DailyState", name] = float("nan")
     frame.loc[frame.index[-1], ("DailyState", name)] = 12.0
     entry = next(v for v in get_output_contract_catalogue().variables if v.group == "DailyState" and v.name == name)
     assert entry.unit == "mm"
     assert entry.cell_methods == "time: sum"
     assert not entry.interval_water_flux
     output = SUEWSOutput(frame, state).to_units({name: unit})
-    assert output.df[("DailyState", name)].dropna().iloc[0] == pytest.approx(expected)
+    assert output.df["DailyState", name].dropna().iloc[0] == pytest.approx(expected)
     restored = output.to_units({name: "mm"})
-    assert restored.df[("DailyState", name)].dropna().iloc[0] == pytest.approx(12)
+    assert restored.df["DailyState", name].dropna().iloc[0] == pytest.approx(12)
 
 
 @pytest.mark.parametrize("name", DAILY_WATER_NAMES)
 @pytest.mark.parametrize("unit", ["mm h-1", "kg m-2 s-1"])
 def test_daily_water_rejects_rate_units(frames, name, unit):
     frame, state = frames
-    frame[("DailyState", name)] = 12.0
+    frame["DailyState", name] = 12.0
     with pytest.raises(ValueError, match="daily water totals require amount units"):
         SUEWSOutput(frame, state).to_units({name: unit})
 

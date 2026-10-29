@@ -6408,14 +6408,13 @@ CONTAINS
 
       REAL(KIND(1D0)) :: tair_av_next
 
-      REAL(KIND(1D0)), PARAMETER :: len_day_s = sec_per_day ! day length in seconds
       REAL(KIND(1D0)) :: len_cal_s ! length of average period in seconds
       REAL(KIND(1D0)) :: temp_k ! temp in K
 
       ! determine the average period
-      IF (dt_since_start > len_day_s) THEN
+      IF (dt_since_start > sec_per_day) THEN
          ! if simulation has been running over one day
-         len_cal_s = len_day_s
+         len_cal_s = sec_per_day
       ELSE
          ! if simulation has been running less than one day
          len_cal_s = dt_since_start + tstep

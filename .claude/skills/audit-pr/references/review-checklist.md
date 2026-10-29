@@ -8,6 +8,8 @@ Detailed checklist for comprehensive PR review.
 
 ### Fortran (Critical)
 
+- [ ] Physical constants come from `suews_ctrl_const.f95`: one value each, double precision, no local copies (see `.claude/rules/fortran/conventions.md`, "No New Physical-Constant Literals").
+
 - [ ] File naming: `suews_<category>_<name>.f95`
   - Categories: `ctrl`, `phys`, `util`
 - [ ] Module naming: `module_<category>_<name>`

@@ -31,7 +31,7 @@ csv_path = fixture_dir / "w16_most.csv"
 reference.to_csv(csv_path, float_format="%.17g")
 
 provenance_path = fixture_dir / "w16_most.provenance.json"
-provenance = json.loads(provenance_path.read_text())
+provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
 provenance.update(
     description="W16/MOST regression baseline refreshed for the shared physical constants in #1953.",
     source_ref=subprocess.check_output(["git", "branch", "--show-current"], cwd=repo_root, text=True).strip(),
@@ -44,5 +44,5 @@ provenance.update(
     hourly_forcing_sha256=hashlib.sha256((sample_dir / "Kc_2012_data_60.txt").read_bytes()).hexdigest(),
     csv_sha256=hashlib.sha256(csv_path.read_bytes()).hexdigest(),
 )
-provenance_path.write_text(json.dumps(provenance, indent=2) + "\n")
+provenance_path.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
 print(f"[OK] Saved {len(reference)} W16/MOST timesteps and provenance")

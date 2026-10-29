@@ -2,11 +2,9 @@ MODULE module_ctrl_const_mathconst
 
    IMPLICIT NONE
 
-   REAL(KIND(1D0)), PARAMETER :: pi = 3.14159265359
-   REAL(KIND(1D0)), PARAMETER :: pi_d0 = 3.141592653589793D0 ! pi to double precision; differs from pi, which holds the single-precision value
-   REAL, PARAMETER :: pi_sp = 3.14159265359 ! default-REAL pi, for expressions evaluated in default REAL; same value as pi
-   REAL(KIND(1D0)), PARAMETER :: DEG2RAD = pi_d0/180.0D0 ! [rad degree-1]
-   REAL(KIND(1D0)), PARAMETER :: RAD2DEG = 180.0D0/pi_d0 ! [degree rad-1]
+   REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0 ! circle circumference / diameter
+   REAL(KIND(1D0)), PARAMETER :: DEG2RAD = pi/180.0D0 ! [rad degree-1]
+   REAL(KIND(1D0)), PARAMETER :: RAD2DEG = 180.0D0/pi ! [degree rad-1]
 
 END MODULE module_ctrl_const_mathconst
 
@@ -20,24 +18,19 @@ MODULE module_ctrl_const_physconst
 
    IMPLICIT NONE
 
-   INTEGER, PARAMETER :: sec_per_hour = 3600, sec_per_day = 86400, min_per_day = 1440
-   REAL, PARAMETER :: sec_per_hour_sp = 3600. ! seconds per hour, default REAL
-   REAL, PARAMETER :: sec_per_day_sp = 86400. ! seconds per day, default REAL
-   REAL, PARAMETER :: min_per_day_sp = 1440. ! minutes per day, default REAL
-   INTEGER, PARAMETER :: arcsec_per_deg = 3600 ! arcseconds per degree
-   REAL, PARAMETER :: cp_air_anohm_sp = 1006.38 ! AnOHM air heat capacity [J kg-1 K-1]; differs from cp_air_sp
-   REAL, PARAMETER :: lv_anohm_sp = 2264.705E3 ! AnOHM Lv [J kg-1]; differs from lv_bolton_sp and lv_wetbulb_sp
-   REAL(KIND(1D0)), PARAMETER :: C2K = 273.15 !Celsius to Kelvin
-   REAL, PARAMETER :: C2K_sp = 273.15 ! default-REAL spelling of C2K, for expressions that are evaluated in default REAL
+   REAL(KIND(1D0)), PARAMETER :: sec_per_hour = 3600.0D0, sec_per_day = 86400.0D0, min_per_day = 1440.0D0 ! SI time conversions
+   REAL(KIND(1D0)), PARAMETER :: arcsec_per_deg = 3600.0D0 ! arcseconds per degree
+   REAL(KIND(1D0)), PARAMETER :: cp_air_anohm = 1006.38D0 ! AnOHM air heat capacity [J kg-1 K-1]; differs from cp_air
+   REAL(KIND(1D0)), PARAMETER :: lv_anohm = 2264705.0D0 ! AnOHM Lv [J kg-1]; differs from lv_bolton and lv_wetbulb
+   REAL(KIND(1D0)), PARAMETER :: C2K = 273.15D0 ! SI Celsius-to-Kelvin offset [K]
    REAL(KIND(1D0)), PARAMETER :: SBConst = 5.670374419D-8 ! CODATA Stefan-Boltzmann constant [W m-2 K-4]
-   REAL(KIND(1D0)), PARAMETER :: JtoumolPAR = 4.6 ! Convert PAR from W m-2 to umol m-2 s-1
+   REAL(KIND(1D0)), PARAMETER :: JtoumolPAR = 4.6D0 ! Convert PAR from W m-2 to umol m-2 s-1
    REAL(KIND(1D0)), PARAMETER :: KdntoPAR = 0.46 ! Conversion from Kdn to PAR, originally from Tsubo and Walker (2005), used in Bellucco et al. (2017)
-   REAL(KIND(1.0)), PARAMETER :: lv_bolton_sp = 2.501E6 ! Bolton (1980) Lv intercept [J kg-1]; differs from Lv_air in AnOHM
-   REAL(KIND(1.0)), PARAMETER :: lv_wetbulb_sp = 2500.25 ! Wet-bulb Lv intercept [kJ kg-1]; differs from lv_bolton_sp after unit conversion
-   REAL(KIND(1.0)), PARAMETER :: cp_air_sp = 1005. ! specific heat capacity of dry air [J kg-1 K-1]; differs from cp_air (1006.38) in AnOHM
-   INTEGER, PARAMETER :: p_ref_clearness_int = 1013 ! Clearness-index reference pressure [hPa]; differs from p_ref_pa_d0 after unit conversion
-   REAL(KIND(1D0)), PARAMETER :: p_ref_pa_d0 = 101325.0D0 ! Standard reference pressure [Pa]; differs from p_ref_clearness_int after unit conversion
-   REAL(KIND(1D0)), PARAMETER :: eps_fp = 1.0E-12 !Epsilon for floating-point near-zero comparisons
+   REAL(KIND(1D0)), PARAMETER :: lv_bolton = 2501000.0D0 ! Bolton (1980) Lv intercept [J kg-1]; empirical intercept, distinct from AnOHM and wet-bulb formulae
+   REAL(KIND(1D0)), PARAMETER :: lv_wetbulb = 2500.25D0 ! Wet-bulb Lv intercept [kJ kg-1]; differs from lv_bolton after unit conversion
+   REAL(KIND(1D0)), PARAMETER :: cp_air = 1005.0D0 ! specific heat capacity of dry air [J kg-1 K-1]; dry-air intercept in the meteorological formula
+   REAL(KIND(1D0)), PARAMETER :: p_ref_pa_d0 = 101325.0D0 ! Standard atmosphere [Pa], SI defining value
+   REAL(KIND(1D0)), PARAMETER :: eps_fp = 1.0D-12 !Epsilon for floating-point near-zero comparisons
 
 END MODULE module_ctrl_const_physconst
 

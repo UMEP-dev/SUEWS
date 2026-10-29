@@ -694,6 +694,34 @@ def test_calendar_save_tstep_has_actionable_error(frames, tmp_path, writer):
 
 
 
+@pytest.mark.parametrize("regular", [False, True])
+def test_daily_water_without_model_step_defers_error_until_conversion(tmp_path, regular):
+    """Legacy frames remain readable, but daily rates need the model timestep."""
+    dates = pd.date_range("2012-01-01 00:05", periods=4, freq="5min")
+    if not regular:
+        dates = dates[[0, 1, 3]]
+    frame = pd.DataFrame(
+        float("nan"),
+        index=pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"]),
+        columns=pd.MultiIndex.from_tuples(
+            [("DailyState", "P_day")], names=["group", "var"],
+        ),
+    )
+    frame.iloc[-1, 0] = 9.0
+    output = SUEWSOutput(frame, None)
+    pd.testing.assert_frame_equal(output.df, frame)
+    assert "supy_output_daily_coverage_s" not in output.df.attrs
+    message = (
+        "DailyState water rates require daily coverage; retain native run rows "
+        "and the model timestep before saving or resampling"
+    )
+    with pytest.raises(ValueError, match=message):
+        output.to_units({"P_day": "mm h-1"})
+    for writer in (save_df_output, save_df_output_parquet):
+        with pytest.raises(ValueError, match=message):
+            writer(output.df, df_state_final=None, path_dir_save=tmp_path)
+
+
 def test_daily_coverage_counts_rows_with_configured_step(frames):
     """An irregular selection uses the held timestep, never gaps in its index."""
     frame, state = frames

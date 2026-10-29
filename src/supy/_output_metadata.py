@@ -48,6 +48,7 @@ def with_daily_coverage(
     steps using the held model timestep, not a cadence reconstructed from gaps.
     Streaming callers supply daily_steps from the complete forcing slice so a
     midnight step in the preceding chunk still counts towards its day.
+    Without a held timestep, leave coverage unset; only rate conversion needs it.
     """
     key = "supy_output_daily_coverage_s"
     if key in df_output.attrs or not isinstance(df_output.columns, pd.MultiIndex):
@@ -56,13 +57,7 @@ def with_daily_coverage(
         return df_output
     step_s = output_interval_seconds(df_output, interval_s, required=False)
     if step_s is None:
-        frequency = df_output.index.levels[df_output.index.names.index("datetime")].freq
-        if frequency is None:
-            raise ValueError(
-                "DailyState coverage requires the model timestep; supply interval_s "
-                "or retain run configuration"
-            )
-        step_s = frequency.nanos / 1e9
+        return df_output
     dates = df_output.index.get_level_values("datetime")
     grids = df_output.index.get_level_values("grid")
     counts = pd.Series(

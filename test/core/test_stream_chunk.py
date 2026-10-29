@@ -1311,7 +1311,7 @@ def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(short_sample_sim, t
         saved = pd.read_parquet(source)
         assert saved.attrs["supy_output_coverage_s"][key] == 900
         assert saved["SUEWS", "Rain"].dropna().to_numpy() == pytest.approx(0.5 / TSTEP_S)
-        daily = SUEWSOutput(saved).resample("D")
+        daily = SUEWSOutput(saved, None).resample("D")
         assert daily.df["SUEWS", "Rain"].to_numpy() == pytest.approx(0.5 / TSTEP_S)
 
 

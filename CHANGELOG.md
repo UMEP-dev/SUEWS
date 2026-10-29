@@ -63,6 +63,8 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [change][stable] Deprecate non-streaming Parquet output with a FutureWarning for one release; it will be removed in the next release. Use chunked streaming Parquet output via `model.control.output.stream_chunk` instead. Existing non-streaming output is unchanged during the deprecation period (#1955).
+
 - [bugfix] Persist output units, nominal intervals and partial-row coverage in Parquet schema metadata so reloaded water rates retain their values and resampling weights after clock changes (#1967).
 
 - [change][experimental] Retain trailing partial resampling bins for all output variables, including without a unit request; water rates use the seconds actually covered by each bin (#1967).
@@ -91,6 +93,10 @@ EXAMPLES:
   - An `xsmd` column that is entirely missing, as most existing forcing files carry, is still read as missing `sm` for modelled runs with a `FutureWarning`; observed runs and any `xsmd` with values are refused. The allowance ends at forcing contract 3.0.0.
   - Sensor `smcap` is retired, so migrated observed runs may produce different deficits. Contents above field capacity or below the implied wilting reference are retained with warnings; only the derived deficit is clamped.
 - [maintenance] Unit metadata in the input data model and the output catalogue is written in the CF notation of `supy.units` (signed integer exponents, `1` for ratios, water stores in `kg m-2`); a test parses every unit string, and output contract `1.1.9` carries the relabelled units with every value unchanged (#1903)
+
+### 27 Oct 2026
+
+- [bugfix] Keep all-NaN sums missing when resampling output, including one- and two-row final chunks of text output at the model timestep; real zeroes and sums of observed values are preserved (#1934).
 
 ### 23 Oct 2026
 

@@ -401,23 +401,23 @@ def test_daily_totals_use_daily_interval(tmp_path):
     from supy._output_metadata import prepare_output
 
     columns = pd.MultiIndex.from_tuples(
-        [(v.group, v.name) for v in get_output_contract_catalogue().variables if v.group == "DailyState" and v.unit == "kg m-2 s-1"],
+        [(v.group, v.name) for v in get_output_contract_catalogue().variables if v.group == "DailyState" and v.unit == "mm"],
         names=["group", "var"],
     )
     index = pd.MultiIndex.from_product([[1], pd.date_range("2012-01-01", periods=288, freq="5min")], names=["grid", "datetime"])
     frame = pd.DataFrame(float("nan"), index=index, columns=columns)
-    frame.iloc[-1] = 86400.0
+    frame.iloc[-1] = 8.64
     result = prepare_output(frame, interval_s=300, write=True)
-    assert (result.dropna() == 1.0).all().all()
-    assert (prepare_output(result, interval_s=300, write=True).dropna() == 1.0).all().all()
+    assert (result.dropna() == 8.64).all().all()
+    assert (prepare_output(result, interval_s=300, write=True).dropna() == 8.64).all().all()
     from supy._save import save_df_grid_group
 
     daily = result["DailyState"].dropna().xs(1, level="grid").copy()
     path = save_df_grid_group(daily, 1, "DailyState", tmp_path, "site", freq_s=86400)
     saved = pd.read_csv(path, sep=r"\s+")
-    assert (saved[daily.columns] == 1.0).all().all()
+    assert (saved[daily.columns] == 8.64).all().all()
     metadata = json.loads(path.with_name(path.name + ".units.json").read_text(encoding="utf-8"))
-    assert metadata["columns"]["P_day"]["cell_methods"] == "time: mean"
+    assert metadata["columns"]["P_day"]["cell_methods"] == "time: sum"
 
 
 
@@ -441,14 +441,14 @@ def test_streamed_requested_water_rates_keep_daily_metadata(frames, tmp_path):
     stream.start_chunk(2012, 0)
     paths = save_df_output_parquet(
         frame, state, freq_s=3600, path_dir_save=tmp_path, save_state=False,
-        streamed_parquet=stream, units={"Rain": "mm h-1", "P_day": "mm h-1"},
+        streamed_parquet=stream, units={"Rain": "mm h-1", "P_day": "m"},
     )
     saved = pd.read_parquet(paths[0])
     np.testing.assert_allclose(saved[("SUEWS", "Rain")].dropna(), 6)
-    np.testing.assert_allclose(saved[("DailyState", "P_day")].dropna(), 12)
+    np.testing.assert_allclose(saved[("DailyState", "P_day")].dropna(), 0.024)
     schema = pq.read_schema(next(paths[0].glob("*.parquet")))
-    for column in [("SUEWS", "Rain"), ("DailyState", "P_day")]:
-        assert schema.field(str(column)).metadata[b"units"] == b"mm h-1"
+    assert schema.field(str(("SUEWS", "Rain"))).metadata[b"units"] == b"mm h-1"
+    assert schema.field(str(("DailyState", "P_day"))).metadata[b"units"] == b"m"
 
 
 @pytest.mark.parametrize("frequency", ["ME", "MS", "W", "YE"])
@@ -610,20 +610,20 @@ def test_partial_coverage_survives_saved_clock_change(frames, tmp_path):
 
 @pytest.mark.parametrize("start,steps", [("00:00", 288), ("12:00", 144), ("00:00", 145)])
 @pytest.mark.parametrize("writer", ["text", "parquet", "streamed"])
-def test_daily_water_uses_run_coverage(frames, tmp_path, start, steps, writer):
-    """Full, partial first and partial last days use counted model steps."""
+def test_daily_water_preserves_totals_and_records_coverage(frames, tmp_path, start, steps, writer):
+    """Full and partial days keep raw totals and record counted model steps."""
     _, state = frames
     columns = pd.MultiIndex.from_tuples(
         [(v.group, v.name) for v in get_output_contract_catalogue().variables
-         if v.group == "DailyState" and v.interval_water_flux], names=["group", "var"],
+         if v.group == "DailyState" and v.unit == "mm"], names=["group", "var"],
     )
     dates = pd.date_range(f"2012-01-01 {start}", periods=steps, freq="5min")
     index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
     frame = pd.DataFrame(float("nan"), index=index, columns=columns)
     amount = 7.25
     frame.iloc[-1] = amount
-    expected = amount / (steps * 300)
-    converted = SUEWSOutput(frame, state).to_units(dict.fromkeys(columns, "kg m-2 s-1"))
+    expected = amount
+    converted = SUEWSOutput(frame, state).to_units(dict.fromkeys(columns, "mm"))
     assert converted.df.dropna().to_numpy().ravel() == pytest.approx([expected] * len(columns))
     if writer == "text":
         paths = save_df_output(frame, df_state_final=state, freq_s=3600, path_dir_save=tmp_path, output_groups=["DailyState"])
@@ -695,8 +695,8 @@ def test_calendar_save_tstep_has_actionable_error(frames, tmp_path, writer):
 
 
 @pytest.mark.parametrize("regular", [False, True])
-def test_daily_water_without_model_step_defers_error_until_conversion(tmp_path, regular):
-    """Legacy frames remain readable, but daily rates need the model timestep."""
+def test_daily_water_without_model_step_keeps_amounts(tmp_path, regular):
+    """Daily totals remain convertible and writable without coverage."""
     dates = pd.date_range("2012-01-01 00:05", periods=4, freq="5min")
     if not regular:
         dates = dates[[0, 1, 3]]
@@ -711,17 +711,16 @@ def test_daily_water_without_model_step_defers_error_until_conversion(tmp_path, 
     output = SUEWSOutput(frame, None)
     pd.testing.assert_frame_equal(output.df, frame)
     assert output.df.attrs.get("supy_output_daily_coverage_s") is None
-    message = (
-        "DailyState water rates require daily coverage; retain native run rows "
-        "and the model timestep before saving or resampling"
-    )
-    with pytest.raises(ValueError, match=message):
-        output.to_units({"P_day": "mm h-1"})
-    with pytest.raises(ValueError, match=message):
-        output.resample("h").resample("D").to_units({"P_day": "mm h-1"})
+    converted = output.to_units({"P_day": "m"})
+    assert converted.df.dropna().iloc[0, 0] == pytest.approx(0.009)
     for writer in (save_df_output, save_df_output_parquet):
-        with pytest.raises(ValueError, match=message):
-            writer(output.df, df_state_final=None, path_dir_save=tmp_path)
+        options = {"save_state": False} if writer is save_df_output_parquet else {}
+        paths = writer(output.df, df_state_final=None, path_dir_save=tmp_path, **options)
+        if writer is save_df_output_parquet:
+            values = pd.read_parquet(paths[0])["DailyState", "P_day"].dropna()
+        else:
+            values = pd.read_csv(paths[0], sep=r"\s+")["P_day"]
+        assert values.to_numpy() == pytest.approx([9.0])
 
 
 def test_daily_coverage_counts_rows_with_configured_step(frames):
@@ -730,8 +729,9 @@ def test_daily_coverage_counts_rows_with_configured_step(frames):
     frame = frame.iloc[[0, 3, 8]].copy()
     frame.index = frame.index.remove_unused_levels()
     frame[("DailyState", "P_day")] = [float("nan"), float("nan"), 9.0]
-    output = SUEWSOutput(frame, state).to_units({"P_day": "kg m-2 s-1"})
-    assert output.df[("DailyState", "P_day")].dropna().iloc[0] == pytest.approx(9 / 900)
+    output = SUEWSOutput(frame, state).to_units({"P_day": "kg m-2"})
+    assert output.df[("DailyState", "P_day")].dropna().iloc[0] == pytest.approx(9)
+    assert list(output.df.attrs["supy_output_daily_coverage_s"].values()) == [900]
 
 
 
@@ -741,8 +741,9 @@ def test_daily_coverage_survives_selecting_sparse_output_rows(frames):
     frame.loc[frame.index[-1], ("DailyState", "P_day")] = 12.0
     output = SUEWSOutput(frame, state)
     daily = output.df.loc[:, [("DailyState", "P_day")]].dropna()
-    converted = SUEWSOutput(daily, state).to_units({"P_day": "mm h-1"})
-    assert converted.df.iloc[0, 0] == pytest.approx(6.0)
+    converted = SUEWSOutput(daily, state).to_units({"P_day": "m"})
+    assert converted.df.iloc[0, 0] == pytest.approx(0.012)
+    assert converted.df.attrs["supy_output_daily_coverage_s"] == daily.attrs["supy_output_daily_coverage_s"]
 
 
 
@@ -761,4 +762,46 @@ def test_daily_coverage_varies_across_one_run(frames, tmp_path, writer):
     else:
         paths = save_df_output_parquet(frame, state, path_dir_save=tmp_path, save_state=False)
         values = pd.read_parquet(paths[0])["DailyState", "P_day"].dropna()
-    assert values.to_numpy() == pytest.approx([0.0002, 0.0001, 0.0002])
+    assert values.to_numpy() == pytest.approx([8.64, 8.64, 8.64])
+
+
+DAILY_WATER_NAMES = ["P_day"] + [f"WU_{surface}{part}" for surface in ("EveTr", "DecTr", "Grass") for part in (1, 2, 3)]
+
+
+@pytest.mark.parametrize("name", DAILY_WATER_NAMES)
+@pytest.mark.parametrize("unit,expected", [("mm", 12), ("m", 0.012), ("kg m-2", 12)])
+def test_daily_water_amount_units(frames, name, unit, expected):
+    frame, state = frames
+    frame["DailyState", name] = float("nan")
+    frame.loc[frame.index[-1], ("DailyState", name)] = 12.0
+    entry = next(v for v in get_output_contract_catalogue().variables if v.group == "DailyState" and v.name == name)
+    assert entry.unit == "mm"
+    assert entry.cell_methods == "time: sum"
+    assert not entry.interval_water_flux
+    output = SUEWSOutput(frame, state).to_units({name: unit})
+    assert output.df["DailyState", name].dropna().iloc[0] == pytest.approx(expected)
+    restored = output.to_units({name: "mm"})
+    assert restored.df["DailyState", name].dropna().iloc[0] == pytest.approx(12)
+
+
+@pytest.mark.parametrize("name", DAILY_WATER_NAMES)
+@pytest.mark.parametrize("unit", ["mm h-1", "kg m-2 s-1"])
+def test_daily_water_rejects_rate_units(frames, name, unit):
+    frame, state = frames
+    frame["DailyState", name] = 12.0
+    with pytest.raises(ValueError, match="daily water totals require amount units"):
+        SUEWSOutput(frame, state).to_units({name: unit})
+
+
+@pytest.mark.parametrize("unit,factor", [("mm", 1), ("m", 0.001), ("kg m-2", 1)])
+def test_daily_water_resampling_sums_days(frames, unit, factor):
+    _, state = frames
+    dates = pd.date_range("2012-01-01 23:55", periods=3, freq="D")
+    columns = pd.MultiIndex.from_product([["DailyState"], DAILY_WATER_NAMES], names=["group", "var"])
+    frame = pd.DataFrame([[2.0] * 10, [3.0] * 10, [7.0] * 10],
+                         index=pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"]), columns=columns)
+    frame.attrs["supy_output_daily_coverage_s"] = {f"1|{date.isoformat()}": 86400 for date in dates}
+    output = SUEWSOutput(frame, state).to_units(dict.fromkeys(DAILY_WATER_NAMES, unit))
+    monthly = output.resample("ME")
+    assert monthly.df.to_numpy().ravel() == pytest.approx([12 * factor] * 10)
+    assert list(monthly.df.attrs["supy_output_daily_coverage_s"].values()) == [3 * 86400]

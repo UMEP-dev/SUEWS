@@ -351,7 +351,7 @@ def _resample_output(
     df_output = with_daily_coverage(df_output, source_s)
     dict_daily_coverage = {}
     dict_units = df_output.attrs.get("supy_output_units", {})
-    water_columns = [c for c in df_output.columns if c in water_flux_variables() and c[0] != "DailyState"]
+    water_columns = [c for c in df_output.columns if c in water_flux_variables()]
     rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
     ser_coverage = output_covered_seconds(df_output, source_s) if water_columns else None
     dict_coverage = {}
@@ -391,10 +391,11 @@ def _resample_output(
             daily_seconds = pd.Series(
                 [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_with_data.index],
                 index=df_with_data.index,
-            ).resample(freq, closed="right", label=label).last()
+            ).resample(freq, closed="right", label=label).sum(min_count=1)
             dict_daily_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in daily_seconds.dropna().items()})
             return df_with_data.resample(freq, closed="right", label=label).agg(
-                {name: method for name, method in dict_aggm_group.items() if name in df_with_data.columns}
+                {name: (lambda values: values.sum(min_count=1)) if method == "sum" else method
+                 for name, method in dict_aggm_group.items() if name in df_with_data.columns}
             )
         else:
             df_to_resample = df_group

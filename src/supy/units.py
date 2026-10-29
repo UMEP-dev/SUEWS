@@ -347,3 +347,15 @@ def convert_water_rate(values: Any, from_unit: str | Unit, to_unit: str | Unit) 
         raise UnitError("water flux requires a time unit: use kg m-2 s-1, mm h-1 or mm d-1")
     factor = (source.scale / factors[source.dimension]) / (target.scale / factors[target.dimension])
     return values * factor
+
+
+def convert_water_amount(values: Any, from_unit: str | Unit, to_unit: str | Unit) -> Any:
+    """Convert a liquid-water amount using 1 mm water = 1 kg m-2."""
+    source, target = parse_unit(from_unit), parse_unit(to_unit)
+    depth = parse_unit("mm")
+    mass = parse_unit("kg m-2")
+    factors = {depth.dimension: depth.scale, mass.dimension: mass.scale}
+    if source.dimension not in factors or target.dimension not in factors:
+        raise UnitError("daily water totals require amount units: use mm, m or kg m-2; rate units are not supported")
+    factor = (source.scale / factors[source.dimension]) / (target.scale / factors[target.dimension])
+    return values * factor

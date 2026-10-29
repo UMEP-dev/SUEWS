@@ -133,9 +133,12 @@ Group Details
    - Vegetation parameters
    - One file per grid (may contain multiple years)
 
-   Water outputs ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` are mean rates in ``kg m-2 s-1``.
-   Each daily amount is divided by the number of model steps held in that day times the model timestep.
-   A partial first or last day uses only its covered seconds, recorded in the units sidecar as ``daily_coverage_s``.
+   Water outputs ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` are daily totals in ``mm`` with ``time: sum``.
+   The model sums are written unchanged, including partial first and last days.
+   Coverage is recorded as information in ``daily_coverage_s`` in text sidecars and ``supy_output_daily_coverage_s`` in Parquet attrs; it never divides the totals.
+   Requests for ``m`` or ``kg m-2`` convert the amounts; rate units are rejected.
+   Resampling across days sums these totals.
+   Per-step water fluxes such as ``Rain``, ``Evap`` and ``RO`` remain ``kg m-2 s-1``.
 
    .. note::
 

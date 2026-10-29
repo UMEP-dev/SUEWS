@@ -21,6 +21,15 @@ def water_flux_variables() -> dict:
     return {(v.group, v.name): v for v in get_output_contract_catalogue().variables if v.interval_water_flux}
 
 
+@cache
+def daily_water_variables() -> dict:
+    """Read the catalogue's DailyState water-amount declarations."""
+    return {
+        (v.group, v.name): v for v in get_output_contract_catalogue().variables
+        if v.group == "DailyState" and v.unit == "mm" and v.cell_methods == "time: sum"
+    }
+
+
 def output_covered_seconds(df_output, interval_s=None):
     """Return actual row coverage, or the declared source step for native rows.
 
@@ -49,7 +58,7 @@ def with_daily_coverage(
     Streaming callers supply daily_steps from the complete forcing slice so a
     midnight step in the preceding chunk still counts towards its day.
     Without a held timestep, mark coverage as unknown (None) so later calls
-    with an output interval cannot fabricate it; only rate conversion fails.
+    with an output interval cannot fabricate it; amount conversion remains available.
     """
     key = "supy_output_daily_coverage_s"
     if key in df_output.attrs or not isinstance(df_output.columns, pd.MultiIndex):
@@ -74,25 +83,6 @@ def with_daily_coverage(
     result = df_output.copy(deep=False)
     result.attrs[key] = coverage
     return result
-
-
-def daily_covered_seconds(df_output: pd.DataFrame) -> pd.Series:
-    """Return the coverage attached to sparse DailyState records."""
-    coverage = df_output.attrs.get("supy_output_daily_coverage_s")
-    if coverage is None:
-        raise ValueError(
-            "DailyState water rates require daily coverage; retain native run rows "
-            "and the model timestep before saving or resampling"
-        )
-    if not isinstance(df_output.index, pd.MultiIndex):
-        coverage = {key.split("|", 1)[1]: value for key, value in coverage.items()}
-        keys = [date.isoformat() for date in df_output.index]
-    else:
-        keys = [f"{grid}|{date.isoformat()}" for grid, date in df_output.index]
-    return pd.Series(
-        [coverage.get(key, float("nan")) for key in keys],
-        index=df_output.index,
-    )
 
 
 def _interval(seconds: Optional[int]) -> Optional[str]:
@@ -207,7 +197,6 @@ def prepare_output(
     list_water_columns = [
         column for column in dict_targets
         if (column if isinstance(column, tuple) else (group, column)) in dict_water
-        and (column[0] if isinstance(column, tuple) else group) != "DailyState"
     ]
     if list_water_columns:
         output_interval_seconds(df_output, interval_s, required=False)
@@ -230,9 +219,11 @@ def prepare_output(
                 source = metadata["units"]
                 values = df_output[column]
                 if source == "mm":
-                    values = values / (daily_covered_seconds(df_output) if identity[0] == "DailyState" else ser_coverage)
+                    values = values / ser_coverage
                     source = "kg m-2 s-1"
                 values = unit_conversion.convert_water_rate(values, source, parsed)
+            elif identity in daily_water_variables():
+                values = unit_conversion.convert_water_amount(df_output[column], metadata["units"], parsed)
             else:
                 values = unit_conversion.convert(
                     df_output[column], metadata.get("units"), parsed,
@@ -256,7 +247,7 @@ def project_output_metadata(
 ) -> dict:
     """Project metadata for the supplied column identities and written interval.
 
-    DailyState water rates describe the covered day. Unknown columns are marked explicitly;
+    DailyState water totals describe the covered day. Unknown columns are marked explicitly;
     no unit or aggregation is inferred from a name or from the data values.
     """
     dict_registry = {
@@ -272,7 +263,7 @@ def project_output_metadata(
         if entry is None:
             dict_result[column] = {"status": "unknown"}
             continue
-        daily_water = identity[0] == "DailyState" and identity in water_flux_variables()
+        daily_water = identity in daily_water_variables()
         interval = "covered day" if daily_water else _interval(86400 if identity[0] == "DailyState" else interval_s)
         unit = (units or {}).get(identity[0], {}).get(identity[1])
         if unit is None:

@@ -728,8 +728,11 @@ Use ``output.save(..., units={"Rain": "mm h-1"})`` or ``output.to_units({"Rain":
 Native in-memory output retains kernel amounts unless explicitly converted; ``output.units`` describes the held values, which may therefore differ from the written catalogue.
 Rate conversion is performed by the shared post-run boundary, never by the kernel.
 Resampling a converted rate integrates source intervals before averaging over the target interval.
-DailyState ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` are rates over the covered part of each day.
-Their divisor is the number of model steps held in that day multiplied by the configured timestep, including partial first and last days.
+DailyState ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` are daily totals in ``mm`` with ``time: sum``.
+They retain the model's daily sums unchanged, including raw partial totals on the first and last days; no division by coverage or 86400 is applied.
+Amount requests such as ``mm``, ``m`` and ``kg m-2`` are accepted; rate units such as ``mm h-1`` and ``kg m-2 s-1`` are rejected.
+Resampling these totals across days sums them.
+Coverage is informational only.
 Their interval metadata says ``covered day``; text sidecars record ``daily_coverage_s`` and Parquet attrs record ``supy_output_daily_coverage_s`` by grid and timestamp.
 Calendar-resampled output cannot be saved with ``save_tstep=True``; save native output before calendar resampling.
 

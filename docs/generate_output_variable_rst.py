@@ -102,10 +102,11 @@ Units in saved output
 ---------------------
 
 The output registry owns units, time operations and temperature kinds. Writers
-project these fields without converting values or changing text table bytes.
+convert per-step water fluxes to interval-mean rates in ``kg m-2 s-1``.
+DailyState water columns remain daily totals in ``mm`` with ``time: sum``.
 These serialisation annotations sit outside the output contract catalogue and
 need no independent contract release. The catalogue version is recorded as
-``output_contract_version`` (currently the unreleased ``1.1.9``).
+``output_contract_version`` (currently the unreleased ``2.0.0``).
 
 Every text output table has a neighbouring ``<filename>.units.json`` file.
 Sidecars are auxiliary files; save methods retain their primary-file return lists.
@@ -121,9 +122,15 @@ is retained. Final-state and run-summary Parquet files have different schemas
 and are not output-registry tables.
 
 The interval comes from the writer's output frequency, after resampling.
-For example, hourly Rain has ``units: mm``, ``interval: 1 hour`` and
-``cell_methods: time: sum (interval: 1 hour)``. Native five-minute output uses
-``5 minutes``. DailyState retains ``1 day``; point values retain ``time: point``.
+For example, hourly Rain has ``units: kg m-2 s-1``, ``interval: 1 hour`` and
+``cell_methods: time: mean (interval: 1 hour)``. Native five-minute output uses
+``5 minutes``. DailyState water totals describe the ``covered day``; other
+DailyState statistics retain ``1 day`` and point values retain ``time: point``.
+``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` keep the
+model's raw sums, including partial first and last days, and sum when resampled.
+Their coverage is informational: ``daily_coverage_s`` in text sidecars and
+``supy_output_daily_coverage_s`` in Parquet attrs never divide the totals.
+Amount requests (``mm``, ``m``, ``kg m-2``) are accepted; rate units are rejected.
 An interval qualifies a time operation, not the physical unit string.
 Legacy native-step Parquet calls without model state cannot supply an interval;
 they omit it rather than infer a timestep from the index.

@@ -221,3 +221,14 @@ def test_cli_rejects_a_released_digest_rewrite(
 
     assert audit.main(["--base", "master"]) == 1
     assert "append-only" in capsys.readouterr().err
+
+
+def test_unreleased_output_digest_can_be_amended() -> None:
+    base = _state("2.0.0", ("1.0.0", _DIGEST_A), ("2.0.0", _DIGEST_A))
+    current = _state("2.0.0", ("1.0.0", _DIGEST_A), ("2.0.0", _DIGEST_B))
+    assert not audit._validate_transition("output", base, current)
+    with pytest.raises(audit.AuditFailure, match="append-only"):
+        audit._validate_transition("forcing", base, current)
+    rewritten = _state("2.0.0", ("1.0.0", _DIGEST_B), ("2.0.0", _DIGEST_B))
+    with pytest.raises(audit.AuditFailure, match="append-only"):
+        audit._validate_transition("output", base, rewritten)

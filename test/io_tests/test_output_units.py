@@ -710,7 +710,7 @@ def test_daily_water_without_model_step_defers_error_until_conversion(tmp_path, 
     frame.iloc[-1, 0] = 9.0
     output = SUEWSOutput(frame, None)
     pd.testing.assert_frame_equal(output.df, frame)
-    assert "supy_output_daily_coverage_s" not in output.df.attrs
+    assert output.df.attrs.get("supy_output_daily_coverage_s") is None
     message = (
         "DailyState water rates require daily coverage; retain native run rows "
         "and the model timestep before saving or resampling"

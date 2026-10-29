@@ -645,8 +645,8 @@ class StreamedParquetParts:
         for path in paths[1:]:
             part_attrs = json.loads(pq.read_schema(path).metadata[b"PANDAS_ATTRS"])
             for key in ("supy_output_coverage_s", "supy_output_daily_coverage_s"):
-                if key in part_attrs:
-                    attrs.setdefault(key, {}).update(part_attrs[key])
+                if part_attrs.get(key):
+                    attrs[key] = {**(attrs.get(key) or {}), **part_attrs[key]}
         combined = json.dumps(attrs).encode("utf-8")
         if combined == metadata[b"PANDAS_ATTRS"]:
             return

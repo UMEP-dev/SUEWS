@@ -38,6 +38,47 @@ def output_covered_seconds(df_output, interval_s=None):
     return pd.Series(output_interval_seconds(df_output, interval_s), index=df_output.index)
 
 
+def with_daily_coverage(df_output, interval_s=None):
+    """Attach daily coverage before native rows are selected or resampled.
+
+    DailyState accumulates steps stamped within each calendar day. Count those
+    steps using the held model timestep, not a cadence reconstructed from gaps.
+    """
+    key = "supy_output_daily_coverage_s"
+    if key in df_output.attrs or not isinstance(df_output.columns, pd.MultiIndex):
+        return df_output
+    if "DailyState" not in df_output.columns.get_level_values(0):
+        return df_output
+    step_s = output_interval_seconds(df_output, interval_s)
+    dates = df_output.index.get_level_values("datetime")
+    grids = df_output.index.get_level_values("grid")
+    counts = pd.Series(1, index=pd.MultiIndex.from_arrays([grids, dates.normalize()])).groupby(level=[0, 1]).sum()
+    daily = df_output["DailyState"].notna().any(axis=1)
+    coverage = {
+        f"{grid}|{date.isoformat()}": float(counts.loc[(grid, date.normalize())] * step_s)
+        for grid, date in df_output.index[daily]
+    }
+    result = df_output.copy(deep=False)
+    result.attrs[key] = coverage
+    return result
+
+
+def daily_covered_seconds(df_output):
+    """Return the coverage attached to sparse DailyState records."""
+    coverage = df_output.attrs.get("supy_output_daily_coverage_s")
+    if coverage is None:
+        raise ValueError("DailyState water rates require daily coverage; retain native run rows and the model timestep before saving or resampling")
+    if not isinstance(df_output.index, pd.MultiIndex):
+        coverage = {key.split("|", 1)[1]: value for key, value in coverage.items()}
+        keys = [date.isoformat() for date in df_output.index]
+    else:
+        keys = [f"{grid}|{date.isoformat()}" for grid, date in df_output.index]
+    return pd.Series(
+        [coverage.get(key, float("nan")) for key in keys],
+        index=df_output.index,
+    )
+
+
 def _interval(seconds: Optional[int]) -> Optional[str]:
     """Express an explicitly supplied output interval in CF notation."""
     if seconds is None:
@@ -118,6 +159,7 @@ def prepare_output(
         raise TypeError("units must be a mapping from output variables to unit strings")
     if not units and not write:
         return df_output
+    df_output = with_daily_coverage(df_output, interval_s)
     dict_metadata = project_output_metadata(
         df_output.columns, None, group, df_output.attrs.get("supy_output_units"), native=True
     )
@@ -172,7 +214,7 @@ def prepare_output(
                 source = metadata["units"]
                 values = df_output[column]
                 if source == "mm":
-                    values = values / (86400 if identity[0] == "DailyState" else ser_coverage)
+                    values = values / (daily_covered_seconds(df_output) if identity[0] == "DailyState" else ser_coverage)
                     source = "kg m-2 s-1"
                 values = unit_conversion.convert_water_rate(values, source, parsed)
             else:
@@ -214,7 +256,7 @@ def project_output_metadata(
         if entry is None:
             dict_result[column] = {"status": "unknown"}
             continue
-        interval = _interval(86400 if identity[0] == "DailyState" else interval_s)
+        interval = "covered day" if identity[0] == "DailyState" and identity in water_flux_variables() else _interval(86400 if identity[0] == "DailyState" else interval_s)
         unit = (units or {}).get(identity[0], {}).get(identity[1])
         if unit is None:
             unit = "mm" if native and identity in water_flux_variables() else entry.unit
@@ -267,12 +309,14 @@ class OutputUnits(Mapping):
         return len(self._columns)
 
 
-def write_text_metadata(path, columns, group: str, interval_s: int, units=None) -> None:
+def write_text_metadata(path, columns, group: str, interval_s: int, units=None, coverage=None) -> None:
     """Write a JSON sidecar next to a text output file."""
     payload = {
         "output_contract_version": CURRENT_OUTPUT_VERSION,
         "columns": project_output_metadata(columns, interval_s, group, units),
     }
+    if coverage is not None:
+        payload["daily_coverage_s"] = coverage
     path.with_name(path.name + ".units.json").write_text(
         json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8"
     )
@@ -283,7 +327,12 @@ def write_output_parquet(df_output, path, interval_s: Optional[int]) -> None:
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    table = pa.Table.from_pandas(df_output, preserve_index=True)
+    df_owned = df_output.copy(deep=False)
+    df_owned.attrs = {
+        key: value for key, value in df_output.attrs.items()
+        if key.startswith("supy_output_") or key == "supy_water_rate_columns"
+    }
+    table = pa.Table.from_pandas(df_owned, preserve_index=True)
     dict_columns = project_output_metadata(
         df_output.columns, interval_s, units=df_output.attrs.get("supy_output_units")
     )
@@ -299,7 +348,7 @@ def write_output_parquet(df_output, path, interval_s: Optional[int]) -> None:
     # key that pandas.read_parquet uses to restore DataFrame attributes.
     # Persist units, the held interval and timestamp-keyed partial coverage
     # together so reloaded rates are neither converted twice nor misweighted.
-    dict_schema[b"PANDAS_ATTRS"] = json.dumps(df_output.attrs).encode("utf-8")
+    dict_schema[b"PANDAS_ATTRS"] = json.dumps(df_owned.attrs).encode("utf-8")
     schema = pa.schema(fields, metadata=dict_schema)
     table = pa.Table.from_arrays(table.columns, schema=schema)
     pq.write_table(table, path, compression="snappy")

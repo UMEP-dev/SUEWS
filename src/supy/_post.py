@@ -3,7 +3,7 @@ import pandas as pd
 
 from ._env import logger_supy
 from ._misc import infer_freq_offset
-from ._output_metadata import output_covered_seconds, water_flux_variables
+from ._output_metadata import with_daily_coverage, output_covered_seconds, water_flux_variables
 from .data_model.output import OUTPUT_REGISTRY
 
 
@@ -342,6 +342,14 @@ def _resample_output(
     elif _index_freq_matches(df_output, freq):
         return df_output
 
+    native_s = None
+    if freq_source is not None:
+        try:
+            native_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
+        except ValueError:
+            pass
+    df_output = with_daily_coverage(df_output, native_s)
+    dict_daily_coverage = {}
     dict_units = df_output.attrs.get("supy_output_units", {})
     water_columns = [c for c in df_output.columns if c in water_flux_variables() and c[0] != "DailyState"]
     rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
@@ -385,6 +393,12 @@ def _resample_output(
             # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
+            coverage = df_output.attrs.get("supy_output_daily_coverage_s", {})
+            daily_seconds = pd.Series(
+                [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_with_data.index],
+                index=df_with_data.index,
+            ).resample(freq, closed="right", label=label).last()
+            dict_daily_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in daily_seconds.dropna().items()})
             return df_with_data.resample(freq, closed="right", label=label).agg(
                 {name: method for name, method in dict_aggm_group.items() if name in df_with_data.columns}
             )
@@ -470,6 +484,8 @@ def _resample_output(
     except ValueError:
         interval_s = None
     df_rsmp.attrs["supy_output_interval_s"] = interval_s
+    if dict_daily_coverage:
+        df_rsmp.attrs["supy_output_daily_coverage_s"] = dict_daily_coverage
     if dict_coverage:
         # Fixed intervals need only exceptions (partial bins and daily-only
         # rows); calendar intervals retain all durations. This keeps attrs

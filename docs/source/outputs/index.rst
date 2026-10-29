@@ -279,3 +279,7 @@ does not change forcing interpretation, daily boundaries, model timesteps,
 fluxes, or state values. Explicit ``utc``, ``local_standard_time``, and
 ``daylight`` selections add ``_UTC``, ``_STANDARD``, or ``_DAYLIGHT`` to saved
 output filenames. ``follow`` retains the existing filenames.
+
+Completed Parquet folders preserve partial-bin coverage from all parts in the first part's schema, which folder readers use.
+Each part also retains its own coverage metadata.
+Only SuPy-owned output attributes are persisted; arbitrary user DataFrame attributes are excluded.

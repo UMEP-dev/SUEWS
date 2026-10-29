@@ -404,19 +404,20 @@ def test_daily_totals_use_daily_interval(tmp_path):
         [(v.group, v.name) for v in get_output_contract_catalogue().variables if v.group == "DailyState" and v.unit == "kg m-2 s-1"],
         names=["group", "var"],
     )
-    frame = pd.DataFrame(86400.0, index=[0], columns=columns)
+    index = pd.MultiIndex.from_product([[1], pd.date_range("2012-01-01", periods=288, freq="5min")], names=["grid", "datetime"])
+    frame = pd.DataFrame(float("nan"), index=index, columns=columns)
+    frame.iloc[-1] = 86400.0
     result = prepare_output(frame, interval_s=300, write=True)
-    assert (result == 1.0).all().all()
-    assert (prepare_output(result, interval_s=300, write=True) == 1.0).all().all()
+    assert (result.dropna() == 1.0).all().all()
+    assert (prepare_output(result, interval_s=300, write=True).dropna() == 1.0).all().all()
     from supy._save import save_df_grid_group
 
-    daily = frame["DailyState"].copy()
-    daily.index = pd.date_range("2012-01-02", periods=1, freq="D")
+    daily = result["DailyState"].dropna().xs(1, level="grid").copy()
     path = save_df_grid_group(daily, 1, "DailyState", tmp_path, "site", freq_s=86400)
     saved = pd.read_csv(path, sep=r"\s+")
     assert (saved[daily.columns] == 1.0).all().all()
     metadata = json.loads(path.with_name(path.name + ".units.json").read_text(encoding="utf-8"))
-    assert metadata["columns"]["P_day"]["cell_methods"] == "time: mean (interval: 1 day)"
+    assert metadata["columns"]["P_day"]["cell_methods"] == "time: mean (interval: covered day)"
 
 
 
@@ -444,7 +445,7 @@ def test_streamed_requested_water_rates_keep_daily_metadata(frames, tmp_path):
     )
     saved = pd.read_parquet(paths[0])
     np.testing.assert_allclose(saved[("SUEWS", "Rain")].dropna(), 6)
-    np.testing.assert_allclose(saved[("DailyState", "P_day")].dropna(), 1)
+    np.testing.assert_allclose(saved[("DailyState", "P_day")].dropna(), 12)
     schema = pq.read_schema(next(paths[0].glob("*.parquet")))
     for column in [("SUEWS", "Rain"), ("DailyState", "P_day")]:
         assert schema.field(str(column)).metadata[b"units"] == b"mm h-1"
@@ -605,3 +606,88 @@ def test_partial_coverage_survives_saved_clock_change(frames, tmp_path):
     )
     saved_again = pd.read_parquet(paths_again[0])
     pd.testing.assert_frame_equal(saved_again, saved)
+
+
+@pytest.mark.parametrize("start,steps", [("00:00", 288), ("12:00", 144), ("00:00", 145)])
+@pytest.mark.parametrize("writer", ["text", "parquet", "streamed"])
+def test_daily_water_uses_run_coverage(frames, tmp_path, start, steps, writer):
+    """Full, partial first and partial last days use counted model steps."""
+    _, state = frames
+    columns = pd.MultiIndex.from_tuples(
+        [(v.group, v.name) for v in get_output_contract_catalogue().variables
+         if v.group == "DailyState" and v.interval_water_flux], names=["group", "var"],
+    )
+    dates = pd.date_range(f"2012-01-01 {start}", periods=steps, freq="5min")
+    index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
+    frame = pd.DataFrame(float("nan"), index=index, columns=columns)
+    amount = 7.25
+    frame.iloc[-1] = amount
+    expected = amount / (steps * 300)
+    converted = SUEWSOutput(frame, state).to_units({column: "kg m-2 s-1" for column in columns})
+    assert converted.df.dropna().to_numpy().ravel() == pytest.approx([expected] * len(columns))
+    if writer == "text":
+        paths = save_df_output(frame, df_state_final=state, freq_s=3600, path_dir_save=tmp_path, output_groups=["DailyState"])
+        saved = pd.read_csv(paths[0], sep=r"\s+")
+        assert saved[list(columns.get_level_values(1))].to_numpy().ravel() == pytest.approx([expected] * len(columns))
+        metadata = json.loads(paths[0].with_name(paths[0].name + ".units.json").read_text())
+        assert list(metadata["daily_coverage_s"].values()) == [steps * 300]
+        assert metadata["columns"]["P_day"]["interval"] == "covered day"
+    else:
+        stream = None
+        if writer == "streamed":
+            stream = StreamedParquetParts(tmp_path / "SUEWS_output.parquet", tstep_s=300)
+            stream.prepare()
+            stream.start_chunk(2012, 0)
+        paths = save_df_output_parquet(frame, state, freq_s=3600, path_dir_save=tmp_path,
+                                      save_state=False, streamed_parquet=stream)
+        if stream:
+            stream.finish()
+        saved = pd.read_parquet(paths[0])
+        assert saved.dropna().to_numpy().ravel() == pytest.approx([expected] * len(columns))
+        assert list(saved.attrs["supy_output_daily_coverage_s"].values()) == [steps * 300]
+
+
+@pytest.mark.parametrize("user_value", ["private note", object()])
+def test_parquet_only_persists_owned_attrs(frames, tmp_path, user_value):
+    frame, state = frames
+    frame.attrs["user_note"] = user_value
+    paths = save_df_output_parquet(frame, state, path_dir_save=tmp_path, save_state=False)
+    saved = pd.read_parquet(paths[0])
+    assert "user_note" not in saved.attrs
+    schema = pq.read_schema(paths[0])
+    assert b"user_note" not in schema.metadata[b"PANDAS_ATTRS"]
+    assert b"user_note" not in schema.metadata[b"pandas"]
+    assert "user_note" in frame.attrs
+
+
+def test_streamed_folder_retains_later_partial_coverage(frames, tmp_path):
+    """Folder reads and individual parts preserve the later quarter-hour bin."""
+    frame, state = frames
+    stream = StreamedParquetParts(tmp_path / "SUEWS_output.parquet", tstep_s=300)
+    stream.prepare()
+    chunks = [frame.iloc[:12].copy(), frame.iloc[12:15].copy()]
+    chunks[1][("SUEWS", "Rain")] = 1.0
+    for number, chunk in enumerate(chunks):
+        stream.start_chunk(2012, number)
+        save_df_output_parquet(chunk, state, freq_s=3600, path_dir_save=tmp_path,
+                               save_state=False, streamed_parquet=stream)
+    paths = stream.finish()
+    for path in [paths[0], *sorted(paths[0].glob("part-*.parquet"))]:
+        saved = pd.read_parquet(path)
+        result = SUEWSOutput(saved, state).resample("D")
+        amounts = 6 if len(saved) == 1 and saved.index[0][1].hour == 1 else 3
+        seconds = 3600 if amounts == 6 else 900
+        if len(saved) == 2:
+            amounts, seconds = 9, 4500
+        assert result.df[("SUEWS", "Rain")].iloc[0] == pytest.approx(amounts / seconds)
+    later = pd.read_parquet(sorted(paths[0].glob("part-*.parquet"))[1])
+    assert later[("SUEWS", "Rain")].iloc[0] == pytest.approx(1 / 300)
+    assert later.attrs["supy_output_coverage_s"]["1|2012-01-01T02:00:00"] == 900
+
+
+@pytest.mark.parametrize("writer", [save_df_output, save_df_output_parquet])
+def test_calendar_save_tstep_has_actionable_error(frames, tmp_path, writer):
+    frame, state = frames
+    monthly = SUEWSOutput(frame, state).resample("ME")
+    with pytest.raises(ValueError, match="save_tstep=True conflicts with calendar-resampled output.*native output"):
+        writer(monthly.df, df_state_final=state, path_dir_save=tmp_path, save_tstep=True)

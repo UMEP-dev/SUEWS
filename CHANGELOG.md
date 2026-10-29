@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 29 Oct 2026
+
+- [bugfix] Use covered model-step seconds for DailyState water rates, preserve later streamed Parquet partial-bin coverage, exclude user attrs from Parquet metadata, and explain the calendar-output/save_tstep conflict (#1903, #1967).
+  - Clarify the unreleased output contract 2.0.0 implementation and documentation; catalogue units and released contract bundles are unchanged.
+
 ### 28 Oct 2026
 
 - [bugfix] Persist output units, nominal intervals and partial-row coverage in Parquet schema metadata so reloaded water rates retain their values and resampling weights after clock changes (#1967).

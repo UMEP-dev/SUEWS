@@ -14,7 +14,7 @@ import pandas as pd
 # import ray
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
-from ._output_metadata import output_interval_seconds, prepare_output, write_output_parquet, write_text_metadata
+from ._output_metadata import with_daily_coverage, output_interval_seconds, prepare_output, write_output_parquet, write_text_metadata
 from ._post import _resample_output, df_var as df_var_out
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
@@ -264,14 +264,15 @@ def relabel_output_timestamps(
 
     df_relabelled = df_output.copy()
     df_relabelled.index = index
-    coverage = df_output.attrs.get("supy_output_coverage_s")
-    if coverage:
-        # Coverage follows row identity when a writer changes its clock.
-        df_relabelled.attrs["supy_output_coverage_s"] = {
-            f"{new_grid}|{new_date.isoformat()}": coverage[f"{grid}|{date.isoformat()}"]
-            for (grid, date), (new_grid, new_date) in zip(df_output.index, index)
-            if f"{grid}|{date.isoformat()}" in coverage
-        }
+    for key in ("supy_output_coverage_s", "supy_output_daily_coverage_s"):
+        coverage = df_output.attrs.get(key)
+        if coverage:
+            # Coverage follows row identity when a writer changes its clock.
+            df_relabelled.attrs[key] = {
+                f"{new_grid}|{new_date.isoformat()}": coverage[f"{grid}|{date.isoformat()}"]
+                for (grid, date), (new_grid, new_date) in zip(df_output.index, index)
+                if f"{grid}|{date.isoformat()}" in coverage
+            }
     return df_relabelled
 
 
@@ -616,7 +617,35 @@ class StreamedParquetParts:
         The output folder comes first, as :func:`save_df_output_parquet`
         returns its output file first.
         """
+        self._complete_coverage_metadata()
         return [self.path_output, *self._write_sidecars()]
+
+    def _complete_coverage_metadata(self) -> None:
+        """Let folder readers recover coverage from every completed part.
+
+        Arrow uses the first part's schema for a folder. Merge only coverage
+        from the other footers (including resumed parts), then atomically
+        rewrite the first chunk with that schema. Memory stays chunk-bounded.
+        Individual parts retain their own complete coverage.
+        """
+        import json
+        import pyarrow.parquet as pq
+
+        paths = sorted(self.path_output.glob("part-*.parquet"))
+        if len(paths) < 2:
+            return
+        metadata = dict(pq.read_schema(paths[0]).metadata)
+        attrs = json.loads(metadata[b"PANDAS_ATTRS"])
+        for path in paths[1:]:
+            part_attrs = json.loads(pq.read_schema(path).metadata[b"PANDAS_ATTRS"])
+            for key in ("supy_output_coverage_s", "supy_output_daily_coverage_s"):
+                if key in part_attrs:
+                    attrs.setdefault(key, {}).update(part_attrs[key])
+        metadata[b"PANDAS_ATTRS"] = json.dumps(attrs).encode("utf-8")
+        table = pq.read_table(paths[0]).replace_schema_metadata(metadata)
+        path_tmp = paths[0].with_name(f".{paths[0].name}.tmp")
+        pq.write_table(table, path_tmp, compression="snappy")
+        os.replace(path_tmp, paths[0])
 
     def prepare(self) -> None:
         """Clear or trim the output folder before the run's first chunk."""
@@ -850,6 +879,7 @@ def save_df_grid_group(
         if metadata_interval_s is not None
         else int(freq.total_seconds()),
         units=df_year.attrs.get("supy_output_units"),
+        coverage=df_year.attrs.get("supy_output_daily_coverage_s"),
     )
     logger_supy.debug(f"{path_out} saved in {t_end - t_start:.2f} s")
     return path_out
@@ -954,6 +984,13 @@ def _save_groups(
             df_group = df_save[group]
             df_group.index = index
             df_grid_group = df_group.xs(grid, level="grid")
+            if group == "DailyState":
+                coverage = df_save.attrs.get("supy_output_daily_coverage_s", {})
+                df_grid_group.attrs["supy_output_daily_coverage_s"] = {
+                    f"{grid}|{new_date.isoformat()}": coverage[f"{grid}|{date.isoformat()}"]
+                    for (old_grid, date), (_, new_date) in zip(df_save.index, index)
+                    if old_grid == grid and f"{grid}|{date.isoformat()}" in coverage
+                }
             idx_asfreq = _grid_asfreq_index(
                 df_grid_group.index, allow_irregular_timestamps
             )
@@ -1062,6 +1099,9 @@ def save_df_output(
     ``df_output`` is never copied whole: groups are selected, resampled,
     relabelled and written one (grid, group) at a time (gh#1849).
     """
+    if save_tstep and "supy_output_interval_s" in df_output.attrs and df_output.attrs["supy_output_interval_s"] is None:
+        raise ValueError("save_tstep=True conflicts with calendar-resampled output (for example ME). Save the native output before calendar resampling, or omit save_tstep and choose a fixed output frequency.")
+    df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
@@ -1545,6 +1585,9 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     _parquet_engine()
+    if save_tstep and "supy_output_interval_s" in df_output.attrs and df_output.attrs["supy_output_interval_s"] is None:
+        raise ValueError("save_tstep=True conflicts with calendar-resampled output (for example ME). Save the native output before calendar resampling, or omit save_tstep and choose a fixed output frequency.")
+    df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
 
     # Resample if needed; values are not written in place (gh#1849)

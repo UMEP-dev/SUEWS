@@ -48,8 +48,10 @@ This single output version combines the CF unit relabelling with time-base and t
 It preserves numerical values, names, groups, aggregation codes, layouts and all released bundles through ``1.1.8``.
 Output ``2.0.0`` converts written water fluxes to interval-mean ``kg m-2 s-1`` rates and changes their ``cell_methods`` to ``time: mean``.
 The registry aggregation codes continue to describe native kernel amounts; the external boundary divides their interval sums by the written duration.
-DailyState water totals retain last-row selection and use the seconds actually covered in each day: the number of held model steps multiplied by the configured timestep.
-Partial first and last days therefore use their covered length, rather than 86400 seconds.
+DailyState ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` remain daily totals in ``mm`` with ``time: sum`` and sum aggregation.
+Their model sums, including partial first and last days, are written unchanged; coverage remains informational in attrs and sidecars and never divides these totals.
+Amount units (``mm``, ``m``, ``kg m-2``) are accepted; rate units are rejected.
+This amends the unreleased output contract ``2.0.0`` without a version bump; per-step water fluxes remain ``kg m-2 s-1``.
 Native in-memory amounts remain available, with their actual units exposed by the output accessor.
 Each forcing release is stored as an immutable canonical
 registry projection under ``src/supy/data_model/forcing/artefacts/``. The

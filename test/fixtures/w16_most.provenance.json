@@ -1,7 +1,7 @@
 {
   "description": "W16/MOST regression baseline refreshed for the shared physical constants in #1953.",
   "source_ref": "sunt05/unify-physical-constants",
-  "source_commit": "cdbb834fcb7f4361ecc9efba785d47ed0a63b6c4",
+  "source_commit": "c4d8ab489dc57ea9a1d73e4563b59817c269750d",
   "generated_date": "2026-10-29",
   "platform": "Linux x86_64",
   "compiler": "GNU Fortran (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)",
@@ -28,5 +28,5 @@
   "csv_format": "output.df['SUEWS'][['QH', 'QE', 'T2', 'U10']].to_csv(path, float_format='%.17g')",
   "sample_config_sha256": "b35ad9dd5637da7067facda20edbc52fdbd5bf84d97e3633ea85eed66833fcb4",
   "hourly_forcing_sha256": "19e2d62d979574e5321ab086e54d3eecfff8001422f61b07ba8d6775760306f8",
-  "csv_sha256": "91c75a0a04d62b362d429c1ffac3170c19e9bd246022e0fe138cc2a042439827"
+  "csv_sha256": "c9ec517ec99762ae12ccb744518803a83627aa99dfa4446a731fb3f269f4d779"
 }

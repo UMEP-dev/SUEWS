@@ -948,6 +948,11 @@ def _save_row_index(
     is moved back by *step_s*, the table's step.
     """
     if shift_to_period_start:
+        # A table saved at its native step skips resampling and may be a slice
+        # of a longer run (a short last chunk), whose datetime level still
+        # holds the run's other timestamps; replacing that level needs it to
+        # hold exactly the timestamps present.
+        index = index.remove_unused_levels()
         idx_dt = index.get_level_values("datetime").drop_duplicates()
 
         # cast freq to index if not associated

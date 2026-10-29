@@ -9,7 +9,6 @@ from pathlib import Path
 
 import supy as sp
 
-
 repo_root = Path(__file__).resolve().parents[2]
 fixture_dir = repo_root / "test" / "fixtures" / "data_test" / "stebbs_test"
 simulation = sp.SUEWSSimulation(fixture_dir / "sample_config.yml")

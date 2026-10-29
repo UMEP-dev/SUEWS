@@ -176,6 +176,8 @@ def test_stability_profile_combinations(method, rsl, sample_config_loaded, sampl
             # roughness_sublayer=0 and n_jobs=1; see fixture provenance.
             # Last two rows refreshed for gh#1878 (DailyState daily means) and
             # gh#1919 (first day started at the run's first step).
+            # Full reference refreshed for gh#1953 (shared physical constants)
+            # with scripts/suews/gen_w16_most_output.py.
             path_reference = Path(__file__).resolve().parents[1] / "fixtures" / "w16_most.csv"
             df_expected = pd.read_csv(
                 path_reference, index_col=[0, 1], parse_dates=[1], float_precision="round_trip",
@@ -188,5 +190,5 @@ def test_stability_profile_combinations(method, rsl, sample_config_loaded, sampl
             np.testing.assert_allclose(
                 df_actual.to_numpy(dtype=float), df_expected.to_numpy(dtype=float),
                 rtol=1e-7, atol=1e-8, equal_nan=False,
-                err_msg="W16/MOST changed from the pre-guard master baseline",
+                err_msg="W16/MOST changed from the recorded reference",
             )

@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 """Static ratchet: physical-constant literals in Fortran can only go down.
 
-The kernel writes physical constants and unit conversions as bare literals:
-``273.15`` alone appears in about 180 places beside a named ``C2K`` that
-already exists, and Stefan-Boltzmann, pi and the degree-radian factors each
-carry several spellings and values. The clean-up replaces literals with named
-constants, first at their current value and precision so output does not move,
-in a series of separate PRs. This lint stops new literals arriving while that
-happens.
+Shared definitions must use double precision, and physics modules must import
+them directly. Changing a value or precision requires physics-change evidence.
 
 It counts, per file and per kind, the literals listed in ``GATED_KINDS`` in
 every ``*.f95`` and ``*.f90`` under ``src/suews/src`` (free-form continuations
@@ -48,8 +43,8 @@ Physical constants and unit conversions belong in named PARAMETERs (see
 suews_ctrl_const.f95), not in new literals.
 
   - count went up    ->  use the named constant (for example C2K for 273.15);
-                         if none exists yet, add one at the literal's current
-                         value and precision.
+                         if none exists yet, add one from an authoritative
+                         source at double precision.
   - count went down  ->  thank you; lower the baseline in this diff:
                          python scripts/lint/check_fortran_literals.py --write-baseline\
 """
@@ -188,6 +183,168 @@ def count_kinds(
     return counts
 
 
+def _declarations(source: str):
+    """Yield (attributes, name, initialiser) for free-form numeric declarations.
+
+    Split at top-level commas only: dimensions and function arguments may
+    contain commas. Comments, strings, continuations and semicolons are handled
+    before declarations are examined.
+    """
+    for logical in _code_lines(source):
+        for statement in logical.split(";"):
+            match = re.match(
+                r"\s*(real\b|double\s+precision\b|integer\b)(.*)::(.*)", statement, re.I
+            )
+            if not match:
+                continue
+            attributes, entities = match[1] + match[2], match[3]
+            depth, start = 0, 0
+            parts = []
+            for pos, char in enumerate(entities):
+                depth += (char == "(") - (char == ")")
+                if char == "," and depth == 0:
+                    parts.append(entities[start:pos])
+                    start = pos + 1
+            parts.append(entities[start:])
+            for part in parts:
+                entity = re.match(r"\s*(\w+)(?:\s*\([^=]*\))?\s*(?:=\s*(.*))?$", part)
+                if entity:
+                    yield (
+                        attributes.lower(),
+                        entity[1].lower(),
+                        (entity[2] or "").strip().lower(),
+                    )
+
+
+def _quantity(name: str, value: float) -> str | None:
+    """Classify a definition, separating inverse factors and scheme coefficients.
+
+    The legacy cp/Lv intercepts are coefficients of different empirical
+    formulae, not alternative definitions of a universal constant. Their
+    names identify those formulae; new unqualified definitions remain gated.
+    """
+    scheme_coefficients = {
+        "cp_air_anohm": "anohm_specific_heat",
+        "lv_anohm": "anohm_latent_heat",
+        "lv_wetbulb": "wetbulb_latent_heat_intercept",
+    }
+    if name in scheme_coefficients:
+        return scheme_coefficients[name]
+    if name == "arcsec_per_deg":
+        return "arcseconds_per_degree"
+    for kind, matches in GATED_KINDS.items():
+        if matches(value):
+            if kind == "degree_radian":
+                return "degrees_per_radian" if value > 1 else "radians_per_degree"
+            return kind
+    return None
+
+
+def _check_definitions(path: Path) -> tuple[set[str], list[str]]:
+    """Collect shared names and validate the central definitions."""
+    source = path.read_text(encoding="utf-8")
+    errors = []
+    # Scope physical/math names independently of the literal gate: a new
+    # constant such as gravity must also be protected against local copies.
+    modules = re.findall(
+        r"(?ims)^\s*module\s+module_ctrl_const_(?:mathconst|physconst)\b(.*?)^\s*end\s+module\b",
+        source,
+    )
+    shared_source = "\n".join(modules) if modules else source
+    shared = {
+        name
+        for attributes, name, _ in _declarations(shared_source)
+        if "parameter" in attributes
+    }
+    quantities = {}
+    for attributes, name, expression in _declarations(source):
+        if "parameter" not in attributes:
+            continue
+        numbers = list(_NUMBER.finditer(expression))
+        kinds = [_quantity(name, value) for value in _literal_values(expression)]
+        gated = any(kind is not None for kind in kinds)
+        if not gated:
+            continue
+        if not attributes.startswith("integer"):
+            if any(number["marker"] not in {"d", "D"} for number in numbers):
+                errors.append(f"{path.name}: {name}: use double-precision D literals")
+            if not re.search(
+                r"kind\s*\(\s*1d0\s*\)|real64|kind\s*=\s*8|real\s*\(\s*8\s*\)|double\s+precision",
+                attributes,
+            ):
+                errors.append(f"{path.name}: {name}: declare double precision")
+        # A single literal defines a quantity; expressions such as pi/180
+        # have their own units and must not be classified by the denominator.
+        if len(numbers) != 1 or not _NUMBER.fullmatch(expression):
+            continue
+        value = _literal_values(expression)[0]
+        quantity = _quantity(name, value)
+        if quantity == "reference_pressure":
+            value *= 100 if 200 < value < 2000 else 1000 if value < 200 else 1
+        if quantity:
+            previous = quantities.get(quantity)
+            if previous and previous[1] != value:
+                errors.append(
+                    f"{path.name}: {name} conflicts with {previous[0]} for {quantity}"
+                )
+            quantities[quantity] = (name, value)
+
+    return shared, errors
+
+
+def _check_physics_copies(src: Path, shared: set[str]) -> list[str]:
+    """Reject declarations and immutable copies that hide shared constants."""
+    errors = []
+    for path in sorted([*src.rglob("*.f95"), *src.rglob("*.f90")]):
+        if not path.name.startswith("suews_phys_"):
+            continue
+        source = path.read_text(encoding="utf-8")
+        names = set(shared)
+        # USE renaming is legal, but copying the renamed import is not.
+        for line in _code_lines(source):
+            if re.match(r"\s*use\b", line, re.I):
+                for local, remote in re.findall(r"(\w+)\s*=>\s*(\w+)", line.lower()):
+                    if remote in names:
+                        names.add(local)
+        declared = set()
+        for _, name, expression in _declarations(source):
+            declared.add(name)
+            if name in names:
+                errors.append(f"{path.name}: {name}: redeclares a shared constant")
+            if expression.strip("() ") in names:
+                errors.append(
+                    f"{path.name}: {name}: copies shared constant {expression}"
+                )
+        # Also catch a separately declared module/local variable assigned the
+        # shared constant later (component assignments are model state).
+        assignments = re.findall(
+            r"(?im)^\s*(\w+)\s*=(?!=|>)", "\n".join(_code_lines(source))
+        )
+        for line in _code_lines(source):
+            for statement in line.split(";"):
+                match = re.fullmatch(r"\s*(\w+)\s*=\s*\(?\s*(\w+)\s*\)?\s*", statement)
+                if (
+                    match
+                    and match[1].lower() in declared
+                    and match[2].lower() in names
+                    and sum(n.lower() == match[1].lower() for n in assignments) <= 1
+                ):
+                    errors.append(
+                        f"{path.name}: {match[1]}: copies shared constant {match[2]}"
+                    )
+    return errors
+
+
+def check_shared_constants(repo_root: Path) -> list[str]:
+    """Enforce precision, unique quantities and direct use of shared constants."""
+    src = repo_root / "src" / "suews" / "src"
+    path = src / "suews_ctrl_const.f95"
+    if not path.is_file():
+        return []  # Small fixture trees can exercise the literal ratchet alone.
+    shared, errors = _check_definitions(path)
+    return errors + _check_physics_copies(src, shared)
+
+
 def scan_tree(
     repo_root: Path, kinds: dict[str, Callable[[float], bool]]
 ) -> dict[str, dict[str, int]]:
@@ -280,9 +437,20 @@ def main(argv: list[str]) -> int:
         _print_report(repo_root)
         return 0
 
+    return _check_baseline(repo_root, args.write_baseline)
+
+
+def _check_baseline(repo_root: Path, write_baseline: bool) -> int:
+    """Validate definitions before comparing or updating the literal ratchet."""
+    definition_errors = check_shared_constants(repo_root)
+    if definition_errors:
+        for error in definition_errors:
+            print(f"[X] {error}", file=sys.stderr)
+        return 1
+
     actual = scan_tree(repo_root, GATED_KINDS)
     baseline_path = repo_root / BASELINE_PATH
-    if args.write_baseline:
+    if write_baseline:
         _write_baseline(baseline_path, actual)
         print(f"[OK] wrote {BASELINE_PATH.as_posix()}: {_totals(actual)}")
         return 0

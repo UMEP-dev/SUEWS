@@ -1,7 +1,8 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
+   USE module_ctrl_const_mathconst, ONLY: pi
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: eps_fp, C2K, sec_per_day_sp
+   USE module_ctrl_const_physconst, ONLY: eps_fp, C2K, sec_per_day
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
@@ -64,14 +65,13 @@ CONTAINS
 
       REAL(KIND(1D0)) :: tair_av_next
 
-      REAL(KIND(1D0)), PARAMETER :: len_day_s = sec_per_day_sp ! day length in seconds
       REAL(KIND(1D0)) :: len_cal_s ! length of average period in seconds
       REAL(KIND(1D0)) :: temp_k ! temp in K
 
       ! determine the average period
-      IF (dt_since_start > len_day_s) THEN
+      IF (dt_since_start > sec_per_day) THEN
          ! if simulation has been running over one day
-         len_cal_s = len_day_s
+         len_cal_s = sec_per_day
       ELSE
          ! if simulation has been running less than one day
          len_cal_s = dt_since_start + tstep
@@ -703,7 +703,6 @@ CONTAINS
    FUNCTION psi_conv(ZL, ax) RESULT(psiC)
       ! Grachev et al. (2000), eqn 12
       REAL(KIND(1D0)) :: zl, psiC, y, ax
-      REAL(KIND(1D0)), PARAMETER :: pi = ACOS(-1.)
 
       y = (1 - ax*zl)**(1/3.)
       psiC = 3./2*LOG(y**2 + y + 1/3.) - SQRT(3.)*ATAN(2*y + 1/SQRT(3.)) + pi/SQRT(3.)
@@ -713,7 +712,6 @@ CONTAINS
    FUNCTION phi_conv(ZL, ax) RESULT(phiC)
       ! Grachev et al. (2000), eqn 15
       REAL(KIND(1D0)) :: zl, phiC, ax, dPsi_dzL
-      REAL(KIND(1D0)), PARAMETER :: pi = ACOS(-1.)
 
       ! d(psi_conv)/d(zL)
       dPsi_dzL = (9 + 4*(-3 + SQRT(3.))*ax*zL - 9*(1 - ax*zL)**(1/3.))/ &

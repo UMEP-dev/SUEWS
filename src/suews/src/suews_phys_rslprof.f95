@@ -1,5 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_rslprof
+   USE module_ctrl_const_mathconst, ONLY: pi
    USE module_phys_atmmoiststab, ONLY: neut_limit, cal_Stab, stab_psi_mom, stab_psi_heat, stab_phi_heat, stab_phi_mom
    USE meteo, ONLY: RH2qa, qa2RH
    USE module_ctrl_const_allocate, ONLY: &
@@ -292,7 +293,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40 ! von karman constant
 
       REAL(KIND(1D0)), PARAMETER :: beta_N = 0.40 ! H&F beta coefficient in neutral conditions from Theeuwes et al., 2019 BLM
-      REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0), r = 0.1
+      REAL(KIND(1D0)), PARAMETER :: r = 0.1
       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
 
       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
@@ -1122,7 +1123,6 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: cd_tree = 1.2 ! drag coefficient tree canopy !!!!needs adjusting!!!
       REAL(KIND(1D0)), PARAMETER :: a_tree = 0.05 ! the foliage area per unit volume !!!!needs adjusting!!!
       REAL(KIND(1D0)), PARAMETER :: beta_N = 0.40 ! H&F beta coefficient in neutral conditions from Theeuwes et al., 2019 BLM
-      REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0)
 
       REAL(KIND(1D0)), PARAMETER :: planF_low = 1E-6
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40 ! von karman constant

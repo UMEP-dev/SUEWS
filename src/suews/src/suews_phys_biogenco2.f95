@@ -1,5 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_biogenco2
+   USE module_ctrl_const_physconst, ONLY: JtoumolPAR, KdntoPAR
    USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
@@ -89,10 +90,6 @@ CONTAINS
          alpha_bioCO2_v2, &
          beta_bioCO2_v2, &
          theta_bioCO2_v2
-
-      REAL(KIND(1D0)), PARAMETER :: &
-         JtoumolPAR = 4.6, &
-         KdntoPAR = 0.46
 
       !-----------------------------------------------------------------------
       ! Calculate PAR from Kdown ----------------------------------

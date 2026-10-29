@@ -199,3 +199,89 @@ def test_write_baseline_round_trips(tmp_path):
 def test_source_tree_matches_baseline():
     """The committed baseline equals the shipped Fortran's counts."""
     assert _run(REPO_ROOT) == 0
+
+
+def _constants_repo(tmp_path, constants, physics=""):
+    repo = _make_repo(tmp_path, physics, {})
+    path = repo / "src/suews/src/suews_ctrl_const.f95"
+    path.write_text(constants, encoding="utf-8")
+    return repo
+
+
+@pytest.mark.parametrize("literal", ["273.15", "273.15E0", "273.15_real64"])
+def test_shared_definition_requires_d_literal(tmp_path, literal):
+    repo = _constants_repo(tmp_path, f"REAL(KIND(1D0)), PARAMETER :: C2K = {literal}")
+    assert _run(repo) == 1
+
+
+def test_double_literal_in_single_real_is_rejected(tmp_path):
+    repo = _constants_repo(tmp_path, "REAL, PARAMETER :: C2K = 273.15D0")
+    assert _run(repo) == 1
+
+
+@pytest.mark.parametrize(
+    "definitions",
+    [
+        "a=273.15D0, b=273.16D0",
+        "a=5.67D-8, b=5.670374419D-8",
+        "a=3.14159D0, b=3.141592653589793D0",
+        "a=1013.0D0, b=101325.0D0",
+    ],
+)
+def test_conflicting_shared_quantities_fail(tmp_path, definitions):
+    repo = _constants_repo(tmp_path, "REAL(KIND(1D0)), PARAMETER :: " + definitions)
+    assert any(
+        "conflicts" in e for e in check_fortran_literals.check_shared_constants(repo)
+    )
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        "REAL(KIND(1D0)), PARAMETER :: SIGMA = SBConst",
+        "REAL(KIND(1D0)) :: SIGMA = SBConst",
+        "REAL(KIND(1D0)) :: C2K",
+        "REAL(KIND(1D0)) :: sigma\nsigma = SBConst",
+        "REAL(KIND(1D0)), PARAMETER :: a = 1, &\n & sigma = SBConst",
+        "USE module_ctrl_const_physconst, ONLY: sb => SBConst\nREAL(KIND(1D0)) :: sigma = sb",
+        "REAL(KIND(1D0)) :: sigma; sigma = SBConst",
+    ],
+)
+def test_physics_cannot_redeclare_or_copy_shared_constant(tmp_path, declaration):
+    repo = _constants_repo(
+        tmp_path,
+        "REAL(KIND(1D0)), PARAMETER :: C2K = 273.15D0, SBConst = 5.670374419D-8",
+        declaration,
+    )
+    assert check_fortran_literals.check_shared_constants(repo)
+    assert _run(repo, "--write-baseline") == 1
+
+
+def test_use_renaming_and_derived_expressions_are_allowed(tmp_path):
+    repo = _constants_repo(
+        tmp_path,
+        "REAL(KIND(1D0)), PARAMETER :: SBConst=5.670374419D-8, pi=3.141592653589793D0\n"
+        "REAL(KIND(1D0)), PARAMETER :: DEG2RAD=pi/180.0D0, RAD2DEG=180.0D0/pi",
+        "USE module_ctrl_const_physconst, ONLY: sigma => SBConst\n"
+        "REAL(KIND(1D0)) :: lw\nlw = sigma * temp**4\n"
+        "! REAL :: SBConst\nCALL hint('REAL :: pi = 3.14')",
+    )
+    assert _run(repo) == 0
+
+
+@pytest.mark.parametrize(
+    "declaration", ["REAL(8) :: grav", "REAL(8), PARAMETER :: g = grav"]
+)
+def test_ungated_shared_names_are_protected(tmp_path, declaration):
+    repo = _constants_repo(
+        tmp_path,
+        "MODULE module_ctrl_const_physconst\n"
+        "REAL(KIND(1D0)), PARAMETER :: grav = 9.80665D0\n"
+        "END MODULE\n"
+        "MODULE module_ctrl_const_allocate\n"
+        "INTEGER, PARAMETER :: nsurf = 7\nEND MODULE\n",
+        declaration + "\nINTEGER :: nsurf",
+    )
+    errors = check_fortran_literals.check_shared_constants(repo)
+    assert len(errors) == 1
+    assert "grav" in errors[0]

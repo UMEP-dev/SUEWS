@@ -1432,7 +1432,6 @@ CONTAINS
       ! INTEGER::is
       REAL(KIND(1D0)) :: alb_change !Change in snow albedo
       REAL(KIND(1D0)) :: dens_change !Change in snow density
-      REAL(KIND(1D0)), PARAMETER :: tau_1 = sec_per_day !Number of seconds in a day
 
       !Initialize
       alb_change = 0
@@ -1443,12 +1442,12 @@ CONTAINS
       !(org: Verseghy (1991)&Baker et al.(1990))
       ! IF (SUM(SnowPack_prev) > 0) THEN !Check if snow on any of the surfaces
       !    IF (Temp_C < 0) THEN
-      !       !alb_change = tau_a*(60*60)/tau_1
-      !       alb_change = tau_a*(tstep)/tau_1
+      !       !alb_change = tau_a*(60*60)/sec_per_day
+      !       alb_change = tau_a*(tstep)/sec_per_day
       !       SnowAlb_next = SnowAlb_prev - alb_change
       !    ELSE
-      !       !alb_change = exp(-tau_f*(60*60)/tau_1)
-      !       alb_change = EXP(-tau_f*(tstep)/tau_1)
+      !       !alb_change = exp(-tau_f*(60*60)/sec_per_day)
+      !       alb_change = EXP(-tau_f*(tstep)/sec_per_day)
       !       SnowAlb_next = (SnowAlb_prev - SnowAlbMin)*alb_change + SnowAlbMin
       !    ENDIF
       !    IF (SnowAlb_next < SnowAlbMin) SnowAlb_next = SnowAlbMin !Albedo cannot be smaller than the min albedo
@@ -1462,11 +1461,11 @@ CONTAINS
                      tstep, SnowPack_prev, SnowAlb_prev, Temp_C, &
                      tau_a, tau_f, SnowAlbMax, SnowAlbMin)
 
-      !Update snow density: There is a mistake in Järvi et al. (2014): tau_h should be tau_1
+      !Update snow density: There is a mistake in Jarvi et al. (2014): tau_h should be sec_per_day
       ! DO is = 1, nsurf
       !    !If SnowPack existing
       !    IF (SnowPack_prev(is) > 0) THEN
-      !       dens_change = EXP(-tau_r*(tstep)/tau_1)
+      !       dens_change = EXP(-tau_r*(tstep)/sec_per_day)
       !       IF (SnowPack_prev(is) > 0) SnowDens_next(is) = (SnowDens_prev(is) - SnowDensMax)*dens_change + SnowDensMax
       !       IF (SnowDens_next(is) > SnowDensMax) SnowDens_next(is) = SnowDensMax
       !    ELSE
@@ -1498,19 +1497,18 @@ CONTAINS
       REAL(KIND(1D0)) :: SnowAlb_next
 
       REAL(KIND(1D0)) :: alb_change !Change in snow albedo
-      REAL(KIND(1D0)), PARAMETER :: tau_1 = sec_per_day !Number of seconds in a day
 
       !==========================================================
       !Calculation of snow albedo by Lemonsu et al. 2010
       !(org: Verseghy (1991)&Baker et al.(1990))
       IF (SUM(SnowPack_prev) > 0) THEN !Check if snow on any of the surfaces
          IF (Temp_C < 0) THEN
-            !alb_change = tau_a*(60*60)/tau_1
-            alb_change = tau_a*(tstep)/tau_1
+            !alb_change = tau_a*(60*60)/sec_per_day
+            alb_change = tau_a*(tstep)/sec_per_day
             SnowAlb_next = SnowAlb_prev - alb_change
          ELSE
-            !alb_change = exp(-tau_f*(60*60)/tau_1)
-            alb_change = EXP(-tau_f*(tstep)/tau_1)
+            !alb_change = exp(-tau_f*(60*60)/sec_per_day)
+            alb_change = EXP(-tau_f*(tstep)/sec_per_day)
             SnowAlb_next = (SnowAlb_prev - SnowAlbMin)*alb_change + SnowAlbMin
          END IF
          IF (SnowAlb_next < SnowAlbMin) SnowAlb_next = SnowAlbMin !Albedo cannot be smaller than the min albedo
@@ -1542,15 +1540,13 @@ CONTAINS
 
       INTEGER :: is
 
-      REAL(KIND(1D0)), PARAMETER :: tau_1 = sec_per_day
-      ! INTEGER,parameter::nsurf=7
 
-      !Update snow density: There is a mistake in Järvi et al. (2014): tau_h should be tau_1
+      !Update snow density: There is a mistake in Jarvi et al. (2014): tau_h should be sec_per_day
       DO is = 1, nsurf
 
          !If SnowPack existing
          IF (SnowPack_prev(is) > 0) THEN
-            dens_change = EXP(-tau_r*(tstep)/tau_1)
+            dens_change = EXP(-tau_r*(tstep)/sec_per_day)
             IF (SnowPack_prev(is) > 0) SnowDens_next(is) = (SnowDens_prev(is) - SnowDensMax)*dens_change + SnowDensMax
             IF (SnowDens_next(is) > SnowDensMax) SnowDens_next(is) = SnowDensMax
          ELSE

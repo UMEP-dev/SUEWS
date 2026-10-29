@@ -7,7 +7,7 @@ MODULE module_phys_solweig
    ! USE module_ctrl_const_initialcond
    ! USE module_ctrl_const_sues
    USE module_ctrl_const_default, ONLY: notUsed, notUsedI
-   USE module_ctrl_const_physconst, ONLY: C2K, SBConst, p_ref_pa_d0
+   USE module_ctrl_const_physconst, ONLY: C2K, SBConst, HPA_TO_PA, p_ref_pa_d0
    USE module_ctrl_const_mathconst, ONLY: pi
    IMPLICIT NONE
    ! REAL(KIND(1d0)) :: timestepdec !time step in decimal time
@@ -544,7 +544,7 @@ CONTAINS
       ! Clearness Index at the Earth's surface calculated from Crawford and Duchon 1999
 
       IF (P_kPa == -999) THEN
-         p = p_ref_pa_d0/100.0D0 !Pressure in millibars
+         p = p_ref_pa_d0/HPA_TO_PA !Pressure in millibars
       ELSE
          p = P_kPa*10 !Convert from hPa to millibars
       END IF

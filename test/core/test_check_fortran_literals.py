@@ -267,3 +267,21 @@ def test_use_renaming_and_derived_expressions_are_allowed(tmp_path):
         "! REAL :: SBConst\nCALL hint('REAL :: pi = 3.14')",
     )
     assert _run(repo) == 0
+
+
+@pytest.mark.parametrize(
+    "declaration", ["REAL(8) :: grav", "REAL(8), PARAMETER :: g = grav"]
+)
+def test_ungated_shared_names_are_protected(tmp_path, declaration):
+    repo = _constants_repo(
+        tmp_path,
+        "MODULE module_ctrl_const_physconst\n"
+        "REAL(KIND(1D0)), PARAMETER :: grav = 9.80665D0\n"
+        "END MODULE\n"
+        "MODULE module_ctrl_const_allocate\n"
+        "INTEGER, PARAMETER :: nsurf = 7\nEND MODULE\n",
+        declaration + "\nINTEGER :: nsurf",
+    )
+    errors = check_fortran_literals.check_shared_constants(repo)
+    assert len(errors) == 1
+    assert "grav" in errors[0]

@@ -29,6 +29,7 @@ MODULE module_ctrl_const_physconst
    REAL(KIND(1D0)), PARAMETER :: lv_bolton = 2501000.0D0 ! Bolton (1980) Lv intercept [J kg-1]; empirical intercept, distinct from AnOHM and wet-bulb formulae
    REAL(KIND(1D0)), PARAMETER :: lv_wetbulb = 2500.25D0 ! Wet-bulb Lv intercept [kJ kg-1]; differs from lv_bolton after unit conversion
    REAL(KIND(1D0)), PARAMETER :: cp_air = 1005.0D0 ! specific heat capacity of dry air [J kg-1 K-1]; dry-air intercept in the meteorological formula
+   REAL(KIND(1D0)), PARAMETER :: HPA_TO_PA = 100.0D0 ! SI hecto prefix: Pa per hPa
    REAL(KIND(1D0)), PARAMETER :: p_ref_pa_d0 = 101325.0D0 ! Standard atmosphere [Pa], SI defining value
    REAL(KIND(1D0)), PARAMETER :: eps_fp = 1.0D-12 !Epsilon for floating-point near-zero comparisons
 

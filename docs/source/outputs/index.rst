@@ -43,7 +43,7 @@ units without changing the model state or the original output:
    sim = SUEWSSimulation.from_sample_data()
    output = sim.run()
    converted = output.to_units(units={"QE": "kW m-2", "T2": "K"})
-   converted.save("output", format="parquet")
+   converted.save("output")
 
 The same ``units=`` mapping can be supplied to
 :meth:`~supy.SUEWSOutput.save` or :meth:`~supy.SUEWSSimulation.save` to convert
@@ -59,6 +59,9 @@ unit actually written, including when converted output is saved again or
 resampled. Omitting ``units`` preserves the original values. Files already
 streamed to disk cannot be converted by a later ``save`` call; retain the
 output in memory when requesting units through these public methods.
+Saving Parquet output after an in-memory run is deprecated (see
+:ref:`parquet_output_format`). Upgrade notes for code that reads saved output
+are in :ref:`units_migration_guide`.
 
 
 Restart Checkpoint

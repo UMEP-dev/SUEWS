@@ -5,6 +5,8 @@ Transitioning to YAML-based Configuration
 
 As of 2025, SUEWS has adopted a new YAML-based format for input files to enhance readability, maintainability, and user experience. To help users migrate their existing table-based input files to this new format, a transition tool is provided.
 
+Forcing files and saved output have their own upgrade notes in :ref:`units_migration_guide`.
+
 This guide explains how to use the ``suews convert`` command (formerly ``suews-convert``, which still works as a deprecated alias) to automate the conversion process.
 
 ``suews convert`` always produces a single YAML file in the current schema. When the input is a legacy table set, the process involves two main steps:
@@ -705,38 +707,11 @@ combinations rather than assigning misleading semantics. Non-biogenic
 flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
 but their CO2 fluxes are discarded by the driver.
 
-Declared water forcing rates
-----------------------------
+Forcing and output units
+------------------------
 
-Forcing contract 2.1.0 adds ``declared_rate_unit`` to the registry.
-When supplying ``units=``, rain, bulk water use and all seven surface water-use columns require a rate, canonically ``kg m-2 s-1``.
-Declarations such as ``mm h-1`` and ``mm d-1`` are converted using the forcing interval; bare ``mm`` and ``kg m-2`` are refused because they omit time.
-For example, use ``units={"rain": "mm h-1"}`` when the file contains hourly rates.
-Files with no unit declaration retain their existing per-interval amounts and numerical behaviour.
-This compatibility stage adds an explicit declaration contract without changing the legacy file layout or the kernel's per-step amounts.
-Soil moisture remains a water-content state in ``kg m-2``.
-
-Written water fluxes: output contract 2.0.0
-------------------------------------------
-
-Output contract 2.0.0 replaces written water-flux amounts in ``mm`` with interval-mean rates in ``kg m-2 s-1``.
-To recover an amount, multiply a written rate by the written interval in seconds; numerically, one ``kg m-2`` of liquid water equals one ``mm``.
-Text sidecars and Parquet field metadata now report ``time: mean`` and the written interval.
-Water rates use scientific notation in text so small precipitation values remain non-zero.
-
-Use ``output.save(..., units={"Rain": "mm h-1"})`` or ``output.to_units({"Rain": "mm d-1"})`` to request depth rates.
-Native in-memory output retains kernel amounts unless explicitly converted; ``output.units`` describes the held values, which may therefore differ from the written catalogue.
-Rate conversion is performed by the shared post-run boundary, never by the kernel.
-Resampling a converted rate integrates source intervals before averaging over the target interval.
-DailyState ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` are daily totals in ``mm`` with ``time: sum``.
-They retain the model's daily sums unchanged, including raw partial totals on the first and last days; no division by coverage or 86400 is applied.
-Amount requests such as ``mm``, ``m`` and ``kg m-2`` are accepted; rate units such as ``mm h-1`` and ``kg m-2 s-1`` are rejected.
-Resampling these totals across days sums them.
-Coverage is informational only.
-Their interval metadata says ``covered day``; text sidecars record ``daily_coverage_s`` and Parquet attrs record ``supy_output_daily_coverage_s`` by grid and timestamp.
-Calendar-resampled output cannot be saved with ``save_tstep=True``; save native output before calendar resampling.
-
-The change covers precipitation, irrigation, evaporation, runoff, drainage, water-use and storage-change fluxes, snowmelt, refreezing and snow removal, including their per-surface diagnostics.
-Timestep meltwater, refreezing and debug water amounts now sum during native-amount resampling, correcting their former averaging before writing an interval rate.
-Water stores, deficits and snow water equivalent keep their existing amount units and names.
-Existing output-contract bundles through 1.1.9 remain immutable; consumers should use the new version and unit metadata when reading new files.
+This page covers YAML configuration only. Forcing contract 2.1.0 (declared
+rain and water-use rates) and output contract 2.0.0 (water fluxes written as
+interval-mean rates in kg |m^-2| |s^-1|, units sidecars and DailyState water
+totals) change forcing files and saved output instead; see
+:ref:`units_migration_guide`.

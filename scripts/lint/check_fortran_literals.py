@@ -244,17 +244,25 @@ def _check_definitions(path: Path) -> tuple[set[str], list[str]]:
     """Collect shared names and validate the central definitions."""
     source = path.read_text(encoding="utf-8")
     errors = []
-    shared = set()
+    # Scope physical/math names independently of the literal gate: a new
+    # constant such as gravity must also be protected against local copies.
+    modules = re.findall(
+        r"(?ims)^\s*module\s+module_ctrl_const_(?:mathconst|physconst)\b(.*?)^\s*end\s+module\b",
+        source,
+    )
+    shared_source = "\n".join(modules) if modules else source
+    shared = {
+        name
+        for attributes, name, _ in _declarations(shared_source)
+        if "parameter" in attributes
+    }
     quantities = {}
     for attributes, name, expression in _declarations(source):
         if "parameter" not in attributes:
             continue
-        # Only physical/math definitions, not allocation indices, are shared.
         numbers = list(_NUMBER.finditer(expression))
         kinds = [_quantity(name, value) for value in _literal_values(expression)]
         gated = any(kind is not None for kind in kinds)
-        if gated or name in {"deg2rad", "rad2deg", "jtoumolpar", "kdntopar", "eps_fp"}:
-            shared.add(name)
         if not gated:
             continue
         if not attributes.startswith("integer"):

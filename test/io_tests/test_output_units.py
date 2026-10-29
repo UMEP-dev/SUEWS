@@ -717,6 +717,8 @@ def test_daily_water_without_model_step_defers_error_until_conversion(tmp_path, 
     )
     with pytest.raises(ValueError, match=message):
         output.to_units({"P_day": "mm h-1"})
+    with pytest.raises(ValueError, match=message):
+        output.resample("h").resample("D").to_units({"P_day": "mm h-1"})
     for writer in (save_df_output, save_df_output_parquet):
         with pytest.raises(ValueError, match=message):
             writer(output.df, df_state_final=None, path_dir_save=tmp_path)

@@ -888,7 +888,7 @@ def save_df_grid_group(
     if group == "DailyState":
         dates = {date.isoformat() for date in df_year.index}
         daily_coverage = {
-            key: value for key, value in df_year.attrs.get("supy_output_daily_coverage_s", {}).items()
+            key: value for key, value in (df_year.attrs.get("supy_output_daily_coverage_s") or {}).items()
             if key.split("|", 1)[1] in dates
         }
     write_text_metadata(
@@ -1006,12 +1006,12 @@ def _save_groups(
             df_group.index = index
             df_grid_group = df_group.xs(grid, level="grid")
             if group == "DailyState":
-                coverage = df_save.attrs.get("supy_output_daily_coverage_s", {})
+                coverage = df_save.attrs.get("supy_output_daily_coverage_s")
                 df_grid_group.attrs["supy_output_daily_coverage_s"] = {
                     f"{grid}|{new_date.isoformat()}": coverage[f"{grid}|{date.isoformat()}"]
                     for (old_grid, date), (_, new_date) in zip(df_save.index, index)
                     if old_grid == grid and f"{grid}|{date.isoformat()}" in coverage
-                }
+                } if coverage is not None else None
             idx_asfreq = None if group == "DailyState" else _grid_asfreq_index(
                 df_grid_group.index, allow_irregular_timestamps
             )

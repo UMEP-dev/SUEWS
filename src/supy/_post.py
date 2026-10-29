@@ -387,7 +387,7 @@ def _resample_output(
             # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
-            coverage = df_output.attrs.get("supy_output_daily_coverage_s", {})
+            coverage = df_output.attrs.get("supy_output_daily_coverage_s") or {}
             daily_seconds = pd.Series(
                 [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_with_data.index],
                 index=df_with_data.index,
@@ -480,6 +480,12 @@ def _resample_output(
     df_rsmp.attrs["supy_output_interval_s"] = interval_s
     if dict_daily_coverage:
         df_rsmp.attrs["supy_output_daily_coverage_s"] = dict_daily_coverage
+    elif "DailyState" in df_rsmp.columns.get_level_values("group"):
+        # Unknown native coverage stays unknown: the new output interval is
+        # not a model timestep from which daily coverage can be reconstructed.
+        df_rsmp.attrs["supy_output_daily_coverage_s"] = df_output.attrs.get(
+            "supy_output_daily_coverage_s"
+        )
     if dict_coverage:
         # Fixed intervals need only exceptions (partial bins and daily-only
         # rows); calendar intervals retain all durations. This keeps attrs

@@ -14,6 +14,7 @@ from .variables import (
 
 # LAST selects the sparse daily record; it does not describe the operation
 # already performed by update_DailyState_Day/update_HDD/update_WaterUse.
+# Water totals use SUM so resampling across days combines their amounts.
 # Explicit CF methods below describe those kernel-produced daily statistics.
 DAILYSTATE_VARIABLES = [
     # Heating/Cooling Degree Days

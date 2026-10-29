@@ -47,7 +47,9 @@ def test_only_water_flux_fields_change_from_previous_contract():
     )
     current = get_output_contract_catalogue().model_dump(mode="json")
     for before, after in zip(previous["variables"], current["variables"]):
-        if before["unit"] == "mm":
+        if before["unit"] == "mm" and before["group"] == "DailyState":
+            assert after == dict(before, aggregation="S", interval_water_flux=False)
+        elif before["unit"] == "mm":
             assert after["unit"] == "kg m-2 s-1"
             assert after["cell_methods"] == "time: mean"
             expected = dict(before, unit="kg m-2 s-1", cell_methods="time: mean", interval_water_flux=True)
@@ -118,7 +120,7 @@ def test_unknown_cf_metadata_is_rejected(invalid):
         ("HDD1_h", "time: mean", "temperature: difference"),
         ("HDD2_c", "time: mean", "temperature: difference"),
         ("HDD3_Tmean", "time: mean", "temperature: on_scale"),
-        ("P_day", "time: mean", None),
+        ("P_day", "time: sum", None),
         ("DLHrs", "time: sum", None),
         ("Tmin", "time: minimum", "temperature: on_scale"),
         ("Tmax", "time: maximum", "temperature: on_scale"),
@@ -131,7 +133,7 @@ def test_daily_statistics_describe_the_producer(name, method, temperature):
         for v in OUTPUT_REGISTRY.variables
         if v.group == "DailyState" and v.name == name
     )
-    assert variable.aggregation == "L"
+    assert variable.aggregation == ("S" if name == "P_day" else "L")
     assert variable.cell_methods == method
     assert variable.units_metadata == temperature
 

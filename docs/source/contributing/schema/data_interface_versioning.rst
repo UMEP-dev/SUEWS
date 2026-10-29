@@ -52,6 +52,7 @@ DailyState ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` re
 Their model sums, including partial first and last days, are written unchanged; coverage remains informational in attrs and sidecars and never divides these totals.
 Amount units (``mm``, ``m``, ``kg m-2``) are accepted; rate units are rejected.
 This amends the unreleased output contract ``2.0.0`` without a version bump; per-step water fluxes remain ``kg m-2 s-1``.
+The history audit permits digest corrections only to the current unreleased output ``2.0.0``; this exception must be removed on release.
 Native in-memory amounts remain available, with their actual units exposed by the output accessor.
 Each forcing release is stored as an immutable canonical
 registry projection under ``src/supy/data_model/forcing/artefacts/``. The

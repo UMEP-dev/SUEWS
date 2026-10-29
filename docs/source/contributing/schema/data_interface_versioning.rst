@@ -22,7 +22,7 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract is published at ``2.1.0`` and the current unreleased output contract is ``1.1.9``.
+The forcing contract is published at ``2.1.0`` and the unreleased output contract is ``2.0.0``.
 Forcing ``2.1.0`` adds a canonical declared water-rate unit while retaining legacy undeclared amounts.
 Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
@@ -46,6 +46,10 @@ writes every unit in the CF notation of ``supy.units`` (water stores in
 ``kg m-2``) and adds CF ``cell_methods`` and ``units_metadata`` to every catalogue entry.
 This single output version combines the CF unit relabelling with time-base and temperature metadata, including DailyState means, totals and extrema and the BEERS ``Tg`` and ``Tw`` temperature differences above air temperature.
 It preserves numerical values, names, groups, aggregation codes, layouts and all released bundles through ``1.1.8``.
+Output ``2.0.0`` converts written water fluxes to interval-mean ``kg m-2 s-1`` rates and changes their ``cell_methods`` to ``time: mean``.
+The registry aggregation codes continue to describe native kernel amounts; the external boundary divides their interval sums by the written duration.
+DailyState water totals retain last-row selection and use 86400 seconds.
+Native in-memory amounts remain available, with their actual units exposed by the output accessor.
 Each forcing release is stored as an immutable canonical
 registry projection under ``src/supy/data_model/forcing/artefacts/``. The
 output contract's immutable bundles are stored under

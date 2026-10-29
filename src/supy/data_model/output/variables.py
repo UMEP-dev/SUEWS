@@ -90,6 +90,7 @@ class OutputVariable(BaseModel):
         unit: Physical units
         description: Long-form description
         aggregation: Resampling aggregation method
+        interval_water_flux: Kernel water amount converted to a rate at output
         cell_methods: CF time operation; empty for datetime coordinates
         units_metadata: CF temperature kind, or None for non-temperature units
         group: Output group membership
@@ -98,6 +99,9 @@ class OutputVariable(BaseModel):
 
     name: str = Field(description="Variable name (column header)")
     unit: str = Field(description="Physical units")
+    interval_water_flux: bool = Field(
+        default=False, description="Kernel water amount written as an interval-mean rate"
+    )
     description: str = Field(description="Long-form description")
     aggregation: AggregationMethod = Field(description="Resampling aggregation method")
     cell_methods: CellMethods = Field(
@@ -130,7 +134,10 @@ class OutputVariable(BaseModel):
             "L": "time: point",
             "T": "",
         }
-        data.setdefault("cell_methods", dict_methods.get(data.get("aggregation"), ""))
+        # Aggregation still acts on kernel amounts; the written water rate is
+        # the interval mean produced by the shared external boundary.
+        methods = "time: mean" if data.get("interval_water_flux", False) else dict_methods.get(data.get("aggregation"), "")
+        data.setdefault("cell_methods", methods)
         if data.get("unit") in {"degC", "K"}:
             data.setdefault("units_metadata", "temperature: on_scale")
         return data

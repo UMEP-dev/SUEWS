@@ -715,3 +715,22 @@ For example, use ``units={"rain": "mm h-1"}`` when the file contains hourly rate
 Files with no unit declaration retain their existing per-interval amounts and numerical behaviour.
 This compatibility stage adds an explicit declaration contract without changing the legacy file layout or the kernel's per-step amounts.
 Soil moisture remains a water-content state in ``kg m-2``.
+
+Written water fluxes: output contract 2.0.0
+------------------------------------------
+
+Output contract 2.0.0 replaces written water-flux amounts in ``mm`` with interval-mean rates in ``kg m-2 s-1``.
+To recover an amount, multiply a written rate by the written interval in seconds; numerically, one ``kg m-2`` of liquid water equals one ``mm``.
+Text sidecars and Parquet field metadata now report ``time: mean`` and the written interval.
+Water rates use scientific notation in text so small precipitation values remain non-zero.
+
+Use ``output.save(..., units={"Rain": "mm h-1"})`` or ``output.to_units({"Rain": "mm d-1"})`` to request depth rates.
+Native in-memory output retains kernel amounts unless explicitly converted; ``output.units`` describes the held values, which may therefore differ from the written catalogue.
+Rate conversion is performed by the shared post-run boundary, never by the kernel.
+Resampling a converted rate integrates source intervals before averaging over the target interval.
+DailyState precipitation and irrigation totals always use their one-day interval.
+
+The change covers precipitation, irrigation, evaporation, runoff, drainage, water-use and storage-change fluxes, snowmelt, refreezing and snow removal, including their per-surface diagnostics.
+Timestep meltwater, refreezing and debug water amounts now sum during native-amount resampling, correcting their former averaging before writing an interval rate.
+Water stores, deficits and snow water equivalent keep their existing amount units and names.
+Existing output-contract bundles through 1.1.9 remain immutable; consumers should use the new version and unit metadata when reading new files.

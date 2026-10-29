@@ -56,6 +56,14 @@ EXAMPLES:
 
 ### 28 Oct 2026
 
+- [bugfix] Persist output units, nominal intervals and partial-row coverage in Parquet schema metadata so reloaded water rates retain their values and resampling weights after clock changes (#1967).
+
+- [change][experimental] Retain trailing partial resampling bins for all output variables, including without a unit request; water rates use the seconds actually covered by each bin (#1967).
+
+- [change][experimental] Write accumulated water fluxes as interval-mean `kg m-2 s-1` rates in output contract 2.0.0, with rate conversions and matching text/Parquet metadata; retain water stores and native in-memory amounts (#1903).
+  - `MeltWater`, `frMelt_*` (per-step refreeze amount), and debug `wu_*`, `ev0_*`, `ev_*`, `drain_*` now sum instead of averaging before rate conversion.
+  - Requesting an amount unit for a water flux (for example, `Rain` in `m`) now raises an error; request a rate such as `mm h-1`.
+
 - [change][experimental] Require a time unit for explicitly declared rain and water-use forcing; accept water mass flux and depth rates while retaining undeclared interval amounts (forcing contract 2.1.0; #1903).
 
 - [feature][experimental] Forcing files can declare their units: `SUEWSForcing.from_file`, `supy.util.read_forcing`, `load_forcing_grid` and `SUEWSSimulation(config, units=...)` take a mapping such as `{"Tair": "K", "pres": "hPa"}`, and declared columns are converted on load through `supy.units.convert` to the forcing registry's units before validation; undeclared columns load exactly as before, and neither the forcing contract nor the YAML schema changes (#1903)

@@ -21,7 +21,7 @@
 !===============================================================================
 ! Main module following naming standard: matches filename
 MODULE module_util_time
-   USE module_ctrl_const_mathconst, ONLY: deg2rad_daylen_d0
+   USE module_ctrl_const_mathconst, ONLY: DEG2RAD, PI => pi_d0
    IMPLICIT NONE
    PRIVATE :: SUEWS_cal_local_standard_timer
 CONTAINS
@@ -239,7 +239,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: XLAT
       REAL(KIND(1D0)), INTENT(OUT) :: DEC, DAYL, SNDN, SNUP
       REAL(KIND(1D0)) :: SOC
-      REAL(KIND(1D0)), PARAMETER :: PI = 3.14159, RAD = deg2rad_daylen_d0
+      REAL(KIND(1D0)), PARAMETER :: RAD = DEG2RAD
 
       !-----------------------------------------------------------------------
       !     Calculation of declination of sun (Eqn. 16). Amplitude= +/-23.45
@@ -263,8 +263,8 @@ CONTAINS
 ! DAYL  Day length on day of simulation (from sunrise to sunset)  (hr)
 ! DEC   Solar declination or (90o - solar elevation at noon) (deg.)
 ! DOY   Day of year (d)
-! PI    PI=3.14159 (rad)
-! RAD   RAD=PI/180. (rad./deg.)
+! PI    Double-precision pi (rad)
+! RAD   Shared degree-to-radian factor (rad./deg.)
 ! SNDN  Time of sunset (hr)
 ! SNUP  Time of sunrise (hr)
 ! SOC   Sine over cosine (intermediate calculation)

@@ -43,7 +43,7 @@ MODULE module_phys_spartacus
    USE module_ctrl_error_state, ONLY: set_supy_error
    USE module_ctrl_type, ONLY: error_state
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, IEEE_IS_FINITE
-   USE module_ctrl_const_mathconst, ONLY: pi_d0
+   USE module_ctrl_const_mathconst, ONLY: pi_d0, DEG2RAD
    IMPLICIT NONE
 
 CONTAINS
@@ -216,7 +216,6 @@ CONTAINS
       ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
       USE module_ctrl_const_physconst, ONLY: C2K
-      USE module_ctrl_const_mathconst, ONLY: pi_sp
       IMPLICIT NONE
       !!!!!!!!!!!!!! Set objects and variables !!!!!!!!!!!!!!
 
@@ -548,7 +547,7 @@ CONTAINS
 
       ! set cos_sza, nlay, ncol, ntotlay
       ! Guard against negative night-time values to keep radiation geometry physical.
-      canopy_props%cos_sza = MAX(0.0D0, COS(zenith_deg*pi_sp/180))
+      canopy_props%cos_sza = MAX(0.0D0, COS(zenith_deg*DEG2RAD))
       canopy_props%nlay = nlay
       canopy_props%ncol = ncol
       canopy_props%ntotlay = nlayer
@@ -1409,7 +1408,6 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: min_cos_zenith = 0.065D0
       REAL(KIND(1D0)), PARAMETER :: max_airmass = 12.0D0
       REAL(KIND(1D0)), PARAMETER :: max_zenith = 87.0D0
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       kdirect = MAX(0.0D0, MIN(1.0D0, fallback_direct_frac))*MAX(0.0D0, kdown)
       IF (kdown <= 0.0D0) RETURN
@@ -1418,7 +1416,7 @@ CONTAINS
          RETURN
       END IF
 
-      cos_sza = COS(zenith_deg*pi/180.0D0)
+      cos_sza = COS(zenith_deg*DEG2RAD)
       IF (cos_sza <= 0.0D0) THEN
          kdirect = 0.0D0
          RETURN
@@ -1482,7 +1480,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: kdirect_horizontal ! [W m-2] direct horizontal irradiance
       REAL(KIND(1D0)) :: altitude, cos_zenith, ecc, kt, kdiffuse, direct_normal
       REAL(KIND(1D0)) :: temperature, humidity
-      REAL(KIND(1D0)), PARAMETER :: PI = pi_d0
 
       kdirect_horizontal = 0.0D0
       IF (.NOT. IEEE_IS_FINITE(kdown) .OR. .NOT. IEEE_IS_FINITE(zenith_deg)) RETURN
@@ -1491,7 +1488,7 @@ CONTAINS
       ! Match BEERS' daylight threshold and avoid its division by sin(0).
       IF (altitude <= 0.1D0) RETURN
 
-      cos_zenith = COS(zenith_deg*PI/180.0D0)
+      cos_zenith = COS(zenith_deg*DEG2RAD)
       CALL spartacus_spencer_eccentricity(doy, ecc)
       kt = kdown/(1370.0D0*ecc*cos_zenith)
       temperature = tair_c
@@ -1521,7 +1518,6 @@ CONTAINS
       REAL(KIND(1D0)) :: component_sum
       REAL(KIND(1D0)) :: cos_sza
       REAL(KIND(1D0)) :: scale
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       kdirect = 0.0D0
       kdiffuse = 0.0D0
@@ -1534,7 +1530,7 @@ CONTAINS
       IF (kdiff < 0.0D0 .OR. kdir < 0.0D0) RETURN
       IF (kdiff /= kdiff .OR. kdir /= kdir) RETURN
 
-      cos_sza = MAX(0.0D0, COS(zenith_deg*pi/180.0D0))
+      cos_sza = MAX(0.0D0, COS(zenith_deg*DEG2RAD))
       kdirect = kdir*cos_sza
       kdiffuse = kdiff
       component_sum = kdirect + kdiffuse

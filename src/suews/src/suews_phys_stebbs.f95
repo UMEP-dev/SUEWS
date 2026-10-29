@@ -9,10 +9,10 @@ MODULE module_phys_stebbs_precision
 END MODULE
 
 MODULE module_phys_stebbs_core
-   USE module_ctrl_const_physconst, ONLY: SBConst_567
+   USE module_ctrl_const_physconst, ONLY: SBConst
    USE module_phys_stebbs_precision
 
-   REAL(rprc), PARAMETER :: sigma = SBConst_567
+   REAL(rprc), PARAMETER :: sigma = SBConst
 
 END MODULE module_phys_stebbs_core
 MODULE module_phys_stebbs_func
@@ -403,7 +403,7 @@ CONTAINS
    FUNCTION cal_mainsWaterTemperature(dayOfYear, To_annual_C, dTo_month_C) RESULT(Tmains)
       USE module_phys_stebbs_precision
       USE module_ctrl_const_physconst, ONLY: C2K
-      USE module_ctrl_const_mathconst, ONLY: pi_sp
+      USE module_ctrl_const_mathconst, ONLY: DEG2RAD
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: dayOfYear
       REAL(KIND(1D0)), INTENT(in) :: To_annual_C
@@ -415,7 +415,6 @@ CONTAINS
       REAL(KIND(1D0)) :: angle_deg
       REAL(KIND(1D0)) :: angle_rad
       REAL(KIND(1D0)) :: Tmains_C
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
 
       ! EnergyPlus empirical coefficients in SI units
       ratio = 0.28 + 0.018*To_annual_C
@@ -423,7 +422,7 @@ CONTAINS
 
       ! Convert angle from degrees to radians for SIN
       angle_deg = 0.986*(dayOfYear - 15.0 - lag) - 90.0
-      angle_rad = angle_deg*pi/180.0
+      angle_rad = angle_deg*DEG2RAD
 
       ! Water mains temperature in degC
       Tmains_C = (To_annual_C + 3.33) + ratio*(dTo_month_C/2.0)*SIN(angle_rad)
@@ -1526,6 +1525,7 @@ SUBROUTINE tstep( &
    QEC_dhw_tstepFA) 
    USE module_phys_stebbs_precision
    USE module_phys_stebbs_func
+   USE module_ctrl_const_physconst, ONLY: C2K
    IMPLICIT NONE
    ! INTEGER, INTENT(in) :: flginit
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
@@ -1881,7 +1881,7 @@ SUBROUTINE tstep( &
          CASE (1)
             internal_shading_active = .TRUE.
          CASE (2)
-            IF ((Tair_ind - 273.15D0) >= temperature_threshold_shading .AND. &
+            IF ((Tair_ind - C2K) >= temperature_threshold_shading .AND. &
                 Qsw_dn_extwall >= radiation_threshold_shading) THEN
                internal_shading_active = .TRUE.
             END IF

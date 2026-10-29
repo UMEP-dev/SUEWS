@@ -25,7 +25,7 @@ MODULE module_phys_anohm
    USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day, SBConst_567, C2K, cp_air_anohm_sp, lv_anohm_sp
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_day, SBConst, C2K, cp_air_anohm_sp, lv_anohm_sp
    IMPLICIT NONE
 CONTAINS
 
@@ -377,7 +377,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: gamma !< phase difference between Ts and Sd [K]
 
       !   constant
-      REAL(KIND(1D0)), PARAMETER :: SIGMA = SBConst_567 ! Stefan-Boltzman
+      REAL(KIND(1D0)), PARAMETER :: SIGMA = SBConst ! Stefan-Boltzman
       REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
       REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(sec_per_day) ! augular velocity of Earth
 
@@ -538,7 +538,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: gamma !< phase difference between Ts and Sd [K]
 
       !   constant
-      REAL(KIND(1D0)), PARAMETER :: SIGMA = SBConst_567 ! Stefan-Boltzman
+      REAL(KIND(1D0)), PARAMETER :: SIGMA = SBConst ! Stefan-Boltzman
       REAL(KIND(1D0)), PARAMETER :: PI = ATAN(1.0)*4 ! Pi
       REAL(KIND(1D0)), PARAMETER :: OMEGA = 2*Pi/(sec_per_day) ! augular velocity of Earth
 

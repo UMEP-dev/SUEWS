@@ -1,6 +1,7 @@
 import csv
 from functools import partial
 import io
+import json
 import os
 from pathlib import Path
 import re
@@ -14,7 +15,13 @@ import pandas as pd
 # import ray
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
-from ._output_metadata import with_daily_coverage, output_interval_seconds, prepare_output, write_output_parquet, write_text_metadata
+from ._output_metadata import (
+    output_interval_seconds,
+    prepare_output,
+    with_daily_coverage,
+    write_output_parquet,
+    write_text_metadata,
+)
 from ._post import _resample_output, df_var as df_var_out
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
@@ -628,7 +635,6 @@ class StreamedParquetParts:
         rewrite the first chunk with that schema. Memory stays chunk-bounded.
         Individual parts retain their own complete coverage.
         """
-        import json
         import pyarrow.parquet as pq
 
         paths = sorted(self.path_output.glob("part-*.parquet"))
@@ -641,7 +647,10 @@ class StreamedParquetParts:
             for key in ("supy_output_coverage_s", "supy_output_daily_coverage_s"):
                 if key in part_attrs:
                     attrs.setdefault(key, {}).update(part_attrs[key])
-        metadata[b"PANDAS_ATTRS"] = json.dumps(attrs).encode("utf-8")
+        combined = json.dumps(attrs).encode("utf-8")
+        if combined == metadata[b"PANDAS_ATTRS"]:
+            return
+        metadata[b"PANDAS_ATTRS"] = combined
         table = pq.read_table(paths[0]).replace_schema_metadata(metadata)
         path_tmp = paths[0].with_name(f".{paths[0].name}.tmp")
         pq.write_table(table, path_tmp, compression="snappy")
@@ -820,7 +829,11 @@ def save_df_grid_group(
     # processing path
     path_dir = Path(dir_save)
     # pandas bug here: monotonic datetime index would lose `freq` once `pd.concat`ed
-    if freq_s is not None:
+    if group == "DailyState":
+        # Sparse daily records can include a partial last day. Preserve their
+        # timestamps; the nominal day is only used for the file name.
+        freq = pd.Timedelta(days=1)
+    elif freq_s is not None:
         freq = pd.Timedelta(freq_s, unit="s")
         if not allow_irregular_timestamps:
             df_year = _asfreq_frame(df_year, freq)
@@ -871,6 +884,13 @@ def save_df_grid_group(
         str_fn_dd = str(path_out).replace("DailyState_5", "DailyState")
         path_out.rename(Path(str_fn_dd))
         path_out = Path(str_fn_dd)
+    daily_coverage = None
+    if group == "DailyState":
+        dates = {date.isoformat() for date in df_year.index}
+        daily_coverage = {
+            key: value for key, value in df_year.attrs.get("supy_output_daily_coverage_s", {}).items()
+            if key.split("|", 1)[1] in dates
+        }
     write_text_metadata(
         path_out,
         [name.strip() for name in _txt_header_names(df_year)],
@@ -879,7 +899,8 @@ def save_df_grid_group(
         if metadata_interval_s is not None
         else int(freq.total_seconds()),
         units=df_year.attrs.get("supy_output_units"),
-        coverage=df_year.attrs.get("supy_output_daily_coverage_s"),
+        coverage=daily_coverage,
+        append=append,
     )
     logger_supy.debug(f"{path_out} saved in {t_end - t_start:.2f} s")
     return path_out
@@ -991,7 +1012,7 @@ def _save_groups(
                     for (old_grid, date), (_, new_date) in zip(df_save.index, index)
                     if old_grid == grid and f"{grid}|{date.isoformat()}" in coverage
                 }
-            idx_asfreq = _grid_asfreq_index(
+            idx_asfreq = None if group == "DailyState" else _grid_asfreq_index(
                 df_grid_group.index, allow_irregular_timestamps
             )
             for year in list_year:
@@ -1099,8 +1120,7 @@ def save_df_output(
     ``df_output`` is never copied whole: groups are selected, resampled,
     relabelled and written one (grid, group) at a time (gh#1849).
     """
-    if save_tstep and "supy_output_interval_s" in df_output.attrs and df_output.attrs["supy_output_interval_s"] is None:
-        raise ValueError("save_tstep=True conflicts with calendar-resampled output (for example ME). Save the native output before calendar resampling, or omit save_tstep and choose a fixed output frequency.")
+    _check_save_tstep(df_output, save_tstep)
     df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
@@ -1393,6 +1413,19 @@ def save_initcond_nml(
     return list_path_nml
 
 
+def _check_save_tstep(df_output, save_tstep: bool) -> None:
+    """Reject a native-step save request after calendar resampling."""
+    if (
+        save_tstep
+        and "supy_output_interval_s" in df_output.attrs
+        and df_output.attrs["supy_output_interval_s"] is None
+    ):
+        raise ValueError(
+            "save_tstep=True conflicts with calendar-resampled output (for example ME). "
+            "Save the native output before calendar resampling."
+        )
+
+
 def _held_interval_s(df_output, df_state_final) -> Optional[int]:
     """Use the held output cadence when rows have already been resampled."""
     if "supy_output_interval_s" in df_output.attrs:
@@ -1480,6 +1513,14 @@ def _parquet_chunk_frame(
     df_chunk.attrs = df_output.attrs.copy()
     if list_main:
         df_chunk.attrs.update(df_main.attrs)
+        coverage = df_main.attrs.get("supy_output_coverage_s", {}).copy()
+        # Sparse DailyState-only rows carry no main-group water interval.
+        coverage.update({
+            f"{grid}|{date.isoformat()}": 0.0
+            for grid, date in df_chunk.index.difference(df_main.index)
+        })
+        if coverage:
+            df_chunk.attrs["supy_output_coverage_s"] = coverage
     df_chunk.attrs["supy_output_interval_s"] = freq_save.total_seconds()
     return df_chunk
 
@@ -1585,8 +1626,7 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     _parquet_engine()
-    if save_tstep and "supy_output_interval_s" in df_output.attrs and df_output.attrs["supy_output_interval_s"] is None:
-        raise ValueError("save_tstep=True conflicts with calendar-resampled output (for example ME). Save the native output before calendar resampling, or omit save_tstep and choose a fixed output frequency.")
+    _check_save_tstep(df_output, save_tstep)
     df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
 

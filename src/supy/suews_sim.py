@@ -18,6 +18,7 @@ from ._check import check_forcing
 from ._env import logger_supy
 from ._filename import safe_filename_component
 from ._load import merge_forcing_frames
+from ._output_metadata import with_daily_coverage
 from ._provenance import (
     PROVENANCE_FILENAME,
     PROVENANCE_FORMAT_VERSION,
@@ -1570,8 +1571,13 @@ class SUEWSSimulation:
         else:
             streamed_files = StreamedTextFiles(resume_after=resume_after)
             year_last = None
-        # _save_supy sets the SuPy logger level on every call; keep the
-        # caller's level so later chunks and the end-of-run summaries still log.
+        # Streaming chunks are right-closed; a day's midnight step may be in
+        # the preceding chunk. Count the run's forcing rows before slicing.
+        coverage_index = df_forcing.index
+        if resume_after is not None:
+            coverage_index = coverage_index.insert(0, pd.Timestamp(resume_after))
+        daily_steps = pd.Series(1, index=coverage_index.normalize()).groupby(level=0).sum()
+        # _save_supy sets the logger level; preserve the caller's level.
         log_level = logger_supy.level
         folder = Path(settings["output_path"]).resolve()
         logger_supy.info(
@@ -1602,6 +1608,7 @@ class SUEWSSimulation:
                 ),
                 keep_groups=list_keep,
             ):
+                df_chunk = with_daily_coverage(df_chunk, tstep_s, daily_steps=daily_steps)
                 kernel_warnings.extend(warnings_chunk)
                 dict_state_json = dict_state_chunk
                 if is_parquet:

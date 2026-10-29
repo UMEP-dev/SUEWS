@@ -1290,6 +1290,31 @@ def test_parquet_short_last_chunk_at_the_model_timestep(
     _compare_with_whole(tmp_path, dir_whole, GROUPS_PARQUET, TSTEP_S)
 
 
+def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(short_sample_sim, tmp_path):
+    """A completed streamed run retains the last chunk's fifteen-minute bin."""
+    from supy.suews_output import SUEWSOutput
+
+    sim = _parquet_sim(
+        short_sample_sim, tmp_path, 3600, 1,
+        end="2011-12-17 00:15", groups=["SUEWS", "DailyState"],
+    )
+    forcing = sim.forcing.df.copy()
+    forcing["rain"] = 0.5
+    sim.update_forcing(forcing)
+    sim.run()
+
+    path = _output_path(tmp_path)
+    parts = sorted(path.glob("part-*.parquet"))
+    assert len(parts) == 2
+    key = "1|2011-12-17T01:00:00"
+    for source in (path, parts[-1]):
+        saved = pd.read_parquet(source)
+        assert saved.attrs["supy_output_coverage_s"][key] == 900
+        assert saved["SUEWS", "Rain"].dropna().to_numpy() == pytest.approx(0.5 / TSTEP_S)
+        daily = SUEWSOutput(saved).resample("D")
+        assert daily.df["SUEWS", "Rain"].to_numpy() == pytest.approx(0.5 / TSTEP_S)
+
+
 def test_parquet_output_names_the_folder_and_save_returns_it(
     short_sample_sim, tmp_path
 ):
@@ -1360,7 +1385,8 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
 
     The mid-year case is resumed twice, the first resume itself failing part
     of the way, so deleting the parts after the checkpoint must be
-    repeatable. The completed year's parts are kept, not written again.
+    repeatable. Completed parts keep their values; only the first part's
+    folder-wide coverage metadata is refreshed at completion.
     """
     dir_full = tmp_path / "full"
     _parquet_sim(short_sample_sim, dir_full, freq_s, 1, list_gridiv=list_gridiv).run()
@@ -1385,9 +1411,14 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
     _resume(sim, dir_out)
 
     _compare_streamed_dirs(dir_out, dir_full)
+    # Folder readers use the first part's schema. Completion atomically
+    # refreshes that schema with coverage from all parts, including the
+    # resumed year; _compare_streamed_dirs above still checks every value.
+    first_part = min(dict_2011)
     assert {
         p.name: p.stat().st_mtime_ns for p in path_output.glob("part-2011-*.parquet")
-    } == dict_2011
+        if p.name != first_part
+    } == {name: mtime for name, mtime in dict_2011.items() if name != first_part}
 
 
 def test_parquet_part_cut_short_is_never_left_half_written(

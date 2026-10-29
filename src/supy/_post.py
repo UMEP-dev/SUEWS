@@ -3,7 +3,7 @@ import pandas as pd
 
 from ._env import logger_supy
 from ._misc import infer_freq_offset
-from ._output_metadata import with_daily_coverage, output_covered_seconds, water_flux_variables
+from ._output_metadata import output_covered_seconds, water_flux_variables, with_daily_coverage
 from .data_model.output import OUTPUT_REGISTRY
 
 
@@ -342,23 +342,17 @@ def _resample_output(
     elif _index_freq_matches(df_output, freq):
         return df_output
 
-    native_s = None
-    if freq_source is not None:
-        try:
-            native_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
-        except ValueError:
-            pass
-    df_output = with_daily_coverage(df_output, native_s)
-    dict_daily_coverage = {}
-    dict_units = df_output.attrs.get("supy_output_units", {})
-    water_columns = [c for c in df_output.columns if c in water_flux_variables() and c[0] != "DailyState"]
-    rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
     source_s = None
     if freq_source is not None:
         try:
             source_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
         except ValueError:
             source_s = None  # Calendar rows carry their individual coverage.
+    df_output = with_daily_coverage(df_output, source_s)
+    dict_daily_coverage = {}
+    dict_units = df_output.attrs.get("supy_output_units", {})
+    water_columns = [c for c in df_output.columns if c in water_flux_variables() and c[0] != "DailyState"]
+    rate_columns = [c for c in water_columns if c[1] in dict_units.get(c[0], {})]
     ser_coverage = output_covered_seconds(df_output, source_s) if water_columns else None
     dict_coverage = {}
 

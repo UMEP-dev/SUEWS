@@ -38,36 +38,54 @@ def output_covered_seconds(df_output, interval_s=None):
     return pd.Series(output_interval_seconds(df_output, interval_s), index=df_output.index)
 
 
-def with_daily_coverage(df_output, interval_s=None):
+def with_daily_coverage(
+    df_output: pd.DataFrame, interval_s: Optional[float] = None,
+    *, daily_steps: Optional[pd.Series] = None,
+) -> pd.DataFrame:
     """Attach daily coverage before native rows are selected or resampled.
 
     DailyState accumulates steps stamped within each calendar day. Count those
     steps using the held model timestep, not a cadence reconstructed from gaps.
+    Streaming callers supply daily_steps from the complete forcing slice so a
+    midnight step in the preceding chunk still counts towards its day.
     """
     key = "supy_output_daily_coverage_s"
     if key in df_output.attrs or not isinstance(df_output.columns, pd.MultiIndex):
         return df_output
     if "DailyState" not in df_output.columns.get_level_values(0):
         return df_output
-    step_s = output_interval_seconds(df_output, interval_s)
+    step_s = output_interval_seconds(df_output, interval_s, required=False)
+    if step_s is None:
+        frequency = df_output.index.levels[df_output.index.names.index("datetime")].freq
+        if frequency is None:
+            raise ValueError(
+                "DailyState coverage requires the model timestep; supply interval_s "
+                "or retain run configuration"
+            )
+        step_s = frequency.nanos / 1e9
     dates = df_output.index.get_level_values("datetime")
     grids = df_output.index.get_level_values("grid")
-    counts = pd.Series(1, index=pd.MultiIndex.from_arrays([grids, dates.normalize()])).groupby(level=[0, 1]).sum()
+    counts = pd.Series(
+        1, index=pd.MultiIndex.from_arrays([grids, dates.normalize()])
+    ).groupby(level=[0, 1]).sum()
     daily = df_output["DailyState"].notna().any(axis=1)
-    coverage = {
-        f"{grid}|{date.isoformat()}": float(counts.loc[(grid, date.normalize())] * step_s)
-        for grid, date in df_output.index[daily]
-    }
+    coverage = {}
+    for grid, date in df_output.index[daily]:
+        count = counts.loc[grid, date.normalize()] if daily_steps is None else daily_steps[date.normalize()]
+        coverage[f"{grid}|{date.isoformat()}"] = float(count * step_s)
     result = df_output.copy(deep=False)
     result.attrs[key] = coverage
     return result
 
 
-def daily_covered_seconds(df_output):
+def daily_covered_seconds(df_output: pd.DataFrame) -> pd.Series:
     """Return the coverage attached to sparse DailyState records."""
     coverage = df_output.attrs.get("supy_output_daily_coverage_s")
     if coverage is None:
-        raise ValueError("DailyState water rates require daily coverage; retain native run rows and the model timestep before saving or resampling")
+        raise ValueError(
+            "DailyState water rates require daily coverage; retain native run rows "
+            "and the model timestep before saving or resampling"
+        )
     if not isinstance(df_output.index, pd.MultiIndex):
         coverage = {key.split("|", 1)[1]: value for key, value in coverage.items()}
         keys = [date.isoformat() for date in df_output.index]
@@ -240,7 +258,7 @@ def project_output_metadata(
 ) -> dict:
     """Project metadata for the supplied column identities and written interval.
 
-    DailyState retains its daily time base. Unknown columns are marked explicitly;
+    DailyState water rates describe the covered day. Unknown columns are marked explicitly;
     no unit or aggregation is inferred from a name or from the data values.
     """
     dict_registry = {
@@ -256,12 +274,13 @@ def project_output_metadata(
         if entry is None:
             dict_result[column] = {"status": "unknown"}
             continue
-        interval = "covered day" if identity[0] == "DailyState" and identity in water_flux_variables() else _interval(86400 if identity[0] == "DailyState" else interval_s)
+        daily_water = identity[0] == "DailyState" and identity in water_flux_variables()
+        interval = "covered day" if daily_water else _interval(86400 if identity[0] == "DailyState" else interval_s)
         unit = (units or {}).get(identity[0], {}).get(identity[1])
         if unit is None:
             unit = "mm" if native and identity in water_flux_variables() else entry.unit
         methods = "time: sum" if identity in water_flux_variables() and unit == "mm" else entry.cell_methods
-        if interval and methods and methods != "time: point":
+        if interval and not daily_water and methods and methods != "time: point":
             methods = f"{methods} (interval: {interval})"
         dict_metadata = {
             "units": unit,
@@ -309,14 +328,18 @@ class OutputUnits(Mapping):
         return len(self._columns)
 
 
-def write_text_metadata(path, columns, group: str, interval_s: int, units=None, coverage=None) -> None:
+def write_text_metadata(path, columns, group: str, interval_s: int, units=None, coverage=None, append=False) -> None:
     """Write a JSON sidecar next to a text output file."""
     payload = {
         "output_contract_version": CURRENT_OUTPUT_VERSION,
         "columns": project_output_metadata(columns, interval_s, group, units),
     }
     if coverage is not None:
-        payload["daily_coverage_s"] = coverage
+        path_sidecar = path.with_name(path.name + ".units.json")
+        previous = {}
+        if append and path_sidecar.exists():
+            previous = json.loads(path_sidecar.read_text(encoding="utf-8")).get("daily_coverage_s", {})
+        payload["daily_coverage_s"] = {**previous, **coverage}
     path.with_name(path.name + ".units.json").write_text(
         json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8"
     )
@@ -330,7 +353,7 @@ def write_output_parquet(df_output, path, interval_s: Optional[int]) -> None:
     df_owned = df_output.copy(deep=False)
     df_owned.attrs = {
         key: value for key, value in df_output.attrs.items()
-        if key.startswith("supy_output_") or key == "supy_water_rate_columns"
+        if isinstance(key, str) and (key.startswith("supy_output_") or key == "supy_water_rate_columns")
     }
     table = pa.Table.from_pandas(df_owned, preserve_index=True)
     dict_columns = project_output_metadata(

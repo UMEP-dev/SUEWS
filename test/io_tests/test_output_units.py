@@ -417,7 +417,7 @@ def test_daily_totals_use_daily_interval(tmp_path):
     saved = pd.read_csv(path, sep=r"\s+")
     assert (saved[daily.columns] == 1.0).all().all()
     metadata = json.loads(path.with_name(path.name + ".units.json").read_text(encoding="utf-8"))
-    assert metadata["columns"]["P_day"]["cell_methods"] == "time: mean (interval: covered day)"
+    assert metadata["columns"]["P_day"]["cell_methods"] == "time: mean"
 
 
 
@@ -623,13 +623,13 @@ def test_daily_water_uses_run_coverage(frames, tmp_path, start, steps, writer):
     amount = 7.25
     frame.iloc[-1] = amount
     expected = amount / (steps * 300)
-    converted = SUEWSOutput(frame, state).to_units({column: "kg m-2 s-1" for column in columns})
+    converted = SUEWSOutput(frame, state).to_units(dict.fromkeys(columns, "kg m-2 s-1"))
     assert converted.df.dropna().to_numpy().ravel() == pytest.approx([expected] * len(columns))
     if writer == "text":
         paths = save_df_output(frame, df_state_final=state, freq_s=3600, path_dir_save=tmp_path, output_groups=["DailyState"])
         saved = pd.read_csv(paths[0], sep=r"\s+")
         assert saved[list(columns.get_level_values(1))].to_numpy().ravel() == pytest.approx([expected] * len(columns))
-        metadata = json.loads(paths[0].with_name(paths[0].name + ".units.json").read_text())
+        metadata = json.loads(paths[0].with_name(paths[0].name + ".units.json").read_text(encoding="utf-8"))
         assert list(metadata["daily_coverage_s"].values()) == [steps * 300]
         assert metadata["columns"]["P_day"]["interval"] == "covered day"
     else:
@@ -689,5 +689,46 @@ def test_streamed_folder_retains_later_partial_coverage(frames, tmp_path):
 def test_calendar_save_tstep_has_actionable_error(frames, tmp_path, writer):
     frame, state = frames
     monthly = SUEWSOutput(frame, state).resample("ME")
-    with pytest.raises(ValueError, match="save_tstep=True conflicts with calendar-resampled output.*native output"):
+    with pytest.raises(ValueError, match=r"save_tstep=True conflicts with calendar-resampled output.*native output"):
         writer(monthly.df, df_state_final=state, path_dir_save=tmp_path, save_tstep=True)
+
+
+
+def test_daily_coverage_counts_rows_with_configured_step(frames):
+    """An irregular selection uses the held timestep, never gaps in its index."""
+    frame, state = frames
+    frame = frame.iloc[[0, 3, 8]].copy()
+    frame.index = frame.index.remove_unused_levels()
+    frame[("DailyState", "P_day")] = [float("nan"), float("nan"), 9.0]
+    output = SUEWSOutput(frame, state).to_units({"P_day": "kg m-2 s-1"})
+    assert output.df[("DailyState", "P_day")].dropna().iloc[0] == pytest.approx(9 / 900)
+
+
+
+def test_daily_coverage_survives_selecting_sparse_output_rows(frames):
+    frame, state = frames
+    frame[("DailyState", "P_day")] = float("nan")
+    frame.loc[frame.index[-1], ("DailyState", "P_day")] = 12.0
+    output = SUEWSOutput(frame, state)
+    daily = output.df.loc[:, [("DailyState", "P_day")]].dropna()
+    converted = SUEWSOutput(daily, state).to_units({"P_day": "mm h-1"})
+    assert converted.df.iloc[0, 0] == pytest.approx(6.0)
+
+
+
+@pytest.mark.parametrize("writer", ["text", "parquet"])
+def test_daily_coverage_varies_across_one_run(frames, tmp_path, writer):
+    """Partial first and last days surround a full day in the same output."""
+    _, state = frames
+    dates = pd.date_range("2012-01-01 12:00", "2012-01-03 11:55", freq="5min")
+    columns = pd.MultiIndex.from_tuples([("DailyState", "P_day")], names=["group", "var"])
+    frame = pd.DataFrame(float("nan"), index=pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"]), columns=columns)
+    for date in ["2012-01-01 23:55", "2012-01-02 23:55", "2012-01-03 11:55"]:
+        frame.loc[(1, pd.Timestamp(date)), ("DailyState", "P_day")] = 8.64
+    if writer == "text":
+        paths = save_df_output(frame, df_state_final=state, path_dir_save=tmp_path, output_groups=["DailyState"])
+        values = pd.read_csv(paths[0], sep=r"\s+")["P_day"]
+    else:
+        paths = save_df_output_parquet(frame, state, path_dir_save=tmp_path, save_state=False)
+        values = pd.read_parquet(paths[0])["DailyState", "P_day"].dropna()
+    assert values.to_numpy() == pytest.approx([0.0002, 0.0001, 0.0002])

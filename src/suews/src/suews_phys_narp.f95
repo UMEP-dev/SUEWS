@@ -34,7 +34,7 @@ MODULE module_phys_narp
    ! in the main program
    ! LJ Oct 2012 - Zenith angle change in the calculation of albedo added
    ! sg feb 2012 - Allocatable array module added
-   USE module_ctrl_const_mathconst, ONLY: pi_sp, RAD2DEG
+   USE module_ctrl_const_mathconst, ONLY: pi, RAD2DEG
    !==============================================================================================
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
@@ -261,8 +261,6 @@ CONTAINS
                          SF_all
 
       ! REAL(KIND(1D0)),PARAMETER   ::RAD2DEG=57.29577951
-      REAL(KIND(1D0)), PARAMETER :: SIGMA_SB = SBConst
-
       ! NB: NARP_G is not assigned with a value in SUEWS_translate.
       ! 3.0 is used here as annual average for mid-latitude areas. TS 24 Oct 2017
       REAL(KIND(1D0)), DIMENSION(365), PARAMETER :: NARP_G = 3.0
@@ -274,7 +272,7 @@ CONTAINS
       tsfc_surf_K = tsfc_surf + C2K
       ! tsurf_0_K = tsurf_0 + 273.15
       Temp_K = Temp_C + C2K
-      SIGMATK4 = SIGMA_SB*Temp_K**4
+      SIGMATK4 = SBConst*Temp_K**4
       TD = dewpoint_narp(Temp_C, RH)
       ! Sun postition is now calculated in the main loop, FL
       !ZENITH=SOLAR_ZENITH(NARP_LAT,NARP_LONG,NARP_TZ,DTIME)
@@ -393,7 +391,7 @@ CONTAINS
          !calculate Lup
          IF (NetRadiationMethod_use < 10) THEN
             ! NARP method
-            TSURF_K = ((EMIS0*SIGMATK4 + LUPCORR)/(EMIS0*SIGMA_SB))**0.25 !Eqs. (14) and (15),
+            TSURF_K = ((EMIS0*SIGMATK4 + LUPCORR)/(EMIS0*SBConst))**0.25 !Eqs. (14) and (15),
             LUP = EMIS0*SIGMATK4 + LUPCORR + (1 - EMIS0)*LDOWN !Eq (16) in Offerle et al. (2002)
          ELSE
             ! use iteration-based approach to calculate LUP and also TSURF; TS 20 Sep 2019
@@ -403,7 +401,7 @@ CONTAINS
             !    TSURF_K = tsurf_0_K
             ! END IF
             ! TSURF = tsfc_surf_K(is)
-            LUP = EMIS0*SIGMA_SB*TSURF_K**4 + (1 - EMIS0)*LDOWN
+            LUP = EMIS0*SBConst*TSURF_K**4 + (1 - EMIS0)*LDOWN
          END IF
 
          !Upward shortwave radiation of the snowfree surface fractions
@@ -433,16 +431,16 @@ CONTAINS
 
             IF (NetRadiationMethod_use < 10) THEN
                ! NARP method
-               TSURF_SNOW_K = ((NARP_EMIS_SNOW*SIGMATK4)/(NARP_EMIS_SNOW*SIGMA_SB))**0.25 !Snow surface temperature
+               TSURF_SNOW_K = ((NARP_EMIS_SNOW*SIGMATK4)/(NARP_EMIS_SNOW*SBConst))**0.25 !Snow surface temperature
                !IF (TSURF_SNOW>273.15) TSURF_SNOW=min(273.15,Temp_K)!Set this to 2 degrees (melted water on top)
                !open(34,file='TestingSnowFrac.txt',position='append')
                !write(34,*) dectime,is,albedo_snow,albedo_snowfree,SnowFrac(is),IceFrac(is),KDOWN,KUP_snow
                !close(34)
-               LUP_SNOW = NARP_EMIS_SNOW*SIGMA_SB*TSURF_SNOW_K**4 + (1 - NARP_EMIS_SNOW)*LDOWN
+               LUP_SNOW = NARP_EMIS_SNOW*SBConst*TSURF_SNOW_K**4 + (1 - NARP_EMIS_SNOW)*LDOWN
             ELSE
                ! use iteration-based approach to calculate LUP and also TSURF; TS 20 Sep 2019
                TSURF_SNOW_K = tsurf_0_K
-               LUP_SNOW = NARP_EMIS_SNOW*SIGMA_SB*TSURF_SNOW_K**4 + (1 - NARP_EMIS_SNOW)*LDOWN
+               LUP_SNOW = NARP_EMIS_SNOW*SBConst*TSURF_SNOW_K**4 + (1 - NARP_EMIS_SNOW)*LDOWN
             END IF
 
             QSTAR_SNOW = KDOWN - KUP_SNOW + LDOWN - LUP_SNOW
@@ -652,7 +650,7 @@ CONTAINS
       REAL(KIND(1D0)) :: idectime
 
       year = REAL(timer%iy, KIND(1D0))
-      idectime = timer%dectime - timer%tstep/2/sec_per_day
+      idectime = timer%dectime - timer%tstep/2/INT(sec_per_day)
 
       CALL NARP_cal_SunPosition( &
          year, idectime, timer%tz_solar, &
@@ -1423,7 +1421,7 @@ CONTAINS
       e = 0.0167
       a = 146.457
 
-      MA = 2.*pi_sp*(doy - 3)/365.25463 !Mean anomaly
+      MA = 2.*pi*(doy - 3)/365.25463 !Mean anomaly
       nu = MA + 0.0333988*SIN(MA) + .0003486*SIN(2.*MA) + 5E-6*SIN(3.*MA) !true anomaly
       Rse = a*(1 - e*e)/(1 + e*COS(nu))
 

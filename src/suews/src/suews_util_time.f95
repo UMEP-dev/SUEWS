@@ -21,7 +21,7 @@
 !===============================================================================
 ! Main module following naming standard: matches filename
 MODULE module_util_time
-   USE module_ctrl_const_mathconst, ONLY: DEG2RAD, PI => pi_d0
+   USE module_ctrl_const_mathconst, ONLY: DEG2RAD, pi
    IMPLICIT NONE
    PRIVATE :: SUEWS_cal_local_standard_timer
 CONTAINS
@@ -452,7 +452,7 @@ CONTAINS
       END DO
 
       timer_st%id = total_minutes/min_per_day + 1
-      day_minutes = MOD(total_minutes, min_per_day)
+      day_minutes = MOD(total_minutes, INT(min_per_day))
       timer_st%it = day_minutes/60
       timer_st%imin = MOD(day_minutes, 60)
    END SUBROUTINE SUEWS_cal_local_standard_timer

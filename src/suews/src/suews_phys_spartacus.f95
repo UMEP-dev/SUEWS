@@ -43,7 +43,7 @@ MODULE module_phys_spartacus
    USE module_ctrl_error_state, ONLY: set_supy_error
    USE module_ctrl_type, ONLY: error_state
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, IEEE_IS_FINITE
-   USE module_ctrl_const_mathconst, ONLY: pi_d0, DEG2RAD
+   USE module_ctrl_const_mathconst, ONLY: pi, DEG2RAD
    IMPLICIT NONE
 
 CONTAINS
@@ -1651,7 +1651,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: ecc
 
       REAL(KIND(1D0)) :: b
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       b = 2.0D0*pi*jday/365.0D0
       ecc = 1.00011D0 + 0.034221D0*COS(b) + 0.001280D0*SIN(b) &

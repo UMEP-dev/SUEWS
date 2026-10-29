@@ -7,8 +7,8 @@ MODULE module_phys_solweig
    ! USE module_ctrl_const_initialcond
    ! USE module_ctrl_const_sues
    USE module_ctrl_const_default, ONLY: notUsed, notUsedI
-   USE module_ctrl_const_physconst, ONLY: C2K, SBConst, p_ref_clearness_int
-   USE module_ctrl_const_mathconst, ONLY: pi_sp
+   USE module_ctrl_const_physconst, ONLY: C2K, SBConst, p_ref_pa_d0
+   USE module_ctrl_const_mathconst, ONLY: pi
    IMPLICIT NONE
    ! REAL(KIND(1d0)) :: timestepdec !time step in decimal time
    ! REAL(KIND(1d0)) :: CIlatenight
@@ -143,9 +143,6 @@ CONTAINS
       !Search directions for Ground View Factors (GVF)
       REAL(KIND(1D0)), PARAMETER :: azimuthA(1:18) = [(j*(360.0/18.0), j=0, 17)]
       ! temporary parameters and variables for testing
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
-      REAL(KIND(1D0)), PARAMETER :: SBC = SBConst
-      !REAL(KIND(1D0)),PARAMETER   :: DEG2RAD=0.017453292,RAD2DEG=57.29577951 !Now defined in AllocateArray HCW 02 Dec 2014
 
       INTEGER, PARAMETER :: onlyglobal = 1 !! force to calculate direct and diffuse components, TS 13 Dec 2019
       INTEGER, PARAMETER :: usevegdem = 0 !! force not to use vegetation DEM based calculations, TS 13 Dec 2019
@@ -324,7 +321,7 @@ CONTAINS
          ! IF (timeadd >= (59/1440.)) THEN !more or equal to 59 min
          !    ! weight1 = EXP(-33.27*timeadd) !surface temperature delay function - 1 step
          !    ! Tgmap1 = Tgmap0*(1 - weight1) + Tgmap1*weight1
-         !    ! Lup2d = SBC*emis_ground*((Tgmap1 + 273.15)**4)
+         !    ! Lup2d = SBConst*emis_ground*((Tgmap1 + 273.15)**4)
          !    timestepdec=tstep/(60*60*24)
          !    IF (timestepdec > (59/1440.)) THEN
          !       timeadd = timestepdec
@@ -337,7 +334,7 @@ CONTAINS
          timeadd = (dectime + 1) - DOY - (it/24.)
          weight1 = EXP(-33.27*timeadd) !surface temperature delay function - 1 step
          Tgmap1 = Tgmap0*(1 - weight1) + Tgmap1*weight1
-         Lup2d = SBC*emis_ground*((Tgmap1 + C2K)**4)
+         Lup2d = SBConst*emis_ground*((Tgmap1 + C2K)**4)
          ! firstdaytime = 0
 
       ELSE !!!!!!! NIGHTTIME !!!!!!!!
@@ -382,43 +379,43 @@ CONTAINS
          gvf = 0.0
 
 !!! Lup !!!
-         Lup2d = SBC*emis_ground*((Knight + Ta + Tg + C2K)**4)
+         Lup2d = SBConst*emis_ground*((Knight + Ta + Tg + C2K)**4)
          firstdaytime = 1
       END IF
 
 !!! Ldown !!!
       IF (SOLWEIG_ldown == 1) THEN ! fixed for non-clear situations 20140701
-         Ldown2d = (svf + svfveg - 1)*emis_sky*SBC*((Ta + C2K)**4) &
-                   + (2 - svfveg - svfaveg)*emis_wall*SBC*((Ta + C2K)**4) &
-                   + (svfaveg - svf)*emis_wall*SBC*((Ta + C2K + Tw)**4) &
-                   + (2 - svf - svfveg)*(1 - emis_wall)*emis_sky*SBC*((Ta + C2K)**4) !Jonsson et al. (2006)
+         Ldown2d = (svf + svfveg - 1)*emis_sky*SBConst*((Ta + C2K)**4) &
+                   + (2 - svfveg - svfaveg)*emis_wall*SBConst*((Ta + C2K)**4) &
+                   + (svfaveg - svf)*emis_wall*SBConst*((Ta + C2K + Tw)**4) &
+                   + (2 - svf - svfveg)*(1 - emis_wall)*emis_sky*SBConst*((Ta + C2K)**4) !Jonsson et al. (2006)
          !Ldown2d=Ldown2d-25 ! Shown by Jonsson et al. (2006) and Duarte et al. (2006) ! Removed as from 20140701
          IF (CI > 1) CI = 1 !!FIX THIS?? .and. CI<inf) CI=1
          !if (CI < 0.95) then !non-clear conditions
          c = 1 - CI
-         !Ldown2d=Ldown2d*(1-c)+c*SBC*((Ta+273.15)**4)
+         !Ldown2d=Ldown2d*(1-c)+c*SBConst*((Ta+273.15)**4)
          Ldown2d = Ldown2d*(1 - c) + c*( &
-                   (svf + svfveg - 1)*SBC*((Ta + C2K)**4) &
-                   + (2 - svfveg - svfaveg)*emis_wall*SBC*((Ta + C2K)**4) &
-                   + (svfaveg - svf)*emis_wall*SBC*((Ta + C2K + Tw)**4) &
-                   + (2 - svf - svfveg)*(1 - emis_wall)*SBC*((Ta + C2K)**4))
+                   (svf + svfveg - 1)*SBConst*((Ta + C2K)**4) &
+                   + (2 - svfveg - svfaveg)*emis_wall*SBConst*((Ta + C2K)**4) &
+                   + (svfaveg - svf)*emis_wall*SBConst*((Ta + C2K + Tw)**4) &
+                   + (2 - svf - svfveg)*(1 - emis_wall)*SBConst*((Ta + C2K)**4))
          !end if
       ELSE
          Ldown2d = (svf + svfveg - 1)*ldown &
-                   + (2 - svfveg - svfaveg)*emis_wall*SBC*((Ta + C2K)**4) &
-                   + (svfaveg - svf)*emis_wall*SBC*((Ta + C2K + Tw)**4) &
+                   + (2 - svfveg - svfaveg)*emis_wall*SBConst*((Ta + C2K)**4) &
+                   + (svfaveg - svf)*emis_wall*SBConst*((Ta + C2K + Tw)**4) &
                    + (2 - svf - svfveg)*(1 - emis_wall)*ldown !Jonsson et al. (2006)
       END IF
 
 !!! Lside !!!
       CALL Lside_veg_v2(Ldown2d, Lup2d, &
-                        altitude, Ta, Tw, SBC, emis_wall, emis_sky, t, CI, azimuth, zen, ldown, svfalfa, &
+                        altitude, Ta, Tw, emis_wall, emis_sky, t, CI, azimuth, zen, ldown, svfalfa, &
                         Least, Lnorth, Lsouth, Lwest)
 
 !!! Calculation of radiant flux density and Tmrt !!!
       Sstr = absK*(Kdown2d*Fup + Kup2d*Fup + Knorth*Fside + Keast*Fside + Ksouth*Fside + Kwest*Fside) &
              + absL*(Ldown2d*Fup + Lup2d*Fup + Lnorth*Fside + Least*Fside + Lsouth*Fside + Lwest*Fside)
-      Tmrt = SQRT(SQRT((Sstr/(absL*SBC)))) - C2K
+      Tmrt = SQRT(SQRT((Sstr/(absL*SBConst)))) - C2K
 
       ! IF (SOLWEIGpoi_out == 1) THEN
       !    dataOutSOLWEIG(SolweigCount, 1:4, iMBi) = [iy, id, it, imin]
@@ -529,7 +526,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: Kt
       REAL(KIND(1D0)) :: iG, Itoa, p
       REAL(KIND(1D0)), DIMENSION(4) :: G
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
 
       ! Variable declarations
       REAL*8 :: a2 !>
@@ -548,7 +544,7 @@ CONTAINS
       ! Clearness Index at the Earth's surface calculated from Crawford and Duchon 1999
 
       IF (P_kPa == -999) THEN
-         p = p_ref_clearness_int !Pressure in millibars
+         p = p_ref_pa_d0/100.0D0 !Pressure in millibars
       ELSE
          p = P_kPa*10 !Convert from hPa to millibars
       END IF
@@ -633,7 +629,7 @@ CONTAINS
       INTEGER :: jday
       REAL(KIND(1D0)) :: b, D
 
-      b = 2*pi_sp*jday/365
+      b = 2*pi*jday/365
       D = SQRT(1.00011 + 0.034221*COS(b) + 0.001280*SIN(b) + 0.000719*COS(2*b) + 0.000077*SIN(2*b))
 
    END SUBROUTINE sun_distance
@@ -643,7 +639,6 @@ CONTAINS
 
       IMPLICIT NONE
 
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
       REAL(KIND(1D0)), INTENT(in) :: zen
       REAL(KIND(1D0)), DIMENSION(1, 1), INTENT(in) :: svfalfa !>
       REAL(KIND(1D0)), DIMENSION(1, 1), INTENT(out) :: F_sh
@@ -785,7 +780,6 @@ CONTAINS
 
       IMPLICIT NONE
 
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
       REAL(KIND(1D0)), INTENT(in) :: radI
       REAL(KIND(1D0)), INTENT(in) :: radG
       REAL(KIND(1D0)), INTENT(in) :: radD
@@ -888,12 +882,12 @@ CONTAINS
 
    SUBROUTINE Lside_veg_v2( &
       Ldown2d, Lup2d, &
-      altitude, Ta, Tw, SBC, emis_wall, emis_sky, t, CI, azimuth, zen, ldown, svfalfa, &
+      altitude, Ta, Tw, emis_wall, emis_sky, t, CI, azimuth, zen, ldown, svfalfa, &
       Least, Lnorth, Lsouth, Lwest)
       ! This m-file is the current one that estimates L from the four cardinal points 20100414
       IMPLICIT NONE
 
-      REAL(KIND(1D0)), INTENT(in) :: altitude, Ta, Tw, SBC, emis_wall, emis_sky, t, CI, azimuth, ldown, zen
+      REAL(KIND(1D0)), INTENT(in) :: altitude, Ta, Tw, emis_wall, emis_sky, t, CI, azimuth, ldown, zen
 
       REAL(KIND(1D0)), DIMENSION(1, 1), INTENT(in) :: svfalfa
       REAL(KIND(1D0)), DIMENSION(1, 1), INTENT(in) :: Ldown2d, Lup2d
@@ -906,7 +900,6 @@ CONTAINS
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: Lground, Lrefl, Lsky, Lsky_allsky, Lveg, Lwallsh, Lwallsun
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: viktonlywall, viktaveg, svfvegbu
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: oneminussvfE, oneminussvfS, oneminussvfW, oneminussvfN
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
       INTEGER, PARAMETER :: SOLWEIG_ldown = 0 !! force to 0, TS 13 Dec 2019
 
       REAL(KIND(1D0)), DIMENSION(1, 1) :: viktveg, viktsky, viktrefl, viktwall
@@ -975,7 +968,7 @@ CONTAINS
 
       IF (SOLWEIG_ldown == 1) THEN
          c = 1 - CI
-         Lsky_allsky = emis_sky*SBC*((Ta + C2K)**4)*(1 - c) + c*SBC*((Ta + C2K)**4)
+         Lsky_allsky = emis_sky*SBConst*((Ta + C2K)**4)*(1 - c) + c*SBConst*((Ta + C2K)**4)
       ELSE
          Lsky_allsky = ldown
       END IF
@@ -989,19 +982,19 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaE)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (180 - t) .AND. azimuth <= (360 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziE*DEG2RAD))**4)* &
+            Lwallsun = SBConst*emis_wall*((Ta + C2K + Tw*SIN(aziE*DEG2RAD))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
-            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
+            Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
             Lwallsun = 0
-            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
+            Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*0.5
          END IF
       ELSE !nighttime
          Lwallsun = 0
-         Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
+         Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*0.5
       END IF
       Lsky = ((svfE + svfEveg - 1)*Lsky_allsky)*viktsky*0.5
-      Lveg = SBC*emis_wall*((Ta + C2K)**4)*viktveg*0.5
+      Lveg = SBConst*emis_wall*((Ta + C2K)**4)*viktveg*0.5
       Lground = Lup2d*0.5
       Lrefl = (Ldown2d + Lup2d)*(viktrefl)*(1 - emis_wall)*0.5
       Least = Lsky + Lwallsun + Lwallsh + Lveg + Lground + Lrefl
@@ -1015,19 +1008,19 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaS)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth <= (90 - t) .OR. azimuth > (270 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziS*DEG2RAD))**4)* &
+            Lwallsun = SBConst*emis_wall*((Ta + C2K + Tw*SIN(aziS*DEG2RAD))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
-            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
+            Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
             Lwallsun = 0
-            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
+            Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*0.5
          END IF
       ELSE !nighttime
          Lwallsun = 0
-         Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
+         Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*0.5
       END IF
       Lsky = ((svfS + svfSveg - 1)*Lsky_allsky)*viktsky*0.5
-      Lveg = SBC*emis_wall*((Ta + C2K)**4)*viktveg*0.5
+      Lveg = SBConst*emis_wall*((Ta + C2K)**4)*viktveg*0.5
       Lground = Lup2d*0.5
       Lrefl = (Ldown2d + Lup2d)*(viktrefl)*(1 - emis_wall)*0.5
       Lsouth = Lsky + Lwallsun + Lwallsh + Lveg + Lground + Lrefl
@@ -1041,19 +1034,19 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaW)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (360 - t) .OR. azimuth <= (180 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziW*DEG2RAD))**4)* &
+            Lwallsun = SBConst*emis_wall*((Ta + C2K + Tw*SIN(aziW*DEG2RAD))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
-            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
+            Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
             Lwallsun = 0
-            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
+            Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*0.5
          END IF
       ELSE !nighttime
          Lwallsun = 0
-         Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
+         Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*0.5
       END IF
       Lsky = ((svfW + svfWveg - 1)*Lsky_allsky)*viktsky*0.5
-      Lveg = SBC*emis_wall*((Ta + C2K)**4)*viktveg*0.5
+      Lveg = SBConst*emis_wall*((Ta + C2K)**4)*viktveg*0.5
       Lground = Lup2d*0.5
       Lrefl = (Ldown2d + Lup2d)*(viktrefl)*(1 - emis_wall)*0.5
       Lwest = Lsky + Lwallsun + Lwallsh + Lveg + Lground + Lrefl
@@ -1067,19 +1060,19 @@ CONTAINS
          betaB = ATAN(TAN((svfalfaN)*F_sh))
          betasun = ((alfaB - betaB)/2) + betaB
          IF (azimuth > (90 - t) .AND. azimuth <= (270 - t)) THEN
-            Lwallsun = SBC*emis_wall*((Ta + C2K + Tw*SIN(aziN*DEG2RAD))**4)* &
+            Lwallsun = SBConst*emis_wall*((Ta + C2K + Tw*SIN(aziN*DEG2RAD))**4)* &
                        viktwall*(1 - F_sh)*COS(betasun)*0.5
-            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
+            Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*F_sh*0.5
          ELSE
             Lwallsun = 0
-            Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
+            Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*0.5
          END IF
       ELSE !nighttime
          Lwallsun = 0
-         Lwallsh = SBC*emis_wall*((Ta + C2K)**4)*viktwall*0.5
+         Lwallsh = SBConst*emis_wall*((Ta + C2K)**4)*viktwall*0.5
       END IF
       Lsky = ((svfN + svfNveg - 1)*Lsky_allsky)*viktsky*0.5
-      Lveg = SBC*emis_wall*((Ta + C2K)**4)*viktveg*0.5
+      Lveg = SBConst*emis_wall*((Ta + C2K)**4)*viktveg*0.5
       Lground = Lup2d*0.5
       Lrefl = (Ldown2d + Lup2d)*(viktrefl)*(1 - emis_wall)*0.5
       Lnorth = Lsky + Lwallsun + Lwallsh + Lveg + Lground + Lrefl
@@ -1189,10 +1182,9 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(1, 1) :: a
 
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
       REAL(KIND(1D0)), PARAMETER :: maxpos = 10000000000.0
       !real, allocatable, dimension(:,:)   :: a,f,temp !! Defined in matsize
-      REAL(KIND(1D0)) :: degrees, azi, alt, dx, dy, dz, ds, absdx, absdy
+      REAL(KIND(1D0)) :: azi, alt, dx, dy, dz, ds, absdx, absdy
       REAL(KIND(1D0)) :: amaxvalue, pibyfour, threetimespibyfour, fivetimespibyfour
       REAL(KIND(1D0)) :: seventimespibyfour, sinazimuth, cosazimuth, tanazimuth
       REAL(KIND(1D0)) :: signsinazimuth, signcosazimuth, dssin, dscos, tanaltitudebyscale
@@ -1212,9 +1204,8 @@ CONTAINS
       a = 0
 
       ! conversion
-      degrees = DEG2RAD
-      azi = MIN(azimuth, 0 - 0.0001)*degrees
-      alt = MIN(altitude, 90 - 0.0001)*degrees
+      azi = MIN(azimuth, 0 - 0.0001)*DEG2RAD
+      alt = MIN(altitude, 90 - 0.0001)*DEG2RAD
 
       ALLOCATE (f(1, 1))
       ALLOCATE (temp(1, 1))
@@ -1323,7 +1314,6 @@ CONTAINS
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: weightsumwall, weightsumsh, gvf1, gvf2
       REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:, :) :: f, tempsh, tempbu, tempbub, tempwallsun, tempb, sh1
 
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_sp
       REAL(KIND(1D0)), PARAMETER :: maxpos = 10000000000.0
 
       ALLOCATE (weightsumwall(1, 1))

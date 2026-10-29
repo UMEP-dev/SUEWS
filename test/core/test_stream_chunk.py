@@ -1312,7 +1312,10 @@ def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(short_sample_sim, t
         assert saved.attrs["supy_output_coverage_s"][key] == 900
         assert saved["SUEWS", "Rain"].dropna().to_numpy() == pytest.approx(0.5 / TSTEP_S)
         daily = SUEWSOutput(saved, None).resample("D")
-        assert daily.df["SUEWS", "Rain"].to_numpy() == pytest.approx(0.5 / TSTEP_S)
+        # DailyState-only bins have no main-group coverage or rain rate.
+        rain = daily.df["SUEWS", "Rain"].dropna()
+        assert len(rain) == (2 if source == path else 1)
+        assert rain.to_numpy() == pytest.approx(0.5 / TSTEP_S)
 
 
 def test_parquet_output_names_the_folder_and_save_returns_it(

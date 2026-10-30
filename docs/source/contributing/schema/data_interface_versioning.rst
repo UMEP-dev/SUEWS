@@ -22,7 +22,7 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract is published at ``2.1.0`` and the unreleased output contract is ``2.0.0``.
+The forcing contract is published at ``2.1.0`` and the output contract at ``2.0.0``.
 Forcing ``2.1.0`` adds a canonical declared water-rate unit while retaining legacy undeclared amounts.
 Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
@@ -51,9 +51,10 @@ The registry aggregation codes continue to describe native kernel amounts; the e
 DailyState ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` remain daily totals in ``mm`` with ``time: sum`` and sum aggregation.
 Their model sums, including partial first and last days, are written unchanged; coverage remains informational in attrs and sidecars and never divides these totals.
 Amount units (``mm``, ``m``, ``kg m-2``) are accepted; rate units are rejected.
-This amends the unreleased output contract ``2.0.0`` without a version bump; per-step water fluxes remain ``kg m-2 s-1``.
-The history audit permits digest corrections only to the current unreleased output ``2.0.0``; this exception must be removed on release.
+Per-step water fluxes are written as ``kg m-2 s-1`` rates.
+Output ``2.0.0`` is frozen like every earlier version: its digest is immutable, and any later correction needs a new version.
 Native in-memory amounts remain available, with their actual units exposed by the output accessor.
+:ref:`units_migration_guide` describes what these forcing and output versions change for users.
 Each forcing release is stored as an immutable canonical
 registry projection under ``src/supy/data_model/forcing/artefacts/``. The
 output contract's immutable bundles are stored under

@@ -227,6 +227,40 @@ def _index_freq_matches(df_output, freq):
         return inferred == target_offset
 
 
+def _aggregate_bins(resampler, dict_aggm_group, columns):
+    """Aggregate resampled bins, keeping all-missing sums as NaN.
+
+    Parameters
+    ----------
+    resampler : pandas.core.resample.Resampler
+        Bins of the frame being resampled.
+    dict_aggm_group : dict
+        Aggregation method per variable.
+    columns : pandas.Index
+        Columns present in the resampled frame; methods for absent
+        variables are ignored.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Aggregated bins, columns in ``dict_aggm_group`` order.
+    """
+    dict_aggm = {var: method for var, method in dict_aggm_group.items() if var in columns}
+    list_sum = [var for var, method in dict_aggm.items() if method == "sum"]
+    if not list_sum:
+        return resampler.agg(dict_aggm)
+
+    # Use pandas' vectorised sum with an explicit missing-data contract.
+    # Passing min_count to the mixed agg() would also pass it to mean/last
+    # and custom callables, which need not accept that keyword.
+    df_sum = resampler[list_sum].sum(min_count=1)
+    dict_other = {var: method for var, method in dict_aggm.items() if var not in list_sum}
+    if not dict_other:
+        return df_sum
+    df_other = resampler.agg(dict_other)
+    return pd.concat([df_sum, df_other], axis=1).reindex(columns=list(dict_aggm))
+
+
 def _resample_output(
     df_output,
     freq="60min",
@@ -241,7 +275,7 @@ def _resample_output(
     aggregation methods. Different variable types are handled correctly:
 
     - **Instantaneous** (temperature, humidity, wind): averaged (mean)
-    - **Accumulated** (rainfall, runoff): summed
+    - **Accumulated** (rainfall, runoff): summed, with all-NaN bins kept as NaN
     - **State** (soil moisture, daily state): last value
 
     Parameters
@@ -375,27 +409,27 @@ def _resample_output(
         if group_name == "DailyState":
             # DailyState contains sparse data (values only at end of each day)
             # Use dropna(how='all') to preserve rows with partial data
-            df_with_data = df_group.dropna(how="all")
+            df_to_resample = df_group.dropna(how="all")
 
-            if df_with_data.empty:
+            if df_to_resample.empty:
                 # No data at all - return empty DataFrame with proper structure
                 return pd.DataFrame(
                     index=pd.DatetimeIndex([]), columns=df_group.columns
                 )
 
-            # Resample the non-empty data and return directly
             # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
             coverage = df_output.attrs.get("supy_output_daily_coverage_s") or {}
             daily_seconds = pd.Series(
-                [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_with_data.index],
-                index=df_with_data.index,
+                [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_to_resample.index],
+                index=df_to_resample.index,
             ).resample(freq, closed="right", label=label).sum(min_count=1)
             dict_daily_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in daily_seconds.dropna().items()})
-            return df_with_data.resample(freq, closed="right", label=label).agg(
-                {name: (lambda values: values.sum(min_count=1)) if method == "sum" else method
-                 for name, method in dict_aggm_group.items() if name in df_with_data.columns}
+            return _aggregate_bins(
+                df_to_resample.resample(freq, closed="right", label=label),
+                dict_aggm_group,
+                df_to_resample.columns,
             )
         else:
             df_to_resample = df_group
@@ -412,9 +446,7 @@ def _resample_output(
             df_to_resample = df_to_resample.copy(deep=False)
             df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(covered, axis=0)
         bins = df_to_resample.resample(freq, closed="right", label=label)
-        result = bins.agg(
-            {name: method for name, method in dict_aggm_group.items() if name in df_to_resample.columns}
-        )
+        result = _aggregate_bins(bins, dict_aggm_group, df_to_resample.columns)
         if columns_rate:
             result[columns_rate] = result[columns_rate].div(target.where(target > 0), axis=0)
         # Some calendar offsets produce an empty boundary bin. Trim only

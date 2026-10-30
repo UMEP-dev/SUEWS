@@ -1,13 +1,14 @@
 """Observable output writer layout parity tests."""
 
 from pathlib import Path
+import warnings
 
 import numpy as np
 import pandas as pd
 import pytest
 import pyarrow.parquet as pq
 
-from supy._save import save_df_grid_group, save_df_output_parquet
+from supy._save import StreamedParquetParts, save_df_grid_group, save_df_output_parquet
 
 pytestmark = pytest.mark.api
 
@@ -40,8 +41,9 @@ def test_text_layout_prefix_sentinel_and_filenames(tmp_path: Path):
     assert path_daily.name == "site7_2012_DailyState.txt"
 
 
-def test_parquet_layout_and_null_round_trip(tmp_path: Path):
-    """Preserve ordered output identities and represent missing values as null."""
+@pytest.mark.parametrize("streamed", [False, True])
+def test_parquet_layout_and_null_round_trip(tmp_path: Path, streamed: bool):
+    """Warn only for whole-file output and preserve the saved frame exactly."""
     # Parquet does not store an index freq, so the expected index has none;
     # pandas 3.1 warns that assert_index_equal will compare freq by default.
     index = pd.MultiIndex.from_product(
@@ -63,14 +65,42 @@ def test_parquet_layout_and_null_round_trip(tmp_path: Path):
         columns=columns,
     )
 
-    paths = save_df_output_parquet(
-        output,
-        pd.DataFrame(),
-        site="site",
-        path_dir_save=tmp_path,
-        save_tstep=True,
-        save_state=False,
-    )
+    writer = None
+    if streamed:
+        writer = StreamedParquetParts(
+            tmp_path / "site_SUEWS_output.parquet", tstep_s=300
+        )
+        writer.prepare()
+        writer.start_chunk(2012, 1)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", FutureWarning)
+        paths = save_df_output_parquet(
+            output,
+            pd.DataFrame(),
+            freq_s=300,
+            site="site",
+            path_dir_save=tmp_path,
+            save_tstep=True,
+            save_state=False,
+            streamed_parquet=writer,
+        )
+        if streamed:
+            paths = writer.finish()
+
+    deprecations = [w for w in caught if issubclass(w.category, FutureWarning)]
+    if streamed:
+        assert not deprecations
+        assert paths[0].is_dir()
+    else:
+        assert len(deprecations) == 1
+        message = str(deprecations[0].message)
+        assert "will be removed in the next release" in message
+        assert "chunked streaming Parquet output" in message
+        assert "model.control.output.stream_chunk" in message
+        assert "SUEWSSimulation.run()" in message
+        assert deprecations[0].filename == __file__
+        assert paths[0].is_file()
     saved = pd.read_parquet(paths[0])
     arrow_table = pq.read_table(paths[0])
 
@@ -81,5 +111,12 @@ def test_parquet_layout_and_null_round_trip(tmp_path: Path):
     assert saved.columns.to_list() == columns.to_list()
     assert saved.columns.names == ["group", "var"]
     pd.testing.assert_index_equal(saved.index, index)
+    # Water fluxes are written as interval-mean rates (output contract 2.0.0):
+    # 1.5 mm over a 300 s step is 0.005 kg m-2 s-1. Other columns round-trip
+    # exactly.
+    rain = ("SUEWS", "Rain")
+    others = [column for column in columns if column != rain]
+    pd.testing.assert_frame_equal(saved[others], output[others], check_exact=True)
+    np.testing.assert_allclose(saved[rain], output[rain] / 300, rtol=1e-12, atol=0)
     assert pd.isna(saved.loc[(7, index.levels[1][1]), ("SUEWS", "QH")])
     assert arrow_table.column("('SUEWS', 'QH')").null_count == 1

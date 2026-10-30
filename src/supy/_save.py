@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import time
 from typing import Optional, Tuple
+import warnings
 
 import f90nml
 import numpy as np
@@ -947,6 +948,11 @@ def _save_row_index(
     is moved back by *step_s*, the table's step.
     """
     if shift_to_period_start:
+        # A table saved at its native step skips resampling and may be a slice
+        # of a longer run (a short last chunk), whose datetime level still
+        # holds the run's other timestamps; replacing that level needs it to
+        # hold exactly the timestamps present.
+        index = index.remove_unused_levels()
         idx_dt = index.get_level_values("datetime").drop_duplicates()
 
         # cast freq to index if not associated
@@ -1587,6 +1593,12 @@ def save_df_output_parquet(
 ) -> list:
     """Save supy output to Parquet format.
 
+    .. deprecated:: 2026.10.28
+        Non-streaming output (``streamed_parquet=None``) is retained for one
+        release and will be removed in the next release. Use chunked streaming
+        Parquet output by setting ``model.control.output.stream_chunk`` before
+        :meth:`~supy.SUEWSSimulation.run` instead.
+
     Parameters
     ----------
     units : mapping, optional
@@ -1629,6 +1641,19 @@ def save_df_output_parquet(
     _check_save_tstep(df_output, save_tstep)
     df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
+
+    if streamed_parquet is None:
+        # The output mode, not the function, is retired, so internal callers
+        # warn too (gh#1955).
+        warnings.warn(
+            "Non-streaming Parquet output is deprecated and will be removed in "
+            "the next release. Please migrate to chunked streaming Parquet "
+            "output: set model.control.output.format='parquet' and "
+            "model.control.output.stream_chunk (e.g. 30 days) before "
+            "SUEWSSimulation.run().",
+            FutureWarning,
+            stacklevel=2,
+        )
 
     # Resample if needed; values are not written in place (gh#1849)
     df_save = df_output.copy(deep=False)

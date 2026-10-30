@@ -106,7 +106,7 @@ convert per-step water fluxes to interval-mean rates in ``kg m-2 s-1``.
 DailyState water columns remain daily totals in ``mm`` with ``time: sum``.
 These serialisation annotations sit outside the output contract catalogue and
 need no independent contract release. The catalogue version is recorded as
-``output_contract_version`` (currently the unreleased ``2.0.0``).
+``output_contract_version`` (currently ``2.0.0``).
 
 Every text output table has a neighbouring ``<filename>.units.json`` file.
 Sidecars are auxiliary files; save methods retain their primary-file return lists.

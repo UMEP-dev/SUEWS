@@ -99,14 +99,6 @@ def _validate_transition(
     base: VersionState,
     current: VersionState,
 ) -> bool:
-    # Output 2.0.0 is still unreleased: its catalogue may be corrected in place.
-    # Remove this exception when 2.0.0 is released. Older digests remain immutable.
-    if kind == "output" and base.current == current.current == "2.0.0":
-        base = base._replace(versions=tuple(
-            (version, dict(current.versions).get(version, digest))
-            if version == "2.0.0" else (version, digest)
-            for version, digest in base.versions
-        ))
     base_length = len(base.versions)
     if (
         len(current.versions) < base_length

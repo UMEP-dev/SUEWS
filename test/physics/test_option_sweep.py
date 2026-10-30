@@ -83,9 +83,11 @@ OPTION_VALUES_REFUSED = {
 # Values that run and then violate one of the sweep's invariants.
 OPTION_VALUES_XFAIL = {
     ("snow_use", 1): (
-        "snow state is never written back, so the water body dumps its "
-        "store as ~19999.5 mm of runoff every timestep and the water "
-        "balance does not close (UMEP-dev/SUEWS#1757)"
+        "water balance does not close (max residual ~0.45 mm): snow-free "
+        "land skips its water storage on the snow path (UMEP-dev/SUEWS#1905), "
+        "open-water evaporation is not removed from the water-body store "
+        "(UMEP-dev/SUEWS#1927), and this check omits snow and melt-water "
+        "stores (UMEP-dev/SUEWS#1958)"
     ),
 }
 

@@ -56,41 +56,51 @@ EXAMPLES:
 
 ### 29 Oct 2026
 
-- [bugfix] Keep DailyState `P_day` and `WU_EveTr1-3`, `WU_DecTr1-3`, `WU_Grass1-3` as daily totals in mm with `time: sum` in unreleased output contract 2.0.0. Preserve raw partial-day totals and informational coverage, accept amount-unit conversions, reject rate units, and sum totals when resampling. Per-step water fluxes remain kg m-2 s-1.
-
-- [bugfix] Use covered model-step seconds for DailyState water rates, preserve later streamed Parquet partial-bin coverage, exclude user attrs from Parquet metadata, and explain the calendar-output/save_tstep conflict (#1903, #1967).
-  - Clarify the unreleased output contract 2.0.0 implementation and documentation; catalogue units and released contract bundles are unchanged.
-
-### 28 Oct 2026
-
-- [bugfix] Persist output units, nominal intervals and partial-row coverage in Parquet schema metadata so reloaded water rates retain their values and resampling weights after clock changes (#1967).
-
-- [change][experimental] Retain trailing partial resampling bins for all output variables, including without a unit request; water rates use the seconds actually covered by each bin (#1967).
-
-- [change][experimental] Write accumulated water fluxes as interval-mean `kg m-2 s-1` rates in output contract 2.0.0, with rate conversions and matching text/Parquet metadata; retain water stores and native in-memory amounts (#1903).
-  - `MeltWater`, `frMelt_*` (per-step refreeze amount), and debug `wu_*`, `ev0_*`, `ev_*`, `drain_*` now sum instead of averaging before rate conversion.
-  - Requesting an amount unit for a water flux (for example, `Rain` in `m`) now raises an error; request a rate such as `mm h-1`.
-
-- [change][experimental] Require a time unit for explicitly declared rain and water-use forcing; accept water mass flux and depth rates while retaining undeclared interval amounts (forcing contract 2.1.0; #1903).
-
-- [feature][experimental] Forcing files can declare their units: `SUEWSForcing.from_file`, `supy.util.read_forcing`, `load_forcing_grid` and `SUEWSSimulation(config, units=...)` take a mapping such as `{"Tair": "K", "pres": "hPa"}`, and declared columns are converted on load through `supy.units.convert` to the forcing registry's units before validation; undeclared columns load exactly as before, and neither the forcing contract nor the YAML schema changes (#1903)
-- [feature][experimental] Output can be written in requested units: `SUEWSOutput.to_units`, `SUEWSOutput.save(units=...)` and `SUEWSSimulation.save(units=...)` take per-variable target units (for example `{"QE": "kW m-2", "T2": "K"}`), converted after the run through `supy.units.convert`; the written units are recorded in the text sidecars, Parquet metadata and `SUEWSOutput.units`, and output without a request is unchanged (#1903)
-  - Temperature differences convert by scale only and on-scale temperatures with their offset; a unit of the wrong dimension, an unknown or ambiguous variable, or a variable without a unit is refused
-  - Streamed runs cannot be converted after writing, and say so
-- [feature][experimental] Saved output carries its units: each text file gets a `<file>.units.json` sidecar, Parquet output carries per-field metadata and the output contract version, and `SUEWSOutput.units` maps each column to its unit with CF `cell_methods`, `interval` and `units_metadata` in `.metadata`; output values and text files are unchanged (#1903)
-  - `cell_methods` names the written interval after resampling, for example `time: sum (interval: 1 hour)`; DailyState keeps its daily interval and point values carry none
-  - Columns outside the output registry are marked `status: unknown`, with no inferred unit
-- [feature][experimental] Output catalogue entries carry CF `cell_methods` (`time: mean`, `sum`, `point`, `minimum` or `maximum`) and `units_metadata` (`temperature: on_scale` or `temperature: difference`), recorded in output contract `1.1.9`; unit strings, aggregation codes and values are unchanged (#1903)
-  - The time base follows each variable's aggregation code, with explicit overrides for DailyState means, totals and extrema, whose daily statistic the kernel computes before the last daily record is selected
-  - Temperature differences (for example BEERS `Tg` and `Tw`, `TStar`, degree-day indices) are marked as such; every other `degC` or `K` variable is on-scale
-- [maintenance] The conductance soil-moisture parameter `g_sm` is labelled `m2 kg-1` instead of `mm-1`, matching soil water in `kg m-2`; values are unchanged because 1 mm of water is 1 kg m-2 (#1903)
+- [change][experimental] Breaking: units at the edges of SUEWS. Forcing contract 2.1.0 and output contract 2.0.0 declare, check and convert units where data enters and leaves SuPy, in the CF (UDUNITS-2) notation of a new unit vocabulary; the kernel still computes in its own units. Upgrade notes for forcing files and saved output are in the "Upgrading Across the Units Change" documentation page (#1903)
+- [change][experimental] Breaking: saved water fluxes are written as interval-mean rates in `kg m-2 s-1` (output contract 2.0.0) instead of amounts in mm per output interval: precipitation, irrigation, evaporation, runoff, drainage, water use, storage change, snowmelt, refreezing and snow removal, including the per-surface `snow` and `debug` columns (71 variables) (#1903)
+  - Multiply a written rate by the written interval in seconds to recover mm per interval (1 kg m-2 of liquid water is 1 mm), or save with `units={"Rain": "mm h-1"}`; requesting an amount unit such as `mm` for a water flux raises an error
+  - Each rate divides the water accumulated in an output bin by the seconds that bin actually covers, so trailing partial bins (kept for every variable) and calendar bins (`W`, `MS`, `ME`, `YE`) are not diluted; resampling a rate again weights by coverage
+  - Text output writes water rates in scientific notation so light rain does not round to zero
+  - Output held in memory keeps the kernel's native amounts (mm per timestep), and `SUEWSOutput.units` reports the unit actually held
+  - `MeltWater`, the per-surface refreezing amounts `frMelt_*` and debug `wu_*`, `ev0_*`, `ev_*`, `drain_*` now sum when resampled instead of being averaged
+  - Water stores, deficits and snow water equivalent keep their amounts, now labelled `kg m-2` with unchanged values
 - [change][experimental] Breaking: forcing contract 2.0.0 replaces observed `xsmd` with `sm`, the instantaneous liquid-water content of a specified soil layer in `kg m-2` (#1422)
   - After validating the whole-store layer and interpolating content to model timestamps, SuPy derives `D = rho_w * theta_fc * d - sm`, clamped to `[0, AWC]`. The bulk store uses non-water area-weighted field-capacity content and available water capacity; `soil_store_capacity` remains AWC.
   - YAML schema `2026.6.dev6` introduces `soil_moisture`, explicit observation layer bounds and optional `soil_field_capacity` (`m3 m-3`), required on each positive-area non-water surface in observed mode. Modelled runs do not require field capacity and retain their existing calculation.
   - Legacy volumetric (SMDMethod 1) and gravimetric (SMDMethod 2, `kg kg-1`) observations require coordinated YAML and forcing conversion with confirmed layer geometry; changing a header is insufficient. The converter preserves inputs and references, records hashes and supports a dry-run report.
   - An `xsmd` column that is entirely missing, as most existing forcing files carry, is still read as missing `sm` for modelled runs with a `FutureWarning`; observed runs and any `xsmd` with values are refused. The allowance ends at forcing contract 3.0.0.
   - Sensor `smcap` is retired, so migrated observed runs may produce different deficits. Contents above field capacity or below the implied wilting reference are retained with warnings; only the derived deficit is clamped.
-- [maintenance] Unit metadata in the input data model and the output catalogue is written in the CF notation of `supy.units` (signed integer exponents, `1` for ratios, water stores in `kg m-2`); a test parses every unit string, and output contract `1.1.9` carries the relabelled units with every value unchanged (#1903)
+- [feature][experimental] Forcing files can declare their units: `SUEWSForcing.from_file`, `supy.util.read_forcing`, `load_forcing_grid` and `SUEWSSimulation(config, units=...)` (also `update_config` and file-based `update_forcing`) take a mapping such as `{"Tair": "K", "pres": "hPa"}`, and declared columns are converted on load to the forcing registry's units before validation; undeclared columns load exactly as before and the YAML schema does not change (#1903)
+  - Rain, bulk and per-surface water use must be declared as rates (`kg m-2 s-1`, `mm h-1`, `mm d-1`), converted to the amount per forcing interval; a bare amount such as `mm` is refused, and forcing contract 2.1.0 records the rate unit (#1903)
+  - Unknown, absent or duplicated columns, unparseable units and dimension mismatches raise errors naming the column; in-memory forcing refuses a declaration
+- [feature][experimental] Output can be written in requested units: `SUEWSOutput.to_units`, `SUEWSOutput.save(units=...)` and `SUEWSSimulation.save(units=...)` take per-variable target units (for example `{"QE": "kW m-2", "T2": "K"}`), converted once after the run through `supy.units.convert`; output without a request keeps its values (#1903)
+  - Temperature differences convert by scale only and on-scale temperatures with their offset; a unit of the wrong dimension, an unknown or ambiguous variable, or a variable without a unit is refused
+  - Streamed runs cannot be converted after writing, and say so
+- [feature][experimental] Saved output carries its units: each text file gets a `<file>.units.json` sidecar, Parquet output carries per-field metadata and the output contract version, and `SUEWSOutput.units` maps each column to its unit with CF `cell_methods`, `interval` and `units_metadata` in `.metadata` (#1903)
+  - `cell_methods` names the written interval, for example `time: mean (interval: 1 hour)`; point values carry none
+  - Columns outside the output registry are marked `status: unknown`, with no inferred unit
+  - Parquet output keeps the written units, held interval and partial-bin coverage when read back with `pandas.read_parquet`, including later streamed parts; only SuPy-owned attributes are stored
+- [feature][experimental] DailyState `P_day`, `WU_EveTr1-3`, `WU_DecTr1-3` and `WU_Grass1-3` stay daily totals in mm with unchanged values, now marked `time: sum` over the covered day: partial first and last days keep their raw totals, the seconds each day covers are recorded as information (`daily_coverage_s` in text sidecars), amount units (`mm`, `m`, `kg m-2`) are accepted and rate units refused, and resampling across days sums them instead of taking the last day (#1903)
+- [feature][experimental] Output contract 1.1.9 writes every catalogue unit in CF notation (signed integer exponents, `1` for ratios, water stores in `kg m-2`) and gives each entry CF `cell_methods` (`time: mean`, `sum`, `point`, `minimum` or `maximum`) and `units_metadata` (`temperature: on_scale` or `temperature: difference`); values, names, groups and layouts are unchanged, and a test parses every unit string in the input data model and output catalogue (#1903)
+  - The time base follows each variable's aggregation code, with explicit overrides for DailyState means, totals and extrema
+  - Temperature differences (for example BEERS `Tg` and `Tw`, `TStar`, degree-day indices) are marked as such; every other `degC` or `K` variable is on-scale
+  - The conductance soil-moisture parameter `g_sm` is labelled `m2 kg-1` instead of `mm-1`; values are unchanged because 1 mm of water is 1 kg m-2
+- [bugfix] Calendar-resampled output saved with `save_tstep=True` now raises an error asking for the native output to be saved before resampling (#1903)
+- [bugfix] `supy.util` saturation vapour pressure (`cal_vap_sat`, and through it the dry-air and vapour density helpers) now converts pressure from hPa to kPa for DataFrame (2-D) input as it already did for Series, array and scalar input; the 2-D fallback branch used the hPa value directly, which overstated the pressure term of the enhancement factor tenfold (about 0.3 % in the result at surface pressure) (#1887)
+- [feature][internal] New `supy.units` module: the SUEWS unit vocabulary, a strict subset of CF (UDUNITS-2) syntax with a dimension, scale and offset for each symbol, `parse_unit`, a `Unit` type, a `NO_UNIT` marker for flags and selectors, and `convert` for boundary conversions; the unit strings of the input data model and output catalogue are checked against it (#1903)
+  - `scripts/lint/report_unit_strings.py` lists registry unit strings the vocabulary rejects
+- [maintenance] The file loader, range-check message, UMEP-to-EPW converter and forcing writer apply the pressure unit boundary through helpers in the forcing registry (kPa in a forcing file, hPa in memory and in the kernel); loaded values and the kernel input are unchanged (#1547)
+  - An out-of-range `pres` now reports both units, `[680, 1300] hPa in memory, which is [68, 130] kPa in a forcing file`, instead of a kPa range against hPa values, and the error for a kPa-looking DataFrame says which unit each entry point expects
+- [maintenance] Fortran physical-constant and unit-conversion literals are named: Celsius-Kelvin offsets (`C2K`), pi, Stefan-Boltzmann, degree-radian factors, latent heat, the specific heat of air, reference pressure and time conversions (`sec_per_hour`, `sec_per_day`, `min_per_day` and companions), each at the literal's own precision; the compiled code and read-only data of every touched object are identical before and after on Linux release builds (#1939, #1941, #1942, #1943, #1944, #1946, #1947, #1948, #1949)
+  - CI fails when a Fortran source gains such a literal: `scripts/lint/check_fortran_literals.py` compares per-file counts with a committed baseline, which clean-up PRs lower (#1888)
+
+### 28 Oct 2026
+
+- [change][stable] Deprecate non-streaming Parquet output with a FutureWarning for one release; it will be removed in the next release. Use chunked streaming Parquet output via `model.control.output.stream_chunk` instead. Existing non-streaming output is unchanged during the deprecation period (#1955).
+
+### 27 Oct 2026
+
+- [bugfix] Keep all-NaN sums missing when resampling output, including one- and two-row final chunks of text output at the model timestep; real zeroes and sums of observed values are preserved (#1934).
 
 ### 23 Oct 2026
 
@@ -117,7 +127,6 @@ EXAMPLES:
 
 ### 22 Oct 2026
 
-- [maintenance] CI now fails when a Fortran source gains a physical-constant or unit-conversion literal (273.15, Stefan-Boltzmann, pi, degree-radian and time factors, reference pressure, `cp` and `Lv` values): `scripts/lint/check_fortran_literals.py` compares per-file counts with a committed baseline, which clean-up PRs lower as they replace literals with named constants (#1888)
 - [bugfix] The roughness-sublayer humidity scale `qStar_RSL` now divides the latent heat flux by air density instead of multiplying by it, so the RSL humidity profile, `Q2` and `RH2` no longer depart from the forcing humidity by about 1.4 times too much; the sample reference output is refreshed (#1867)
 - [bugfix] With snow enabled, the water body is now limited by its state limit, as when snow is off, instead of by the storage capacity of the drainage equation; on the first snow timestep the sample's 20000 mm water body drained to 0.5 mm and about 2800 mm (grid average) left as runoff (#1906)
 - [bugfix] DailyState now resets the daily Tmin and Tmax at 00:00 from the same air temperature it uses for the rest of the day (T2 or the RSL temperature when `roughness_sublayer_level` is basic or detailed), not from the forcing temperature, which could hold the daily minimum below, or the maximum above, every diagnosed value and bias GDD, SDD and LAI (#1882)
@@ -162,16 +171,11 @@ EXAMPLES:
   - The bridge's `run_suews_into` and `run_suews_multi_into` take the forcing as a C-ordered float64 array of shape `(len_sim, 32)` and refuse any other dtype, shape or memory layout; the older list-taking `run_suews*` functions are unchanged.
   - Output values, columns and saved files are unchanged.
 - [maintenance] Refreshed the sample-output reference on current master. It had not been regenerated since 9 Sep, and the 273.16 -> 273.15 K conversion change (#1848) had moved it within tolerance (up to 0.08 W m-2 in QS, 28% of that variable's tolerance); the refresh is generated on Linux x86_64
-- [feature][internal] New `supy.units` module: the SUEWS unit vocabulary, a strict subset of CF (UDUNITS-2) syntax with a dimension, scale and offset for each symbol, `parse_unit`, a `Unit` type, a `NO_UNIT` marker for flags and selectors, and `convert` for boundary conversions; no registry uses it yet
-  - `scripts/lint/report_unit_strings.py` lists the registry unit strings the vocabulary rejects, the work for the notation sweeps (#1903)
 - [maintenance] SuPy runs cleanly under pandas 3.1, which turned several pandas usages into deprecation warnings that the test suite treats as errors (#1898)
   - Bundled JSON tables are read with `json` instead of `pandas.read_json(convert_dates=...)`; `.dayofyear` is now `.day_of_year`; DataFrame methods no longer take `inplace=`.
   - Frequency inference asks pandas for an offset (`future.infer_freq_returns_offset`, set for that call only, where pandas has the option), so it behaves the same on every pandas version.
   - Output timestamps are built from year and day of year by date arithmetic rather than by parsing integers with a format, keeping the resolution pandas used before (nanoseconds on pandas 2, microseconds on pandas 3); initial-condition columns are added under full MultiIndex keys.
   - No change in results: the full test suite passes on pandas 2.3 (Python 3.12) and pandas 3.1 (Python 3.14).
-- [maintenance] The file loader, range-check message, UMEP-to-EPW converter and forcing writer now apply the pressure unit boundary through helpers in the forcing registry (kPa in a forcing file, hPa in memory and in the kernel); the writer already used the registry's scale, while the other paths repeated the factor of 10 (#1547)
-  - An out-of-range `pres` now reports both units, `[680, 1300] hPa in memory, which is [68, 130] kPa in a forcing file`, instead of a kPa range against hPa values, and the error for a kPa-looking DataFrame says which unit each entry point expects
-  - The forcing-data page, `read_forcing` and `SUEWSForcing.from_file` state the contract; loaded values and the kernel input are unchanged
 - [doc] Proofread every output-variable description, corrected six that disagreed with the kernel, and published output contract `1.1.3` (#1871)
   - `flag_RSL` read as cut off: its last clause had no verb. It now reads "... After resampling, the value is the fraction of timesteps that used RST." `f` gets the same treatment.
   - Descriptions that only made sense with the code to hand now say what the column holds: for example the RSL quantities that are missing under MOST, the snow melt, refreeze and rain-heat terms, the EHC vertical layers (fluxes per unit roof or wall area), the STEBBS hot water tank and vessel terms, and the debug QE0/ev0 values before the water-availability limit.
@@ -180,7 +184,6 @@ EXAMPLES:
   - The DailyState temperature columns say which air temperature they use (the forcing value, or `T2` or `T_10` under `roughness_sublayer_level` basic or detailed), and the snow-albedo columns say how the albedo evolves.
   - `QHinit` is marked deprecated: it always equals `QH` at output and will be removed in a future release.
   - No variable name, unit, group, aggregation or column layout changes, so `1.1.3` is proposed as a PATCH.
-- [bugfix] `supy.util` saturation vapour pressure (`cal_vap_sat`, and through it the dry-air and vapour density helpers) now converts pressure from hPa to kPa for DataFrame (2-D) input as it already did for Series, array and scalar input; the 2-D fallback branch used the hPa value directly, which overstated the pressure term of the enhancement factor tenfold (about 0.3 % in the result at surface pressure) (#1887)
 - [bugfix] Long runs need about half the memory while the model runs: the kernel now writes its output straight into the table SuPy returns, so a three-year single-grid run at a 5-minute timestep saving SUEWS, RSL, DailyState and debug output peaks at 4.1 GB instead of 7.5 GB during the run (#1849)
   - The Fortran kernel, the Rust bridge and pandas used to hold two full-width copies of the output at once (a Fortran block copied into a Rust buffer, that buffer copied into Python bytes, then the data columns gathered into a new array); one buffer, allocated by SuPy, now serves all three.
   - Each output group's repeated 5-column datetime prefix is written once per row to a separate small array instead of into the table.
@@ -523,7 +526,6 @@ EXAMPLES:
   - Fixed mixed evergreen/deciduous RSL temperature sampling to use weighted half-tree height (from RSL).
   - Guarded non-urban/forest-only SPARTACUS paths so direct-albedo and longwave fallback logic no longer touch urban-only roof/wall arrays.
   - Added tests for mixed-tree RSL sampling height and non-urban direct-albedo SPARTACUS runs.
-
 
 ### 20 Jun 2026
 
@@ -2385,7 +2387,6 @@ EXAMPLES:
   - Ensured consistent output types for error handling
   - Removed DAVE-specific parameters from STEBBS
 
-
 ## 2024
 
 ### 20 Dec 2024
@@ -2528,7 +2529,6 @@ EXAMPLES:
 ### 31 Jan 2024
 - [bugfix] Fixed GCC and M1 environment compatibility issues
 
-
 ## 2023
 
 ### 19 Dec 2023
@@ -2602,7 +2602,6 @@ EXAMPLES:
 ### 27 Jan 2023
 - [feature] Added EPW (EnergyPlus Weather) file header support (#69)
 - [bugfix] Fixed various test and CI pipeline issues (#75, #76)
-
 
 ## 2022
 
@@ -2699,7 +2698,6 @@ EXAMPLES:
 ### 17 Jan 2022
 - [maintenance] Moved SPARTACUS-specific output files to output section (#77)
 
-
 ## 2021
 
 ### 11 Dec 2021
@@ -2752,7 +2750,6 @@ EXAMPLES:
   - Improved RSL computational stability
   - Added comprehensive test suite for 2021a
 
-
 ## 2020
 
 ### 8 Dec 2020
@@ -2801,7 +2798,6 @@ EXAMPLES:
 - [bugfix] Fixed ERA5 data file location issues
 - [maintenance] Enhanced testing with pytest integration
 
-
 ## 2019
 
 ### 15 Nov 2019
@@ -2838,7 +2834,6 @@ EXAMPLES:
 - [maintenance] Trimmed unnecessary output groups
 - [doc] Major documentation improvements and restructuring
 
-
 ## 2018
 
 ### 28 Dec 2018
@@ -2874,7 +2869,6 @@ EXAMPLES:
   - Restructured physics scheme layout
   - Improved output file alignment
 - [maintenance] Removed AnthropCO2Method from RunControl.nml
-
 
 ## 2017
 

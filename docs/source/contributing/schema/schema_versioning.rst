@@ -182,10 +182,12 @@ the schema that shipped with it via
 **Schema 2026.6.dev6** (current; development)
    Adds ``model.control.output.include_provisional`` (default ``false``).
    Output groups that the output contract marks provisional (``BEERS``,
-   ``EHC``, ``NHood``, ``SPARTACUS`` and ``STEBBS``) are saved only when it is
-   ``true``, and saving them emits a warning. A configuration that lists one
-   of these groups without the switch still loads, with a warning, but saving
-   that group stops with an error. The ``(2026.6.dev5 -> 2026.6.dev6)``
+   ``EHC``, ``NHood``, ``SPARTACUS`` and ``STEBBS``) are saved to TXT or
+   streamed output only when it is ``true``, and saving them emits a warning.
+   Non-streaming Parquet output continues to save every available group.
+   A configuration that lists one of these groups without the switch still
+   loads, with a warning, but attempting TXT or streamed export stops with
+   an error. The ``(2026.6.dev5 -> 2026.6.dev6)``
    handler preserves configuration content and updates the schema marker; it
    does not turn the switch on. See :ref:`schema_dev6_provisional_output`.
 

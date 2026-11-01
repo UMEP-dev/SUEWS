@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 # import ray
-from ._env import logger_supy
+from ._env import _user_warning_stacklevel, logger_supy
 from ._load import load_SUEWS_dict_ModConfig
 from ._post import _resample_output, df_var as df_var_out
 from .data_model.output import PROVISIONAL_OUTPUT_GROUPS
@@ -1004,7 +1004,7 @@ def check_provisional_groups(output_groups, include_provisional: bool = False) -
         f"Saving provisional output group(s) {names}: their variables may "
         "change between releases.",
         UserWarning,
-        stacklevel=3,
+        stacklevel=_user_warning_stacklevel(),
     )
 
 
@@ -1022,6 +1022,8 @@ def save_df_output(
     forcing_timestamp_reference="local_standard_time",
     df_state_final: Optional[pd.DataFrame] = None,
     streamed_files: Optional[StreamedTextFiles] = None,
+    *,
+    include_provisional: bool = False,
 ) -> list:
     """save supy output dataframe to txt files
 
@@ -1057,6 +1059,8 @@ def save_df_output(
         the run has already started are appended to, see
         :class:`StreamedTextFiles`. ``None`` (the default) writes every file
         anew.
+    include_provisional : bool, optional
+        Allow provisional output groups, with a warning. Defaults to False.
 
     Returns
     -------
@@ -1068,6 +1072,8 @@ def save_df_output(
     ``df_output`` is never copied whole: groups are selected, resampled,
     relabelled and written one (grid, group) at a time (gh#1849).
     """
+    check_provisional_groups(output_groups, include_provisional)
+
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
 

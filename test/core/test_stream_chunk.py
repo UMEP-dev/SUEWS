@@ -1496,13 +1496,38 @@ def test_parquet_group_without_values_keeps_every_interval(
     _compare_with_whole(tmp_path, dir_whole, groups, freq_s)
 
 
-def test_streamed_provisional_group_needs_opt_in(short_sample_sim, tmp_path):
+@pytest.mark.parametrize("fmt", ["txt", "parquet"])
+def test_streamed_provisional_group_needs_opt_in(short_sample_sim, tmp_path, fmt):
     """A streamed run refuses provisional groups before computing anything."""
-    sim = _parquet_sim(short_sample_sim, tmp_path, 3600, 30, groups=["EHC"])
+    sim = _year_crossing_sim(
+        short_sample_sim, tmp_path, 3600, 30, groups=["EHC"], fmt=fmt
+    )
     sim.config.model.control.output.include_provisional = False
     with pytest.raises(ValueError, match="EHC are provisional"):
         sim.run()
     assert not list(tmp_path.glob("*SUEWS_output*"))
+
+
+@pytest.mark.parametrize("fmt", ["txt", "parquet"])
+def test_streamed_provisional_warning_points_to_caller(short_sample_sim, tmp_path, fmt):
+    sim = _year_crossing_sim(
+        short_sample_sim,
+        tmp_path,
+        3600,
+        1,
+        groups=["BEERS"],
+        fmt=fmt,
+        start="2011-12-31 00:05",
+        end="2012-01-01 00:00",
+    )
+    with pytest.warns(UserWarning, match="provisional output group") as caught:
+        sim.run()
+    provisional = [w for w in caught if "provisional output group" in str(w.message)]
+    assert all(Path(w.filename) == Path(__file__) for w in provisional)
+    paths = sim.save()
+    assert any(
+        Path(path).suffix == (".txt" if fmt == "txt" else ".parquet") for path in paths
+    )
 
 
 def test_parquet_failure_writing_metadata_resumes_from_the_year_before(

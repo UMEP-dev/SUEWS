@@ -1,10 +1,13 @@
 """BEERS selection through the public output saver (gh#1974)."""
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 import yaml
 
+from supy._save import save_df_output
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.output import (
     OUTPUT_GROUP_SCOPES,
@@ -139,15 +142,21 @@ def test_config_selects_beers_txt_with_opt_in(output_frames, tmp_path, source):
         source, tmp_path, {"groups": ["BEERS"], "include_provisional": True}
     )
     output = SUEWSOutput(*output_frames, config=config)
-    with pytest.warns(UserWarning, match="provisional output group"):
+    with pytest.warns(UserWarning, match="provisional output group") as caught:
         paths = output.save(tmp_path / "saved")
+    assert Path(caught[0].filename) == Path(__file__)
     _assert_txt_files(paths, ["BEERS"])
 
 
 @pytest.mark.parametrize("source", ["yaml", "dict", "object"])
 def test_config_provisional_group_warns_then_refuses(output_frames, tmp_path, source):
-    with pytest.warns(UserWarning, match="names provisional group"):
+    with pytest.warns(UserWarning, match="names provisional group") as caught:
         config = _config_with_groups(source, tmp_path, {"groups": ["BEERS"]})
+    assert all(
+        Path(w.filename) == Path(__file__)
+        for w in caught
+        if "names provisional group" in str(w.message)
+    )
     output = SUEWSOutput(*output_frames, config=config)
     with pytest.raises(ValueError, match="BEERS are provisional"):
         output.save(tmp_path / "saved")
@@ -192,3 +201,63 @@ def test_parquet_keeps_all_groups(output_frames, tmp_path, groups):
     assert df_saved.columns.equals(output_frames[0].columns)
     np.testing.assert_array_equal(df_saved["BEERS", "Tmrt"], np.arange(24) * 2 + 0.5)
     np.testing.assert_array_equal(df_saved["SUEWS", "QN"], np.full(24, 100.0))
+
+
+@pytest.mark.parametrize("group", sorted(PROVISIONAL_OUTPUT_GROUPS))
+def test_txt_writer_refuses_provisional_groups(output_frames, tmp_path, group):
+    """The writer enforces its contract even without a public save wrapper."""
+    with pytest.raises(ValueError, match="include_provisional"):
+        save_df_output(output_frames[0], path_dir_save=tmp_path, output_groups=[group])
+    assert not list(tmp_path.iterdir())
+
+
+def test_txt_writer_accepts_provisional_opt_in(output_frames, tmp_path):
+    with pytest.warns(UserWarning, match="provisional output group") as caught:
+        paths = save_df_output(
+            output_frames[0],
+            path_dir_save=tmp_path,
+            output_groups=["BEERS"],
+            include_provisional=True,
+        )
+    assert Path(caught[0].filename) == Path(__file__)
+    _assert_txt_files(paths, ["BEERS"])
+
+
+@pytest.mark.parametrize("source", ["yaml", "dict", "object"])
+def test_simulation_save_provisional_overrides(short_sample_sim, tmp_path, source):
+    """Simulation saves honour config opt-in and explicit False/True overrides."""
+    sim = short_sample_sim()
+    config_data = sim.config.model_dump(mode="json")
+    config_data["model"]["control"]["output"].update(
+        groups=["BEERS"],
+        include_provisional=True,
+    )
+    if source == "yaml":
+        path_config = tmp_path / "config.yml"
+        path_config.write_text(yaml.safe_dump(config_data), encoding="utf-8")
+        config = str(path_config)
+    elif source == "dict":
+        config = {
+            "model": {"control": {"output": config_data["model"]["control"]["output"]}}
+        }
+    else:
+        config = SUEWSConfig.from_dict(config_data)
+    sim.update_config(config, auto_load_forcing=False)
+    forcing = sim.forcing.df
+    sim.run(
+        start_date=forcing.index[0], end_date=forcing.index[0] + pd.Timedelta(hours=1)
+    )
+    with pytest.raises(ValueError, match="BEERS are provisional"):
+        sim.save(tmp_path / "refused", include_provisional=False)
+    assert not list((tmp_path / "refused").glob("*.txt"))
+    with pytest.warns(UserWarning, match="provisional output group") as caught:
+        paths = sim.save(tmp_path / "configured")
+    assert Path(caught[0].filename) == Path(__file__)
+    assert any("_BEERS_" in Path(path).name for path in paths)
+    sim.config.model.control.output.include_provisional = False
+    with pytest.raises(ValueError, match="BEERS are provisional"):
+        sim.save(tmp_path / "refused_again")
+    with pytest.warns(UserWarning, match="provisional output group") as caught:
+        paths = sim.save(tmp_path / "explicit", include_provisional=True)
+    assert Path(caught[0].filename) == Path(__file__)
+    assert any("_BEERS_" in Path(path).name for path in paths)

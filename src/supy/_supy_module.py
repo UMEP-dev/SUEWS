@@ -36,7 +36,6 @@ from ._load import (
     resample_forcing_met,
 )
 from ._save import (
-    check_provisional_groups,
     get_save_info,
     save_df_output,
     save_df_output_parquet,
@@ -327,9 +326,6 @@ def _save_supy(
     if output_format is None:
         output_format = "txt"
 
-    if output_format == "txt":
-        check_provisional_groups(output_groups, bool(include_provisional))
-
     # determine `save_snow` option
     snowuse = df_state_final.iloc[-1].loc["snowuse"]
     # Handle both scalar and array cases safely
@@ -375,6 +371,7 @@ def _save_supy(
             forcing_timestamp_reference=forcing_timestamp_reference,
             df_state_final=df_state_final,
             streamed_files=streamed_files,
+            include_provisional=bool(include_provisional),
         )
 
         # MP: Parquet saves this already - breaks the parquet save check

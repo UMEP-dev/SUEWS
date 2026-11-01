@@ -8,6 +8,7 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 import yaml
 
+from ..._env import _user_warning_stacklevel
 from ..output.contract import PROVISIONAL_OUTPUT_GROUPS
 from .field_renames import (
     MODELPHYSICS_RENAMES,
@@ -1508,7 +1509,7 @@ class OutputControl(BaseModel):
                 "between releases. Saving them will stop with an error unless "
                 "output.include_provisional is true.",
                 UserWarning,
-                stacklevel=2,
+                stacklevel=_user_warning_stacklevel(),
             )
         return self
 

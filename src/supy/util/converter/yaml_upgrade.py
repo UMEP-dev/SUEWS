@@ -1245,6 +1245,8 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
       renamed to convention-compliant identifiers while preserving values.
     * 2026.6.dev4 -> 2026.6.dev5 (#1832): the shortwave text selector
       renamed to ``perez`` without changing numeric option 3.
+    * 2026.6.dev5 -> 2026.6.dev6 (#1974): default-backed
+      ``output.include_provisional`` added; YAML content unchanged.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The
@@ -1331,10 +1333,26 @@ def _migrate_2026_6_dev4_to_2026_6_dev5(cfg: dict) -> dict:
     return cfg
 
 
+def _migrate_2026_6_dev5_to_2026_6_dev6(cfg: dict) -> dict:
+    """Preserve YAML content when adding ``output.include_provisional``.
+
+    The new switch defaults to false. A YAML whose ``output.groups`` names a
+    provisional group still loads (with a warning); saving that group needs
+    the switch, which the migration deliberately does not turn on.
+    """
+    return cfg
+
+
+def _migrate_2026_6_dev4_to_current(cfg: dict) -> dict:
+    """Chain the shortwave selector rename and the provisional-output switch."""
+    cfg = _migrate_2026_6_dev4_to_2026_6_dev5(cfg)
+    return _migrate_2026_6_dev5_to_2026_6_dev6(cfg)
+
+
 def _migrate_2026_6_dev3_to_current(cfg: dict) -> dict:
-    """Chain the optional STEBBS controls and the shortwave selector rename."""
+    """Chain the optional STEBBS controls and all subsequent schema deltas."""
     cfg = _migrate_2026_6_dev3_to_2026_6_dev4(cfg)
-    return _migrate_2026_6_dev4_to_2026_6_dev5(cfg)
+    return _migrate_2026_6_dev4_to_current(cfg)
 
 
 def _migrate_2026_6_dev2_to_current(cfg: dict) -> dict:
@@ -1415,7 +1433,8 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
-    ("2026.6.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev4_to_2026_6_dev5,
+    ("2026.6.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev5_to_2026_6_dev6,
+    ("2026.6.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev4_to_current,
     ("2026.6.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev3_to_current,
     ("2026.6.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev2_to_current,
     ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_current,

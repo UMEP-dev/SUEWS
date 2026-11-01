@@ -100,7 +100,7 @@ def test_shortwave_selector_upgrade_cli(legacy_config, tmp_path):
 
     assert result.exit_code == 0, result.output
     config = SUEWSConfig.from_yaml(str(output))
-    assert config.schema_version == "2026.6.dev5"
+    assert config.schema_version == CURRENT_SCHEMA_VERSION
     assert config.model.physics.kdown_split_method.value.value == 3
 
 

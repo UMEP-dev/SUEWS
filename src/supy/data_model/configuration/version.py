@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev5"
+CURRENT_SCHEMA_VERSION = "2026.6.dev6"
 
 # Schema version history and descriptions.
 #
@@ -152,6 +152,15 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "bare and RefValue-wrapped selectors while preserving reference "
         "metadata. Numeric option 3 and its default calculation are unchanged. "
         "The optional reindl selector (option 4) adds no required inputs."
+    ),
+    "2026.6.dev6": (
+        "Development schema adding model.control.output.include_provisional "
+        "(#1974), default false: output groups the output contract marks "
+        "provisional (BEERS, EHC, NHood, SPARTACUS, STEBBS) are saved only "
+        "when it is true. Existing 2026.6.dev5 YAMLs remain compatible "
+        "through a no-op content migration; a YAML naming a provisional "
+        "group still loads, with a warning, and needs the new setting to "
+        "save that group."
     ),
 }
 

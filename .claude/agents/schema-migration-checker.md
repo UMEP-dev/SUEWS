@@ -1,6 +1,6 @@
 ---
 name: schema-migration-checker
-description: Use this agent to verify that a SUEWS pull request or diff touching the YAML data model (src/supy/data_model/) is schema-version compliant per .claude/rules/python/schema-versioning.md. It is a read-only reviewer that decides whether a schema bump is required, whether the PR provides one, and whether every required artefact (version constant, SCHEMA_VERSIONS entry, migration handler, sample config, regression fixture, and the two doc files) moved together. Dispatch it from audit-pr's schema gate, from fix-issue before opening a data-model PR, or whenever someone asks "does this change need a schema bump?".\n\nExamples:\n<example>\nContext: A PR renames a public data-model field.\nuser: "Audit this PR -- it renames DeepSoilTemperature to AnnualMeanAirTemperature."\nassistant: "A public field rename is a schema trigger. I'll dispatch the schema-migration-checker to confirm CURRENT_SCHEMA_VERSION moved, a handler was added, a fixture was vendored, and the docs were synced."\n</example>\n<example>\nContext: Mid-implementation, fix-issue has changed a Pydantic model.\nuser: "I've made the field Optional with a default -- am I done?"\nassistant: "Adding an Optional field with a default does NOT require a bump. I'll run the schema-migration-checker to confirm this falls under the do-not-bump list and nothing else in the diff is a hidden trigger."\n</example>
+description: Use this agent to verify that a SUEWS pull request or diff touching the YAML data model (src/supy/data_model/) is schema-version compliant per .claude/rules/python/schema-versioning.md. It is a read-only reviewer that decides whether a schema bump is required, whether the PR provides one, and whether every required artefact (version constant, SCHEMA_VERSIONS entry, migration handler, sample config, regression fixture, and the two doc files) moved together. Dispatch it from audit-pr's schema gate, from fix-issue before opening a data-model PR, or whenever someone asks "does this change need a schema bump?".\n\nExamples:\n<example>\nContext: A PR renames a public data-model field.\nuser: "Audit this PR -- it renames DeepSoilTemperature to AnnualMeanAirTemperature."\nassistant: "A public field rename is a schema trigger. I'll dispatch the schema-migration-checker to confirm CURRENT_SCHEMA_VERSION moved, a handler was added, a fixture was vendored, and the docs were synced."\n</example>\n<example>\nContext: Mid-implementation, fix-issue has changed a Pydantic model.\nuser: "I've made the field Optional with a default -- am I done?"\nassistant: "An Optional field with a default needs no bump only if the default leaves every existing YAML behaving as before. I'll run the schema-migration-checker to confirm the default is purely opt-in and nothing else in the diff is a hidden trigger."\n</example>
 tools: Read, Grep, Glob, Bash
 model: sonnet
 colour: orange
@@ -27,7 +27,7 @@ If nothing under `src/supy/data_model/` changed, the schema gate is not engaged:
 
 ## Step 2 -- Classify the change
 
-A bump is REQUIRED when the diff makes a previously-valid user YAML no longer round-trip. Triggers:
+A bump is REQUIRED when the diff makes a previously-valid user YAML no longer round-trip, or makes it load but behave differently. Triggers:
 
 - Rename a public field.
 - Remove a public field.
@@ -35,15 +35,16 @@ A bump is REQUIRED when the diff makes a previously-valid user YAML no longer ro
 - Add a required field with no sensible default.
 - Restructure a nested section (split one sub-object into several, or merge siblings).
 - Tighten an enum / literal so a previously-accepted value is now rejected.
+- Change what an existing valid YAML does while it still loads: a new field whose default changes the outcome of settings users already have, or a changed default for an existing field.
 
 A bump is NOT required for:
 
-- Adding an Optional field WITH a default value.
+- Adding an Optional field WITH a default that reproduces the previous behaviour for every previously-valid YAML (purely opt-in). If the default changes how any existing YAML loads, runs or saves, it is the trigger above.
 - Adding an output variable under `src/supy/data_model/output/` (derived artefacts, not user input).
 - Validator-rule tightening that rejects scientifically-wrong-but-structurally-valid YAML (shape unchanged; only accepted ranges narrow).
 - Internal refactors that leave the YAML surface identical.
 
-When uncertain, check whether the vendored release fixtures under `test/fixtures/release_configs/` still round-trip through the changed validator. If any needs a new handler, a bump is required.
+When uncertain, check whether the vendored release fixtures under `test/fixtures/release_configs/` still round-trip through the changed validator. If any needs a new handler, a bump is required. A clean round-trip is necessary but not sufficient: it does not catch a YAML that loads unchanged but behaves differently.
 
 ## Step 3 -- If a bump is required, verify every artefact moved
 

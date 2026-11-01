@@ -44,6 +44,7 @@ from ._save import (
     DEFAULT_OUTPUT_GROUPS,
     StreamedParquetParts,
     StreamedTextFiles,
+    check_provisional_groups,
     parquet_file_path,
 )
 
@@ -949,6 +950,9 @@ class SUEWSSimulation:
             save_settings = self._resolve_save_settings(None, {})
             stream_chunk = self._check_stream_chunk(save_settings)
             list_keep = self._groups_saved(save_settings["output_config"])
+            check_provisional_groups(
+                list_keep, save_settings["output_config"].include_provisional
+            )
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -1159,6 +1163,11 @@ class SUEWSSimulation:
             - **command** : str
                 Command line that produced the run (recorded in the
                 ``provenance.json`` sidecar; set by ``suews run``).
+            - **include_provisional** : bool
+                Allow provisional groups (BEERS, EHC, NHood, SPARTACUS,
+                STEBBS) named in ``config.model.control.output.groups`` to
+                be saved as text, with a warning. Overrides
+                ``output.include_provisional`` for this save.
 
             **Not currently supported** (due to internal constraints):
 
@@ -1304,6 +1313,7 @@ class SUEWSSimulation:
             "forcing_timestamp_reference": forcing_timestamp_reference,
             "freq_s": int(freq_s),
             "site": site,
+            "include_provisional": save_kwargs.get("include_provisional"),
         }
 
     @staticmethod
@@ -1331,6 +1341,7 @@ class SUEWSSimulation:
             save_state=False,
             forcing_timestamp_reference=settings["forcing_timestamp_reference"],
             streamed_files=streamed_files,
+            include_provisional=settings["include_provisional"],
         )
 
     def _write_save_sidecars(

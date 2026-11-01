@@ -13,9 +13,10 @@ import numpy as np
 import pandas as pd
 
 # import ray
-from ._env import logger_supy
+from ._env import _user_warning_stacklevel, logger_supy
 from ._load import load_SUEWS_dict_ModConfig
 from ._post import _resample_output, df_var as df_var_out
+from .data_model.output import PROVISIONAL_OUTPUT_GROUPS
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
     "follow",
@@ -966,6 +967,47 @@ def _save_groups(
 DEFAULT_OUTPUT_GROUPS: tuple[str, ...] = ("SUEWS", "DailyState")
 
 
+def check_provisional_groups(output_groups, include_provisional: bool = False) -> None:
+    """Gate the provisional groups in a requested output-group selection.
+
+    Parameters
+    ----------
+    output_groups : list of str or None
+        Requested output groups; ``None`` means the default groups, which
+        are all stable.
+    include_provisional : bool, optional
+        Whether the caller has opted in to provisional groups, by default
+        False.
+
+    Raises
+    ------
+    ValueError
+        If *output_groups* names a provisional group without the opt-in.
+
+    Warns
+    -----
+    UserWarning
+        If provisional groups are saved with the opt-in.
+    """
+    list_provisional = sorted(set(output_groups or ()) & PROVISIONAL_OUTPUT_GROUPS)
+    if not list_provisional:
+        return
+    names = ", ".join(list_provisional)
+    if not include_provisional:
+        raise ValueError(
+            f"Output group(s) {names} are provisional: their variables may "
+            "change between releases and they are not saved by default. To "
+            "save them anyway, pass include_provisional=True to save(), or "
+            "set model.control.output.include_provisional: true."
+        )
+    warnings.warn(
+        f"Saving provisional output group(s) {names}: their variables may "
+        "change between releases.",
+        UserWarning,
+        stacklevel=_user_warning_stacklevel(),
+    )
+
+
 def save_df_output(
     df_output: pd.DataFrame,
     freq_s: int = 3600,
@@ -980,6 +1022,8 @@ def save_df_output(
     forcing_timestamp_reference="local_standard_time",
     df_state_final: Optional[pd.DataFrame] = None,
     streamed_files: Optional[StreamedTextFiles] = None,
+    *,
+    include_provisional: bool = False,
 ) -> list:
     """save supy output dataframe to txt files
 
@@ -1015,6 +1059,8 @@ def save_df_output(
         the run has already started are appended to, see
         :class:`StreamedTextFiles`. ``None`` (the default) writes every file
         anew.
+    include_provisional : bool, optional
+        Allow provisional output groups, with a warning. Defaults to False.
 
     Returns
     -------
@@ -1026,6 +1072,8 @@ def save_df_output(
     ``df_output`` is never copied whole: groups are selected, resampled,
     relabelled and written one (grid, group) at a time (gh#1849).
     """
+    check_provisional_groups(output_groups, include_provisional)
+
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
 

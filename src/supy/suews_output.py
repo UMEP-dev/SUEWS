@@ -651,7 +651,11 @@ class SUEWSOutput:
         freq_s : int, optional
             Output frequency in seconds (default: from config or 3600)
         groups : list, optional
-            Groups to save (default: ['SUEWS', 'DailyState'])
+            TXT output groups, for example ['SUEWS', 'DailyState', 'BEERS'].
+            An explicit list overrides ``model.control.output.groups`` for
+            this save only. When ``None``, use the configured groups, or
+            ['SUEWS', 'DailyState'] if none are configured. An empty list
+            writes no TXT output groups. Parquet saves every available group.
 
         Returns
         -------
@@ -698,6 +702,7 @@ class SUEWSOutput:
             path_dir_save=str(path),
             output_config=output_config,
             output_format=format,
+            output_groups=groups,
             save_state=False,
             forcing_timestamp_reference=forcing_timestamp_reference,
         )

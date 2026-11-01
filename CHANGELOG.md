@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 1 Nov 2026
+
+- [bugfix] Honour `SUEWSOutput.save(groups=...)` for TXT output and accept BEERS in configured output groups; retain the default TXT groups and full-group non-streaming Parquet output (#1974).
+
 ### 28 Oct 2026
 
 - [change][stable] Deprecate non-streaming Parquet output with a FutureWarning for one release; it will be removed in the next release. Use chunked streaming Parquet output via `model.control.output.stream_chunk` instead. Existing non-streaming output is unchanged during the deprecation period (#1955).

@@ -1385,7 +1385,7 @@ class OutputControl(BaseModel):
     )
     groups: Optional[List[str]] = Field(
         default=None,
-        description="List of output groups to save (applies to txt format, and to parquet format when 'stream_chunk' is set; Parquet saved after an unstreamed run holds every group). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
+        description="List of output groups to save (applies to txt format, and to parquet format when 'stream_chunk' is set; Parquet saved after an unstreamed run holds every group). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'BEERS', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
     )
     dir: Optional[str] = Field(
         default=None,
@@ -1455,7 +1455,7 @@ class OutputControl(BaseModel):
     def validate_groups(cls, v):
         if v is not None:
             valid_groups = {"SUEWS", "DailyState", "snow", "ESTM", "RSL", "BL", "debug"}
-            dev_groups = {"SPARTACUS", "EHC", "STEBBS"}
+            dev_groups = {"SPARTACUS", "EHC", "STEBBS", "BEERS"}
             invalid = set(v) - valid_groups - dev_groups
             if invalid:
                 raise ValueError(

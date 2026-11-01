@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.10.28.dev2 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.11.1.dev2 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=aaab6a0a"></script>
+    <script src="../../_static/documentation_options.js?v=25617255"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.28.dev2" />
+  <meta name="docsearch:version" content="2026.11.1.dev2" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.10.28.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/01f76d24b38b4d907b06af128cdada5eb5b5ba28" style="color: #31708f;">01f76d2</a>).
+        (2026.11.1.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52b676ec1751875cbeeb700b108260507bfff86d" style="color: #31708f;">52b676e</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.10.28.dev2 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.10.28.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.1.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.1.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -599,6 +599,7 @@
     <span class="n">DEFAULT_OUTPUT_GROUPS</span><span class="p">,</span>
     <span class="n">StreamedParquetParts</span><span class="p">,</span>
     <span class="n">StreamedTextFiles</span><span class="p">,</span>
+    <span class="n">check_provisional_groups</span><span class="p">,</span>
     <span class="n">parquet_file_path</span><span class="p">,</span>
 <span class="p">)</span>
 
@@ -1514,6 +1515,9 @@
             <span class="n">save_settings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_save_settings</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">{})</span>
             <span class="n">stream_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_stream_chunk</span><span class="p">(</span><span class="n">save_settings</span><span class="p">)</span>
             <span class="n">list_keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_groups_saved</span><span class="p">(</span><span class="n">save_settings</span><span class="p">[</span><span class="s2">"output_config"</span><span class="p">])</span>
+            <span class="n">check_provisional_groups</span><span class="p">(</span>
+                <span class="n">list_keep</span><span class="p">,</span> <span class="n">save_settings</span><span class="p">[</span><span class="s2">"output_config"</span><span class="p">]</span><span class="o">.</span><span class="n">include_provisional</span>
+            <span class="p">)</span>
 
         <span class="c1"># Fall back to config values if start_date/end_date not provided</span>
         <span class="k">if</span> <span class="n">start_date</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1727,6 +1731,11 @@
 <span class="sd">            - **command** : str</span>
 <span class="sd">                Command line that produced the run (recorded in the</span>
 <span class="sd">                ``provenance.json`` sidecar; set by ``suews run``).</span>
+<span class="sd">            - **include_provisional** : bool</span>
+<span class="sd">                Allow provisional groups (BEERS, EHC, NHood, SPARTACUS,</span>
+<span class="sd">                STEBBS) named in ``config.model.control.output.groups`` to</span>
+<span class="sd">                be saved as text, with a warning. Overrides</span>
+<span class="sd">                ``output.include_provisional`` for this save.</span>
 
 <span class="sd">            **Not currently supported** (due to internal constraints):</span>
 
@@ -1873,6 +1882,7 @@
             <span class="s2">"forcing_timestamp_reference"</span><span class="p">:</span> <span class="n">forcing_timestamp_reference</span><span class="p">,</span>
             <span class="s2">"freq_s"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">freq_s</span><span class="p">),</span>
             <span class="s2">"site"</span><span class="p">:</span> <span class="n">site</span><span class="p">,</span>
+            <span class="s2">"include_provisional"</span><span class="p">:</span> <span class="n">save_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"include_provisional"</span><span class="p">),</span>
         <span class="p">}</span>
 
     <span class="nd">@staticmethod</span>
@@ -1900,6 +1910,7 @@
             <span class="n">save_state</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">forcing_timestamp_reference</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"forcing_timestamp_reference"</span><span class="p">],</span>
             <span class="n">streamed_files</span><span class="o">=</span><span class="n">streamed_files</span><span class="p">,</span>
+            <span class="n">include_provisional</span><span class="o">=</span><span class="n">settings</span><span class="p">[</span><span class="s2">"include_provisional"</span><span class="p">],</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_write_save_sidecars</span><span class="p">(</span>
@@ -3243,8 +3254,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.10.28.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/01f76d24b38b4d907b06af128cdada5eb5b5ba28">01f76d2</a> |
+  <p>Version: 2026.11.1.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/52b676ec1751875cbeeb700b108260507bfff86d">52b676e</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

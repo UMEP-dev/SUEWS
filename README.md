@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/supy/"><img alt="PyPI" src="https://img.shields.io/pypi/v/supy?color=%23F7B538"></a>
-  <a href="https://docs.suews.io"><img alt="Documentation" src="https://img.shields.io/badge/docs-suews.io-blue"></a>
+  <a href="https://docs.suews.io"><img alt="Documentation" src="https://img.shields.io/readthedocs/suews?label=docs"></a>
   <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE"><img alt="License: MPL-2.0" src="https://img.shields.io/badge/license-MPL--2.0-green"></a>
   <a href="https://github.com/UMEP-dev/SUEWS/actions/workflows/build-publish_to_pypi.yml"><img alt="CI" src="https://github.com/UMEP-dev/SUEWS/actions/workflows/build-publish_to_pypi.yml/badge.svg"></a>
   <a href="https://doi.org/10.5281/zenodo.5721639"><img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.5721639.svg"></a>

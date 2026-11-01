@@ -60,6 +60,7 @@ EXAMPLES:
 - [change][experimental] Saving provisional output groups (BEERS, EHC, NHood, SPARTACUS, STEBBS, as classed by the output contract) to TXT or streamed output now needs an explicit opt-in, `model.control.output.include_provisional: true` or `save(..., include_provisional=True)` for in-memory output, and emits a warning; naming one without the opt-in warns when the configuration is validated and stops the save with an error (#1974).
   - Enforce the opt-in in the shared TXT writer as well as streamed runs, and report provisional warnings at the user call site.
   - Schema `2026.6.dev6` adds the default-backed `include_provisional` field; the migration from `2026.6.dev5` preserves content and leaves the switch off.
+- [maintenance] Make the schema-version rule and the schema-migration-checker agent treat a change that makes an existing valid YAML behave differently, such as a new default-backed field that changes what it saves, as a bump trigger; an optional field is exempt only when its default leaves every existing YAML unchanged (#1974).
 
 ### 28 Oct 2026
 

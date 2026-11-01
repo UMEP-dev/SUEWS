@@ -23,7 +23,8 @@ bumped at each release. This rule exists so the gap does not reopen.
 ## When to bump `CURRENT_SCHEMA_VERSION`
 
 Bump whenever a PR touches `src/supy/data_model/` in a way that makes a
-previously-valid user YAML no longer round-trip. Triggers:
+previously-valid user YAML no longer round-trip, or makes it load but
+behave differently. Triggers:
 
 - **Rename** a public field (e.g. `DeepSoilTemperature` ->
   `AnnualMeanAirTemperature`).
@@ -37,10 +38,19 @@ previously-valid user YAML no longer round-trip. Triggers:
   or merge siblings).
 - **Tighten an enum / literal** so a value that parsed before is now
   rejected.
+- **Change what an existing valid YAML does**, even when it still loads:
+  a new field whose default changes the outcome of settings users already
+  have (e.g. #1974's `output.include_provisional`, which makes a YAML
+  listing a provisional output group stop at save time unless it is set),
+  or a changed default for an existing field.
 
 Do NOT bump for:
 
-- Adding an `Optional` field with a default value.
+- Adding an `Optional` field whose default reproduces the previous
+  behaviour for every YAML that was valid before (a purely opt-in
+  addition). Ask: with the default, does any existing YAML now load,
+  run or save differently? If yes, it is the trigger above, not this
+  exemption.
 - Adding an output variable under `src/supy/data_model/output/` (those
   are derived artefacts, not user input).
 - Validator rule tightening that rejects scientifically wrong but
@@ -52,7 +62,8 @@ Do NOT bump for:
 When unsure, check whether the vendored release fixtures under
 `test/fixtures/release_configs/` still round-trip through the current
 validator after the change. If any of them needs a new handler, you
-need to bump.
+need to bump. A clean round-trip is necessary but not sufficient: it
+does not catch a YAML that loads unchanged but behaves differently.
 
 ---
 

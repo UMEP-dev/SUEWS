@@ -36,6 +36,7 @@ from ._load import (
     resample_forcing_met,
 )
 from ._save import (
+    check_provisional_groups,
     get_save_info,
     save_df_output,
     save_df_output_parquet,
@@ -210,6 +211,7 @@ def _save_supy(
     streamed_files=None,
     *,
     output_groups=None,
+    include_provisional=None,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -257,6 +259,11 @@ def _save_supy(
         overrides ``output_config.groups``. Otherwise use the configured
         groups, or the default SUEWS and DailyState groups. Does not filter
         Parquet output.
+    include_provisional : bool, optional
+        Allow TXT output of provisional groups (see
+        ``supy._save.PROVISIONAL_OUTPUT_GROUPS``), with a warning. An explicit
+        value overrides ``output_config.include_provisional``; otherwise
+        provisional groups are refused.
 
     Returns
     -------
@@ -302,6 +309,8 @@ def _save_supy(
             # Get groups for txt format
             if output_format == "txt" and output_groups is None:
                 output_groups = output_config.groups
+            if include_provisional is None:
+                include_provisional = output_config.include_provisional
         elif isinstance(output_config, str):
             # Legacy string format - issue deprecation warning
             warnings.warn(
@@ -317,6 +326,9 @@ def _save_supy(
 
     if output_format is None:
         output_format = "txt"
+
+    if output_format == "txt":
+        check_provisional_groups(output_groups, bool(include_provisional))
 
     # determine `save_snow` option
     snowuse = df_state_final.iloc[-1].loc["snowuse"]

@@ -6,7 +6,12 @@ import pytest
 import yaml
 
 from supy.data_model.core import SUEWSConfig
-from supy.data_model.output import OUTPUT_REGISTRY
+from supy.data_model.output import (
+    OUTPUT_GROUP_SCOPES,
+    OUTPUT_REGISTRY,
+    PROVISIONAL_OUTPUT_GROUPS,
+    OutputContractScope,
+)
 from supy.suews_output import SUEWSOutput
 
 pytestmark = pytest.mark.api
@@ -67,9 +72,17 @@ def test_default_txt_groups_unchanged(output_frames, tmp_path, with_config):
 
 
 @pytest.mark.parametrize("with_config", [False, True])
-@pytest.mark.parametrize("groups", [["BEERS"], ["SUEWS", "DailyState", "BEERS"], []])
+@pytest.mark.parametrize(
+    ("groups", "provisional"),
+    [
+        (["BEERS"], True),
+        (["SUEWS", "DailyState", "BEERS"], True),
+        (["SUEWS", "DailyState"], False),
+        ([], False),
+    ],
+)
 def test_explicit_txt_groups_override_config(
-    output_frames, tmp_path, with_config, groups
+    output_frames, tmp_path, with_config, groups, provisional
 ):
     config = (
         SUEWSConfig(model={"control": {"output": {"groups": ["SUEWS"]}}})
@@ -77,7 +90,14 @@ def test_explicit_txt_groups_override_config(
         else None
     )
     output = SUEWSOutput(*output_frames, config=config)
-    _assert_txt_files(output.save(tmp_path / "selected", groups=groups), groups)
+    if provisional:
+        with pytest.warns(UserWarning, match="provisional output group"):
+            paths = output.save(
+                tmp_path / "selected", groups=groups, include_provisional=True
+            )
+    else:
+        paths = output.save(tmp_path / "selected", groups=groups)
+    _assert_txt_files(paths, groups)
     # An override is local to this save; neither config nor held data is filtered.
     assert output.groups == ["SUEWS", "DailyState", "BEERS"]
     _assert_txt_files(
@@ -86,19 +106,65 @@ def test_explicit_txt_groups_override_config(
     )
 
 
-@pytest.mark.parametrize("source", ["yaml", "dict", "object"])
-def test_config_selects_beers_txt(output_frames, tmp_path, source):
-    dict_config = {"model": {"control": {"output": {"groups": ["BEERS"]}}}}
+@pytest.mark.parametrize("with_config", [False, True])
+def test_provisional_group_needs_opt_in(output_frames, tmp_path, with_config):
+    config = SUEWSConfig() if with_config else None
+    output = SUEWSOutput(*output_frames, config=config)
+    with pytest.raises(ValueError, match="BEERS are provisional"):
+        output.save(tmp_path, groups=["SUEWS", "BEERS"])
+    assert not list(tmp_path.iterdir())
+
+
+def test_explicit_false_overrides_configured_opt_in(output_frames, tmp_path):
+    config = SUEWSConfig(model={"control": {"output": {"include_provisional": True}}})
+    output = SUEWSOutput(*output_frames, config=config)
+    with pytest.raises(ValueError, match="include_provisional"):
+        output.save(tmp_path, groups=["BEERS"], include_provisional=False)
+
+
+def _config_with_groups(source, tmp_path, dict_output):
+    dict_config = {"model": {"control": {"output": dict_output}}}
     if source == "yaml":
         path_config = tmp_path / "config.yml"
         path_config.write_text(yaml.safe_dump(dict_config), encoding="utf-8")
-        config = SUEWSConfig.from_yaml(str(path_config))
-    elif source == "dict":
-        config = SUEWSConfig.from_dict(dict_config)
-    else:
-        config = SUEWSConfig(**dict_config)
+        return SUEWSConfig.from_yaml(str(path_config))
+    if source == "dict":
+        return SUEWSConfig.from_dict(dict_config)
+    return SUEWSConfig(**dict_config)
+
+
+@pytest.mark.parametrize("source", ["yaml", "dict", "object"])
+def test_config_selects_beers_txt_with_opt_in(output_frames, tmp_path, source):
+    config = _config_with_groups(
+        source, tmp_path, {"groups": ["BEERS"], "include_provisional": True}
+    )
     output = SUEWSOutput(*output_frames, config=config)
-    _assert_txt_files(output.save(tmp_path / "saved"), ["BEERS"])
+    with pytest.warns(UserWarning, match="provisional output group"):
+        paths = output.save(tmp_path / "saved")
+    _assert_txt_files(paths, ["BEERS"])
+
+
+@pytest.mark.parametrize("source", ["yaml", "dict", "object"])
+def test_config_provisional_group_warns_then_refuses(output_frames, tmp_path, source):
+    with pytest.warns(UserWarning, match="names provisional group"):
+        config = _config_with_groups(source, tmp_path, {"groups": ["BEERS"]})
+    output = SUEWSOutput(*output_frames, config=config)
+    with pytest.raises(ValueError, match="BEERS are provisional"):
+        output.save(tmp_path / "saved")
+    # The save-time opt-in overrides the configured default.
+    with pytest.warns(UserWarning, match="provisional output group"):
+        paths = output.save(tmp_path / "saved", include_provisional=True)
+    _assert_txt_files(paths, ["BEERS"])
+
+
+def test_provisional_groups_follow_output_contract():
+    assert PROVISIONAL_OUTPUT_GROUPS == {
+        str(group.value)
+        for group, scope in OUTPUT_GROUP_SCOPES.items()
+        if scope is OutputContractScope.PROVISIONAL
+    }
+    assert "BEERS" in PROVISIONAL_OUTPUT_GROUPS
+    assert not PROVISIONAL_OUTPUT_GROUPS & {"SUEWS", "DailyState"}
 
 
 def test_config_still_rejects_unknown_groups():

@@ -44,6 +44,7 @@ import supy._save as save_module
 from supy._save import StreamedTextFiles, save_df_output
 from supy.cmd.SUEWS import SUEWS as run_cmd
 from supy.data_model.core.model import ModelControl, OutputControl, OutputFormat
+from supy.data_model.output import PROVISIONAL_OUTPUT_GROUPS
 import supy.suews_sim as suews_sim_module
 
 pytestmark = pytest.mark.api
@@ -207,6 +208,7 @@ def _year_crossing_sim(
         "freq": freq_s,
         "dir": str(path_out),
         "groups": groups,
+        "include_provisional": bool(set(groups) & PROVISIONAL_OUTPUT_GROUPS),
         "timestamp_reference": clock[1],
     }
     if stream_chunk is not None:
@@ -1492,6 +1494,15 @@ def test_parquet_group_without_values_keeps_every_interval(
     df_streamed = _read_streamed(tmp_path)
     assert df_streamed.isna().all().all()
     _compare_with_whole(tmp_path, dir_whole, groups, freq_s)
+
+
+def test_streamed_provisional_group_needs_opt_in(short_sample_sim, tmp_path):
+    """A streamed run refuses provisional groups before computing anything."""
+    sim = _parquet_sim(short_sample_sim, tmp_path, 3600, 30, groups=["EHC"])
+    sim.config.model.control.output.include_provisional = False
+    with pytest.raises(ValueError, match="EHC are provisional"):
+        sim.run()
+    assert not list(tmp_path.glob("*SUEWS_output*"))
 
 
 def test_parquet_failure_writing_metadata_resumes_from_the_year_before(

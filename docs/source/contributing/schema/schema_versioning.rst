@@ -28,7 +28,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev5"`` describes the shape of the configuration
+``schema_version: "2026.6.dev6"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +41,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev5"
+   schema_version: "2026.6.dev6"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -59,7 +59,8 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number — ``2026.6.dev5`` comes after ``2026.6.dev4``,
+as a floating-point number — ``2026.6.dev6`` comes after ``2026.6.dev5``,
+which comes after ``2026.6.dev4``,
 which comes after ``2026.6.dev3``,
 which comes after ``2026.6.dev2``,
 which comes after ``2026.6.dev1``,
@@ -113,7 +114,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev5 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev6 (compatible)
 
    A migration path is available. Upgrade the file with
    :doc:`/inputs/converter` before loading it if it uses retired selectors or
@@ -122,13 +123,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev5.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev6.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev5.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev6.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -178,7 +179,17 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev5** (current; development)
+**Schema 2026.6.dev6** (current; development)
+   Adds ``model.control.output.include_provisional`` (default ``false``).
+   Output groups that the output contract marks provisional (``BEERS``,
+   ``EHC``, ``NHood``, ``SPARTACUS`` and ``STEBBS``) are saved only when it is
+   ``true``, and saving them emits a warning. A configuration that lists one
+   of these groups without the switch still loads, with a warning, but saving
+   that group stops with an error. The ``(2026.6.dev5 -> 2026.6.dev6)``
+   handler preserves configuration content and updates the schema marker; it
+   does not turn the switch on. See :ref:`schema_dev6_provisional_output`.
+
+**Schema 2026.6.dev5** (development)
    Renames the ``model.physics.kdown_split_method`` text selector to
    ``perez``. The ``(2026.6.dev4 -> 2026.6.dev5)`` migration replaces the
    retired selector in bare and ``value``-wrapped forms, preserving reference

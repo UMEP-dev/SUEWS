@@ -215,6 +215,35 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev6_provisional_output:
+
+Upgrading to Schema 2026.6.dev6
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev6`` adds ``include_provisional`` under
+``model.control.output``. Output groups whose variables may still change
+between releases (``BEERS``, ``EHC``, ``NHood``, ``SPARTACUS`` and
+``STEBBS``) are now written to text or streamed output only when it is
+``true``:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       output:
+         groups: [SUEWS, DailyState, BEERS]
+         include_provisional: true
+
+Saving such a group emits a warning. A configuration that lists one of these
+groups without the switch still loads, with a warning, but saving that group
+stops with an error. From Python, pass ``include_provisional=True`` to
+:meth:`~supy.SUEWSOutput.save` or :meth:`~supy.SUEWSSimulation.save` instead.
+
+``suews convert`` stamps older YAMLs ``schema_version: '2026.6.dev6'``
+without changing their content and does not turn the switch on; add it
+yourself if you rely on one of these groups. Default output groups and
+non-streaming Parquet output are unchanged.
+
 .. _schema_dev5_shortwave_migration:
 
 Upgrading to Schema 2026.6.dev5

@@ -58,6 +58,7 @@ EXAMPLES:
 
 - [bugfix] Honour `SUEWSOutput.save(groups=...)` for TXT output, which the method previously ignored, and accept BEERS in configured output groups; default TXT groups and full-group non-streaming Parquet output are unchanged (#1974).
 - [change][experimental] Saving provisional output groups (BEERS, EHC, NHood, SPARTACUS, STEBBS, as classed by the output contract) to TXT or streamed output now needs an explicit opt-in, `model.control.output.include_provisional: true` or `save(..., include_provisional=True)`, and emits a warning; naming one without the opt-in warns when the configuration is validated and stops the save with an error (#1974).
+  - Schema `2026.6.dev6` adds the default-backed `include_provisional` field; the migration from `2026.6.dev5` preserves content and leaves the switch off.
 
 ### 28 Oct 2026
 

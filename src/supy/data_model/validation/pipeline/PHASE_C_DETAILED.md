@@ -417,7 +417,7 @@ def validate_groups(cls, v):
 
 **Location**: `model.py`  
 **Function**: Output group validation  
-**Validates**: Valid groups: `{"SUEWS", "DailyState", "snow", "ESTM", "RSL", "BL", "debug"}`
+**Validates**: Valid groups: `{"SUEWS", "DailyState", "snow", "ESTM", "RSL", "BL", "BEERS", "debug"}` (plus the hidden development groups `SPARTACUS`, `EHC`, `STEBBS`)
 
 ### Numeric Type Conversion
 

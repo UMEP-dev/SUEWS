@@ -3905,10 +3905,13 @@
                 "type": "string"
               },
               "type": "array"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": "forcing.txt",
-          "description": "Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt']). When multiple files are provided, they are concatenated in chronological order. For details, see :ref:`met_input`.",
+          "description": "Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt']). When multiple files are provided, they are concatenated in chronological order. Set it explicitly to a bare ``null`` when forcing is supplied at runtime through ``SUEWSSimulation.update_forcing()`` instead of from a file: the validator then skips the forcing-file checks and warns that forcing must be supplied before ``run()``. Omitting the key is not the same as ``null`` and is still reported as an error. For details, see :ref:`met_input`.",
           "title": "File"
         },
         "timestamp_reference": {
@@ -7277,7 +7280,7 @@
             "snow_use",
             "stebbs"
           ],
-          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS values from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only (use with OhmIncQf=0); 3 (ANOHM) = Analytical OHM (Sun et al., 2017) - not recommended; 4 (ESTM) = Element Surface Temperature Method (Offerle et al., 2005) - not recommended; 5 (EHC) = Uses all five material layers for conducting roof, wall, and land-cover facets; 6 (DyOHM) = Dynamic OHM using the outermost material layer of each SUEWS land-cover surface; 7 (STEBBS) = STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces; 8 (DyOHM_BUILDING) = DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
+          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS values from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only (use with OhmIncQf=0); 3 (ANOHM) = Analytical OHM (Sun et al., 2017) - not recommended; 4 (ESTM) = Element Surface Temperature Method (Offerle et al., 2005) - not available: rejected at validation, because the YAML interface carries no surface-temperature input for it; use EHC (5) or DyOHM (6); 5 (EHC) = Uses all five material layers for conducting roof, wall, and land-cover facets; 6 (DyOHM) = Dynamic OHM using the outermost material layer of each SUEWS land-cover surface; 7 (STEBBS) = STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces; 8 (DyOHM_BUILDING) = DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
           "note": "EHC (5) uses all five material layers for its conducting roof, wall, and solid non-building land-cover facets. DyOHM (6) uses only the outermost material layer of each SUEWS land-cover surface, including land_cover.bldgs for buildings. Method 7 uses STEBBS for building storage heat and temperatures, does not use land_cover.bldgs material layers, and applies DyOHM to non-building surfaces; it requires SPARTACUS-Surface net radiation (1001--1003). Method 8 applies DyOHM only to the building surface and requires OhmIncQf=0.",
           "provides_to": [
             "energy_balance"
@@ -7357,7 +7360,7 @@
             }
           ],
           "default": 3,
-          "description": "Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 (NOT_USED) = Reserved; 1 (NOT_USED2) = Reserved; 2 (HOEGSTROM) = Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended); 3 (CAMPBELL_NORMAN) = Campbell & Norman (1998) formulations for both momentum and heat; 4 (BUSINGER_HOEGSTROM) = Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
+          "description": "Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 (NOT_USED) = Reserved; not available (rejected at validation); 1 (NOT_USED2) = Reserved; not available (rejected at validation); 2 (HOEGSTROM) = Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended). W16 in the kernel remains available with MOST (roughness_sublayer=0), but stops with error 108 when RSL requires its unimplemented phi functions, including roughness_sublayer=1 (RST) and roughness_sublayer=2 (variable) when site geometry selects RST. Use option 3 (recommended) or 4 for RSL.; 3 (CAMPBELL_NORMAN) = Campbell & Norman (1998) formulations for both momentum and heat; 4 (BUSINGER_HOEGSTROM) = Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
           "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
           "provides_to": [
             "roughness_length_momentum",
@@ -7423,7 +7426,7 @@
           "depends_on": [
             "stability"
           ],
-          "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). Options: 2 (VARIABLE) = Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+          "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). The two schemes report these diagnostics at different heights: RST at 2 m and 10 m above ground, MOST at 2 m and 10 m above the zero-plane displacement height plus the roughness length, which over a tall canopy is well above ground. See :ref:`reference heights of the near-surface diagnostics <rsl_diag_heights>`. Options: 0 (MOST) = Monin-Obukhov similarity theory, appropriate for relatively homogeneous, flat surfaces; 1 (RST) = Roughness sublayer theory following Theeuwes et al. (2019), appropriate for heterogeneous urban surfaces with tall roughness elements; 2 (VARIABLE) = Uses RST when the plan area index of buildings and trees is between 0.1 and 0.68 and the mean roughness-element height exceeds 2 m, otherwise MOST",
           "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
           "provides_to": [
             "roughness_sublayer_level"
@@ -7458,8 +7461,8 @@
           "depends_on": [
             "roughness_sublayer"
           ],
-          "description": "Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects. Options: 0 (NONE) = No local climate adjustments; use forcing file meteorology directly; 1 (BASIC) = Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days; 2 (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
-          "note": "Uses near-surface values from roughness_sublayer to modify vegetation processes",
+          "description": "Air temperature passed to the calculations that respond to near-surface conditions: the daily state (daily temperature statistics and degree days, which drive leaf area index phenology, modelled irrigation and degree-day anthropogenic heat), the modelled anthropogenic heat flux (QF), the surface conductance that controls the latent heat flux (QE), and biogenic CO2 when it is modelled. With a level above 0, a change in the diagnosed near-surface temperature therefore feeds into QF and QE. Options: 0 (NONE) = Forcing air temperature; 1 (BASIC) = Near-surface air temperature T2 diagnosed by the roughness_sublayer scheme, at that scheme's reference height; 2 (DETAILED) = Air temperature at level 10 of the near-surface profile, which is half the effective canopy height (the mean roughness-element height, at least 2 m) when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used",
+          "note": "Selects the air temperature (forcing, diagnosed T2, or level-10 profile temperature) passed to the daily state, anthropogenic heat, surface conductance and biogenic CO2 calculations",
           "provides_to": [
             "surface_conductance"
           ],
@@ -7687,7 +7690,7 @@
         "format": {
           "$ref": "#/$defs/OutputFormat",
           "default": "txt",
-          "description": "Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data"
+          "description": "Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data (with 'stream_chunk', a folder holding one Parquet file per chunk)"
         },
         "freq": {
           "anyOf": [
@@ -7715,8 +7718,14 @@
             }
           ],
           "default": null,
-          "description": "List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
+          "description": "List of output groups to save (applies to txt format, and to parquet format when 'stream_chunk' is set; Parquet saved after an unstreamed run holds every group). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. Provisional groups ('BEERS', 'EHC', 'NHood', 'SPARTACUS', 'STEBBS') are saved only with 'include_provisional' set. If not specified, defaults to ['SUEWS', 'DailyState']",
           "title": "Groups"
+        },
+        "include_provisional": {
+          "default": false,
+          "description": "Allow 'groups' to save provisional output groups ('BEERS', 'EHC', 'NHood', 'SPARTACUS', 'STEBBS'), whose variables may still change between releases. Saving them emits a warning; without this setting, naming one in 'groups' stops the save with an error.",
+          "title": "Include Provisional",
+          "type": "boolean"
         },
         "dir": {
           "anyOf": [
@@ -7735,13 +7744,27 @@
           "$ref": "#/$defs/OutputTimestampReference",
           "default": "follow",
           "description": "Timestamp reference for saved output. 'follow' keeps the forcing timestamp reference, 'utc' and 'local_standard_time' select those fixed clocks explicitly, and 'daylight' adds the configured daylight-saving offset to local standard time inside the DLS window."
+        },
+        "stream_chunk": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stream the output to disk during the run in chunks of this many days (1 to 366), so memory no longer grows with run length. The run goes through each calendar year in consecutive chunks; each chunk's output is written to disk and then dropped from memory, keeping only the groups listed in 'groups'. Text files are written, or extended, exactly as a run followed by save would write them. Parquet output becomes a folder at the output file's path holding one file per chunk, read back together with pandas.read_parquet(folder): only the groups listed in 'groups' (unlike Parquet output saved after an unstreamed run, which holds every group), DailyState at its own daily rows as in text output rather than resampled, at full float64 precision; prefer it for streamed runs that will be read back for analysis. 30 (about a month) or 366 (a calendar year) are good choices. Limitations: peak memory is still about one chunk of the model's full output (all groups); values read back from text files carry four decimal places; groups not listed in 'groups' are not kept at all. The checkpoint file is replaced at the end of every calendar year, so a run that stops part-way continues from the start of the year it stopped in and writes that year's output again. The output returned to Python holds no rows: read the written files. Needs an output frequency that divides one day (86400 s) and output timestamps on the forcing clock ('timestamp_reference' of 'follow' or the forcing's own reference). Unset (the default) keeps the whole output in memory until it is saved.",
+          "title": "Stream Chunk",
+          "unit": "d"
         }
       },
       "title": "Output Control",
       "type": "object"
     },
     "OutputFormat": {
-      "description": "Output file format options.\n\nTXT: Traditional text files (one per year/grid/group)\nPARQUET: Single Parquet file containing all output data (efficient columnar format)",
+      "description": "Output file format options.\n\nTXT: Traditional text files (one per year/grid/group)\nPARQUET: Single Parquet file containing all output data (efficient columnar format);\n    with ``stream_chunk``, a folder holding one Parquet file per chunk",
       "enum": [
         "txt",
         "parquet"
@@ -8037,7 +8060,7 @@
       "type": "integer"
     },
     "RSLLevel": {
-      "description": "Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.\n\n0: NONE - No local climate adjustments; use forcing file meteorology directly\n1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days\n2: DETAILED - Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
+      "description": "Air temperature passed to the calculations that respond to near-surface conditions: the daily state (daily temperature statistics and degree days, which drive leaf area index phenology, modelled irrigation and degree-day anthropogenic heat), the modelled anthropogenic heat flux (QF), the surface conductance that controls the latent heat flux (QE), and biogenic CO2 when it is modelled.\nWith a level above 0, a change in the diagnosed near-surface temperature therefore feeds into QF and QE.\n\n0: NONE - Forcing air temperature\n1: BASIC - Near-surface air temperature T2 diagnosed by the roughness_sublayer scheme, at that scheme's reference height\n2: DETAILED - Air temperature at level 10 of the near-surface profile, which is half the effective canopy height (the mean roughness-element height, at least 2 m) when RST is used but an intermediate level of the MOST profile, above zd + z0, when MOST is used",
       "enum": [
         0,
         1,
@@ -8047,7 +8070,7 @@
       "type": "integer"
     },
     "RSLMethod": {
-      "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).\n\n0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces\n1: RST (Roughness Sublayer Theory; Theeuwes et al. 2019) - Appropriate for heterogeneous urban surfaces with tall roughness elements\n2: VARIABLE - Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+      "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).\nThe two schemes report these diagnostics at different heights: RST at 2 m and 10 m above ground, MOST at 2 m and 10 m above the zero-plane displacement height plus the roughness length, which over a tall canopy is well above ground.\nSee :ref:`reference heights of the near-surface diagnostics <rsl_diag_heights>`.\n\n0: MOST - Monin-Obukhov similarity theory, appropriate for relatively homogeneous, flat surfaces\n1: RST - Roughness sublayer theory following Theeuwes et al. (2019), appropriate for heterogeneous urban surfaces with tall roughness elements\n2: VARIABLE - Uses RST when the plan area index of buildings and trees is between 0.1 and 0.68 and the mean roughness-element height exceeds 2 m, otherwise MOST",
       "enum": [
         0,
         1,
@@ -10402,7 +10425,7 @@
       "type": "object"
     },
     "StabilityMethod": {
-      "description": "Atmospheric stability correction functions for momentum and heat fluxes.\n\n0: NOT_USED - Reserved\n1: NOT_USED2 - Reserved\n2: HOEGSTROM - Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)\n3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat\n4: BUSINGER_HOEGSTROM - Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
+      "description": "Atmospheric stability correction functions for momentum and heat fluxes.\n\n0: NOT_USED - Reserved; not available (rejected at validation)\n1: NOT_USED2 - Reserved; not available (rejected at validation)\n2: HOEGSTROM - Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended). W16 in the kernel remains available with MOST (roughness_sublayer=0), but stops with error 108 when RSL requires its unimplemented phi functions, including roughness_sublayer=1 (RST) and roughness_sublayer=2 (variable) when site geometry selects RST. Use option 3 (recommended) or 4 for RSL.\n3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat\n4: BUSINGER_HOEGSTROM - Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
       "enum": [
         0,
         1,
@@ -11917,7 +11940,7 @@
       "type": "object"
     },
     "StorageHeatMethod": {
-      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets\n6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface\n7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces\n8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
+      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not available: rejected at validation, because the YAML interface carries no surface-temperature input for it; use EHC (5) or DyOHM (6)\n5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets\n6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface\n7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces\n8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces",
       "enum": [
         0,
         1,
@@ -13402,7 +13425,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev5. Development schema renaming the model.physics.kdown_split_method text selector from epw to perez (#1832). The migration rewrites bare and RefValue-wrapped selectors while preserving reference metadata. Numeric option 3 and its default calculation are unchanged. The optional reindl selector (option 4) adds no required inputs.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev6. Development schema adding model.control.output.include_provisional (#1974), default false: output groups the output contract marks provisional (BEERS, EHC, NHood, SPARTACUS, STEBBS) are saved only when it is true. Existing 2026.6.dev5 YAMLs remain compatible through a no-op content migration; a YAML naming a provisional group still loads, with a warning, and needs the new setting to save that group.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13455,20 +13478,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev5",
+  "title": "SUEWS Configuration Schema v2026.6.dev6",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev5.json",
-  "version": "2026.6.dev5",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev6.json",
+  "version": "2026.6.dev6",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev5"
+    "schema_version": "2026.6.dev6"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev5",
+      "schema_version": "2026.6.dev6",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

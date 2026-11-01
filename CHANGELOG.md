@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 1 Nov 2026
+
+- [maintenance] Make the schema-version rule and the schema-migration-checker agent treat a change that makes an existing valid YAML behave differently, such as a new default-backed field that changes what it saves, as a bump trigger; an optional field is exempt only when its default leaves every existing YAML unchanged (#1974).
+
 ### 28 Oct 2026
 
 - [change][stable] Deprecate non-streaming Parquet output with a FutureWarning for one release; it will be removed in the next release. Use chunked streaming Parquet output via `model.control.output.stream_chunk` instead. Existing non-streaming output is unchanged during the deprecation period (#1955).

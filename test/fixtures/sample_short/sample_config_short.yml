@@ -17,6 +17,7 @@ model:
       timestamp_reference: follow
       groups:
         - "SUEWS"
+      include_provisional: false
     ref:
       desc: Ward et al. (2016) benchmark period and output cadence for the sample configuration
       ID: W16

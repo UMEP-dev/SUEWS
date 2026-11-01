@@ -38,6 +38,14 @@ OUTPUT_GROUP_SCOPES: dict[OutputGroup, OutputContractScope] = {
     OutputGroup.NHOOD: OutputContractScope.PROVISIONAL,
 }
 
+# Output groups whose variables may still change between releases; saving
+# them to files needs an explicit opt-in (``output.include_provisional``).
+PROVISIONAL_OUTPUT_GROUPS: frozenset[str] = frozenset(
+    str(group.value)
+    for group, scope in OUTPUT_GROUP_SCOPES.items()
+    if scope is OutputContractScope.PROVISIONAL
+)
+
 
 class OutputMissingValues(BaseModel):
     """Missing-value representation used by each supported output form."""

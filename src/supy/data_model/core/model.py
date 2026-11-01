@@ -1,12 +1,15 @@
 from enum import Enum, StrEnum
 import inspect
 from typing import List, Optional, Union
+import warnings
 
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 import yaml
 
+from ..._env import _user_warning_stacklevel
+from ..output.contract import PROVISIONAL_OUTPUT_GROUPS
 from .field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
@@ -1385,7 +1388,11 @@ class OutputControl(BaseModel):
     )
     groups: Optional[List[str]] = Field(
         default=None,
-        description="List of output groups to save (applies to txt format, and to parquet format when 'stream_chunk' is set; Parquet saved after an unstreamed run holds every group). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
+        description="List of output groups to save (applies to txt format, and to parquet format when 'stream_chunk' is set; Parquet saved after an unstreamed run holds every group). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. Provisional groups ('BEERS', 'EHC', 'NHood', 'SPARTACUS', 'STEBBS') are saved only with 'include_provisional' set. If not specified, defaults to ['SUEWS', 'DailyState']",
+    )
+    include_provisional: bool = Field(
+        default=False,
+        description="Allow 'groups' to save provisional output groups ('BEERS', 'EHC', 'NHood', 'SPARTACUS', 'STEBBS'), whose variables may still change between releases. Saving them emits a warning; without this setting, naming one in 'groups' stops the save with an error.",
     )
     dir: Optional[str] = Field(
         default=None,
@@ -1455,8 +1462,7 @@ class OutputControl(BaseModel):
     def validate_groups(cls, v):
         if v is not None:
             valid_groups = {"SUEWS", "DailyState", "snow", "ESTM", "RSL", "BL", "debug"}
-            dev_groups = {"SPARTACUS", "EHC", "STEBBS"}
-            invalid = set(v) - valid_groups - dev_groups
+            invalid = set(v) - valid_groups - PROVISIONAL_OUTPUT_GROUPS
             if invalid:
                 raise ValueError(
                     f"Invalid output groups: {invalid}. Valid groups are: {valid_groups}"
@@ -1490,6 +1496,21 @@ class OutputControl(BaseModel):
         """Reject output settings that streaming in chunks cannot reproduce."""
         if self.stream_chunk is not None:
             check_stream_chunk(self.freq, str(self.timestamp_reference))
+        return self
+
+    @model_validator(mode="after")
+    def _warn_provisional_groups(self):
+        """Warn early when 'groups' names a provisional group without opt-in."""
+        list_provisional = sorted(set(self.groups or ()) & PROVISIONAL_OUTPUT_GROUPS)
+        if list_provisional and not self.include_provisional:
+            warnings.warn(
+                f"output.groups names provisional group(s) "
+                f"{', '.join(list_provisional)}, whose variables may change "
+                "between releases. Saving them will stop with an error unless "
+                "output.include_provisional is true.",
+                UserWarning,
+                stacklevel=_user_warning_stacklevel(),
+            )
         return self
 
 

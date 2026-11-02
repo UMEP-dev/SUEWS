@@ -1,7 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_const_physconst, ONLY: eps_fp, C2K
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
@@ -50,6 +50,37 @@ CONTAINS
       IF (i_pass > ZL_RELAX_PASSES) alpha = ZL_RELAX*ZL_RELAX_DECAY**(i_pass - ZL_RELAX_PASSES)
       zl_relaxed = zl_prev + alpha*(zl_new - zl_prev)
    END FUNCTION relax_zl
+
+   PURE FUNCTION free_convection_velocity(qh_kin, Temp_C, zzd) RESULT(w_f)
+      ! Free-convection velocity scale w_f = (g/T H zzd)**(1/3) [m s-1].
+      ! It stands for the convective eddies that keep exchanging heat when the
+      ! mean wind is light; zero when the kinematic heat flux is not upward.
+      REAL(KIND(1D0)), INTENT(IN) :: qh_kin ! kinematic sensible heat flux QH/(rho cp) [K m s-1]
+      REAL(KIND(1D0)), INTENT(IN) :: Temp_C ! air temperature [degC]
+      REAL(KIND(1D0)), INTENT(IN) :: zzd ! height above the displacement height [m]
+      REAL(KIND(1D0)) :: w_f
+
+      w_f = (MAX(0.0D0, grav/(Temp_C + C2K)*qh_kin*zzd))**(1.0D0/3.0D0)
+   END FUNCTION free_convection_velocity
+
+   PURE FUNCTION relax_free_convection(w_f_prev, w_f_new, i_pass, apply_relaxation) RESULT(w_f)
+      ! w_f for this outer pass. w_f responds to the pass heat flux as QH**(1/3),
+      ! whose slope is unbounded as QH -> 0+, so fed straight back it can
+      ! two-cycle across QH = 0 on weak-flux steps. It is therefore under-relaxed
+      ! with the (z-d)/L schedule (relax_zl is a plain affine relaxation); the
+      ! first pass of a timestep and an unrelaxed call take the new value as it is.
+      REAL(KIND(1D0)), INTENT(IN) :: w_f_prev ! w_f accepted on the previous pass [m s-1]
+      REAL(KIND(1D0)), INTENT(IN) :: w_f_new ! w_f from this pass's heat flux [m s-1]
+      INTEGER, INTENT(IN) :: i_pass ! outer pass number within the timestep [-]
+      LOGICAL, INTENT(IN) :: apply_relaxation ! .FALSE. for the undamped post-loop call
+      REAL(KIND(1D0)) :: w_f
+
+      IF (apply_relaxation .AND. i_pass > 1) THEN
+         w_f = relax_zl(w_f_prev, w_f_new, i_pass)
+      ELSE
+         w_f = w_f_new
+      END IF
+   END FUNCTION relax_free_convection
 
 
    SUBROUTINE SUEWS_update_atmState(timer, forcing, modState)

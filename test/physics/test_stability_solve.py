@@ -57,7 +57,7 @@ do i = 1, n
     call stability_scales(meth, zzd, z0m, u, h, zl, l, us, ts)
     expected = max(1d-12, k*u/(log(zzd/z0m) - stab_psi_mom(meth, zl) &
                  + stab_psi_mom(meth, zl*z0m/zzd)))
-    call AerodynamicResistance(zzd, z0m, u, l, us, 0d0, 2, meth, 2, ra, z0v)
+    call AerodynamicResistance(zzd, z0m, u, l, us, 0d0, 0d0, 2, meth, 2, ra, z0v)
     write(*, '(7ES26.17E3)') zl, l, us, ts, expected, ra, zzd/l
   else
     ! residual f(z) - z at z = x for heat flux qh

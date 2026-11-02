@@ -29,7 +29,8 @@ MODULE SUEWS_Driver
    USE module_phys_anohm, ONLY: AnOHM
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, &
-                                     SUEWS_update_atmState, relax_zl, stability_scales
+                                     SUEWS_update_atmState, relax_zl, stability_scales, &
+                                     free_convection_velocity, relax_free_convection
    USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
    USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_perez, split_shortwave_forcing, split_shortwave_reindl
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
@@ -170,6 +171,12 @@ CONTAINS
       REAL(KIND(1D0)) :: ehc_current_iter_score
       LOGICAL :: ehc_final_converge
       LOGICAL :: use_ehc_experimental_controls
+      ! free-convection velocity accepted on the latest outer pass of this timestep,
+      ! carried between passes for its under-relaxation [m s-1]
+      REAL(KIND(1D0)) :: w_f_pass_prev
+      ! (z-d)/L [-] and free-convection velocity [m s-1] accepted before the current
+      ! outer pass, restored before the EHC residual-QH resistance call
+      REAL(KIND(1D0)) :: zl_pass_start, w_f_pass_start
 
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
@@ -333,6 +340,7 @@ CONTAINS
             ! start iteration-based calculation
             ! through iterations, the surface temperature is examined to be converged
             i_iter = 1
+            w_f_pass_prev = 0.0D0
             ehc_best_iter = 0
             ehc_best_iter_score = HUGE(1.0D0)
             ! max_iter = 30
@@ -482,9 +490,11 @@ CONTAINS
 
                !===============Resistance Calculations=======================
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance...'
+               zl_pass_start = modState%atmState%z_l
+               w_f_pass_start = w_f_pass_prev
                CALL SUEWS_cal_Resistance( &
                   timer, config, forcing, siteInfo, & ! input
-                  modState) ! input/output:
+                  modState, w_f_pass_prev) ! input/output:
                IF (supy_error_flag()) THEN
                   CALL sync_error_to_state(modState, timer)
                   RETURN
@@ -537,9 +547,14 @@ CONTAINS
 
                IF (config%StorageHeatMethod == 5) THEN
                   IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance with EHC residual QH...'
+                  ! Relax once per pass: the residual-QH call relaxes against the values
+                  ! accepted on the previous pass, not against the first call of this
+                  ! pass, so its result supersedes the first call's
+                  modState%atmState%z_l = zl_pass_start
+                  w_f_pass_prev = w_f_pass_start
                   CALL SUEWS_cal_Resistance( &
                      timer, config, forcing, siteInfo, & ! input
-                     modState) ! input/output:
+                     modState, w_f_pass_prev) ! input/output:
                   IF (supy_error_flag()) THEN
                      CALL sync_error_to_state(modState, timer)
                      RETURN
@@ -595,7 +610,7 @@ CONTAINS
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance...'
                CALL SUEWS_cal_Resistance( &
                   timer, config, forcing, siteInfo, & ! input
-                  modState, skip_relaxation=.TRUE.) ! input/output:
+                  modState, w_f_pass_prev, skip_relaxation=.TRUE.) ! input/output:
                IF (supy_error_flag()) THEN
                   CALL sync_error_to_state(modState, timer)
                   RETURN
@@ -3737,7 +3752,7 @@ CONTAINS
 
    SUBROUTINE SUEWS_cal_Resistance( &
       timer, config, forcing, siteInfo, & ! input
-      modState, skip_relaxation) ! input/output:
+      modState, w_f_pass_prev, skip_relaxation) ! input/output:
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, CONDUCTANCE_PRM, &
                                SUEWS_FORCING, &
@@ -3755,6 +3770,9 @@ CONTAINS
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
       TYPE(SUEWS_STATE), INTENT(INout) :: modState
+      ! free-convection velocity accepted on the previous outer pass of this timestep,
+      ! held by the caller; updated here on relaxed calls [m s-1]
+      REAL(KIND(1D0)), INTENT(INOUT) :: w_f_pass_prev
 
       LOGICAL, INTENT(IN), OPTIONAL :: skip_relaxation
       LOGICAL :: apply_relaxation
@@ -3763,6 +3781,8 @@ CONTAINS
 
       REAL(KIND(1D0)) :: Tair ! air temperature [degC]
       REAL(KIND(1D0)) :: zL_prev_pass ! (z-d)/L used in the previous outer pass [-]
+      REAL(KIND(1D0)) :: w_f_new ! free-convection velocity from this pass's heat flux [m s-1]
+      REAL(KIND(1D0)) :: w_f_pass ! free-convection velocity used in this pass [m s-1]
       REAL(KIND(1D0)) :: ehc_ra_heat_factor
       REAL(KIND(1D0)) :: ehc_ra_heat_max_factor
       REAL(KIND(1D0)) :: ehc_ra_state_boost
@@ -3892,6 +3912,18 @@ CONTAINS
                                         zL, L_mod, UStar, TStar)
                END IF
 
+               ! Free-convection velocity for the resistance, from this pass's heat
+               ! flux on the unstable branch, damped between passes like (z-d)/L;
+               ! the caller holds the previous pass's value for this timestep
+               IF (zL < 0.0D0) THEN
+                  w_f_new = free_convection_velocity(QH_init/(avdens*avcp), Temp_C, zzd)
+               ELSE
+                  w_f_new = 0.0D0
+               END IF
+               w_f_pass = relax_free_convection(w_f_pass_prev, w_f_new, &
+                                                modState%flagState%i_iter, apply_relaxation)
+               IF (apply_relaxation) w_f_pass_prev = w_f_pass
+
                IF (Diagnose == 1) WRITE (*, *) 'Calling AerodynamicResistance...'
                CALL AerodynamicResistance( &
                   ZZD, & ! input:
@@ -3899,6 +3931,7 @@ CONTAINS
                   AVU1, &
                   L_mod, &
                   UStar, &
+                  w_f_pass, &
                   VegFraction, &
                   AerodynamicResistanceMethod, &
                   StabilityMethod, &
@@ -3992,6 +4025,7 @@ CONTAINS
                      AVU1, &
                      L_mod, &
                      UStar, &
+                     w_f_pass, &
                      VegFraction, &
                      AerodynamicResistanceMethod, &
                      StabilityMethod, &

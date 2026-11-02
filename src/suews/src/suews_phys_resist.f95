@@ -14,6 +14,7 @@ CONTAINS
       AVU1, &
       L_mod, &
       UStar, &
+      w_f, &
       VegFraction, &
       AerodynamicResistanceMethod, &
       StabilityMethod, &
@@ -42,6 +43,7 @@ CONTAINS
       !         AVU1 = Mean wind speed
       !         L_mod = Obukhov length (m)
       !         UStar = Friction velocity (m s-1)
+      !         w_f = Free-convection velocity scale (m s-1), used only when unstable
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
@@ -55,6 +57,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: AVU1 !Average wind speed
       REAL(KIND(1D0)), INTENT(in) :: L_mod !Monin-Obukhov length (either measured or modelled)
       REAL(KIND(1D0)), INTENT(in) :: UStar !Friction velocity
+      REAL(KIND(1D0)), INTENT(in) :: w_f !Free-convection velocity scale [m s-1]
       REAL(KIND(1D0)), INTENT(in) :: VegFraction !Fraction of vegetation
 
       INTEGER, INTENT(in) :: AerodynamicResistanceMethod
@@ -76,6 +79,9 @@ CONTAINS
       ! every grid thread, so one grid could read another grid's value (gh#1926)
       REAL(KIND(1D0)) :: psih
       REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
+      REAL(KIND(1D0)) :: wind_eff ! wind speed with the free-convection velocity added [m s-1]
+      REAL(KIND(1D0)) :: ustar_eff ! UStar scaled by wind_eff/AVU1_use [m s-1]
+      REAL(KIND(1D0)) :: ustar_int ! interfacial velocity scale [m s-1]
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
@@ -103,6 +109,21 @@ CONTAINS
          ELSE
             RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1_use)
             ! RA = AVU1/UStar**2
+            IF (ZZD/L_mod < 0 .AND. w_f > 0) THEN
+               ! Free convection (unstable only). Light mean wind understates the
+               ! exchange that convective eddies keep up, so the momentum and
+               ! stability parts of RA use wind_eff = SQRT(U**2 + w_f**2), and the
+               ! interfacial part ln(z0m/z0V)/(k u*) uses
+               ! ustar_int = SQRT(ustar_eff**2 + w_f**2) with ustar_eff = u* wind_eff/U.
+               ! z0V (Kawai kB-1) keeps the original UStar, and UStar itself is
+               ! unchanged for the rest of the model.
+               wind_eff = SQRT(AVU1_use**2 + w_f**2)
+               ustar_eff = UStar*wind_eff/AVU1_use
+               ustar_int = SQRT(ustar_eff**2 + w_f**2)
+               RA_h = RA_h*AVU1_use/wind_eff - &
+                      LOG(z0m/z0V)*(LOG(ZZD/z0m) - psim)/(K2*AVU1_use)* &
+                      (AVU1_use/wind_eff - UStar/ustar_int)
+            END IF
          END IF
 
          !3) Thom and Oliver (1977)

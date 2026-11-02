@@ -55,7 +55,7 @@ do i = 1, n
     read(*, *) zzd, z0m, u
     ! neutral method (1); stability inputs are unused by it
     call state%errorstate%clear_log()
-    call AerodynamicResistance(zzd, z0m, u, -999.0d0, 0.3d0, 0.0d0, 1, 3, 2, ra, z0v, state)
+    call AerodynamicResistance(zzd, z0m, u, -999.0d0, 0.3d0, 0.0d0, 0.0d0, 1, 3, 2, ra, z0v, state)
     if (mode == 3) then
       write(*, '(I0)') state%errorstate%count
     else

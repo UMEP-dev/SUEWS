@@ -41,6 +41,24 @@ The decaying factor can then end the iteration on the successive-temperature 0.0
 Passing that test does not establish a vanishing unrelaxed stability residual or bound differences from the unrelaxed model.
 After the loop, any required flux-sign reconciliation uses the unrelaxed solve and recomputes its dependent scales.
 
+On the unstable branch, :math:`r_a` includes a free-convection velocity scale.
+At light wind, the mean wind :math:`U` understates the exchange that convective eddies maintain, so stability alone would let :math:`r_a` grow as :math:`1/U`.
+The velocity scale is
+
+.. math::
+
+   w_f = \left(\frac{g}{T_a}\,H\,(z-d)\right)^{1/3}, \qquad H = \frac{Q_H}{\rho c_p},
+
+with :math:`Q_H` the sensible heat flux of the current pass and :math:`w_f = 0` when :math:`Q_H \leq 0`.
+The momentum and stability parts of :math:`r_a` use the effective wind :math:`U_e = \sqrt{U^2 + w_f^2}` in place of :math:`U`.
+The interfacial part, :math:`\ln(z_{0m}/z_{0v})/(k u_*)`, uses :math:`u_{*I} = \sqrt{u_{*e}^2 + w_f^2}` in place of :math:`u_*`, with :math:`u_{*e} = u_* U_e/U`.
+The roughness length for heat, :math:`z_{0v}`, keeps the original :math:`u_*`, and the friction velocity used elsewhere in the model is unchanged.
+Stable and neutral steps are unchanged, and with :math:`w_f = 0` the resistance is the expression above.
+Because :math:`w_f` responds to :math:`Q_H^{1/3}`, whose slope is unbounded as :math:`Q_H` approaches zero from above, feeding it straight back can make the outer iteration alternate across :math:`Q_H = 0`.
+:math:`w_f` is therefore under-relaxed between passes with the same factor :math:`\alpha_n` as :math:`(z-d)/L`; the first pass and the post-loop reconciliation take the value from the current heat flux.
+The EHC storage heat method recomputes the resistance from the residual sensible heat flux within a pass; that call relaxes both :math:`(z-d)/L` and :math:`w_f` against the values accepted before the pass, so each pass applies one damping step, from the latest heat flux.
+The free-convection term lowers :math:`r_a` most at light wind, which raises evaporation from wet and open-water surfaces.
+
 Net all-wave radiation, Q\*
 ---------------------------
 

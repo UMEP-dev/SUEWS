@@ -650,7 +650,9 @@ class SUEWSOutput:
             'txt' if no configuration is available. An explicit value
             always overrides the configuration.
         freq_s : int, optional
-            Output frequency in seconds (default: from config or 3600)
+            Output frequency in seconds. An explicit value overrides
+            ``model.control.output.freq`` for this save only. When ``None``,
+            use the configured frequency, or 3600 if none is configured.
         groups : list, optional
             TXT output groups, for example ['SUEWS', 'DailyState', 'RSL'].
             An explicit list overrides ``model.control.output.groups`` for
@@ -675,8 +677,8 @@ class SUEWSOutput:
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
-        # Get defaults from config if available
-        freq = freq_s or 3600
+        # Get defaults from config if available; _save_supy resolves the
+        # frequency, format, groups and opt-in against output_config.
         site = ""
         output_config = None
         forcing_timestamp_reference = "local_standard_time"
@@ -686,10 +688,7 @@ class SUEWSOutput:
                 if hasattr(self._config, "model"):
                     control = self._config.model.control
                     if hasattr(control, "output"):
-                        output_control = control.output
-                        if hasattr(output_control, "freq") and output_control.freq:
-                            freq = freq_s or output_control.freq
-                        output_config = output_control
+                        output_config = control.output
                     if hasattr(control, "forcing"):
                         forcing_timestamp_reference = (
                             control.forcing.timestamp_reference
@@ -704,7 +703,7 @@ class SUEWSOutput:
         list_path_save = _save_supy(
             df_output=self._df_output,
             df_state_final=self._df_state_final,
-            freq_s=int(freq),
+            freq_s=freq_s,
             site=site,
             path_dir_save=str(path),
             output_config=output_config,

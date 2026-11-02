@@ -195,7 +195,7 @@ def load_forcing_grid(
 def _save_supy(
     df_output: pandas.DataFrame,
     df_state_final: pandas.DataFrame,
-    freq_s: int = 3600,
+    freq_s: Optional[int] = None,
     site: str = "",
     path_dir_save: str = Path("."),
     path_runcontrol: Optional[str] = None,
@@ -221,7 +221,9 @@ def _save_supy(
     df_state_final : pandas.DataFrame
         DataFrame of final model states
     freq_s : int, optional
-        Output frequency in seconds (the default is 3600, which indicates hourly output)
+        Output frequency in seconds. An explicit value overrides
+        ``output_config.freq``. When ``None`` (the default), use
+        ``output_config.freq`` if set, otherwise 3600 (hourly output).
     site : str, optional
         Site identifier (the default is '', which indicates site identifier will be left empty)
     path_dir_save : str, optional
@@ -240,7 +242,10 @@ def _save_supy(
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
     output_config : OutputControl, optional
-        Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
+        Output configuration object specifying format, frequency, and groups
+        to save. Each setting applies only where the matching argument
+        (``freq_s``, ``output_format``, ``output_groups``,
+        ``include_provisional``) is not given explicitly.
     save_state : bool, optional
         Whether to write the legacy DFState restart artifact. Legacy callers
         keep the historical default ``True``; the OOP API writes typed
@@ -297,8 +302,9 @@ def _save_supy(
         from .data_model.core.model import OutputControl
 
         if isinstance(output_config, OutputControl):
-            # Override frequency if specified in config
-            if output_config.freq is not None:
+            # Fill frequency from config only when the caller has not set it
+            # explicitly — an explicit `freq_s` always wins.
+            if freq_s is None and output_config.freq is not None:
                 freq_s = output_config.freq
             # Fill format from config only when the caller has not set it
             # explicitly — an explicit `output_format` kwarg always wins.
@@ -325,6 +331,7 @@ def _save_supy(
 
     if output_format is None:
         output_format = "txt"
+    freq_s = 3600 if freq_s is None else int(freq_s)
 
     # determine `save_snow` option
     snowuse = df_state_final.iloc[-1].loc["snowuse"]

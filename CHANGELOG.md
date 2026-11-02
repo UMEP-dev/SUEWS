@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 2 Nov 2026
+
+- [bugfix] Honour an explicit `SUEWSOutput.save(freq_s=...)` when the configuration sets `model.control.output.freq`; the configured frequency previously replaced it. The configured frequency, then hourly output, still apply when `freq_s` is not given (#1980).
+
 ### 1 Nov 2026
 
 - [bugfix] Honour `SUEWSOutput.save(groups=...)` for TXT output, which the method previously ignored, and accept BEERS in configured output groups; default TXT groups and full-group non-streaming Parquet output are unchanged (#1974).

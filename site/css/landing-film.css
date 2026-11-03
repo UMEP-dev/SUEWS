@@ -1,0 +1,207 @@
+/*
+ * Landing film (js/landing-film.js): the Motion film's base.css, scoped to
+ * #film-stage so none of it reaches the page, plus the overlay and controls.
+ * The film plays on the page's own background (--bg-primary) and follows the
+ * light/dark theme, so the frame has no edge and the hand-off reveals the
+ * page without a colour change. The soft glow sits on the full-screen
+ * overlay, not on the 16:9 stage, for the same reason.
+ */
+.film {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  overflow: hidden;
+  background:
+    radial-gradient(110% 70% at 50% 105%, color-mix(in srgb, var(--film-main) 10%, transparent), transparent 70%),
+    var(--bg-primary);
+  --film-main: #5DADE2;
+}
+[data-theme="light"] .film { --film-main: #0558a5; }
+#film-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  transform-origin: 0 0;
+  --ground: #0F1119;
+  --main: #5DADE2;
+  --second: #F8FAFC;
+  --accent: #F7B538;
+  --display: 'Crimson Pro', Georgia, serif;
+  --sans: 'Instrument Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--second);
+  font-family: var(--sans);
+}
+[data-theme="light"] #film-stage {
+  --ground: #FAFBFC;
+  --main: #0558a5;
+  --second: #1E293B;
+  --accent: #D4940F;
+}
+#film-stage .film-scene { position: absolute; inset: 0 }
+#film-stage .ground { position: absolute; inset: 0 }
+#film-stage .words { position: absolute; margin: 0; display: flex; flex-direction: column; gap: 24px }
+#film-stage .words > * { margin: 0 }
+#film-stage .line { font-family: var(--display); font-size: 84px; line-height: 1.05; font-weight: 700 }
+#film-stage .sub { font-size: 36px; line-height: 1.3; color: color-mix(in srgb, var(--second) 72%, var(--ground)) }
+#film-stage .code { font-family: var(--mono); font-size: 34px; line-height: 1.5; white-space: pre }
+#film-stage .kicker { font-family: var(--mono); font-size: 26px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent) }
+#film-stage .big { font-family: var(--display); font-size: 150px; line-height: 1; font-weight: 700; letter-spacing: -.01em }
+#film-stage .kw { color: var(--main) }
+#film-stage .cm { color: color-mix(in srgb, var(--second) 45%, var(--ground)) }
+#film-stage .hl { color: var(--accent) }
+#film-stage .caret { display: inline-block; width: 18px; height: 40px; margin-left: 4px; vertical-align: -6px; background: var(--accent) }
+#film-stage .art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible }
+#film-stage .flux { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round }
+#film-stage .wflux { fill: none; stroke: var(--main); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round }
+#film-stage .panel { position: absolute; box-sizing: border-box; border-radius: 18px; background: color-mix(in srgb, var(--ground) 90%, var(--second)); border: 2px solid color-mix(in srgb, var(--second) 22%, transparent); box-shadow: 0 30px 80px rgba(0,0,0,.25) }
+#film-stage .paper { position: absolute; box-sizing: border-box; border-radius: 6px; background: var(--second); color: var(--ground); box-shadow: 0 30px 80px rgba(0,0,0,.25) }
+#film-stage .mark { position: absolute; border-radius: 4px; background: color-mix(in srgb, var(--accent) 55%, transparent) }
+#film-stage .logo { position: absolute; left: 0; top: 0; width: 2048px; height: 2048px; transform-origin: 0 0 }
+#film-stage .logo-part,
+#film-stage .logo-rev,
+#film-stage .logo-solid { position: absolute; inset: 0 }
+#film-stage .logo-tex { position: absolute; inset: 0; overflow: hidden; font-family: var(--mono); font-size: 40px; line-height: 1.25; word-break: break-all; white-space: normal }
+#film-stage .logo-edge { position: absolute; left: 0; width: 2048px; top: 0; height: 10px; background: var(--second) }
+#film-stage .halo { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 45%, transparent), transparent) }
+#film-stage .ring { position: absolute; box-sizing: border-box; border-radius: 50%; border: 4px solid var(--accent) }
+#film-stage .end-logo svg { display: block }
+/* Light theme: the report page stays a white sheet with dark type */
+[data-theme="light"] #film-stage .paper { --ground: #2D3142; --second: #FFFFFF; border: 1px solid #E2E8F0; box-shadow: 0 24px 60px rgba(15,17,25,.10) }
+[data-theme="light"] #film-stage .panel { box-shadow: 0 24px 60px rgba(15,17,25,.08) }
+
+.film-controls {
+  position: fixed;
+  z-index: 970;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  gap: 10px;
+}
+.film-btn {
+  padding: 8px 16px;
+  font: 500 0.8rem 'Instrument Sans', system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  color: rgba(248, 250, 252, 0.8);
+  background: rgba(15, 17, 25, 0.35);
+  border: 1px solid rgba(248, 250, 252, 0.3);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.film-btn:hover,
+.film-btn:focus-visible {
+  color: #F8FAFC;
+  border-color: #F7B538;
+  outline: none;
+}
+[data-theme="light"] .film-btn {
+  color: #475569;
+  background: rgba(255, 255, 255, 0.6);
+  border-color: #CBD5E1;
+}
+[data-theme="light"] .film-btn:hover,
+[data-theme="light"] .film-btn:focus-visible {
+  color: #1E293B;
+  border-color: #D4940F;
+}
+
+/* "Play with sound": shown when a ?film link cannot start audio without a click */
+.film-play {
+  position: fixed;
+  z-index: 965;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 40px;
+  font: 600 1.1rem 'Instrument Sans', system-ui, sans-serif;
+  color: #F8FAFC;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.film-play .film-play-icon {
+  width: 88px;
+  height: 88px;
+  border-width: 2px;
+  box-shadow: 0 0 0 0 rgba(247, 181, 56, 0.5);
+  animation: film-pulse 2s ease-out infinite;
+}
+.film-play .film-play-icon::after { border-width: 14px 0 14px 23px; margin-left: 6px; }
+.film-play strong { font: 700 2.4rem/1.1 'Crimson Pro', Georgia, serif; margin-bottom: 12px; white-space: nowrap; }
+.film-play small { font: 500 0.8rem 'JetBrains Mono', monospace; letter-spacing: 0.08em; opacity: 0.6; }
+.film-play:focus-visible { outline: none; }
+.film-play:focus-visible .film-play-icon,
+.film-play:hover .film-play-icon { background: rgba(247, 181, 56, 0.18); }
+[data-theme="light"] .film-play { color: #1E293B; }
+
+/* Round play glyph shared by the play button and the logo hint */
+.film-play-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-sizing: border-box;
+  border: 1.5px solid #F7B538;
+  border-radius: 50%;
+  transition: background 150ms ease;
+}
+.film-play-icon::after {
+  content: '';
+  border-style: solid;
+  border-color: transparent transparent transparent #F7B538;
+}
+[data-theme="light"] .film-play-icon { border-color: #D4940F; }
+[data-theme="light"] .film-play-icon::after { border-left-color: #D4940F; }
+@keyframes film-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(247, 181, 56, 0.45); }
+  100% { box-shadow: 0 0 0 26px rgba(247, 181, 56, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .film-play .film-play-icon { animation: none; } }
+
+/* Hero logo: a quiet hint on hover that clicking it plays the film */
+.logo-link { position: relative; }
+.logo-link::after {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  border: 1px solid var(--accent-label);
+  opacity: 0;
+  transition: opacity 250ms ease;
+  pointer-events: none;
+}
+.film-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 42px);
+  transform: translate(-50%, -4px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font: 500 0.82rem 'Instrument Sans', system-ui, sans-serif;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 250ms ease, transform 250ms ease;
+  pointer-events: none;
+}
+.film-hint[hidden] { display: none; }
+.film-hint .film-play-icon { width: 22px; height: 22px; border-width: 1px; }
+.film-hint .film-play-icon::after { border-width: 4px 0 4px 7px; margin-left: 2px; }
+.film-hint-len { font: 500 0.72rem 'JetBrains Mono', monospace; opacity: 0.7; }
+.logo-link:hover::after,
+.logo-link:focus-visible::after { opacity: 0.3; }
+.logo-link:hover .film-hint,
+.logo-link:focus-visible .film-hint { opacity: 1; transform: translate(-50%, 0); }
+/* No hover on touch screens: keep the hint faintly visible instead */
+@media (hover: none) { .film-hint { opacity: 0.55; transform: translate(-50%, 0); } }
+.logo-intro .logo-link::after,
+.logo-intro .film-hint { opacity: 0 !important; }

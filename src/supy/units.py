@@ -344,7 +344,10 @@ def convert_water_rate(values: Any, from_unit: str | Unit, to_unit: str | Unit) 
     mass_rate = parse_unit("kg m-2 s-1")
     factors = {depth_rate.dimension: depth_rate.scale, mass_rate.dimension: mass_rate.scale}
     if source.dimension not in factors or target.dimension not in factors:
-        raise UnitError("water flux requires a time unit: use kg m-2 s-1, mm h-1 or mm d-1")
+        raise UnitError(
+            "water flux requires a time unit: use kg m-2 s-1, mm h-1 or mm d-1; "
+            "see https://docs.suews.io/stable/inputs/units_migration_guide.html"
+        )
     factor = (source.scale / factors[source.dimension]) / (target.scale / factors[target.dimension])
     return values * factor
 

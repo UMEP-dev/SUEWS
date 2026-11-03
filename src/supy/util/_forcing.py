@@ -11,9 +11,16 @@ import pandas as pd
 from ..units import convert, parse_unit
 
 MISSING_VALUE = -999.0
+UNITS_MIGRATION_GUIDE = "https://docs.suews.io/stable/inputs/units_migration_guide.html"
+SOIL_CONVERT_HINT = (
+    "Convert the forcing and YAML together with 'suews convert -i config.yml "
+    "-o new/config.yml --forcing forcing.txt --forcing-output new/forcing.txt "
+    "--manifest new/conversion.json --layer-top 0 --layer-depth <metres> "
+    f"--dry-run'; see {UNITS_MIGRATION_GUIDE}"
+)
 LEGACY_SOIL_MESSAGE = (
     "Legacy soil-moisture input requires explicit migration; xsmd and "
-    "SMDMethod=2 are not canonical sm inputs."
+    f"SMDMethod=2 are not canonical sm inputs. {SOIL_CONVERT_HINT}"
 )
 
 
@@ -31,8 +38,8 @@ LEGACY_PLACEHOLDER_ATTR = "legacy_soil_placeholder"
 LEGACY_PLACEHOLDER_WARNING = (
     "Forcing column 'xsmd' is deprecated: an entirely missing 'xsmd' placeholder "
     "is read as missing 'sm' for modelled soil moisture only. Rename the header to "
-    "'sm' or run the soil-moisture converter; the placeholder will be refused from "
-    "forcing contract 3.0.0."
+    "'sm', or convert the forcing with 'suews convert --forcing'; the placeholder "
+    f"will be refused from forcing contract 3.0.0. See {UNITS_MIGRATION_GUIDE}"
 )
 
 

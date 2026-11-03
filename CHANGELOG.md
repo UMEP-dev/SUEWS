@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 3 Nov 2026
 
+- [maintenance] Declared and tested Python 3.15 support: added the 3.15 classifier, put cp315 into the CI candidate window (so PR and merge-queue api lanes now test the cp312 and cp315 bookends, with cp313 and cp314 in the nightly and release matrix) and a `py315` dispatch toggle, required pyarrow>=26 on 3.15 (its first cp315 wheels), installed setuptools in `make dev` so sdist-only dependencies such as numexpr build on 3.15, and adapted two tests to 3.15's `importlib.metadata` and `warnings.warn_explicit` behaviour. The cp312-abi3 wheel is unchanged
 - [doc] Add a 36 s film to the suews.io landing page, "From Code to Climate Policy": SUEWS code fills the logo, then the energy and water fluxes, the papers it grew from (1986 to 2019), Arup's UHeat (2023) and the UK's fourth climate risk assessment (2026), before the hero logo takes over from the film's end card. Clicking the hero logo plays it with sound, and a `?film` link opens the page on it; the page never plays it on its own. Pure HTML, CSS and Web Audio, following the light and dark themes (#1981, #1985, #1986, #1987)
 
 ### 1 Nov 2026

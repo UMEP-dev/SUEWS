@@ -68,6 +68,15 @@ def test_legacy_column_with_values_is_refused(tmp_path):
         read_forcing(str(_legacy_file(tmp_path, value="0.25")), tstep_mod=None)
 
 
+def test_legacy_messages_point_to_converter_and_guide(tmp_path):
+    with pytest.warns(FutureWarning, match="units_migration_guide") as record:
+        read_forcing(str(_legacy_file(tmp_path)), tstep_mod=None)
+    assert "suews convert --forcing" in str(record[0].message)
+    with pytest.raises(ValueError, match="suews convert -i") as excinfo:
+        read_forcing(str(_legacy_file(tmp_path, value="0.25")), tstep_mod=None)
+    assert "units_migration_guide" in str(excinfo.value)
+
+
 def test_observed_run_refuses_legacy_placeholder(tmp_path):
     with pytest.warns(FutureWarning):
         frame = read_forcing(str(_legacy_file(tmp_path)), tstep_mod=None)

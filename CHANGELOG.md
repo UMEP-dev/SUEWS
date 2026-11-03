@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 3 Nov 2026
 
-- [doc] Animate the suews.io landing-page logo on first view: the model's code fills each part of the logo (buildings, sun, vegetation, water) before the solid shapes set, once per browser session, skipped under `prefers-reduced-motion`, and ending on the existing static logo
+- [doc] Animate the suews.io landing-page logo on first view: the model's code fills each part of the logo (buildings, sun, vegetation, water) before the solid shapes set, once per browser session, skipped under `prefers-reduced-motion`, and ending on the existing static logo (#1981)
 
 ### 1 Nov 2026
 

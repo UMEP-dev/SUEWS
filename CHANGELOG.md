@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 3 Nov 2026
 
-- [doc] Animate the suews.io landing-page logo on first view: the model's code fills each part of the logo (buildings, sun, vegetation, water) before the solid shapes set, once per browser session, skipped under `prefers-reduced-motion`, and ending on the existing static logo (#1981)
+- [doc] Open the suews.io landing page with a 36 s film, "From Code to Climate Policy": SUEWS code fills the logo, then the energy and water fluxes, the papers it grew from (1986 to 2019), Arup's UHeat (2023) and the UK's fourth climate risk assessment (2026), before the hero logo takes over from the film's end card. Plays muted once per browser session (skipped under `prefers-reduced-motion`); a `?film` link plays it with sound, and clicking the hero logo replays it. Pure HTML, CSS and Web Audio, following the light and dark themes (#1981)
 
 ### 1 Nov 2026
 

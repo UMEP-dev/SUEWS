@@ -13,28 +13,36 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <!-- Logo intro guard: decides before first paint whether the logo starts
          empty and is filled by the model's code (see the script at the end).
          Skipped under prefers-reduced-motion and after the first view in a
-         session; a 4 s safety net shows the static logo if the intro never runs. -->
+         session, unless the link asks for it with ?film (which also asks for
+         sound); a 4 s safety net shows the static logo if the intro never runs. -->
     <script>
         (function () {
+            var root = document.documentElement, asked = false;
             try {
-                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-                if (sessionStorage.getItem('logo-intro-seen')) return;
+                asked = new URLSearchParams(location.search).has('film');
+                if (!asked) {
+                    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                    if (sessionStorage.getItem('logo-intro-seen')) return;
+                }
                 sessionStorage.setItem('logo-intro-seen', '1');
-            } catch (e) { return; }
-            var root = document.documentElement;
+            } catch (e) { if (!asked) return; }
+            if (asked) root.dataset.film = 'sound';
             root.classList.add('logo-intro');
-            setTimeout(function () { root.classList.remove('logo-intro'); }, 4000);
+            setTimeout(function () {
+                if (!root.classList.contains('film-running')) root.classList.remove('logo-intro');
+            }, 4000);
         })();
     </script>
 
     <!-- Shared CSS -->
     <link rel="stylesheet" href="/css/tokens.css">
     <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/landing-film.css">
 
     <style>
         /* ========== Page-specific styles ========== */
@@ -193,6 +201,29 @@
            part with code and fades the solid shape back in. */
         .logo-intro .logo-svg .logo-part {
             opacity: 0;
+        }
+
+        /* Landing film (js/landing-film.js): the page waits under the film,
+           which plays on the page's own background, the hero logo hidden until it takes over from the
+           film's end card and settles into place as the page comes up. */
+        .logo-intro body { overflow: hidden; }
+        .logo-intro body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            background: var(--bg-primary);
+        }
+        .film-running body::after { display: none; }
+        .logo-intro .hero > .container { z-index: 950; }
+        .logo-intro .logo-glow { opacity: 0; }
+        .logo-intro.film-swap .logo-svg .logo-part { opacity: 1; }
+        .logo-intro .hero-content { opacity: 0; animation: none; pointer-events: none; }
+        .logo-intro .logo-link { pointer-events: none; }
+        .logo-intro.film-reveal .hero-content { pointer-events: auto; }
+        .logo-intro.film-reveal .hero-content {
+            opacity: 1;
+            animation: slideUp 0.9s ease-out;
         }
 
         /* ========== Hero Content ========== */
@@ -589,6 +620,7 @@
                             <!-- Wave -->
                             <path id="wave" class="logo-part" fill="#0558a5" d="M624 1557h26q20 0 39 5l10 1 33 9 11 3a200 200 0 0 1 40 15l15 7 3 1 56 27v2l3 1 9 4 3 2 3 2 4 1 38 22 18 10 13 7a1153 1153 0 0 0 134 57l33 10v2l-46 7h-35q-25 0-50-3h-3q-47-6-91-23l-5-2-20-8-3-1-6-3-5-2-53-26a470 470 0 0 0-132-46q-47-7-93 2l-4 1q-38 7-74 24l-5 1v2l-3 1q-19 8-35 18l-5 3-30 19-38 29q-6 7-15 10l-3 1q-14 4-29-2-16-9-22-26-3-19 8-35l17-15 2-1a553 553 0 0 1 155-89l2-1 33-10 3-1a288 288 0 0 1 56-10q19-3 38-2"/>
                         </svg>
+                        <span class="film-hint" hidden><span class="film-play-icon" aria-hidden="true"></span>Watch the story <span class="film-hint-len"></span></span>
                     </a>
                 </div>
 
@@ -827,95 +859,6 @@
             }
         });
 
-        // Logo intro: the model's own code pours into each part of the logo
-        // (buildings, sun, vegetation, water), then the solid shape sets over it.
-        // About 2.6 s, once per session; the end state is the static logo.
-        (function () {
-            const svg = document.querySelector('.logo-svg');
-            if (!root.classList.contains('logo-intro') || !svg) return;
-            const NS = 'http://www.w3.org/2000/svg';
-            const CODE = 'QSTAR=QH+QE+DQS-QF; CALL OHM(QN,DQS); QE=EVAP(T,RH,LAI); ' +
-                'DO IS=1,NSURF; FLUX(IS)=QN*FRAC(IS); END DO; ';
-            // [shape id, top, bottom (logo units), fill start, fill end (s)]
-            const PARTS = [
-                ['buildings-main', 636, 1452, 0.00, 0.90],
-                ['buildings-detail', 836, 1246, 0.25, 1.05],
-                ['sun-outer', 236, 884, 0.60, 1.40],
-                ['sun-inner', 356, 764, 0.80, 1.50],
-                ['leaf-ground', 1120, 1737, 1.00, 1.90],
-                ['wave', 1552, 1757, 1.30, 2.10]
-            ];
-            const make = (tag, attrs) => {
-                const el = document.createElementNS(NS, tag);
-                for (const k in attrs) el.setAttribute(k, attrs[k]);
-                return el;
-            };
-            const clamp = (x) => Math.min(1, Math.max(0, x));
-            const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-
-            // One block of code rows, shared by every part through <use>
-            const defs = make('defs', {});
-            const rows = make('g', {
-                id: 'logo-code-rows',
-                'font-family': "'JetBrains Mono', monospace",
-                'font-size': '44'
-            });
-            const stream = CODE.repeat(4);
-            for (let i = 0, y = 250; y < 1800; i++, y += 54) {
-                const row = make('text', { x: '280', y: String(y) });
-                const k = (i * 11) % CODE.length;
-                row.textContent = stream.slice(k, k + 72);
-                rows.appendChild(row);
-            }
-            defs.appendChild(rows);
-            svg.insertBefore(defs, svg.firstChild);
-
-            const parts = PARTS.map(([id, top, bottom, a, b]) => {
-                const shape = document.getElementById(id);
-                if (!shape) return null;
-                const shapeClip = make('clipPath', { id: 'logo-clip-' + id });
-                shapeClip.appendChild(make('use', { href: '#' + id }));
-                const revealClip = make('clipPath', { id: 'logo-reveal-' + id });
-                const edge = make('rect', { x: '0', y: String(bottom), width: '2048', height: '0' });
-                revealClip.appendChild(edge);
-                defs.append(shapeClip, revealClip);
-                const layer = make('g', { 'clip-path': 'url(#logo-clip-' + id + ')', 'aria-hidden': 'true' });
-                const fill = make('g', { 'clip-path': 'url(#logo-reveal-' + id + ')', fill: shape.getAttribute('fill') });
-                fill.appendChild(make('use', { href: '#logo-code-rows' }));
-                layer.appendChild(fill);
-                svg.insertBefore(layer, shape);
-                shape.style.opacity = '0';
-                return { shape, top, bottom, a, b, edge, layer };
-            }).filter(Boolean);
-            root.classList.remove('logo-intro');
-
-            const t0 = performance.now();
-            function frame(now) {
-                const t = (now - t0) / 1000;
-                let running = false;
-                for (const p of parts) {
-                    const f = ease(clamp((t - p.a) / (p.b - p.a)));
-                    const y = p.bottom + (p.top - p.bottom) * f;
-                    p.edge.setAttribute('y', y.toFixed(1));
-                    p.edge.setAttribute('height', (p.bottom - y + 4).toFixed(1));
-                    const solid = ease(clamp((t - p.b + 0.1) / 0.5));
-                    p.shape.style.opacity = solid.toFixed(3);
-                    p.layer.style.opacity = (1 - clamp((t - p.b - 0.3) / 0.4)).toFixed(3);
-                    if (solid < 1 || t < p.b + 0.7) running = true;
-                }
-                if (running) {
-                    requestAnimationFrame(frame);
-                } else {
-                    for (const p of parts) {
-                        p.layer.remove();
-                        p.shape.style.opacity = '';
-                    }
-                    defs.remove();
-                }
-            }
-            requestAnimationFrame(frame);
-        })();
-
         // Local Development Mode Detection
         (function() {
             const isLocalDev = window.location.hostname === 'localhost' ||
@@ -983,5 +926,6 @@
             }
         })();
     </script>
+    <script src="/js/landing-film.js"></script>
 </body>
 </html>

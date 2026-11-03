@@ -44,7 +44,8 @@ def test_installed_wheel_exposes_pep639_licence_metadata() -> None:
 
     assert metadata["Metadata-Version"] == "2.4"
     assert metadata["License-Expression"] == EXPECTED_EXPRESSION
-    assert metadata["License"] is None
+    # Python 3.15 raises KeyError for an absent header instead of returning None.
+    assert "License" not in metadata
     assert set(metadata.get_all("License-File", [])) == EXPECTED_LICENSE_FILES
 
     installed_paths = {str(path) for path in installed.files or []}

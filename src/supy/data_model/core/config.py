@@ -4722,7 +4722,9 @@ class SUEWSConfig(BaseModel):
         if has_extra_forbidden:
             error_lines.append("")
             error_lines.append(
-                cls._drift_hint(config_data, had_signature=had_signature)
+                cls._drift_hint(
+                    config_data, had_signature=had_signature, unknown_fields=True
+                )
             )
 
         error_msg = "\n".join(error_lines)
@@ -4753,7 +4755,11 @@ class SUEWSConfig(BaseModel):
 
     @classmethod
     def _drift_hint(
-        cls, config_data: dict, *, had_signature: bool = True
+        cls,
+        config_data: dict,
+        *,
+        had_signature: bool = True,
+        unknown_fields: bool = False,
     ) -> str:
         """Build the actionable hint shown when YAML schema drift is suspected.
 
@@ -4777,7 +4783,7 @@ class SUEWSConfig(BaseModel):
                 detected = SchemaMigrator().auto_detect_version(config_data)
             except Exception:  # noqa: BLE001 - detection is best-effort
                 detected = "unspecified"
-            if str(detected) == CURRENT_SCHEMA_VERSION:
+            if unknown_fields and str(detected) == CURRENT_SCHEMA_VERSION:
                 # Converting a current-schema YAML changes nothing; the named
                 # fields are simply not accepted at that location.
                 return (

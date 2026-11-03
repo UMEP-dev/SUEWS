@@ -34,7 +34,7 @@
 #   INPUT_PLAT_MACOS_INTEL -- inputs.plat_macos_intel
 #   INPUT_PLAT_MACOS_ARM -- inputs.plat_macos_arm
 #   INPUT_PLAT_WINDOWS   -- inputs.plat_windows
-#   INPUT_PY312..PY314   -- inputs.py312..py314
+#   INPUT_PY312..PY315   -- inputs.py312..py315
 #   INPUT_TEST_TIER      -- inputs.test_tier (dispatch only)
 #   PHYSICS_CHANGE       -- "true" if the PR carries the 0-physics:change label
 #                           (gh#1576). On a ready PR or in the merge queue this
@@ -81,7 +81,7 @@ NIGHTLY_API_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15", "
 # target collided with requires-python>=3.12 and cibuildwheel aborted with
 # "No build identifiers selected"). requires-python is the single source of
 # truth for the floor; this list only sets the newest tested edge.
-PYTHON_CANDIDATES='["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]'
+PYTHON_CANDIDATES='["cp39", "cp310", "cp311", "cp312", "cp313", "cp314", "cp315"]'
 
 # Resolve the floor from the built ref's pyproject (data only; the logic lives
 # in this base-trusted script and its helper). PR_PYPROJECT points at a sparse
@@ -233,6 +233,7 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       [[ "${INPUT_PY312:-false}" == "true" ]] && TEST_PYS+='"cp312",'
       [[ "${INPUT_PY313:-false}" == "true" ]] && TEST_PYS+='"cp313",'
       [[ "${INPUT_PY314:-false}" == "true" ]] && TEST_PYS+='"cp314",'
+      [[ "${INPUT_PY315:-false}" == "true" ]] && TEST_PYS+='"cp315",'
       TEST_PYS="${TEST_PYS%,}]"
 
       if [[ "$TEST_PYS" == "[]" ]]; then

@@ -186,11 +186,11 @@ gh pr edit <FAILING_PR_NUMBER> --remove-from-merge-queue
 
 | Event | Platforms | Python Versions | Test Tier |
 |-------|-----------|-----------------|-----------|
-| Draft PR | manylinux only | 3.12, 3.14 | smoke |
-| Ready PR | Linux, ARM Mac, Win | 3.12, 3.14 | standard |
-| **Merge Queue** | Linux, ARM Mac, Win (Linux only for tests-only groups) | 3.12, 3.14 | standard |
-| Nightly | All (incl. x86 Mac) for the wheel build; api tests skip x86 Mac (runner scarcity -- see run 28990965739) | 3.12-3.14 | all |
-| Release (tag push) | All (incl. x86 Mac), api tests included | 3.12-3.14 | all |
+| Draft PR | manylinux only | 3.12, 3.15 | smoke |
+| Ready PR | Linux, ARM Mac, Win | 3.12, 3.15 | standard |
+| **Merge Queue** | Linux, ARM Mac, Win (Linux only for tests-only groups) | 3.12, 3.15 | standard |
+| Nightly | All (incl. x86 Mac) for the wheel build; api tests skip x86 Mac (runner scarcity -- see run 28990965739) | 3.12-3.15 | all |
+| Release (tag push) | All (incl. x86 Mac), api tests included | 3.12-3.15 | all |
 
 Ready-PR CI tests the oldest and newest supported CPython bookends. The merge
 queue revalidates the combined tree on the `requires-python` floor (3.12)

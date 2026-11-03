@@ -89,6 +89,10 @@ on:
         description: '[custom] Test on Python 3.14'
         type: boolean
         default: true
+      py315:
+        description: '[custom] Test on Python 3.15'
+        type: boolean
+        default: true
 
       deploy_target:
         description: 'Deployment target (PyPI requires tagged release)'
@@ -384,6 +388,7 @@ jobs:
           INPUT_PY312: ${{ inputs.py312 }}
           INPUT_PY313: ${{ inputs.py313 }}
           INPUT_PY314: ${{ inputs.py314 }}
+          INPUT_PY315: ${{ inputs.py315 }}
           INPUT_TEST_TIER: ${{ inputs.test_tier }}
           GITHUB_REF: ${{ github.ref }}
           PR_PYPROJECT: _pr_meta/pyproject.toml
@@ -998,7 +1003,7 @@ jobs:
       - verify-release-tag
     # Production tags only: all platform wheels must succeed AND the
     # cross-CPython api tests must pass (the only signal the cp312-abi3
-    # wheel imports on cp312..cp314 after the build matrix collapse); both
+    # wheel imports on cp312..cp315 after the build matrix collapse); both
     # are carried by build_wheels, whose per-platform chain runs the api
     # lane after the wheel.
     if: |

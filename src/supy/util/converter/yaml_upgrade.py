@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
 import math
 import sys
@@ -47,6 +47,7 @@ from ...data_model.core.field_renames import (
 )
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
+from .._forcing import SOIL_CONVERT_HINT
 
 # Historical rename steps must retain their outgoing dev5 spelling. The new
 # delta owns the soil selector rename, including for explicit intermediate stops.
@@ -1346,7 +1347,14 @@ def _migrate_2026_6_dev4_to_2026_6_dev5(cfg: dict) -> dict:
 
 
 SOIL_MIGRATION_MESSAGE = (
-    "Soil-moisture migration requires confirmed layer bounds and conversion of legacy xsmd forcing; no output configuration was written"
+    "This YAML uses observed soil moisture, so it must be converted together "
+    "with its legacy xsmd forcing; no output configuration was written. "
+    + SOIL_CONVERT_HINT
+)
+SOIL_EVIDENCE_MESSAGE = (
+    "Soil-moisture migration evidence is incomplete or inconsistent; run the "
+    "coordinated converter (suews convert --forcing ...) instead of calling the "
+    "schema handler directly"
 )
 
 
@@ -1363,6 +1371,8 @@ class SoilMigrationContext:
     original_method: int
     forcing_manifest: dict
     legacy_depth_is_thickness: bool = False
+    # Decisions taken by the handler, copied into the manifest ``changes``.
+    notes: list = field(default_factory=list)
 
 
 def _soil_raw(value):
@@ -1420,7 +1430,7 @@ def _migrate_2026_6_dev5_to_2026_6_dev6(cfg: dict, *, migration_context=None) ->
                        or any(c not in "0123456789abcdef" for c in manifest[k])
                        for k in ("input_sha256", "output_sha256"))
                 or any(i not in context.layer_bounds for i in range(len(sites)))):
-            raise YamlUpgradeError(SOIL_MIGRATION_MESSAGE)
+            raise YamlUpgradeError(SOIL_EVIDENCE_MESSAGE)
     logs = []
     for i, site in enumerate(sites):
         props = site.get("properties", {})
@@ -1437,20 +1447,36 @@ def _migrate_2026_6_dev5_to_2026_6_dev6(cfg: dict, *, migration_context=None) ->
             raise YamlUpgradeError("Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion.")
         top, depth = context.layer_bounds[i]
         if not math.isfinite(top) or not math.isfinite(depth) or abs(top) > 1e-6 or depth <= 0:
-            raise YamlUpgradeError(SOIL_MIGRATION_MESSAGE)
+            raise YamlUpgradeError(
+                "Observed soil moisture represents the whole soil store: pass "
+                f"--layer-top 0 and a finite positive --layer-depth in m (got --layer-top {top:g}, "
+                f"--layer-depth {depth:g})"
+            )
         new = {"layer_top": top, "layer_depth": depth}
         if "depth" in old:
             new["layer_depth"] = _scaled_soil_value(old["depth"], 0.001)
-            if context.legacy_depth_is_thickness and not math.isclose(_soil_raw(new["layer_depth"]), depth, rel_tol=0, abs_tol=1e-6):
-                raise YamlUpgradeError(SOIL_MIGRATION_MESSAGE)
+            legacy_depth = float(_soil_raw(new["layer_depth"]))
+            if context.legacy_depth_is_thickness and not math.isclose(legacy_depth, depth, rel_tol=0, abs_tol=1e-6):
+                raise YamlUpgradeError(
+                    f"sites[{i}]: legacy soil_observation depth {legacy_depth:g} m "
+                    f"({float(_soil_raw(old['depth'])):g} mm) disagrees with --layer-depth {depth:g} m. "
+                    "--legacy-depth-is-thickness requires them to match: pass "
+                    f"--layer-depth {legacy_depth:g}, or drop --legacy-depth-is-thickness "
+                    "to treat the legacy depth as the sensor installation depth"
+                )
             if context.legacy_depth_is_thickness:
-                logs.append(f"sites[{i}].depth -> layer_depth: confirmed thickness, mm to m, scale 0.001")
+                note = f"sites[{i}].depth -> layer_depth: confirmed thickness, mm to m, scale 0.001"
             else:
                 if isinstance(new["layer_depth"], dict):
                     new["layer_depth"]["value"] = depth
                 else:
                     new["layer_depth"] = depth
-                logs.append(f"sites[{i}].depth retired as installation depth; explicit confirmed layer thickness used")
+                note = (
+                    f"sites[{i}].depth {legacy_depth:g} m (legacy {float(_soil_raw(old['depth'])):g} mm) "
+                    f"discarded as installation depth; layer_depth {depth:g} m from --layer-depth"
+                )
+            logs.append(note)
+            context.notes.append(note)
         for name in ("ref", "soil_not_rocks"):
             if name in old:
                 new[name] = old[name]

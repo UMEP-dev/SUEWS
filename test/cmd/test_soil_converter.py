@@ -15,7 +15,11 @@ from supy import SUEWSSimulation
 from supy.cmd.schema_cli import cli
 from supy.cmd.table_converter import convert_table_cmd
 from supy.data_model.core.config import SUEWSConfig
-from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_soil_observation
+from supy.util.converter.yaml_upgrade import (
+    YamlUpgradeError,
+    upgrade_soil_observation,
+    upgrade_yaml,
+)
 
 pytestmark = pytest.mark.api
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "soil_observation"
@@ -94,7 +98,7 @@ def test_convert_content_and_provenance(tmp_path, method):
 
 def test_dry_run_never_stamps_or_writes(tmp_path):
     report, paths = convert(tmp_path, dry_run=True, layer_depth=None, layer_top=None)
-    assert "requires confirmed layer bounds" in report["errors"][0]
+    assert "--layer-top and --layer-depth not given" in report["errors"][0]
     assert not report["completed"]
     assert all(not p.exists() for p in paths[2:])
     report, _ = convert(tmp_path, dry_run=True)
@@ -225,7 +229,7 @@ def test_positional_contract_and_header_collision(tmp_path):
     forcing.write_text(original.split("\n", 1)[1], encoding="utf-8")
     outputs = [tmp_path / n for n in ("new.yml", "new.txt", "manifest.json")]
     args = [FIXTURES / "legacy_method1.yml", forcing, *outputs]
-    with pytest.raises(YamlUpgradeError, match="explicit source_contract"):
+    with pytest.raises(YamlUpgradeError, match="explicit --source-contract"):
         upgrade_soil_observation(*args, layer_top=0, layer_depth=0.2)
     report = upgrade_soil_observation(
         *args, layer_top=0, layer_depth=0.2, source_contract="1.2.0"
@@ -278,7 +282,10 @@ def test_mismatched_confirmed_legacy_thickness_refused(tmp_path):
     args = [source, FIXTURES / "legacy_method1.txt"] + [
         tmp_path / n for n in ("new.yml", "new.txt", "manifest.json")
     ]
-    with pytest.raises(YamlUpgradeError, match="requires confirmed layer bounds"):
+    with pytest.raises(
+        YamlUpgradeError,
+        match=r"legacy soil_observation depth 0.05 m \(50 mm\) disagrees with --layer-depth 0.2 m",
+    ):
         upgrade_soil_observation(
             *args, layer_top=0, layer_depth=0.2, legacy_depth_is_thickness=True
         )
@@ -307,3 +314,92 @@ def test_shuffled_columns_text_flags_and_crlf_are_preserved(tmp_path):
         # Soil is at original index 19, now 15 after moving the clock columns.
         assert old_tokens[:15] + old_tokens[16:] == new_tokens[:15] + new_tokens[16:]
     np.testing.assert_allclose(pd.read_csv(paths[3], sep=r"\s+").sm, [0, 50, 120, 160])
+
+
+def _legacy_copy(tmp_path, method=1, edit=None):
+    raw = yaml.safe_load(
+        (FIXTURES / f"legacy_method{method}.yml").read_text(encoding="utf-8")
+    )
+    if edit is not None:
+        edit(raw)
+    source = tmp_path / "old.yml"
+    source.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    outputs = [tmp_path / n for n in ("new.yml", "new.txt", "manifest.json")]
+    return [source, FIXTURES / f"legacy_method{method}.txt", *outputs]
+
+
+def test_missing_field_capacity_is_a_plain_message(tmp_path):
+    def drop(raw):
+        for name in ("paved", "grass"):
+            del raw["sites"][0]["properties"]["land_cover"][name]["soil_field_capacity"]
+
+    args = _legacy_copy(tmp_path, edit=drop)
+    with pytest.raises(YamlUpgradeError) as caught:
+        upgrade_soil_observation(*args, layer_top=0, layer_depth=0.2)
+    message = str(caught.value)
+    assert "land_cover.<surface>.soil_field_capacity" in message
+    assert "paved (missing;" in message and "grass (missing;" in message
+    assert "input_value" not in message and "errors.pydantic.dev" not in message
+    report = upgrade_soil_observation(*args, layer_top=0, layer_depth=0.2, dry_run=True)
+    assert "input_value" not in report["errors"][0]
+
+
+def test_manifest_records_discarded_legacy_depth(tmp_path):
+    def shallow(raw):
+        raw["sites"][0]["properties"]["soil_observation"]["depth"]["value"] = 50
+
+    report = upgrade_soil_observation(
+        *_legacy_copy(tmp_path, edit=shallow), layer_top=0, layer_depth=0.2
+    )
+    assert any(
+        "depth 0.05 m (legacy 50 mm) discarded as installation depth; "
+        "layer_depth 0.2 m from --layer-depth" in change
+        for change in report["changes"]
+    )
+
+
+@pytest.mark.parametrize(
+    "selector,options,match",
+    [
+        ("observed", {}, r"ambiguous observed selector.*no --source-unit was given.*--source-unit 'm3 m-3'"),
+        ("observed", {"source_unit": "mm"}, r"--source-unit mm is not a legacy observation unit"),
+        (0, {}, r"modelled xsmd values require.*--source-unit 'm3 m-3'.*--drop-legacy"),
+        (1, {"source_unit": "kg kg-1"}, r"--source-unit kg kg-1 conflicts with the legacy soil-moisture method 1, whose xsmd unit is m3 m-3"),
+        (1, {"source_contract": "2.0.0"}, r"--source-contract 2.0.0 expects a sm column but the forcing has xsmd"),
+        (1, {"source_contract": "9.9"}, r"Unsupported --source-contract 9.9"),
+    ],
+)
+def test_refusals_name_the_cli_flags(tmp_path, selector, options, match):
+    def select(raw):
+        raw["model"]["physics"]["soil_moisture_deficit"] = selector
+
+    args = _legacy_copy(tmp_path, edit=select)
+    with pytest.raises(YamlUpgradeError, match=match) as caught:
+        upgrade_soil_observation(*args, layer_top=0, layer_depth=0.2, **options)
+    assert "confirmed layer bounds" not in str(caught.value)
+
+
+def test_convert_validates_as_strictly_as_the_loader(tmp_path):
+    def extra(raw):
+        raw["sites"][0]["properties"]["land_cover"]["paved"]["not_a_field"] = 1
+
+    args = _legacy_copy(tmp_path, edit=extra)
+    with pytest.raises(YamlUpgradeError, match="not_a_field: Extra inputs are not permitted"):
+        upgrade_soil_observation(*args, layer_top=0, layer_depth=0.2)
+    assert all(not p.exists() for p in args[2:])
+
+
+def test_yaml_only_upgrade_of_observed_case_points_to_forcing(tmp_path):
+    with pytest.raises(YamlUpgradeError, match=r"converted together.*--forcing forcing.txt"):
+        upgrade_yaml(FIXTURES / "legacy_method1.yml", tmp_path / "new.yml")
+    assert not (tmp_path / "new.yml").exists()
+
+
+def test_forcing_without_input_is_a_usage_error(tmp_path):
+    result = CliRunner().invoke(
+        convert_table_cmd,
+        ["--forcing", str(FIXTURES / "legacy_method1.txt"), "-o", str(tmp_path / "new.yml")],
+    )
+    assert result.exit_code == 2
+    assert "Missing -i/--input" in result.output
+    assert "Usage:" in result.output and "Convert any supported" not in result.output

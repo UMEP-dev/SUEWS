@@ -18,13 +18,13 @@ import warnings
 
 import numpy as np
 import pandas as pd
+from pydantic import ValidationError
 import yaml
 
 from ...data_model.core.config import SUEWSConfig
 from .._forcing import convert_observed_soil_moisture, soil_moisture_to_content
 from .yaml_upgrade import (
     CURRENT_SCHEMA_VERSION,
-    SOIL_MIGRATION_MESSAGE,
     SoilMigrationContext,
     YamlUpgradeError,
     _detect_signature,
@@ -35,6 +35,10 @@ from .yaml_upgrade import (
     apply_migration_handler,
 )
 
+SOURCE_CONTRACTS = ("1.0.0", "1.1.0", "1.2.0", "2.0.0")
+LEGACY_UNITS = {1: "m3 m-3", 2: "kg kg-1"}
+# Water-equivalent mm is layer content already; only unattributed xsmd may use it.
+MODELLED_XSMD_UNITS = ("m3 m-3", "kg kg-1", "mm")
 CONFLICT = "Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion."
 RETIRED = "Sensor saturation capacity is retired; deficit now uses the configured model soil-store capacity"
 COLUMNS = [
@@ -74,14 +78,17 @@ def _read_table(text: str, source_contract: Optional[str]):
     first = nonempty[0]
     header = lines[first].split()
     named = bool({"iy", "id", "it", "imin", "sm", "xsmd"} & set(header))
-    if source_contract not in {None, "1.0.0", "1.1.0", "1.2.0", "2.0.0"}:
+    if source_contract not in {None, *SOURCE_CONTRACTS}:
         raise YamlUpgradeError(
-            "Unsupported source_contract; select 1.0.0, 1.1.0, 1.2.0 or 2.0.0."
+            f"Unsupported --source-contract {source_contract}; select "
+            + ", ".join(SOURCE_CONTRACTS[:-1])
+            + f" or {SOURCE_CONTRACTS[-1]}."
         )
     if not named:
         if source_contract is None:
             raise YamlUpgradeError(
-                "Positional forcing requires an explicit source_contract; units are never inferred."
+                "Positional forcing (no header row) requires an explicit "
+                "--source-contract; units are never inferred."
             )
         header = COLUMNS.copy()
         if source_contract.startswith("1."):
@@ -93,7 +100,13 @@ def _read_table(text: str, source_contract: Optional[str]):
             "Forcing requires exactly one named sm or legacy xsmd column."
         )
     if source_contract and (("sm" in header) != (source_contract == "2.0.0")):
-        raise YamlUpgradeError(CONFLICT)
+        expected = "sm" if source_contract == "2.0.0" else "xsmd"
+        found = "sm" if "sm" in header else "xsmd"
+        raise YamlUpgradeError(
+            f"--source-contract {source_contract} expects a {expected} column but "
+            f"the forcing has {found}; omit --source-contract for a file with a "
+            "header row, or select the contract the file was written for."
+        )
     rows = nonempty[1:] if named else nonempty
     tokens = [lines[i].split() for i in rows]
     if not tokens or any(len(row) != len(header) for row in tokens):
@@ -118,6 +131,21 @@ def _read_table(text: str, source_contract: Optional[str]):
     return lines, first if named else None, rows, header, frame
 
 
+def _strict_validate(cfg):
+    """Validate exactly as the loader does, with extra keys forbidden."""
+    return SUEWSConfig._validate_raw_mapping(deepcopy(cfg))
+
+
+def _plain_validation_message(exc: ValidationError) -> str:
+    """One line per problem, without pydantic input dumps or documentation URLs."""
+    lines = []
+    for error in exc.errors():
+        message = str(error.get("msg", "")).removeprefix("Value error, ")
+        location = ".".join(str(part) for part in error.get("loc", ()))
+        lines.append(f"{location}: {message}" if location else message)
+    return "Converted configuration is not valid: " + "; ".join(lines)
+
+
 def _replace_token(line, column, replacement):
     tokens = list(re.finditer(r"\S+", line))
     match = tokens[column]
@@ -127,7 +155,16 @@ def _replace_token(line, column, replacement):
 def _conversion_parameters(cfg, method, source_unit, layer_top, layer_depth):
     """Resolve explicit geometry and legacy fine-earth metadata at every site."""
     if layer_top is None or layer_depth is None:
-        raise YamlUpgradeError(SOIL_MIGRATION_MESSAGE)
+        missing = " and ".join(
+            flag
+            for flag, value in (("--layer-top", layer_top), ("--layer-depth", layer_depth))
+            if value is None
+        )
+        raise YamlUpgradeError(
+            f"Observed soil-moisture conversion needs the represented soil layer: "
+            f"{missing} not given. Pass --layer-top 0 and --layer-depth <metres>, "
+            "the soil_depth of the land-cover surfaces converted to m."
+        )
     parameters = []
     for site in cfg.get("sites", []):
         old = site.get("properties", {}).get("soil_observation", {})
@@ -186,23 +223,33 @@ def _prepare(  # ruff: ignore[too-many-branches, too-many-locals, too-many-state
     original_method = method
     if drop_legacy and (method != 0 or not legacy):
         raise YamlUpgradeError(
-            "Archival drop is only available for unused legacy method-0 xsmd."
+            "--drop-legacy is only available for legacy xsmd forcing paired with "
+            "modelled soil moisture (method 0)."
         )
     if legacy:
         if canonical:
             raise YamlUpgradeError(CONFLICT)
-        expected_unit = {1: "m3 m-3", 2: "kg kg-1"}.get(method)
+        expected_unit = LEGACY_UNITS.get(method)
         if method == "observed":
-            if source_unit not in {"m3 m-3", "kg kg-1"}:
+            if source_unit not in set(LEGACY_UNITS.values()):
+                given = (
+                    "no --source-unit was given"
+                    if source_unit is None
+                    else f"--source-unit {source_unit} is not a legacy observation unit"
+                )
                 raise YamlUpgradeError(
-                    SOIL_MIGRATION_MESSAGE
-                    + "; ambiguous observed selector requires source_unit"
+                    "The ambiguous observed selector does not say whether xsmd is "
+                    f"volumetric or gravimetric and {given}: pass "
+                    "--source-unit 'm3 m-3' (volumetric) or --source-unit 'kg kg-1' "
+                    "(gravimetric)."
                 )
             method = 1 if source_unit == "m3 m-3" else 2
             expected_unit = source_unit
         if expected_unit and source_unit not in {None, expected_unit}:
             raise YamlUpgradeError(
-                "Declared source_unit conflicts with the original legacy method."
+                f"--source-unit {source_unit} conflicts with the legacy soil-moisture "
+                f"method {method}, whose xsmd unit is {expected_unit}; omit "
+                "--source-unit or correct the method in the YAML."
             )
         source_unit = source_unit or expected_unit
         values = frame["xsmd"]
@@ -215,10 +262,16 @@ def _prepare(  # ruff: ignore[too-many-branches, too-many-locals, too-many-state
         elif method == 0 and not present.any():
             converted = values.copy()
         else:
-            if source_unit is None:
+            if source_unit not in MODELLED_XSMD_UNITS:
+                given = (
+                    "" if source_unit is None
+                    else f" (--source-unit {source_unit} does not apply to xsmd)"
+                )
                 raise YamlUpgradeError(
-                    SOIL_MIGRATION_MESSAGE
-                    + "; modelled xsmd values require explicit source_unit or archival drop"
+                    "The YAML uses modelled soil moisture but the forcing carries "
+                    f"xsmd values{given}; modelled xsmd values require an explicit "
+                    "unit or archival drop: pass --source-unit 'm3 m-3', 'kg kg-1' "
+                    "or mm to convert them, or --drop-legacy to replace them with -999."
                 )
             parameters = _conversion_parameters(
                 cfg, method, source_unit, layer_top, layer_depth
@@ -264,13 +317,17 @@ def _prepare(  # ruff: ignore[too-many-branches, too-many-locals, too-many-state
         raise YamlUpgradeError(CONFLICT)
     elif source_unit not in {None, "kg m-2"}:
         raise YamlUpgradeError(
-            "Canonical sm uses kg m-2; convert volumetric or gravimetric observations before loading it."
+            f"--source-unit {source_unit} does not apply to a canonical sm column, "
+            "which is always kg m-2; omit --source-unit, or convert volumetric or "
+            "gravimetric observations before writing them as sm."
         )
     result = deepcopy(cfg)
     for _, handler in _resolve_handler_chain(source_schema, CURRENT_SCHEMA_VERSION):
         result = apply_migration_handler(handler, result, migration_context=context)
+    if context is not None:
+        changes.extend(context.notes)
     result["schema_version"] = CURRENT_SCHEMA_VERSION
-    model = SUEWSConfig.model_validate(deepcopy(result))
+    model = _strict_validate(result)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         state = model.to_df_state()
@@ -377,7 +434,7 @@ def convert_soil_observation_files(  # ruff: ignore[too-many-locals]
         forcing_config["file"] = (
             dict(old_file, value=relative) if isinstance(old_file, dict) else relative
         )
-        SUEWSConfig.model_validate(deepcopy(cfg))
+        _strict_validate(cfg)
         yaml_bytes = yaml.safe_dump(cfg, sort_keys=False, allow_unicode=False).encode(
             "utf-8"
         )
@@ -408,6 +465,11 @@ def convert_soil_observation_files(  # ruff: ignore[too-many-locals]
                 stream.write(content)
         return report
     except (ValueError, TypeError, OSError, YamlUpgradeError) as exc:
+        if isinstance(exc, ValidationError):
+            plain = YamlUpgradeError(_plain_validation_message(exc))
+            if not dry_run:
+                raise plain from exc
+            exc = plain
         if not dry_run:
             raise
         report["errors"].append(str(exc))

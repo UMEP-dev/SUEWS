@@ -19,8 +19,9 @@ SOIL_CONVERT_HINT = (
     f"--dry-run'; see {UNITS_MIGRATION_GUIDE}"
 )
 LEGACY_SOIL_MESSAGE = (
-    "Legacy soil-moisture input requires explicit migration; xsmd and "
-    f"SMDMethod=2 are not canonical sm inputs. {SOIL_CONVERT_HINT}"
+    "Legacy soil-moisture input requires explicit migration; legacy xsmd "
+    "forcing and the legacy observed soil-moisture methods are not canonical "
+    f"sm inputs. {SOIL_CONVERT_HINT}"
 )
 
 

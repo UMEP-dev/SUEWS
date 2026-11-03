@@ -196,6 +196,40 @@ def _legacy_yaml_key_suggestion(key: object) -> Optional[str]:
     return matches.pop() if len(matches) == 1 else None
 
 
+_LEGACY_SOIL_SELECTORS = ("soil_moisture_deficit", "smdmethod", "smd_method")
+_LEGACY_SOIL_OBSERVATION_KEYS = ("depth", "smcap", "obs_sm_depth", "obs_sm_smcap")
+
+
+def _uses_legacy_observed_soil(config_data) -> bool:
+    """Whether a raw YAML mapping selects observed soil moisture the legacy way.
+
+    Such a YAML cannot be upgraded on its own: its xsmd forcing must be
+    converted with it (``suews convert --forcing``).
+    """
+    if not isinstance(config_data, Mapping):
+        return False
+    model = config_data.get("model")
+    physics = model.get("physics") if isinstance(model, Mapping) else None
+    if isinstance(physics, Mapping):
+        for key in _LEGACY_SOIL_SELECTORS:
+            if key not in physics:
+                continue
+            value = physics[key]
+            while isinstance(value, Mapping) and "value" in value:
+                value = value["value"]
+            text = str(value).strip().lower().rsplit(".", 1)[-1]
+            if text not in {"0", "modelled", "none"}:
+                return True
+    sites = config_data.get("sites")
+    if isinstance(sites, Iterable) and not isinstance(sites, (str, bytes, Mapping)):
+        for site in sites:
+            props = site.get("properties") if isinstance(site, Mapping) else None
+            obs = props.get("soil_observation") if isinstance(props, Mapping) else None
+            if isinstance(obs, Mapping) and any(k in obs for k in _LEGACY_SOIL_OBSERVATION_KEYS):
+                return True
+    return False
+
+
 def _prefixed_line_errors(error: ValidationError, prefix: tuple) -> list[dict]:
     """Return Pydantic line errors with a root configuration path prefix."""
     line_errors = []
@@ -4743,6 +4777,16 @@ class SUEWSConfig(BaseModel):
                 detected = SchemaMigrator().auto_detect_version(config_data)
             except Exception:  # noqa: BLE001 - detection is best-effort
                 detected = "unspecified"
+            if str(detected) == CURRENT_SCHEMA_VERSION:
+                # Converting a current-schema YAML changes nothing; the named
+                # fields are simply not accepted at that location.
+                return (
+                    f"The YAML already declares the current schema version "
+                    f"({CURRENT_SCHEMA_VERSION}), so this is not schema drift: the "
+                    "field(s) named above are not accepted at that location. Remove "
+                    "or move them; see the configuration reference at "
+                    "https://docs.suews.io/stable/inputs/yaml/index.html"
+                )
             detected_line = f"  Detected schema version: {detected}\n"
             upgrade_cmd = "suews-convert -i <old.yml> -o <new.yml>"
         else:
@@ -4752,6 +4796,17 @@ class SUEWSConfig(BaseModel):
             )
             upgrade_cmd = (
                 "suews-convert -i <old.yml> -o <new.yml> -f <release-tag>"
+            )
+
+        if _uses_legacy_observed_soil(config_data):
+            # A YAML-only upgrade refuses observed soil moisture; the YAML and
+            # its xsmd forcing must be converted together.
+            from ...util._forcing import SOIL_CONVERT_HINT
+
+            upgrade_cmd = (
+                "this YAML uses legacy observed soil moisture. "
+                + SOIL_CONVERT_HINT
+                + (" (add -f <release-tag>)" if not had_signature else "")
             )
 
         return (

@@ -1,5 +1,6 @@
 import yaml
 import os
+import re
 import subprocess
 from copy import deepcopy
 import pandas as pd
@@ -413,12 +414,14 @@ def _strip_ref_blocks(obj):
 
 
 
-def handle_renamed_parameters(yaml_content: str):
+def handle_renamed_parameters(yaml_content: str, skip=()):
     lines = yaml_content.split("\n")
     replacements = []
     for i, line in enumerate(lines):
         stripped = line.strip()
         for old_key, new_key in RENAMED_PARAMS.items():
+            if old_key in skip:
+                continue
             if stripped.startswith(f"{old_key}:"):
                 indent = line[: len(line) - len(stripped)]
                 value = stripped.split(":", 1)[1].strip()
@@ -429,20 +432,22 @@ def handle_renamed_parameters(yaml_content: str):
     return "\n".join(lines), replacements
 
 
-def handle_renamed_parameters_in_parsed_yaml(obj):
+def handle_renamed_parameters_in_parsed_yaml(obj, skip=()):
     """Rename deprecated keys in parsed YAML structures where line matching misses."""
     replacements = []
 
     if isinstance(obj, dict):
         for old_key, new_key in list(RENAMED_PARAMS.items()):
+            if old_key in skip:
+                continue
             if old_key in obj and new_key not in obj:
                 obj[new_key] = obj.pop(old_key)
                 replacements.append((old_key, new_key))
         for value in obj.values():
-            replacements.extend(handle_renamed_parameters_in_parsed_yaml(value))
+            replacements.extend(handle_renamed_parameters_in_parsed_yaml(value, skip))
     elif isinstance(obj, list):
         for item in obj:
-            replacements.extend(handle_renamed_parameters_in_parsed_yaml(item))
+            replacements.extend(handle_renamed_parameters_in_parsed_yaml(item, skip))
 
     return replacements
 
@@ -604,6 +609,50 @@ def is_path_in_forbidden_location(field_path: str) -> bool:
             pass
 
     return False
+
+
+def is_declared_schema_field(param_path: str) -> bool:
+    """Whether ``param_path`` names a field declared by the current data model.
+
+    The standard YAML is the sample configuration, which omits optional
+    fields (for example ``soil_observation`` or ``soil_field_capacity``). A
+    declared field is part of the schema and must not be reported as an extra
+    parameter merely because the sample does not set it.
+    """
+    from ...core.config import SUEWSConfig
+
+    model = SUEWSConfig
+    for part in param_path.split("."):
+        name = re.sub(r"\[\d+\]$", "", part)
+        fields = getattr(model, "model_fields", None)
+        if not name or fields is None or name not in fields:
+            return False
+        model = _extract_nested_model_type(fields[name].annotation)
+    return True
+
+
+LEGACY_SOIL_SELECTORS = ("soil_moisture_deficit", "smdmethod", "smd_method")
+LEGACY_SOIL_OBSERVATION_KEYS = ("depth", "smcap", "obs_sm_depth", "obs_sm_smcap")
+LEGACY_OBSERVED_SOIL_MESSAGE = (
+    "Legacy observed soil moisture: this YAML selects observed soil moisture "
+    "the legacy way (soil_moisture_deficit/smdmethod with legacy "
+    "soil_observation depth/smcap). It is not a rename: the YAML and its xsmd "
+    "forcing must be converted together, and the converted YAML needs "
+    "land_cover.<surface>.soil_field_capacity. The soil-moisture fields are "
+    "left unchanged in the updated YAML."
+)
+
+
+def is_legacy_soil_path(param_path: str) -> bool:
+    """Paths owned by the coordinated soil-moisture conversion."""
+    parts = [re.sub(r"\[\d+\]$", "", part) for part in param_path.split(".")]
+    if parts[-1] in LEGACY_SOIL_SELECTORS or parts[-1] == "soil_moisture":
+        return "physics" in parts
+    return (
+        len(parts) >= 2
+        and parts[-2] == "soil_observation"
+        and parts[-1] in LEGACY_SOIL_OBSERVATION_KEYS
+    )
 
 
 def categorise_extra_parameters(extra_params: list) -> dict:
@@ -1866,6 +1915,7 @@ def create_analysis_report(
     forcing_errors=None,
     nlayer_limit_errors=None,
     forcing_warnings=None,
+    migration_errors=None,
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
@@ -1899,16 +1949,22 @@ def create_analysis_report(
         categorised = categorise_extra_parameters(extra_params)
         forbidden_extras = categorised["ACTION_NEEDED"]
 
+    migration_errors = migration_errors or []
     total_action_needed = (
         urgent_count
         + len(forbidden_extras)
         + dimension_errors_count
         + forcing_errors_count
+        + len(migration_errors)
     )
     has_action_items = total_action_needed > 0
 
     if has_action_items:
         report_lines.append("## ACTION NEEDED")
+
+        for error_msg in migration_errors:
+            report_lines.append(f"- {error_msg}")
+            report_lines.append("")
 
         # Dimension mismatch errors - MOST CRITICAL
         if dimension_errors_count > 0:
@@ -2165,11 +2221,19 @@ def annotate_missing_parameters(
     try:
         with open(user_file, "r", encoding="utf-8") as f:
             original_yaml_content = f.read()
+        from ...core.config import _uses_legacy_observed_soil
+
+        # Legacy observed soil moisture is migrated by the coordinated converter,
+        # not renamed here: keep its selector and sensor metadata untouched.
+        legacy_soil = _uses_legacy_observed_soil(yaml.safe_load(original_yaml_content))
+        rename_skip = LEGACY_SOIL_SELECTORS if legacy_soil else ()
         original_yaml_content, renamed_replacements = handle_renamed_parameters(
-            original_yaml_content
+            original_yaml_content, skip=rename_skip
         )
         user_data = yaml.safe_load(original_yaml_content)
-        parsed_renames = handle_renamed_parameters_in_parsed_yaml(user_data)
+        parsed_renames = handle_renamed_parameters_in_parsed_yaml(
+            user_data, skip=rename_skip
+        )
         (
             normalised_user_data,
             compatibility_replacements,
@@ -2243,7 +2307,20 @@ def annotate_missing_parameters(
     standard_data_no_ref = _strip_ref_blocks(standard_data)
 
     missing_params = find_missing_parameters(user_data_no_ref, standard_data_no_ref)
-    extra_params = find_extra_parameters(user_data_no_ref, standard_data_no_ref)
+    extra_params = [
+        path
+        for path in find_extra_parameters(user_data_no_ref, standard_data_no_ref)
+        if not is_declared_schema_field(path)
+    ]
+    migration_errors = []
+    if legacy_soil:
+        from ....util._forcing import SOIL_CONVERT_HINT
+
+        missing_params = [
+            entry for entry in missing_params if not is_legacy_soil_path(entry[0])
+        ]
+        extra_params = [path for path in extra_params if not is_legacy_soil_path(path)]
+        migration_errors.append(f"{LEGACY_OBSERVED_SOIL_MESSAGE} {SOIL_CONVERT_HINT}")
 
     # Generate content for both files
     if (
@@ -2254,6 +2331,7 @@ def annotate_missing_parameters(
         or forcing_errors
         or nlayer_limit_errors
         or forcing_warnings
+        or migration_errors
     ):
         # If dimension errors occurred, serialize the modified user_data with padded nulls
         if dimension_errors:
@@ -2288,6 +2366,7 @@ def annotate_missing_parameters(
             forcing_errors,
             nlayer_limit_errors,
             forcing_warnings,
+            migration_errors,
         )
     else:
         print("No missing in standard or renamed in standard parameters found!")
@@ -2303,8 +2382,14 @@ def annotate_missing_parameters(
         (path, val, is_phys) for path, val, is_phys in missing_params if is_phys
     ]
 
-    has_action_needed = bool(critical_params or dimension_errors or forcing_errors)
+    has_action_needed = bool(
+        critical_params or dimension_errors or forcing_errors or migration_errors
+    )
     if has_action_needed:
+        if migration_errors:
+            print("Action needed: LEGACY SOIL-MOISTURE migration:")
+            for error_msg in migration_errors:
+                print(f"  - {error_msg}")
         if critical_params:
             print("Action needed: CRITICAL parameters missing:")
             for param_path, standard_value, _ in critical_params:
@@ -2381,6 +2466,7 @@ def annotate_missing_parameters(
         forcing_errors=forcing_errors,
         nlayer_limit_errors=nlayer_limit_errors,
         forcing_warnings=forcing_warnings,
+        migration_errors=migration_errors,
     )
     return PhaseReport(
         phase="A",
@@ -2426,6 +2512,7 @@ def _issues_from_phase_a_state(
     forcing_errors,
     nlayer_limit_errors,
     forcing_warnings=None,
+    migration_errors=None,
 ):
     """Translate Phase A's accumulated lists into ``Issue`` objects.
 
@@ -2517,6 +2604,16 @@ def _issues_from_phase_a_state(
             code="A.FORCING",
             message=str(err_message),
             category="FORCING",
+        ))
+
+    for err_message in migration_errors or []:
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.LEGACY_SOIL_MIGRATION",
+            message=str(err_message),
+            yaml_path="model.physics",
+            category="STRUCTURE",
         ))
 
     for warning_message in forcing_warnings or []:

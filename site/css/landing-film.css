@@ -167,7 +167,8 @@
 @media (prefers-reduced-motion: reduce) { .film-play .film-play-icon { animation: none; } }
 
 /* Hero logo: a quiet hint on hover that clicking it plays the film */
-.logo-link { position: relative; }
+.logo-link { position: relative; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.logo-link:focus-visible { outline: none; }
 .logo-link::after {
   content: '';
   position: absolute;

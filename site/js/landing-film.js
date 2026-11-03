@@ -9,10 +9,10 @@
  * lands, the hero logo takes over from the film's logo and settles into its
  * place as the page comes up.
  *
- * Plays on its own when the <head> guard set .logo-intro: muted on the first
- * view per session, or with sound for a ?film link. With sound, a browser
- * that will not start audio without a click gets a play button first.
- * Clicking the hero logo replays it, with sound.
+ * Never plays on its own: clicking the hero logo plays it, with sound, and
+ * a ?film link (the <head> guard sets .logo-intro) opens the page on it,
+ * where a browser that will not start audio without a click shows a play
+ * button first.
  */
 (function () {
     'use strict';
@@ -42,8 +42,8 @@
     const END = HAND + 1.2;    // page fully back
     let playing = false;
 
-    // mode: 'off' muted until the Sound button, 'on' with sound (started by a
-    // click), 'try' with sound if the browser allows it, else a play button
+    // mode: 'on' with sound (started by a click), 'try' with sound if the
+    // browser allows it, else a play button
     function play(mode) {
         if (playing) return;
         playing = true;
@@ -506,7 +506,7 @@
         film.append(stage);
         const controls = el('div', { class: 'film-controls' });
         const soundBtn = el('button', { class: 'film-btn', text: '\u{1F50A} Sound on', attrs: { type: 'button', 'aria-pressed': 'false' } });
-        const skipBtn = el('button', { class: 'film-btn', text: 'Skip intro', attrs: { type: 'button' } });
+        const skipBtn = el('button', { class: 'film-btn', text: 'Skip', attrs: { type: 'button' } });
         controls.append(soundBtn, skipBtn);
         document.body.append(film, controls);
 
@@ -894,20 +894,15 @@
         begin(0);
     }
 
-    // The hero logo replays it, with sound, since that is a click; a hint
-    // shows on hover. Modified clicks still open the brand page it links to.
-    const logoLink = document.querySelector('.logo-link');
+    // The hero logo plays it, with sound, since that is a click; a hint
+    // shows on hover
+    const logoBtn = document.querySelector('.logo-link');
     const hint = document.querySelector('.film-hint');
-    if (logoLink && hint) {
+    if (logoBtn && hint) {
         hint.querySelector('.film-hint-len').textContent = '\u00b7 ' + Math.round(END) + ' s';
         hint.hidden = false;
-        logoLink.title = 'Watch the SUEWS story';
-        logoLink.setAttribute('aria-label', 'Watch the SUEWS story (' + Math.round(END) + ' seconds, with sound)');
-        logoLink.addEventListener('click', (e) => {
-            if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-            e.preventDefault();
-            play('on');
-        });
+        logoBtn.setAttribute('aria-label', 'Watch the SUEWS story (' + Math.round(END) + ' seconds, with sound)');
+        logoBtn.addEventListener('click', () => play('on'));
     }
-    if (root.classList.contains('logo-intro')) play(root.dataset.film === 'sound' ? 'try' : 'off');
+    if (root.classList.contains('logo-intro')) play('try');
 })();

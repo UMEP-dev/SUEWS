@@ -720,6 +720,9 @@
                 }
             }
             function build() {
+                // iOS: play as media, like a video, not as a sound effect the
+                // silent switch mutes (Safari 16.4+; elsewhere a no-op)
+                session('playback');
                 ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const comp = ctx.createDynamicsCompressor();
                 comp.connect(ctx.destination);
@@ -745,6 +748,9 @@
                     outs[k] = g;
                 }
             }
+            function session(type) {
+                try { if (navigator.audioSession) navigator.audioSession.type = type; } catch (e) { /* not supported */ }
+            }
             function schedule(filmT) {
                 const now = ctx.currentTime + 0.06;
                 for (const e of EV) {
@@ -763,7 +769,7 @@
                 // Without a click: start from the top only if the browser lets audio run
                 autoplay() {
                     build();
-                    if (ctx.state !== 'running') { ctx.close(); ctx = null; outs = {}; return false; }
+                    if (ctx.state !== 'running') { ctx.close(); ctx = null; outs = {}; session('auto'); return false; }
                     schedule(0);
                     return true;
                 },
@@ -782,9 +788,11 @@
                 stop(fade) {
                     ended = true;
                     if (!ctx) return;
-                    master.gain.cancelScheduledValues(ctx.currentTime);
-                    master.gain.setTargetAtTime(0, ctx.currentTime, fade);
-                    setTimeout(() => ctx.close(), fade * 6000 + 200);
+                    const c = ctx;
+                    ctx = null;
+                    master.gain.cancelScheduledValues(c.currentTime);
+                    master.gain.setTargetAtTime(0, c.currentTime, fade);
+                    setTimeout(() => { c.close(); session('auto'); }, fade * 6000 + 200);
                 }
             };
         })();
@@ -832,6 +840,7 @@
             film.remove();
             controls.remove();
             if (poster) poster.remove();
+            Sound.stop(0.4);   // the score has faded by now; release the audio
             box.style.transform = '';
             root.classList.remove('logo-intro', 'film-running', 'film-reveal', 'film-swap');
             playing = false;

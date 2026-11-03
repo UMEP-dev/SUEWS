@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 3 Nov 2026
+
+- [doc] Animate the suews.io landing-page logo on first view: the model's code fills each part of the logo (buildings, sun, vegetation, water) before the solid shapes set, once per browser session, skipped under `prefers-reduced-motion`, and ending on the existing static logo
+
 ### 1 Nov 2026
 
 - [bugfix] Honour `SUEWSOutput.save(groups=...)` for TXT output, which the method previously ignored, and accept BEERS in configured output groups; default TXT groups and full-group non-streaming Parquet output are unchanged (#1974).

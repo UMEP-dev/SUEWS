@@ -57,6 +57,7 @@ EXAMPLES:
 ### 3 Nov 2026
 
 - [bugfix] Forcing unit declarations: a unit of the wrong dimension for a water rate (for example `{"rain": "W m-2"}`) now reports that the dimensions differ instead of asking for a time unit, and the time coordinates `iy`, `id`, `it`, `imin` refuse a declaration when it is made instead of failing later as non-integer timestamps
+- [bugfix] Calendar resampling (`W`, `MS`, `ME`, `YE`) now puts every output group of one period in one row: DailyState totals were labelled one period early (with `ME`, January's `P_day` sat under 2011-12-31 while January's `Rain` sat under 2012-01-31), and with `W`, `ME` and `YE` the step stamped 00:00 that closes a period was counted in the next period. Fixed-frequency resampling, including DailyState's start-of-day label at `D`, is unchanged
 
 ### 29 Oct 2026
 

@@ -227,6 +227,37 @@ def _index_freq_matches(df_output, freq):
         return inferred == target_offset
 
 
+def _is_calendar_frequency(freq) -> bool:
+    """Return True for a calendar frequency (``W``, ``MS``, ``ME``, ``YE``...).
+
+    Calendar offsets have no fixed length, so they cannot become a
+    :class:`pandas.Timedelta`; fixed frequencies (``5min``, ``h``, ``D``) can.
+    """
+    try:
+        pd.Timedelta(pd.tseries.frequencies.to_offset(freq))
+    except ValueError:
+        return True
+    return False
+
+
+def _calendar_binning(obj, freq):
+    """Return ``obj`` with timestamps placed for right-closed calendar bins.
+
+    For end-anchored offsets (``W``, ``ME``, ``QE``, ``YE``) pandas widens
+    each right-closed bin to the whole of its last day, so the row stamped
+    at midnight that closes the period (``2012-02-01 00:00`` closes January)
+    falls into the next bin. Moving every timestamp back by one nanosecond
+    before binning puts that row in the period it ends and leaves the other
+    rows, and every bin label, unchanged. Start-anchored (``MS``) and fixed
+    frequencies already bin ``(t - freq, t]`` and are unaffected by the shift.
+    """
+    if not _is_calendar_frequency(freq):
+        return obj
+    shifted = obj.copy(deep=False)
+    shifted.index = shifted.index - pd.Timedelta(1, "ns")
+    return shifted
+
+
 def _aggregate_bins(resampler, dict_aggm_group, columns):
     """Aggregate resampled bins, keeping all-missing sums as NaN.
 
@@ -333,7 +364,10 @@ def _resample_output(
 
     Each resampled value covers the left-open, right-closed interval
     ``(t - freq, t]`` and is labelled by its end ``t`` (``closed='right',
-    label='right'``), except DailyState, which uses ``label='left'``; see the
+    label='right'``), except DailyState, which uses ``label='left'`` at fixed
+    frequencies. At calendar frequencies (``W``, ``MS``, ``ME``, ``YE``) every
+    group, DailyState included, takes the period's pandas label, and the step
+    that closes a period counts towards it; see the
     "Timestamp convention" page of the documentation
     (``timestamp_convention``).
 
@@ -421,13 +455,13 @@ def _resample_output(
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
             coverage = df_output.attrs.get("supy_output_daily_coverage_s") or {}
-            daily_seconds = pd.Series(
+            daily_seconds = _calendar_binning(pd.Series(
                 [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_to_resample.index],
                 index=df_to_resample.index,
-            ).resample(freq, closed="right", label=label).sum(min_count=1)
+            ), freq).resample(freq, closed="right", label=label).sum(min_count=1)
             dict_daily_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in daily_seconds.dropna().items()})
             return _aggregate_bins(
-                df_to_resample.resample(freq, closed="right", label=label),
+                _calendar_binning(df_to_resample, freq).resample(freq, closed="right", label=label),
                 dict_aggm_group,
                 df_to_resample.columns,
             )
@@ -440,12 +474,12 @@ def _resample_output(
         covered = None
         if ser_coverage is not None:
             covered = ser_coverage.xs(grid, level="grid")
-            target = covered.resample(freq, closed="right", label=label).sum()
+            target = _calendar_binning(covered, freq).resample(freq, closed="right", label=label).sum()
             dict_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in target.items()})
         if columns_rate:
             df_to_resample = df_to_resample.copy(deep=False)
             df_to_resample[columns_rate] = df_to_resample[columns_rate].mul(covered, axis=0)
-        bins = df_to_resample.resample(freq, closed="right", label=label)
+        bins = _calendar_binning(df_to_resample, freq).resample(freq, closed="right", label=label)
         result = _aggregate_bins(bins, dict_aggm_group, df_to_resample.columns)
         if columns_rate:
             result[columns_rate] = result[columns_rate].div(target.where(target > 0), axis=0)
@@ -455,6 +489,8 @@ def _resample_output(
         if len(occupied):
             result = result.loc[occupied[0]:occupied[-1]]
         return result
+
+    calendar = _is_calendar_frequency(freq)
 
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()
@@ -475,9 +511,13 @@ def _resample_output(
                         # group's columns are sliced (gh#1849)
                         df_output[group].xs(grid, level="grid"),
                         freq,
-                        "right"
-                        if group != "DailyState"
-                        else "left",  # DailyState uses 'left' label
+                        # DailyState is labelled by the start of each day at
+                        # fixed frequencies; a calendar period has no such
+                        # start label, so its daily totals take the period's
+                        # label like every other group.
+                        "left"
+                        if group == "DailyState" and not calendar
+                        else "right",
                         dict_aggm[group],
                         group_name=group,
                         grid=grid,

@@ -671,8 +671,10 @@ class SUEWSOutput:
 
         Each value covers the left-open, right-closed interval
         ``(t - freq, t]`` and is labelled by its end ``t``
-        (``closed="right", label="right"``); DailyState is labelled by the
-        start of each day. See :ref:`timestamp_convention`.
+        (``closed="right", label="right"``); at fixed frequencies DailyState
+        is labelled by the start of each day, while at calendar frequencies
+        (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``) every group takes the period's
+        label. See :ref:`timestamp_convention`.
 
         Parameters
         ----------

@@ -81,6 +81,29 @@ def test_field_capacity_guard(observed_config, value):
         SUEWSConfig.model_validate(observed_config)
 
 
+def test_field_capacity_message_names_surfaces_and_minimum(observed_config):
+    cover = observed_config["sites"][0]["properties"]["land_cover"]
+    cover["paved"]["soil_field_capacity"] = None
+    cover["grass"]["soil_field_capacity"] = 0.3
+    with pytest.raises(ValueError) as caught:
+        SUEWSConfig.model_validate(observed_config)
+    message = str(caught.value)
+    assert "land_cover.<surface>.soil_field_capacity" in message
+    assert "paved (missing; soil_depth 200 mm, soil_store_capacity 80 kg m-2, needs at least 0.4)" in message
+    assert "grass (0.3;" in message
+    assert "bldgs" not in message
+
+
+def test_layer_depth_message_gives_both_depths(observed_config):
+    observed_config["sites"][0]["properties"]["land_cover"]["paved"]["soil_depth"] = 350
+    with pytest.raises(ValueError) as caught:
+        SUEWSConfig.model_validate(observed_config)
+    message = str(caught.value)
+    assert "layer_depth 0.2 m" in message
+    assert "paved.soil_depth is 350 mm (0.35 m)" in message
+    assert "--layer-depth" in message
+
+
 @pytest.mark.parametrize("top,depth,valid", [
     (0, 0.2, True), (0, 0.2000009, True), (0, 0.2000011, False),
     (0, 0.1, False), (0, 0.3, False), (0.01, 0.2, False),

@@ -1,3 +1,4 @@
+import math
 from collections.abc import Iterable, Mapping
 from typing import (
     Dict,
@@ -428,6 +429,7 @@ class SUEWSConfig(BaseModel):
             if abs(top) > 1e-6:
                 raise ValueError("Observed soil moisture requires a whole-store layer with layer_top zero")
             area = capacity = field_content = 0.0
+            fc_problems = []
             for name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
                 surface = getattr(site.properties.land_cover, name)
                 fraction = float(_unwrap_value(surface.sfr))
@@ -439,14 +441,35 @@ class SUEWSConfig(BaseModel):
                 if d is None or not np.isfinite(d) or d <= 0:
                     raise ValueError(f"{name}: observed soil moisture requires finite positive soil_depth")
                 if abs(depth - d / 1000.0) > 1e-6:
-                    raise ValueError("Observed soil moisture layer_depth must match every positive-area non-water soil_depth")
+                    raise ValueError(
+                        f"Observed soil moisture layer_depth {depth:g} m must match the "
+                        "soil_depth of every non-water surface with positive fraction: "
+                        f"{name}.soil_depth is {d:g} mm ({d / 1000.0:g} m). Set "
+                        f"soil_observation.layer_depth (suews convert --layer-depth) to "
+                        f"{d / 1000.0:g}, or correct soil_depth."
+                    )
                 if c is None or not np.isfinite(c) or c <= 0:
                     raise ValueError(f"{name}: observed soil moisture requires finite positive soil_store_capacity")
                 if fc is None or not np.isfinite(fc) or not 0 < fc <= 1 or fc * d < c:
-                    raise ValueError(f"{name}: soil_field_capacity must be finite in (0, 1] with rho_w theta_fc d >= soil_store_capacity")
+                    # rho_w theta_fc d >= C with d in mm and C in kg m-2 is fc * d >= C.
+                    minimum = math.ceil(c / d * 1e4) / 1e4
+                    state = "missing" if fc is None else f"{fc:g}"
+                    fc_problems.append(
+                        f"{name} ({state}; soil_depth {d:g} mm, soil_store_capacity "
+                        f"{c:g} kg m-2, needs at least {minimum:g})"
+                    )
+                    continue
                 area += fraction
                 capacity += fraction * c
                 field_content += fraction * fc * d
+            if fc_problems:
+                raise ValueError(
+                    "Observed soil moisture requires land_cover.<surface>.soil_field_capacity "
+                    "(volumetric liquid-water content at field capacity, m3 m-3) in (0, 1] on "
+                    "every non-water surface with positive fraction, such that 1000 kg m-3 x "
+                    "soil_field_capacity x soil_depth >= soil_store_capacity. Add or correct it "
+                    "for: " + "; ".join(fc_problems)
+                )
             if area <= 0:
                 raise ValueError("Observed soil moisture requires positive non-water area")
             signatures.append((top, depth, capacity / area, field_content / area))

@@ -150,6 +150,60 @@ The forcing contract moves from ``1.2.0`` to ``2.1.0`` in two steps.
   converted to, as described above. The file layout and the units of
   undeclared files do not change.
 
+.. _units_migration_observed_soil:
+
+Converting observed soil moisture
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A configuration with observed soil moisture (legacy method 1, volumetric, or
+2, gravimetric) cannot be upgraded on its own: the YAML and its ``xsmd``
+forcing are converted together, in one step that writes a new YAML, a new
+forcing file and a JSON manifest, and never changes the inputs.
+
+1. Add ``soil_field_capacity`` to the YAML. Every non-water land-cover surface
+   with a positive fraction needs
+   ``land_cover.<surface>.soil_field_capacity``, the volumetric liquid-water
+   content at field capacity in |m^3| |m^-3|, such that
+   :math:`1000\,\theta_{fc}\,d \ge C`, with :math:`d` the surface's
+   ``soil_depth`` in metres and :math:`C` its ``soil_store_capacity`` in
+   kg |m^-2|. The legacy schema has no such field and the converter does not
+   invent one; when it is missing or too small, the converter names each
+   surface and the smallest value that satisfies the inequality. Take the value
+   from soil data for the site.
+
+2. Fill gaps in the observed series. Observed ``sm`` must be complete over the
+   run: a missing value (``-999`` or ``NaN``) is refused, both by the converter
+   and when a run starts, with the first missing timestamp in the message.
+   Earlier releases filled such gaps silently. Fill them in the legacy
+   ``xsmd`` column before conversion, for example by interpolating in time
+   with pandas, and record how they were filled; or shorten the run so that it
+   avoids them.
+
+3. Convert, first with ``--dry-run``:
+
+   .. code-block:: bash
+
+      suews convert -i config.yml -o new/config.yml \
+          --forcing forcing.txt --forcing-output new/forcing.txt \
+          --manifest new/conversion.json \
+          --layer-top 0 --layer-depth 0.35 --dry-run
+
+   ``--layer-depth`` is the represented soil layer in metres and must equal
+   ``soil_depth`` (in mm) of every contributing surface; ``--layer-top`` is
+   ``0``. The legacy ``depth`` is treated as the sensor installation depth and
+   replaced by ``--layer-depth`` (recorded in the manifest ``changes``) unless
+   ``--legacy-depth-is-thickness`` confirms that it was the layer thickness.
+   With the ambiguous ``observed`` selector add ``--source-unit 'm3 m-3'`` or
+   ``--source-unit 'kg kg-1'``; for a forcing file without a header row add
+   ``--source-contract`` (``1.0.0``, ``1.1.0`` or ``1.2.0``). Repeat without
+   ``--dry-run`` to write the files.
+
+4. Run inside the observed period. Observed ``sm`` is interpolated to the model
+   time step only between valid observations and is never extrapolated, unlike
+   the other forcing variables. With hourly forcing whose first row is 01:00, a
+   run starting at 00:00 has no ``sm`` for its first steps and is refused;
+   start it at or after the first observation.
+
 Saved output
 ------------
 

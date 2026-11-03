@@ -87,3 +87,20 @@ def test_drift_hint_for_legacy_observed_yaml_gives_coordinated_command():
     assert "legacy observed soil moisture" in message
     assert "--forcing forcing.txt --forcing-output new/forcing.txt" in message
     assert "suews-convert -i <old.yml> -o <new.yml>" not in message
+
+
+def test_modelled_yaml_with_stale_sensor_block_is_a_plain_upgrade(tmp_path):
+    cfg = yaml.safe_load((FIXTURES / "legacy_method1.yml").read_text(encoding="utf-8"))
+    cfg["model"]["physics"]["soil_moisture_deficit"] = 0
+    source = tmp_path / "modelled.yml"
+    source.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    report, _ = _phase_a(source, tmp_path, "public")
+    assert "Legacy observed soil moisture" not in report
+    assert "soil_moisture_deficit changed to soil_moisture" in report
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        with pytest.raises(ValueError) as caught:
+            SUEWSConfig.from_dict(cfg)
+    message = str(caught.value)
+    assert "legacy observed soil moisture" not in message
+    assert "suews-convert -i <old.yml> -o <new.yml>" in message

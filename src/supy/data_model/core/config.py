@@ -204,22 +204,30 @@ def _uses_legacy_observed_soil(config_data) -> bool:
     """Whether a raw YAML mapping selects observed soil moisture the legacy way.
 
     Such a YAML cannot be upgraded on its own: its xsmd forcing must be
-    converted with it (``suews convert --forcing``).
+    converted with it (``suews convert --forcing``). A modelled YAML with a
+    stale legacy sensor block is not one; the plain upgrade drops that block.
     """
     if not isinstance(config_data, Mapping):
         return False
     model = config_data.get("model")
     physics = model.get("physics") if isinstance(model, Mapping) else None
-    if isinstance(physics, Mapping):
-        for key in _LEGACY_SOIL_SELECTORS:
-            if key not in physics:
-                continue
-            value = physics[key]
-            while isinstance(value, Mapping) and "value" in value:
-                value = value["value"]
-            text = str(value).strip().lower().rsplit(".", 1)[-1]
-            if text not in {"0", "modelled", "none"}:
-                return True
+    if not isinstance(physics, Mapping):
+        return False
+    observed = legacy_selector = False
+    for key in (*_LEGACY_SOIL_SELECTORS, "soil_moisture"):
+        if key not in physics:
+            continue
+        value = physics[key]
+        while isinstance(value, Mapping) and "value" in value:
+            value = value["value"]
+        text = str(value).strip().lower().rsplit(".", 1)[-1]
+        if text not in {"0", "modelled", "none"}:
+            observed = True
+            legacy_selector = legacy_selector or key in _LEGACY_SOIL_SELECTORS
+    if not observed:
+        return False
+    if legacy_selector:
+        return True
     sites = config_data.get("sites")
     if isinstance(sites, Iterable) and not isinstance(sites, (str, bytes, Mapping)):
         for site in sites:
@@ -4804,7 +4812,8 @@ class SUEWSConfig(BaseModel):
                 "suews-convert -i <old.yml> -o <new.yml> -f <release-tag>"
             )
 
-        if _uses_legacy_observed_soil(config_data):
+        # Validation replaces subtrees in place; read the user's raw mapping.
+        if _uses_legacy_observed_soil(config_data.get("_yaml_raw", config_data)):
             # A YAML-only upgrade refuses observed soil moisture; the YAML and
             # its xsmd forcing must be converted together.
             from ...util._forcing import SOIL_CONVERT_HINT

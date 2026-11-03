@@ -188,3 +188,19 @@ def test_loaded_rain_rate(canonical_path, tmp_path, seconds, unit, value):
     raw.to_csv(path, sep="\t", index=False)
     actual = read_forcing(str(path), tstep_mod=None, units={"rain": unit})
     np.testing.assert_allclose(actual.rain, seconds / 3600)
+
+
+@pytest.mark.parametrize("column", ["iy", "id", "it", "imin"])
+def test_time_coordinate_declaration_refused(column):
+    """Time coordinates are refused at declaration, not later as bad integers."""
+    frame = pd.DataFrame({column: [1]})
+    with pytest.raises(ValueError, match=f"{column}.*time coordinates.*no units declaration"):
+        _load._convert_forcing_units(frame, {column: "min"})
+
+
+@pytest.mark.parametrize("unit", ["W m-2", "K", "kg m-3"])
+def test_water_rate_wrong_dimension_names_dimensions(unit):
+    """A non-water unit gets a dimension message, not the time-unit hint."""
+    with pytest.raises(ValueError, match=r"rain.*dimensions differ") as info:
+        _load._convert_forcing_units(pd.DataFrame({"rain": [-999.0]}), {"rain": unit})
+    assert "requires a time unit" not in str(info.value)

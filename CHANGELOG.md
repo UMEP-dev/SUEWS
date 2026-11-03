@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 3 Nov 2026
+
+- [bugfix] Forcing unit declarations: a unit of the wrong dimension for a water rate (for example `{"rain": "W m-2"}`) now reports that the dimensions differ instead of asking for a time unit, and the time coordinates `iy`, `id`, `it`, `imin` refuse a declaration when it is made instead of failing later as non-integer timestamps
+
 ### 29 Oct 2026
 
 - [change][experimental] Breaking: units at the edges of SUEWS. Forcing contract 2.1.0 and output contract 2.0.0 declare, check and convert units where data enters and leaves SuPy, in the CF (UDUNITS-2) notation of a new unit vocabulary; the kernel still computes in its own units. Upgrade notes for forcing files and saved output are in the "Upgrading Across the Units Change" documentation page (#1903)

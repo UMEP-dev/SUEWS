@@ -127,8 +127,8 @@ Every error names the column it concerns. The causes and fixes are:
   ``"mm h-1"``.
 - ``cannot convert ... the dimensions differ``: the declared unit measures a
   different quantity from the column (for example ``"K"`` for pressure).
-- ``no unconditional registry unit``: the column has no single unit to convert
-  to; do not declare it.
+- ``time coordinates (iy, id, it, imin) take no units declaration``: the
+  timestamp columns are integers, not physical quantities; remove the key.
 - ``water flux requires a time unit``: see the section above.
 
 Forcing contract versions

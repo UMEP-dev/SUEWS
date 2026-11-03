@@ -134,7 +134,7 @@ Group Details
    - One file per grid (may contain multiple years)
 
    Water outputs ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` are daily totals in ``mm`` with ``time: sum``.
-   The model sums are written unchanged, including partial first and last days.
+   The model sums are written unchanged, including a partial first day; a run that ends part-way through a day writes no row for that day.
    Coverage is recorded as information in ``daily_coverage_s`` in text sidecars and ``supy_output_daily_coverage_s`` in Parquet attrs; it never divides the totals.
    Requests for ``m`` or ``kg m-2`` convert the amounts; rate units are rejected.
    Resampling across days sums these totals.

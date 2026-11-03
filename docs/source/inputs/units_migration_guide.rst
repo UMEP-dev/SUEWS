@@ -225,6 +225,14 @@ files. Convert in memory with :meth:`~supy.SUEWSOutput.to_units`:
    hourly = output.resample("h")                    # mm per hour, summed
    rates = hourly.to_units({"Rain": "mm h-1"})      # mm h-1, interval mean
 
+``to_units`` accepts only rate units for water fluxes, so
+``output.to_units({"Rain": "mm"})`` is refused even though ``output.units``
+reports ``mm``: ``mm`` there names the amount in each held row, whose
+interval changes with resampling, while a requested unit must be a quantity
+that stays the same whatever the rows' interval. Use ``resample`` to change the
+interval of the amounts, and ``to_units`` with ``mm h-1`` or ``mm d-1`` for
+rates.
+
 When resampled, accumulated water now sums: ``MeltWater``, the ``frMelt_*``
 refreezing amounts and the debug ``wu_*``, ``ev0_*``, ``ev_*`` and ``drain_*``
 columns were previously averaged, so their resampled values change.
@@ -254,8 +262,10 @@ DailyState water totals
 
 DailyState ``P_day`` and the daily water-use totals ``WU_EveTr1-3``,
 ``WU_DecTr1-3`` and ``WU_Grass1-3`` stay daily totals in mm, written with the
-same values as before; on the first and last day of a run they are the totals
-of the model steps that day actually covers. They are not converted to rates:
+same values as before; on the first day of a run that starts part-way through
+a day they are the totals of the model steps that day actually covers. A day's
+row is written at its last model step, so a run that ends part-way through a
+day writes no DailyState row for that day. They are not converted to rates:
 they accept amount units (``mm``, ``m``, ``kg m-2``) and refuse rate units with
 ``daily water totals require amount units``. Their metadata now says
 ``time: sum`` with the interval ``covered day``, and the number of seconds each
@@ -303,8 +313,10 @@ intervals:
   ``output_contract_version`` and, for every column, ``units``,
   ``cell_methods``, ``description``, ``interval`` and, where it applies,
   ``units_metadata``; DailyState sidecars also hold ``daily_coverage_s``. Text
-  file contents are otherwise unchanged, and the save methods still return
-  only the primary files;
+  file contents are otherwise unchanged. The save methods return the data files
+  and the run's checkpoint JSON (and, from
+  :meth:`~supy.SUEWSSimulation.save`, ``provenance.json``), but not the
+  ``.units.json`` sidecars, which sit beside the files they describe;
 - Parquet output carries the same per-column fields as Arrow field metadata
   and ``output_contract_version`` in the schema metadata, and keeps the written
   units and coverage when read back with ``pandas.read_parquet``;

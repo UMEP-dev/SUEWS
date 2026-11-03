@@ -127,7 +127,8 @@ For example, hourly Rain has ``units: kg m-2 s-1``, ``interval: 1 hour`` and
 ``5 minutes``. DailyState water totals describe the ``covered day``; other
 DailyState statistics retain ``1 day`` and point values retain ``time: point``.
 ``P_day`` and ``WU_EveTr1-3``, ``WU_DecTr1-3`` and ``WU_Grass1-3`` keep the
-model's raw sums, including partial first and last days, and sum when resampled.
+model's raw sums, including a partial first day, and sum when resampled; a run
+ending part-way through a day writes no row for that day.
 Their coverage is informational: ``daily_coverage_s`` in text sidecars and
 ``supy_output_daily_coverage_s`` in Parquet attrs never divide the totals.
 Amount requests (``mm``, ``m``, ``kg m-2``) are accepted; rate units are rejected.

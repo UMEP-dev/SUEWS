@@ -769,7 +769,10 @@ class SUEWSOutput:
         units : mapping, optional
             Variable names or (group, variable) pairs to requested unit strings.
         groups : list, optional
-            Groups to save (default: ['SUEWS', 'DailyState'])
+            Output groups to write as text files, overriding
+            ``model.control.output.groups``. ``None`` (the default) uses the
+            configured groups, else ``['SUEWS', 'DailyState']``. Parquet
+            output always holds every group.
 
         Returns
         -------
@@ -779,6 +782,15 @@ class SUEWSOutput:
         from ._supy_module import _save_supy
 
         self._require_rows()
+        if groups is not None:
+            if isinstance(groups, str):
+                groups = [groups]
+            missing = [group for group in groups if group not in self.groups]
+            if missing:
+                raise ValueError(
+                    f"Output group(s) {missing} not in this output; "
+                    f"available groups: {self.groups}"
+                )
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
@@ -837,6 +849,7 @@ class SUEWSOutput:
             save_state=False,
             forcing_timestamp_reference=forcing_timestamp_reference,
             units=units,
+            output_groups=list(groups) if groups is not None else None,
         )
 
         if self._checkpoint is not None:

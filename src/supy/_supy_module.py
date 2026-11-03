@@ -213,6 +213,7 @@ def _save_supy(
     forcing_timestamp_reference="local_standard_time",
     streamed_files=None,
     units: Optional[dict] = None,
+    output_groups: Optional[list] = None,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -255,6 +256,10 @@ def _save_supy(
         or the chunk's rows go to their own file in the run's Parquet folder
         (see ``supy._save.StreamedParquetParts``); it must match the output
         format.
+    output_groups : list, optional
+        Output groups to write as text files; overrides the groups in
+        ``output_config``. ``None`` (the default) uses ``output_config``, else
+        ``['SUEWS', 'DailyState']``. Parquet output always holds every group.
 
     Returns
     -------
@@ -283,7 +288,7 @@ def _save_supy(
 
     # Handle output configuration if provided
     # output_format = "txt"  # default - MP: Moved as argument
-    output_groups = None  # default will be handled in save_df_output
+    explicit_groups = output_groups is not None
     output_timestamp_reference = "follow"
 
     if output_config is not None:
@@ -299,7 +304,11 @@ def _save_supy(
                 output_format = str(output_config.format)
             output_timestamp_reference = output_config.timestamp_reference
             # Get groups for txt format
-            if output_format == "txt" and output_config.groups is not None:
+            if (
+                output_format == "txt"
+                and not explicit_groups
+                and output_config.groups is not None
+            ):
                 output_groups = output_config.groups
         elif isinstance(output_config, str):
             # Legacy string format - issue deprecation warning

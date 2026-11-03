@@ -59,6 +59,7 @@ EXAMPLES:
 - [bugfix] Forcing unit declarations: a unit of the wrong dimension for a water rate (for example `{"rain": "W m-2"}`) now reports that the dimensions differ instead of asking for a time unit, and the time coordinates `iy`, `id`, `it`, `imin` refuse a declaration when it is made instead of failing later as non-integer timestamps
 - [bugfix] Calendar resampling (`W`, `MS`, `ME`, `YE`) now puts every output group of one period in one row: DailyState totals were labelled one period early (with `ME`, January's `P_day` sat under 2011-12-31 while January's `Rain` sat under 2012-01-31), and with `W`, `ME` and `YE` the step stamped 00:00 that closes a period was counted in the next period. Fixed-frequency resampling, including DailyState's start-of-day label at `D`, is unchanged
 - [bugfix] Saving resampled output: output resampled to a fixed frequency (for example `D`) is saved at that interval, with file names and `interval` metadata to match (daily rows were described as `1 hour`); calendar-resampled output is refused with a message naming the alternatives instead of crashing (`ME`, `MS`) or writing mislabelled files (`W` wrote a stray one-row `_2011_..._60.txt`, `YE` a `_60.txt`); an explicit `freq_s` now overrides `model.control.output.freq`
+- [bugfix] `SUEWSOutput.save(groups=[...])` now writes the requested text-output groups instead of ignoring the argument in favour of the configured groups; an unknown group is refused
 
 ### 29 Oct 2026
 

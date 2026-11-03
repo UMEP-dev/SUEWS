@@ -198,11 +198,13 @@
 .film-hint .film-play-icon { width: 22px; height: 22px; border-width: 1px; }
 .film-hint .film-play-icon::after { border-width: 4px 0 4px 7px; margin-left: 2px; }
 .film-hint-len { font: 500 0.72rem 'JetBrains Mono', monospace; opacity: 0.7; }
-.logo-link:hover::after,
 .logo-link:focus-visible::after { opacity: 0.3; }
-.logo-link:hover .film-hint,
 .logo-link:focus-visible .film-hint { opacity: 1; transform: translate(-50%, 0); }
-/* No hover on touch screens: keep the hint faintly visible instead */
-@media (hover: none) { .film-hint { opacity: 0.55; transform: translate(-50%, 0); } }
+/* Only with a real pointer: touch screens get no hint (a tap still plays the
+   film), and iOS would otherwise leave :hover stuck on after the tap */
+@media (hover: hover) and (pointer: fine) {
+  .logo-link:hover::after { opacity: 0.3; }
+  .logo-link:hover .film-hint { opacity: 1; transform: translate(-50%, 0); }
+}
 .logo-intro .logo-link::after,
 .logo-intro .film-hint { opacity: 0 !important; }

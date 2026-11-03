@@ -128,6 +128,48 @@ def _column_has_valid_data(forcing: Any, col: str) -> bool:
     return _series_has_valid_data(forcing[source_col])
 
 
+def _missing_rows_summary(forcing: Any, col: str) -> str:
+    """Describe which rows of ``col`` are missing, for the mismatch message."""
+    import numpy as np
+    import pandas as pd
+
+    from ...util._missing import SUEWS_MISSING_THRESHOLD
+
+    if not hasattr(forcing, "columns"):
+        return ""
+    source_col = _columns_by_lower(forcing).get(col)
+    if source_col is None:
+        return ""
+    numeric = pd.to_numeric(forcing[source_col], errors="coerce")
+    valid = (numeric.notna() & np.isfinite(numeric) & (numeric > SUEWS_MISSING_THRESHOLD)).to_numpy()
+    missing_index = forcing.index[~valid]
+    if len(missing_index) == 0:
+        return ""
+    if not valid.any():
+        return " (every row is missing)"
+    detail = (
+        f" ({len(missing_index)} of {len(valid)} row(s) missing, first "
+        f"{missing_index[0]}, last {missing_index[-1]})"
+    )
+    if col == "sm":
+        first_valid = forcing.index[np.flatnonzero(valid)[0]]
+        last_valid = forcing.index[np.flatnonzero(valid)[-1]]
+        if not valid[0] or not valid[-1]:
+            detail += (
+                ". Observed sm is interpolated to the model time step only between "
+                "valid observations and is never extrapolated, so model steps before "
+                "the first or after the last valid observation have no value. Start "
+                f"the run at or after {first_valid} and end it at or before "
+                f"{last_valid}, or extend the forcing to cover the run period"
+            )
+        else:
+            detail += (
+                ". Observed sm must be gap-free over the run period; fill the gaps "
+                "in the forcing before running"
+            )
+    return detail
+
+
 def _lai_validity_issue(forcing: Any) -> str | None:
     """Return the validation issue reason for laimethod=0, or None."""
     columns_by_lower = _columns_by_lower(forcing)
@@ -213,13 +255,20 @@ def validate_forcing_columns_against_physics(
             elif col.lower() not in available:
                 missing.append((condition, col, "missing"))
             elif not _column_has_valid_data(forcing_columns, col.lower()):
-                missing.append((condition, col, "all_missing"))
+                missing.append(
+                    (
+                        condition,
+                        col,
+                        "all_missing" + _missing_rows_summary(forcing_columns, col.lower()),
+                    )
+                )
     if missing:
         details = "; ".join(
             (
                 f"forcing column '{col}' is required when {condition}"
                 if reason == "missing"
                 else f"forcing column '{col}' must contain valid data when {condition}"
+                + reason.removeprefix("all_missing")
             )
             for condition, col, reason in missing
         )

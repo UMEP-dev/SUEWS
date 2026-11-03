@@ -179,6 +179,32 @@ def test_validate_forcing_columns_against_physics_rejects_nonfinite_data():
         validate_forcing_columns_against_physics(df, physics)
 
 
+def test_partly_missing_observed_sm_names_rows_and_cause():
+    """A leading-edge sm gap names the missing rows, the cause and a remedy."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    index = pd.date_range("2012-01-01 00:05", periods=14, freq="5min")
+    df = pd.DataFrame({"sm": [-999.0] * 11 + [107.1, 107.0, 106.9]}, index=index)
+    with pytest.raises(ValueError) as caught:
+        validate_forcing_columns_against_physics(df, SimpleNamespace(soil_moisture=1))
+    message = str(caught.value)
+    assert "must contain valid data when soil_moisture=1" in message
+    assert "11 of 14 row(s) missing, first 2012-01-01 00:05:00, last 2012-01-01 00:55:00" in message
+    assert "never extrapolated" in message
+    assert "at or after 2012-01-01 01:00:00" in message
+
+    df.iloc[3:5, 0] = -999.0
+    df.iloc[:3, 0] = 100.0
+    df.iloc[5:11, 0] = 100.0
+    with pytest.raises(ValueError, match="gap-free over the run period"):
+        validate_forcing_columns_against_physics(df, SimpleNamespace(soil_moisture=1))
+
+
 @pytest.mark.parametrize(
     ("snow_use", "net_radiation", "must_fail"),
     (

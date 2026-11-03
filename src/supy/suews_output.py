@@ -660,6 +660,23 @@ class SUEWSOutput:
             seconds = _native_interval_s(self._df_state_final)
         return pd.Timedelta(seconds, "s") if seconds is not None else None
 
+    def _held_fixed_interval_s(self) -> Optional[int]:
+        """Return the fixed interval of resampled rows in seconds, else None.
+
+        ``None`` for native output (saved at the configured frequency) and
+        for calendar-resampled output, which the writers refuse.
+        """
+        if "resampled_to" not in self._metadata:
+            return None
+        try:
+            return int(
+                pd.Timedelta(
+                    pd.tseries.frequencies.to_offset(self._metadata["resampled_to"])
+                ).total_seconds()
+            )
+        except ValueError:
+            return None
+
     def resample(self, freq: str) -> "SUEWSOutput":
         """
         Resample output to different frequency.
@@ -744,7 +761,11 @@ class SUEWSOutput:
             'txt' if no configuration is available. An explicit value
             always overrides the configuration.
         freq_s : int, optional
-            Output frequency in seconds (default: from config or 3600)
+            Output frequency in seconds. Default: the held interval for
+            output from :meth:`resample` at a fixed frequency (for example
+            ``"D"``), else ``model.control.output.freq``, else 3600.
+            Calendar-resampled output (``"W"``, ``"MS"``, ``"ME"``,
+            ``"YE"``) cannot be saved; see the error for alternatives.
         units : mapping, optional
             Variable names or (group, variable) pairs to requested unit strings.
         groups : list, optional
@@ -761,8 +782,17 @@ class SUEWSOutput:
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
-        # Get defaults from config if available
-        freq = freq_s or 3600
+        held_s = self._held_fixed_interval_s()
+        if freq_s is not None and held_s is not None and freq_s < held_s:
+            raise ValueError(
+                f"freq_s={freq_s} is finer than the held output interval of "
+                f"{held_s} s; resampled output can only be saved at its own "
+                "interval or a coarser one."
+            )
+
+        # Get defaults from config if available; resampled output defaults to
+        # the interval it holds rather than the configured output frequency.
+        freq = freq_s or held_s or 3600
         site = ""
         output_config = None
         forcing_timestamp_reference = "local_standard_time"
@@ -773,9 +803,18 @@ class SUEWSOutput:
                     control = self._config.model.control
                     if hasattr(control, "output"):
                         output_control = control.output
-                        if hasattr(output_control, "freq") and output_control.freq:
+                        if (
+                            hasattr(output_control, "freq")
+                            and output_control.freq
+                            and held_s is None
+                        ):
                             freq = freq_s or output_control.freq
-                        output_config = output_control
+                        # The writer takes the frequency from the config;
+                        # pass the one resolved here so an explicit freq_s
+                        # and a resampled interval are both honoured.
+                        output_config = output_control.model_copy(
+                            update={"freq": int(freq)}
+                        )
                     if hasattr(control, "forcing"):
                         forcing_timestamp_reference = (
                             control.forcing.timestamp_reference

@@ -279,9 +279,19 @@ partial or calendar bin is divided by the seconds covered, not by the nominal
 length of the bin. Resampling a rate again weights each source bin by its
 coverage, and a sum over a bin with no data is missing rather than zero.
 
-Calendar-resampled output cannot be saved with ``save_tstep=True``; save the
-native output before resampling it to calendar periods. The error reads
-``save_tstep=True conflicts with calendar-resampled output (for example ME)``.
+Every group of a calendar-resampled output is binned and labelled in the same
+way, so one row holds one period: ``output.resample("ME")`` puts January's
+``Rain`` and January's DailyState ``P_day`` in the row labelled ``2012-01-31``,
+and the step stamped ``2012-02-01 00:00``, which closes January, counts towards
+January. At fixed frequencies DailyState keeps its own label, the start of each
+day (see :ref:`timestamp_convention`).
+
+Output resampled to a fixed frequency (for example ``output.resample("D")``)
+is saved at that interval, and its files and metadata say so. Calendar-resampled
+output cannot be saved to files, because a calendar period has no fixed interval
+to name the files and describe the rows; the error begins
+``Calendar-resampled output (for example ME or W) cannot be saved to files``.
+Save the native output, or write ``monthly.df`` with pandas.
 
 Units and cell methods beside saved output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

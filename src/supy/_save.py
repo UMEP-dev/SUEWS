@@ -1420,16 +1420,29 @@ def save_initcond_nml(
 
 
 def _check_save_tstep(df_output, save_tstep: bool) -> None:
-    """Reject a native-step save request after calendar resampling."""
-    if (
-        save_tstep
-        and "supy_output_interval_s" in df_output.attrs
+    """Reject saving calendar-resampled output, naming the remedy.
+
+    Calendar periods (``W``, ``MS``, ``ME``, ``YE``) have no fixed length, so
+    the writers can neither name the files by an interval in minutes nor
+    record an interval in their metadata; resampling such rows again to a
+    fixed saving step would split each period across two rows.
+    """
+    if not (
+        "supy_output_interval_s" in df_output.attrs
         and df_output.attrs["supy_output_interval_s"] is None
     ):
+        return
+    if save_tstep:
         raise ValueError(
             "save_tstep=True conflicts with calendar-resampled output (for example ME). "
             "Save the native output before calendar resampling."
         )
+    raise ValueError(
+        "Calendar-resampled output (for example ME or W) cannot be saved to files: "
+        "a calendar period has no fixed interval to name the files and describe "
+        "the rows. Save the native output, at a fixed freq_s if needed, or write "
+        "the resampled frame (output.df) with pandas."
+    )
 
 
 def _held_interval_s(df_output, df_state_final) -> Optional[int]:

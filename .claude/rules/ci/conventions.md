@@ -403,10 +403,10 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 **What merge queue omits:**
 
 - macOS Intel x86_64 (legacy platform, declining user base)
-- Python 3.13 and 3.14 (covered by ready-PR bookends and nightly/release CI)
+- Python 3.13, 3.14 and 3.15 (3.15 is covered by the ready-PR bookends; 3.13 and 3.14 by nightly/release CI)
 - non-core `slow` tests -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so every `slow` physics regression gates the merge (gh#1576)
 
-**Rationale:** Full matrix (4 platforms x 3 Python = 12 jobs), or even
+**Rationale:** Full matrix (4 platforms x 4 Python = 16 jobs), or even
 repeating both bookends on all three queue platforms, duplicates work already
 performed on the ready PR and multiplies the memory-heavy API suite. The queue
 keeps all three major OS families and revalidates the combined tree on the

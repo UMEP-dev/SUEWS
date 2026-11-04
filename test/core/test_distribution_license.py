@@ -38,6 +38,9 @@ def test_source_licence_signals_are_consistent() -> None:
     )
 
 
+# Also api: importlib.metadata behaviour varies by interpreter, so run it in
+# the cross-CPython lanes too.
+@pytest.mark.api
 def test_installed_wheel_exposes_pep639_licence_metadata() -> None:
     installed = distribution("supy")
     metadata = installed.metadata

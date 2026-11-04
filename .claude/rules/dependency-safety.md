@@ -29,5 +29,5 @@ The LiteLLM PyPI compromise (24 March 2026) demonstrated that malicious packages
 
 ## CI integration
 
-- The `dependency-audit.yml` workflow runs `pip-audit` and startup hook checks on PRs that modify `pyproject.toml`
+- The `dependency-audit.yml` workflow runs `pip-audit` and startup hook checks on PRs that modify `pyproject.toml`, once on Python 3.13 and once on the newest supported CPython (3.15), since markers resolve different pins on each
 - The `workflow-security.yml` workflow verifies GitHub Actions are pinned to commit SHAs

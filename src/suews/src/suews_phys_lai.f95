@@ -11,7 +11,7 @@ module module_phys_lai
       ! Enumeration parameters for the LAI type
       integer, parameter :: LAI_ORIGINAL = 0
       integer, parameter :: LAI_NEW = 1
-      integer, parameter :: LAI_INVERTED = 2
+      !FA integer, parameter :: LAI_INVERTED = 2
 
       ! Enumeration parameters for senescence conditions
       integer, parameter :: SEN_DAYLENGTH = 1
@@ -138,13 +138,7 @@ contains
             gdd_id=gdd_id(iv), &
             sdd_id=sdd_id(iv) &
          )
-
-         ! call limit_degree_days( &
-         !    gdd_full=gdd_full(iv), &
-         !    sdd_full=sdd_full(iv), &
-         !    gdd_id=gdd_id(iv), &
-         !    sdd_id=sdd_id(iv) &
-         ! )
+         
 
          ! Now calculate LAI itself
          call reset_degree_days( &
@@ -156,17 +150,9 @@ contains
             growth_state=growth_state(iv), &
             senescence_state=senescence_state(iv), &
             sdd=sdd_id(iv), &
-            gdd=gdd_id(iv) &
+            gdd=gdd_id(iv), &
          )
-         ! call reset_degree_day_states( &
-         !    id=id, &
-         !    sdd_reset_day=sdd_reset_day, &
-         !    summer_day=summer_day, &
-         !    winter_day=winter_day, &
-         !    gdd_id=gdd_id(iv), &
-         !    sdd_id=sdd_id(iv), &
-         !    southern_hemisphere=southern_hemisphere &
-         ! )
+
 
          if (lai_calc_yes /= 0) then
             call calculate_lai( &
@@ -288,6 +274,13 @@ contains
          if (delta_gdd < 0) then
             delta_gdd = 0
          end if
+         
+         !FA if LAI type is inverted, flip the response of LAI to SDD/GDD
+         ! comment out for now as need to decide whether to adjust summer/winter resetting
+         ! if (lai_type(iv) == LAI_INVERTED) then
+         !    delta_gdd = -delta_gdd
+         !    delta_sdd = -delta_sdd
+         ! end if
 
          ! Calculate cumulative growing and senescence degree days
          gdd_id = gdd_id_prev + delta_gdd

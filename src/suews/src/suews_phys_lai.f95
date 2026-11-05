@@ -72,7 +72,7 @@ contains
 
       real(kind(1D0)), dimension(3), intent(inout) :: gdd_id !Growing Degree Days (see SUEWS_DailyState.f95)
       real(kind(1D0)), dimension(3), intent(inout) :: sdd_id !Senescence Degree Days (see SUEWS_DailyState.f95)
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_id_prev ! LAI of previous day
+      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: lai_id_prev ! LAI of previous day
       real(kind(1D0)), dimension(nvegsurf), intent(out) :: lai_id_next !LAI for each veg surface [m2 m-2]
       
       real(kind(1D0)) :: delta_gdd !Switches and checks for GDD
@@ -146,8 +146,8 @@ contains
 
          call lai_stress_response_surf( &
             lai_id_prev=lai_id_prev(iv), &
-            laimin=laimin(iv), &
-            laimax=laimax(iv), &
+            laimin=lai_min(iv), &
+            laimax=lai_max(iv), &
             LAI_loss_rate_perc=LAI_loss_rate_perc, &
             stress_state=stress_state(iv), &
             stress_days=stress_days(iv) &
@@ -202,7 +202,8 @@ contains
                lai_max=lai_max(iv), &
                lai_min=lai_min(iv), &
                lai_id_prev=lai_id_prev(iv), &
-               lai_id_next=lai_id_next(iv) &
+               lai_id_next=lai_id_next(iv), &
+               stress_days=stress_days(iv) &
             )
          end if
             
@@ -341,7 +342,8 @@ contains
             senescence_mode, &
             delta_gdd, delta_sdd, gdd_id, sdd_id, &
             gdd_base, sdd_base, lai_power, lai_type, &
-            len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next)
+            len_day_id_prev, lai_id_prev, lai_max, lai_min, lai_id_next, &
+            stress_days)
 
          implicit none
 
@@ -364,6 +366,8 @@ contains
          real(kind(1D0)), intent(in) :: lai_min
 
          real(kind(1D0)), intent(out) :: lai_id_next
+
+         real(kind(1D0)), intent(out) :: stress_days
 
          logical :: start_senescence
 
@@ -413,6 +417,7 @@ contains
          ! Keep internally computed phenology within the configured canopy envelope.
          call limit_lai( &
             lai_id_next=lai_id_next, &
+            stress_days=stress_days, &
             lai_max=lai_max, &
             lai_min=lai_min &
          )

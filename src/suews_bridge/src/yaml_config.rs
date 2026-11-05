@@ -513,6 +513,13 @@ fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) {
     if let Some(v) = read_i32(lc_root, &["lai", "laitype"]) {
         lai.lai_type = v;
     }
+//fa add in new yaml parameters
+    if let Some(v) = read_numeric(lc_root, &["lai", "gdd_base"]) {
+        lai.gdd_base = v;
+    }
+    if let Some(v) = read_numeric(lc_root, &["lai", "sdd_base"]) {
+        lai.sdd_base = v;
+    }
 }
 
 fn apply_bioco2_overrides(bioco2: &mut crate::bioco2::BioCo2Prm, lc_root: &Value) {

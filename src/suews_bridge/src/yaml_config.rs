@@ -2154,7 +2154,18 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
     }
 }
 
-fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value) {
+/// Whether the kernel uses the CO2 point source under this `emissionsmethod`
+/// (`suews_phys_anthro.f95`: methods 1-6 in each family 0-4, i.e. 1-6,
+/// 11-16, ..., 41-46).
+fn emissions_method_uses_co2_point_source(emissions_method: i32) -> bool {
+    (1..=46).contains(&emissions_method) && (1..=6).contains(&(emissions_method % 10))
+}
+
+fn apply_site_scalar_overrides(
+    site_scalars: &mut SiteScalars,
+    site_root: &Value,
+    emissions_method: i32,
+) -> Result<(), String> {
     if let Some(v) = read_numeric(site_root, &["properties", "lat"]) {
         site_scalars.lat = v;
     }
@@ -2190,8 +2201,30 @@ fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value
     if let Some(v) = read_numeric(site_root, &["properties", "narp_trans_site"]) {
         site_scalars.narp_trans_site = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "CO2PointSource"]) {
-        site_scalars.co2_point_source = v;
+    // supy writes the point source inside the co2 block as
+    // `emission_co2_point_source`, which `normalize_field_names` folds to
+    // `co2pointsource`. No schema has written a flat
+    // `properties.CO2PointSource`, so that spelling is not read. The bridge
+    // does not stand in a value: when this method uses the point source and
+    // the YAML has none, the run stops naming the key.
+    match read_numeric(
+        site_root,
+        &[
+            "properties",
+            "anthropogenic_emissions",
+            "co2",
+            "co2pointsource",
+        ],
+    ) {
+        Some(v) => site_scalars.co2_point_source = v,
+        None if emissions_method_uses_co2_point_source(emissions_method) => {
+            return Err(format!(
+                "`sites[0].properties.anthropogenic_emissions.co2.emission_co2_point_source` \
+                 is missing or null, but emissionsmethod {emissions_method} uses the CO2 point \
+                 source; give it in kg C day-1 (0 for no point source)"
+            ));
+        }
+        None => {}
     }
     if let Some(v) = read_numeric(site_root, &["properties", "flowchange"]) {
         site_scalars.flowchange = v;
@@ -2217,6 +2250,7 @@ fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value
             site_scalars.sfr_surf[idx] = v;
         }
     }
+    Ok(())
 }
 
 fn read_sites_indexed(root: &Value, idx: usize) -> Option<&Value> {
@@ -2298,7 +2332,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
     apply_site_overrides(&mut site, root, site_root, nlayer as usize, ndepth as usize)?;
-    apply_site_scalar_overrides(&mut site_scalars, site_root);
+    apply_site_scalar_overrides(&mut site_scalars, site_root, config.emissions_method)?;
 
     if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
         timer.tstep = tstep;
@@ -3247,5 +3281,50 @@ mod tests {
                 run_cfg.site_scalars.co2_point_source
             );
         }
+    }
+
+    fn run_config_without_co2_point_source(emissions_method: i64) -> Result<RunConfig, String> {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let emissions = get_path_mut(&mut root, &["model", "physics", "emissions"])
+            .expect("fixture should define model.physics.emissions");
+        *emissions = serde_yaml::from_str(&format!("{{value: {emissions_method}}}")).unwrap();
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let co2 = get_path_mut(site, &["properties", "anthropogenic_emissions", "co2"])
+            .expect("fixture should define anthropogenic_emissions.co2");
+        let Value::Mapping(co2_map) = co2 else {
+            panic!("co2 should be a mapping");
+        };
+        co2_map.remove(Value::String("emission_co2_point_source".to_string()));
+        load_run_config_from_value(&mut root)
+    }
+
+    #[test]
+    fn missing_co2_point_source_is_an_error_when_the_method_uses_it() {
+        let err = run_config_without_co2_point_source(2)
+            .expect_err("a missing point source must be rejected under emissionsmethod 2");
+        assert!(
+            err.contains("anthropogenic_emissions.co2.emission_co2_point_source"),
+            "error should name the key: {err}"
+        );
+    }
+
+    #[test]
+    fn missing_co2_point_source_is_accepted_when_the_method_ignores_it() {
+        let run_cfg = run_config_without_co2_point_source(0)
+            .expect("emissionsmethod 0 does not use the point source");
+        assert_eq!(run_cfg.config.emissions_method, 0);
+    }
+
+    #[test]
+    fn co2_point_source_methods_follow_the_kernel() {
+        let used: Vec<i32> = (0..=50)
+            .filter(|m| emissions_method_uses_co2_point_source(*m))
+            .collect();
+        let expected: Vec<i32> = (0..=4)
+            .flat_map(|family| (1..=6).map(move |m| family * 10 + m))
+            .collect();
+        assert_eq!(used, expected);
     }
 }

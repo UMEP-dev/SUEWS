@@ -3215,4 +3215,37 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
     }
+
+    #[test]
+    fn null_element_in_numeric_list_is_an_error_naming_path_and_index() {
+        // The data model allows a null inside a thermal-layer list
+        // (`List[Optional[float]]`, and a NaN element is dumped as null), and
+        // `exclude_none` does not remove list elements, so a null reaches the
+        // bridge. The bridge must refuse it, naming the list and the index,
+        // rather than stand in a value for it.
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let dz = get_path_mut(site, &["properties", "vertical_layers", "roofs"])
+            .and_then(|roofs| match roofs {
+                Value::Sequence(items) => items.get_mut(0),
+                _ => None,
+            })
+            .and_then(|roof| get_path_mut(roof, &["thermal_layers", "dz", "value"]))
+            .expect("fixture should define roofs[0].thermal_layers.dz");
+        let Value::Sequence(items) = dz else {
+            panic!("dz.value should be a list");
+        };
+        items[1] = Value::Null;
+
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("a null list element must be rejected");
+        assert!(
+            err.contains("sites[0].properties.vertical_layers.roofs[0].thermal_layers.dz"),
+            "error should name the list: {err}"
+        );
+        assert!(err.contains("[1]"), "error should name the index: {err}");
+        assert!(err.contains("null"), "error should say the element is null: {err}");
+    }
 }

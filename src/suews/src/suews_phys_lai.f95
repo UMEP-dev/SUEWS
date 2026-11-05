@@ -302,46 +302,7 @@ contains
 
       end function calc_delta_degree_days
 
-      ! subroutine limit_gdd_sdd( &
-      !       gdd_full, sdd_full, gdd_id, sdd_id)
 
-      !    implicit none
-
-      !    real(kind(1D0)), intent(in) :: gdd_full
-      !    real(kind(1D0)), intent(in) :: sdd_full
-      !    real(kind(1D0)), intent(inout) :: gdd_id
-      !    real(kind(1D0)), intent(inout) :: sdd_id
-
-      !    !Start senescence
-      !    if (gdd_id >= gdd_full) then
-      !       gdd_id = gdd_full !Leaves should not grow so delete yes from earlier
-      !       if (sdd_id < -CRIT_DAYS) gdd_id = 0
-      !    end if
-
-      !    !After senescence now start growing leaves
-      !    if (sdd_id <= sdd_full) then
-      !       sdd_id = sdd_full !Leaves off so add back earlier
-      !       if (gdd_id > CRIT_DAYS) sdd_id = 0
-      !    end if
-
-      !    ! With these limits SDD, GDD is set to zero
-      !    if (sdd_id < -CRIT_DAYS .AND. sdd_id > sdd_full) gdd_id = 0
-      !    if (gdd_id > CRIT_DAYS .AND. gdd_id < gdd_full) sdd_id = 0
-
-      ! end subroutine limit_gdd_sdd
-
-      ! subroutine limit_degree_days(gdd_full, sdd_full, gdd_id, sdd_id)
-         
-      !    implicit none
-
-      !    real(kind(1D0)), intent(in) :: gdd_full
-      !    real(kind(1D0)), intent(in) :: sdd_full
-      !    real(kind(1D0)), intent(inout) :: gdd_id
-      !    real(kind(1D0)), intent(inout) :: sdd_id
-
-      !    ! Limit GDD and SDD to their full values
-
-      ! end subroutine limit_degree_days
 
       subroutine calculate_lai( &
             senescence_mode, &
@@ -425,43 +386,9 @@ contains
 
       end subroutine calculate_lai
 
-      ! subroutine reset_degree_day_states( &
-      !    id, sdd_reset_day, summer_day, winter_day, &
-      !    southern_hemisphere, sdd_id, gdd_id)
 
-      !    implicit none
 
-      !    integer, intent(in) :: id
-      !    integer, intent(in) :: sdd_reset_day
-      !    integer, intent(in) :: summer_day
-      !    integer, intent(in) :: winter_day
-      !    logical, intent(in) :: southern_hemisphere
-
-      !    real(kind(1D0)), intent(inout) :: sdd_id
-      !    real(kind(1D0)), intent(inout) :: gdd_id
-
-      !    ! if SDD is not zero by the transition day, force it
-      !    if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
-
-      !    if (southern_hemisphere) then
-
-      !       ! Set SDD to zero in southern summer
-      !       if (gdd_id > CRIT_DAYS .and. id > summer_day) sdd_id = 0
-
-      !       ! Set GDD zero in southern winter
-      !       if (sdd_id < -CRIT_DAYS .and. id < winter_day) gdd_id = 0
-
-      !    else
-
-      !       ! Set SDD to zero in northern summer
-      !       if (gdd_id > CRIT_DAYS .and. id < summer_day) sdd_id = 0
-
-      !       ! Set GDD zero in northern winter
-      !       if (sdd_id < -CRIT_DAYS .and. id > winter_day) gdd_id = 0
-
-      !    end if
-
-      ! end subroutine reset_degree_day_states
+      
 
       subroutine reset_degree_days( &
          id, &

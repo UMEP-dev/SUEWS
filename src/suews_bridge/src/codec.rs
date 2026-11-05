@@ -1,3 +1,29 @@
+//! Flat-buffer codec: the contract between each Rust parameter or state
+//! struct and its Fortran C-API facade (`c_api/<type>.f95`).
+//!
+//! Every bridged Fortran derived type travels as one flat `[f64]` buffer.
+//! Three things must agree, and the codec checks them where it can:
+//!
+//! - the length: `SUEWS_CAPI_<TYPE>_LEN` in the facade and `<TYPE>_FLAT_LEN`
+//!   in Rust (checked at run time by `<prefix>_default_from_fortran` and
+//!   `<prefix>_schema_info`, and by each module's
+//!   `schema_matches_expected_dimensions` test);
+//! - the schema version: `SUEWS_CAPI_<TYPE>_SCHEMA_VERSION` and
+//!   `<TYPE>_SCHEMA_VERSION` (checked by `<prefix>_schema_info` and by
+//!   `from_values_payload`);
+//! - the order: the position of each field in the facade's `*_pack` and
+//!   `*_unpack` and in Rust's `from_flat`, `to_flat` and `*_field_names`.
+//!   **Nothing checks the order.** A field in the wrong position is not an
+//!   error: the right number lands in the wrong variable.
+//!
+//! Defaults come from Fortran, not from Rust: `<prefix>_default_from_fortran`
+//! asks the facade to pack a freshly initialised *shadow* type, so the
+//! shadow's initialisers (mostly `0.0`) are the values any field keeps when
+//! nothing overwrites it. The YAML reader (`yaml_config.rs`) starts from those
+//! defaults and overwrites only the keys it finds.
+//!
+//! Step-by-step instructions for adding a field: `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`.
+
 use crate::error::BridgeError;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -49,6 +75,11 @@ impl ValuesPayloadWithDims {
     }
 }
 
+/// Conversion between a typed struct and its flat Fortran buffer.
+///
+/// `from_flat` must read, `to_flat` must write, and the module's
+/// `*_field_names()` must list the fields in exactly the order the Fortran
+/// facade packs them. Only the length is checked (`validate_flat_len`).
 pub trait StateCodec: Sized {
     fn schema() -> TypeSchema;
     fn from_flat(flat: &[f64]) -> Result<Self, BridgeError>;
@@ -71,12 +102,22 @@ pub fn field_index(field_names: &[String], name: &str) -> Option<usize> {
     field_names.iter().position(|field| field == name)
 }
 
+/// Flat values keyed by field name. `zip` stops at the shorter list, so a
+/// `*_field_names()` shorter than `to_flat()` silently drops the trailing
+/// values; `<prefix>_schema_info` is what catches that mismatch.
 pub fn to_map<T: StateCodec>(state: &T) -> BTreeMap<String, f64> {
     let schema = T::schema();
     let values = state.to_flat();
     schema.field_names.into_iter().zip(values).collect()
 }
 
+/// Build a struct from `default_state` with the named fields overwritten.
+///
+/// Every field not named in `values` keeps its value in `default_state`,
+/// which in practice is the Fortran shadow default (see the module docs).
+/// An unknown name is an error here (`BadState`); callers that match YAML
+/// keys loosely, such as `yaml_config::set_mapped_value`, drop unknown keys
+/// before they reach this function.
 pub fn from_map<T: StateCodec>(
     values: &BTreeMap<String, f64>,
     default_state: &T,
@@ -150,6 +191,25 @@ pub fn dims_element_count(dims: &[usize]) -> Result<usize, BridgeError> {
         .ok_or(BridgeError::BadState)
 }
 
+/// Generate the per-type public functions (`<prefix>_schema`,
+/// `<prefix>_schema_info`, `<prefix>_default_from_fortran`,
+/// `<prefix>_from_map`, `<prefix>_to_map`, payload helpers, ...) for one
+/// bridged type.
+///
+/// Each parameter or state module invokes it once at the bottom of the file,
+/// naming its struct, its `*_FLAT_LEN` and `*_SCHEMA_VERSION` constants and the
+/// three `ffi` functions of its facade (`suews_<type>_len`,
+/// `suews_<type>_schema_version`, `suews_<type>_default`). Adding a field to an
+/// existing type does not touch the invocation; adding a new type needs one.
+///
+/// Invariants this macro enforces at run time:
+/// - `<prefix>_default_from_fortran`: the Fortran length equals
+///   `flat_len_const`, otherwise `BadState`;
+/// - `<prefix>_schema_info`: the Fortran schema version equals
+///   `schema_version_const` and the length equals the number of field names.
+///
+/// `<prefix>_from_map` starts from `<prefix>_default_from_fortran`, so an
+/// absent key means "the Fortran shadow default", usually zero.
 macro_rules! impl_state_module_fns {
     (
         prefix = $prefix:ident,

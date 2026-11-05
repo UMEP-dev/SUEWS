@@ -120,8 +120,25 @@ const STATE_MEMBER_HEAT_STATE: usize = 9;
 const STATE_MEMBER_ROUGHNESS_STATE: usize = 10;
 const STATE_MEMBER_STEBBS_STATE: usize = 11;
 const STATE_MEMBER_NHOOD_STATE: usize = 12;
+/// Length of the site-scalars buffer; must equal `SUEWS_CAPI_SITE_SCALARS_LEN`
+/// in `c_api/driver.f95`. This pair is separate from the per-type `*_LEN`
+/// constants and is not checked against Fortran at run time.
 pub const SUEWS_CAPI_SITE_SCALARS_LEN: usize = 24;
 
+/// Site-level scalars that the driver passes to Fortran as one fixed buffer
+/// (`encode_site_scalars` here, `unpack_site_scalars` in `c_api/driver.f95`),
+/// outside the bridged `SuewsSite` member types.
+///
+/// Unlike the bridged types, the defaults below are Rust's own and are all
+/// zero (except `gridiv`). The YAML reader
+/// (`yaml_config::apply_site_scalar_overrides`) overwrites only the keys it
+/// finds, and the command-line entry point has no required-field check, so a
+/// YAML without, say, `properties.z` runs with a measurement height of 0 m.
+/// supy's data model supplies most of these values.
+///
+/// Adding a field: append it here, in `Default`, in `encode_site_scalars`
+/// (its index), in `unpack_site_scalars` (same index), and raise both
+/// `SUEWS_CAPI_SITE_SCALARS_LEN` constants.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SiteScalars {
     pub lat: f64,

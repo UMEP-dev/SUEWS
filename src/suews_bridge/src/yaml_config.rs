@@ -3215,4 +3215,37 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
     }
+
+    fn run_config_with_co2_point_source(key: &str, value: f64) -> RunConfig {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let co2 = get_path_mut(site, &["properties", "anthropogenic_emissions", "co2"])
+            .expect("fixture should define anthropogenic_emissions.co2");
+        let Value::Mapping(co2_map) = co2 else {
+            panic!("co2 should be a mapping");
+        };
+        co2_map.remove(Value::String("emission_co2_point_source".to_string()));
+        co2_map.insert(
+            Value::String(key.to_string()),
+            serde_yaml::from_str(&format!("{{value: {value}}}")).unwrap(),
+        );
+        load_run_config_from_value(&mut root).expect("run config should parse")
+    }
+
+    #[test]
+    fn co2_point_source_is_read_from_the_co2_block() {
+        // supy writes the value at
+        // properties.anthropogenic_emissions.co2.emission_co2_point_source;
+        // older YAML uses the fused name co2pointsource at the same place.
+        for key in ["emission_co2_point_source", "co2pointsource"] {
+            let run_cfg = run_config_with_co2_point_source(key, 4.0);
+            assert!(
+                (run_cfg.site_scalars.co2_point_source - 4.0).abs() < 1.0e-12,
+                "{key}: co2_point_source = {}",
+                run_cfg.site_scalars.co2_point_source
+            );
+        }
+    }
 }

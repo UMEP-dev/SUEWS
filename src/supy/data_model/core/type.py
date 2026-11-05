@@ -235,6 +235,40 @@ def FlexibleRefValue(type_param):
     return Union[RefValue[type_param], type_param]
 
 
+def reject_null_value(value, field_name: str):
+    """Reject ``{value: null}`` on a field the model always needs a number for.
+
+    ``RefValue.value`` is ``Optional`` so that genuinely optional fields can
+    carry ``null``. On a required numeric field a ``null`` would reach the
+    Rust bridge as a missing key and be replaced by the bridge's own fallback,
+    so it is rejected here instead (gh#2001).
+
+    Parameters
+    ----------
+    value : RefValue or scalar
+        The validated field value.
+    field_name : str
+        Name used in the error message.
+
+    Returns
+    -------
+    RefValue or scalar
+        ``value`` unchanged when it carries a value.
+
+    Raises
+    ------
+    ValueError
+        If the wrapped value is ``None``.
+    """
+    inner = value.value if isinstance(value, RefValue) else value
+    if inner is None:
+        raise ValueError(
+            f"{field_name} needs a number; null is not accepted "
+            "(omit the field to use its default)"
+        )
+    return value
+
+
 def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
     df_state = pd.DataFrame(cols, index=index)
     df_state.columns = pd.MultiIndex.from_tuples(

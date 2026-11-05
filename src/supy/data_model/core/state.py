@@ -15,6 +15,7 @@ from .type import (
     FlexibleRefValue,
     df_from_cols,
     SurfaceType,
+    reject_null_value,
 )
 from ..._env import logger_supy
 
@@ -414,6 +415,11 @@ class InitialStateVeg(SurfaceInitialState):
         },
         default=0,
     )  # This need to be consistent with GDD.
+
+    @field_validator("sdd_id", mode="after")
+    @classmethod
+    def _sdd_id_not_null(cls, v):
+        return reject_null_value(v, "sdd_id")
     wu: WaterUse = Field(
         default_factory=WaterUse, json_schema_extra={"display_name": "Water Use"}
     )

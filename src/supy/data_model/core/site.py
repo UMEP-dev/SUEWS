@@ -3417,6 +3417,8 @@ class SiteProperties(BaseModel):
             "n_buildings",
             "h_std",
             "lambda_c",
+            "theta_r",
+            "porosiity"
         ]:
             # Check if column exists in dataframe
             if (var, "0") in df.columns:

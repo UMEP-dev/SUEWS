@@ -100,20 +100,51 @@ fn read_string(root: &Value, path: &[&str]) -> Option<String> {
     }
 }
 
-fn parse_numeric_sequence(value: &Value) -> Option<Vec<f64>> {
+/// Describe a YAML value for an error message.
+fn yaml_kind(value: &Value) -> &'static str {
     match value {
-        Value::Number(n) => n.as_f64().map(|v| vec![v]),
-        Value::Sequence(items) => {
-            let mut out = Vec::with_capacity(items.len());
-            for item in items {
-                let num = match item {
-                    Value::Number(n) => n.as_f64()?,
-                    _ => return None,
-                };
-                out.push(num);
-            }
-            Some(out)
+        Value::Null => "null",
+        Value::Bool(_) => "a boolean",
+        Value::Number(_) => "a number",
+        Value::String(_) => "a string",
+        Value::Sequence(_) => "a list",
+        Value::Mapping(_) => "a mapping",
+        Value::Tagged(_) => "a tagged value",
+    }
+}
+
+/// Parse a numeric list: bare (`[1.0, 2.0]`), wrapped in the RefValue form
+/// (`{value: [...]}`), a single number, or a mapping of named numbers (e.g.
+/// `hdd_id`).
+///
+/// `Ok(None)` means the value is not a list or number at all (the caller
+/// treats it as not given). An element that is not a number, `null`
+/// included, is an error naming its index (or key): the bridge passes values
+/// through and never stands in for a missing one. supy can send such nulls
+/// (the thermal-layer lists are `List[Optional[float]]`, and
+/// `model_dump(mode="json")` writes a NaN element as `null`), so this must
+/// not be silently dropped.
+fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
+    fn element(item: &Value, at: &str) -> Result<f64, String> {
+        match item {
+            Value::Number(n) => n
+                .as_f64()
+                .ok_or_else(|| format!("element {at} is not representable as a float")),
+            other => Err(format!(
+                "element {at} is {}; every element must be a number",
+                yaml_kind(other)
+            )),
         }
+    }
+
+    match value {
+        Value::Number(n) => Ok(n.as_f64().map(|v| vec![v])),
+        Value::Sequence(items) => items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| element(item, &format!("[{i}]")))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some),
         Value::Mapping(map) => {
             // First try the standard RefValue wrapper: {value: [1.0, 2.0, ...]}
             if let Some(inner) = get_path(value, &["value"]) {
@@ -121,26 +152,51 @@ fn parse_numeric_sequence(value: &Value) -> Option<Vec<f64>> {
             }
             // Fallback: extract numeric values from named keys (e.g. Pydantic
             // dict serialisation of hdd_id: {hdd_accum: 13.5, cdd_accum: 13.5, ...}).
-            let mut out = Vec::with_capacity(map.len());
-            for (_key, val) in map {
-                match val {
-                    Value::Number(n) => out.push(n.as_f64()?),
-                    _ => return None,
-                }
-            }
-            if out.is_empty() {
-                None
-            } else {
-                Some(out)
-            }
+            let out = map
+                .iter()
+                .map(|(key, val)| {
+                    let key = match key {
+                        Value::String(k) => k.clone(),
+                        other => format!("{other:?}"),
+                    };
+                    element(val, &format!("`{key}`"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(if out.is_empty() { None } else { Some(out) })
         }
-        _ => None,
+        _ => Ok(None),
     }
 }
 
-fn read_numeric_sequence(root: &Value, path: &[&str]) -> Option<Vec<f64>> {
-    parse_numeric_sequence(get_path(root, path)?)
+/// Read a numeric list at `path` below `root`; see `parse_numeric_sequence`.
+/// `at` is the YAML path of `root`, used to name the list in an error.
+fn read_numeric_sequence(
+    root: &Value,
+    path: &[&str],
+    at: &str,
+) -> Result<Option<Vec<f64>>, String> {
+    let Some(value) = get_path(root, path) else {
+        return Ok(None);
+    };
+    parse_numeric_sequence(value).map_err(|e| format!("`{at}.{}`: {e}", path.join(".")))
 }
+
+/// First of several spellings of a numeric list that is present.
+fn read_first_numeric_sequence(
+    root: &Value,
+    paths: &[&[&str]],
+    at: &str,
+) -> Result<Option<Vec<f64>>, String> {
+    for path in paths {
+        if let Some(values) = read_numeric_sequence(root, path, at)? {
+            return Ok(Some(values));
+        }
+    }
+    Ok(None)
+}
+
+/// YAML path of the first site, the only one the bridge reads.
+const SITE_AT: &str = "sites[0]";
 
 fn read_sequence<'a>(root: &'a Value, path: &[&str]) -> Option<&'a [Value]> {
     let value = get_path(root, path)?;
@@ -618,12 +674,12 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
-fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     let nlayer = site.spartacus_layer.nlayer;
     let nspec = site.spartacus_layer.nspec;
 
     if let Some(height_values) =
-        read_numeric_sequence(site_root, &["properties", "vertical_layers", "height"])
+        read_numeric_sequence(site_root, &["properties", "vertical_layers", "height"], SITE_AT)?
     {
         // Both former branches (lengths match, or height non-empty) did the
         // same prefix-assign, so they collapse to one condition. Behaviour is
@@ -636,34 +692,28 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
         }
     }
 
-    if let Some(building_frac) = read_numeric_sequence(
-        site_root,
-        &["properties", "vertical_layers", "building_frac"],
-    ) {
+    if let Some(building_frac) = read_numeric_sequence(site_root, &["properties", "vertical_layers", "building_frac"], SITE_AT)? {
         assign_prefix(
             site.spartacus_layer.building_frac.as_mut_slice(),
             building_frac.as_slice(),
         );
     }
     if let Some(veg_frac) =
-        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_frac"])
+        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_frac"], SITE_AT)?
     {
         assign_prefix(
             site.spartacus_layer.veg_frac.as_mut_slice(),
             veg_frac.as_slice(),
         );
     }
-    if let Some(building_scale) = read_numeric_sequence(
-        site_root,
-        &["properties", "vertical_layers", "building_scale"],
-    ) {
+    if let Some(building_scale) = read_numeric_sequence(site_root, &["properties", "vertical_layers", "building_scale"], SITE_AT)? {
         assign_prefix(
             site.spartacus_layer.building_scale.as_mut_slice(),
             building_scale.as_slice(),
         );
     }
     if let Some(veg_scale) =
-        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_scale"])
+        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_scale"], SITE_AT)?
     {
         assign_prefix(
             site.spartacus_layer.veg_scale.as_mut_slice(),
@@ -671,7 +721,7 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
         );
     }
     if let Some(veg_ext) =
-        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_ext"])
+        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_ext"], SITE_AT)?
     {
         assign_prefix(
             site.spartacus_layer.veg_ext.as_mut_slice(),
@@ -748,6 +798,7 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
             }
         }
     }
+    Ok(())
 }
 
 fn apply_lumps_overrides(site: &mut SuewsSite, site_root: &Value) {
@@ -1552,7 +1603,12 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value, site_root: &Va
     }
 }
 
-fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {
+fn apply_ehc_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+    nlayer: usize,
+    ndepth: usize,
+) -> Result<(), String> {
     let layer_mat_len = nlayer * ndepth;
     let surf_len = if nlayer == 0 { 0 } else { NSURF };
     let surf_mat_len = surf_len * ndepth;
@@ -1589,21 +1645,20 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
             if let Some(k_vals) = read_numeric_sequence(
                 site_root,
                 &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"],
-            ) {
+                SITE_AT,
+            )? {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_surf[surface_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_numeric_sequence(
+            if let Some(cp_vals) = read_first_numeric_sequence(
                 site_root,
-                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
-            )
-            .or_else(|| {
-                read_numeric_sequence(
-                    site_root,
+                &[
+                    &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
                     &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"],
-                )
-            }) {
+                ],
+                SITE_AT,
+            )? {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_surf[surface_idx * ndepth + j] = v;
                 }
@@ -1611,22 +1666,24 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
             if let Some(dz_vals) = read_numeric_sequence(
                 site_root,
                 &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"],
-            ) {
+                SITE_AT,
+            )? {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_surf[surface_idx * ndepth + j] = v;
                 }
             }
 
             // tin_surf from initial_states.<surface>.tin, fallback to temperature[0].
-            if let Some(v) = read_numeric(site_root, &["initial_states", surface_name, "tin"])
-                .or_else(|| {
-                    read_numeric_sequence(
-                        site_root,
-                        &["initial_states", surface_name, "temperature"],
-                    )
-                    .and_then(|vals| vals.first().copied())
-                })
-            {
+            let tin = match read_numeric(site_root, &["initial_states", surface_name, "tin"]) {
+                Some(v) => Some(v),
+                None => read_numeric_sequence(
+                    site_root,
+                    &["initial_states", surface_name, "temperature"],
+                    SITE_AT,
+                )?
+                .and_then(|vals| vals.first().copied()),
+            };
+            if let Some(v) = tin {
                 site.ehc.tin_surf[surface_idx] = v;
             }
         }
@@ -1634,6 +1691,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
 
     if let Some(roofs) = read_sequence(site_root, &["properties", "vertical_layers", "roofs"]) {
         for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
+            let at = format!("{SITE_AT}.properties.vertical_layers.roofs[{layer_idx}]");
             if let Some(v) = read_numeric(roof_root, &["soilstorecap"]) {
                 site.ehc.soil_storecap_roof[layer_idx] = v;
             }
@@ -1644,19 +1702,21 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
                 site.ehc.wet_thresh_roof[layer_idx] = v;
             }
 
-            if let Some(k_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "k"]) {
+            if let Some(k_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "k"], &at)? {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_roof[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "rho_cp"])
-                .or_else(|| read_numeric_sequence(roof_root, &["thermal_layers", "cp"]))
-            {
+            if let Some(cp_vals) = read_first_numeric_sequence(
+                roof_root,
+                &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
+                &at,
+            )? {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_roof[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "dz"]) {
+            if let Some(dz_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "dz"], &at)? {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_roof[layer_idx * ndepth + j] = v;
                 }
@@ -1666,6 +1726,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
 
     if let Some(walls) = read_sequence(site_root, &["properties", "vertical_layers", "walls"]) {
         for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
+            let at = format!("{SITE_AT}.properties.vertical_layers.walls[{layer_idx}]");
             if let Some(v) = read_numeric(wall_root, &["soilstorecap"]) {
                 site.ehc.soil_storecap_wall[layer_idx] = v;
             }
@@ -1676,19 +1737,21 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
                 site.ehc.wet_thresh_wall[layer_idx] = v;
             }
 
-            if let Some(k_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "k"]) {
+            if let Some(k_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "k"], &at)? {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_wall[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "rho_cp"])
-                .or_else(|| read_numeric_sequence(wall_root, &["thermal_layers", "cp"]))
-            {
+            if let Some(cp_vals) = read_first_numeric_sequence(
+                wall_root,
+                &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
+                &at,
+            )? {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_wall[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "dz"]) {
+            if let Some(dz_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "dz"], &at)? {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_wall[layer_idx * ndepth + j] = v;
                 }
@@ -1698,10 +1761,13 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
 
     if let Some(roofs) = read_sequence(site_root, &["initial_states", "roofs"]) {
         for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
-            if let Some(v) = read_numeric(roof_root, &["tin"]).or_else(|| {
-                read_numeric_sequence(roof_root, &["temperature"])
-                    .and_then(|vals| vals.first().copied())
-            }) {
+            let at = format!("{SITE_AT}.initial_states.roofs[{layer_idx}]");
+            let tin = match read_numeric(roof_root, &["tin"]) {
+                Some(v) => Some(v),
+                None => read_numeric_sequence(roof_root, &["temperature"], &at)?
+                    .and_then(|vals| vals.first().copied()),
+            };
+            if let Some(v) = tin {
                 site.ehc.tin_roof[layer_idx] = v;
             }
         }
@@ -1709,14 +1775,18 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
 
     if let Some(walls) = read_sequence(site_root, &["initial_states", "walls"]) {
         for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
-            if let Some(v) = read_numeric(wall_root, &["tin"]).or_else(|| {
-                read_numeric_sequence(wall_root, &["temperature"])
-                    .and_then(|vals| vals.first().copied())
-            }) {
+            let at = format!("{SITE_AT}.initial_states.walls[{layer_idx}]");
+            let tin = match read_numeric(wall_root, &["tin"]) {
+                Some(v) => Some(v),
+                None => read_numeric_sequence(wall_root, &["temperature"], &at)?
+                    .and_then(|vals| vals.first().copied()),
+            };
+            if let Some(v) = tin {
                 site.ehc.tin_wall[layer_idx] = v;
             }
         }
     }
+    Ok(())
 }
 
 fn apply_building_archetype_overrides(
@@ -1866,15 +1936,15 @@ fn apply_site_overrides(
     apply_land_cover_overrides(site, site_root);
     apply_snow_overrides(site, site_root);
     apply_irrigation_overrides(site, site_root);
-    apply_vertical_layers_overrides(site, site_root);
+    apply_vertical_layers_overrides(site, site_root)?;
     apply_anthro_emis_overrides(site, site_root);
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
-    apply_ehc_overrides(site, site_root, nlayer, ndepth);
+    apply_ehc_overrides(site, site_root, nlayer, ndepth)?;
     Ok(())
 }
 
-fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
+fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<(), String> {
     // STEBBS initial temperatures are provided under properties.stebbs in YAML
     // but consumed from stebbs_state by the physics core. Match the legacy
     // Fortran initialisation where DeepSoilTemperature falls back to
@@ -1935,8 +2005,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
     }
 
     let Some(initial_states_root) = get_path(site_root, &["initial_states"]) else {
-        return;
+        return Ok(());
     };
+    let initial_at = format!("{SITE_AT}.initial_states");
 
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
         if let Some(v) = read_numeric(initial_states_root, &[surface_name, "soilstore"]) {
@@ -2014,7 +2085,7 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
         let ndepth = state.heat_state.ndepth;
         if ndepth > 0 {
             if let Some(temps) =
-                read_numeric_sequence(initial_states_root, &[surface_name, "temperature"])
+                read_numeric_sequence(initial_states_root, &[surface_name, "temperature"], &initial_at)?
             {
                 let start = surface_idx * ndepth;
                 if start + ndepth <= state.heat_state.temp_surf.len() {
@@ -2075,7 +2146,7 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
         state.phenology_state.len_day_id = v;
     }
 
-    if let Some(values) = read_numeric_sequence(initial_states_root, &["hdd_id"]) {
+    if let Some(values) = read_numeric_sequence(initial_states_root, &["hdd_id"], &initial_at)? {
         assign_prefix(&mut state.anthroemis_state.hdd_id, values.as_slice());
     }
     if let Some(v) = read_numeric(initial_states_root, &["qn_av"]) {
@@ -2110,7 +2181,8 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
                 }
             }
             if ndepth > 0 {
-                if let Some(temps) = read_numeric_sequence(roof_root, &["temperature"]) {
+                let at = format!("{initial_at}.roofs[{layer_idx}]");
+                if let Some(temps) = read_numeric_sequence(roof_root, &["temperature"], &at)? {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_roof.len() {
                         let copy_len = temps.len().min(ndepth);
@@ -2141,7 +2213,8 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
                 }
             }
             if ndepth > 0 {
-                if let Some(temps) = read_numeric_sequence(wall_root, &["temperature"]) {
+                let at = format!("{initial_at}.walls[{layer_idx}]");
+                if let Some(temps) = read_numeric_sequence(wall_root, &["temperature"], &at)? {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_wall.len() {
                         let copy_len = temps.len().min(ndepth);
@@ -2152,6 +2225,7 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             }
         }
     }
+    Ok(())
 }
 
 fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value) {
@@ -2309,7 +2383,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     // vectors like tsfc_surf have the correct length when values are assigned.
     resize_state_variable_arrays(&mut state, nlayer as usize, ndepth as usize);
 
-    apply_state_overrides(&mut state, site_root);
+    apply_state_overrides(&mut state, site_root)?;
 
     let forcing_timestamp_reference = read_forcing_timestamp_reference(root)?;
     config.forcing_timestamp_reference = match forcing_timestamp_reference {
@@ -3247,5 +3321,23 @@ mod tests {
         );
         assert!(err.contains("[1]"), "error should name the index: {err}");
         assert!(err.contains("null"), "error should say the element is null: {err}");
+    }
+
+    #[test]
+    fn parse_numeric_sequence_rejects_non_numeric_elements() {
+        let ok: Value = serde_yaml::from_str("{value: [1.0, 2.0]}").unwrap();
+        assert_eq!(parse_numeric_sequence(&ok), Ok(Some(vec![1.0, 2.0])));
+        let null: Value = serde_yaml::from_str("[1.0, null, 3.0]").unwrap();
+        let err = parse_numeric_sequence(&null).unwrap_err();
+        assert!(err.contains("[1]") && err.contains("null"), "{err}");
+        let text: Value = serde_yaml::from_str("[1.0, abc]").unwrap();
+        let err = parse_numeric_sequence(&text).unwrap_err();
+        assert!(err.contains("[1]") && err.contains("string"), "{err}");
+        let named: Value = serde_yaml::from_str("{hdd_accum: 1.0, cdd_accum: null}").unwrap();
+        let err = parse_numeric_sequence(&named).unwrap_err();
+        assert!(err.contains("`cdd_accum`"), "{err}");
+        // A value that is not a list at all is treated as not given.
+        let absent: Value = serde_yaml::from_str("null").unwrap();
+        assert_eq!(parse_numeric_sequence(&absent), Ok(None));
     }
 }

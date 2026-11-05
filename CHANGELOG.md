@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 5 Nov 2026
+
+- [maintenance] The data model now emits the run switches the Rust bridge used to fill in itself: `model.control.diag_qs` and `flag_test` (0), `model.physics.evapmethod` (2, Shuttleworth) and `vertical_layers.ndepth` (5, the kernel's fixed number of material layers per facet). All four are internal fields with documented defaults equal to what the bridge substituted, hidden from exported YAML, so no run output changes; the bridge's own fallbacks for them can now be removed (#1991)
+
 ### 3 Nov 2026
 
 - [feature][experimental] Declared and tested Python 3.15 support: added the 3.15 classifier, put cp315 into the CI candidate window (so PR api lanes now test the cp312 and cp315 bookends, the merge queue keeps the cp312 floor, and cp313 and cp314 run in the nightly and release matrix) and a `py315` dispatch toggle, required pyarrow>=26 on 3.15 (its first cp315 wheels), installed setuptools in `make dev` so sdist-only dependencies such as numexpr build on 3.15, adapted two tests to 3.15's `importlib.metadata` and `warnings.warn_explicit` behaviour, and ran the dependency audit on 3.15 as well as 3.13. The cp312-abi3 wheel is unchanged (#1988)

@@ -1119,6 +1119,21 @@ class VerticalLayers(BaseModel):
         ge=1,
         le=15,  # SPARTACUS-Surface supports at most 15 vertical layers.
     )
+    # The kernel fixes the number of material layers per facet at compile time
+    # (``ndepth`` in suews_ctrl_const.f95), matching the five-element lists of
+    # ThermalLayers. It is emitted so the Rust bridge, which sizes its
+    # per-facet arrays from this key, needs no fallback of its own (gh#1991).
+    ndepth: FlexibleRefValue(int) = Field(
+        default=5,
+        description=(
+            "Number of material layers in each roof, wall and ground facet. "
+            "Fixed at 5 by the model, matching the five values given in each "
+            "thermal_layers list."
+        ),
+        ge=5,
+        le=5,
+        json_schema_extra={"unit": "dimensionless", "internal_only": True},
+    )
     height: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 10.0, 20.0, 30.0],
         description=(

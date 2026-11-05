@@ -232,6 +232,14 @@ CONTAINS
                LAIMax => [evetrPrm%lai%lai_max, &
                           dectrPrm%lai%lai_max, &
                           grassPrm%lai%lai_max], &
+!FA incorporate new parameters
+               GDDBase => [evetrPrm%lai%gdd_base, &
+                           dectrPrm%lai%gdd_base, &
+                           grassPrm%lai%gdd_base], &
+               SDDBase => [evetrPrm%lai%sdd_base, &
+                           dectrPrm%lai%sdd_base, &
+                           grassPrm%lai%sdd_base], &   
+!FA     
                SoilStoreCap => [pavedPrm%soil%soil_store_capacity, &
                                 bldgPrm%soil%soil_store_capacity, &
                                 evetrPrm%soil%soil_store_capacity, &
@@ -341,7 +349,7 @@ CONTAINS
                         t_min_id_prev=Tmin_id, t_max_id_prev=Tmax_id, &
                         len_day_id_prev=lenDay_id, &
                         base_t_gdd=BaseT, base_t_sdd=BaseTe, &
-                        gdd_full=GDDFull, sdd_full=SDDFull, &
+                        gdd_base=GDDBase, sdd_base=SDDBase, &
                         lai_min=LAIMin, lai_max=LAIMax, &
                         lai_power=LAIPower, lai_type=LAIType, &
                         lai_id_prev=LAI_id_prev, &

@@ -18,12 +18,13 @@ module module_phys_lai
 
 contains
 
+!FA changing from full to base in here
     subroutine update_gddlai( &
       id, lai_calc_yes, & !input
       lat, lai_obs, &
       t_min_id_prev, t_max_id_prev, len_day_id_prev, &
       base_t_gdd, base_t_sdd, &
-      gdd_full, sdd_full, &
+      gdd_base, sdd_base, &
       lai_min, lai_max, lai_power, lai_type, &
       lai_id_prev, &
       gdd_id, sdd_id, & !inout
@@ -49,8 +50,10 @@ contains
       ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: base_t_gdd !Base temperature for growing degree days [degC]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: base_t_sdd !Base temperature for senescence degree days [degC]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: gdd_full !Growing degree days needed for full capacity [degC]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: sdd_full !Senescence degree days needed to initiate leaf off [degC]
+      !FA update to using new base parameters rather than full for gdd and sdd
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: gdd_base !Growing degree days needed to initiate leaf growth [degC]
+      real(kind(1D0)), dimension(nvegsurf), intent(in) :: sdd_base !Senescence degree days needed to initiate leaf off [degC]
+      !FA
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_min !Min LAI [m2 m-2]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_max !Max LAI [m2 m-2]
       real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: lai_power !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
@@ -142,8 +145,8 @@ contains
             id=id, &
             summer_reset_day=summer_day, &
             winter_reset_day=winter_day, &
-            gdd_base=gdd_full(iv), &
-            sdd_base=sdd_full(iv), &
+            gdd_base=gdd_base(iv), &
+            sdd_base=sdd_base(iv), &
             growth_state=growth_state(iv), &
             senescence_state=senescence_state(iv), &
             sdd=sdd_id(iv), &
@@ -167,8 +170,8 @@ contains
                delta_sdd=delta_sdd, &
                gdd_id=gdd_id(iv), &
                sdd_id=sdd_id(iv), &
-               gdd_base=gdd_full(iv), &
-               sdd_base=sdd_full(iv), &
+               gdd_base=gdd_base(iv), &
+               sdd_base=sdd_base(iv), &
                lai_type=lai_type(iv), &
                lai_power=lai_power(:, iv), &
                lai_max=lai_max(iv), &

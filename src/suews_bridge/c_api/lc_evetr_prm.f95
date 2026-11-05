@@ -16,7 +16,7 @@ public :: SUEWS_CAPI_OK
 public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
-integer(c_int), parameter, public :: SUEWS_CAPI_LC_EVETR_PRM_LEN = 57_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_LC_EVETR_PRM_LEN = 59_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_LC_EVETR_PRM_SCHEMA_VERSION = 1_c_int
 
 type :: ohm_coef_lc_shadow
@@ -61,6 +61,9 @@ type :: lai_prm_shadow
    real(c_double) :: lai_max = 0.0_c_double
    real(c_double), dimension(4) :: lai_power = 0.0_c_double
    integer(c_int) :: lai_type = 0_c_int
+!FA incorporate new LAI vars - default to zero for now to follow convention
+   real(c_double) :: gdd_base = 0.0_c_double
+   real(c_double) :: sdd_base = 0.0_c_double
 end type lai_prm_shadow
 
 type :: water_dist_prm_shadow
@@ -200,7 +203,10 @@ subroutine lc_evetr_prm_pack(state, flat, n_flat, err)
       flat(idx) = state%lai%lai_power(i); idx = idx + 1
    end do
    flat(idx) = real(state%lai%lai_type, c_double); idx = idx + 1
-
+!FA set new variables from suews state into their corresponding position in flattened rust buffer. no need to update other indexes here
+   flat(idx) = state%lai%gdd_base; idx = idx + 1
+   flat(idx) = state%lai%sdd_base; idx = idx + 1
+!FA
    flat(idx) = state%waterdist%to_paved; idx = idx + 1
    flat(idx) = state%waterdist%to_bldg; idx = idx + 1
    flat(idx) = state%waterdist%to_evetr; idx = idx + 1
@@ -280,6 +286,9 @@ subroutine lc_evetr_prm_unpack(flat, n_flat, state, err)
       idx = idx + 1_c_int
    end do
    state%lai%lai_type = int(nint(flat(idx))); idx = idx + 1_c_int
+!FA get new params from correct position in flattened rust buffer into SUEWS state
+   state%lai%gdd_base = flat(idx); idx = idx + 1_c_int
+   state%lai%sdd_base = flat(idx); idx = idx + 1_c_int
 
    state%waterdist%to_paved = flat(idx); idx = idx + 1_c_int
    state%waterdist%to_bldg = flat(idx); idx = idx + 1_c_int

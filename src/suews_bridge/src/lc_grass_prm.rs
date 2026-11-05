@@ -7,7 +7,8 @@ use crate::ohm_prm::{ohm_prm_field_names, OhmPrm};
 use crate::soil::{soil_prm_field_names, SoilPrm};
 use crate::water_dist::{water_dist_prm_field_names, WaterDistPrm};
 
-pub const LC_GRASS_PRM_FLAT_LEN: usize = 55;
+//fa update lengths to accomodate new values (and bump the schema version)
+pub const LC_GRASS_PRM_FLAT_LEN: usize = 57;
 pub const LC_GRASS_PRM_SCHEMA_VERSION: u32 = 1;
 
 pub type LcGrassPrmSchema = crate::codec::SimpleSchema;
@@ -67,8 +68,9 @@ impl LcGrassPrm {
             wet_threshold: flat[26],
             bioco2: BioCo2Prm::from_flat(&flat[27..35])?,
             max_conductance: flat[35],
-            lai: LaiPrm::from_flat(&flat[36..47])?,
-            waterdist: WaterDistPrm::from_flat(&flat[47..55])?,
+//fa update slices in buffer due to more lai parameters
+            lai: LaiPrm::from_flat(&flat[36..49])?,
+            waterdist: WaterDistPrm::from_flat(&flat[49..57])?,
         })
     }
 

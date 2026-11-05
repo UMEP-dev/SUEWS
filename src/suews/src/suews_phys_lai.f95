@@ -57,6 +57,7 @@ contains
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_min !Min LAI [m2 m-2]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_max !Max LAI [m2 m-2]
       real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: lai_power !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
+
       !! N.B. currently DecTr only, although input provided for all veg types
       integer, dimension(nvegsurf), intent(in) :: lai_type !LAI equation to use: original (0) or new (1)
 
@@ -75,6 +76,14 @@ contains
       integer, dimension(nvegsurf) :: senescence_state = 0 !State of senescence (0: not senescing, 1: senescing)
       
       integer :: iv
+      ! Enumeration parameters for the LAI type
+      integer, parameter :: LAI_ORIGINAL = 0
+      integer, parameter :: LAI_NEW = 1
+      integer, parameter :: LAI_INVERTED = 2
+
+      ! Enumeration parameters for senescence conditions
+      integer, parameter :: SEN_DAYLENGTH = 1
+      integer, parameter :: SEN_SDD = 2
 
       logical :: valid_observed_lai
 
@@ -84,13 +93,17 @@ contains
       integer :: winter_day
       integer :: senescence_mode
       logical :: southern_hemisphere
-      
+
       ! translate values of previous day to local variables
-      gdd_id_prev = gdd_id
-      sdd_id_prev = sdd_id
+      GDD_id_prev = GDD_id
+      SDD_id_prev = SDD_id
 
       if (lai_calc_yes == 0) then
-         call observed_lai(valid_observed_lai)
+         call observed_lai( &
+            lai_obs=lai_id_prev, &
+            lai_id_next=lai_id_next, &
+            valid=valid_observed_lai &
+         )
          if (.not. valid_observed_lai) return
       end if
       
@@ -187,10 +200,12 @@ contains
 
    CONTAINS
    
-      subroutine observed_lai(valid)
+      subroutine observed_lai(lai_obs, lai_id_next, valid)
 
          implicit none
 
+         real(kind(1D0)), dimension(nvegsurf), intent(in) :: lai_obs
+         real(kind(1D0)), dimension(nvegsurf), intent(out) :: lai_id_next
          logical, intent(out) :: valid
 
          valid = .false.
@@ -223,8 +238,7 @@ contains
 
          ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
          ! daily state without applying the GDD/SDD envelope.
-         LAI_id_next = LAI_obs
-
+         lai_id_next = lai_obs
          valid = .true.
 
       end subroutine observed_lai
@@ -519,6 +533,6 @@ contains
 
       end subroutine limit_lai
 
-   end subroutine update_GDDLAI
+   end subroutine update_gddlai
 
 end module module_phys_lai

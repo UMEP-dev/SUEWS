@@ -150,7 +150,7 @@ contains
             growth_state=growth_state(iv), &
             senescence_state=senescence_state(iv), &
             sdd=sdd_id(iv), &
-            gdd=gdd_id(iv), &
+            gdd=gdd_id(iv) &
          )
 
 

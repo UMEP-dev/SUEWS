@@ -150,6 +150,11 @@ fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
             if let Some(inner) = get_path(value, &["value"]) {
                 return parse_numeric_sequence(inner);
             }
+            // A RefValue whose value was None keeps only its `ref` after
+            // `exclude_none`: the list was not given.
+            if map.contains_key("ref") {
+                return Ok(None);
+            }
             // Fallback: extract numeric values from named keys (e.g. Pydantic
             // dict serialisation of hdd_id: {hdd_accum: 13.5, cdd_accum: 13.5, ...}).
             let out = map
@@ -195,8 +200,21 @@ fn read_first_numeric_sequence(
     Ok(None)
 }
 
-/// YAML path of the first site, the only one the bridge reads.
-const SITE_AT: &str = "sites[0]";
+/// How an error names the site the bridge is reading. supy passes one site
+/// per call, so its position here (always the first) says nothing about
+/// where it sits in the user's file; name it by `gridiv`, as the data
+/// model's own errors do (`sites[gridiv=1]`), and fall back to `sites[0]`.
+fn site_yaml_at(site_root: &Value) -> String {
+    let gridiv = get_path(site_root, &["gridiv"]).map(|v| match v {
+        Value::Mapping(_) => get_path(v, &["value"]).unwrap_or(v),
+        other => other,
+    });
+    match gridiv {
+        Some(Value::Number(n)) => format!("sites[gridiv={n}]"),
+        Some(Value::String(s)) => format!("sites[gridiv={s}]"),
+        _ => "sites[0]".to_string(),
+    }
+}
 
 fn read_sequence<'a>(root: &'a Value, path: &[&str]) -> Option<&'a [Value]> {
     let value = get_path(root, path)?;
@@ -675,13 +693,14 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
 }
 
 fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
+    let site_at = site_yaml_at(site_root);
     let nlayer = site.spartacus_layer.nlayer;
     let nspec = site.spartacus_layer.nspec;
 
     if let Some(height_values) = read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "height"],
-        SITE_AT,
+        &site_at,
     )? {
         // Both former branches (lengths match, or height non-empty) did the
         // same prefix-assign, so they collapse to one condition. Behaviour is
@@ -697,7 +716,7 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> R
     if let Some(building_frac) = read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "building_frac"],
-        SITE_AT,
+        &site_at,
     )? {
         assign_prefix(
             site.spartacus_layer.building_frac.as_mut_slice(),
@@ -707,7 +726,7 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> R
     if let Some(veg_frac) = read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "veg_frac"],
-        SITE_AT,
+        &site_at,
     )? {
         assign_prefix(
             site.spartacus_layer.veg_frac.as_mut_slice(),
@@ -717,7 +736,7 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> R
     if let Some(building_scale) = read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "building_scale"],
-        SITE_AT,
+        &site_at,
     )? {
         assign_prefix(
             site.spartacus_layer.building_scale.as_mut_slice(),
@@ -727,7 +746,7 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> R
     if let Some(veg_scale) = read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "veg_scale"],
-        SITE_AT,
+        &site_at,
     )? {
         assign_prefix(
             site.spartacus_layer.veg_scale.as_mut_slice(),
@@ -737,7 +756,7 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> R
     if let Some(veg_ext) = read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "veg_ext"],
-        SITE_AT,
+        &site_at,
     )? {
         assign_prefix(
             site.spartacus_layer.veg_ext.as_mut_slice(),
@@ -1631,6 +1650,7 @@ fn apply_ehc_overrides(
 
     site.ehc.nlayer = nlayer;
     site.ehc.ndepth = ndepth;
+    let site_at = site_yaml_at(site_root);
 
     // Roof and wall arrays follow SPARTACUS vertical layers; standard
     // surface arrays follow SUEWS surface classes.
@@ -1661,7 +1681,7 @@ fn apply_ehc_overrides(
             if let Some(k_vals) = read_numeric_sequence(
                 site_root,
                 &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"],
-                SITE_AT,
+                &site_at,
             )? {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_surf[surface_idx * ndepth + j] = v;
@@ -1673,7 +1693,7 @@ fn apply_ehc_overrides(
                     &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
                     &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"],
                 ],
-                SITE_AT,
+                &site_at,
             )? {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_surf[surface_idx * ndepth + j] = v;
@@ -1682,7 +1702,7 @@ fn apply_ehc_overrides(
             if let Some(dz_vals) = read_numeric_sequence(
                 site_root,
                 &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"],
-                SITE_AT,
+                &site_at,
             )? {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_surf[surface_idx * ndepth + j] = v;
@@ -1695,7 +1715,7 @@ fn apply_ehc_overrides(
                 None => read_numeric_sequence(
                     site_root,
                     &["initial_states", surface_name, "temperature"],
-                    SITE_AT,
+                    &site_at,
                 )?
                 .and_then(|vals| vals.first().copied()),
             };
@@ -1707,7 +1727,7 @@ fn apply_ehc_overrides(
 
     if let Some(roofs) = read_sequence(site_root, &["properties", "vertical_layers", "roofs"]) {
         for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
-            let at = format!("{SITE_AT}.properties.vertical_layers.roofs[{layer_idx}]");
+            let at = format!("{site_at}.properties.vertical_layers.roofs[{layer_idx}]");
             if let Some(v) = read_numeric(roof_root, &["soilstorecap"]) {
                 site.ehc.soil_storecap_roof[layer_idx] = v;
             }
@@ -1743,7 +1763,7 @@ fn apply_ehc_overrides(
 
     if let Some(walls) = read_sequence(site_root, &["properties", "vertical_layers", "walls"]) {
         for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
-            let at = format!("{SITE_AT}.properties.vertical_layers.walls[{layer_idx}]");
+            let at = format!("{site_at}.properties.vertical_layers.walls[{layer_idx}]");
             if let Some(v) = read_numeric(wall_root, &["soilstorecap"]) {
                 site.ehc.soil_storecap_wall[layer_idx] = v;
             }
@@ -1779,7 +1799,7 @@ fn apply_ehc_overrides(
 
     if let Some(roofs) = read_sequence(site_root, &["initial_states", "roofs"]) {
         for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
-            let at = format!("{SITE_AT}.initial_states.roofs[{layer_idx}]");
+            let at = format!("{site_at}.initial_states.roofs[{layer_idx}]");
             let tin = match read_numeric(roof_root, &["tin"]) {
                 Some(v) => Some(v),
                 None => read_numeric_sequence(roof_root, &["temperature"], &at)?
@@ -1793,7 +1813,7 @@ fn apply_ehc_overrides(
 
     if let Some(walls) = read_sequence(site_root, &["initial_states", "walls"]) {
         for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
-            let at = format!("{SITE_AT}.initial_states.walls[{layer_idx}]");
+            let at = format!("{site_at}.initial_states.walls[{layer_idx}]");
             let tin = match read_numeric(wall_root, &["tin"]) {
                 Some(v) => Some(v),
                 None => read_numeric_sequence(wall_root, &["temperature"], &at)?
@@ -2025,7 +2045,7 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<()
     let Some(initial_states_root) = get_path(site_root, &["initial_states"]) else {
         return Ok(());
     };
-    let initial_at = format!("{SITE_AT}.initial_states");
+    let initial_at = format!("{}.initial_states", site_yaml_at(site_root));
 
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
         if let Some(v) = read_numeric(initial_states_root, &[surface_name, "soilstore"]) {
@@ -3336,7 +3356,7 @@ mod tests {
         let err = load_run_config_from_value(&mut root)
             .expect_err("a null list element must be rejected");
         assert!(
-            err.contains("sites[0].properties.vertical_layers.roofs[0].thermal_layers.dz"),
+            err.contains("sites[gridiv=1].properties.vertical_layers.roofs[0].thermal_layers.dz"),
             "error should name the list: {err}"
         );
         assert!(err.contains("[1]"), "error should name the index: {err}");
@@ -3362,5 +3382,21 @@ mod tests {
         // A value that is not a list at all is treated as not given.
         let absent: Value = serde_yaml::from_str("null").unwrap();
         assert_eq!(parse_numeric_sequence(&absent), Ok(None));
+    }
+
+    #[test]
+    fn list_errors_name_the_site_by_gridiv() {
+        let with_gridiv: Value = serde_yaml::from_str("{gridiv: {value: 7}}").unwrap();
+        assert_eq!(site_yaml_at(&with_gridiv), "sites[gridiv=7]");
+        let bare: Value = serde_yaml::from_str("{gridiv: 12}").unwrap();
+        assert_eq!(site_yaml_at(&bare), "sites[gridiv=12]");
+        let none: Value = serde_yaml::from_str("{name: x}").unwrap();
+        assert_eq!(site_yaml_at(&none), "sites[0]");
+    }
+
+    #[test]
+    fn ref_only_mapping_is_a_list_not_given() {
+        let ref_only: Value = serde_yaml::from_str("{ref: {desc: from a paper}}").unwrap();
+        assert_eq!(parse_numeric_sequence(&ref_only), Ok(None));
     }
 }

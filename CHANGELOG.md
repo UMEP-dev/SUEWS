@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 5 Nov 2026
 
-- [bugfix] Rust bridge: a numeric YAML list with an element that is not a number (a `null`, which the data model allows in the thermal-layer `dz`, `k` and `rho_cp` lists and which supy writes for a NaN, or a string) is now an error naming the list's YAML path and the element's index, for example `sites[0].properties.vertical_layers.roofs[0].thermal_layers.dz: element [1] is null`. Previously the whole list was silently ignored, so every slot it should have filled kept a zero default
+- [bugfix] Rust bridge: a numeric YAML list with an element that is not a number (a `null`, which the data model allows in the thermal-layer `dz`, `k` and `rho_cp` lists and which supy writes for a NaN, or a string) is now an error naming the list's YAML path and the element's index, for example `sites[gridiv=1].properties.vertical_layers.roofs[0].thermal_layers.dz: element [1] is null` (the site is named by its `gridiv`). Previously the whole list was silently ignored, so every slot it should have filled kept a zero default
 
 ### 3 Nov 2026
 

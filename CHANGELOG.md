@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 5 Nov 2026
+
+- [bugfix] Rust bridge: the water-body flow change is now read from `properties.land_cover.water.flowchange`, where supy writes it, into the site-level flow change that the kernel's water balance uses. The bridge filled that term from a flat `properties.flowchange` key that no schema writes, so any non-zero flow change reached the water balance as zero; the flat key is no longer read. When the water block or its `flowchange` is missing or null, the run now stops with an error naming it instead of using zero
+
 ### 3 Nov 2026
 
 - [feature][experimental] Declared and tested Python 3.15 support: added the 3.15 classifier, put cp315 into the CI candidate window (so PR api lanes now test the cp312 and cp315 bookends, the merge queue keeps the cp312 floor, and cp313 and cp314 run in the nightly and release matrix) and a `py315` dispatch toggle, required pyarrow>=26 on 3.15 (its first cp315 wheels), installed setuptools in `make dev` so sdist-only dependencies such as numexpr build on 3.15, adapted two tests to 3.15's `importlib.metadata` and `warnings.warn_explicit` behaviour, and ran the dependency audit on 3.15 as well as 3.13. The cp312-abi3 wheel is unchanged (#1988)

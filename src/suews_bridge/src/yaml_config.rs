@@ -321,6 +321,11 @@ fn ensure_len_with_default(values: &mut Vec<f64>, len: usize, default_value: f64
     }
 }
 
+/// Marks a per-layer value the YAML did not give and the kernel does not
+/// read under the selected options (roof and wall emissivity without
+/// SPARTACUS). It is "absent", not a substitute: any use would show as NaN.
+const LAYER_VALUE_ABSENT: f64 = f64::NAN;
+
 fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     let nspec = if site.spartacus_layer.nspec > 0 {
         site.spartacus_layer.nspec
@@ -334,10 +339,13 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
 
     site.spartacus_layer.nlayer = nlayer;
     site.spartacus_layer.nspec = nspec;
+    // building_frac, emis_roof and emis_wall are not padded with any value:
+    // `apply_vertical_layers_overrides` fills them from the YAML and fails
+    // when the kernel needs one the YAML does not give.
     ensure_len_with_default(
         &mut site.spartacus_layer.building_frac,
         nlayer,
-        site.lc_bldg.sfr,
+        LAYER_VALUE_ABSENT,
     );
     ensure_len_with_default(&mut site.spartacus_layer.building_scale, nlayer, 10.0);
     ensure_len_with_default(&mut site.spartacus_layer.veg_frac, nlayer, 0.0);
@@ -347,13 +355,13 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     ensure_len_with_default(
         &mut site.spartacus_layer.emis_roof,
         nlayer,
-        site.lc_bldg.emis,
+        LAYER_VALUE_ABSENT,
     );
     ensure_len_with_default(&mut site.spartacus_layer.alb_wall, nlayer, 0.15);
     ensure_len_with_default(
         &mut site.spartacus_layer.emis_wall,
         nlayer,
-        site.lc_bldg.emis,
+        LAYER_VALUE_ABSENT,
     );
 
     let matrix_len = nlayer * nspec;
@@ -618,7 +626,16 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
-fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
+/// Read `properties.vertical_layers`. The cumulative building fraction per
+/// layer is required whenever there are layers (the kernel derives roof and
+/// wall fractions from it), and each roof and wall layer's `emis` is
+/// required when SPARTACUS is on; a missing or short value is an error naming
+/// the YAML path, never padded.
+fn apply_vertical_layers_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+    spartacus_on: bool,
+) -> Result<(), String> {
     let nlayer = site.spartacus_layer.nlayer;
     let nspec = site.spartacus_layer.nspec;
 
@@ -636,14 +653,31 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
         }
     }
 
-    if let Some(building_frac) = read_numeric_sequence(
+    let building_frac_at = "sites[0].properties.vertical_layers.building_frac";
+    match read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "building_frac"],
     ) {
-        assign_prefix(
-            site.spartacus_layer.building_frac.as_mut_slice(),
-            building_frac.as_slice(),
-        );
+        Some(building_frac) if building_frac.len() >= nlayer => {
+            assign_prefix(
+                site.spartacus_layer.building_frac.as_mut_slice(),
+                building_frac.as_slice(),
+            );
+        }
+        Some(building_frac) => {
+            return Err(format!(
+                "`{building_frac_at}` has {} values, but nlayer = {nlayer} needs {nlayer} \
+                 (cumulative building fraction per layer)",
+                building_frac.len()
+            ));
+        }
+        None if nlayer > 0 => {
+            return Err(format!(
+                "`{building_frac_at}` is missing or not a list of numbers, but nlayer = {nlayer} \
+                 needs {nlayer} values (cumulative building fraction per layer)"
+            ));
+        }
+        None => {}
     }
     if let Some(veg_frac) =
         read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_frac"])
@@ -748,6 +782,22 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
             }
         }
     }
+
+    if spartacus_on {
+        for (facet, values) in [
+            ("roofs", &site.spartacus_layer.emis_roof),
+            ("walls", &site.spartacus_layer.emis_wall),
+        ] {
+            if let Some(layer_idx) = values.iter().position(|v| v.is_nan()) {
+                return Err(format!(
+                    "`sites[0].properties.vertical_layers.{facet}[{layer_idx}].emis` is missing; \
+                     SPARTACUS (net_radiation > 1000) needs an emissivity for each of the \
+                     nlayer = {nlayer} {facet}"
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn apply_lumps_overrides(site: &mut SuewsSite, site_root: &Value) {
@@ -1849,6 +1899,7 @@ fn apply_site_overrides(
     site_root: &Value,
     nlayer: usize,
     ndepth: usize,
+    spartacus_on: bool,
 ) -> Result<(), String> {
     apply_conductance_overrides(site, root, site_root);
     apply_lumps_overrides(site, site_root);
@@ -1866,7 +1917,7 @@ fn apply_site_overrides(
     apply_land_cover_overrides(site, site_root);
     apply_snow_overrides(site, site_root);
     apply_irrigation_overrides(site, site_root);
-    apply_vertical_layers_overrides(site, site_root);
+    apply_vertical_layers_overrides(site, site_root, spartacus_on)?;
     apply_anthro_emis_overrides(site, site_root);
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
@@ -2297,7 +2348,15 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
-    apply_site_overrides(&mut site, root, site_root, nlayer as usize, ndepth as usize)?;
+    let spartacus_on = config.net_radiation_method > 1000;
+    apply_site_overrides(
+        &mut site,
+        root,
+        site_root,
+        nlayer as usize,
+        ndepth as usize,
+        spartacus_on,
+    )?;
     apply_site_scalar_overrides(&mut site_scalars, site_root);
 
     if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {

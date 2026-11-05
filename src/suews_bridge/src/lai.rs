@@ -2,8 +2,8 @@ use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 
-pub const LAI_PRM_FLAT_LEN: usize = 11;
-pub const LAI_PRM_SCHEMA_VERSION: u32 = 1;
+pub const LAI_PRM_FLAT_LEN: usize = 13;
+pub const LAI_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type LaiPrmSchema = crate::codec::SimpleSchema;
 
@@ -19,6 +19,9 @@ pub struct LaiPrm {
     pub lai_max: f64,
     pub lai_power: [f64; 4],
     pub lai_type: i32,
+//fa incorporate new parameters
+    pub gdd_base: f64,
+    pub sdd_base: f64,
 }
 
 impl Default for LaiPrm {
@@ -32,6 +35,8 @@ impl Default for LaiPrm {
             lai_max: 0.0,
             lai_power: [0.0; 4],
             lai_type: 0,
+            gdd_base: 0.0,
+            sdd_base: 0.0,
         }
     }
 }
@@ -65,6 +70,8 @@ impl LaiPrm {
             lai_max: flat[5],
             lai_power: [flat[6], flat[7], flat[8], flat[9]],
             lai_type: decode_int(flat[10])?,
+            gdd_base: flat[11],
+            sdd_base: flat[12],
         })
     }
 
@@ -81,6 +88,8 @@ impl LaiPrm {
             self.lai_power[2],
             self.lai_power[3],
             self.lai_type as f64,
+            self.gdd_base,
+            self.sdd_base,
         ]
     }
 }
@@ -117,6 +126,9 @@ pub fn lai_prm_field_names() -> Vec<String> {
         "laipower_3".to_string(),
         "laipower_4".to_string(),
         "laitype".to_string(),
+//fa TODO: where do these names come from?? - seem to be an older format name?
+        "gdd_base".to_string(),
+        "sdd_base".to_string(),
     ]
 }
 

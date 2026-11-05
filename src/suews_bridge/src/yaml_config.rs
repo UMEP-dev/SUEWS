@@ -3215,4 +3215,60 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
     }
+
+    fn stebbs_fixture_with_vertical_layers(edit: impl FnOnce(&mut Value)) -> Result<RunConfig, String> {
+        // SPARTACUS on (net_radiation 1003), nlayer 3.
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let layers = get_path_mut(site, &["properties", "vertical_layers"])
+            .expect("fixture should define vertical_layers");
+        edit(layers);
+        load_run_config_from_value(&mut root)
+    }
+
+    fn remove_key(map: &mut Value, key: &str) {
+        let Value::Mapping(m) = map else {
+            panic!("expected a mapping");
+        };
+        m.remove(Value::String(key.to_string()));
+    }
+
+    #[test]
+    fn missing_layer_building_frac_is_an_error_naming_path_and_length() {
+        let err = stebbs_fixture_with_vertical_layers(|layers| remove_key(layers, "building_frac"))
+            .expect_err("a missing building_frac must be rejected, not padded");
+        assert!(
+            err.contains("sites[0].properties.vertical_layers.building_frac"),
+            "error should name the list: {err}"
+        );
+        assert!(err.contains('3'), "error should give the expected length: {err}");
+    }
+
+    #[test]
+    fn short_layer_building_frac_is_an_error() {
+        let err = stebbs_fixture_with_vertical_layers(|layers| {
+            let bf = get_path_mut(layers, &["building_frac", "value"]).unwrap();
+            *bf = serde_yaml::from_str("[0.351]").unwrap();
+        })
+        .expect_err("a building_frac shorter than nlayer must be rejected, not padded");
+        assert!(err.contains("vertical_layers.building_frac"), "{err}");
+    }
+
+    #[test]
+    fn missing_layer_emissivity_is_an_error_when_spartacus_is_on() {
+        let err = stebbs_fixture_with_vertical_layers(|layers| {
+            let roofs = get_path_mut(layers, &["roofs"]).unwrap();
+            let Value::Sequence(items) = roofs else {
+                panic!("roofs should be a list");
+            };
+            remove_key(&mut items[1], "emis");
+        })
+        .expect_err("a missing roof emissivity must be rejected under SPARTACUS");
+        assert!(
+            err.contains("sites[0].properties.vertical_layers.roofs[1].emis"),
+            "error should name the layer: {err}"
+        );
+    }
 }

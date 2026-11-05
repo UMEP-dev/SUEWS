@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 5 Nov 2026
 
-- [bugfix] Rust bridge: the water-body flow change is now read from `properties.land_cover.water.flowchange`, where supy writes it, into the site-level flow change that the kernel's water balance uses. The bridge filled that term from a flat `properties.flowchange` key that no schema writes, so any non-zero flow change reached the water balance as zero; the flat key is no longer read. When the water block or its `flowchange` is missing or null, the run now stops with an error naming it instead of using zero
+- [bugfix] Rust bridge: the water-body flow change is now read from `properties.land_cover.water.flowchange`, where supy writes it, into the site-level flow change that the kernel's water balance uses. The bridge filled that term from a flat `properties.flowchange` key that no schema writes, so any non-zero flow change reached the water balance as zero; the flat key is no longer read. When the water block or its `flowchange` is missing or null, the run now stops with an error naming it instead of using zero (#1991)
 
 ### 3 Nov 2026
 

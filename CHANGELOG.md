@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 5 Nov 2026
 
-- [bugfix] Rust bridge: a missing or short `vertical_layers.building_frac`, or a roof or wall layer without `emis` when SPARTACUS is on (`net_radiation` above 1000), is now an error naming the YAML path and the length `nlayer` needs. The bridge used to pad the gap with the building land-cover fraction and emissivity, and because it padded before land cover was read, the kernel actually received zeros. supy runs are unaffected (the data model always supplies full-length layer lists); the change matters for hand-written YAML run with `suews-engine`. Without SPARTACUS a missing layer emissivity is carried as absent (NaN), since the kernel does not read it
+- [bugfix] Rust bridge: a missing or short `vertical_layers.building_frac`, or a roof or wall layer without `emis` when SPARTACUS is on (`net_radiation` above 1000), is now an error naming the YAML path and the length `nlayer` needs. The bridge used to pad the gap with the building land-cover fraction and emissivity, and because it padded before land cover was read, the kernel actually received zeros. supy runs are unaffected (the data model always supplies full-length layer lists); the change matters for hand-written YAML run with `suews-engine`. Without SPARTACUS a missing layer emissivity is carried as absent (NaN), since the kernel does not read it (#1991)
 
 ### 3 Nov 2026
 

@@ -678,9 +678,11 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> R
     let nlayer = site.spartacus_layer.nlayer;
     let nspec = site.spartacus_layer.nspec;
 
-    if let Some(height_values) =
-        read_numeric_sequence(site_root, &["properties", "vertical_layers", "height"], SITE_AT)?
-    {
+    if let Some(height_values) = read_numeric_sequence(
+        site_root,
+        &["properties", "vertical_layers", "height"],
+        SITE_AT,
+    )? {
         // Both former branches (lengths match, or height non-empty) did the
         // same prefix-assign, so they collapse to one condition. Behaviour is
         // unchanged; the duplicated else-if may have been intended to differ.
@@ -692,37 +694,51 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) -> R
         }
     }
 
-    if let Some(building_frac) = read_numeric_sequence(site_root, &["properties", "vertical_layers", "building_frac"], SITE_AT)? {
+    if let Some(building_frac) = read_numeric_sequence(
+        site_root,
+        &["properties", "vertical_layers", "building_frac"],
+        SITE_AT,
+    )? {
         assign_prefix(
             site.spartacus_layer.building_frac.as_mut_slice(),
             building_frac.as_slice(),
         );
     }
-    if let Some(veg_frac) =
-        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_frac"], SITE_AT)?
-    {
+    if let Some(veg_frac) = read_numeric_sequence(
+        site_root,
+        &["properties", "vertical_layers", "veg_frac"],
+        SITE_AT,
+    )? {
         assign_prefix(
             site.spartacus_layer.veg_frac.as_mut_slice(),
             veg_frac.as_slice(),
         );
     }
-    if let Some(building_scale) = read_numeric_sequence(site_root, &["properties", "vertical_layers", "building_scale"], SITE_AT)? {
+    if let Some(building_scale) = read_numeric_sequence(
+        site_root,
+        &["properties", "vertical_layers", "building_scale"],
+        SITE_AT,
+    )? {
         assign_prefix(
             site.spartacus_layer.building_scale.as_mut_slice(),
             building_scale.as_slice(),
         );
     }
-    if let Some(veg_scale) =
-        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_scale"], SITE_AT)?
-    {
+    if let Some(veg_scale) = read_numeric_sequence(
+        site_root,
+        &["properties", "vertical_layers", "veg_scale"],
+        SITE_AT,
+    )? {
         assign_prefix(
             site.spartacus_layer.veg_scale.as_mut_slice(),
             veg_scale.as_slice(),
         );
     }
-    if let Some(veg_ext) =
-        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_ext"], SITE_AT)?
-    {
+    if let Some(veg_ext) = read_numeric_sequence(
+        site_root,
+        &["properties", "vertical_layers", "veg_ext"],
+        SITE_AT,
+    )? {
         assign_prefix(
             site.spartacus_layer.veg_ext.as_mut_slice(),
             veg_ext.as_slice(),
@@ -1716,7 +1732,8 @@ fn apply_ehc_overrides(
                     site.ehc.cp_roof[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "dz"], &at)? {
+            if let Some(dz_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "dz"], &at)?
+            {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_roof[layer_idx * ndepth + j] = v;
                 }
@@ -1751,7 +1768,8 @@ fn apply_ehc_overrides(
                     site.ehc.cp_wall[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "dz"], &at)? {
+            if let Some(dz_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "dz"], &at)?
+            {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_wall[layer_idx * ndepth + j] = v;
                 }
@@ -2084,9 +2102,11 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<()
 
         let ndepth = state.heat_state.ndepth;
         if ndepth > 0 {
-            if let Some(temps) =
-                read_numeric_sequence(initial_states_root, &[surface_name, "temperature"], &initial_at)?
-            {
+            if let Some(temps) = read_numeric_sequence(
+                initial_states_root,
+                &[surface_name, "temperature"],
+                &initial_at,
+            )? {
                 let start = surface_idx * ndepth;
                 if start + ndepth <= state.heat_state.temp_surf.len() {
                     let copy_len = temps.len().min(ndepth);
@@ -3320,7 +3340,10 @@ mod tests {
             "error should name the list: {err}"
         );
         assert!(err.contains("[1]"), "error should name the index: {err}");
-        assert!(err.contains("null"), "error should say the element is null: {err}");
+        assert!(
+            err.contains("null"),
+            "error should say the element is null: {err}"
+        );
     }
 
     #[test]

@@ -11,6 +11,7 @@ module module_phys_lai
       ! Enumeration parameters for the LAI type
       integer, parameter :: LAI_ORIGINAL = 0
       integer, parameter :: LAI_NEW = 1
+      integer, parameter :: LAI_INVERTED = 2
 
       ! Enumeration parameters for senescence conditions
       integer, parameter :: SEN_DAYLENGTH = 1
@@ -76,14 +77,6 @@ contains
       integer, dimension(nvegsurf) :: senescence_state = 0 !State of senescence (0: not senescing, 1: senescing)
       
       integer :: iv
-      ! Enumeration parameters for the LAI type
-      integer, parameter :: LAI_ORIGINAL = 0
-      integer, parameter :: LAI_NEW = 1
-      integer, parameter :: LAI_INVERTED = 2
-
-      ! Enumeration parameters for senescence conditions
-      integer, parameter :: SEN_DAYLENGTH = 1
-      integer, parameter :: SEN_SDD = 2
 
       logical :: valid_observed_lai
 

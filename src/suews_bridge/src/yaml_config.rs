@@ -2154,6 +2154,22 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
     }
 }
 
+/// How an error names the site the bridge is reading. supy passes one site
+/// per call, so its position here (always the first) says nothing about
+/// where it sits in the user's file; name it by `gridiv`, as the data
+/// model's own errors do (`sites[gridiv=1]`), and fall back to `sites[0]`.
+fn site_yaml_at(site_root: &Value) -> String {
+    let gridiv = get_path(site_root, &["gridiv"]).map(|v| match v {
+        Value::Mapping(_) => get_path(v, &["value"]).unwrap_or(v),
+        other => other,
+    });
+    match gridiv {
+        Some(Value::Number(n)) => format!("sites[gridiv={n}]"),
+        Some(Value::String(s)) => format!("sites[gridiv={s}]"),
+        _ => "sites[0]".to_string(),
+    }
+}
+
 /// Whether the kernel uses the CO2 point source under this `emissionsmethod`
 /// (`suews_phys_anthro.f95`: methods 1-6 in each family 0-4, i.e. 1-6,
 /// 11-16, ..., 41-46).
@@ -2219,9 +2235,10 @@ fn apply_site_scalar_overrides(
         Some(v) => site_scalars.co2_point_source = v,
         None if emissions_method_uses_co2_point_source(emissions_method) => {
             return Err(format!(
-                "`sites[0].properties.anthropogenic_emissions.co2.emission_co2_point_source` \
+                "`{}.properties.anthropogenic_emissions.co2.emission_co2_point_source` \
                  is missing or null, but emissionsmethod {emissions_method} uses the CO2 point \
-                 source; give it in kg C day-1 (0 for no point source)"
+                 source; give it in kg C day-1 (0 for no point source)",
+                site_yaml_at(site_root)
             ));
         }
         None => {}
@@ -3305,7 +3322,9 @@ mod tests {
         let err = run_config_without_co2_point_source(2)
             .expect_err("a missing point source must be rejected under emissionsmethod 2");
         assert!(
-            err.contains("anthropogenic_emissions.co2.emission_co2_point_source"),
+            err.contains(
+                "sites[gridiv=1].properties.anthropogenic_emissions.co2.emission_co2_point_source"
+            ),
             "error should name the key: {err}"
         );
     }

@@ -24,11 +24,13 @@ contains
       id, lai_calc_yes, & !input
       lat, lai_obs, &
       t_min_id_prev, t_max_id_prev, len_day_id_prev, &
+      theta_r, smd, & ! 28/07/26 MP: added soil moisture limits to LAI growth
       base_t_gdd, base_t_sdd, &
       gdd_base, sdd_base, &
       lai_min, lai_max, lai_power, lai_type, &
       lai_id_prev, &
       gdd_id, sdd_id, & !inout
+      stress_state, stress_days, &
       lai_id_next) !output
       
       implicit none
@@ -46,6 +48,12 @@ contains
       real(kind(1D0)), intent(in) :: t_min_id_prev
       real(kind(1D0)), intent(in) :: t_max_id_prev
       real(kind(1D0)), intent(in) :: len_day_id_prev
+
+      real(kind(1D0)), intent(in) :: theta_r
+      real(kind(1D0)), intent(in) :: smd
+
+      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_state
+      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_days
 
       ! --- Vegetation phenology ---------------------------------------------------------------------
       ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
@@ -78,14 +86,22 @@ contains
       
       integer :: iv
 
-      logical :: valid_observed_lai
-
       ! Hemisphere specific parameters for LAI calculations
       integer :: sdd_reset_day
       integer :: summer_day
       integer :: winter_day
       integer :: senescence_mode
       logical :: southern_hemisphere
+
+      real(kind(1D0)) :: soilmoisture_stress_limit = 0.05
+      real(kind(1D0)) :: LAI_loss_rate_perc = 0.005D0   ! percentage per day⁻¹
+      real(kind(1D0)) :: wilting_point
+
+      logical :: stressed
+      
+      logical :: valid_observed_lai
+
+      wilting_point = theta_r - (theta_r * soilmoisture_stress_limit)
 
       ! translate values of previous day to local variables
       GDD_id_prev = GDD_id
@@ -100,6 +116,8 @@ contains
          if (.not. valid_observed_lai) return
       end if
       
+      stressed = (smd > wilting_point)
+
       ! Determine N/S hemisphere parameters
       ! TODO: Move outside timestep loop as timestep independent
       if (lat >= 0) then
@@ -120,6 +138,21 @@ contains
 
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
+
+         stress_state(iv) = determine_stress_state_surf( &
+            stressed=stressed, &
+            stress_days=stress_days(iv) &
+         )
+
+         call lai_stress_response_surf( &
+            lai_id_prev=lai_id_prev(iv), &
+            laimin=laimin(iv), &
+            laimax=laimax(iv), &
+            LAI_loss_rate_perc=LAI_loss_rate_perc, &
+            stress_state=stress_state(iv), &
+            stress_days=stress_days(iv) &
+
+         )
 
          call calc_degree_days( &
             growth_state=growth_state(iv), &
@@ -501,23 +534,84 @@ contains
 
       end function calculate_sdd_type1
 
-      subroutine limit_lai(lai_id_next, lai_max, lai_min)
+
+      function determine_stress_state_surf( &
+         stressed, stress_days &
+         ) result(stress_state)
+         
+         implicit none
+
+         logical, intent(in) :: stressed ! Flag indicating if soil under stress
+         real(kind(1D0)), intent(in) :: stress_days
+         real(kind(1D0)) :: stress_state
+
+         if (stressed) then 
+            stress_state = 1 ! Stressed, losing LAI
+         else
+            if (stress_days > 0) then
+               stress_state = 2 ! No longer stressed, recovering LAI
+            else
+               stress_state = 0 ! No stress or required recovery
+            end if
+         end if
+
+      end function determine_stress_state_surf
+
+      subroutine lai_stress_response_surf( &
+         laimin, laimax, lai_loss_rate_perc, &
+         lai_id_prev, stress_state, stress_days &
+         )
+         
+         implicit none
+         
+         integer :: delta_stress_days
+
+         real(kind(1D0)), intent(in) :: laimin
+         real(kind(1D0)), intent(in) :: laimax
+         real(kind(1D0)), intent(in) :: lai_loss_rate_perc
+         
+         real(kind(1D0)), intent(inout) :: lai_id_prev
+         real(kind(1D0)), intent(inout) :: stress_state
+         real(kind(1D0)), intent(inout) :: stress_days
+
+         if (stress_state == 0) return
+
+         if (stress_state == 1) then
+            lai_id_prev = MAX(laimin, lai_id_prev * (1 - lai_loss_rate_perc))
+            delta_stress_days = 1
+         else if (stress_state == 2) then
+            lai_id_prev = MIN(laimax, lai_id_prev * (1 + lai_loss_rate_perc))
+            delta_stress_days = -1
+         end if
+
+         stress_days = MAX(0.0, stress_days + delta_stress_days)
+   
+      end subroutine lai_stress_response_surf
+
+
+      subroutine limit_lai(lai_id_next, stress_days, lai_max, lai_min)
 
          ! Keep internally computed phenology within the configured canopy envelope.
 
          implicit none
 
          real(kind(1D0)), intent(inout) :: lai_id_next
+         real(kind(1D0)), intent(inout) :: stress_days
          real(kind(1D0)), intent(in) :: lai_max
          real(kind(1D0)), intent(in) :: lai_min
 
          if (lai_id_next > lai_max) then
             lai_id_next = lai_max
+            stress_days = 0
          else if (lai_id_next < lai_min) then
             lai_id_next = lai_min
          end if
 
       end subroutine limit_lai
+
+
+
+
 
    end subroutine update_gddlai
 

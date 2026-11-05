@@ -353,7 +353,7 @@ CONTAINS
                         Tmin_id, Tmax_id, lenDay_id, &
                         theta_r, smd, &
                         BaseT, BaseTe, &
-                        GDDFull, SDDFull, &
+                        GDDBase, SDDBase, &
                         LAIMin, LAIMax, LAIPower, LAIType, &
                         LAI_id_prev, &
                         GDD_id, SDD_id, & !inout
@@ -545,628 +545,628 @@ CONTAINS
 
    END SUBROUTINE update_Veg
 
-   subroutine update_GDDLAI( &
-      id, LAICalcYes, & !input
-      lat, LAI_obs, &
-      Tmin_id_prev, Tmax_id_prev, lenDay_id_prev, &
-      theta_r, smd, & ! 28/07/26 MP: added soil moisture limits to LAI growth
-      BaseT_GDD, BaseT_SDD, &
-      GDDFull, SDDFull, &
-      LAIMin, LAIMax, LAIPower, LAIType, &
-      LAI_id_prev, &
-      GDD_id, SDD_id, & !inout
-      stress_state, stress_days, &
-      LAI_id_next) !output
+   ! subroutine update_GDDLAI( &
+   !    id, LAICalcYes, & !input
+   !    lat, LAI_obs, &
+   !    Tmin_id_prev, Tmax_id_prev, lenDay_id_prev, &
+   !    theta_r, smd, & ! 28/07/26 MP: added soil moisture limits to LAI growth
+   !    BaseT_GDD, BaseT_SDD, &
+   !    GDDFull, SDDFull, &
+   !    LAIMin, LAIMax, LAIPower, LAIType, &
+   !    LAI_id_prev, &
+   !    GDD_id, SDD_id, & !inout
+   !    stress_state, stress_days, &
+   !    LAI_id_next) !output
       
-      implicit none
+   !    implicit none
 
-      !------------------------------------------------------------------------------
-      ! Calculation of LAI from growing degree days
-      ! This was revised and checked on 16 Feb 2014 by LJ
-      !------------------------------------------------------------------------------
+   !    !------------------------------------------------------------------------------
+   !    ! Calculation of LAI from growing degree days
+   !    ! This was revised and checked on 16 Feb 2014 by LJ
+   !    !------------------------------------------------------------------------------
 
-      integer, intent(in) :: id
-      integer, intent(in) :: LAICalcYes
+   !    integer, intent(in) :: id
+   !    integer, intent(in) :: LAICalcYes
 
-      real(kind(1D0)), intent(in) :: lat
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAI_obs
-      real(kind(1D0)), intent(in) :: Tmin_id_prev
-      real(kind(1D0)), intent(in) :: Tmax_id_prev
-      real(kind(1D0)), intent(in) :: lenDay_id_prev
+   !    real(kind(1D0)), intent(in) :: lat
+   !    real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAI_obs
+   !    real(kind(1D0)), intent(in) :: Tmin_id_prev
+   !    real(kind(1D0)), intent(in) :: Tmax_id_prev
+   !    real(kind(1D0)), intent(in) :: lenDay_id_prev
 
-      real(kind(1D0)), intent(in) :: theta_r
-      real(kind(1D0)), intent(in) :: smd
+   !    real(kind(1D0)), intent(in) :: theta_r
+   !    real(kind(1D0)), intent(in) :: smd
 
-      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_state
-      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_days
+   !    real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_state
+   !    real(kind(1D0)), dimension(nvegsurf), intent(inout) :: stress_days
 
-      ! --- Vegetation phenology ---------------------------------------------------------------------
-      ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_GDD !Base temperature for growing degree days [degC]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_SDD !Base temperature for senescence degree days [degC]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: GDDFull !Growing degree days needed for full capacity [degC]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: SDDFull !Senescence degree days needed to initiate leaf off [degC]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAIMin !Min LAI [m2 m-2]
-      real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAIMax !Max LAI [m2 m-2]
-      real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
-      !! N.B. currently DecTr only, although input provided for all veg types
-      integer, dimension(nvegsurf), intent(in) :: LAIType !LAI equation to use: original (0) or new (1)
+   !    ! --- Vegetation phenology ---------------------------------------------------------------------
+   !    ! Parameters provided in input information for each vegetation surface (SUEWS_Veg.txt)
+   !    real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_GDD !Base temperature for growing degree days [degC]
+   !    real(kind(1D0)), dimension(nvegsurf), intent(in) :: BaseT_SDD !Base temperature for senescence degree days [degC]
+   !    real(kind(1D0)), dimension(nvegsurf), intent(in) :: GDDFull !Growing degree days needed for full capacity [degC]
+   !    real(kind(1D0)), dimension(nvegsurf), intent(in) :: SDDFull !Senescence degree days needed to initiate leaf off [degC]
+   !    real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAIMin !Min LAI [m2 m-2]
+   !    real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAIMax !Max LAI [m2 m-2]
+   !    real(kind(1D0)), dimension(4, nvegsurf), intent(in) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
+   !    !! N.B. currently DecTr only, although input provided for all veg types
+   !    integer, dimension(nvegsurf), intent(in) :: LAIType !LAI equation to use: original (0) or new (1)
 
-      real(kind(1D0)), dimension(3), intent(inout) :: GDD_id !Growing Degree Days (see SUEWS_DailyState.f95)
-      real(kind(1D0)), dimension(3), intent(inout) :: SDD_id !Senescence Degree Days (see SUEWS_DailyState.f95)
-      real(kind(1D0)), dimension(nvegsurf), intent(out) :: LAI_id_next !LAI for each veg surface [m2 m-2]
-      real(kind(1D0)), dimension(nvegsurf), intent(inout) :: LAI_id_prev ! LAI of previous day
+   !    real(kind(1D0)), dimension(3), intent(inout) :: GDD_id !Growing Degree Days (see SUEWS_DailyState.f95)
+   !    real(kind(1D0)), dimension(3), intent(inout) :: SDD_id !Senescence Degree Days (see SUEWS_DailyState.f95)
+   !    real(kind(1D0)), dimension(nvegsurf), intent(out) :: LAI_id_next !LAI for each veg surface [m2 m-2]
+   !    real(kind(1D0)), dimension(nvegsurf), intent(inout) :: LAI_id_prev ! LAI of previous day
 
-      real(kind(1D0)) :: delta_SDD !Switches and checks for GDD
-      real(kind(1D0)) :: delta_GDD !Switches and checks for GDD
-      real(kind(1D0)) :: indHelp !Switches and checks for GDD
-      real(kind(1D0)), dimension(3) :: GDD_id_prev ! GDD of previous day
-      real(kind(1D0)), dimension(3) :: SDD_id_prev ! SDD of previous day
+   !    real(kind(1D0)) :: delta_SDD !Switches and checks for GDD
+   !    real(kind(1D0)) :: delta_GDD !Switches and checks for GDD
+   !    real(kind(1D0)) :: indHelp !Switches and checks for GDD
+   !    real(kind(1D0)), dimension(3) :: GDD_id_prev ! GDD of previous day
+   !    real(kind(1D0)), dimension(3) :: SDD_id_prev ! SDD of previous day
 
-      integer :: critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
-      integer :: iv
+   !    integer :: critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
+   !    integer :: iv
       
-      integer, parameter :: LAI_ORIGINAL = 0
-      integer, parameter :: LAI_NEW = 1
+   !    integer, parameter :: LAI_ORIGINAL = 0
+   !    integer, parameter :: LAI_NEW = 1
 
-      integer, parameter :: SEN_DAYLENGTH = 1
-      integer, parameter :: SEN_SDD = 2
+   !    integer, parameter :: SEN_DAYLENGTH = 1
+   !    integer, parameter :: SEN_SDD = 2
       
-      real(kind(1D0)) :: soilmoisture_stress_limit = 0.05
-      real(kind(1D0)) :: LAI_loss_rate_perc = 0.005D0   ! percentage per day⁻¹
-      real(kind(1D0)) :: wilting_point
+   !    real(kind(1D0)) :: soilmoisture_stress_limit = 0.05
+   !    real(kind(1D0)) :: LAI_loss_rate_perc = 0.005D0   ! percentage per day⁻¹
+   !    real(kind(1D0)) :: wilting_point
 
-      logical :: stressed
+   !    logical :: stressed
       
-      logical :: valid_observed_lai
+   !    logical :: valid_observed_lai
 
-      wilting_point = theta_r - (theta_r * soilmoisture_stress_limit)
+   !    wilting_point = theta_r - (theta_r * soilmoisture_stress_limit)
       
-      ! translate values of previous day to local variables
-      GDD_id_prev = GDD_id
-      SDD_id_prev = SDD_id
+   !    ! translate values of previous day to local variables
+   !    GDD_id_prev = GDD_id
+   !    SDD_id_prev = SDD_id
 
-      if (LAICalcYes == 0) then
-         call observed_lai(valid_observed_lai)
-         if (.not. valid_observed_lai) return
-      end if
+   !    if (LAICalcYes == 0) then
+   !       call observed_lai(valid_observed_lai)
+   !       if (.not. valid_observed_lai) return
+   !    end if
 
-      stressed = (smd > wilting_point)
+   !    stressed = (smd > wilting_point)
       
-      ! Loop through vegetation types (iv)
-      do iv = 1, NVegSurf
+   !    ! Loop through vegetation types (iv)
+   !    do iv = 1, NVegSurf
 
-         stress_state(iv) = determine_stress_state_surf( &
-            stressed=stressed, &
-            stress_days=stress_days(iv) &
-         )
+   !       stress_state(iv) = determine_stress_state_surf( &
+   !          stressed=stressed, &
+   !          stress_days=stress_days(iv) &
+   !       )
 
-         call lai_stress_response_surf( &
-            lai_id_prev=lai_id_prev(iv), &
-            laimin=laimin(iv), &
-            laimax=laimax(iv), &
-            LAI_loss_rate_perc=LAI_loss_rate_perc, &
-            stress_state=stress_state(iv), &
-            stress_days=stress_days(iv) &
+   !       call lai_stress_response_surf( &
+   !          lai_id_prev=lai_id_prev(iv), &
+   !          laimin=laimin(iv), &
+   !          laimax=laimax(iv), &
+   !          LAI_loss_rate_perc=LAI_loss_rate_perc, &
+   !          stress_state=stress_state(iv), &
+   !          stress_days=stress_days(iv) &
 
-         )
+   !       )
          
-         call calc_delta_gdd_sdd( &
-            tmin_prev=Tmin_id_prev, &
-            tmax_prev=Tmax_id_prev, &
-            base_t_gdd=BaseT_GDD(iv), &
-            base_t_sdd=BaseT_SDD(iv), &
-            delta_gdd=delta_GDD, &
-            delta_sdd=delta_SDD, &
-            ind_help=indHelp &
-         )
+   !       call calc_delta_gdd_sdd( &
+   !          tmin_prev=Tmin_id_prev, &
+   !          tmax_prev=Tmax_id_prev, &
+   !          base_t_gdd=BaseT_GDD(iv), &
+   !          base_t_sdd=BaseT_SDD(iv), &
+   !          delta_gdd=delta_GDD, &
+   !          delta_sdd=delta_SDD, &
+   !          ind_help=indHelp &
+   !       )
          
-         call apply_delta_gdd_sdd( &
-            gdd_prev=GDD_id_prev(iv), &
-            sdd_prev=SDD_id_prev(iv), &
-            delta_gdd=delta_GDD, &
-            delta_sdd=delta_SDD, &
-            gdd_id=GDD_id(iv), &
-            sdd_id=SDD_id(iv) &
-         )
+   !       call apply_delta_gdd_sdd( &
+   !          gdd_prev=GDD_id_prev(iv), &
+   !          sdd_prev=SDD_id_prev(iv), &
+   !          delta_gdd=delta_GDD, &
+   !          delta_sdd=delta_SDD, &
+   !          gdd_id=GDD_id(iv), &
+   !          sdd_id=SDD_id(iv) &
+   !       )
          
-         ! ! Possibility for cold spring
-         ! IF (SDD_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
-         !    GDD_id(iv) = 0
-         ! END IF
+   !       ! ! Possibility for cold spring
+   !       ! IF (SDD_id(iv) <= SDDFull(iv) .AND. indHelp < 0) THEN
+   !       !    GDD_id(iv) = 0
+   !       ! END IF
 
-         call limit_gdd_sdd( &
-            GDD_id=GDD_id(iv), &
-            SDD_id=SDD_id(iv), &
-            GDDFull=GDDFull(iv), &
-            SDDFull=SDDFull(iv), &
-            critDays=critDays &
-         )
+   !       call limit_gdd_sdd( &
+   !          GDD_id=GDD_id(iv), &
+   !          SDD_id=SDD_id(iv), &
+   !          GDDFull=GDDFull(iv), &
+   !          SDDFull=SDDFull(iv), &
+   !          critDays=critDays &
+   !       )
 
-         ! With these limits SDD, GDD is set to zero
-         if (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
-         if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+   !       ! With these limits SDD, GDD is set to zero
+   !       if (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
+   !       if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
 
-         ! Now calculate LAI itself
-         if (lat >= 0) THEN !Northern hemispere
-            call reset_degree_day_states( &
-               id=id, &
-               sdd_reset_day=140, &
-               crit_days=critDays, &
-               summer_day=170, &
-               winter_day=170, &
-               southern_hemisphere=.false., &
-               sdd_id=SDD_id(iv), &
-               gdd_id=GDD_id(iv) &
-            )
+   !       ! Now calculate LAI itself
+   !       if (lat >= 0) THEN !Northern hemispere
+   !          call reset_degree_day_states( &
+   !             id=id, &
+   !             sdd_reset_day=140, &
+   !             crit_days=critDays, &
+   !             summer_day=170, &
+   !             winter_day=170, &
+   !             southern_hemisphere=.false., &
+   !             sdd_id=SDD_id(iv), &
+   !             gdd_id=GDD_id(iv) &
+   !          )
             
-            if (LAICalcYes /= 0) then
-               call calculate_lai( &
-                  senescence_mode=SEN_DAYLENGTH, &
-                  id=id, &
-                  SDD_id=SDD_id(iv), &
-                  GDD_id=GDD_id(iv), &
-                  critDays=critDays, &
-                  LAItype=LAItype(iv), &
-                  LAIPower=LAIPower(:, iv), &
-                  GDDFull=GDDFull(iv), &
-                  SDDFull=SDDFull(iv), &
-                  ind_help=indHelp, &
-                  lenDay_id_prev=lenDay_id_prev, &
-                  LAI_id_prev=LAI_id_prev(iv), &
-                  LAI_id_next=LAI_id_next(iv) &
-               )
-            end if
-         else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
-            call reset_degree_day_states( &
-               id=id, &
-               sdd_reset_day=300, &
-               crit_days=critDays, &
-               summer_day=250, &
-               winter_day=250, &
-               southern_hemisphere=.true., &
-               sdd_id=SDD_id(iv), &
-               gdd_id=GDD_id(iv) &
-            )
-            if (LAICalcYes /= 0) then
-               call calculate_lai( &
-                  senescence_mode=SEN_SDD, &
-                  id=id, &
-                  SDD_id=SDD_id(iv), &
-                  GDD_id=GDD_id(iv), &
-                  critDays=critDays, &
-                  LAItype=LAItype(iv), &
-                  LAIPower=LAIPower(:, iv), &
-                  GDDFull=GDDFull(iv), &
-                  SDDFull=SDDFull(iv), &
-                  ind_help=indHelp, &
-                  lenDay_id_prev=lenDay_id_prev, &
-                  LAI_id_prev=LAI_id_prev(iv), &
-                  LAI_id_next=LAI_id_next(iv) &
-               )
-            end if
+   !          if (LAICalcYes /= 0) then
+   !             call calculate_lai( &
+   !                senescence_mode=SEN_DAYLENGTH, &
+   !                id=id, &
+   !                SDD_id=SDD_id(iv), &
+   !                GDD_id=GDD_id(iv), &
+   !                critDays=critDays, &
+   !                LAItype=LAItype(iv), &
+   !                LAIPower=LAIPower(:, iv), &
+   !                GDDFull=GDDFull(iv), &
+   !                SDDFull=SDDFull(iv), &
+   !                ind_help=indHelp, &
+   !                lenDay_id_prev=lenDay_id_prev, &
+   !                LAI_id_prev=LAI_id_prev(iv), &
+   !                LAI_id_next=LAI_id_next(iv) &
+   !             )
+   !          end if
+   !       else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
+   !          call reset_degree_day_states( &
+   !             id=id, &
+   !             sdd_reset_day=300, &
+   !             crit_days=critDays, &
+   !             summer_day=250, &
+   !             winter_day=250, &
+   !             southern_hemisphere=.true., &
+   !             sdd_id=SDD_id(iv), &
+   !             gdd_id=GDD_id(iv) &
+   !          )
+   !          if (LAICalcYes /= 0) then
+   !             call calculate_lai( &
+   !                senescence_mode=SEN_SDD, &
+   !                id=id, &
+   !                SDD_id=SDD_id(iv), &
+   !                GDD_id=GDD_id(iv), &
+   !                critDays=critDays, &
+   !                LAItype=LAItype(iv), &
+   !                LAIPower=LAIPower(:, iv), &
+   !                GDDFull=GDDFull(iv), &
+   !                SDDFull=SDDFull(iv), &
+   !                ind_help=indHelp, &
+   !                lenDay_id_prev=lenDay_id_prev, &
+   !                LAI_id_prev=LAI_id_prev(iv), &
+   !                LAI_id_next=LAI_id_next(iv) &
+   !             )
+   !          end if
 
-         end if !N or S hemisphere
+   !       end if !N or S hemisphere
             
-         ! Keep internally computed phenology within the configured canopy envelope.
-         call limit_lai( &
-            LAI_id_next=LAI_id_next(iv), &
-            stress_days=stress_days(iv), &
-            LAImax=LAImax(iv), &
-            LAImin=LAImin(iv) &
-         )
+   !       ! Keep internally computed phenology within the configured canopy envelope.
+   !       call limit_lai( &
+   !          LAI_id_next=LAI_id_next(iv), &
+   !          stress_days=stress_days(iv), &
+   !          LAImax=LAImax(iv), &
+   !          LAImin=LAImin(iv) &
+   !       )
 
-      end do !End of loop over veg surfaces
+   !    end do !End of loop over veg surfaces
 
-      !------------------------------------------------------------------------------
+   !    !------------------------------------------------------------------------------
 
-   CONTAINS
+   ! CONTAINS
    
-      subroutine observed_lai(valid)
+   !    subroutine observed_lai(valid)
 
-         implicit none
+   !       implicit none
 
-         logical, intent(out) :: valid
+   !       logical, intent(out) :: valid
 
-         valid = .false.
+   !       valid = .false.
 
-         if (any(ieee_is_nan(LAI_obs)) .or. any(LAI_obs < 0.0D0)) then
-            ! Invalid LAI_obs slipped past pre-flight; raise an error before
-            ! mutating phenology state and assign a safe sentinel to the output.
-            LAI_id_next = -999.0D0
-            call set_supy_error( &
-               105, &
-               'update_GDDLAI: laimethod=0 requires non-missing lai_* or lai >= 0 at every timestep')
-            return
-         end if
+   !       if (any(ieee_is_nan(LAI_obs)) .or. any(LAI_obs < 0.0D0)) then
+   !          ! Invalid LAI_obs slipped past pre-flight; raise an error before
+   !          ! mutating phenology state and assign a safe sentinel to the output.
+   !          LAI_id_next = -999.0D0
+   !          call set_supy_error( &
+   !             105, &
+   !             'update_GDDLAI: laimethod=0 requires non-missing lai_* or lai >= 0 at every timestep')
+   !          return
+   !       end if
 
-         ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
-         ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
+   !       ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
+   !       ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
          
-         ! A genuine zero observation (e.g. complete winter dieback) is valid and
-         ! passes through unchanged. Missing/NaN values and strictly negative
-         ! values - including the -999 missing sentinel - are rejected; choosing
-         ! this path commits the user to providing an observation for every
-         ! timestep. Observed LAI is intentionally not clipped to LAImin/LAImax,
-         ! because those bounds describe the internal GDD/SDD phenology path.
+   !       ! A genuine zero observation (e.g. complete winter dieback) is valid and
+   !       ! passes through unchanged. Missing/NaN values and strictly negative
+   !       ! values - including the -999 missing sentinel - are rejected; choosing
+   !       ! this path commits the user to providing an observation for every
+   !       ! timestep. Observed LAI is intentionally not clipped to LAImin/LAImax,
+   !       ! because those bounds describe the internal GDD/SDD phenology path.
 
-         ! The Python pre-flight validator (supy._check.check_forcing) enforces
-         ! this contract before a run starts; the guard below is a defensive
-         ! backstop for callers that bypass preflight. Reports via
-         ! module_ctrl_error_state so SuPy can surface a clean exception —
-         ! never WRITE(*,...) + STOP, which kills the embedding Python process.
+   !       ! The Python pre-flight validator (supy._check.check_forcing) enforces
+   !       ! this contract before a run starts; the guard below is a defensive
+   !       ! backstop for callers that bypass preflight. Reports via
+   !       ! module_ctrl_error_state so SuPy can surface a clean exception —
+   !       ! never WRITE(*,...) + STOP, which kills the embedding Python process.
 
-         ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
-         ! daily state without applying the GDD/SDD envelope.
-         do iv = 1, NVegSurf
-            LAI_id_next(iv) = LAI_obs(iv)
-         end do
+   !       ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
+   !       ! daily state without applying the GDD/SDD envelope.
+   !       do iv = 1, NVegSurf
+   !          LAI_id_next(iv) = LAI_obs(iv)
+   !       end do
 
-         valid = .true.
+   !       valid = .true.
 
-      end subroutine observed_lai
+   !    end subroutine observed_lai
 
-      function determine_stress_state_surf( &
-         stressed, stress_days &
-         ) result(stress_state)
+   !    function determine_stress_state_surf( &
+   !       stressed, stress_days &
+   !       ) result(stress_state)
          
-         implicit none
+   !       implicit none
 
-         logical, intent(in) :: stressed ! Flag indicating if soil under stress
-         real(kind(1D0)), intent(in) :: stress_days
-         real(kind(1D0)) :: stress_state
+   !       logical, intent(in) :: stressed ! Flag indicating if soil under stress
+   !       real(kind(1D0)), intent(in) :: stress_days
+   !       real(kind(1D0)) :: stress_state
 
-         if (stressed) then 
-            stress_state = 1 ! Stressed, losing LAI
-         else
-            if (stress_days > 0) then
-               stress_state = 2 ! No longer stressed, recovering LAI
-            else
-               stress_state = 0 ! No stress or required recovery
-            end if
-         end if
+   !       if (stressed) then 
+   !          stress_state = 1 ! Stressed, losing LAI
+   !       else
+   !          if (stress_days > 0) then
+   !             stress_state = 2 ! No longer stressed, recovering LAI
+   !          else
+   !             stress_state = 0 ! No stress or required recovery
+   !          end if
+   !       end if
 
-      end function determine_stress_state_surf
+   !    end function determine_stress_state_surf
 
-      subroutine lai_stress_response_surf( &
-         laimin, laimax, lai_loss_rate_perc, &
-         lai_id_prev, stress_state, stress_days &
-         )
+   !    subroutine lai_stress_response_surf( &
+   !       laimin, laimax, lai_loss_rate_perc, &
+   !       lai_id_prev, stress_state, stress_days &
+   !       )
          
-         implicit none
+   !       implicit none
          
-         integer :: delta_stress_days
+   !       integer :: delta_stress_days
 
-         real(kind(1D0)), intent(in) :: laimin
-         real(kind(1D0)), intent(in) :: laimax
-         real(kind(1D0)), intent(in) :: lai_loss_rate_perc
+   !       real(kind(1D0)), intent(in) :: laimin
+   !       real(kind(1D0)), intent(in) :: laimax
+   !       real(kind(1D0)), intent(in) :: lai_loss_rate_perc
          
-         real(kind(1D0)), intent(inout) :: lai_id_prev
-         real(kind(1D0)), intent(inout) :: stress_state
-         real(kind(1D0)), intent(inout) :: stress_days
+   !       real(kind(1D0)), intent(inout) :: lai_id_prev
+   !       real(kind(1D0)), intent(inout) :: stress_state
+   !       real(kind(1D0)), intent(inout) :: stress_days
 
-         if (stress_state == 0) return
+   !       if (stress_state == 0) return
 
-         if (stress_state == 1) then
-            lai_id_prev = MAX(laimin, lai_id_prev * (1 - lai_loss_rate_perc))
-            delta_stress_days = 1
-         else if (stress_state == 2) then
-            lai_id_prev = MIN(laimax, lai_id_prev * (1 + lai_loss_rate_perc))
-            delta_stress_days = -1
-         end if
+   !       if (stress_state == 1) then
+   !          lai_id_prev = MAX(laimin, lai_id_prev * (1 - lai_loss_rate_perc))
+   !          delta_stress_days = 1
+   !       else if (stress_state == 2) then
+   !          lai_id_prev = MIN(laimax, lai_id_prev * (1 + lai_loss_rate_perc))
+   !          delta_stress_days = -1
+   !       end if
 
-         stress_days = MAX(0.0, stress_days + delta_stress_days)
+   !       stress_days = MAX(0.0, stress_days + delta_stress_days)
    
-      end subroutine lai_stress_response_surf
+   !    end subroutine lai_stress_response_surf
 
-      subroutine calc_delta_gdd_sdd( &
-            tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
-            delta_gdd, delta_sdd, ind_help)
+   !    subroutine calc_delta_gdd_sdd( &
+   !          tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &
+   !          delta_gdd, delta_sdd, ind_help)
 
-         implicit none
+   !       implicit none
 
-         real(kind(1D0)), intent(in)  :: tmin_prev
-         real(kind(1D0)), intent(in)  :: tmax_prev
-         real(kind(1D0)), intent(in)  :: base_t_gdd
-         real(kind(1D0)), intent(in)  :: base_t_sdd
+   !       real(kind(1D0)), intent(in)  :: tmin_prev
+   !       real(kind(1D0)), intent(in)  :: tmax_prev
+   !       real(kind(1D0)), intent(in)  :: base_t_gdd
+   !       real(kind(1D0)), intent(in)  :: base_t_sdd
 
-         real(kind(1D0)), intent(out) :: delta_gdd
-         real(kind(1D0)), intent(out) :: delta_sdd
-         real(kind(1D0)), intent(out) :: ind_help
+   !       real(kind(1D0)), intent(out) :: delta_gdd
+   !       real(kind(1D0)), intent(out) :: delta_sdd
+   !       real(kind(1D0)), intent(out) :: ind_help
 
-         ! Calculate GDD and SDD
-         delta_gdd = calc_delta_degree_days( &
-            tmin_prev, tmax_prev, base_t_gdd)
+   !       ! Calculate GDD and SDD
+   !       delta_gdd = calc_delta_degree_days( &
+   !          tmin_prev, tmax_prev, base_t_gdd)
 
-         delta_sdd = calc_delta_degree_days( &
-            tmin_prev, tmax_prev, base_t_sdd)
+   !       delta_sdd = calc_delta_degree_days( &
+   !          tmin_prev, tmax_prev, base_t_sdd)
 
-         ! SDD cannot be positive
-         if (delta_sdd > 0) delta_sdd = 0
+   !       ! SDD cannot be positive
+   !       if (delta_sdd > 0) delta_sdd = 0
 
-         ! Help switch to allow GDD to go to zero in spring-time
-         ind_help = 0
+   !       ! Help switch to allow GDD to go to zero in spring-time
+   !       ind_help = 0
 
-         ! GDD cannot be negative
-         if (delta_gdd < 0) then
-            ind_help = delta_gdd
-            delta_gdd = 0
-         end if
+   !       ! GDD cannot be negative
+   !       if (delta_gdd < 0) then
+   !          ind_help = delta_gdd
+   !          delta_gdd = 0
+   !       end if
 
-      end subroutine calc_delta_gdd_sdd
+   !    end subroutine calc_delta_gdd_sdd
 
-      function calc_delta_degree_days(Tmin_prev, Tmax_prev, base_t) result(delta_dd)
+   !    function calc_delta_degree_days(Tmin_prev, Tmax_prev, base_t) result(delta_dd)
 
-         implicit none
+   !       implicit none
 
-         real(kind(1D0)), intent(in) :: Tmin_prev
-         real(kind(1D0)), intent(in) :: Tmax_prev
-         real(kind(1D0)), intent(in) :: base_t
+   !       real(kind(1D0)), intent(in) :: Tmin_prev
+   !       real(kind(1D0)), intent(in) :: Tmax_prev
+   !       real(kind(1D0)), intent(in) :: base_t
 
-         real(kind(1D0)) :: delta_dd
+   !       real(kind(1D0)) :: delta_dd
 
-         delta_dd = (Tmin_prev + Tmax_prev) / 2 - base_t
+   !       delta_dd = (Tmin_prev + Tmax_prev) / 2 - base_t
 
-      end function calc_delta_degree_days
+   !    end function calc_delta_degree_days
 
-      subroutine apply_delta_gdd_sdd(gdd_prev, sdd_prev, &
-                                    delta_gdd, delta_sdd, &
-                                    gdd_id, sdd_id)
+   !    subroutine apply_delta_gdd_sdd(gdd_prev, sdd_prev, &
+   !                                  delta_gdd, delta_sdd, &
+   !                                  gdd_id, sdd_id)
 
-         implicit none
+   !       implicit none
 
-         real(kind(1D0)), intent(in) :: gdd_prev
-         real(kind(1D0)), intent(in) :: sdd_prev
-         real(kind(1D0)), intent(in) :: delta_gdd
-         real(kind(1D0)), intent(in) :: delta_sdd
+   !       real(kind(1D0)), intent(in) :: gdd_prev
+   !       real(kind(1D0)), intent(in) :: sdd_prev
+   !       real(kind(1D0)), intent(in) :: delta_gdd
+   !       real(kind(1D0)), intent(in) :: delta_sdd
 
-         real(kind(1D0)), intent(out) :: gdd_id
-         real(kind(1D0)), intent(out) :: sdd_id
+   !       real(kind(1D0)), intent(out) :: gdd_id
+   !       real(kind(1D0)), intent(out) :: sdd_id
 
-         ! Calculate cumulative growing and senescence degree days
-         gdd_id = gdd_prev + delta_gdd
-         sdd_id = sdd_prev + delta_sdd
+   !       ! Calculate cumulative growing and senescence degree days
+   !       gdd_id = gdd_prev + delta_gdd
+   !       sdd_id = sdd_prev + delta_sdd
 
-      end subroutine apply_delta_gdd_sdd
+   !    end subroutine apply_delta_gdd_sdd
 
-      subroutine limit_gdd_sdd( &
-            GDD_id, SDD_id, GDDFull, SDDFull, critDays)
+   !    subroutine limit_gdd_sdd( &
+   !          GDD_id, SDD_id, GDDFull, SDDFull, critDays)
 
-         implicit none
+   !       implicit none
 
-         real(kind(1D0)), intent(inout) :: GDD_id
-         real(kind(1D0)), intent(inout) :: SDD_id
-         real(kind(1D0)), intent(in)    :: GDDFull
-         real(kind(1D0)), intent(in)    :: SDDFull
+   !       real(kind(1D0)), intent(inout) :: GDD_id
+   !       real(kind(1D0)), intent(inout) :: SDD_id
+   !       real(kind(1D0)), intent(in)    :: GDDFull
+   !       real(kind(1D0)), intent(in)    :: SDDFull
          
-         integer, intent(in)    :: critDays
+   !       integer, intent(in)    :: critDays
 
-         !Start senescence
-         if (GDD_id >= GDDFull) then
-            GDD_id = GDDFull !Leaves should not grow so delete yes from earlier
-            if (SDD_id < -critDays) GDD_id = 0
-         end if
+   !       !Start senescence
+   !       if (GDD_id >= GDDFull) then
+   !          GDD_id = GDDFull !Leaves should not grow so delete yes from earlier
+   !          if (SDD_id < -critDays) GDD_id = 0
+   !       end if
 
-         !After senescence now start growing leaves
-         if (SDD_id <= SDDFull) then
-            SDD_id = SDDFull !Leaves off so add back earlier
-            if (GDD_id > critDays) SDD_id = 0
-         end if
+   !       !After senescence now start growing leaves
+   !       if (SDD_id <= SDDFull) then
+   !          SDD_id = SDDFull !Leaves off so add back earlier
+   !          if (GDD_id > critDays) SDD_id = 0
+   !       end if
 
-      end subroutine limit_gdd_sdd
+   !    end subroutine limit_gdd_sdd
 
-      subroutine calculate_lai( &
-            senescence_mode, &
-            id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, ind_help, &
-            lenDay_id_prev, LAI_id_prev, LAI_id_next)
+   !    subroutine calculate_lai( &
+   !          senescence_mode, &
+   !          id, SDD_id, GDD_id, critDays, LAItype, LAIPower, GDDFull, SDDFull, ind_help, &
+   !          lenDay_id_prev, LAI_id_prev, LAI_id_next)
 
-         implicit none
+   !       implicit none
 
-         integer, intent(in) :: senescence_mode
-         integer, intent(in) :: id
+   !       integer, intent(in) :: senescence_mode
+   !       integer, intent(in) :: id
 
-         real(kind(1D0)), intent(inout) :: SDD_id
-         real(kind(1D0)), intent(inout) :: GDD_id
+   !       real(kind(1D0)), intent(inout) :: SDD_id
+   !       real(kind(1D0)), intent(inout) :: GDD_id
          
-         integer, intent(in) :: critDays
-         integer, intent(in) :: LAItype
+   !       integer, intent(in) :: critDays
+   !       integer, intent(in) :: LAItype
          
-         real(kind(1D0)), dimension(4), intent(in) :: LAIPower
+   !       real(kind(1D0)), dimension(4), intent(in) :: LAIPower
 
-         real(kind(1D0)), intent(in) :: GDDFull
-         real(kind(1D0)), intent(in) :: SDDFull
-         real(kind(1D0)), intent(in) :: lenDay_id_prev
-         real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), intent(out) :: LAI_id_next
+   !       real(kind(1D0)), intent(in) :: GDDFull
+   !       real(kind(1D0)), intent(in) :: SDDFull
+   !       real(kind(1D0)), intent(in) :: lenDay_id_prev
+   !       real(kind(1D0)), intent(in) :: LAI_id_prev
+   !       real(kind(1D0)), intent(out) :: LAI_id_next
 
-         real(kind(1D0)) :: ind_help
+   !       real(kind(1D0)) :: ind_help
 
-         logical :: start_senescence
+   !       logical :: start_senescence
 
-         if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
-            if (.not. ind_help < 0) call calculate_gdd( &
-               LAI_id_prev=LAI_id_prev, &
-               LAIPower=LAIPower, &
-               GDD_id=GDD_id, &
-               LAI_id_next=LAI_id_next &
-            )
+   !       if (GDD_id > 0 .and. GDD_id < GDDFull) then !Leaves can still grow
+   !          if (.not. ind_help < 0) call calculate_gdd( &
+   !             LAI_id_prev=LAI_id_prev, &
+   !             LAIPower=LAIPower, &
+   !             GDD_id=GDD_id, &
+   !             LAI_id_next=LAI_id_next &
+   !          )
          
-         else if (LAItype == LAI_ORIGINAL) THEN !Original LAI type
+   !       else if (LAItype == LAI_ORIGINAL) THEN !Original LAI type
 
-            if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
-               call calculate_sdd_type0( &
-                  LAI_id_prev=LAI_id_prev, &
-                  LAIPower=LAIPower, &
-                  SDD_id=SDD_id, &
-                  LAI_id_next=LAI_id_next &
-               )
+   !          if (SDD_id < 0 .and. SDD_id > SDDFull) then !Start senescence
+   !             call calculate_sdd_type0( &
+   !                LAI_id_prev=LAI_id_prev, &
+   !                LAIPower=LAIPower, &
+   !                SDD_id=SDD_id, &
+   !                LAI_id_next=LAI_id_next &
+   !             )
 
-            else
-               LAI_id_next = LAI_id_prev
+   !          else
+   !             LAI_id_next = LAI_id_prev
 
-            end if
+   !          end if
 
-         else
+   !       else
 
-            !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
-            start_senescence = check_start_senescence( &
-               senescence_mode=senescence_mode, &
-               lenDay_id_prev=lenDay_id_prev, &
-               SDD_id=SDD_id, &
-               SDDFull=SDDFull &
-            )
+   !          !! Use day length to start senescence at high latitudes (controlled in senescence_mode)
+   !          start_senescence = check_start_senescence( &
+   !             senescence_mode=senescence_mode, &
+   !             lenDay_id_prev=lenDay_id_prev, &
+   !             SDD_id=SDD_id, &
+   !             SDDFull=SDDFull &
+   !          )
 
-            if (start_senescence) then !Start senescence
-               call calculate_sdd_type1( &
-                  LAI_id_prev=LAI_id_prev, &
-                  LAIPower=LAIPower, &
-                  SDD_id=SDD_id, &
-                  LAI_id_next=LAI_id_next &
-               )
-            else
-               LAI_id_next = LAI_id_prev
-            end if
+   !          if (start_senescence) then !Start senescence
+   !             call calculate_sdd_type1( &
+   !                LAI_id_prev=LAI_id_prev, &
+   !                LAIPower=LAIPower, &
+   !                SDD_id=SDD_id, &
+   !                LAI_id_next=LAI_id_next &
+   !             )
+   !          else
+   !             LAI_id_next = LAI_id_prev
+   !          end if
 
-         end if
+   !       end if
 
-      end subroutine calculate_lai
+   !    end subroutine calculate_lai
 
-      subroutine reset_degree_day_states( &
-         id, sdd_reset_day, crit_days, summer_day, winter_day, &
-         southern_hemisphere, sdd_id, gdd_id)
+   !    subroutine reset_degree_day_states( &
+   !       id, sdd_reset_day, crit_days, summer_day, winter_day, &
+   !       southern_hemisphere, sdd_id, gdd_id)
 
-         implicit none
+   !       implicit none
 
-         integer, intent(in) :: id
-         integer, intent(in) :: sdd_reset_day
-         integer, intent(in) :: crit_days
-         integer, intent(in) :: summer_day
-         integer, intent(in) :: winter_day
-         logical, intent(in) :: southern_hemisphere
+   !       integer, intent(in) :: id
+   !       integer, intent(in) :: sdd_reset_day
+   !       integer, intent(in) :: crit_days
+   !       integer, intent(in) :: summer_day
+   !       integer, intent(in) :: winter_day
+   !       logical, intent(in) :: southern_hemisphere
 
-         real(kind(1D0)), intent(inout) :: sdd_id
-         real(kind(1D0)), intent(inout) :: gdd_id
+   !       real(kind(1D0)), intent(inout) :: sdd_id
+   !       real(kind(1D0)), intent(inout) :: gdd_id
 
-         ! if SDD is not zero by the transition day, force it
-         if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
+   !       ! if SDD is not zero by the transition day, force it
+   !       if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
 
-         if (southern_hemisphere) then
+   !       if (southern_hemisphere) then
 
-            ! Set SDD to zero in southern summer
-            if (gdd_id > crit_days .and. id > summer_day) sdd_id = 0
+   !          ! Set SDD to zero in southern summer
+   !          if (gdd_id > crit_days .and. id > summer_day) sdd_id = 0
 
-            ! Set GDD zero in southern winter
-            if (sdd_id < -crit_days .and. id < winter_day) gdd_id = 0
+   !          ! Set GDD zero in southern winter
+   !          if (sdd_id < -crit_days .and. id < winter_day) gdd_id = 0
 
-         else
+   !       else
 
-            ! Set SDD to zero in northern summer
-            if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0
+   !          ! Set SDD to zero in northern summer
+   !          if (gdd_id > crit_days .and. id < summer_day) sdd_id = 0
 
-            ! Set GDD zero in northern winter
-            if (sdd_id < -crit_days .and. id > winter_day) gdd_id = 0
+   !          ! Set GDD zero in northern winter
+   !          if (sdd_id < -crit_days .and. id > winter_day) gdd_id = 0
 
-         end if
+   !       end if
 
-      end subroutine reset_degree_day_states
+   !    end subroutine reset_degree_day_states
 
-      function check_start_senescence(senescence_mode, lenDay_id_prev, SDD_id, SDDFull) result(start_senescence)
+   !    function check_start_senescence(senescence_mode, lenDay_id_prev, SDD_id, SDDFull) result(start_senescence)
          
-         implicit none
+   !       implicit none
          
-         integer, intent(in) :: senescence_mode
+   !       integer, intent(in) :: senescence_mode
 
-         real(kind(1D0)), intent(in) :: lenDay_id_prev
-         real(kind(1D0)), intent(in) :: SDD_id
-         real(kind(1D0)), intent(in) :: SDDFull
+   !       real(kind(1D0)), intent(in) :: lenDay_id_prev
+   !       real(kind(1D0)), intent(in) :: SDD_id
+   !       real(kind(1D0)), intent(in) :: SDDFull
 
-         logical :: start_senescence
+   !       logical :: start_senescence
          
-         select case (senescence_mode)
+   !       select case (senescence_mode)
 
-            case (SEN_DAYLENGTH)
-               start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id > SDDFull))
+   !          case (SEN_DAYLENGTH)
+   !             start_senescence = ((lenDay_id_prev <= 12) .and. (SDD_id > SDDFull))
 
-            case (SEN_SDD)
-               start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
+   !          case (SEN_SDD)
+   !             start_senescence = ((SDD_id < 0) .and. (SDD_id > SDDFull))
 
-            case default
+   !          case default
 
-               start_senescence = .false.
+   !             start_senescence = .false.
 
-               call set_supy_error( &
-                  107, &
-                  'update_GDDLAI: invalid senescence mode' &
-               )
+   !             call set_supy_error( &
+   !                107, &
+   !                'update_GDDLAI: invalid senescence mode' &
+   !             )
 
-         end select
+   !       end select
 
-      end function check_start_senescence
+   !    end function check_start_senescence
 
-      subroutine calculate_gdd( &
-            LAI_id_prev, LAIPower, GDD_id, LAI_id_next)
+   !    subroutine calculate_gdd( &
+   !          LAI_id_prev, LAIPower, GDD_id, LAI_id_next)
 
-         implicit none
+   !       implicit none
 
-         real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), dimension(4), intent(in) :: LAIPower
-         real(kind(1D0)), intent(in) :: GDD_id
-         real(kind(1D0)), intent(out) :: LAI_id_next
+   !       real(kind(1D0)), intent(in) :: LAI_id_prev
+   !       real(kind(1D0)), dimension(4), intent(in) :: LAIPower
+   !       real(kind(1D0)), intent(in) :: GDD_id
+   !       real(kind(1D0)), intent(out) :: LAI_id_next
 
-         LAI_id_next = (LAI_id_prev**LAIPower(1) * &
-                        GDD_id * LAIPower(2)) + LAI_id_prev
+   !       LAI_id_next = (LAI_id_prev**LAIPower(1) * &
+   !                      GDD_id * LAIPower(2)) + LAI_id_prev
 
-      end subroutine calculate_gdd
+   !    end subroutine calculate_gdd
    
-      subroutine calculate_sdd_type0( &
-            LAI_id_prev, LAIPower, SDD_id, LAI_id_next)
+   !    subroutine calculate_sdd_type0( &
+   !          LAI_id_prev, LAIPower, SDD_id, LAI_id_next)
 
-         implicit none
+   !       implicit none
 
-         real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), dimension(4), intent(in) :: LAIPower
-         real(kind(1D0)), intent(in) :: SDD_id
-         real(kind(1D0)), intent(out) :: LAI_id_next
+   !       real(kind(1D0)), intent(in) :: LAI_id_prev
+   !       real(kind(1D0)), dimension(4), intent(in) :: LAIPower
+   !       real(kind(1D0)), intent(in) :: SDD_id
+   !       real(kind(1D0)), intent(out) :: LAI_id_next
 
-         LAI_id_next = (LAI_id_prev**LAIPower(3) * SDD_id * LAIPower(4)) + LAI_id_prev
+   !       LAI_id_next = (LAI_id_prev**LAIPower(3) * SDD_id * LAIPower(4)) + LAI_id_prev
 
-      end subroutine calculate_sdd_type0
+   !    end subroutine calculate_sdd_type0
    
-      subroutine calculate_sdd_type1( & ! 
-            LAI_id_prev, LAIPower, SDD_id, LAI_id_next)
+   !    subroutine calculate_sdd_type1( & ! 
+   !          LAI_id_prev, LAIPower, SDD_id, LAI_id_next)
 
-         implicit none
+   !       implicit none
 
-         real(kind(1D0)), intent(in) :: LAI_id_prev
-         real(kind(1D0)), dimension(4), intent(in) :: LAIPower
-         real(kind(1D0)), intent(in) :: SDD_id
-         real(kind(1D0)), intent(out) :: LAI_id_next
+   !       real(kind(1D0)), intent(in) :: LAI_id_prev
+   !       real(kind(1D0)), dimension(4), intent(in) :: LAIPower
+   !       real(kind(1D0)), intent(in) :: SDD_id
+   !       real(kind(1D0)), intent(out) :: LAI_id_next
 
-         LAI_id_next = (LAI_id_prev * LAIPower(3) * (1 - SDD_id) * LAIPower(4)) + LAI_id_prev
+   !       LAI_id_next = (LAI_id_prev * LAIPower(3) * (1 - SDD_id) * LAIPower(4)) + LAI_id_prev
 
-      end subroutine calculate_sdd_type1
+   !    end subroutine calculate_sdd_type1
 
-      subroutine limit_lai(LAI_id_next, stress_days, LAImax, LAImin)
+   !    subroutine limit_lai(LAI_id_next, stress_days, LAImax, LAImin)
 
-         ! Keep internally computed phenology within the configured canopy envelope.
+   !       ! Keep internally computed phenology within the configured canopy envelope.
 
-         implicit none
+   !       implicit none
 
-         real(kind(1D0)), intent(inout) :: LAI_id_next
-         real(kind(1D0)), intent(inout) :: stress_days
-         real(kind(1D0)), intent(in) :: LAImax
-         real(kind(1D0)), intent(in) :: LAImin
+   !       real(kind(1D0)), intent(inout) :: LAI_id_next
+   !       real(kind(1D0)), intent(inout) :: stress_days
+   !       real(kind(1D0)), intent(in) :: LAImax
+   !       real(kind(1D0)), intent(in) :: LAImin
 
-         if (LAI_id_next > LAImax) then
-            LAI_id_next = LAImax
-            stress_days = 0
-         else if (LAI_id_next < LAImin) then
-            LAI_id_next = LAImin
-         end if
+   !       if (LAI_id_next > LAImax) then
+   !          LAI_id_next = LAImax
+   !          stress_days = 0
+   !       else if (LAI_id_next < LAImin) then
+   !          LAI_id_next = LAImin
+   !       end if
 
-      end subroutine limit_lai
+   !    end subroutine limit_lai
 
-   end subroutine update_GDDLAI
+   ! end subroutine update_GDDLAI
 
    SUBROUTINE update_WaterUse( &
       id, WaterUseMethod, DayofWeek_id, lat, FrIrriAuto, HDD_id, & !input

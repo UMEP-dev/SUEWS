@@ -3215,4 +3215,86 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
     }
+
+    fn stebbs_fixture_root() -> Value {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        serde_yaml::from_str(yaml_str).expect("fixture YAML should parse")
+    }
+
+    fn water_block_mut(root: &mut Value) -> &mut serde_yaml::Mapping {
+        let site = first_site_mut(root).expect("fixture should contain a first site");
+        let water = get_path_mut(site, &["properties", "land_cover", "water"])
+            .expect("fixture should define land_cover.water");
+        let Value::Mapping(water_map) = water else {
+            panic!("land_cover.water should be a mapping");
+        };
+        water_map
+    }
+
+    #[test]
+    fn water_flowchange_reaches_the_site_scalars() {
+        // supy writes the water-body flow change at
+        // properties.land_cover.water.flowchange; the kernel's water balance
+        // reads it as the site-level flow_change (site_scalars.flowchange).
+        let mut root = stebbs_fixture_root();
+        water_block_mut(&mut root).insert(
+            Value::String("flowchange".to_string()),
+            serde_yaml::from_str("{value: -0.2}").unwrap(),
+        );
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+        assert!(
+            (run_cfg.site_scalars.flowchange + 0.2).abs() < 1.0e-12,
+            "site_scalars.flowchange = {}",
+            run_cfg.site_scalars.flowchange
+        );
+        assert!(
+            (run_cfg.site.lc_water.flowchange + 0.2).abs() < 1.0e-12,
+            "lc_water.flowchange = {}",
+            run_cfg.site.lc_water.flowchange
+        );
+    }
+
+    #[test]
+    fn missing_or_null_water_flowchange_is_an_error() {
+        for (case, value) in [
+            ("absent", None),
+            ("null", Some("null")),
+            ("value null", Some("{value: null}")),
+        ] {
+            let mut root = stebbs_fixture_root();
+            let water = water_block_mut(&mut root);
+            water.remove(Value::String("flowchange".to_string()));
+            if let Some(v) = value {
+                water.insert(
+                    Value::String("flowchange".to_string()),
+                    serde_yaml::from_str(v).unwrap(),
+                );
+            }
+            let err = load_run_config_from_value(&mut root)
+                .expect_err("a missing water flowchange must be rejected");
+            assert!(
+                err.contains("sites[gridiv=1].properties.land_cover.water.flowchange"),
+                "{case}: error should name the key: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn missing_water_block_is_an_error() {
+        let mut root = stebbs_fixture_root();
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let land_cover = get_path_mut(site, &["properties", "land_cover"])
+            .expect("fixture should define land_cover");
+        let Value::Mapping(lc_map) = land_cover else {
+            panic!("land_cover should be a mapping");
+        };
+        lc_map.remove(Value::String("water".to_string()));
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("a config without a water block must be rejected");
+        assert!(
+            err.contains("sites[gridiv=1].properties.land_cover.water.flowchange"),
+            "error should name the key: {err}"
+        );
+    }
 }

@@ -156,6 +156,10 @@ LAIPARAMS_RENAMES: Dict[str, str] = {
     "laimax": "lai_max",
     "laipower": "lai_power",
     "laitype": "lai_type",
+
+    # add renames to catch typo
+    "gddbase": "gdd_base",
+    "sddbase": "sdd_base"
 }
 
 # -- VegetatedSurfaceProperties (site.py) ------------------------------------

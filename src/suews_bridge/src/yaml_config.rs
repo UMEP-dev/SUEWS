@@ -626,6 +626,22 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
+/// How an error names the site the bridge is reading. supy passes one site
+/// per call, so its position here (always the first) says nothing about
+/// where it sits in the user's file; name it by `gridiv`, as the data
+/// model's own errors do (`sites[gridiv=1]`), and fall back to `sites[0]`.
+fn site_yaml_at(site_root: &Value) -> String {
+    let gridiv = get_path(site_root, &["gridiv"]).map(|v| match v {
+        Value::Mapping(_) => get_path(v, &["value"]).unwrap_or(v),
+        other => other,
+    });
+    match gridiv {
+        Some(Value::Number(n)) => format!("sites[gridiv={n}]"),
+        Some(Value::String(s)) => format!("sites[gridiv={s}]"),
+        _ => "sites[0]".to_string(),
+    }
+}
+
 /// Read `properties.vertical_layers`. The cumulative building fraction per
 /// layer is required whenever there are layers (the kernel derives roof and
 /// wall fractions from it), and each roof and wall layer's `emis` is
@@ -653,7 +669,8 @@ fn apply_vertical_layers_overrides(
         }
     }
 
-    let building_frac_at = "sites[0].properties.vertical_layers.building_frac";
+    let site_at = site_yaml_at(site_root);
+    let building_frac_at = format!("{site_at}.properties.vertical_layers.building_frac");
     match read_numeric_sequence(
         site_root,
         &["properties", "vertical_layers", "building_frac"],
@@ -790,7 +807,7 @@ fn apply_vertical_layers_overrides(
         ] {
             if let Some(layer_idx) = values.iter().position(|v| v.is_nan()) {
                 return Err(format!(
-                    "`sites[0].properties.vertical_layers.{facet}[{layer_idx}].emis` is missing; \
+                    "`{site_at}.properties.vertical_layers.{facet}[{layer_idx}].emis` is missing; \
                      SPARTACUS (net_radiation > 1000) needs an emissivity for each of the \
                      nlayer = {nlayer} {facet}"
                 ));
@@ -3301,7 +3318,7 @@ mod tests {
         let err = stebbs_fixture_with_vertical_layers(|layers| remove_key(layers, "building_frac"))
             .expect_err("a missing building_frac must be rejected, not padded");
         assert!(
-            err.contains("sites[0].properties.vertical_layers.building_frac"),
+            err.contains("sites[gridiv=1].properties.vertical_layers.building_frac"),
             "error should name the list: {err}"
         );
         assert!(
@@ -3331,8 +3348,33 @@ mod tests {
         })
         .expect_err("a missing roof emissivity must be rejected under SPARTACUS");
         assert!(
-            err.contains("sites[0].properties.vertical_layers.roofs[1].emis"),
+            err.contains("sites[gridiv=1].properties.vertical_layers.roofs[1].emis"),
             "error should name the layer: {err}"
         );
+    }
+
+    #[test]
+    fn missing_layer_emissivity_is_carried_as_absent_without_spartacus() {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let netrad = get_path_mut(&mut root, &["model", "physics", "net_radiation"])
+            .expect("fixture should define model.physics.net_radiation");
+        *netrad = serde_yaml::from_str("{value: 3}").unwrap();
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let roofs = get_path_mut(site, &["properties", "vertical_layers", "roofs"]).unwrap();
+        let Value::Sequence(items) = roofs else {
+            panic!("roofs should be a list");
+        };
+        remove_key(&mut items[1], "emis");
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("without SPARTACUS a missing layer emissivity is not needed");
+        let emis_roof = &run_cfg.site.spartacus_layer.emis_roof;
+        assert!(
+            emis_roof[1].is_nan(),
+            "absent, not substituted: {emis_roof:?}"
+        );
+        assert!(emis_roof[0].is_finite() && emis_roof[2].is_finite());
     }
 }

@@ -425,43 +425,43 @@ contains
 
       end subroutine calculate_lai
 
-      subroutine reset_degree_day_states( &
-         id, sdd_reset_day, summer_day, winter_day, &
-         southern_hemisphere, sdd_id, gdd_id)
+      ! subroutine reset_degree_day_states( &
+      !    id, sdd_reset_day, summer_day, winter_day, &
+      !    southern_hemisphere, sdd_id, gdd_id)
 
-         implicit none
+      !    implicit none
 
-         integer, intent(in) :: id
-         integer, intent(in) :: sdd_reset_day
-         integer, intent(in) :: summer_day
-         integer, intent(in) :: winter_day
-         logical, intent(in) :: southern_hemisphere
+      !    integer, intent(in) :: id
+      !    integer, intent(in) :: sdd_reset_day
+      !    integer, intent(in) :: summer_day
+      !    integer, intent(in) :: winter_day
+      !    logical, intent(in) :: southern_hemisphere
 
-         real(kind(1D0)), intent(inout) :: sdd_id
-         real(kind(1D0)), intent(inout) :: gdd_id
+      !    real(kind(1D0)), intent(inout) :: sdd_id
+      !    real(kind(1D0)), intent(inout) :: gdd_id
 
-         ! if SDD is not zero by the transition day, force it
-         if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
+      !    ! if SDD is not zero by the transition day, force it
+      !    if (id == sdd_reset_day .and. sdd_id /= 0) sdd_id = 0
 
-         if (southern_hemisphere) then
+      !    if (southern_hemisphere) then
 
-            ! Set SDD to zero in southern summer
-            if (gdd_id > CRIT_DAYS .and. id > summer_day) sdd_id = 0
+      !       ! Set SDD to zero in southern summer
+      !       if (gdd_id > CRIT_DAYS .and. id > summer_day) sdd_id = 0
 
-            ! Set GDD zero in southern winter
-            if (sdd_id < -CRIT_DAYS .and. id < winter_day) gdd_id = 0
+      !       ! Set GDD zero in southern winter
+      !       if (sdd_id < -CRIT_DAYS .and. id < winter_day) gdd_id = 0
 
-         else
+      !    else
 
-            ! Set SDD to zero in northern summer
-            if (gdd_id > CRIT_DAYS .and. id < summer_day) sdd_id = 0
+      !       ! Set SDD to zero in northern summer
+      !       if (gdd_id > CRIT_DAYS .and. id < summer_day) sdd_id = 0
 
-            ! Set GDD zero in northern winter
-            if (sdd_id < -CRIT_DAYS .and. id > winter_day) gdd_id = 0
+      !       ! Set GDD zero in northern winter
+      !       if (sdd_id < -CRIT_DAYS .and. id > winter_day) gdd_id = 0
 
-         end if
+      !    end if
 
-      end subroutine reset_degree_day_states
+      ! end subroutine reset_degree_day_states
 
       subroutine reset_degree_days( &
          id, &

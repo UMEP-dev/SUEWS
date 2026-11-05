@@ -1189,9 +1189,6 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_water.irrfracwater = v;
         }
-        if let Some(v) = read_numeric(lc_root, &["flowchange"]) {
-            site.lc_water.flowchange = v;
-        }
         apply_ohm_overrides(&mut site.lc_water.ohm, lc_root);
         apply_soil_overrides(&mut site.lc_water.soil, lc_root);
     }
@@ -2154,7 +2151,26 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
     }
 }
 
-fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value) {
+/// How an error names the site the bridge is reading. supy passes one site
+/// per call, so its position here (always the first) says nothing about
+/// where it sits in the user's file; name it by `gridiv`, as the data
+/// model's own errors do (`sites[gridiv=1]`), and fall back to `sites[0]`.
+fn site_yaml_at(site_root: &Value) -> String {
+    let gridiv = get_path(site_root, &["gridiv"]).map(|v| match v {
+        Value::Mapping(_) => get_path(v, &["value"]).unwrap_or(v),
+        other => other,
+    });
+    match gridiv {
+        Some(Value::Number(n)) => format!("sites[gridiv={n}]"),
+        Some(Value::String(s)) => format!("sites[gridiv={s}]"),
+        _ => "sites[0]".to_string(),
+    }
+}
+
+fn apply_site_scalar_overrides(
+    site_scalars: &mut SiteScalars,
+    site_root: &Value,
+) -> Result<(), String> {
     if let Some(v) = read_numeric(site_root, &["properties", "lat"]) {
         site_scalars.lat = v;
     }
@@ -2193,8 +2209,25 @@ fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value
     if let Some(v) = read_numeric(site_root, &["properties", "CO2PointSource"]) {
         site_scalars.co2_point_source = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "flowchange"]) {
-        site_scalars.flowchange = v;
+    // supy writes the water-body flow change in the water land cover, at
+    // `land_cover.water.flowchange`; the kernel's water balance reads it as
+    // the site-level `siteInfo%flow_change`, packed from this field. No
+    // schema has written a flat `properties.flowchange`, so that spelling is
+    // not read. The kernel reports the term every timestep, with or without
+    // a water surface, so the bridge does not stand in a value: a missing
+    // or null value (or a missing water block) stops the run naming the key.
+    match read_numeric(
+        site_root,
+        &["properties", "land_cover", "water", "flowchange"],
+    ) {
+        Some(v) => site_scalars.flowchange = v,
+        None => {
+            return Err(format!(
+                "`{}.properties.land_cover.water.flowchange` is missing or null; \
+                 give the water-body flow change in mm h-1 (0 for none)",
+                site_yaml_at(site_root)
+            ));
+        }
     }
     if let Some(v) = read_numeric(site_root, &["properties", "n_buildings"]) {
         site_scalars.n_buildings = v;
@@ -2217,6 +2250,7 @@ fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value
             site_scalars.sfr_surf[idx] = v;
         }
     }
+    Ok(())
 }
 
 fn read_sites_indexed(root: &Value, idx: usize) -> Option<&Value> {
@@ -2298,7 +2332,10 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
     apply_site_overrides(&mut site, root, site_root, nlayer as usize, ndepth as usize)?;
-    apply_site_scalar_overrides(&mut site_scalars, site_root);
+    apply_site_scalar_overrides(&mut site_scalars, site_root)?;
+    // One read, one source: the water land cover carries the same flow
+    // change the kernel reads at site level (`siteInfo%flow_change`).
+    site.lc_water.flowchange = site_scalars.flowchange;
 
     if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
         timer.tstep = tstep;

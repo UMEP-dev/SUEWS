@@ -359,7 +359,7 @@ CONTAINS
                         GDD_id, SDD_id, & !inout
                         stress_state, stress_days, &
                         LAI_id) !output
-                     IF (supy_error_flag) RETURN
+                     IF (supy_error_flag()) RETURN
 
                      CALL update_Veg( &
                         LAImax, LAIMin, & !input

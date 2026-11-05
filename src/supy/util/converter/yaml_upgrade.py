@@ -1247,6 +1247,8 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
       renamed to ``perez`` without changing numeric option 3.
     * 2026.6.dev5 -> 2026.6.dev6 (#1974): default-backed
       ``output.include_provisional`` added; YAML content unchanged.
+    * 2026.6.dev6 -> 2026.6.dev7 (#2001): the CO2 point source written
+      as 0.0 wherever it was absent or null, the value the model received.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The
@@ -1343,10 +1345,61 @@ def _migrate_2026_6_dev5_to_2026_6_dev6(cfg: dict) -> dict:
     return cfg
 
 
+_CO2_POINT_SOURCE = "emission_co2_point_source"
+_CO2_POINT_SOURCE_LEGACY = "co2pointsource"
+
+
+def _migrate_2026_6_dev6_to_2026_6_dev7(cfg: dict) -> dict:
+    """Write the CO2 point source the model used to receive as 0.0.
+
+    From 2026.6.dev7 the point source is required when the emissions method
+    adds it to the CO2 flux (#2001). Before, an absent or null value reached
+    the model as 0, so every site carrying ``properties`` gets that 0.0
+    written explicitly; a value the user gave is left alone.
+    """
+    for site in cfg.get("sites", []) or []:
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        if not isinstance(props, dict):
+            continue
+        emissions = props.setdefault("anthropogenic_emissions", {})
+        if not isinstance(emissions, dict):
+            continue
+        co2 = emissions.setdefault("co2", {})
+        if not isinstance(co2, dict):
+            continue
+        if any(
+            _unwrap_scalar(co2.get(name)) is not None
+            for name in (_CO2_POINT_SOURCE, _CO2_POINT_SOURCE_LEGACY)
+        ):
+            continue
+        co2.pop(_CO2_POINT_SOURCE_LEGACY, None)
+        co2[_CO2_POINT_SOURCE] = {"value": 0.0}
+        _log(
+            f"[yaml-upgrade]   set {_CO2_POINT_SOURCE!r} to 0.0 "
+            "(absent or null; the value the model used)"
+        )
+    return cfg
+
+
+def _unwrap_scalar(value):
+    """Return the scalar inside a ``{value: ...}`` wrapper, or the value itself."""
+    if isinstance(value, dict):
+        return value.get("value")
+    return value
+
+
+def _migrate_2026_6_dev5_to_current(cfg: dict) -> dict:
+    """Chain the provisional-output switch and the CO2 point source."""
+    cfg = _migrate_2026_6_dev5_to_2026_6_dev6(cfg)
+    return _migrate_2026_6_dev6_to_2026_6_dev7(cfg)
+
+
 def _migrate_2026_6_dev4_to_current(cfg: dict) -> dict:
-    """Chain the shortwave selector rename and the provisional-output switch."""
+    """Chain the shortwave selector rename and all subsequent schema deltas."""
     cfg = _migrate_2026_6_dev4_to_2026_6_dev5(cfg)
-    return _migrate_2026_6_dev5_to_2026_6_dev6(cfg)
+    return _migrate_2026_6_dev5_to_current(cfg)
 
 
 def _migrate_2026_6_dev3_to_current(cfg: dict) -> dict:
@@ -1433,7 +1486,8 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
-    ("2026.6.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev5_to_2026_6_dev6,
+    ("2026.6.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev6_to_2026_6_dev7,
+    ("2026.6.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev5_to_current,
     ("2026.6.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev4_to_current,
     ("2026.6.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev3_to_current,
     ("2026.6.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev2_to_current,

@@ -3275,7 +3275,9 @@ mod tests {
         assert_eq!(run_cfg.config.storage_heat_method, 7);
     }
 
-    fn stebbs_fixture_with_vertical_layers(edit: impl FnOnce(&mut Value)) -> Result<RunConfig, String> {
+    fn stebbs_fixture_with_vertical_layers(
+        edit: impl FnOnce(&mut Value),
+    ) -> Result<RunConfig, String> {
         // SPARTACUS on (net_radiation 1003), nlayer 3.
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
@@ -3302,7 +3304,10 @@ mod tests {
             err.contains("sites[0].properties.vertical_layers.building_frac"),
             "error should name the list: {err}"
         );
-        assert!(err.contains('3'), "error should give the expected length: {err}");
+        assert!(
+            err.contains('3'),
+            "error should give the expected length: {err}"
+        );
     }
 
     #[test]

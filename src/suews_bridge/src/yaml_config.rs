@@ -18,11 +18,24 @@
 //! 3. The `apply_*_overrides` functions write a field only when its key is
 //!    present and numeric (`if let Some(v) = read_numeric(...)`).
 //!
-//! Consequence: **an absent key keeps the default, which is usually 0.0,
-//! without any message.** Python drops `None` before this file sees it, so a
-//! Pydantic field whose default is `None` also arrives here as absent. When
-//! you add a parameter, decide what absence should mean and say so in the
-//! code.
+//! Consequence today: **an absent key keeps the default, which is usually
+//! 0.0, without any message.** Python drops `None` before this file sees it,
+//! so a Pydantic field whose default is `None` also arrives here as absent.
+//!
+//! That behaviour is legacy and is being removed. The rule for this file:
+//! the bridge is a pass-through and does not fill in values.
+//!
+//! - A value the kernel uses under the selected options and the YAML does
+//!   not give is an error naming its YAML path (and, for a list, the index
+//!   or the length it needs).
+//! - Defaults live in one place only, the supy data model
+//!   (`src/supy/data_model/`), where they are documented; never here, never
+//!   in `SiteScalars::default()`, never in a shadow initialiser.
+//! - A value used only under some options may be carried as explicitly
+//!   absent when those options are off, never as a substituted number.
+//!
+//! New code must follow the rule; do not add a reader that keeps a default
+//! for a missing key.
 //!
 //! Two reading styles are used:
 //!

@@ -134,7 +134,10 @@ pub const SUEWS_CAPI_SITE_SCALARS_LEN: usize = 24;
 /// (`yaml_config::apply_site_scalar_overrides`) overwrites only the keys it
 /// finds, and the command-line entry point has no required-field check, so a
 /// YAML without, say, `properties.z` runs with a measurement height of 0 m.
-/// supy's data model supplies most of these values.
+/// supy's data model supplies most of these values. These Rust-side zeros are
+/// legacy: under the bridge's pass-through rule (`yaml_config.rs` module
+/// docs) a site scalar the kernel needs must come from the YAML or the run
+/// stops; do not rely on, or add to, these defaults.
 ///
 /// Adding a field: append it here, in `Default`, in `encode_site_scalars`
 /// (its index), in `unpack_site_scalars` (same index), and raise both

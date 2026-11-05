@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 5 Nov 2026
 
-- [maintenance] Document the Rust bridge for developers adding parameters: module and item doc comments in `codec.rs`, `yaml_config.rs`, `stebbs_prm.rs`, `lc_evetr_prm.rs` and `sim.rs`, annotations in the `stebbs_prm` and driver C-API facades, and a new developer guide, `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`, walking the eight steps, the places a mistake fails silently, and a checklist. No behaviour change.
+- [maintenance] Document the Rust bridge for developers adding parameters: module and item doc comments in `codec.rs`, `yaml_config.rs`, `stebbs_prm.rs`, `lc_evetr_prm.rs` and `sim.rs`, annotations in the `stebbs_prm` and driver C-API facades, and a new developer guide, `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`, walking the eight steps, the places a mistake fails silently, and a checklist. The docs state the bridge's pass-through rule: a value the kernel needs and the YAML does not give is an error naming its YAML path, and defaults live only in the supy data model, never in Rust or the C-API shadow types. No behaviour change.
 
 ### 3 Nov 2026
 

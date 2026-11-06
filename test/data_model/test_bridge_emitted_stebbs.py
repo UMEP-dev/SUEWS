@@ -104,3 +104,35 @@ def test_df_state_round_trip_keeps_deep_soil_temperature(sample_dict):
     assert "deep_soil_temperature" not in df_state.columns.get_level_values(0)
     stebbs = reloaded.sites[0].properties.stebbs
     assert _unwrap(stebbs.deep_soil_temperature) == 12.5
+
+
+@pytest.mark.parametrize("reload_yaml", [False, True])
+def test_update_annual_mean_recomputes_deep_soil(sample_dict, tmp_path, reload_yaml):
+    """Public patches do not treat a previously emitted temperature as input."""
+    from supy import SUEWSSimulation
+
+    sim = SUEWSSimulation()
+    sim.update_config(copy.deepcopy(sample_dict), auto_load_forcing=False)
+    if reload_yaml:
+        path = tmp_path / "export.yml"
+        sim.config.to_yaml(str(path))
+        sim = SUEWSSimulation()
+        sim.update_config(SUEWSConfig.from_yaml(str(path)), auto_load_forcing=False)
+
+    sim.update_config(
+        {"sites": {0: {"properties": {"stebbs": {
+            "temperature_air_annual_mean": 15.0,
+        }}}}},
+        auto_load_forcing=False,
+    )
+
+    stebbs = sim.config.sites[0].properties.stebbs
+    assert stebbs.deep_soil_temperature == 15.0
+    assert stebbs.model_dump(mode="json")["deep_soil_temperature"] == 15.0
+    with pytest.raises(ValueError, match="deep_soil_temperature is not an input"):
+        sim.update_config(
+            {"sites": {0: {"properties": {"stebbs": {
+                "deep_soil_temperature": 5.0,
+            }}}}},
+            auto_load_forcing=False,
+        )

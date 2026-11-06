@@ -416,7 +416,7 @@ class LAIParams(BaseModel):
             "display_name": "Senescence Degree Days for Leaf Off",
         },
     )
-    #fa - lai min is not an optional parameter so does not need a default?
+    # fa - lai min is not an optional parameter so does not need a default?
     lai_min: FlexibleRefValue(float) = Field(
         default=0.0,
         description="Leaf-off wintertime LAI value",
@@ -440,24 +440,24 @@ class LAIParams(BaseModel):
         },
     )
 
-    #fa Incorporate new base parameters for GDD and SDD
+    # fa Incorporate new base parameters for GDD and SDD
     gdd_base: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description='GDD required to initiate leaf growth',
+        description="GDD required to initiate leaf growth",
         json_schema_extra={
-            'unit': 'DegC',
-            'display name': 'Growing degree days for leaf growth'
-        }
+            "unit": "DegC",
+            "display name": "Growing degree days for leaf growth",
+        },
     )
 
     sdd_base: Optional[FlexibleRefValue(float)] = Field(
-            default=None,
-            description='SDD required to initiate leaf off',
-            json_schema_extra={
-                'unit': 'DegC',
-                'display name': 'Senescence degree days for leaf off'
-            }
-        )
+        default=None,
+        description="SDD required to initiate leaf off",
+        json_schema_extra={
+            "unit": "DegC",
+            "display name": "Senescence degree days for leaf off",
+        },
+    )
 
     ref: Optional[Reference] = None
 
@@ -490,9 +490,9 @@ class LAIParams(BaseModel):
             "laimin": self.lai_min,
             "laimax": self.lai_max,
             "laitype": self.lai_type,
-            #fa add new params to df
-            'gdd_base': self.gdd_base,
-            'sdd_base': self.sdd_base,
+            # fa add new params to df
+            "gdd_base": self.gdd_base,
+            "sdd_base": self.sdd_base,
         }
 
         cols = {("gridiv", "0"): grid_id}
@@ -508,9 +508,9 @@ class LAIParams(BaseModel):
                     "sddfull": 100.0,
                     "laimax": self.LAIMAX_DF_DEFAULT,
                     "laitype": 0,
-                # FA - put defaults here for now, raise issue later on github with docs msimatch when doing this way
-                    'gdd_base': 0,
-                    'sdd_base': 0,
+                    # FA - put defaults here for now, raise issue later on github with docs msimatch when doing this way
+                    "gdd_base": 0,
+                    "sdd_base": 0,
                 }
                 val = defaults.get(param, 0.0)
             cols[(param, f"({veg_idx},)")] = val
@@ -561,9 +561,9 @@ class LAIParams(BaseModel):
             "lai_min": get_df_value("laimin", (veg_idx,)),
             "lai_max": get_df_value("laimax", (veg_idx,)),
             "lai_type": int(get_df_value("laitype", (veg_idx,))),
-            #fa add new params to df
-            'gdd_base': get_df_value('gdd_base', (veg_idx,)),
-            'sdd_base': get_df_value('sdd_base', (veg_idx,)),
+            # fa add new params to df
+            "gdd_base": get_df_value("gdd_base", (veg_idx,)),
+            "sdd_base": get_df_value("sdd_base", (veg_idx,)),
         }
 
         # Convert scalar parameters to RefValue
@@ -3288,7 +3288,7 @@ class SiteProperties(BaseModel):
     porosity: FlexibleRefValue(float) = Field(
         default=0.451,
         description="Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)",
-        json_schema_extra={"unit": "m^3 m^-3", "display_name": "porosity"}
+        json_schema_extra={"unit": "m^3 m^-3", "display_name": "porosity"},
     )
 
     ref: Optional[Reference] = None
@@ -3418,7 +3418,7 @@ class SiteProperties(BaseModel):
             "h_std",
             "lambda_c",
             "theta_r",
-            "porosiity"
+            "porosiity",
         ]:
             # Check if column exists in dataframe
             if (var, "0") in df.columns:

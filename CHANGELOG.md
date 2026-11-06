@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 6 Nov 2026
 
-- [bugfix] Reject non-finite required building fractions and SPARTACUS emissivities with indexed YAML paths, and verify unused emissivity under a supported radiation/storage combination (#1991, #1994)
+- [bugfix] Reject non-finite required building fractions and SPARTACUS emissivities with indexed YAML paths, and verify unused emissivity under a supported radiation/storage combination; optional scalar NaN and infinity values pass through unchanged. Optional lists also retain non-finite elements (#1991, #1994)
 
 ### 5 Nov 2026
 

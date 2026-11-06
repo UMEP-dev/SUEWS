@@ -64,12 +64,21 @@ fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
 fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     let value = get_path(root, path)?;
     match value {
-        Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
+        Value::Number(n) => n.as_f64(),
         Value::Mapping(_) => get_path(value, &["value"]).and_then(|v| match v {
-            Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
+            Value::Number(n) => n.as_f64(),
             _ => None,
         }),
         _ => None,
+    }
+}
+
+/// Check finiteness only for consumers that require a finite value.
+/// Missing/non-numeric input remains distinct from a supplied non-finite number.
+fn read_finite_numeric(root: &Value, path: &[&str]) -> Result<Option<f64>, &'static str> {
+    match read_numeric(root, path) {
+        Some(v) if !v.is_finite() => Err("non-finite"),
+        value => Ok(value),
     }
 }
 
@@ -127,10 +136,11 @@ fn yaml_kind(value: &Value) -> &'static str {
 fn parse_numeric_sequence_checked(value: &Value) -> Result<Option<Vec<f64>>, String> {
     fn element(item: &Value, at: &str) -> Result<f64, String> {
         match item {
-            Value::Number(n) => n
-                .as_f64()
-                .filter(|v| v.is_finite())
-                .ok_or_else(|| format!("element {at} must be a finite number")),
+            Value::Number(_) => read_finite_numeric(item, &[])
+                .map_err(|reason| {
+                    format!("element {at} is {reason}; every element must be a finite number")
+                })?
+                .ok_or_else(|| format!("element {at} must be a number")),
             other => Err(format!(
                 "element {at} is {}; every element must be a number",
                 yaml_kind(other)
@@ -174,8 +184,43 @@ fn parse_numeric_sequence_checked(value: &Value) -> Result<Option<Vec<f64>>, Str
     }
 }
 
+// Optional lists retain their pass-through reader until the checked list migration.
 fn parse_numeric_sequence(value: &Value) -> Option<Vec<f64>> {
-    parse_numeric_sequence_checked(value).ok().flatten()
+    match value {
+        Value::Number(n) => n.as_f64().map(|v| vec![v]),
+        Value::Sequence(items) => {
+            let mut out = Vec::with_capacity(items.len());
+            for item in items {
+                let num = match item {
+                    Value::Number(n) => n.as_f64()?,
+                    _ => return None,
+                };
+                out.push(num);
+            }
+            Some(out)
+        }
+        Value::Mapping(map) => {
+            // First try the standard RefValue wrapper: {value: [1.0, 2.0, ...]}
+            if let Some(inner) = get_path(value, &["value"]) {
+                return parse_numeric_sequence(inner);
+            }
+            // Fallback: extract numeric values from named keys (e.g. Pydantic
+            // dict serialisation of hdd_id: {hdd_accum: 13.5, cdd_accum: 13.5, ...}).
+            let mut out = Vec::with_capacity(map.len());
+            for (_key, val) in map {
+                match val {
+                    Value::Number(n) => out.push(n.as_f64()?),
+                    _ => return None,
+                }
+            }
+            if out.is_empty() {
+                None
+            } else {
+                Some(out)
+            }
+        }
+        _ => None,
+    }
 }
 
 fn read_numeric_sequence(root: &Value, path: &[&str]) -> Option<Vec<f64>> {
@@ -782,7 +827,17 @@ fn apply_vertical_layers_overrides(
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(roof_root, &["emis"]) {
+            let emissivity = if spartacus_on && layer_idx < nlayer {
+                read_finite_numeric(roof_root, &["emis"]).map_err(|reason| {
+                    format!(
+                        "`{site_at}.properties.vertical_layers.roofs[{layer_idx}].emis` is {reason}; \
+                         SPARTACUS (net_radiation > 1000) needs a finite emissivity"
+                    )
+                })?
+            } else {
+                read_numeric(roof_root, &["emis"])
+            };
+            if let Some(v) = emissivity {
                 if let Some(slot) = site.spartacus_layer.emis_roof.get_mut(layer_idx) {
                     *slot = v;
                 }
@@ -817,7 +872,17 @@ fn apply_vertical_layers_overrides(
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(wall_root, &["emis"]) {
+            let emissivity = if spartacus_on && layer_idx < nlayer {
+                read_finite_numeric(wall_root, &["emis"]).map_err(|reason| {
+                    format!(
+                        "`{site_at}.properties.vertical_layers.walls[{layer_idx}].emis` is {reason}; \
+                         SPARTACUS (net_radiation > 1000) needs a finite emissivity"
+                    )
+                })?
+            } else {
+                read_numeric(wall_root, &["emis"])
+            };
+            if let Some(v) = emissivity {
                 if let Some(slot) = site.spartacus_layer.emis_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
@@ -852,7 +917,7 @@ fn apply_vertical_layers_overrides(
         ] {
             if let Some(layer_idx) = values.iter().position(|v| !v.is_finite()) {
                 return Err(format!(
-                    "`{site_at}.properties.vertical_layers.{facet}[{layer_idx}].emis` is missing, null or non-finite; \
+                    "`{site_at}.properties.vertical_layers.{facet}[{layer_idx}].emis` is missing, null or non-numeric; \
                      SPARTACUS (net_radiation > 1000) needs an emissivity for each of the \
                      nlayer = {nlayer} {facet}"
                 ));
@@ -3441,6 +3506,9 @@ mod tests {
                     "{err}"
                 );
                 assert!(err.contains("[1]"), "{err}");
+                if bad != "null" {
+                    assert!(err.contains("is non-finite"), "{err}");
+                }
             }
         }
     }
@@ -3465,12 +3533,65 @@ mod tests {
                         serde_yaml::from_str(bad).unwrap();
                 })
                 .expect_err(bad);
+                assert!(err.contains("is non-finite"), "{err}");
                 assert!(
                     err.contains(&format!(
                         "sites[gridiv=1].properties.vertical_layers.{facet}[1].emis"
                     )),
                     "{err}"
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn optional_list_keeps_non_finite_elements_and_neighbours() {
+        for bad in [".nan", ".inf", "-.inf"] {
+            for value in [
+                format!("[0.2, {bad}, 0.1]"),
+                format!("{{value: [0.2, {bad}, 0.1]}}"),
+            ] {
+                let run = stebbs_fixture_with_vertical_layers(|layers| {
+                    *get_path_mut(layers, &["veg_frac"]).unwrap() =
+                        serde_yaml::from_str(&value).unwrap();
+                })
+                .expect(&value);
+                let values = &run.site.spartacus_layer.veg_frac;
+                assert_eq!(values[0], 0.2);
+                assert_eq!(values[2], 0.1);
+                let expected: Value = serde_yaml::from_str(bad).unwrap();
+                let expected = expected.as_f64().unwrap();
+                if expected.is_nan() {
+                    assert!(values[1].is_nan(), "{value}: {values:?}");
+                } else {
+                    assert_eq!(values[1], expected, "{value}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn optional_non_finite_scalar_reaches_the_struct() {
+        for (number, expected) in [
+            (".nan", f64::NAN),
+            (".inf", f64::INFINITY),
+            ("-.inf", f64::NEG_INFINITY),
+        ] {
+            for value in [number.to_string(), format!("{{value: {number}}}")] {
+                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(site, &["properties", "z"]).unwrap() =
+                    serde_yaml::from_str(&value).unwrap();
+                let run = load_run_config_from_value(&mut root).expect(&value);
+                if expected.is_nan() {
+                    assert!(
+                        run.site_scalars.z.is_nan(),
+                        "{value}: {}",
+                        run.site_scalars.z
+                    );
+                } else {
+                    assert_eq!(run.site_scalars.z, expected, "{value}");
+                }
             }
         }
     }

@@ -54,6 +54,14 @@ Detailed checklist for comprehensive PR review.
 - [ ] "Output is identical" is not used to conclude "design is fine"
 - [ ] Ref: `.claude/rules/code-design.md` -> "Fix Placement and Encapsulation"
 
+### Rust bridge boundaries
+
+- [ ] Apply `.claude/rules/rust/bridge-contract.md` to affected Python, Rust and
+      Fortran boundary paths; record applicable BR IDs and revision-specific
+      evidence using its audit format
+- [ ] Distinguish current behaviour, required contract and unresolved follow-ups;
+      a schema/length check or round trip does not establish kernel-field wiring
+
 ---
 
 ## Scientific Review Checklist

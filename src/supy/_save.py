@@ -1478,17 +1478,20 @@ def _check_save_frequency(df_output, df_state_final, freq_s) -> None:
         )
 
 
-def _check_dailystate_interval(df_output, df_state_final) -> None:
+def _check_dailystate_interval(df_output, df_state_final, freq_s=None) -> None:
     """Reject saving DailyState rows that aggregate more than one day.
 
     The writers describe every DailyState row as one day (its water totals
     as the covered day), so rows of a multi-day resample (for example
-    ``"2D"``) would be saved under that description.
+    ``"2D"``) would be saved under that description. ``freq_s`` is given
+    where the writer resamples DailyState itself (Parquet), so a saving
+    period longer than a day is refused there too.
     """
     held_s = _held_interval_s(df_output, df_state_final)
-    if held_s is not None and held_s > 86400:
+    span_s = max(held_s or 0, freq_s or 0)
+    if span_s > 86400:
         raise ValueError(
-            f"DailyState rows resampled to more than one day ({int(held_s)} s) "
+            f"DailyState rows resampled to more than one day ({int(span_s)} s) "
             "cannot be saved: the files describe each DailyState row as one "
             "day. Save the other groups only (groups=['SUEWS'], text output), "
             "or save the native or daily output."
@@ -1704,7 +1707,11 @@ def save_df_output_parquet(
     _check_save_tstep(df_output, save_tstep)
     _check_save_frequency(df_output, df_state_final, freq_s)
     if "DailyState" in df_output.columns.get_level_values("group"):
-        _check_dailystate_interval(df_output, df_state_final)
+        # DailyState is resampled with the other groups unless saved as held.
+        _check_dailystate_interval(
+            df_output, df_state_final,
+            freq_s if streamed_parquet is None and not save_tstep else None,
+        )
     df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
 

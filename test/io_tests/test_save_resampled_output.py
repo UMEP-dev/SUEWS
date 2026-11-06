@@ -148,3 +148,10 @@ def test_sub_daily_and_daily_dailystate_saves_one_row_per_day(output, tmp_path, 
     assert saved["DOY"].is_unique
     meta = json.loads(path.with_name(path.name + ".units.json").read_text(encoding="utf-8"))
     assert meta["columns"]["HDD1_h"]["interval"] == "1 day"
+
+
+def test_parquet_save_coarser_than_a_day_refuses_dailystate(output, tmp_path):
+    """Parquet resamples DailyState with the other groups: two days is refused."""
+    with pytest.raises(ValueError, match=r"more than one day \(172800 s\)"):
+        output.save(tmp_path, format="parquet", freq_s=172800)
+    assert not list(tmp_path.glob("*.parquet"))

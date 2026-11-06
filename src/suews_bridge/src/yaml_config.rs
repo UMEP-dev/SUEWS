@@ -64,9 +64,9 @@ fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
 fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     let value = get_path(root, path)?;
     match value {
-        Value::Number(n) => n.as_f64(),
+        Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
         Value::Mapping(_) => get_path(value, &["value"]).and_then(|v| match v {
-            Value::Number(n) => n.as_f64(),
+            Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
             _ => None,
         }),
         _ => None,
@@ -100,42 +100,82 @@ fn read_string(root: &Value, path: &[&str]) -> Option<String> {
     }
 }
 
-fn parse_numeric_sequence(value: &Value) -> Option<Vec<f64>> {
+/// Describe a YAML value for an error message.
+fn yaml_kind(value: &Value) -> &'static str {
     match value {
-        Value::Number(n) => n.as_f64().map(|v| vec![v]),
-        Value::Sequence(items) => {
-            let mut out = Vec::with_capacity(items.len());
-            for item in items {
-                let num = match item {
-                    Value::Number(n) => n.as_f64()?,
-                    _ => return None,
-                };
-                out.push(num);
-            }
-            Some(out)
+        Value::Null => "null",
+        Value::Bool(_) => "a boolean",
+        Value::Number(_) => "a number",
+        Value::String(_) => "a string",
+        Value::Sequence(_) => "a list",
+        Value::Mapping(_) => "a mapping",
+        Value::Tagged(_) => "a tagged value",
+    }
+}
+
+/// Parse a numeric list: bare (`[1.0, 2.0]`), wrapped in the RefValue form
+/// (`{value: [...]}`), a single number, or a mapping of named numbers (e.g.
+/// `hdd_id`).
+///
+/// `Ok(None)` means the value is not a list or number at all (the caller
+/// treats it as not given). An element that is not a number, `null`
+/// included, is an error naming its index (or key): the bridge passes values
+/// through and never stands in for a missing one. supy can send such nulls
+/// (the thermal-layer lists are `List[Optional[float]]`, and
+/// `model_dump(mode="json")` writes a NaN element as `null`), so this must
+/// not be silently dropped.
+fn parse_numeric_sequence_checked(value: &Value) -> Result<Option<Vec<f64>>, String> {
+    fn element(item: &Value, at: &str) -> Result<f64, String> {
+        match item {
+            Value::Number(n) => n
+                .as_f64()
+                .filter(|v| v.is_finite())
+                .ok_or_else(|| format!("element {at} must be a finite number")),
+            other => Err(format!(
+                "element {at} is {}; every element must be a number",
+                yaml_kind(other)
+            )),
         }
+    }
+
+    match value {
+        Value::Number(_) => element(value, "[0]").map(|v| Some(vec![v])),
+        Value::Sequence(items) => items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| element(item, &format!("[{i}]")))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some),
         Value::Mapping(map) => {
             // First try the standard RefValue wrapper: {value: [1.0, 2.0, ...]}
             if let Some(inner) = get_path(value, &["value"]) {
-                return parse_numeric_sequence(inner);
+                return parse_numeric_sequence_checked(inner);
+            }
+            // A RefValue whose value was None keeps only its `ref` after
+            // `exclude_none`: the list was not given.
+            if map.contains_key("ref") {
+                return Ok(None);
             }
             // Fallback: extract numeric values from named keys (e.g. Pydantic
             // dict serialisation of hdd_id: {hdd_accum: 13.5, cdd_accum: 13.5, ...}).
-            let mut out = Vec::with_capacity(map.len());
-            for (_key, val) in map {
-                match val {
-                    Value::Number(n) => out.push(n.as_f64()?),
-                    _ => return None,
-                }
-            }
-            if out.is_empty() {
-                None
-            } else {
-                Some(out)
-            }
+            let out = map
+                .iter()
+                .map(|(key, val)| {
+                    let key = match key {
+                        Value::String(k) => k.clone(),
+                        other => format!("{other:?}"),
+                    };
+                    element(val, &format!("`{key}`"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(if out.is_empty() { None } else { Some(out) })
         }
-        _ => None,
+        _ => Ok(None),
     }
+}
+
+fn parse_numeric_sequence(value: &Value) -> Option<Vec<f64>> {
+    parse_numeric_sequence_checked(value).ok().flatten()
 }
 
 fn read_numeric_sequence(root: &Value, path: &[&str]) -> Option<Vec<f64>> {
@@ -671,10 +711,15 @@ fn apply_vertical_layers_overrides(
 
     let site_at = site_yaml_at(site_root);
     let building_frac_at = format!("{site_at}.properties.vertical_layers.building_frac");
-    match read_numeric_sequence(
+    let building_frac = get_path(
         site_root,
         &["properties", "vertical_layers", "building_frac"],
-    ) {
+    )
+    .map(parse_numeric_sequence_checked)
+    .transpose()
+    .map_err(|err| format!("`{building_frac_at}`: {err}"))?
+    .flatten();
+    match building_frac {
         Some(building_frac) if building_frac.len() >= nlayer => {
             assign_prefix(
                 site.spartacus_layer.building_frac.as_mut_slice(),
@@ -805,9 +850,9 @@ fn apply_vertical_layers_overrides(
             ("roofs", &site.spartacus_layer.emis_roof),
             ("walls", &site.spartacus_layer.emis_wall),
         ] {
-            if let Some(layer_idx) = values.iter().position(|v| v.is_nan()) {
+            if let Some(layer_idx) = values.iter().position(|v| !v.is_finite()) {
                 return Err(format!(
-                    "`{site_at}.properties.vertical_layers.{facet}[{layer_idx}].emis` is missing; \
+                    "`{site_at}.properties.vertical_layers.{facet}[{layer_idx}].emis` is missing, null or non-finite; \
                      SPARTACUS (net_radiation > 1000) needs an emissivity for each of the \
                      nlayer = {nlayer} {facet}"
                 ));
@@ -3361,6 +3406,8 @@ mod tests {
         let netrad = get_path_mut(&mut root, &["model", "physics", "net_radiation"])
             .expect("fixture should define model.physics.net_radiation");
         *netrad = serde_yaml::from_str("{value: 3}").unwrap();
+        *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+            serde_yaml::from_str("{value: 1}").unwrap();
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
         let roofs = get_path_mut(site, &["properties", "vertical_layers", "roofs"]).unwrap();
         let Value::Sequence(items) = roofs else {
@@ -3376,5 +3423,55 @@ mod tests {
             "absent, not substituted: {emis_roof:?}"
         );
         assert!(emis_roof[0].is_finite() && emis_roof[2].is_finite());
+    }
+    #[test]
+    fn non_finite_layer_fractions_name_the_path_and_index() {
+        for bad in ["null", ".nan", ".inf", "-.inf"] {
+            for value in [
+                format!("[0.35, {bad}, 0.1]"),
+                format!("{{value: [0.35, {bad}, 0.1]}}"),
+            ] {
+                let err = stebbs_fixture_with_vertical_layers(|layers| {
+                    *get_path_mut(layers, &["building_frac"]).unwrap() =
+                        serde_yaml::from_str(&value).unwrap();
+                })
+                .expect_err(&value);
+                assert!(
+                    err.contains("sites[gridiv=1].properties.vertical_layers.building_frac"),
+                    "{err}"
+                );
+                assert!(err.contains("[1]"), "{err}");
+            }
+        }
+    }
+
+    #[test]
+    fn non_finite_layer_emissivity_names_the_facet() {
+        for facet in ["roofs", "walls"] {
+            for bad in [
+                ".nan",
+                ".inf",
+                "-.inf",
+                "{value: .nan}",
+                "{value: .inf}",
+                "{value: -.inf}",
+            ] {
+                let err = stebbs_fixture_with_vertical_layers(|layers| {
+                    let items = get_path_mut(layers, &[facet])
+                        .unwrap()
+                        .as_sequence_mut()
+                        .unwrap();
+                    *get_path_mut(&mut items[1], &["emis"]).unwrap() =
+                        serde_yaml::from_str(bad).unwrap();
+                })
+                .expect_err(bad);
+                assert!(
+                    err.contains(&format!(
+                        "sites[gridiv=1].properties.vertical_layers.{facet}[1].emis"
+                    )),
+                    "{err}"
+                );
+            }
+        }
     }
 }

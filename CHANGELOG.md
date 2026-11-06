@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 6 Nov 2026
 
-- [bugfix] Reject non-finite water flow changes at the required scalar reader, including bare and wrapped YAML values (#1991, #1995)
+- [bugfix] Reject non-finite water flow changes at the required scalar reader, including bare and wrapped YAML values; optional scalar NaN and infinity values pass through unchanged (#1991, #1995)
 
 ### 5 Nov 2026
 

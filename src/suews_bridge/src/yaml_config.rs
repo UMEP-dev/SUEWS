@@ -64,12 +64,21 @@ fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
 fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     let value = get_path(root, path)?;
     match value {
-        Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
+        Value::Number(n) => n.as_f64(),
         Value::Mapping(_) => get_path(value, &["value"]).and_then(|v| match v {
-            Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
+            Value::Number(n) => n.as_f64(),
             _ => None,
         }),
         _ => None,
+    }
+}
+
+/// Check finiteness only for consumers that require a finite value.
+/// Missing/non-numeric input remains distinct from a supplied non-finite number.
+fn read_finite_numeric(root: &Value, path: &[&str]) -> Result<Option<f64>, &'static str> {
+    match read_numeric(root, path) {
+        Some(v) if !v.is_finite() => Err("non-finite"),
+        value => Ok(value),
     }
 }
 
@@ -2216,19 +2225,19 @@ fn apply_site_scalar_overrides(
     // not read. The kernel reports the term every timestep, with or without
     // a water surface, so the bridge does not stand in a value: a missing
     // or null value (or a missing water block) stops the run naming the key.
-    match read_numeric(
+    let flowchange_error = |reason| {
+        format!(
+            "`{}.properties.land_cover.water.flowchange` is {reason}; \
+         give the water-body flow change in mm h-1 (0 for none)",
+            site_yaml_at(site_root)
+        )
+    };
+    site_scalars.flowchange = read_finite_numeric(
         site_root,
         &["properties", "land_cover", "water", "flowchange"],
-    ) {
-        Some(v) => site_scalars.flowchange = v,
-        None => {
-            return Err(format!(
-                "`{}.properties.land_cover.water.flowchange` is missing, null or non-finite; \
-                 give the water-body flow change in mm h-1 (0 for none)",
-                site_yaml_at(site_root)
-            ));
-        }
-    }
+    )
+    .map_err(flowchange_error)?
+    .ok_or_else(|| flowchange_error("missing, null or non-numeric"))?;
     if let Some(v) = read_numeric(site_root, &["properties", "n_buildings"]) {
         site_scalars.n_buildings = v;
     }
@@ -3316,6 +3325,11 @@ mod tests {
             }
             let err = load_run_config_from_value(&mut root)
                 .expect_err("a missing water flowchange must be rejected");
+            if value.is_some_and(|v| v.contains(".nan") || v.contains(".inf")) {
+                assert!(err.contains("is non-finite"), "{case}: {err}");
+            } else {
+                assert!(!err.contains("non-finite"), "{case}: {err}");
+            }
             assert!(
                 err.contains("sites[gridiv=1].properties.land_cover.water.flowchange"),
                 "{case}: error should name the key: {err}"
@@ -3339,5 +3353,31 @@ mod tests {
             err.contains("sites[gridiv=1].properties.land_cover.water.flowchange"),
             "error should name the key: {err}"
         );
+    }
+
+    #[test]
+    fn optional_non_finite_scalar_reaches_the_struct() {
+        for (number, expected) in [
+            (".nan", f64::NAN),
+            (".inf", f64::INFINITY),
+            ("-.inf", f64::NEG_INFINITY),
+        ] {
+            for value in [number.to_string(), format!("{{value: {number}}}")] {
+                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(site, &["properties", "z"]).unwrap() =
+                    serde_yaml::from_str(&value).unwrap();
+                let run = load_run_config_from_value(&mut root).expect(&value);
+                if expected.is_nan() {
+                    assert!(
+                        run.site_scalars.z.is_nan(),
+                        "{value}: {}",
+                        run.site_scalars.z
+                    );
+                } else {
+                    assert_eq!(run.site_scalars.z, expected, "{value}");
+                }
+            }
+        }
     }
 }

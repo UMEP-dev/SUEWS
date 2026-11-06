@@ -163,3 +163,15 @@ def test_held_interval_is_unknown_or_calendar_honestly():
     assert resolve_held_interval(frame).kind == "calendar"
     frame.attrs["supy_output_interval_s"] = 3600
     assert resolve_held_interval(frame).seconds == 3600
+
+
+def test_held_interval_reads_an_unnamed_datetime_level():
+    """A (grid, datetime) index whose names were lost is still read by position."""
+    from supy._output_metadata import resolve_held_interval
+
+    index = pd.MultiIndex.from_product(
+        [[1], pd.date_range("2012-01-01 00:05", periods=4, freq="5min")]
+    )
+    columns = pd.MultiIndex.from_tuples([("SUEWS", "QH")], names=["group", "var"])
+    frame = pd.DataFrame(1.0, index=index, columns=columns)
+    assert resolve_held_interval(frame).seconds == 300

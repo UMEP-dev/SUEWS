@@ -202,7 +202,9 @@ def resolve_held_interval(
     if infer:
         index = df_output.index
         if isinstance(index, pd.MultiIndex):
-            index = index.get_level_values("datetime")
+            # (grid, datetime); a frame whose levels lost their names keeps
+            # the timestamps last, as _index_freq_matches reads them.
+            index = index.get_level_values("datetime" if "datetime" in index.names else -1)
         index = pd.DatetimeIndex(index.unique()).sort_values()
         offset = infer_freq_offset(index) if len(index) >= 3 else None
         if offset is not None:

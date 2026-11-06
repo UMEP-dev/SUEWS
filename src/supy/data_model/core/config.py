@@ -229,12 +229,40 @@ def _soil_selector_code(value) -> Optional[int]:
     return None
 
 
+_CANONICAL_SOIL_OBSERVATION_KEYS = ("layer_top", "layer_depth")
+# First schema with explicit observed-soil layer bounds and canonical sm forcing.
+_OBSERVED_SOIL_LAYER_SCHEMA = "2026.6.dev6"
+
+
+def _predates_observed_soil_layers(schema_version) -> bool:
+    """Whether a declared schema version predates canonical observed soil."""
+    from packaging.version import InvalidVersion, Version
+
+    try:
+        return Version(str(schema_version)) < Version(_OBSERVED_SOIL_LAYER_SCHEMA)
+    except InvalidVersion:
+        return True
+
+
 def _uses_legacy_observed_soil(config_data) -> bool:
     """Whether a raw YAML mapping selects observed soil moisture the legacy way.
 
     Such a YAML cannot be upgraded on its own: its xsmd forcing must be
     converted with it (``suews convert --forcing``). A modelled YAML with a
     stale legacy sensor block is not one; the plain upgrade drops that block.
+
+    The selector spelling alone does not decide it, because the legacy names
+    are also accepted aliases of ``soil_moisture``. With an observed selector
+    (any spelling), in order:
+
+    1. a site ``soil_observation`` with canonical layer bounds
+       (``layer_top``/``layer_depth``) -> current, not legacy;
+    2. a site ``soil_observation`` with legacy keys (``depth``, ``smcap``)
+       -> legacy;
+    3. a legacy-only method (2, gravimetric) -> legacy;
+    4. otherwise a declared ``schema_version`` decides (older than the
+       first schema with layer bounds -> legacy); without one, a legacy
+       selector spelling -> legacy.
     """
     if not isinstance(config_data, Mapping):
         return False
@@ -242,25 +270,31 @@ def _uses_legacy_observed_soil(config_data) -> bool:
     physics = model.get("physics") if isinstance(model, Mapping) else None
     if not isinstance(physics, Mapping):
         return False
-    observed = legacy_selector = False
-    for key in (*_LEGACY_SOIL_SELECTORS, "soil_moisture"):
-        if key not in physics:
-            continue
-        if _soil_selector_code(physics[key]) in (1, 2):
-            observed = True
-            legacy_selector = legacy_selector or key in _LEGACY_SOIL_SELECTORS
+    codes = {
+        key: _soil_selector_code(physics[key])
+        for key in (*_LEGACY_SOIL_SELECTORS, "soil_moisture")
+        if key in physics
+    }
+    observed = {key: code for key, code in codes.items() if code in (1, 2)}
     if not observed:
         return False
-    if legacy_selector:
-        return True
+    blocks = []
     sites = config_data.get("sites")
     if isinstance(sites, Iterable) and not isinstance(sites, (str, bytes, Mapping)):
         for site in sites:
             props = site.get("properties") if isinstance(site, Mapping) else None
             obs = props.get("soil_observation") if isinstance(props, Mapping) else None
-            if isinstance(obs, Mapping) and any(k in obs for k in _LEGACY_SOIL_OBSERVATION_KEYS):
-                return True
-    return False
+            if isinstance(obs, Mapping):
+                blocks.append(obs)
+    if any(k in obs for obs in blocks for k in _CANONICAL_SOIL_OBSERVATION_KEYS):
+        return False
+    if any(k in obs for obs in blocks for k in _LEGACY_SOIL_OBSERVATION_KEYS):
+        return True
+    if 2 in observed.values():
+        return True
+    if "schema_version" in config_data:
+        return _predates_observed_soil_layers(config_data["schema_version"])
+    return any(key in _LEGACY_SOIL_SELECTORS for key in observed)
 
 
 def _prefixed_line_errors(error: ValidationError, prefix: tuple) -> list[dict]:

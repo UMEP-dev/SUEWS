@@ -129,3 +129,33 @@ def test_legacy_selector_values_resolve_numerically(selector, expected):
     cfg = yaml.safe_load((FIXTURES / "legacy_method1.yml").read_text(encoding="utf-8"))
     cfg["model"]["physics"]["soil_moisture_deficit"] = selector
     assert _uses_legacy_observed_soil(cfg) is expected
+
+
+@pytest.mark.parametrize("alias", ["smdmethod", "soil_moisture_deficit"])
+def test_current_yaml_with_selector_alias_is_renamed_not_refused(tmp_path, alias):
+    from supy.data_model.core.config import _uses_legacy_observed_soil
+
+    cfg = yaml.safe_load((FIXTURES / "canonical.yml").read_text(encoding="utf-8"))
+    physics = cfg["model"]["physics"]
+    physics[alias] = physics.pop("soil_moisture")
+    assert not _uses_legacy_observed_soil(cfg)
+    source = tmp_path / "alias.yml"
+    source.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    report, _ = _phase_a(source, tmp_path, "public")
+    assert "Legacy observed soil moisture" not in report
+    assert f"{alias} changed to soil_moisture" in report
+
+
+@pytest.mark.parametrize(
+    "schema_version,expected",
+    [(None, True), ("2026.6.dev5", True), ("2026.6.dev6", False), ("2026.7", False)],
+)
+def test_alias_without_observation_block_follows_schema_version(
+    schema_version, expected
+):
+    from supy.data_model.core.config import _uses_legacy_observed_soil
+
+    cfg = {"model": {"physics": {"smdmethod": 1}}, "sites": [{"properties": {}}]}
+    if schema_version is not None:
+        cfg["schema_version"] = schema_version
+    assert _uses_legacy_observed_soil(cfg) is expected

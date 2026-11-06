@@ -1,3 +1,54 @@
+//! YAML run configuration -> typed Rust structs for the kernel.
+//!
+//! Entry point: `load_run_config_from_value` (also `load_run_config` for a
+//! file and `load_run_config_from_str`). It is used by both entry points:
+//! supy (`_run_rust.py` dumps the validated Pydantic model with
+//! `exclude_none=True` and passes the YAML text) and the `suews-engine`
+//! command line (hand-written YAML, no Python validation in between).
+//!
+//! The order of work in `load_run_config_from_value`:
+//!
+//! 1. `normalize_field_names` (`field_renames.rs`) rewrites the current
+//!    snake_case Pydantic names to the legacy fused spellings this file
+//!    indexes by (e.g. `emission_co2_point_source` -> `co2pointsource`).
+//! 2. Every struct starts from its Fortran default
+//!    (`*_default_from_fortran`, see `codec.rs`): the zero-initialised C-API
+//!    shadow types. `SiteScalars` is the exception: it starts from its Rust
+//!    `Default` (`sim.rs`), also zeros.
+//! 3. The `apply_*_overrides` functions write a field only when its key is
+//!    present and numeric (`if let Some(v) = read_numeric(...)`).
+//!
+//! Consequence today: **an absent key keeps the default, which is usually
+//! 0.0, without any message.** Python drops `None` before this file sees it,
+//! so a Pydantic field whose default is `None` also arrives here as absent.
+//!
+//! That behaviour is legacy and is being removed. The rule for this file:
+//! the bridge is a pass-through and does not fill in values.
+//!
+//! - A value the kernel uses under the selected options and the YAML does
+//!   not give is an error naming its YAML path (and, for a list, the index
+//!   or the length it needs).
+//! - Defaults live in one place only, the supy data model
+//!   (`src/supy/data_model/`), where they are documented; never here, never
+//!   in `SiteScalars::default()`, never in a shadow initialiser.
+//! - A value used only under some options may be carried as explicitly
+//!   absent when those options are off, never as a substituted number.
+//!
+//! New code must follow the rule; do not add a reader that keeps a default
+//! for a missing key.
+//!
+//! Two reading styles are used:
+//!
+//! - explicit paths, for most types: one `read_numeric(root, &[...])` per
+//!   field in the relevant `apply_*_overrides`. A new field needs a new line.
+//! - name matching, for STEBBS and building archetype parameters
+//!   (`apply_stebbs_overrides`, `apply_building_archetype_overrides`): each
+//!   YAML key goes through `normalise_field_name` and `set_mapped_value`
+//!   onto the Rust field names. A new field needs no code here, but a key
+//!   that matches no field is **silently ignored**.
+//!
+//! Adding a parameter end to end: `dev-ref/RUST_BRIDGE_ADD_PARAMETER.md`.
+
 use crate::building_archetype_prm::{
     building_archetype_prm_from_map, building_archetype_prm_to_map,
 };
@@ -162,6 +213,15 @@ fn read_numeric_value(value: &Value) -> Option<f64> {
     }
 }
 
+/// Turn a YAML key into the snake_case form used to match Rust field names.
+///
+/// Rules: ASCII letters are lower-cased; an upper-case letter that follows a
+/// lower-case letter or digit starts a new `_`-separated word (`WallX1` ->
+/// `wall_x1`, `CO2PointSource` -> `co2_point_source`); any run of
+/// non-alphanumeric characters becomes one `_`; leading and trailing `_` are
+/// dropped. `set_mapped_value` then also tries the name with every `_`
+/// removed, so `heatingsetpointtemperature` and
+/// `heating_setpoint_temperature` both match a field of either spelling.
 fn normalise_field_name(field: &str) -> String {
     let mut out = String::with_capacity(field.len() + 8);
     let mut prev_was_lower_or_digit = false;
@@ -274,6 +334,14 @@ fn apply_day_profile_overrides(
     Ok(())
 }
 
+/// Write `value` into `mapped` under the existing key that matches
+/// `field_name`, exactly or after removing every `_`.
+///
+/// `mapped` comes from `<type>_to_map` of the Fortran default, so its keys
+/// are exactly the Rust field names (`*_field_names()`). **If no key matches,
+/// the value is dropped without a message**: a misspelt or renamed YAML key
+/// leaves the field at its Fortran default, usually 0.0. Keys are never
+/// added, which keeps `<type>_from_map` from failing on unknown names.
 fn set_mapped_value(mapped: &mut BTreeMap<String, f64>, field_name: &str, value: f64) {
     if mapped.contains_key(field_name) {
         mapped.insert(field_name.to_string(), value);
@@ -1843,6 +1911,28 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(),
     Ok(())
 }
 
+/// Fill the `SuewsSite` parameter structs from one site's YAML.
+///
+/// Routing from YAML block to Rust member (paths below `sites[i]`):
+///
+/// - `properties.conductance` -> `site.conductance` (`apply_conductance_overrides`)
+/// - `properties.lumps` -> `site.lumps`
+/// - `properties.spartacus` and `model.physics.sw_dn_direct_frac` -> `site.spartacus`
+/// - `properties.land_cover.<surface>` -> `site.lc_<surface>` (sfr, emis,
+///   OHM, soil, LAI, water distribution, ...)
+/// - `properties.snow` -> `site.snow`; `properties.irrigation` -> `site.irrigation`
+/// - `properties.vertical_layers` -> `site.spartacus_layer` (per-layer lists)
+///   and, for the facet thermal layers, `site.ehc`
+/// - `properties.anthropogenic_emissions` -> `site.anthroemis`
+/// - `properties.building_archetype` and `properties.stebbs` ->
+///   `site.building_archtype` and `site.stebbs` (name matching)
+///
+/// Order matters: `resize_site_variable_arrays` pads per-layer arrays with
+/// fallbacks taken from other members, and `apply_vertical_layers_overrides`
+/// and `apply_ehc_overrides` index the resized arrays. Any key not present
+/// keeps the Fortran default (see the module docs). Scalars that the driver
+/// passes separately (`lat`, `z`, `z0m_in`, ...) are read by
+/// `apply_site_scalar_overrides` into `SiteScalars`, not here.
 fn apply_site_overrides(
     site: &mut SuewsSite,
     root: &Value,

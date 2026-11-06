@@ -97,3 +97,27 @@ def test_native_output_with_units_saves_at_configured_frequency(output, tmp_path
     """Native rows converted to a rate unit still save at the configured hour."""
     paths = output.to_units({"Rain": "mm h-1"}).save(tmp_path)
     assert any(p.name.endswith("_SUEWS_60.txt") for p in paths)
+
+
+@pytest.mark.parametrize(
+    ("freq", "freq_s", "message"),
+    [
+        (None, 420, "whole multiple of the held output interval of 300 s"),
+        (None, 0, "must be positive"),
+        (None, -300, "must be positive"),
+        ("2h", 10800, "whole multiple of the held output interval of 7200 s"),
+    ],
+)
+def test_save_frequency_must_be_a_multiple_of_held_interval(output, tmp_path, freq, freq_s, message):
+    """Seven-minute saving of five-minute rows mixed five- and ten-minute rows."""
+    source = output if freq is None else output.resample(freq)
+    with pytest.raises(ValueError, match=message):
+        source.save(tmp_path, freq_s=freq_s)
+    assert not [p for p in tmp_path.iterdir() if p.suffix == ".txt"]
+
+
+@pytest.mark.parametrize(("freq", "freq_s", "suffix"), [(None, 600, "_10"), ("2h", 14400, "_240")])
+def test_save_frequency_multiple_is_written(output, tmp_path, freq, freq_s, suffix):
+    source = output if freq is None else output.resample(freq)
+    paths = source.save(tmp_path, freq_s=freq_s)
+    assert any(p.name.endswith(f"_SUEWS{suffix}.txt") for p in paths)

@@ -783,6 +783,8 @@ class SUEWSOutput:
             ``"D"``), else ``model.control.output.freq``, else 3600.
             Calendar-resampled output (``"W"``, ``"MS"``, ``"ME"``,
             ``"YE"``) cannot be saved; see the error for alternatives.
+            An explicit value must be positive and a whole multiple of the
+            interval the rows hold (the model timestep for native output).
         units : mapping, optional
             Variable names or (group, variable) pairs to requested unit strings.
         groups : list, optional
@@ -821,7 +823,7 @@ class SUEWSOutput:
 
         # Get defaults from config if available; resampled output defaults to
         # the interval it holds rather than the configured output frequency.
-        freq = freq_s or held_s or 3600
+        freq = freq_s if freq_s is not None else (held_s or 3600)
         site = ""
         output_config = None
         forcing_timestamp_reference = "local_standard_time"
@@ -837,7 +839,9 @@ class SUEWSOutput:
                             and output_control.freq
                             and held_s is None
                         ):
-                            freq = freq_s or output_control.freq
+                            freq = (
+                                freq_s if freq_s is not None else output_control.freq
+                            )
                         # The writer takes the frequency from the config;
                         # pass the one resolved here so an explicit freq_s
                         # and a resampled interval are both honoured.

@@ -1447,18 +1447,33 @@ def _check_save_tstep(df_output, save_tstep: bool) -> None:
 
 
 def _check_save_frequency(df_output, df_state_final, freq_s) -> None:
-    """Reject a saving frequency finer than the interval the rows hold.
+    """Reject a saving frequency the held rows cannot be aggregated to.
 
     Resampled rows (for example daily) cannot be split into finer saving
-    periods: the writer would describe daily values as hourly ones. The held
-    interval is the frame's declared interval, else the model timestep.
+    periods: the writer would describe daily values as hourly ones. A saving
+    period that is not a whole number of held intervals would put a varying
+    number of rows in each period (five-minute rows saved at seven minutes
+    hold alternately five and ten minutes), so it is refused as the
+    configuration refuses an output frequency that is not a multiple of the
+    timestep. The held interval is the frame's declared interval, else the
+    model timestep.
     """
+    if not freq_s > 0:
+        raise ValueError(f"Output frequency must be positive, got freq_s={freq_s}")
     held_s = _held_interval_s(df_output, df_state_final)
-    if held_s is not None and freq_s < held_s:
+    if held_s is None:
+        return
+    if freq_s < held_s:
         raise ValueError(
             f"freq_s={freq_s} is finer than the held output interval of "
             f"{int(held_s)} s; resampled output can only be saved at its own "
             "interval or a coarser one."
+        )
+    if freq_s % held_s != 0:
+        raise ValueError(
+            f"freq_s={freq_s} must be a whole multiple of the held output "
+            f"interval of {int(held_s)} s, so that each saved row holds the "
+            "same number of held rows."
         )
 
 

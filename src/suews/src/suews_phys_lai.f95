@@ -132,8 +132,8 @@ CONTAINS
          senescence_mode = SEN_DAYLENGTH
       ELSE !! N.B. not identical to N hemisphere - return to later
          ! sdd_reset_day = 300
-         summer_day = 250
-         winter_day = 250
+         summer_day = 1
+         winter_day = 182
          southern_hemisphere = .TRUE.
          senescence_mode = SEN_SDD
       END IF

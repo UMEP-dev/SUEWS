@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Nov 2026
+
+- [doc] Distinguish the resolved-input caller contract from pending engine-boundary enforcement and legacy fallbacks (#1991, #2009)
+- [doc] State where YAML is resolved: `suews run` validates a configuration through the data model and hands the engine a resolved configuration, while the bundled `suews-engine` binary is a developer and test tool that expects resolved YAML; the engine's help and its config errors now point to `suews run` (#2004)
+- [maintenance] `make bridge` now builds the engine with its `run` command, and the sample-output check feeds the engine the resolved configuration `suews run` would send, through a shared `config_to_engine_yaml` helper (#2004)
+
 ### 3 Nov 2026
 
 - [feature][experimental] Declared and tested Python 3.15 support: added the 3.15 classifier, put cp315 into the CI candidate window (so PR api lanes now test the cp312 and cp315 bookends, the merge queue keeps the cp312 floor, and cp313 and cp314 run in the nightly and release matrix) and a `py315` dispatch toggle, required pyarrow>=26 on 3.15 (its first cp315 wheels), installed setuptools in `make dev` so sdist-only dependencies such as numexpr build on 3.15, adapted two tests to 3.15's `importlib.metadata` and `warnings.warn_explicit` behaviour, and ran the dependency audit on 3.15 as well as 3.13. The cp312-abi3 wheel is unchanged (#1988)

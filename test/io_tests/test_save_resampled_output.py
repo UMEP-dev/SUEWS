@@ -121,3 +121,30 @@ def test_save_frequency_multiple_is_written(output, tmp_path, freq, freq_s, suff
     source = output if freq is None else output.resample(freq)
     paths = source.save(tmp_path, freq_s=freq_s)
     assert any(p.name.endswith(f"_SUEWS{suffix}.txt") for p in paths)
+
+
+@pytest.mark.parametrize(
+    ("groups", "file_format"),
+    [(["DailyState"], "txt"), (["SUEWS", "DailyState"], "txt"), (None, "parquet")],
+)
+def test_multi_day_dailystate_save_is_refused(output, tmp_path, groups, file_format):
+    """Two-day DailyState aggregates were written described as one day."""
+    with pytest.raises(ValueError, match=r"DailyState rows resampled to more than one day \(172800 s\)"):
+        output.resample("2D").save(tmp_path, groups=groups, format=file_format)
+    assert not [p for p in tmp_path.iterdir() if p.suffix in {".txt", ".parquet"}]
+
+
+def test_multi_day_output_without_dailystate_is_saved(output, tmp_path):
+    paths = output.resample("2D").save(tmp_path, groups=["SUEWS"])
+    assert [p.name for p in paths if p.suffix == ".txt"] == ["KCL1_2012_SUEWS_2880.txt"]
+
+
+@pytest.mark.parametrize("freq", ["h", "D"])
+def test_sub_daily_and_daily_dailystate_saves_one_row_per_day(output, tmp_path, freq):
+    paths = output.resample(freq).save(tmp_path, groups=["DailyState"])
+    path = next(p for p in paths if p.name.endswith("_DailyState.txt"))
+    saved = pd.read_csv(path, sep=r"\s+")
+    assert len(saved) == 61  # 1 January to 1 March: the days the run completes
+    assert saved["DOY"].is_unique
+    meta = json.loads(path.with_name(path.name + ".units.json").read_text(encoding="utf-8"))
+    assert meta["columns"]["HDD1_h"]["interval"] == "1 day"

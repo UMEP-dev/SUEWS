@@ -59,6 +59,7 @@ EXAMPLES:
 - [bugfix] Resampling resampled output again (for example `output.resample("D").resample("ME")`) now assigns each DailyState row to the period it holds: a daily row is labelled by the start of its day, and was binned as if the label were its end, so 1 January's `P_day` and coverage went to December (`ME`, `MS`, `YE`) or to the wrong week or two-day bin (`W`, `2D`). Chained and direct resampling now agree
 - [bugfix] Saving resampled rows outside `SUEWSOutput.resample`: a wrapper rebuilt from resampled rows (`SUEWSOutput(output.resample("D").df, state)`, or rows reloaded from a saved Parquet file) now saves at the interval the rows hold instead of describing daily rows as hourly, and the low-level writers refuse a `freq_s` finer than that interval
 - [bugfix] Saving with an explicit `freq_s` now requires a positive whole multiple of the interval the rows hold, as the configuration already requires of `output.freq`: five-minute output saved with `freq_s=420` gave rows of alternately five and ten minutes, two-hourly output saved at three hours mixed one and two source rows per saved row, and `freq_s=0` was silently replaced by the configured frequency
+- [bugfix] DailyState rows resampled to more than one day (for example `output.resample("2D")`) are refused by the writers instead of being saved described as one day; save the other groups (`groups=["SUEWS"]`) or the daily output
 
 ### 3 Nov 2026
 

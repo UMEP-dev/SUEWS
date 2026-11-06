@@ -1149,6 +1149,7 @@ def save_df_output(
     # Extract DailyState before resampling (it contains daily variables only written at last timestep of each day)
     df_dailystate = None
     if "DailyState" in list_group_save:
+        _check_dailystate_interval(df_output, df_state_final)
         df_dailystate = _dailystate_rows(df_output)
     list_group_no_daily = [g for g in list_group_save if g != "DailyState"]
 
@@ -1477,6 +1478,23 @@ def _check_save_frequency(df_output, df_state_final, freq_s) -> None:
         )
 
 
+def _check_dailystate_interval(df_output, df_state_final) -> None:
+    """Reject saving DailyState rows that aggregate more than one day.
+
+    The writers describe every DailyState row as one day (its water totals
+    as the covered day), so rows of a multi-day resample (for example
+    ``"2D"``) would be saved under that description.
+    """
+    held_s = _held_interval_s(df_output, df_state_final)
+    if held_s is not None and held_s > 86400:
+        raise ValueError(
+            f"DailyState rows resampled to more than one day ({int(held_s)} s) "
+            "cannot be saved: the files describe each DailyState row as one "
+            "day. Save the other groups only (groups=['SUEWS'], text output), "
+            "or save the native or daily output."
+        )
+
+
 def _held_interval_s(df_output, df_state_final) -> Optional[int]:
     """Use the held output cadence when rows have already been resampled."""
     if "supy_output_interval_s" in df_output.attrs:
@@ -1685,6 +1703,8 @@ def save_df_output_parquet(
     _parquet_engine()
     _check_save_tstep(df_output, save_tstep)
     _check_save_frequency(df_output, df_state_final, freq_s)
+    if "DailyState" in df_output.columns.get_level_values("group"):
+        _check_dailystate_interval(df_output, df_state_final)
     df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
 

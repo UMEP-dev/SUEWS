@@ -297,7 +297,11 @@ January. At fixed frequencies DailyState keeps its own label, the start of each
 day (see :ref:`timestamp_convention`).
 
 Output resampled to a fixed frequency (for example ``output.resample("D")``)
-is saved at that interval, and its files and metadata say so. Calendar-resampled
+is saved at that interval, and its files and metadata say so, with one
+exception: DailyState rows resampled to more than one day (for example
+``output.resample("2D")``) cannot be saved, because the files describe each
+DailyState row as one day; save ``groups=["SUEWS"]``, or the native or daily
+output, instead. Calendar-resampled
 output cannot be saved to files, because a calendar period has no fixed interval
 to name the files and describe the rows; the error begins
 ``Calendar-resampled output (for example ME or W) cannot be saved to files``.

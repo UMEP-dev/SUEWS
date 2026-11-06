@@ -56,6 +56,7 @@ EXAMPLES:
 
 ### 5 Nov 2026
 
+- [bugfix] `flowchange` on the water surface and the vegetation `sdd_id` initial states now reject `{value: null}` with an error naming the field, instead of passing the null to the Rust bridge, which replaced it with its own 0; omitting the field still gives its documented default. The legacy table converter no longer writes `sdd_id: null` (or a NaN growing-degree-day start) for a site with no vegetation: it starts both counters at 0, the value the bridge used, so no run output changes (#2001)
 - [maintenance] The data model now emits the run switches the Rust bridge used to fill in itself: `model.control.diag_qs` and `flag_test` (0), `model.physics.evapmethod` (2, Shuttleworth) and `vertical_layers.ndepth` (5, the kernel's fixed number of material layers per facet). All four are internal fields with documented defaults equal to what the bridge substituted, hidden from exported YAML, so no run output changes; the bridge's own fallbacks for them can now be removed (#1991)
 
 ### 3 Nov 2026

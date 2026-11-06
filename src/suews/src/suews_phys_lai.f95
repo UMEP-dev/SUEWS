@@ -110,7 +110,7 @@ CONTAINS
 
       IF (lai_calc_yes == 0) THEN
          CALL observed_lai( &
-            lai_obs=lai_id_prev, &
+            lai_obs=lai_obs, &
             lai_id_next=lai_id_next, &
             valid=valid_observed_lai &
             )

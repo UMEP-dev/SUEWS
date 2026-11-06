@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Nov 2026
+
+- [bugfix] Reject non-finite numeric-list entries and incomplete thermal and initial-temperature arrays required by the selected storage scheme, with YAML paths and lengths; retain DyOHM outermost-layer requirements (#1991, #1992)
+
 ### 5 Nov 2026
 
 - [bugfix] Rust bridge: a numeric YAML list with an element that is not a number (a `null`, which the data model allows in the thermal-layer `dz`, `k` and `rho_cp` lists and which supy writes for a NaN, or a string) is now an error naming the list's YAML path and the element's index, for example `sites[gridiv=1].properties.vertical_layers.roofs[0].thermal_layers.dz: element [1] is null` (the site is named by its `gridiv`). Previously the whole list was silently ignored, so every slot it should have filled kept a zero default (#1991)

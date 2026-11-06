@@ -64,9 +64,9 @@ fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
 fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     let value = get_path(root, path)?;
     match value {
-        Value::Number(n) => n.as_f64(),
+        Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
         Value::Mapping(_) => get_path(value, &["value"]).and_then(|v| match v {
-            Value::Number(n) => n.as_f64(),
+            Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
             _ => None,
         }),
         _ => None,
@@ -119,7 +119,7 @@ fn yaml_kind(value: &Value) -> &'static str {
 ///
 /// `Ok(None)` means the value is not a list or number at all (the caller
 /// treats it as not given). An element that is not a number, `null`
-/// included, is an error naming its index (or key): the bridge passes values
+/// included, or a non-finite number is an error naming its index (or key): the bridge passes values
 /// through and never stands in for a missing one. supy can send such nulls
 /// (the thermal-layer lists are `List[Optional[float]]`, and
 /// `model_dump(mode="json")` writes a NaN element as `null`), so this must
@@ -129,7 +129,8 @@ fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
         match item {
             Value::Number(n) => n
                 .as_f64()
-                .ok_or_else(|| format!("element {at} is not representable as a float")),
+                .filter(|v| v.is_finite())
+                .ok_or_else(|| format!("element {at} must be a finite number")),
             other => Err(format!(
                 "element {at} is {}; every element must be a number",
                 yaml_kind(other)
@@ -138,7 +139,7 @@ fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
     }
 
     match value {
-        Value::Number(n) => Ok(n.as_f64().map(|v| vec![v])),
+        Value::Number(_) => element(value, "[0]").map(|v| Some(vec![v])),
         Value::Sequence(items) => items
             .iter()
             .enumerate()
@@ -186,14 +187,25 @@ fn read_numeric_sequence(
     parse_numeric_sequence(value).map_err(|e| format!("`{at}.{}`: {e}", path.join(".")))
 }
 
-/// First of several spellings of a numeric list that is present.
-fn read_first_numeric_sequence(
+/// Check a supplied list without turning whole-list absence into a requirement.
+fn require_list_length(actual: usize, required: usize, at: &str) -> Result<(), String> {
+    if actual < required {
+        return Err(format!(
+            "`{at}` has {actual} values; requires at least {required}"
+        ));
+    }
+    Ok(())
+}
+
+fn read_sized_numeric_sequence(
     root: &Value,
     paths: &[&[&str]],
     at: &str,
+    required: usize,
 ) -> Result<Option<Vec<f64>>, String> {
     for path in paths {
         if let Some(values) = read_numeric_sequence(root, path, at)? {
+            require_list_length(values.len(), required, &format!("{at}.{}", path.join(".")))?;
             return Ok(Some(values));
         }
     }
@@ -1643,6 +1655,7 @@ fn apply_ehc_overrides(
     site_root: &Value,
     nlayer: usize,
     ndepth: usize,
+    storage_heat_method: i32,
 ) -> Result<(), String> {
     let layer_mat_len = nlayer * ndepth;
     let surf_len = if nlayer == 0 { 0 } else { NSURF };
@@ -1651,6 +1664,8 @@ fn apply_ehc_overrides(
     site.ehc.nlayer = nlayer;
     site.ehc.ndepth = ndepth;
     let site_at = site_yaml_at(site_root);
+    // EHC consumes each depth. DyOHM uses only the outermost material layer.
+    let facet_depth = if storage_heat_method == 5 { ndepth } else { 0 };
 
     // Roof and wall arrays follow SPARTACUS vertical layers; standard
     // surface arrays follow SUEWS surface classes.
@@ -1677,32 +1692,48 @@ fn apply_ehc_overrides(
         // Populate k_surf, cp_surf, dz_surf from each surface type's thermal_layers.
         // Row-major layout: element [surf_idx * ndepth + depth_idx].
         for &(surface_name, surface_idx) in &SURFACE_YAML_ORDER {
+            let surface_depth = match storage_heat_method {
+                5 => ndepth,
+                7 if surface_name == "bldgs" => 0,
+                8 if surface_name != "bldgs" => 0,
+                _ => 1,
+            };
+            // The diagnostic DyOHM temperature update also reads k and cp
+            // outside methods 6-8; dz is only used by the storage schemes.
+            let thickness_depth = if (5..=8).contains(&storage_heat_method) {
+                surface_depth
+            } else {
+                0
+            };
             let tl_path = ["properties", "land_cover", surface_name, "thermal_layers"];
-            if let Some(k_vals) = read_numeric_sequence(
+            if let Some(k_vals) = read_sized_numeric_sequence(
                 site_root,
-                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"],
+                &[&[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"]],
                 &site_at,
+                surface_depth,
             )? {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_surf[surface_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_first_numeric_sequence(
+            if let Some(cp_vals) = read_sized_numeric_sequence(
                 site_root,
                 &[
                     &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
                     &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"],
                 ],
                 &site_at,
+                surface_depth,
             )? {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_surf[surface_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_numeric_sequence(
+            if let Some(dz_vals) = read_sized_numeric_sequence(
                 site_root,
-                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"],
+                &[&[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"]],
                 &site_at,
+                thickness_depth,
             )? {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_surf[surface_idx * ndepth + j] = v;
@@ -1726,6 +1757,13 @@ fn apply_ehc_overrides(
     }
 
     if let Some(roofs) = read_sequence(site_root, &["properties", "vertical_layers", "roofs"]) {
+        if storage_heat_method == 5 {
+            require_list_length(
+                roofs.len(),
+                nlayer,
+                &format!("{site_at}.properties.vertical_layers.roofs"),
+            )?;
+        }
         for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
             let at = format!("{site_at}.properties.vertical_layers.roofs[{layer_idx}]");
             if let Some(v) = read_numeric(roof_root, &["soilstorecap"]) {
@@ -1738,22 +1776,32 @@ fn apply_ehc_overrides(
                 site.ehc.wet_thresh_roof[layer_idx] = v;
             }
 
-            if let Some(k_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "k"], &at)? {
+            if let Some(k_vals) = read_sized_numeric_sequence(
+                roof_root,
+                &[&["thermal_layers", "k"]],
+                &at,
+                facet_depth,
+            )? {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_roof[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_first_numeric_sequence(
+            if let Some(cp_vals) = read_sized_numeric_sequence(
                 roof_root,
                 &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
                 &at,
+                facet_depth,
             )? {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_roof[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_numeric_sequence(roof_root, &["thermal_layers", "dz"], &at)?
-            {
+            if let Some(dz_vals) = read_sized_numeric_sequence(
+                roof_root,
+                &[&["thermal_layers", "dz"]],
+                &at,
+                facet_depth,
+            )? {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_roof[layer_idx * ndepth + j] = v;
                 }
@@ -1762,6 +1810,13 @@ fn apply_ehc_overrides(
     }
 
     if let Some(walls) = read_sequence(site_root, &["properties", "vertical_layers", "walls"]) {
+        if storage_heat_method == 5 {
+            require_list_length(
+                walls.len(),
+                nlayer,
+                &format!("{site_at}.properties.vertical_layers.walls"),
+            )?;
+        }
         for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
             let at = format!("{site_at}.properties.vertical_layers.walls[{layer_idx}]");
             if let Some(v) = read_numeric(wall_root, &["soilstorecap"]) {
@@ -1774,22 +1829,32 @@ fn apply_ehc_overrides(
                 site.ehc.wet_thresh_wall[layer_idx] = v;
             }
 
-            if let Some(k_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "k"], &at)? {
+            if let Some(k_vals) = read_sized_numeric_sequence(
+                wall_root,
+                &[&["thermal_layers", "k"]],
+                &at,
+                facet_depth,
+            )? {
                 for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
                     site.ehc.k_wall[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(cp_vals) = read_first_numeric_sequence(
+            if let Some(cp_vals) = read_sized_numeric_sequence(
                 wall_root,
                 &[&["thermal_layers", "rho_cp"], &["thermal_layers", "cp"]],
                 &at,
+                facet_depth,
             )? {
                 for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
                     site.ehc.cp_wall[layer_idx * ndepth + j] = v;
                 }
             }
-            if let Some(dz_vals) = read_numeric_sequence(wall_root, &["thermal_layers", "dz"], &at)?
-            {
+            if let Some(dz_vals) = read_sized_numeric_sequence(
+                wall_root,
+                &[&["thermal_layers", "dz"]],
+                &at,
+                facet_depth,
+            )? {
                 for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
                     site.ehc.dz_wall[layer_idx * ndepth + j] = v;
                 }
@@ -1957,6 +2022,7 @@ fn apply_site_overrides(
     site_root: &Value,
     nlayer: usize,
     ndepth: usize,
+    storage_heat_method: i32,
 ) -> Result<(), String> {
     apply_conductance_overrides(site, root, site_root);
     apply_lumps_overrides(site, site_root);
@@ -1978,11 +2044,15 @@ fn apply_site_overrides(
     apply_anthro_emis_overrides(site, site_root);
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
-    apply_ehc_overrides(site, site_root, nlayer, ndepth)?;
+    apply_ehc_overrides(site, site_root, nlayer, ndepth, storage_heat_method)?;
     Ok(())
 }
 
-fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<(), String> {
+fn apply_state_overrides(
+    state: &mut SuewsState,
+    site_root: &Value,
+    storage_heat_method: i32,
+) -> Result<(), String> {
     // STEBBS initial temperatures are provided under properties.stebbs in YAML
     // but consumed from stebbs_state by the physics core. Match the legacy
     // Fortran initialisation where DeepSoilTemperature falls back to
@@ -2122,10 +2192,11 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<()
 
         let ndepth = state.heat_state.ndepth;
         if ndepth > 0 {
-            if let Some(temps) = read_numeric_sequence(
+            if let Some(temps) = read_sized_numeric_sequence(
                 initial_states_root,
-                &[surface_name, "temperature"],
+                &[&[surface_name, "temperature"]],
                 &initial_at,
+                if storage_heat_method == 5 { ndepth } else { 0 },
             )? {
                 let start = surface_idx * ndepth;
                 if start + ndepth <= state.heat_state.temp_surf.len() {
@@ -2204,6 +2275,13 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<()
 
     if let Some(roofs) = read_sequence(initial_states_root, &["roofs"]) {
         let ndepth = state.heat_state.ndepth;
+        if storage_heat_method == 5 {
+            require_list_length(
+                roofs.len(),
+                state.heat_state.nlayer,
+                &format!("{initial_at}.roofs"),
+            )?;
+        }
         for (layer_idx, roof_root) in roofs.iter().enumerate() {
             if let Some(v) = read_numeric(roof_root, &["soilstore"]) {
                 if let Some(slot) = state.hydro_state.soilstore_roof.get_mut(layer_idx) {
@@ -2222,7 +2300,12 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<()
             }
             if ndepth > 0 {
                 let at = format!("{initial_at}.roofs[{layer_idx}]");
-                if let Some(temps) = read_numeric_sequence(roof_root, &["temperature"], &at)? {
+                if let Some(temps) = read_sized_numeric_sequence(
+                    roof_root,
+                    &[&["temperature"]],
+                    &at,
+                    if storage_heat_method == 5 { ndepth } else { 0 },
+                )? {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_roof.len() {
                         let copy_len = temps.len().min(ndepth);
@@ -2236,6 +2319,13 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<()
 
     if let Some(walls) = read_sequence(initial_states_root, &["walls"]) {
         let ndepth = state.heat_state.ndepth;
+        if storage_heat_method == 5 {
+            require_list_length(
+                walls.len(),
+                state.heat_state.nlayer,
+                &format!("{initial_at}.walls"),
+            )?;
+        }
         for (layer_idx, wall_root) in walls.iter().enumerate() {
             if let Some(v) = read_numeric(wall_root, &["soilstore"]) {
                 if let Some(slot) = state.hydro_state.soilstore_wall.get_mut(layer_idx) {
@@ -2254,7 +2344,12 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) -> Result<()
             }
             if ndepth > 0 {
                 let at = format!("{initial_at}.walls[{layer_idx}]");
-                if let Some(temps) = read_numeric_sequence(wall_root, &["temperature"], &at)? {
+                if let Some(temps) = read_sized_numeric_sequence(
+                    wall_root,
+                    &[&["temperature"]],
+                    &at,
+                    if storage_heat_method == 5 { ndepth } else { 0 },
+                )? {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_wall.len() {
                         let copy_len = temps.len().min(ndepth);
@@ -2411,7 +2506,14 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
-    apply_site_overrides(&mut site, root, site_root, nlayer as usize, ndepth as usize)?;
+    apply_site_overrides(
+        &mut site,
+        root,
+        site_root,
+        nlayer as usize,
+        ndepth as usize,
+        config.storage_heat_method,
+    )?;
     apply_site_scalar_overrides(&mut site_scalars, site_root);
 
     if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
@@ -2423,7 +2525,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     // vectors like tsfc_surf have the correct length when values are assigned.
     resize_state_variable_arrays(&mut state, nlayer as usize, ndepth as usize);
 
-    apply_state_overrides(&mut state, site_root)?;
+    apply_state_overrides(&mut state, site_root, config.storage_heat_method)?;
 
     let forcing_timestamp_reference = read_forcing_timestamp_reference(root)?;
     config.forcing_timestamp_reference = match forcing_timestamp_reference {
@@ -3398,5 +3500,119 @@ mod tests {
     fn ref_only_mapping_is_a_list_not_given() {
         let ref_only: Value = serde_yaml::from_str("{ref: {desc: from a paper}}").unwrap();
         assert_eq!(parse_numeric_sequence(&ref_only), Ok(None));
+    }
+    fn fixture_with_list(path: &str, value: &str, method: i32) -> Result<RunConfig, String> {
+        let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+        *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+            serde_yaml::from_str(&format!("{{value: {method}}}")).unwrap();
+        let mut target = first_site_mut(&mut root).unwrap();
+        for key in path.split('.') {
+            target = if let Ok(index) = key.parse::<usize>() {
+                &mut target.as_sequence_mut().unwrap()[index]
+            } else {
+                target
+                    .as_mapping_mut()
+                    .unwrap()
+                    .get_mut(Value::String(key.into()))
+                    .unwrap()
+            };
+        }
+        *target = serde_yaml::from_str(value).unwrap();
+        load_run_config_from_value(&mut root)
+    }
+
+    #[test]
+    fn non_finite_list_elements_name_the_yaml_path_and_index() {
+        let path = "properties.vertical_layers.roofs.0.thermal_layers.dz";
+        for bad in [".nan", ".inf", "-.inf"] {
+            for value in [
+                format!("[0.03, {bad}, 0.1, 0.1, 0.1]"),
+                format!("{{value: [0.03, {bad}, 0.1, 0.1, 0.1]}}"),
+            ] {
+                let err = fixture_with_list(path, &value, 5).expect_err(&value);
+                assert!(
+                    err.contains(
+                        "sites[gridiv=1].properties.vertical_layers.roofs[0].thermal_layers.dz"
+                    ),
+                    "{err}"
+                );
+                assert!(err.contains("[1]"), "{err}");
+            }
+            let err = fixture_with_list(path, bad, 5).expect_err(bad);
+            assert!(err.contains("[0]"), "{err}");
+        }
+    }
+
+    #[test]
+    fn ehc_rejects_short_material_and_temperature_lists() {
+        let mut paths = Vec::new();
+        for base in [
+            "properties.land_cover.paved",
+            "properties.vertical_layers.roofs.0",
+            "properties.vertical_layers.walls.0",
+        ] {
+            for key in ["k", "rho_cp", "dz"] {
+                paths.push(format!("{base}.thermal_layers.{key}"));
+            }
+        }
+        for base in [
+            "initial_states.paved",
+            "initial_states.roofs.0",
+            "initial_states.walls.0",
+        ] {
+            paths.push(format!("{base}.temperature"));
+        }
+        for path in paths {
+            for (value, actual) in [("[]", 0), ("{value: [1.0]}", 1)] {
+                let err = fixture_with_list(&path, value, 5).expect_err(&path);
+                let at = path.replace(".0.", "[0].");
+                assert!(err.contains(&format!("sites[gridiv=1].{at}")), "{err}");
+                assert!(err.contains(&format!("has {actual} values")), "{err}");
+                assert!(err.contains("requires at least 5"), "{err}");
+            }
+        }
+    }
+
+    #[test]
+    fn ehc_rejects_short_facet_lists() {
+        for parent in ["properties.vertical_layers", "initial_states"] {
+            for facet in ["roofs", "walls"] {
+                let path = format!("{parent}.{facet}");
+                for (value, actual) in [("[]", 0), ("[{}]", 1)] {
+                    let err = fixture_with_list(&path, value, 5).expect_err(&path);
+                    assert!(err.contains(&format!("sites[gridiv=1].{path}")), "{err}");
+                    assert!(err.contains(&format!("has {actual} values")), "{err}");
+                    assert!(err.contains("requires at least 3"), "{err}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn dyohm_needs_only_the_outermost_material_layer() {
+        for method in [6, 7, 8] {
+            let surface = if method == 8 { "bldgs" } else { "paved" };
+            for key in ["k", "rho_cp", "dz"] {
+                let path = format!("properties.land_cover.{surface}.thermal_layers.{key}");
+                fixture_with_list(&path, "[1.0]", method)
+                    .expect("DyOHM reads only the first layer");
+                let err =
+                    fixture_with_list(&path, "[]", method).expect_err("DyOHM needs one layer");
+                assert!(err.contains(&path), "{err}");
+                assert!(err.contains("has 0 values; requires at least 1"), "{err}");
+            }
+        }
+    }
+    #[test]
+    fn diagnostic_dyohm_needs_one_conductivity_and_heat_capacity() {
+        for key in ["k", "rho_cp"] {
+            let path = format!("properties.land_cover.paved.thermal_layers.{key}");
+            fixture_with_list(&path, "[1.0]", 1).unwrap();
+            let err = fixture_with_list(&path, "[]", 1)
+                .expect_err("diagnostic DyOHM reads the first value");
+            assert!(err.contains("has 0 values; requires at least 1"), "{err}");
+        }
+        fixture_with_list("properties.land_cover.paved.thermal_layers.dz", "[]", 1).unwrap();
+        fixture_with_list("initial_states.paved.temperature", "[20.0]", 6).unwrap();
     }
 }

@@ -61,6 +61,7 @@ EXAMPLES:
 - [bugfix] Saving with an explicit `freq_s` now requires a positive whole multiple of the interval the rows hold, as the configuration already requires of `output.freq`: five-minute output saved with `freq_s=420` gave rows of alternately five and ten minutes, two-hourly output saved at three hours mixed one and two source rows per saved row, and `freq_s=0` was silently replaced by the configured frequency
 - [bugfix] DailyState rows resampled to more than one day (for example `output.resample("2D")`) are refused by the writers instead of being saved described as one day; save the other groups (`groups=["SUEWS"]`) or the daily output
 - [bugfix] Parquet output saved at a frequency longer than one day (for example `freq_s=172800`) is refused while it holds DailyState, which the Parquet writer resamples with the other groups and described as one day
+- [bugfix] Streamed Parquet output reloaded and resampled (`SUEWSOutput(pd.read_parquet(folder), state).resample("ME")`) keeps each DailyState day in its own period: the folder declares rows at the output frequency while DailyState keeps its native last-step stamps (`23:55`), which were read as start labels, so each month's last day, and 31 December, went to the next period with its `P_day` and coverage
 
 ### 3 Nov 2026
 

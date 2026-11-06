@@ -261,23 +261,36 @@ def _calendar_binning(obj, freq):
 def _dailystate_period_end(obj, source_s):
     """Return DailyState rows stamped just before the end of the period they hold.
 
-    Native DailyState rows sit at the last step of their day, and a
-    fixed-frequency resample labels them by the start of the period they
-    aggregate (``label="left"``), so a resampled row stamped
-    ``2012-01-01 00:00`` holds 1 January. Moving each row forward by the held
-    interval ``source_s`` and back by one nanosecond stamps it inside the
-    period it holds, so binning it again (for example ``"D"`` then ``"ME"``)
-    assigns it as binning the native rows would. A native row moves to
-    ``23:59:59.999999999`` of its own day. Calendar-resampled rows already
-    carry their period's end label (``source_s`` is ``None``) and are
-    returned unchanged; :func:`_calendar_binning` handles them.
+    DailyState rows carry one of two stamps in a frame whose other groups
+    hold intervals of ``source_s`` seconds:
+
+    - native stamps, the last model step of each day (``23:55`` at a
+      five-minute step). Streamed output keeps these beside rows resampled
+      to the output frequency, and a native frame has them on its own grid;
+    - start labels from a fixed-frequency resample (``label="left"``), on the
+      ``source_s`` grid counted from the first row's midnight: ``00:00`` of
+      each day at ``"D"``, the start of the day's last bin at ``"h"``.
+
+    A row holding one day (native, or resampled below a day) moves to
+    ``23:59:59.999999999`` of its day; a row holding ``source_s`` of a day or
+    more moves forward by ``source_s`` and back by one nanosecond. Binning the
+    moved rows again (for example ``"D"`` then ``"ME"``) then assigns each as
+    binning the native rows would. Rows at a calendar or unknown interval
+    (``source_s`` is ``None``) are returned unchanged; calendar rows already
+    carry their period's end label, see :func:`_calendar_binning`.
     """
-    if source_s is None:
+    if source_s is None or len(obj.index) == 0:
         return obj
+    index = obj.index
+    step = pd.Timedelta(source_s, "s")
+    day = pd.Timedelta(1, "D")
+    on_grid = ((index - index.min().normalize()) % step == pd.Timedelta(0)).all()
     shifted = obj.copy(deep=False)
-    shifted.index = (
-        shifted.index + pd.Timedelta(source_s, "s") - pd.Timedelta(1, "ns")
-    )
+    if step >= day and on_grid:
+        shifted.index = index + step - pd.Timedelta(1, "ns")
+    else:
+        # Native last-step stamps are off the grid of any coarser interval.
+        shifted.index = index.normalize() + day - pd.Timedelta(1, "ns")
     return shifted
 
 

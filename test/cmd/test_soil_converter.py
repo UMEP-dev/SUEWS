@@ -403,3 +403,15 @@ def test_forcing_without_input_is_a_usage_error(tmp_path):
     assert result.exit_code == 2
     assert "Missing -i/--input" in result.output
     assert "Usage:" in result.output and "Convert any supported" not in result.output
+
+
+def test_convert_runs_the_loaders_site_completeness_checks(tmp_path):
+    def drop_g_max(raw):
+        del raw["sites"][0]["properties"]["conductance"]["g_max"]
+
+    args = _legacy_copy(tmp_path, edit=drop_g_max)
+    with pytest.raises(YamlUpgradeError, match=r"conductance\.g_max is None"):
+        upgrade_soil_observation(*args, layer_top=0, layer_depth=0.2)
+    assert all(not p.exists() for p in args[2:])
+    report = upgrade_soil_observation(*args, layer_top=0, layer_depth=0.2, dry_run=True)
+    assert any("conductance.g_max is None" in e for e in report["errors"])

@@ -4948,28 +4948,20 @@ class SUEWSConfig(BaseModel):
         )
 
     @classmethod
-    def from_dict(
+    def _prepare_raw_input(
         cls,
         config_data: dict,
-        use_conditional_validation: bool = True,
-        strict: bool = True,
-        auto_generate_annotated: bool = False,
+        *,
         yaml_path: Optional[str] = None,
-    ) -> "SUEWSConfig":
-        """Initialize SUEWSConfig from a configuration dict with validation.
+        auto_generate_annotated: bool = False,
+    ) -> tuple:
+        """Copy a raw YAML mapping and add the loader's bookkeeping keys.
 
-        This is the single validated construction path for dict input
-        (gh#1530); ``from_yaml`` delegates here after reading the file.
-
-        Args:
-            config_data (dict): Configuration data, YAML-shaped.
-            use_conditional_validation (bool): Whether to use conditional validation
-            strict (bool): If True, raise errors on validation failure
-            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
-            yaml_path (str, optional): Source YAML path, when loaded from a file.
-
-        Returns:
-            SUEWSConfig: Validated instance of SUEWSConfig
+        Shared by ``from_dict`` and any caller that must validate exactly as
+        the loader does (the soil-observation converter): the ``_yaml_raw``
+        snapshot gates the site-completeness checks, so validating a mapping
+        without it silently skips them. Returns the prepared copy and whether
+        the input declared ``schema_version``.
         """
         # Work on a copy so the caller's dict is never mutated (validators
         # such as the legacy output_file coercion pop keys in place).
@@ -5009,6 +5001,38 @@ class SUEWSConfig(BaseModel):
             )
             # Set default schema version
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
+
+        return config_data, had_signature
+
+    @classmethod
+    def from_dict(
+        cls,
+        config_data: dict,
+        use_conditional_validation: bool = True,
+        strict: bool = True,
+        auto_generate_annotated: bool = False,
+        yaml_path: Optional[str] = None,
+    ) -> "SUEWSConfig":
+        """Initialize SUEWSConfig from a configuration dict with validation.
+
+        This is the single validated construction path for dict input
+        (gh#1530); ``from_yaml`` delegates here after reading the file.
+
+        Args:
+            config_data (dict): Configuration data, YAML-shaped.
+            use_conditional_validation (bool): Whether to use conditional validation
+            strict (bool): If True, raise errors on validation failure
+            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
+            yaml_path (str, optional): Source YAML path, when loaded from a file.
+
+        Returns:
+            SUEWSConfig: Validated instance of SUEWSConfig
+        """
+        config_data, had_signature = cls._prepare_raw_input(
+            config_data,
+            yaml_path=yaml_path,
+            auto_generate_annotated=auto_generate_annotated,
+        )
 
         if use_conditional_validation:
             logger_supy.debug(

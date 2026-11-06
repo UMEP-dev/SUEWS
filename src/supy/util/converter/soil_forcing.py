@@ -132,8 +132,14 @@ def _read_table(text: str, source_contract: Optional[str]):
 
 
 def _strict_validate(cfg):
-    """Validate exactly as the loader does, with extra keys forbidden."""
-    return SUEWSConfig._validate_raw_mapping(deepcopy(cfg))
+    """Validate exactly as the loader does, with extra keys forbidden.
+
+    The loader's raw-input preparation supplies the ``_yaml_raw`` snapshot
+    that its site-completeness checks need; without it a converted YAML the
+    loader rejects (for example a missing conductance parameter) would pass.
+    """
+    prepared, _ = SUEWSConfig._prepare_raw_input(cfg)
+    return SUEWSConfig._validate_raw_mapping(prepared)
 
 
 def _plain_validation_message(exc: ValidationError) -> str:

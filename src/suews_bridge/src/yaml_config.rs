@@ -64,12 +64,21 @@ fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
 fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     let value = get_path(root, path)?;
     match value {
-        Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
+        Value::Number(n) => n.as_f64(),
         Value::Mapping(_) => get_path(value, &["value"]).and_then(|v| match v {
-            Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
+            Value::Number(n) => n.as_f64(),
             _ => None,
         }),
         _ => None,
+    }
+}
+
+/// Check finiteness only for consumers that require a finite value.
+/// Missing/non-numeric input remains distinct from a supplied non-finite number.
+fn read_finite_numeric(root: &Value, path: &[&str]) -> Result<Option<f64>, &'static str> {
+    match read_numeric(root, path) {
+        Some(v) if !v.is_finite() => Err("non-finite"),
+        value => Ok(value),
     }
 }
 
@@ -2226,26 +2235,29 @@ fn apply_site_scalar_overrides(
     // `properties.CO2PointSource`, so that spelling is not read. The bridge
     // does not stand in a value: when this method uses the point source and
     // the YAML has none, the run stops naming the key.
-    match read_numeric(
-        site_root,
-        &[
-            "properties",
-            "anthropogenic_emissions",
-            "co2",
-            "co2pointsource",
-        ],
-    ) {
-        Some(v) => site_scalars.co2_point_source = v,
-        None if emissions_method_uses_co2_point_source(emissions_method) => {
-            return Err(format!(
-                "`{}.properties.anthropogenic_emissions.co2.emission_co2_point_source` \
-                 is missing, null or non-finite, but emissionsmethod {emissions_method} uses the CO2 point \
-                 source; give it in kg C day-1 (0 for no point source)",
-                site_yaml_at(site_root)
-            ));
-        }
-        None => site_scalars.co2_point_source = f64::NAN,
-    }
+    let point_source_path = &[
+        "properties",
+        "anthropogenic_emissions",
+        "co2",
+        "co2pointsource",
+    ];
+    site_scalars.co2_point_source = if emissions_method_uses_co2_point_source(emissions_method) {
+        let at = format!(
+            "{}.properties.anthropogenic_emissions.co2.emission_co2_point_source",
+            site_yaml_at(site_root)
+        );
+        let required_error = |reason| {
+            format!(
+                "`{at}` is {reason}, but emissionsmethod {emissions_method} uses the CO2 point \
+             source; give it in kg C day-1 (0 for no point source)"
+            )
+        };
+        read_finite_numeric(site_root, point_source_path)
+            .map_err(required_error)?
+            .ok_or_else(|| required_error("missing, null or non-numeric"))?
+    } else {
+        read_numeric(site_root, point_source_path).unwrap_or(f64::NAN)
+    };
     if let Some(v) = read_numeric(site_root, &["properties", "flowchange"]) {
         site_scalars.flowchange = v;
     }
@@ -3361,31 +3373,74 @@ mod tests {
         assert_eq!(used, expected);
     }
     #[test]
-    fn non_finite_co2_point_source_is_rejected() {
-        for value in [
-            ".nan",
-            ".inf",
-            "-.inf",
-            "{value: .nan}",
-            "{value: .inf}",
-            "{value: -.inf}",
+    fn co2_point_source_finiteness_is_required_only_for_active_methods() {
+        for method in
+            (0..=6).chain((11..=46).filter(|m| emissions_method_uses_co2_point_source(*m)))
+        {
+            for value in [
+                ".nan",
+                ".inf",
+                "-.inf",
+                "{value: .nan}",
+                "{value: .inf}",
+                "{value: -.inf}",
+            ] {
+                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                    serde_yaml::from_str(&format!("{{value: {method}}}")).unwrap();
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(
+                    site,
+                    &[
+                        "properties",
+                        "anthropogenic_emissions",
+                        "co2",
+                        "emission_co2_point_source",
+                    ],
+                )
+                .unwrap() = serde_yaml::from_str(value).unwrap();
+                let result = load_run_config_from_value(&mut root);
+                if emissions_method_uses_co2_point_source(method) {
+                    let err = result.expect_err(value);
+                    assert!(err.contains("is non-finite"), "{method}, {value}: {err}");
+                    assert!(err.contains("sites[gridiv=1].properties.anthropogenic_emissions.co2.emission_co2_point_source"), "{value}: {err}");
+                } else {
+                    let actual = result.expect(value).site_scalars.co2_point_source;
+                    let input: Value = serde_yaml::from_str(value).unwrap();
+                    let expected = read_numeric(&input, &[]).unwrap();
+                    if expected.is_nan() {
+                        assert!(actual.is_nan(), "{method}, {value}: {actual}");
+                    } else {
+                        assert_eq!(actual, expected, "{method}, {value}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn optional_non_finite_scalar_reaches_the_struct() {
+        for (number, expected) in [
+            (".nan", f64::NAN),
+            (".inf", f64::INFINITY),
+            ("-.inf", f64::NEG_INFINITY),
         ] {
-            let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
-            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
-                serde_yaml::from_str("{value: 12}").unwrap();
-            let site = first_site_mut(&mut root).unwrap();
-            *get_path_mut(
-                site,
-                &[
-                    "properties",
-                    "anthropogenic_emissions",
-                    "co2",
-                    "emission_co2_point_source",
-                ],
-            )
-            .unwrap() = serde_yaml::from_str(value).unwrap();
-            let err = load_run_config_from_value(&mut root).expect_err(value);
-            assert!(err.contains("sites[gridiv=1].properties.anthropogenic_emissions.co2.emission_co2_point_source"), "{value}: {err}");
+            for value in [number.to_string(), format!("{{value: {number}}}")] {
+                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(site, &["properties", "z"]).unwrap() =
+                    serde_yaml::from_str(&value).unwrap();
+                let run = load_run_config_from_value(&mut root).expect(&value);
+                if expected.is_nan() {
+                    assert!(
+                        run.site_scalars.z.is_nan(),
+                        "{value}: {}",
+                        run.site_scalars.z
+                    );
+                } else {
+                    assert_eq!(run.site_scalars.z, expected, "{value}");
+                }
+            }
         }
     }
 }

@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 6 Nov 2026
 
-- [bugfix] Reject non-finite required CO2 point sources and carry unused absence as NaN; verify unchanged outputs for emissions methods 0-6 and the active point-source mass-to-flux conversion (#1991, #1993)
+- [bugfix] Reject non-finite required CO2 point sources and carry unused absence as NaN; verify unchanged outputs for emissions methods 0-6 and the active point-source mass-to-flux conversion; optional scalar NaN and infinity values pass through unchanged (#1991, #1993)
 
 ### 5 Nov 2026
 

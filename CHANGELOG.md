@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Nov 2026
+
+- [bugfix] Reject non-finite required CO2 point sources and carry unused absence as NaN; verify unchanged outputs for emissions methods 0-6 and the active point-source mass-to-flux conversion; optional scalar NaN and infinity values pass through unchanged (#1991, #1993)
+
+### 5 Nov 2026
+
+- [bugfix] Rust bridge: the CO2 point source is now read from `properties.anthropogenic_emissions.co2.emission_co2_point_source`, where supy writes it. The bridge read a flat `properties.CO2PointSource` key that no schema writes, so any non-zero point source reached the kernel as zero and was missing from the anthropogenic CO2 flux; the flat key is no longer read. When `emissionsmethod` is a CO2 method whose flux includes the point source (11-16, 21-26, 31-36, 41-46; the kernel zeroes every CO2 flux for 0-6) and the key is missing or null, the run now stops with an error naming it instead of using zero (#1998)
+
 ### 3 Nov 2026
 
 - [feature][experimental] Declared and tested Python 3.15 support: added the 3.15 classifier, put cp315 into the CI candidate window (so PR api lanes now test the cp312 and cp315 bookends, the merge queue keeps the cp312 floor, and cp313 and cp314 run in the nightly and release matrix) and a `py315` dispatch toggle, required pyarrow>=26 on 3.15 (its first cp315 wheels), installed setuptools in `make dev` so sdist-only dependencies such as numexpr build on 3.15, adapted two tests to 3.15's `importlib.metadata` and `warnings.warn_explicit` behaviour, and ran the dependency audit on 3.15 as well as 3.13. The cp312-abi3 wheel is unchanged (#1988)

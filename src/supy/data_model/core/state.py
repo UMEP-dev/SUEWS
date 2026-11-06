@@ -900,6 +900,12 @@ class InitialStates(BaseModel):
         ge=0,
         le=1,
     )
+
+    @field_validator("snowalb", mode="after")
+    @classmethod
+    def _snowalb_not_null(cls, v):
+        return reject_null_value(v, "snowalb")
+
     paved: InitialStatePaved = Field(
         default_factory=InitialStatePaved,
         description="Initial states for paved surfaces",

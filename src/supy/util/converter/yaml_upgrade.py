@@ -1354,13 +1354,13 @@ def _migrate_2026_6_dev6_to_2026_6_dev7(cfg: dict) -> dict:
 
     From 2026.6.dev7 the point source is required when the emissions method
     adds it to the CO2 flux (#2001). Before, an absent or null value reached
-    the model as 0, so every site carrying ``properties`` gets that 0.0
+    the model as 0, so every site gets that 0.0
     written explicitly; a value the user gave is left alone.
     """
     for site in cfg.get("sites", []) or []:
         if not isinstance(site, dict):
             continue
-        props = site.get("properties")
+        props = site.setdefault("properties", {})
         if not isinstance(props, dict):
             continue
         emissions = props.setdefault("anthropogenic_emissions", {})

@@ -244,6 +244,35 @@ def _predates_observed_soil_layers(schema_version) -> bool:
         return True
 
 
+def _observed_soil_selectors(config_data) -> dict:
+    """Map each raw soil-moisture selector key that selects observed soil to its code."""
+    if not isinstance(config_data, Mapping):
+        return {}
+    model = config_data.get("model")
+    physics = model.get("physics") if isinstance(model, Mapping) else None
+    if not isinstance(physics, Mapping):
+        return {}
+    codes = {
+        key: _soil_selector_code(physics[key])
+        for key in (*_LEGACY_SOIL_SELECTORS, "soil_moisture")
+        if key in physics
+    }
+    return {key: code for key, code in codes.items() if code in (1, 2)}
+
+
+def _soil_observation_blocks(config_data) -> list:
+    """``(site index, raw soil_observation mapping)`` for every site that has one."""
+    blocks = []
+    sites = config_data.get("sites") if isinstance(config_data, Mapping) else None
+    if isinstance(sites, Iterable) and not isinstance(sites, (str, bytes, Mapping)):
+        for index, site in enumerate(sites):
+            props = site.get("properties") if isinstance(site, Mapping) else None
+            obs = props.get("soil_observation") if isinstance(props, Mapping) else None
+            if isinstance(obs, Mapping):
+                blocks.append((index, obs))
+    return blocks
+
+
 def _uses_legacy_observed_soil(config_data) -> bool:
     """Whether a raw YAML mapping selects observed soil moisture the legacy way.
 
@@ -255,46 +284,82 @@ def _uses_legacy_observed_soil(config_data) -> bool:
     are also accepted aliases of ``soil_moisture``. With an observed selector
     (any spelling), in order:
 
-    1. a site ``soil_observation`` with canonical layer bounds
-       (``layer_top``/``layer_depth``) -> current, not legacy;
-    2. a site ``soil_observation`` with legacy keys (``depth``, ``smcap``)
-       -> legacy;
-    3. a legacy-only method (2, gravimetric) -> legacy;
-    4. otherwise a declared ``schema_version`` decides (older than the
+    1. legacy evidence anywhere -- a site ``soil_observation`` with legacy
+       keys (``depth``, ``smcap``) or the legacy-only method 2
+       (gravimetric) -> legacy, even when another site (or the same block)
+       also has canonical keys; see :func:`_soil_contract_conflicts`;
+    2. canonical layer bounds (``layer_top``/``layer_depth``) at a site
+       -> current, not legacy;
+    3. otherwise a declared ``schema_version`` decides (older than the
        first schema with layer bounds -> legacy); without one, a legacy
        selector spelling -> legacy.
     """
-    if not isinstance(config_data, Mapping):
-        return False
-    model = config_data.get("model")
-    physics = model.get("physics") if isinstance(model, Mapping) else None
-    if not isinstance(physics, Mapping):
-        return False
-    codes = {
-        key: _soil_selector_code(physics[key])
-        for key in (*_LEGACY_SOIL_SELECTORS, "soil_moisture")
-        if key in physics
-    }
-    observed = {key: code for key, code in codes.items() if code in (1, 2)}
+    observed = _observed_soil_selectors(config_data)
     if not observed:
         return False
-    blocks = []
-    sites = config_data.get("sites")
-    if isinstance(sites, Iterable) and not isinstance(sites, (str, bytes, Mapping)):
-        for site in sites:
-            props = site.get("properties") if isinstance(site, Mapping) else None
-            obs = props.get("soil_observation") if isinstance(props, Mapping) else None
-            if isinstance(obs, Mapping):
-                blocks.append(obs)
-    if any(k in obs for obs in blocks for k in _CANONICAL_SOIL_OBSERVATION_KEYS):
-        return False
-    if any(k in obs for obs in blocks for k in _LEGACY_SOIL_OBSERVATION_KEYS):
-        return True
+    blocks = [obs for _, obs in _soil_observation_blocks(config_data)]
     if 2 in observed.values():
         return True
+    if any(k in obs for obs in blocks for k in _LEGACY_SOIL_OBSERVATION_KEYS):
+        return True
+    if any(k in obs for obs in blocks for k in _CANONICAL_SOIL_OBSERVATION_KEYS):
+        return False
     if "schema_version" in config_data:
         return _predates_observed_soil_layers(config_data["schema_version"])
     return any(key in _LEGACY_SOIL_SELECTORS for key in observed)
+
+
+def _soil_contract_conflicts(config_data) -> list[str]:
+    """Name where an observed-soil YAML mixes the legacy and canonical contracts.
+
+    A conflict is an observed selector with canonical layer bounds at some
+    site together with legacy evidence (legacy ``soil_observation`` keys at
+    any site, or method 2). Neither the loader nor the coordinated converter
+    accepts such a YAML. Returns one entry per offending place; empty when
+    the contracts are not mixed.
+    """
+    observed = _observed_soil_selectors(config_data)
+    if not observed:
+        return []
+    found = []
+    for index, obs in _soil_observation_blocks(config_data):
+        legacy = [k for k in _LEGACY_SOIL_OBSERVATION_KEYS if k in obs]
+        canonical = [k for k in _CANONICAL_SOIL_OBSERVATION_KEYS if k in obs]
+        parts = [
+            f"{label} {', '.join(keys)}"
+            for label, keys in (("legacy", legacy), ("canonical", canonical))
+            if keys
+        ]
+        if parts:
+            found.append(
+                (
+                    bool(legacy),
+                    bool(canonical),
+                    f"sites[{index}].properties.soil_observation: " + "; ".join(parts),
+                )
+            )
+    method2 = [key for key, code in observed.items() if code == 2]
+    has_legacy = bool(method2) or any(legacy for legacy, _, _ in found)
+    has_canonical = any(canonical for _, canonical, _ in found)
+    if not (has_legacy and has_canonical):
+        return []
+    entries = [
+        f"model.physics.{key}: legacy method 2 (gravimetric)" for key in method2
+    ]
+    return entries + [text for _, _, text in found]
+
+
+def _soil_contract_conflict_message(conflicts) -> str:
+    """User message for a YAML that mixes the legacy and canonical soil contracts."""
+    from ...util._forcing import SOIL_CONTRACT_CONFLICT, SOIL_CONVERT_HINT
+
+    return (
+        f"{SOIL_CONTRACT_CONFLICT} Found: {' | '.join(conflicts)}. "
+        "For legacy xsmd forcing, remove layer_top/layer_depth from every site "
+        f"and then: {SOIL_CONVERT_HINT}. For canonical sm forcing, remove the "
+        "legacy depth/smcap keys from every site and select soil_moisture: "
+        "observed (method 1)."
+    )
 
 
 def _prefixed_line_errors(error: ValidationError, prefix: tuple) -> list[dict]:
@@ -4845,12 +4910,20 @@ class SUEWSConfig(BaseModel):
         from ..configuration import CURRENT_SCHEMA_VERSION
         from ..configuration.migration import SchemaMigrator
 
+        # Validation replaces subtrees in place; read the user's raw mapping.
+        raw = config_data.get("_yaml_raw", config_data)
+        soil_conflicts = _soil_contract_conflicts(raw)
+
         if had_signature:
             try:
                 detected = SchemaMigrator().auto_detect_version(config_data)
             except Exception:  # noqa: BLE001 - detection is best-effort
                 detected = "unspecified"
-            if unknown_fields and str(detected) == CURRENT_SCHEMA_VERSION:
+            if (
+                unknown_fields
+                and not soil_conflicts
+                and str(detected) == CURRENT_SCHEMA_VERSION
+            ):
                 # Converting a current-schema YAML changes nothing; the named
                 # fields are simply not accepted at that location.
                 return (
@@ -4871,8 +4944,12 @@ class SUEWSConfig(BaseModel):
                 "suews-convert -i <old.yml> -o <new.yml> -f <release-tag>"
             )
 
-        # Validation replaces subtrees in place; read the user's raw mapping.
-        if _uses_legacy_observed_soil(config_data.get("_yaml_raw", config_data)):
+        if soil_conflicts:
+            # The coordinated converter refuses a mix too; name what to remove.
+            upgrade_cmd = _soil_contract_conflict_message(soil_conflicts) + (
+                " (add -f <release-tag> to the conversion)" if not had_signature else ""
+            )
+        elif _uses_legacy_observed_soil(raw):
             # A YAML-only upgrade refuses observed soil moisture; the YAML and
             # its xsmd forcing must be converted together.
             from ...util._forcing import SOIL_CONVERT_HINT

@@ -22,7 +22,11 @@ from pydantic import ValidationError
 import yaml
 
 from ...data_model.core.config import SUEWSConfig
-from .._forcing import convert_observed_soil_moisture, soil_moisture_to_content
+from .._forcing import (
+    SOIL_CONTRACT_CONFLICT,
+    convert_observed_soil_moisture,
+    soil_moisture_to_content,
+)
 from .yaml_upgrade import (
     CURRENT_SCHEMA_VERSION,
     SoilMigrationContext,
@@ -39,7 +43,7 @@ SOURCE_CONTRACTS = ("1.0.0", "1.1.0", "1.2.0", "2.0.0")
 LEGACY_UNITS = {1: "m3 m-3", 2: "kg kg-1"}
 # Water-equivalent mm is layer content already; only unattributed xsmd may use it.
 MODELLED_XSMD_UNITS = ("m3 m-3", "kg kg-1", "mm")
-CONFLICT = "Both legacy and canonical soil-moisture inputs were supplied; select one contract before conversion."
+CONFLICT = SOIL_CONTRACT_CONFLICT
 RETIRED = "Sensor saturation capacity is retired; deficit now uses the configured model soil-store capacity"
 COLUMNS = [
     "iy",

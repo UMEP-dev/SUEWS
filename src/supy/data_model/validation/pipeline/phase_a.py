@@ -2271,11 +2271,18 @@ def annotate_missing_parameters(
     try:
         with open(user_file, "r", encoding="utf-8") as f:
             original_yaml_content = f.read()
-        from ...core.config import _uses_legacy_observed_soil
+        from ...core.config import (
+            _soil_contract_conflict_message,
+            _soil_contract_conflicts,
+            _uses_legacy_observed_soil,
+        )
 
         # Legacy observed soil moisture is migrated by the coordinated converter,
         # not renamed here: keep its selector and sensor metadata untouched.
-        legacy_soil = _uses_legacy_observed_soil(yaml.safe_load(original_yaml_content))
+        # A mix of legacy and canonical inputs is kept as given and reported.
+        raw_user_data = yaml.safe_load(original_yaml_content)
+        legacy_soil = _uses_legacy_observed_soil(raw_user_data)
+        soil_conflicts = _soil_contract_conflicts(raw_user_data)
         rename_skip = LEGACY_SOIL_SELECTORS if legacy_soil else ()
         original_yaml_content, renamed_replacements = handle_renamed_parameters(
             original_yaml_content, skip=rename_skip
@@ -2366,7 +2373,11 @@ def annotate_missing_parameters(
             entry for entry in missing_params if not is_legacy_soil_path(entry[0])
         ]
         extra_params = [path for path in extra_params if not is_legacy_soil_path(path)]
-        migration_errors.append(f"{LEGACY_OBSERVED_SOIL_MESSAGE} {SOIL_CONVERT_HINT}")
+        if soil_conflicts:
+            # The convert command alone would refuse a mix of contracts.
+            migration_errors.append(_soil_contract_conflict_message(soil_conflicts))
+        else:
+            migration_errors.append(f"{LEGACY_OBSERVED_SOIL_MESSAGE} {SOIL_CONVERT_HINT}")
 
     # Generate content for both files
     if (

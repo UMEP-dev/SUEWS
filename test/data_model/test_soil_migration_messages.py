@@ -184,3 +184,109 @@ def test_misspelt_child_of_unsampled_optional_block_is_reported(tmp_path):
     source.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
     report, _ = _phase_a(source, tmp_path, "public")
     assert "bogus" in report
+
+
+def _partially_migrated():
+    """legacy_method1.yml with one canonical key added, all else legacy."""
+    cfg = yaml.safe_load((FIXTURES / "legacy_method1.yml").read_text(encoding="utf-8"))
+    cfg["sites"][0]["properties"]["soil_observation"]["layer_top"] = 0
+    return cfg
+
+
+def _mixed_sites():
+    """A legacy site alongside a site that already carries canonical bounds."""
+    cfg = yaml.safe_load((FIXTURES / "legacy_method1.yml").read_text(encoding="utf-8"))
+    canonical = yaml.safe_load((FIXTURES / "canonical.yml").read_text(encoding="utf-8"))
+    second = deepcopy(cfg["sites"][0])
+    second["name"], second["gridiv"] = "S2", 2
+    second["properties"]["soil_observation"] = deepcopy(
+        canonical["sites"][0]["properties"]["soil_observation"]
+    )
+    cfg["sites"].append(second)
+    return cfg
+
+
+def _method2_with_canonical_bounds():
+    cfg = yaml.safe_load((FIXTURES / "canonical.yml").read_text(encoding="utf-8"))
+    cfg["model"]["physics"]["soil_moisture"] = 2
+    return cfg
+
+
+MIXED_CASES = {
+    "partially_migrated": (
+        _partially_migrated,
+        ["sites[0].properties.soil_observation: legacy depth, smcap; canonical layer_top"],
+    ),
+    "mixed_sites": (
+        _mixed_sites,
+        [
+            "sites[0].properties.soil_observation: legacy depth, smcap",
+            "sites[1].properties.soil_observation: canonical layer_top, layer_depth",
+        ],
+    ),
+    "method2_with_canonical_bounds": (
+        _method2_with_canonical_bounds,
+        [
+            "model.physics.soil_moisture: legacy method 2 (gravimetric)",
+            "sites[0].properties.soil_observation: canonical layer_top, layer_depth",
+        ],
+    ),
+}
+
+
+@pytest.mark.parametrize("case", sorted(MIXED_CASES))
+def test_mixed_soil_contracts_are_legacy_and_named(case):
+    from supy.data_model.core.config import (
+        _soil_contract_conflicts,
+        _uses_legacy_observed_soil,
+    )
+
+    build, expected = MIXED_CASES[case]
+    cfg = build()
+    assert _uses_legacy_observed_soil(cfg)
+    assert _soil_contract_conflicts(cfg) == expected
+
+
+@pytest.mark.parametrize("fixture", ["legacy_method1.yml", "canonical.yml"])
+def test_single_soil_contract_is_not_a_conflict(fixture):
+    from supy.data_model.core.config import _soil_contract_conflicts
+
+    cfg = yaml.safe_load((FIXTURES / fixture).read_text(encoding="utf-8"))
+    assert _soil_contract_conflicts(cfg) == []
+
+
+@pytest.mark.parametrize("case", sorted(MIXED_CASES))
+def test_phase_a_keeps_and_reports_mixed_soil_contracts(tmp_path, case):
+    build, expected = MIXED_CASES[case]
+    cfg = build()
+    source = tmp_path / "mixed.yml"
+    source.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    report, updated = _phase_a(source, tmp_path, "public")
+    assert "Both legacy and canonical soil-moisture inputs were supplied" in report
+    for entry in expected:
+        assert entry in report
+    assert "changed to soil_moisture" not in report
+    out = yaml.safe_load(updated.split("\n", 1)[1] if updated.startswith("#") else updated)
+    # The user's selector and both key families are left as given.
+    assert out["model"]["physics"].keys() & {"soil_moisture_deficit", "soil_moisture"} == (
+        cfg["model"]["physics"].keys() & {"soil_moisture_deficit", "soil_moisture"}
+    )
+    for index, site in enumerate(cfg["sites"]):
+        given = site["properties"]["soil_observation"]
+        kept = out["sites"][index]["properties"]["soil_observation"]
+        assert set(given) <= set(kept)
+
+
+@pytest.mark.parametrize("case", ["partially_migrated", "mixed_sites"])
+def test_drift_hint_for_mixed_soil_contracts_names_the_conflict(case):
+    build, expected = MIXED_CASES[case]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        with pytest.raises(ValueError) as caught:
+            SUEWSConfig.from_dict(build())
+    message = str(caught.value)
+    assert "Both legacy and canonical soil-moisture inputs were supplied" in message
+    for entry in expected:
+        assert entry in message
+    assert "suews-convert -i <old.yml> -o <new.yml>" not in message
+    assert "this YAML uses legacy observed soil moisture" not in message

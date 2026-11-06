@@ -102,26 +102,31 @@ def _run_one_day(path):
     return sim.run(end_date=df_forcing.index[-1]).df
 
 
-def _short_sample_with_snowalb(tmp_path, name, snowalb, schema):
+def _short_sample_with_snowalb(
+    tmp_path, name, snowalb, schema, snow="disabled", snowpack=0.0
+):
     data = yaml.safe_load(SHORT_SAMPLE.read_text(encoding="utf-8"))
     forcing_name = data["model"]["control"]["forcing"]["file"]["value"]
     if not (tmp_path / forcing_name).exists():
         shutil.copy(SHORT_SAMPLE.parent / forcing_name, tmp_path / forcing_name)
     data["schema_version"] = schema
+    data["model"]["physics"]["snow"] = snow
     for site in data["sites"]:
         site["initial_states"]["snowalb"] = snowalb
+        for surface in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"):
+            state = site["initial_states"][surface]
+            state["snowpack"] = {"value": snowpack}
+            state["snowfrac"] = {"value": 1.0 if snowpack else 0.0}
+            state["snowdens"] = {"value": 100.0 if snowpack else 0.0}
     path = tmp_path / name
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     return path
 
 
-def test_upgraded_null_snowalb_runs_unchanged(tmp_path):
-    """With snow off, the upgraded file (0.5) runs as the null (0.0) did.
-
-    The Rust bridge replaced a null ``snowalb`` with 0.0; with the snow
-    module off the model resets the snow albedo every timestep, so the
-    starting value never reaches the output.
-    """
+@pytest.mark.physics
+@pytest.mark.core
+def test_upgraded_null_snowalb_without_snowpack_runs_unchanged(tmp_path):
+    """With no initial snowpack, albedo resets to zero before radiation."""
     data = yaml.safe_load(SHORT_SAMPLE.read_text(encoding="utf-8"))
     assert data["model"]["physics"]["snow"] == "disabled"
 
@@ -139,3 +144,30 @@ def test_upgraded_null_snowalb_runs_unchanged(tmp_path):
 
     assert len(df_upgraded) == TIMESTEPS_PER_DAY
     assert df_upgraded.equals(df_zero)
+
+
+@pytest.mark.physics
+@pytest.mark.core
+@pytest.mark.parametrize("snow", ["enabled", "disabled"])
+def test_upgraded_null_snowalb_with_snowpack_changes_output(tmp_path, snow):
+    """Snowpack, not the snow switch, determines whether albedo is retained."""
+    old = _short_sample_with_snowalb(
+        tmp_path, "dev7.yml", {"value": None}, "2026.6.dev7", snow, 10.0
+    )
+    upgraded = tmp_path / "dev8.yml"
+    upgrade_yaml(input_path=old, output_path=upgraded)
+    zero = _short_sample_with_snowalb(
+        tmp_path, "zero.yml", {"value": 0.0}, CURRENT_SCHEMA_VERSION, snow, 10.0
+    )
+
+    df_new = _run_one_day(upgraded)
+    df_old = _run_one_day(zero)
+
+    assert len(df_new) == TIMESTEPS_PER_DAY
+    delta_albedo = df_new[("SUEWS", "AlbSnow")] - df_old[("SUEWS", "AlbSnow")]
+    assert delta_albedo.max() > 0.0
+    assert delta_albedo.min() >= 0.0
+    if snow == "enabled":
+        # Higher snow albedo reduces absorbed shortwave; no equivalence claim.
+        delta_qn = df_new[("SUEWS", "QN")] - df_old[("SUEWS", "QN")]
+        assert delta_qn.min() < 0.0

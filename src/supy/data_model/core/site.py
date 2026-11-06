@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import ConfigDict, BaseModel, Field, model_validator
+from pydantic import ConfigDict, BaseModel, Field, computed_field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 from .profile import (
     HourlyProfile,
@@ -2455,14 +2455,13 @@ class StebbsProperties(BaseModel):
     # annual mean air temperature (gh#1240 replaced the separate input). It is
     # emitted so the Rust bridge, which reads it as the initial STEBBS deep
     # soil state, need not fall back to the annual mean itself (gh#2001).
-    deep_soil_temperature: Optional[FlexibleRefValue(float)] = Field(
-        default=None,
-        description=(
-            "Deep soil temperature at the start of the run [degC]. Not an "
-            "input: always set to temperature_air_annual_mean."
-        ),
-        json_schema_extra={"unit": "degC", "internal_only": True},
-    )
+    @computed_field(json_schema_extra={"unit": "degC", "internal_only": True})
+    @property
+    def deep_soil_temperature(self) -> Optional[float]:
+        """Return the annual mean as the initial deep soil temperature."""
+        annual = self.temperature_air_annual_mean
+        return annual.value if isinstance(annual, RefValue) else annual
+
     temperature_air_month_mean_diffmax: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Maximum difference in monthly outdoor air temperature [degC]",
@@ -2711,20 +2710,25 @@ class StebbsProperties(BaseModel):
     )
     ref: Optional[Reference] = None
 
-    @model_validator(mode="after")
-    def _set_deep_soil_temperature(self) -> "StebbsProperties":
-        """Set the deep soil temperature from the annual mean air temperature."""
-        annual = self.temperature_air_annual_mean
-        annual = annual.value if isinstance(annual, RefValue) else annual
-        given = self.deep_soil_temperature
-        given = given.value if isinstance(given, RefValue) else given
-        if given is not None and given != annual:
+    @model_validator(mode="wrap")
+    @classmethod
+    def _check_deep_soil_temperature(cls, data, handler):
+        """Accept a matching emitted value, but never store it as input."""
+        given = None
+        if isinstance(data, dict):
+            data = dict(data)
+            given = data.pop("deep_soil_temperature", None)
+            if isinstance(given, dict):
+                given = given.get("value")
+            elif isinstance(given, RefValue):
+                given = given.value
+        result = handler(data)
+        if given is not None and given != result.deep_soil_temperature:
             raise ValueError(
                 "deep_soil_temperature is not an input: it is set to "
                 "temperature_air_annual_mean"
             )
-        self.deep_soil_temperature = annual
-        return self
+        return result
 
     @model_validator(mode="after")
     def _validate_internal_shading_parameters(self) -> "StebbsProperties":

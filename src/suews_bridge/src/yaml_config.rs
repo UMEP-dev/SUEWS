@@ -2170,11 +2170,14 @@ fn site_yaml_at(site_root: &Value) -> String {
     }
 }
 
-/// Whether the kernel uses the CO2 point source under this `emissionsmethod`
-/// (`suews_phys_anthro.f95`: methods 1-6 in each family 0-4, i.e. 1-6,
-/// 11-16, ..., 41-46).
+/// Whether the CO2 point source reaches the model output under this
+/// `emissionsmethod`: the biogenic CO2 methods 11-16, 21-26, 31-36 and 41-46.
+/// `suews_phys_anthro.f95` computes `Fc_point` for methods 1-6 as well, but
+/// `SUEWS_cal_AnthropogenicEmission` (`suews_ctrl_driver.f95`) then zeroes
+/// every CO2 flux for methods 0-6, so the value has no effect there. The data
+/// model's CO2 point-source rule (#2001) requires the key for the same set.
 fn emissions_method_uses_co2_point_source(emissions_method: i32) -> bool {
-    (1..=46).contains(&emissions_method) && (1..=6).contains(&(emissions_method % 10))
+    (11..=46).contains(&emissions_method) && (1..=6).contains(&(emissions_method % 10))
 }
 
 fn apply_site_scalar_overrides(
@@ -3319,8 +3322,8 @@ mod tests {
 
     #[test]
     fn missing_co2_point_source_is_an_error_when_the_method_uses_it() {
-        let err = run_config_without_co2_point_source(2)
-            .expect_err("a missing point source must be rejected under emissionsmethod 2");
+        let err = run_config_without_co2_point_source(12)
+            .expect_err("a missing point source must be rejected under emissionsmethod 12");
         assert!(
             err.contains(
                 "sites[gridiv=1].properties.anthropogenic_emissions.co2.emission_co2_point_source"
@@ -3331,17 +3334,27 @@ mod tests {
 
     #[test]
     fn missing_co2_point_source_is_accepted_when_the_method_ignores_it() {
-        let run_cfg = run_config_without_co2_point_source(0)
-            .expect("emissionsmethod 0 does not use the point source");
-        assert_eq!(run_cfg.config.emissions_method, 0);
+        // 0 computes no CO2 flux; 2 computes Fc_point, which the driver then
+        // zeroes along with every other CO2 flux.
+        for method in [0, 2] {
+            let run_cfg = run_config_without_co2_point_source(method).unwrap_or_else(|e| {
+                panic!("emissionsmethod {method} ignores the point source: {e}")
+            });
+            assert_eq!(run_cfg.config.emissions_method, method as i32);
+        }
     }
 
     #[test]
     fn co2_point_source_methods_follow_the_kernel() {
-        let used: Vec<i32> = (0..=50)
+        // suews_ctrl_driver.f95:1421-1422, SUEWS_cal_AnthropogenicEmission:
+        //   IF (EmissionsMethod >= 0 .AND. EmissionsMethod <= 6) THEN
+        //      Fc_anthro = 0
+        // and likewise Fc_metab, Fc_traff, Fc_build and Fc_point, so only the
+        // biogenic families 1-4 with a heat method 1-6 carry the point source.
+        let used: Vec<i32> = (-1..=60)
             .filter(|m| emissions_method_uses_co2_point_source(*m))
             .collect();
-        let expected: Vec<i32> = (0..=4)
+        let expected: Vec<i32> = (1..=4)
             .flat_map(|family| (1..=6).map(move |m| family * 10 + m))
             .collect();
         assert_eq!(used, expected);

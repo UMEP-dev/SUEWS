@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Nov 2026
+
+- [change][experimental] `suews validate --science-fixes apply` no longer writes `initial_states.snowalb: null` for a site whose run starts in summer or in the tropics: it removes the key, so the documented default (0.5) applies, and `snowalb` now rejects `{value: null}` with an error naming the field, like `flowchange` and `sdd_id`. A null used to reach the Rust bridge as its own 0.0. Schema bumped to `2026.6.dev8`: its migration drops a null `snowalb`, so a YAML written by an earlier `--science-fixes apply` run loads again after `suews convert` and takes 0.5; without the upgrade it stops with an error naming the field. With no initial snowpack, the model resets snow albedo to zero and the sample output is unchanged. With non-zero initial snowpack, the new 0.5 initial albedo changes snow-albedo output even with snow disabled, and can change radiation and energy fluxes with snow enabled; the separate snow-off leak remains tracked in #2010. The same dev8 migration writes the former effective 0.0 explicitly for null vegetation `sdd_id` and water `flowchange`, including files from the old vegetation-free converter (#2001)
+
 ### 5 Nov 2026
 
 - [maintenance] The data model now emits the STEBBS values the Rust bridge used to fill in itself: `stebbs.deep_soil_temperature`, a computed field always equal to `temperature_air_annual_mean` (the value the bridge fell back to; giving a different value is an error), and the `building_archetype` occupancy descriptors `hhs0` and `age_0_4` to `age_65plus`, which no physics uses yet, with zero defaults. All are internal fields, hidden from exported YAML and the published schema, so no run output changes (#2001)

@@ -1249,6 +1249,9 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
       ``output.include_provisional`` added; YAML content unchanged.
     * 2026.6.dev6 -> 2026.6.dev7 (#2001): the CO2 point source written
       as 0.0 wherever it was absent or null, the value the model received.
+    * 2026.6.dev7 -> 2026.6.dev8 (#2001): a null ``initial_states.snowalb``
+      dropped, so the default 0.5 applies; a null vegetation ``sdd_id`` or
+      water ``flowchange`` written as 0.0, the value the model received.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The
@@ -1390,10 +1393,62 @@ def _unwrap_scalar(value):
     return value
 
 
+def _migrate_2026_6_dev7_to_2026_6_dev8(cfg: dict) -> dict:
+    """Repair previously emitted nulls without changing the schema lineage.
+
+    From 2026.6.dev8 ``snowalb`` rejects null (#2001). Earlier
+    ``suews validate --science-fixes apply`` runs wrote ``snowalb: null`` for
+    a snow-free start, so such files would no longer load. Removing the key
+    lets the documented default (0.5) apply; a number the user gave is kept.
+    Null vegetation ``sdd_id`` and water ``flowchange`` instead receive their
+    former effective 0.0 explicitly, retaining any reference metadata.
+    """
+    def restore_zero(block, name):
+        if not isinstance(block, dict) or name not in block:
+            return
+        entry = block[name]
+        if _unwrap_scalar(entry) is not None:
+            return
+        if isinstance(entry, dict):
+            entry["value"] = 0.0
+        else:
+            block[name] = 0.0
+        _log(
+            f"[yaml-upgrade]   set {name!r} to 0.0 "
+            "(null is no longer accepted; preserve the former effective zero)"
+        )
+
+    for site in cfg.get("sites", []) or []:
+        if not isinstance(site, dict):
+            continue
+        states = site.get("initial_states")
+        if isinstance(states, dict):
+            for surface in ("evetr", "dectr", "grass"):
+                restore_zero(states.get(surface), "sdd_id")
+            if "snowalb" in states and _unwrap_scalar(states["snowalb"]) is None:
+                states.pop("snowalb")
+                _log(
+                    "[yaml-upgrade]   dropped 'snowalb' "
+                    "(null is no longer accepted; the default 0.5 applies)"
+                )
+        props = site.get("properties")
+        if isinstance(props, dict):
+            land_cover = props.get("land_cover")
+            if isinstance(land_cover, dict):
+                restore_zero(land_cover.get("water"), "flowchange")
+    return cfg
+
+
+def _migrate_2026_6_dev6_to_current(cfg: dict) -> dict:
+    """Chain the CO2 point source and the null snowalb removal."""
+    cfg = _migrate_2026_6_dev6_to_2026_6_dev7(cfg)
+    return _migrate_2026_6_dev7_to_2026_6_dev8(cfg)
+
+
 def _migrate_2026_6_dev5_to_current(cfg: dict) -> dict:
-    """Chain the provisional-output switch and the CO2 point source."""
+    """Chain the provisional-output switch and all subsequent schema deltas."""
     cfg = _migrate_2026_6_dev5_to_2026_6_dev6(cfg)
-    return _migrate_2026_6_dev6_to_2026_6_dev7(cfg)
+    return _migrate_2026_6_dev6_to_current(cfg)
 
 
 def _migrate_2026_6_dev4_to_current(cfg: dict) -> dict:
@@ -1486,7 +1541,8 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
-    ("2026.6.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev6_to_2026_6_dev7,
+    ("2026.6.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev7_to_2026_6_dev8,
+    ("2026.6.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev6_to_current,
     ("2026.6.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev5_to_current,
     ("2026.6.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev4_to_current,
     ("2026.6.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev3_to_current,

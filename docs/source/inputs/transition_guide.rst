@@ -215,6 +215,40 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev8_snowalb_null:
+
+Upgrading to Schema 2026.6.dev8
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev8`` no longer accepts a null initial snow albedo. A
+configuration with
+
+.. code-block:: yaml
+
+   initial_states:
+     snowalb:
+       value: null
+
+(or ``snowalb: null``) stops loading with an error naming the field. Leave
+``snowalb`` out to use its default, 0.5.
+
+Earlier ``suews validate --science-fixes apply`` runs wrote that null for a
+site whose run starts in summer or in the tropics; validation now removes the
+key instead. The migration from ``2026.6.dev7`` drops a null ``snowalb`` and
+keeps any value you gave, so such a file loads again after
+``suews convert``. This changes the initial albedo from the former effective
+0.0 to the documented default 0.5. With no initial snowpack, the model resets
+albedo to zero and the short sample output is unchanged. With non-zero initial
+snowpack, albedo evolves from the new starting value: radiation and energy
+fluxes can change with snow enabled. Snow-albedo output can also change with
+snow disabled, because the albedo update checks snowpack rather than the snow
+switch. The separate snow-off behaviour is not repaired by this migration.
+
+The same migration replaces a null vegetation ``sdd_id`` or water
+``flowchange`` with an explicit 0.0, preserving their former effective values.
+This also repairs vegetation-free files emitted by the older table converter.
+Non-null values and reference metadata are retained.
+
 .. _schema_dev7_co2_point_source:
 
 Upgrading to Schema 2026.6.dev7

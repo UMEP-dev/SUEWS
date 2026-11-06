@@ -1393,26 +1393,48 @@ def _unwrap_scalar(value):
 
 
 def _migrate_2026_6_dev7_to_2026_6_dev8(cfg: dict) -> dict:
-    """Drop a null ``initial_states.snowalb`` so its default applies.
+    """Repair previously emitted nulls without changing the schema lineage.
 
     From 2026.6.dev8 ``snowalb`` rejects null (#2001). Earlier
     ``suews validate --science-fixes apply`` runs wrote ``snowalb: null`` for
     a snow-free start, so such files would no longer load. Removing the key
     lets the documented default (0.5) apply; a number the user gave is kept.
+    Null vegetation ``sdd_id`` and water ``flowchange`` instead receive their
+    former effective 0.0 explicitly, retaining any reference metadata.
     """
+    def restore_zero(block, name):
+        if not isinstance(block, dict) or name not in block:
+            return
+        entry = block[name]
+        if _unwrap_scalar(entry) is not None:
+            return
+        if isinstance(entry, dict):
+            entry["value"] = 0.0
+        else:
+            block[name] = 0.0
+        _log(
+            f"[yaml-upgrade]   set {name!r} to 0.0 "
+            "(null is no longer accepted; preserve the former effective zero)"
+        )
+
     for site in cfg.get("sites", []) or []:
         if not isinstance(site, dict):
             continue
         states = site.get("initial_states")
-        if not isinstance(states, dict) or "snowalb" not in states:
-            continue
-        if _unwrap_scalar(states["snowalb"]) is not None:
-            continue
-        states.pop("snowalb")
-        _log(
-            "[yaml-upgrade]   dropped 'snowalb' "
-            "(null is no longer accepted; the default 0.5 applies)"
-        )
+        if isinstance(states, dict):
+            for surface in ("evetr", "dectr", "grass"):
+                restore_zero(states.get(surface), "sdd_id")
+            if "snowalb" in states and _unwrap_scalar(states["snowalb"]) is None:
+                states.pop("snowalb")
+                _log(
+                    "[yaml-upgrade]   dropped 'snowalb' "
+                    "(null is no longer accepted; the default 0.5 applies)"
+                )
+        props = site.get("properties")
+        if isinstance(props, dict):
+            land_cover = props.get("land_cover")
+            if isinstance(land_cover, dict):
+                restore_zero(land_cover.get("water"), "flowchange")
     return cfg
 
 

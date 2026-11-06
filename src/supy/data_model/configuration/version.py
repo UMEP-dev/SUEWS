@@ -178,7 +178,8 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "a snow-free start, which reached the model as 0; the field now needs "
         "a number. The (2026.6.dev7 -> 2026.6.dev8) migration drops a null "
         "snowalb, so an upgraded YAML takes the default 0.5; a value the user "
-        "gave is kept."
+        "gave is kept. Null vegetation sdd_id and water flowchange receive "
+        "their former effective 0.0 explicitly."
     ),
 }
 

@@ -187,7 +187,9 @@ the schema that shipped with it via
    site whose run starts in summer or in the tropics, and the null reached the
    model as 0. The ``(2026.6.dev7 -> 2026.6.dev8)`` handler drops a null
    ``snowalb``, so an upgraded configuration takes the documented default
-   (0.5); a value you gave is kept. See :ref:`schema_dev8_snowalb_null`.
+   (0.5); a value you gave is kept. Null vegetation ``sdd_id`` and water
+   ``flowchange`` receive their former effective 0.0 explicitly. See
+   :ref:`schema_dev8_snowalb_null` for compatibility and output changes.
 
 **Schema 2026.6.dev7** (development)
    Requires ``anthropogenic_emissions.co2.emission_co2_point_source`` in a

@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 6 Nov 2026
 
-- [change][experimental] `suews validate --science-fixes apply` no longer writes `initial_states.snowalb: null` for a site whose run starts in summer or in the tropics: it removes the key, so the documented default (0.5) applies, and `snowalb` now rejects `{value: null}` with an error naming the field, like `flowchange` and `sdd_id`. A null used to reach the Rust bridge as its own 0.0. A YAML that still carries `snowalb: null` (for example one written by an earlier `--science-fixes apply` run) now stops loading until the line is removed or the file is re-validated with `--science-fixes apply`. Every affected run has the snow module off, and the model then resets the snow albedo to 0 at each timestep, so no run output changes (#2001)
+- [change][experimental] `suews validate --science-fixes apply` no longer writes `initial_states.snowalb: null` for a site whose run starts in summer or in the tropics: it removes the key, so the documented default (0.5) applies, and `snowalb` now rejects `{value: null}` with an error naming the field, like `flowchange` and `sdd_id`. A null used to reach the Rust bridge as its own 0.0. Schema bumped to `2026.6.dev8`: its migration drops a null `snowalb`, so a YAML written by an earlier `--science-fixes apply` run loads again after `suews convert` and takes 0.5; without the upgrade it stops with an error naming the field. Every affected run has the snow module off, and the model then resets the snow albedo to 0 at each timestep, so no run output changes (#2001)
 
 ### 5 Nov 2026
 

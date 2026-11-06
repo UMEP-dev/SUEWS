@@ -13425,7 +13425,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev7. Development schema requiring anthropogenic_emissions.co2.emission_co2_point_source in a YAML whose model.physics.emissions is a biogenic CO2 method (11-16, 21-26, 31-36, 41-46), the methods whose CO2 flux includes it (#2001). A missing value used to reach the model as 0. The (2026.6.dev6 -> 2026.6.dev7) migration writes that 0.0 explicitly wherever the point source is absent or null, so upgraded YAMLs run unchanged.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev8. Development schema rejecting a null initial_states.snowalb (#2001). suews validate --science-fixes apply used to write snowalb: null for a snow-free start, which reached the model as 0; the field now needs a number. The (2026.6.dev7 -> 2026.6.dev8) migration drops a null snowalb, so an upgraded YAML takes the default 0.5; a value the user gave is kept.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13478,20 +13478,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev7",
+  "title": "SUEWS Configuration Schema v2026.6.dev8",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev7.json",
-  "version": "2026.6.dev7",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev8.json",
+  "version": "2026.6.dev8",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev7"
+    "schema_version": "2026.6.dev8"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev7",
+      "schema_version": "2026.6.dev8",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

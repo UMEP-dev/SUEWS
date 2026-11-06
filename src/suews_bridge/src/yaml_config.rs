@@ -64,9 +64,9 @@ fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
 fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     let value = get_path(root, path)?;
     match value {
-        Value::Number(n) => n.as_f64(),
+        Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
         Value::Mapping(_) => get_path(value, &["value"]).and_then(|v| match v {
-            Value::Number(n) => n.as_f64(),
+            Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
             _ => None,
         }),
         _ => None,
@@ -2223,7 +2223,7 @@ fn apply_site_scalar_overrides(
         Some(v) => site_scalars.flowchange = v,
         None => {
             return Err(format!(
-                "`{}.properties.land_cover.water.flowchange` is missing or null; \
+                "`{}.properties.land_cover.water.flowchange` is missing, null or non-finite; \
                  give the water-body flow change in mm h-1 (0 for none)",
                 site_yaml_at(site_root)
             ));
@@ -3298,6 +3298,12 @@ mod tests {
             ("absent", None),
             ("null", Some("null")),
             ("value null", Some("{value: null}")),
+            ("NaN", Some(".nan")),
+            ("infinity", Some(".inf")),
+            ("negative infinity", Some("-.inf")),
+            ("wrapped NaN", Some("{value: .nan}")),
+            ("wrapped infinity", Some("{value: .inf}")),
+            ("wrapped negative infinity", Some("{value: -.inf}")),
         ] {
             let mut root = stebbs_fixture_root();
             let water = water_block_mut(&mut root);

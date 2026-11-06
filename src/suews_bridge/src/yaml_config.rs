@@ -64,12 +64,21 @@ fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
 fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     let value = get_path(root, path)?;
     match value {
-        Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
+        Value::Number(n) => n.as_f64(),
         Value::Mapping(_) => get_path(value, &["value"]).and_then(|v| match v {
-            Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
+            Value::Number(n) => n.as_f64(),
             _ => None,
         }),
         _ => None,
+    }
+}
+
+/// Check finiteness only for consumers that require a finite value.
+/// Missing/non-numeric input remains distinct from a supplied non-finite number.
+fn read_finite_numeric(root: &Value, path: &[&str]) -> Result<Option<f64>, &'static str> {
+    match read_numeric(root, path) {
+        Some(v) if !v.is_finite() => Err("non-finite"),
+        value => Ok(value),
     }
 }
 
@@ -127,10 +136,11 @@ fn yaml_kind(value: &Value) -> &'static str {
 fn parse_numeric_sequence(value: &Value) -> Result<Option<Vec<f64>>, String> {
     fn element(item: &Value, at: &str) -> Result<f64, String> {
         match item {
-            Value::Number(n) => n
-                .as_f64()
-                .filter(|v| v.is_finite())
-                .ok_or_else(|| format!("element {at} must be a finite number")),
+            Value::Number(_) => read_finite_numeric(item, &[])
+                .map_err(|reason| {
+                    format!("element {at} is {reason}; every element must be a finite number")
+                })?
+                .ok_or_else(|| format!("element {at} must be a number")),
             other => Err(format!(
                 "element {at} is {}; every element must be a number",
                 yaml_kind(other)
@@ -3537,6 +3547,7 @@ mod tests {
                     "{err}"
                 );
                 assert!(err.contains("[1]"), "{err}");
+                assert!(err.contains("is non-finite"), "{err}");
             }
             let err = fixture_with_list(path, bad, 5).expect_err(bad);
             assert!(err.contains("[0]"), "{err}");
@@ -3614,5 +3625,31 @@ mod tests {
         }
         fixture_with_list("properties.land_cover.paved.thermal_layers.dz", "[]", 1).unwrap();
         fixture_with_list("initial_states.paved.temperature", "[20.0]", 6).unwrap();
+    }
+
+    #[test]
+    fn optional_non_finite_scalar_reaches_the_struct() {
+        for (number, expected) in [
+            (".nan", f64::NAN),
+            (".inf", f64::INFINITY),
+            ("-.inf", f64::NEG_INFINITY),
+        ] {
+            for value in [number.to_string(), format!("{{value: {number}}}")] {
+                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(site, &["properties", "z"]).unwrap() =
+                    serde_yaml::from_str(&value).unwrap();
+                let run = load_run_config_from_value(&mut root).expect(&value);
+                if expected.is_nan() {
+                    assert!(
+                        run.site_scalars.z.is_nan(),
+                        "{value}: {}",
+                        run.site_scalars.z
+                    );
+                } else {
+                    assert_eq!(run.site_scalars.z, expected, "{value}");
+                }
+            }
+        }
     }
 }

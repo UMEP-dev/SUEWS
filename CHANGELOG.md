@@ -56,7 +56,7 @@ EXAMPLES:
 
 ### 6 Nov 2026
 
-- [bugfix] Reject non-finite numeric-list entries and incomplete thermal and initial-temperature arrays required by the selected storage scheme, with YAML paths and lengths; retain DyOHM outermost-layer requirements (#1991, #1992)
+- [bugfix] Reject non-finite numeric-list entries and incomplete thermal and initial-temperature arrays required by the selected storage scheme, with YAML paths and lengths; retain DyOHM outermost-layer requirements; optional scalar NaN and infinity values pass through unchanged (#1991, #1992)
 
 ### 5 Nov 2026
 

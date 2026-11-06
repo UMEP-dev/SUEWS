@@ -151,3 +151,42 @@ def test_parquet_save_coarser_than_a_day_refuses_dailystate(output, tmp_path):
     with pytest.raises(ValueError, match=r"more than one day \(172800 s\)"):
         output.save(tmp_path, format="parquet", freq_s=172800)
     assert not list(tmp_path.glob("*.parquet"))
+
+
+def _without_interval(frame):
+    """Copy of *frame* without the declared interval or its derived coverage."""
+    raw = frame.copy()
+    raw.attrs = {
+        key: value for key, value in raw.attrs.items()
+        if key not in ("supy_output_interval_s", "supy_output_daily_coverage_s")
+    }
+    return raw
+
+
+def test_writer_without_final_state_checks_index_cadence(output, tmp_path):
+    """Without df_state_final the timestamps' regular cadence is the held interval.
+
+    The check returned early, so five-minute rows saved at seven minutes held
+    alternately five and ten minutes under a seven-minute label. (The Parquet
+    writer requires final state, so it always has the model timestep.)
+    """
+    raw = _without_interval(output.df)
+    with pytest.raises(ValueError, match="whole multiple of the held output interval of 300 s"):
+        save_df_output(raw, freq_s=420, output_groups=["SUEWS"], path_dir_save=tmp_path)
+    assert not [p for p in tmp_path.iterdir() if p.suffix == ".txt"]
+
+
+def test_writer_without_final_state_saves_a_multiple(output, tmp_path):
+    paths = save_df_output(
+        _without_interval(output.df), freq_s=600, output_groups=["SUEWS"], path_dir_save=tmp_path
+    )
+    assert [p.name for p in paths if p.suffix == ".txt"] == ["1_2012_SUEWS_10.txt"]
+
+
+def test_writer_with_irregular_rows_and_no_state_warns(output, tmp_path, caplog):
+    """When no interval can be established the check is skipped, saying so."""
+    raw = _without_interval(output.df)
+    raw = raw.drop(raw.index[[1, 5, 6]])
+    with caplog.at_level("WARNING", logger="SuPy"):
+        save_df_output(raw, freq_s=3600, output_groups=["SUEWS"], path_dir_save=tmp_path)
+    assert "cannot be checked" in caplog.text

@@ -19,6 +19,7 @@ from ._load import load_SUEWS_dict_ModConfig
 from ._output_metadata import (
     output_interval_seconds,
     prepare_output,
+    resolve_held_interval,
     with_daily_coverage,
     write_output_parquet,
     write_text_metadata,
@@ -1429,10 +1430,7 @@ def _check_save_tstep(df_output, save_tstep: bool) -> None:
     record an interval in their metadata; resampling such rows again to a
     fixed saving step would split each period across two rows.
     """
-    if not (
-        "supy_output_interval_s" in df_output.attrs
-        and df_output.attrs["supy_output_interval_s"] is None
-    ):
+    if resolve_held_interval(df_output).kind != "calendar":
         return
     if save_tstep:
         raise ValueError(
@@ -1456,13 +1454,21 @@ def _check_save_frequency(df_output, df_state_final, freq_s) -> None:
     number of rows in each period (five-minute rows saved at seven minutes
     hold alternately five and ten minutes), so it is refused as the
     configuration refuses an output frequency that is not a multiple of the
-    timestep. The held interval is the frame's declared interval, else the
-    model timestep.
+    timestep. The held interval is resolved as resampling resolves it (see
+    :func:`_held_interval_s`), so a frame saved without final state is checked
+    against the regular cadence of its timestamps; only when no interval can
+    be established is the check skipped, with a warning.
     """
     if not freq_s > 0:
         raise ValueError(f"Output frequency must be positive, got freq_s={freq_s}")
     held_s = _held_interval_s(df_output, df_state_final)
     if held_s is None:
+        logger_supy.warning(
+            "The interval the output rows hold is unknown (no declared "
+            "interval, final state or regular timestamps), so freq_s=%s "
+            "cannot be checked against it.",
+            freq_s,
+        )
         return
     if freq_s < held_s:
         raise ValueError(
@@ -1498,18 +1504,30 @@ def _check_dailystate_interval(df_output, df_state_final, freq_s=None) -> None:
         )
 
 
-def _held_interval_s(df_output, df_state_final) -> Optional[int]:
-    """Use the held output cadence when rows have already been resampled."""
-    if "supy_output_interval_s" in df_output.attrs:
+def _held_interval_s(df_output, df_state_final) -> Optional[float]:
+    """Return the fixed interval the rows hold in seconds, else None.
+
+    Resolved by :func:`supy._output_metadata.resolve_held_interval`, as
+    resampling resolves it: the frame's declared interval, else the model
+    timestep in final state, else the regular cadence of the timestamps.
+    ``None`` for calendar rows (refused by ``_check_save_tstep``) and when no
+    interval can be established.
+    """
+    held = resolve_held_interval(df_output, df_state_final=df_state_final)
+    if held.kind != "fixed":
+        return None
+    if held.source == "attrs":
         return df_output.attrs["supy_output_interval_s"]
-    return _native_interval_s(df_state_final)
+    return int(held.seconds) if float(held.seconds).is_integer() else held.seconds
 
 
 def _native_interval_s(df_state_final) -> Optional[int]:
     """Return the model timestep held in final state, or None without one.
 
-    Legacy callers may supply no state: the interval is then left unspecified
-    rather than inferred from the output index.
+    Callers that supply no state fall back, through
+    :func:`supy._output_metadata.resolve_held_interval`, to the cadence
+    :func:`pandas.infer_freq` finds in the output index, which declines for
+    irregular timestamps.
     """
     if df_state_final is None or df_state_final.empty:
         return None

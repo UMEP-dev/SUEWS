@@ -1127,6 +1127,7 @@ def save_df_output(
     relabelled and written one (grid, group) at a time (gh#1849).
     """
     _check_save_tstep(df_output, save_tstep)
+    _check_save_frequency(df_output, df_state_final, freq_s)
     df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
@@ -1445,6 +1446,22 @@ def _check_save_tstep(df_output, save_tstep: bool) -> None:
     )
 
 
+def _check_save_frequency(df_output, df_state_final, freq_s) -> None:
+    """Reject a saving frequency finer than the interval the rows hold.
+
+    Resampled rows (for example daily) cannot be split into finer saving
+    periods: the writer would describe daily values as hourly ones. The held
+    interval is the frame's declared interval, else the model timestep.
+    """
+    held_s = _held_interval_s(df_output, df_state_final)
+    if held_s is not None and freq_s < held_s:
+        raise ValueError(
+            f"freq_s={freq_s} is finer than the held output interval of "
+            f"{int(held_s)} s; resampled output can only be saved at its own "
+            "interval or a coarser one."
+        )
+
+
 def _held_interval_s(df_output, df_state_final) -> Optional[int]:
     """Use the held output cadence when rows have already been resampled."""
     if "supy_output_interval_s" in df_output.attrs:
@@ -1652,6 +1669,7 @@ def save_df_output_parquet(
     """
     _parquet_engine()
     _check_save_tstep(df_output, save_tstep)
+    _check_save_frequency(df_output, df_state_final, freq_s)
     df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
     df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
 

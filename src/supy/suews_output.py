@@ -664,10 +664,27 @@ class SUEWSOutput:
         """Return the fixed interval of resampled rows in seconds, else None.
 
         ``None`` for native output (saved at the configured frequency) and
-        for calendar-resampled output, which the writers refuse.
+        for calendar-resampled output, which the writers refuse. A frame
+        built from resampled rows without this wrapper's metadata (for
+        example ``SUEWSOutput(output.resample("D").df, state)`` or a reloaded
+        Parquet file) is recognised by its declared interval differing from
+        the model timestep.
         """
         if "resampled_to" not in self._metadata:
-            return None
+            interval_s = self._df_output.attrs.get("supy_output_interval_s")
+            if interval_s is None:
+                return None
+            native_s = self._metadata.get("tstep_s")
+            if native_s is None and self._config is not None:
+                value = self._config.model.control.tstep
+                native_s = getattr(value, "value", value)
+            if native_s is None:
+                from ._save import _native_interval_s
+
+                native_s = _native_interval_s(self._df_state_final)
+            if native_s is not None and int(interval_s) == int(native_s):
+                return None
+            return int(interval_s)
         try:
             return int(
                 pd.Timedelta(

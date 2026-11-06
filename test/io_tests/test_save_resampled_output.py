@@ -6,6 +6,8 @@ import pandas as pd
 import pytest
 
 from supy import SUEWSSimulation
+from supy._save import save_df_output, save_df_output_parquet
+from supy.suews_output import SUEWSOutput
 
 pytestmark = pytest.mark.api
 
@@ -59,8 +61,6 @@ def _assert_daily_files(paths, tmp_path):
 @pytest.mark.parametrize("with_config", [False, True])
 def test_reconstructed_resampled_frame_saves_at_held_interval(output, tmp_path, with_config):
     """A wrapper rebuilt from resampled rows keeps their interval when saved."""
-    from supy.suews_output import SUEWSOutput
-
     daily = output.resample("D")
     rebuilt = SUEWSOutput(
         daily.df, output.state_final, config=output.config if with_config else None
@@ -72,8 +72,6 @@ def test_reconstructed_resampled_frame_saves_at_held_interval(output, tmp_path, 
 
 def test_reloaded_parquet_frame_saves_at_held_interval(output, tmp_path):
     """Parquet keeps the held interval, so reloaded daily rows save as daily."""
-    from supy.suews_output import SUEWSOutput
-
     with pytest.warns(FutureWarning):
         paths = output.resample("D").save(tmp_path / "pq", format="parquet")
     path_output = next(p for p in paths if p.name.endswith("_output.parquet"))
@@ -84,8 +82,6 @@ def test_reloaded_parquet_frame_saves_at_held_interval(output, tmp_path):
 @pytest.mark.parametrize("file_format", ["txt", "parquet"])
 def test_writer_refuses_finer_frequency(output, tmp_path, file_format):
     """The low-level writers refuse to describe daily rows as hourly ones."""
-    from supy._save import save_df_output, save_df_output_parquet
-
     writer = save_df_output if file_format == "txt" else save_df_output_parquet
     with pytest.raises(ValueError, match="finer than the held output interval of 86400 s"):
         writer(output.resample("D").df, freq_s=3600, path_dir_save=tmp_path,

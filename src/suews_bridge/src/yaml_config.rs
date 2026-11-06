@@ -73,6 +73,15 @@ fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     }
 }
 
+/// Check finiteness only for consumers that require a finite value.
+/// Missing/non-numeric input remains distinct from a supplied non-finite number.
+fn read_finite_numeric(root: &Value, path: &[&str]) -> Result<Option<f64>, &'static str> {
+    match read_numeric(root, path) {
+        Some(v) if !v.is_finite() => Err("non-finite"),
+        value => Ok(value),
+    }
+}
+
 fn read_i32(root: &Value, path: &[&str]) -> Option<i32> {
     read_numeric(root, path).and_then(|v| {
         if v.is_finite() {
@@ -100,6 +109,82 @@ fn read_string(root: &Value, path: &[&str]) -> Option<String> {
     }
 }
 
+/// Describe a YAML value for an error message.
+fn yaml_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "a boolean",
+        Value::Number(_) => "a number",
+        Value::String(_) => "a string",
+        Value::Sequence(_) => "a list",
+        Value::Mapping(_) => "a mapping",
+        Value::Tagged(_) => "a tagged value",
+    }
+}
+
+/// Parse a numeric list: bare (`[1.0, 2.0]`), wrapped in the RefValue form
+/// (`{value: [...]}`), a single number, or a mapping of named numbers (e.g.
+/// `hdd_id`).
+///
+/// `Ok(None)` means the value is not a list or number at all (the caller
+/// treats it as not given). An element that is not a number, `null`
+/// included, is an error naming its index (or key): the bridge passes values
+/// through and never stands in for a missing one. supy can send such nulls
+/// (the thermal-layer lists are `List[Optional[float]]`, and
+/// `model_dump(mode="json")` writes a NaN element as `null`), so this must
+/// not be silently dropped.
+fn parse_numeric_sequence_checked(value: &Value) -> Result<Option<Vec<f64>>, String> {
+    fn element(item: &Value, at: &str) -> Result<f64, String> {
+        match item {
+            Value::Number(_) => read_finite_numeric(item, &[])
+                .map_err(|reason| {
+                    format!("element {at} is {reason}; every element must be a finite number")
+                })?
+                .ok_or_else(|| format!("element {at} must be a number")),
+            other => Err(format!(
+                "element {at} is {}; every element must be a number",
+                yaml_kind(other)
+            )),
+        }
+    }
+
+    match value {
+        Value::Number(_) => element(value, "[0]").map(|v| Some(vec![v])),
+        Value::Sequence(items) => items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| element(item, &format!("[{i}]")))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some),
+        Value::Mapping(map) => {
+            // First try the standard RefValue wrapper: {value: [1.0, 2.0, ...]}
+            if let Some(inner) = get_path(value, &["value"]) {
+                return parse_numeric_sequence_checked(inner);
+            }
+            // A RefValue whose value was None keeps only its `ref` after
+            // `exclude_none`: the list was not given.
+            if map.contains_key("ref") {
+                return Ok(None);
+            }
+            // Fallback: extract numeric values from named keys (e.g. Pydantic
+            // dict serialisation of hdd_id: {hdd_accum: 13.5, cdd_accum: 13.5, ...}).
+            let out = map
+                .iter()
+                .map(|(key, val)| {
+                    let key = match key {
+                        Value::String(k) => k.clone(),
+                        other => format!("{other:?}"),
+                    };
+                    element(val, &format!("`{key}`"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(if out.is_empty() { None } else { Some(out) })
+        }
+        _ => Ok(None),
+    }
+}
+
+// Optional lists retain their pass-through reader until the checked list migration.
 fn parse_numeric_sequence(value: &Value) -> Option<Vec<f64>> {
     match value {
         Value::Number(n) => n.as_f64().map(|v| vec![v]),
@@ -321,6 +406,11 @@ fn ensure_len_with_default(values: &mut Vec<f64>, len: usize, default_value: f64
     }
 }
 
+/// Marks a per-layer value the YAML did not give and the kernel does not
+/// read under the selected options (roof and wall emissivity without
+/// SPARTACUS). It is "absent", not a substitute: any use would show as NaN.
+const LAYER_VALUE_ABSENT: f64 = f64::NAN;
+
 fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     let nspec = if site.spartacus_layer.nspec > 0 {
         site.spartacus_layer.nspec
@@ -334,10 +424,13 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
 
     site.spartacus_layer.nlayer = nlayer;
     site.spartacus_layer.nspec = nspec;
+    // building_frac, emis_roof and emis_wall are not padded with any value:
+    // `apply_vertical_layers_overrides` fills them from the YAML and fails
+    // when the kernel needs one the YAML does not give.
     ensure_len_with_default(
         &mut site.spartacus_layer.building_frac,
         nlayer,
-        site.lc_bldg.sfr,
+        LAYER_VALUE_ABSENT,
     );
     ensure_len_with_default(&mut site.spartacus_layer.building_scale, nlayer, 10.0);
     ensure_len_with_default(&mut site.spartacus_layer.veg_frac, nlayer, 0.0);
@@ -347,13 +440,13 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     ensure_len_with_default(
         &mut site.spartacus_layer.emis_roof,
         nlayer,
-        site.lc_bldg.emis,
+        LAYER_VALUE_ABSENT,
     );
     ensure_len_with_default(&mut site.spartacus_layer.alb_wall, nlayer, 0.15);
     ensure_len_with_default(
         &mut site.spartacus_layer.emis_wall,
         nlayer,
-        site.lc_bldg.emis,
+        LAYER_VALUE_ABSENT,
     );
 
     let matrix_len = nlayer * nspec;
@@ -618,7 +711,32 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
-fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
+/// How an error names the site the bridge is reading. supy passes one site
+/// per call, so its position here (always the first) says nothing about
+/// where it sits in the user's file; name it by `gridiv`, as the data
+/// model's own errors do (`sites[gridiv=1]`), and fall back to `sites[0]`.
+fn site_yaml_at(site_root: &Value) -> String {
+    let gridiv = get_path(site_root, &["gridiv"]).map(|v| match v {
+        Value::Mapping(_) => get_path(v, &["value"]).unwrap_or(v),
+        other => other,
+    });
+    match gridiv {
+        Some(Value::Number(n)) => format!("sites[gridiv={n}]"),
+        Some(Value::String(s)) => format!("sites[gridiv={s}]"),
+        _ => "sites[0]".to_string(),
+    }
+}
+
+/// Read `properties.vertical_layers`. The cumulative building fraction per
+/// layer is required whenever there are layers (the kernel derives roof and
+/// wall fractions from it), and each roof and wall layer's `emis` is
+/// required when SPARTACUS is on; a missing or short value is an error naming
+/// the YAML path, never padded.
+fn apply_vertical_layers_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+    spartacus_on: bool,
+) -> Result<(), String> {
     let nlayer = site.spartacus_layer.nlayer;
     let nspec = site.spartacus_layer.nspec;
 
@@ -636,14 +754,37 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
         }
     }
 
-    if let Some(building_frac) = read_numeric_sequence(
+    let site_at = site_yaml_at(site_root);
+    let building_frac_at = format!("{site_at}.properties.vertical_layers.building_frac");
+    let building_frac = get_path(
         site_root,
         &["properties", "vertical_layers", "building_frac"],
-    ) {
-        assign_prefix(
-            site.spartacus_layer.building_frac.as_mut_slice(),
-            building_frac.as_slice(),
-        );
+    )
+    .map(parse_numeric_sequence_checked)
+    .transpose()
+    .map_err(|err| format!("`{building_frac_at}`: {err}"))?
+    .flatten();
+    match building_frac {
+        Some(building_frac) if building_frac.len() >= nlayer => {
+            assign_prefix(
+                site.spartacus_layer.building_frac.as_mut_slice(),
+                building_frac.as_slice(),
+            );
+        }
+        Some(building_frac) => {
+            return Err(format!(
+                "`{building_frac_at}` has {} values, but nlayer = {nlayer} needs {nlayer} \
+                 (cumulative building fraction per layer)",
+                building_frac.len()
+            ));
+        }
+        None if nlayer > 0 => {
+            return Err(format!(
+                "`{building_frac_at}` is missing or not a list of numbers, but nlayer = {nlayer} \
+                 needs {nlayer} values (cumulative building fraction per layer)"
+            ));
+        }
+        None => {}
     }
     if let Some(veg_frac) =
         read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_frac"])
@@ -686,7 +827,17 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(roof_root, &["emis"]) {
+            let emissivity = if spartacus_on && layer_idx < nlayer {
+                read_finite_numeric(roof_root, &["emis"]).map_err(|reason| {
+                    format!(
+                        "`{site_at}.properties.vertical_layers.roofs[{layer_idx}].emis` is {reason}; \
+                         SPARTACUS (net_radiation > 1000) needs a finite emissivity"
+                    )
+                })?
+            } else {
+                read_numeric(roof_root, &["emis"])
+            };
+            if let Some(v) = emissivity {
                 if let Some(slot) = site.spartacus_layer.emis_roof.get_mut(layer_idx) {
                     *slot = v;
                 }
@@ -721,7 +872,17 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
                     *slot = v;
                 }
             }
-            if let Some(v) = read_numeric(wall_root, &["emis"]) {
+            let emissivity = if spartacus_on && layer_idx < nlayer {
+                read_finite_numeric(wall_root, &["emis"]).map_err(|reason| {
+                    format!(
+                        "`{site_at}.properties.vertical_layers.walls[{layer_idx}].emis` is {reason}; \
+                         SPARTACUS (net_radiation > 1000) needs a finite emissivity"
+                    )
+                })?
+            } else {
+                read_numeric(wall_root, &["emis"])
+            };
+            if let Some(v) = emissivity {
                 if let Some(slot) = site.spartacus_layer.emis_wall.get_mut(layer_idx) {
                     *slot = v;
                 }
@@ -748,6 +909,22 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
             }
         }
     }
+
+    if spartacus_on {
+        for (facet, values) in [
+            ("roofs", &site.spartacus_layer.emis_roof),
+            ("walls", &site.spartacus_layer.emis_wall),
+        ] {
+            if let Some(layer_idx) = values.iter().position(|v| !v.is_finite()) {
+                return Err(format!(
+                    "`{site_at}.properties.vertical_layers.{facet}[{layer_idx}].emis` is missing, null or non-numeric; \
+                     SPARTACUS (net_radiation > 1000) needs an emissivity for each of the \
+                     nlayer = {nlayer} {facet}"
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn apply_lumps_overrides(site: &mut SuewsSite, site_root: &Value) {
@@ -1849,6 +2026,7 @@ fn apply_site_overrides(
     site_root: &Value,
     nlayer: usize,
     ndepth: usize,
+    spartacus_on: bool,
 ) -> Result<(), String> {
     apply_conductance_overrides(site, root, site_root);
     apply_lumps_overrides(site, site_root);
@@ -1866,7 +2044,7 @@ fn apply_site_overrides(
     apply_land_cover_overrides(site, site_root);
     apply_snow_overrides(site, site_root);
     apply_irrigation_overrides(site, site_root);
-    apply_vertical_layers_overrides(site, site_root);
+    apply_vertical_layers_overrides(site, site_root, spartacus_on)?;
     apply_anthro_emis_overrides(site, site_root);
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
@@ -2297,7 +2475,15 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
-    apply_site_overrides(&mut site, root, site_root, nlayer as usize, ndepth as usize)?;
+    let spartacus_on = config.net_radiation_method > 1000;
+    apply_site_overrides(
+        &mut site,
+        root,
+        site_root,
+        nlayer as usize,
+        ndepth as usize,
+        spartacus_on,
+    )?;
     apply_site_scalar_overrides(&mut site_scalars, site_root);
 
     if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
@@ -3214,5 +3400,199 @@ mod tests {
 
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
+    }
+
+    fn stebbs_fixture_with_vertical_layers(
+        edit: impl FnOnce(&mut Value),
+    ) -> Result<RunConfig, String> {
+        // SPARTACUS on (net_radiation 1003), nlayer 3.
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let layers = get_path_mut(site, &["properties", "vertical_layers"])
+            .expect("fixture should define vertical_layers");
+        edit(layers);
+        load_run_config_from_value(&mut root)
+    }
+
+    fn remove_key(map: &mut Value, key: &str) {
+        let Value::Mapping(m) = map else {
+            panic!("expected a mapping");
+        };
+        m.remove(Value::String(key.to_string()));
+    }
+
+    #[test]
+    fn missing_layer_building_frac_is_an_error_naming_path_and_length() {
+        let err = stebbs_fixture_with_vertical_layers(|layers| remove_key(layers, "building_frac"))
+            .expect_err("a missing building_frac must be rejected, not padded");
+        assert!(
+            err.contains("sites[gridiv=1].properties.vertical_layers.building_frac"),
+            "error should name the list: {err}"
+        );
+        assert!(
+            err.contains('3'),
+            "error should give the expected length: {err}"
+        );
+    }
+
+    #[test]
+    fn short_layer_building_frac_is_an_error() {
+        let err = stebbs_fixture_with_vertical_layers(|layers| {
+            let bf = get_path_mut(layers, &["building_frac", "value"]).unwrap();
+            *bf = serde_yaml::from_str("[0.351]").unwrap();
+        })
+        .expect_err("a building_frac shorter than nlayer must be rejected, not padded");
+        assert!(err.contains("vertical_layers.building_frac"), "{err}");
+    }
+
+    #[test]
+    fn missing_layer_emissivity_is_an_error_when_spartacus_is_on() {
+        let err = stebbs_fixture_with_vertical_layers(|layers| {
+            let roofs = get_path_mut(layers, &["roofs"]).unwrap();
+            let Value::Sequence(items) = roofs else {
+                panic!("roofs should be a list");
+            };
+            remove_key(&mut items[1], "emis");
+        })
+        .expect_err("a missing roof emissivity must be rejected under SPARTACUS");
+        assert!(
+            err.contains("sites[gridiv=1].properties.vertical_layers.roofs[1].emis"),
+            "error should name the layer: {err}"
+        );
+    }
+
+    #[test]
+    fn missing_layer_emissivity_is_carried_as_absent_without_spartacus() {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let netrad = get_path_mut(&mut root, &["model", "physics", "net_radiation"])
+            .expect("fixture should define model.physics.net_radiation");
+        *netrad = serde_yaml::from_str("{value: 3}").unwrap();
+        *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
+            serde_yaml::from_str("{value: 1}").unwrap();
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let roofs = get_path_mut(site, &["properties", "vertical_layers", "roofs"]).unwrap();
+        let Value::Sequence(items) = roofs else {
+            panic!("roofs should be a list");
+        };
+        remove_key(&mut items[1], "emis");
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("without SPARTACUS a missing layer emissivity is not needed");
+        let emis_roof = &run_cfg.site.spartacus_layer.emis_roof;
+        assert!(
+            emis_roof[1].is_nan(),
+            "absent, not substituted: {emis_roof:?}"
+        );
+        assert!(emis_roof[0].is_finite() && emis_roof[2].is_finite());
+    }
+    #[test]
+    fn non_finite_layer_fractions_name_the_path_and_index() {
+        for bad in ["null", ".nan", ".inf", "-.inf"] {
+            for value in [
+                format!("[0.35, {bad}, 0.1]"),
+                format!("{{value: [0.35, {bad}, 0.1]}}"),
+            ] {
+                let err = stebbs_fixture_with_vertical_layers(|layers| {
+                    *get_path_mut(layers, &["building_frac"]).unwrap() =
+                        serde_yaml::from_str(&value).unwrap();
+                })
+                .expect_err(&value);
+                assert!(
+                    err.contains("sites[gridiv=1].properties.vertical_layers.building_frac"),
+                    "{err}"
+                );
+                assert!(err.contains("[1]"), "{err}");
+                if bad != "null" {
+                    assert!(err.contains("is non-finite"), "{err}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn non_finite_layer_emissivity_names_the_facet() {
+        for facet in ["roofs", "walls"] {
+            for bad in [
+                ".nan",
+                ".inf",
+                "-.inf",
+                "{value: .nan}",
+                "{value: .inf}",
+                "{value: -.inf}",
+            ] {
+                let err = stebbs_fixture_with_vertical_layers(|layers| {
+                    let items = get_path_mut(layers, &[facet])
+                        .unwrap()
+                        .as_sequence_mut()
+                        .unwrap();
+                    *get_path_mut(&mut items[1], &["emis"]).unwrap() =
+                        serde_yaml::from_str(bad).unwrap();
+                })
+                .expect_err(bad);
+                assert!(err.contains("is non-finite"), "{err}");
+                assert!(
+                    err.contains(&format!(
+                        "sites[gridiv=1].properties.vertical_layers.{facet}[1].emis"
+                    )),
+                    "{err}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn optional_list_keeps_non_finite_elements_and_neighbours() {
+        for bad in [".nan", ".inf", "-.inf"] {
+            for value in [
+                format!("[0.2, {bad}, 0.1]"),
+                format!("{{value: [0.2, {bad}, 0.1]}}"),
+            ] {
+                let run = stebbs_fixture_with_vertical_layers(|layers| {
+                    *get_path_mut(layers, &["veg_frac"]).unwrap() =
+                        serde_yaml::from_str(&value).unwrap();
+                })
+                .expect(&value);
+                let values = &run.site.spartacus_layer.veg_frac;
+                assert_eq!(values[0], 0.2);
+                assert_eq!(values[2], 0.1);
+                let expected: Value = serde_yaml::from_str(bad).unwrap();
+                let expected = expected.as_f64().unwrap();
+                if expected.is_nan() {
+                    assert!(values[1].is_nan(), "{value}: {values:?}");
+                } else {
+                    assert_eq!(values[1], expected, "{value}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn optional_non_finite_scalar_reaches_the_struct() {
+        for (number, expected) in [
+            (".nan", f64::NAN),
+            (".inf", f64::INFINITY),
+            ("-.inf", f64::NEG_INFINITY),
+        ] {
+            for value in [number.to_string(), format!("{{value: {number}}}")] {
+                let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(site, &["properties", "z"]).unwrap() =
+                    serde_yaml::from_str(&value).unwrap();
+                let run = load_run_config_from_value(&mut root).expect(&value);
+                if expected.is_nan() {
+                    assert!(
+                        run.site_scalars.z.is_nan(),
+                        "{value}: {}",
+                        run.site_scalars.z
+                    );
+                } else {
+                    assert_eq!(run.site_scalars.z, expected, "{value}");
+                }
+            }
+        }
     }
 }

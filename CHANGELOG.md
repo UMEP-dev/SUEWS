@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Nov 2026
+
+- [bugfix] Reject non-finite required building fractions and SPARTACUS emissivities with indexed YAML paths, and verify unused emissivity under a supported radiation/storage combination; optional scalar NaN and infinity values pass through unchanged. Optional lists also retain non-finite elements (#1991, #1994)
+
+### 5 Nov 2026
+
+- [bugfix] Rust bridge: a missing or short `vertical_layers.building_frac`, or a roof or wall layer without `emis` when SPARTACUS is on (`net_radiation` above 1000), is now an error naming the YAML path and the length `nlayer` needs. The bridge used to pad the gap with the building land-cover fraction and emissivity, and because it padded before land cover was read, the kernel actually received zeros. supy runs are unaffected (the data model always supplies full-length layer lists); the change matters for hand-written YAML run with `suews-engine`. Without SPARTACUS a missing layer emissivity is carried as absent (NaN), since the kernel does not read it (#1991)
+
 ### 3 Nov 2026
 
 - [feature][experimental] Declared and tested Python 3.15 support: added the 3.15 classifier, put cp315 into the CI candidate window (so PR api lanes now test the cp312 and cp315 bookends, the merge queue keeps the cp312 floor, and cp313 and cp314 run in the nightly and release matrix) and a `py315` dispatch toggle, required pyarrow>=26 on 3.15 (its first cp315 wheels), installed setuptools in `make dev` so sdist-only dependencies such as numexpr build on 3.15, adapted two tests to 3.15's `importlib.metadata` and `warnings.warn_explicit` behaviour, and ran the dependency audit on 3.15 as well as 3.13. The cp312-abi3 wheel is unchanged (#1988)

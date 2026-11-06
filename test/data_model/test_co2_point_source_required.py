@@ -110,3 +110,25 @@ def test_dev6_upgrade_writes_the_point_source_the_model_used(
     config = SUEWSConfig.from_yaml(str(output))
     co2 = config.sites[0].properties.anthropogenic_emissions.co2
     assert co2.emission_co2_point_source.value == expected
+
+
+@pytest.mark.parametrize("properties", [None, {}, {"anthropogenic_emissions": {}}])
+def test_dev6_upgrade_supplies_missing_parent_blocks(tmp_path, properties):
+    """Sparse outgoing sites still load when the method needs a point source."""
+    site = {"name": "sparse"}
+    if properties is not None:
+        site["properties"] = properties
+    data = {
+        "schema_version": "2026.6.dev6",
+        "model": {"physics": {"emissions": BIOGENIC_J11}},
+        "sites": [site],
+    }
+    source = tmp_path / "dev6.yml"
+    output = tmp_path / "upgraded.yml"
+    source.write_text(yaml.safe_dump(data), encoding="utf-8")
+
+    upgrade_yaml(input_path=source, output_path=output)
+
+    config = SUEWSConfig.from_yaml(str(output))
+    co2 = config.sites[0].properties.anthropogenic_emissions.co2
+    assert co2.emission_co2_point_source.value == 0.0

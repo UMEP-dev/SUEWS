@@ -1320,3 +1320,28 @@ def test_validate_sample_period_is_covered(tmp_path: Path) -> None:
     report = _validate_sample_with_bounds(tmp_path, "2012-01-01", "2012-12-31")
     messages = _issue_messages(report)
     assert not any("does not cover" in message for message in messages), messages
+
+
+def test_default_export_survives_disabled_stebbs_science_fixes(tmp_path):
+    """The default export keeps the internal occupancy fields loadable."""
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.core import SUEWSConfig
+
+    data = _load_sample_dict()
+    data["model"]["physics"]["stebbs"]["enabled"] = False
+    config = SUEWSConfig.from_dict(data)
+    path = tmp_path / "export.yml"
+    config.to_yaml(str(path))
+
+    result = CliRunner().invoke(validate_cli, [
+        str(path), "--pipeline", "BC", "--science-fixes", "apply",
+        "--forcing", "off", "--mode", "dev",
+    ])
+
+    assert result.exit_code == 0, result.output
+    reloaded = SUEWSConfig.from_yaml(str(tmp_path / "updated_export.yml"))
+    archetype = reloaded.model_dump(mode="json")["sites"][0]["properties"][
+        "building_archetype"
+    ]
+    for name in ("hhs0", "age_0_4", "age_5_11", "age_12_18", "age_19_64", "age_65plus"):
+        assert archetype[name] == 0.0

@@ -267,7 +267,12 @@ def _strip_internal_fields(data, model_cls):
     if not isinstance(data, dict) or not hasattr(model_cls, "model_fields"):
         return
 
-    keys_to_remove = []
+    keys_to_remove = [
+        name
+        for name, info in model_cls.model_computed_fields.items()
+        if isinstance(info.json_schema_extra, dict)
+        and info.json_schema_extra.get("internal_only")
+    ]
 
     for field_name, field_info in model_cls.model_fields.items():
         extra = field_info.json_schema_extra

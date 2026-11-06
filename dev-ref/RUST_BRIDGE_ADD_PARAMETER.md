@@ -66,9 +66,20 @@ The `impl_state_module_fns!` invocation at the bottom of the file (line 441) doe
 
 ### 4. Nested types (only if your type is embedded in another)
 
-Some types are embedded whole in others: `OhmPrm`, `SoilPrm`, `BioCo2Prm`, `LaiPrm` and `WaterDistPrm` sit inside every `lc_*_prm` type.
+Nested types have different parent sets:
+
+| Nested type | Parent Rust types |
+|---|---|
+| `OhmPrm` | `LcPavedPrm`, `LcBldgPrm`, `LcEvetrPrm`, `LcDectrPrm`, `LcGrassPrm`, `LcBsoilPrm`, `LcWaterPrm` |
+| `SoilPrm` | `LcPavedPrm`, `LcBldgPrm`, `LcEvetrPrm`, `LcDectrPrm`, `LcGrassPrm`, `LcBsoilPrm`, `LcWaterPrm` |
+| `BioCo2Prm` | `LcEvetrPrm`, `LcDectrPrm`, `LcGrassPrm` |
+| `LaiPrm` | `LcEvetrPrm`, `LcDectrPrm`, `LcGrassPrm` |
+| `WaterDistPrm` | `LcPavedPrm`, `LcBldgPrm`, `LcEvetrPrm`, `LcDectrPrm`, `LcGrassPrm`, `LcBsoilPrm` |
+
+Before changing lengths, schema versions or offsets, enumerate the actual parent struct fields and their facade pack/unpack sites.
+`OhmPrm` and `SoilPrm` are common to all seven land-cover parents; biogenic CO2 and LAI are vegetation-only, and water distribution is absent from `LcWaterPrm`.
 The parent facades copy the nested components field by field in their own pack and unpack (`c_api/lc_evetr_prm.f95:162` and `:241` for `ohm`), and the parent Rust `from_flat` slices the buffer with hard-coded bounds (`lc_evetr_prm.rs:96`, `OhmPrm::from_flat(&flat[6..23])`; the module docs carry the full offset table).
-Adding a field to a nested type therefore means, in **every** parent: raise the parent's LEN and `*_FLAT_LEN`, shift every later slice bound, and add the field to the parent facade's inlined pack and unpack.
+Adding a field to a nested type therefore means, in **each actual** parent: raise the parent's LEN, `*_FLAT_LEN` and schema versions, shift every later slice bound, and add the field to the parent facade's inlined pack and unpack.
 
 ### 5. Names
 

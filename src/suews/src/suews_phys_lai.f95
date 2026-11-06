@@ -5,9 +5,6 @@ MODULE module_phys_lai
 
    IMPLICIT NONE
 
-   !Critical limit for GDD when GDD or SDD is set to zero
-   INTEGER, PARAMETER :: CRIT_DAYS = 50
-
    ! Enumeration parameters for the LAI type
    INTEGER, PARAMETER :: LAI_ORIGINAL = 0
    INTEGER, PARAMETER :: LAI_NEW = 1
@@ -98,7 +95,6 @@ CONTAINS
       REAL(KIND(1D0)) :: wilting_point
 
       LOGICAL :: stressed
-
       LOGICAL :: valid_observed_lai
 
       !FA TODO: formula needs looking at (shodl wilting point be larger than theta_r?)
@@ -490,20 +486,20 @@ CONTAINS
 
       LOGICAL :: start_senescence
 
-      select case (senescence_mode)
+      SELECT case (senescence_mode)
 
-      case (SEN_DAYLENGTH)
+      CASE (SEN_DAYLENGTH)
          start_senescence = ((len_day_id_prev <= 12) .and. (sdd_id <= sdd_base))
 
-      case (SEN_SDD)
+      CASE (SEN_SDD)
          start_senescence = (sdd_id <= sdd_base)
 
-      case default
+      CASE DEFAULT
          ! Invalid option falls back to SEN_SDD. No error yet registered.
          ! default currently not possible as function calls hard-coded
          start_senescence = (sdd_id <= sdd_base)
 
-      END select
+      END SELECT
 
    END FUNCTION check_start_senescence
 

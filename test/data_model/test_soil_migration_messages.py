@@ -147,15 +147,25 @@ def test_current_yaml_with_selector_alias_is_renamed_not_refused(tmp_path, alias
 
 
 @pytest.mark.parametrize(
-    "schema_version,expected",
-    [(None, True), ("2026.6.dev5", True), ("2026.6.dev6", False), ("2026.7", False)],
+    "key,schema_version,expected",
+    [
+        ("smdmethod", None, True),
+        ("smdmethod", "2026.6.dev5", True),
+        ("smdmethod", "2026.6.dev6", False),
+        ("smdmethod", "2026.7", False),
+        # A declared older schema needs the xsmd conversion whatever the spelling;
+        # an undeclared one with the canonical name is taken as current.
+        ("soil_moisture", None, False),
+        ("soil_moisture", "2026.6.dev5", True),
+        ("soil_moisture", "2026.6.dev6", False),
+    ],
 )
-def test_alias_without_observation_block_follows_schema_version(
-    schema_version, expected
+def test_selector_without_observation_block_follows_schema_version(
+    key, schema_version, expected
 ):
     from supy.data_model.core.config import _uses_legacy_observed_soil
 
-    cfg = {"model": {"physics": {"smdmethod": 1}}, "sites": [{"properties": {}}]}
+    cfg = {"model": {"physics": {key: 1}}, "sites": [{"properties": {}}]}
     if schema_version is not None:
         cfg["schema_version"] = schema_version
     assert _uses_legacy_observed_soil(cfg) is expected

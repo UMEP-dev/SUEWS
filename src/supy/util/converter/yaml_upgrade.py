@@ -1250,7 +1250,8 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     * 2026.6.dev6 -> 2026.6.dev7 (#2001): the CO2 point source written
       as 0.0 wherever it was absent or null, the value the model received.
     * 2026.6.dev7 -> 2026.6.dev8 (#2001): a null ``initial_states.snowalb``
-      dropped, so the default 0.5 applies.
+      dropped, so the default 0.5 applies; a null vegetation ``sdd_id`` or
+      water ``flowchange`` written as 0.0, the value the model received.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The

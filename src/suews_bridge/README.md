@@ -14,6 +14,23 @@ To support Python-side class mirroring with less manual glue code, the bridge
 also exposes a stable ordered field-name schema (`ohm_state_fields`) matching
 the flat payload layout.
 
+## `suews-engine run` takes resolved YAML only
+
+`suews run` is the user command: it validates a YAML config through the SuPy
+data model, fills every default there, and hands the engine the resolved
+config (`supy._run_rust.config_to_engine_yaml`). `suews-engine run` is a
+developer and test binary that expects that resolved form; it does not
+resolve a hand-written config itself. This follows the bridge's pass-through
+rule (#1991): the bridge converts what it is given and supplies no defaults
+of its own, which live only in the data model (#2004).
+
+To build a runnable engine (needs the SUEWS physics library, e.g. `make dev`):
+
+```bash
+make bridge   # cargo build --release --features physics,arrow-output
+src/suews_bridge/target/release/suews-engine run resolved_config.yml
+```
+
 ## Build and test (Rust only)
 
 The public SUEWS CLI does not expose a Rust subcommand. For bridge debugging,

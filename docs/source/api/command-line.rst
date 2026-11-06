@@ -72,6 +72,16 @@ The tool automatically detects the configuration format based on file extension:
 - ``.yml``, ``.yaml`` -> YAML format (modern, recommended)
 - ``.nml`` -> Namelist format (legacy, shows deprecation warning)
 
+**How the YAML is validated and resolved**
+
+``suews run`` does not hand your YAML file to the physics engine as written. It first loads it through the SUEWS data model, the same path as :class:`~supy.SUEWSSimulation`: the configuration is validated, any parameter you leave out takes its documented data-model default, and the result is passed to the engine as a complete, resolved configuration. Errors in the YAML are therefore reported by the data model, naming the field concerned, before any simulation starts.
+
+The engine itself takes no defaults of its own: every value it uses comes from the resolved configuration, and defaults live in one place, the data model.
+
+.. note::
+
+   The SuPy package also contains a ``suews-engine`` binary, the Rust runtime that ``suews run`` drives. It is a developer and test tool, not a user command: ``suews-engine run`` expects a configuration that has already been resolved in this way, and does not validate or fill in a hand-written YAML file. To run a configuration, use ``suews run``.
+
 For detailed usage and examples, see the :doc:`/workflow` guide.
 
 suews convert

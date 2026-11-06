@@ -258,6 +258,29 @@ def _calendar_binning(obj, freq):
     return shifted
 
 
+def _dailystate_period_end(obj, source_s):
+    """Return DailyState rows stamped just before the end of the period they hold.
+
+    Native DailyState rows sit at the last step of their day, and a
+    fixed-frequency resample labels them by the start of the period they
+    aggregate (``label="left"``), so a resampled row stamped
+    ``2012-01-01 00:00`` holds 1 January. Moving each row forward by the held
+    interval ``source_s`` and back by one nanosecond stamps it inside the
+    period it holds, so binning it again (for example ``"D"`` then ``"ME"``)
+    assigns it as binning the native rows would. A native row moves to
+    ``23:59:59.999999999`` of its own day. Calendar-resampled rows already
+    carry their period's end label (``source_s`` is ``None``) and are
+    returned unchanged; :func:`_calendar_binning` handles them.
+    """
+    if source_s is None:
+        return obj
+    shifted = obj.copy(deep=False)
+    shifted.index = (
+        shifted.index + pd.Timedelta(source_s, "s") - pd.Timedelta(1, "ns")
+    )
+    return shifted
+
+
 def _aggregate_bins(resampler, dict_aggm_group, columns):
     """Aggregate resampled bins, keeping all-missing sums as NaN.
 
@@ -455,10 +478,17 @@ def _resample_output(
             # and can produce different boundary dates. The resampled data already
             # contains the correct timestamps.
             coverage = df_output.attrs.get("supy_output_daily_coverage_s") or {}
-            daily_seconds = _calendar_binning(pd.Series(
+            ser_daily_seconds = pd.Series(
                 [coverage.get(f"{grid}|{date.isoformat()}", float("nan")) for date in df_to_resample.index],
                 index=df_to_resample.index,
-            ), freq).resample(freq, closed="right", label=label).sum(min_count=1)
+            )
+            # Coverage is keyed by the held labels, so look it up before the
+            # rows are moved to the end of the period they cover.
+            ser_daily_seconds = _dailystate_period_end(ser_daily_seconds, source_s)
+            df_to_resample = _dailystate_period_end(df_to_resample, source_s)
+            daily_seconds = _calendar_binning(ser_daily_seconds, freq).resample(
+                freq, closed="right", label=label
+            ).sum(min_count=1)
             dict_daily_coverage.update({f"{grid}|{date.isoformat()}": value for date, value in daily_seconds.dropna().items()})
             return _aggregate_bins(
                 _calendar_binning(df_to_resample, freq).resample(freq, closed="right", label=label),

@@ -86,3 +86,21 @@ def test_daily_labels_are_unchanged(output):
     assert p_day.index[0] == pd.Timestamp("2012-01-01")
     assert rain.index[0] == pd.Timestamp("2012-01-02")
     assert p_day.iloc[0] == pytest.approx(rain.iloc[0])
+
+
+@pytest.mark.parametrize("freq", ["W", "MS", "ME", "YE", "2D"])
+def test_daily_then_coarser_matches_direct(output, freq):
+    """Resampling daily output again assigns each day as the native rows do.
+
+    A daily DailyState row is labelled by the start of its day, so binning it
+    as if the label were the day's end put 1 January's P_day in December
+    (``ME``, ``YE``, ``MS``) or into the wrong two-day bin (``2D``).
+    """
+    direct = output.resample(freq)
+    chained = output.resample("D").resample(freq)
+    for column in [("DailyState", "P_day"), ("SUEWS", "Rain")]:
+        pd.testing.assert_series_equal(
+            chained.df[column].dropna(), direct.df[column].dropna(), rtol=1e-9
+        )
+    coverage = "supy_output_daily_coverage_s"
+    assert chained.df.attrs[coverage] == pytest.approx(direct.df.attrs[coverage])

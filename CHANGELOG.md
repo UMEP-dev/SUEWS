@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Nov 2026
+
+- [bugfix] Resampling resampled output again (for example `output.resample("D").resample("ME")`) now assigns each DailyState row to the period it holds: a daily row is labelled by the start of its day, and was binned as if the label were its end, so 1 January's `P_day` and coverage went to December (`ME`, `MS`, `YE`) or to the wrong week or two-day bin (`W`, `2D`). Chained and direct resampling now agree
+
 ### 3 Nov 2026
 
 - [bugfix] Forcing unit declarations: a unit of the wrong dimension for a water rate (for example `{"rain": "W m-2"}`) now reports that the dimensions differ instead of asking for a time unit, and the time coordinates `iy`, `id`, `it`, `imin` refuse a declaration when it is made instead of failing later as non-integer timestamps

@@ -21,8 +21,11 @@ data model, fills every default there, and hands the engine the resolved
 config (`supy._run_rust.config_to_engine_yaml`). `suews-engine run` is a
 developer and test binary that expects that resolved form; it does not
 resolve a hand-written config itself. This follows the bridge's pass-through
-rule (#1991): the bridge converts what it is given and supplies no defaults
-of its own, which live only in the data model (#2004).
+caller contract (#1991): defaults belong in the data model (#2004), and
+callers must supply complete, resolved input. Enforcement at the engine
+boundary is still being completed in #1991/#2002; some omitted values can
+still retain legacy bridge fallbacks. Acceptance by the engine does not
+establish that incomplete input is valid.
 
 To build a runnable engine (needs the SUEWS physics library, e.g. `make dev`):
 

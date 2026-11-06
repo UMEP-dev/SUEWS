@@ -215,6 +215,30 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev8_snowalb_null:
+
+Upgrading to Schema 2026.6.dev8
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev8`` no longer accepts a null initial snow albedo. A
+configuration with
+
+.. code-block:: yaml
+
+   initial_states:
+     snowalb:
+       value: null
+
+(or ``snowalb: null``) stops loading with an error naming the field. Leave
+``snowalb`` out to use its default, 0.5.
+
+Earlier ``suews validate --science-fixes apply`` runs wrote that null for a
+site whose run starts in summer or in the tropics; validation now removes the
+key instead. The migration from ``2026.6.dev7`` drops a null ``snowalb`` and
+keeps any value you gave, so such a file loads again after
+``suews convert``. Those sites have the snow module off, and the model then
+resets the snow albedo at every timestep, so their output does not change.
+
 .. _schema_dev7_co2_point_source:
 
 Upgrading to Schema 2026.6.dev7

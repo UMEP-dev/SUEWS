@@ -190,3 +190,37 @@ def test_writer_with_irregular_rows_and_no_state_warns(output, tmp_path, caplog)
     with caplog.at_level("WARNING", logger="SuPy"):
         save_df_output(raw, freq_s=3600, output_groups=["SUEWS"], path_dir_save=tmp_path)
     assert "cannot be checked" in caplog.text
+
+
+def _weekly_snapshots(frame):
+    """Native rows kept once a week, at the same time of day, no interval."""
+    raw = _without_interval(frame)
+    stamps = pd.date_range("2012-01-01 12:00", "2012-03-01", freq="7D")
+    return raw.loc[raw.index.get_level_values("datetime").isin(stamps)]
+
+
+@pytest.mark.parametrize("file_format", ["txt", "parquet"])
+def test_sparse_native_snapshots_with_state_are_not_refused(output, tmp_path, file_format):
+    """Final state gives the held interval, so weekly picks are not calendar rows.
+
+    The calendar guard resolved the interval without final state, inferred
+    ``W`` from the weekly stamps and refused the save, although the state
+    gives the 300 s model timestep.
+    """
+    sparse = _weekly_snapshots(output.df)
+    if file_format == "txt":
+        paths = save_df_output(
+            sparse, output_groups=["SUEWS"], path_dir_save=tmp_path,
+            save_tstep=True, df_state_final=output.state_final,
+        )
+        # Saved, not refused; how the text writer names files for such
+        # sparse rows is a separate matter and not asserted here.
+        assert any("_SUEWS_" in p.name for p in paths if p.suffix == ".txt")
+    else:
+        with pytest.warns(FutureWarning):
+            paths = save_df_output_parquet(
+                sparse, output.state_final, path_dir_save=tmp_path, save_tstep=True
+            )
+        saved = pd.read_parquet(next(p for p in paths if p.name.endswith("_output.parquet")))
+        assert len(saved) == len(sparse)
+

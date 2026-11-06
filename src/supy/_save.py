@@ -17,6 +17,7 @@ import pandas as pd
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
 from ._output_metadata import (
+    HeldInterval,
     output_interval_seconds,
     prepare_output,
     resolve_held_interval,
@@ -1127,10 +1128,11 @@ def save_df_output(
     ``df_output`` is never copied whole: groups are selected, resampled,
     relabelled and written one (grid, group) at a time (gh#1849).
     """
-    _check_save_tstep(df_output, save_tstep)
-    _check_save_frequency(df_output, df_state_final, freq_s)
-    df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
-    df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
+    held, held_s = _resolve_save_interval(df_output, df_state_final)
+    _check_save_tstep(held, save_tstep)
+    _check_save_frequency(held_s, freq_s)
+    df_output = with_daily_coverage(df_output, held_s)
+    df_output = prepare_output(df_output, units, interval_s=held_s)
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
 
@@ -1150,7 +1152,7 @@ def save_df_output(
     # Extract DailyState before resampling (it contains daily variables only written at last timestep of each day)
     df_dailystate = None
     if "DailyState" in list_group_save:
-        _check_dailystate_interval(df_output, df_state_final)
+        _check_dailystate_interval(held_s)
         df_dailystate = _dailystate_rows(df_output)
     list_group_no_daily = [g for g in list_group_save if g != "DailyState"]
 
@@ -1161,8 +1163,7 @@ def save_df_output(
     if list_group_no_daily:
         df_rsmp = _resample_output(
             df_output, freq_save, groups=list_group_no_daily,
-            freq_source=pd.Timedelta(_held_interval_s(df_output, df_state_final), "s")
-            if _held_interval_s(df_output, df_state_final) is not None else None,
+            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
         )
         list_group_rsmp = [
             g
@@ -1224,7 +1225,7 @@ def save_df_output(
         )
         metadata_interval_s = fallback_frequency_s
         if save_tstep and df_save is df_output:
-            metadata_interval_s = _held_interval_s(df_output, df_state_final)
+            metadata_interval_s = held_s
         df_written = prepare_output(df_save, interval_s=metadata_interval_s, write=True)
         list_path_save += _save_groups(
             df_written,
@@ -1422,15 +1423,18 @@ def save_initcond_nml(
     return list_path_nml
 
 
-def _check_save_tstep(df_output, save_tstep: bool) -> None:
+def _check_save_tstep(held, save_tstep: bool) -> None:
     """Reject saving calendar-resampled output, naming the remedy.
 
     Calendar periods (``W``, ``MS``, ``ME``, ``YE``) have no fixed length, so
     the writers can neither name the files by an interval in minutes nor
     record an interval in their metadata; resampling such rows again to a
-    fixed saving step would split each period across two rows.
+    fixed saving step would split each period across two rows. *held* is the
+    save's resolved interval (see :func:`_resolve_save_interval`), so final
+    state outranks the stamps: native rows kept once a week are not calendar
+    rows.
     """
-    if resolve_held_interval(df_output).kind != "calendar":
+    if held.kind != "calendar":
         return
     if save_tstep:
         raise ValueError(
@@ -1445,7 +1449,7 @@ def _check_save_tstep(df_output, save_tstep: bool) -> None:
     )
 
 
-def _check_save_frequency(df_output, df_state_final, freq_s) -> None:
+def _check_save_frequency(held_s, freq_s) -> None:
     """Reject a saving frequency the held rows cannot be aggregated to.
 
     Resampled rows (for example daily) cannot be split into finer saving
@@ -1454,14 +1458,13 @@ def _check_save_frequency(df_output, df_state_final, freq_s) -> None:
     number of rows in each period (five-minute rows saved at seven minutes
     hold alternately five and ten minutes), so it is refused as the
     configuration refuses an output frequency that is not a multiple of the
-    timestep. The held interval is resolved as resampling resolves it (see
-    :func:`_held_interval_s`), so a frame saved without final state is checked
-    against the regular cadence of its timestamps; only when no interval can
-    be established is the check skipped, with a warning.
+    timestep. *held_s* is resolved as resampling resolves it (see
+    :func:`_resolve_save_interval`), so a frame saved without final state is
+    checked against the regular cadence of its timestamps; only when no
+    interval can be established is the check skipped, with a warning.
     """
     if not freq_s > 0:
         raise ValueError(f"Output frequency must be positive, got freq_s={freq_s}")
-    held_s = _held_interval_s(df_output, df_state_final)
     if held_s is None:
         logger_supy.warning(
             "The interval the output rows hold is unknown (no declared "
@@ -1484,7 +1487,7 @@ def _check_save_frequency(df_output, df_state_final, freq_s) -> None:
         )
 
 
-def _check_dailystate_interval(df_output, df_state_final, freq_s=None) -> None:
+def _check_dailystate_interval(held_s, freq_s=None) -> None:
     """Reject saving DailyState rows that aggregate more than one day.
 
     The writers describe every DailyState row as one day (its water totals
@@ -1493,7 +1496,6 @@ def _check_dailystate_interval(df_output, df_state_final, freq_s=None) -> None:
     where the writer resamples DailyState itself (Parquet), so a saving
     period longer than a day is refused there too.
     """
-    held_s = _held_interval_s(df_output, df_state_final)
     span_s = max(held_s or 0, freq_s or 0)
     if span_s > 86400:
         raise ValueError(
@@ -1504,21 +1506,27 @@ def _check_dailystate_interval(df_output, df_state_final, freq_s=None) -> None:
         )
 
 
-def _held_interval_s(df_output, df_state_final) -> Optional[float]:
-    """Return the fixed interval the rows hold in seconds, else None.
+def _resolve_save_interval(df_output, df_state_final) -> Tuple[HeldInterval, Optional[float]]:
+    """Resolve once per save the interval the rows hold, for every guard.
 
     Resolved by :func:`supy._output_metadata.resolve_held_interval`, as
     resampling resolves it: the frame's declared interval, else the model
-    timestep in final state, else the regular cadence of the timestamps.
-    ``None`` for calendar rows (refused by ``_check_save_tstep``) and when no
-    interval can be established.
+    timestep in final state, else the regular cadence of the timestamps. The
+    writers resolve once and share the answer, so no guard decides on less
+    evidence than another.
+
+    Returns the :class:`~supy._output_metadata.HeldInterval` and its fixed
+    length in seconds: the declared value unchanged, else an int when whole.
+    The seconds are ``None`` for calendar rows (refused by
+    :func:`_check_save_tstep`) and when no interval can be established.
     """
     held = resolve_held_interval(df_output, df_state_final=df_state_final)
     if held.kind != "fixed":
-        return None
+        return held, None
     if held.source == "attrs":
-        return df_output.attrs["supy_output_interval_s"]
-    return int(held.seconds) if float(held.seconds).is_integer() else held.seconds
+        return held, df_output.attrs["supy_output_interval_s"]
+    seconds = int(held.seconds) if float(held.seconds).is_integer() else held.seconds
+    return held, seconds
 
 
 def _native_interval_s(df_state_final) -> Optional[int]:
@@ -1722,16 +1730,16 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     _parquet_engine()
-    _check_save_tstep(df_output, save_tstep)
-    _check_save_frequency(df_output, df_state_final, freq_s)
+    held, held_s = _resolve_save_interval(df_output, df_state_final)
+    _check_save_tstep(held, save_tstep)
+    _check_save_frequency(held_s, freq_s)
     if "DailyState" in df_output.columns.get_level_values("group"):
         # DailyState is resampled with the other groups unless saved as held.
         _check_dailystate_interval(
-            df_output, df_state_final,
-            freq_s if streamed_parquet is None and not save_tstep else None,
+            held_s, freq_s if streamed_parquet is None and not save_tstep else None
         )
-    df_output = with_daily_coverage(df_output, _held_interval_s(df_output, df_state_final))
-    df_output = prepare_output(df_output, units, interval_s=_held_interval_s(df_output, df_state_final))
+    df_output = with_daily_coverage(df_output, held_s)
+    df_output = prepare_output(df_output, units, interval_s=held_s)
 
     if streamed_parquet is None:
         # The output mode, not the function, is retired, so internal callers
@@ -1756,8 +1764,7 @@ def save_df_output_parquet(
         # Resample output
         df_rsmp = _resample_output(
             df_save, freq_save,
-            freq_source=pd.Timedelta(_held_interval_s(df_output, df_state_final), "s")
-            if _held_interval_s(df_output, df_state_final) is not None else None,
+            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
         )
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
@@ -1787,7 +1794,7 @@ def save_df_output_parquet(
 
     interval_s = freq_s
     if save_tstep and streamed_parquet is None:
-        interval_s = _held_interval_s(df_output, df_state_final)
+        interval_s = held_s
 
     if interval_s is None:
         interval_s = int(output_interval_seconds(df_save))

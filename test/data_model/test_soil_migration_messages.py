@@ -159,3 +159,18 @@ def test_alias_without_observation_block_follows_schema_version(
     if schema_version is not None:
         cfg["schema_version"] = schema_version
     assert _uses_legacy_observed_soil(cfg) is expected
+
+
+def test_misspelt_child_of_unsampled_optional_block_is_reported(tmp_path):
+    from supy.data_model.validation.pipeline.phase_a import find_extra_parameters
+
+    standard = yaml.safe_load(SAMPLE.read_text(encoding="utf-8"))
+    cfg = yaml.safe_load((FIXTURES / "canonical.yml").read_text(encoding="utf-8"))
+    assert find_extra_parameters(deepcopy(cfg), deepcopy(standard)) == []
+    cfg["sites"][0]["properties"]["soil_observation"]["bogus"] = 1
+    extras = find_extra_parameters(cfg, standard)
+    assert extras == ["sites[0].properties.soil_observation.bogus"]
+    source = tmp_path / "bogus.yml"
+    source.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    report, _ = _phase_a(source, tmp_path, "public")
+    assert "bogus" in report

@@ -611,13 +611,15 @@ def is_path_in_forbidden_location(field_path: str) -> bool:
     return False
 
 
-def is_declared_schema_field(param_path: str) -> bool:
-    """Whether ``param_path`` names a field declared by the current data model.
+_UNDECLARED = object()
 
-    The standard YAML is the sample configuration, which omits optional
-    fields (for example ``soil_observation`` or ``soil_field_capacity``). A
-    declared field is part of the schema and must not be reported as an extra
-    parameter merely because the sample does not set it.
+
+def _declared_schema_model(param_path: str):
+    """Resolve ``param_path`` against the data model.
+
+    Returns the nested model class of the declared field (``None`` for a leaf
+    or non-model field), or ``_UNDECLARED`` if any part is not a declared
+    field.
     """
     from ...core.config import SUEWSConfig
 
@@ -626,9 +628,49 @@ def is_declared_schema_field(param_path: str) -> bool:
         name = re.sub(r"\[\d+\]$", "", part)
         fields = getattr(model, "model_fields", None)
         if not name or fields is None or name not in fields:
-            return False
+            return _UNDECLARED
         model = _extract_nested_model_type(fields[name].annotation)
-    return True
+    return model
+
+
+def is_declared_schema_field(param_path: str) -> bool:
+    """Whether ``param_path`` names a field declared by the current data model.
+
+    The standard YAML is the sample configuration, which omits optional
+    fields (for example ``soil_observation`` or ``soil_field_capacity``). A
+    declared field is part of the schema and must not be reported as an extra
+    parameter merely because the sample does not set it.
+    """
+    return _declared_schema_model(param_path) is not _UNDECLARED
+
+
+def _undeclared_schema_paths(value, model, path: str) -> list:
+    """Paths inside a subtree the sample omits that the data model does not declare.
+
+    Walks a user subtree against the declared model rather than the sample,
+    so a valid optional block is accepted while a misspelt child in it is
+    still reported. Leaves and non-model fields are not descended into.
+    """
+    if isinstance(value, list):
+        paths = []
+        for index, item in enumerate(value):
+            paths.extend(_undeclared_schema_paths(item, model, f"{path}[{index}]"))
+        return paths
+    fields = getattr(model, "model_fields", None)
+    if not isinstance(value, dict) or fields is None:
+        return []
+    paths = []
+    for key, child in value.items():
+        child_path = f"{path}.{key}"
+        if key not in fields:
+            paths.append(child_path)
+        else:
+            paths.extend(
+                _undeclared_schema_paths(
+                    child, _extract_nested_model_type(fields[key].annotation), child_path
+                )
+            )
+    return paths
 
 
 LEGACY_SOIL_SELECTORS = ("soil_moisture_deficit", "smdmethod", "smd_method")
@@ -681,7 +723,15 @@ def find_extra_parameters(user_data, standard_data, current_path=""):
         for key, user_value in user_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
             if key not in standard_data:
-                extra_params.append(full_path)
+                # The sample omits optional fields: a declared one is not extra,
+                # but its contents are still checked against the data model.
+                model = _declared_schema_model(full_path)
+                if model is _UNDECLARED:
+                    extra_params.append(full_path)
+                else:
+                    extra_params.extend(
+                        _undeclared_schema_paths(user_value, model, full_path)
+                    )
             elif isinstance(user_value, dict) and isinstance(
                 standard_data.get(key), dict
             ):
@@ -2307,11 +2357,7 @@ def annotate_missing_parameters(
     standard_data_no_ref = _strip_ref_blocks(standard_data)
 
     missing_params = find_missing_parameters(user_data_no_ref, standard_data_no_ref)
-    extra_params = [
-        path
-        for path in find_extra_parameters(user_data_no_ref, standard_data_no_ref)
-        if not is_declared_schema_field(path)
-    ]
+    extra_params = find_extra_parameters(user_data_no_ref, standard_data_no_ref)
     migration_errors = []
     if legacy_soil:
         from ....util._forcing import SOIL_CONVERT_HINT

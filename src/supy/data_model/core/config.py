@@ -200,6 +200,35 @@ _LEGACY_SOIL_SELECTORS = ("soil_moisture_deficit", "smdmethod", "smd_method")
 _LEGACY_SOIL_OBSERVATION_KEYS = ("depth", "smcap", "obs_sm_depth", "obs_sm_smcap")
 
 
+_SOIL_SELECTOR_NAMES = {
+    "modelled": 0,
+    "observed": 1,
+    "observed_volumetric": 1,
+    "observed_gravimetric": 2,
+}
+
+
+def _soil_selector_code(value) -> Optional[int]:
+    """Resolve a raw soil-moisture selector to 0, 1 or 2; ``None`` if unknown.
+
+    Numbers (``1``, ``1.0``, ``"2.0"``) are compared by value; only textual
+    enum names have a qualified prefix (``SMDMethod.OBSERVED``) stripped.
+    """
+    while isinstance(value, Mapping) and "value" in value:
+        value = value["value"]
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        text = value.strip().lower()
+        try:
+            value = float(text)
+        except ValueError:
+            return _SOIL_SELECTOR_NAMES.get(text.rsplit(".", 1)[-1])
+    if isinstance(value, (int, float)) and value in (0, 1, 2):
+        return int(value)
+    return None
+
+
 def _uses_legacy_observed_soil(config_data) -> bool:
     """Whether a raw YAML mapping selects observed soil moisture the legacy way.
 
@@ -217,11 +246,7 @@ def _uses_legacy_observed_soil(config_data) -> bool:
     for key in (*_LEGACY_SOIL_SELECTORS, "soil_moisture"):
         if key not in physics:
             continue
-        value = physics[key]
-        while isinstance(value, Mapping) and "value" in value:
-            value = value["value"]
-        text = str(value).strip().lower().rsplit(".", 1)[-1]
-        if text not in {"0", "modelled", "none"}:
+        if _soil_selector_code(physics[key]) in (1, 2):
             observed = True
             legacy_selector = legacy_selector or key in _LEGACY_SOIL_SELECTORS
     if not observed:

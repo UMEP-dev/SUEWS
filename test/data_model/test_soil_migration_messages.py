@@ -104,3 +104,28 @@ def test_modelled_yaml_with_stale_sensor_block_is_a_plain_upgrade(tmp_path):
     message = str(caught.value)
     assert "legacy observed soil moisture" not in message
     assert "suews-convert -i <old.yml> -o <new.yml>" in message
+
+
+@pytest.mark.parametrize(
+    "selector,expected",
+    [
+        (1, True),
+        (2, True),
+        (1.0, True),
+        (2.0, True),
+        ({"value": 2.0}, True),
+        ("2.0", True),
+        ("observed_volumetric", True),
+        ("SMDMethod.OBSERVED", True),
+        (0, False),
+        (0.0, False),
+        ({"value": 0.0}, False),
+        ("modelled", False),
+    ],
+)
+def test_legacy_selector_values_resolve_numerically(selector, expected):
+    from supy.data_model.core.config import _uses_legacy_observed_soil
+
+    cfg = yaml.safe_load((FIXTURES / "legacy_method1.yml").read_text(encoding="utf-8"))
+    cfg["model"]["physics"]["soil_moisture_deficit"] = selector
+    assert _uses_legacy_observed_soil(cfg) is expected

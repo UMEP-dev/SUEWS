@@ -104,3 +104,62 @@ def test_daily_then_coarser_matches_direct(output, freq):
         )
     coverage = "supy_output_daily_coverage_s"
     assert chained.df.attrs[coverage] == pytest.approx(direct.df.attrs[coverage])
+
+
+@pytest.mark.parametrize("freq", ["W", "MS", "ME", "YE", "2D"])
+def test_raw_daily_frame_then_coarser_matches_direct(output, freq):
+    """A raw daily frame resampled again holds its interval in its attributes.
+
+    ``_resample_output(output.resample("D").df, freq)`` has no wrapper to say
+    the rows are daily; reading the frame's own ``supy_output_interval_s``
+    keeps 1 January's P_day and coverage out of December.
+    """
+    daily = output.resample("D").df
+    assert daily.attrs["supy_output_interval_s"] == 86400
+    direct = output.resample(freq).df
+    chained = _resample_output(daily, freq)
+    for column in [("DailyState", "P_day"), ("SUEWS", "Rain")]:
+        pd.testing.assert_series_equal(
+            chained[column].dropna(), direct[column].dropna(), rtol=1e-9
+        )
+    coverage = "supy_output_daily_coverage_s"
+    assert chained.attrs[coverage] == pytest.approx(direct.attrs[coverage])
+
+
+def test_raw_native_frame_without_attributes_uses_index_cadence(output):
+    """Without attributes or state, a regular index gives the held interval."""
+    from supy._output_metadata import resolve_held_interval
+
+    raw = output.df.copy()
+    raw.attrs = {
+        key: value for key, value in raw.attrs.items()
+        if key not in ("supy_output_interval_s", "supy_output_daily_coverage_s")
+    }
+    held = resolve_held_interval(raw)
+    assert (held.kind, held.seconds, held.source) == ("fixed", 300.0, "index")
+    assert _resample_output(raw, "5min") is raw
+    direct = output.resample("ME").df
+    result = _resample_output(raw, "ME")
+    pd.testing.assert_series_equal(
+        result["DailyState", "P_day"].dropna(),
+        direct["DailyState", "P_day"].dropna(),
+        rtol=1e-9,
+    )
+
+
+def test_held_interval_is_unknown_or_calendar_honestly():
+    """Irregular stamps are unknown; a calendar attribute or alias is calendar."""
+    from supy._output_metadata import resolve_held_interval
+
+    index = pd.MultiIndex.from_product(
+        [[1], pd.to_datetime(["2012-01-01 00:05", "2012-01-01 00:10", "2012-01-01 00:20"])],
+        names=["grid", "datetime"],
+    )
+    columns = pd.MultiIndex.from_tuples([("SUEWS", "QH")], names=["group", "var"])
+    frame = pd.DataFrame(1.0, index=index, columns=columns)
+    assert resolve_held_interval(frame).kind == "unknown"
+    assert resolve_held_interval(frame, "ME").kind == "calendar"
+    frame.attrs["supy_output_interval_s"] = None
+    assert resolve_held_interval(frame).kind == "calendar"
+    frame.attrs["supy_output_interval_s"] = 3600
+    assert resolve_held_interval(frame).seconds == 3600

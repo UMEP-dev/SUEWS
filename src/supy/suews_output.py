@@ -643,22 +643,34 @@ class SUEWSOutput:
     # Manipulation (domain-specific)
     # =========================================================================
 
-    def _output_frequency(self):
-        """Return the held cadence from output context before consulting the index."""
-        if "resampled_to" in self._metadata:
-            return self._metadata["resampled_to"]
-        seconds = self._metadata.get("tstep_s")
-        if seconds is None and "supy_output_interval_s" in self._df_output.attrs:
-            seconds = self._df_output.attrs["supy_output_interval_s"]
-            return pd.Timedelta(seconds, "s") if seconds is not None else None
-        if seconds is None and self._config is not None:
-            value = self._config.model.control.tstep
-            seconds = getattr(value, "value", value)
-        if seconds is None:
-            from ._save import _native_interval_s
+    def _held_interval(self, freq_source=None):
+        """Return the interval the held rows hold, see ``resolve_held_interval``.
 
-            seconds = _native_interval_s(self._df_state_final)
-        return pd.Timedelta(seconds, "s") if seconds is not None else None
+        The wrapper's evidence comes first (*freq_source*, ``resampled_to``,
+        the ``tstep_s`` metadata), then the frame's own attributes, the
+        configured timestep, the final state and the index cadence.
+        """
+        from ._output_metadata import resolve_held_interval
+
+        if freq_source is None:
+            freq_source = self._metadata.get("resampled_to")
+        if freq_source is None and self._metadata.get("tstep_s") is not None:
+            freq_source = pd.Timedelta(self._metadata["tstep_s"], "s")
+        native_s = None
+        if self._config is not None:
+            value = self._config.model.control.tstep
+            native_s = getattr(value, "value", value)
+        return resolve_held_interval(
+            self._df_output, freq_source, native_s=native_s,
+            df_state_final=self._df_state_final,
+        )
+
+    def _output_frequency(self):
+        """Return the held fixed interval as a Timedelta, else the calendar alias or None."""
+        held = self._held_interval()
+        if held.kind == "fixed":
+            return pd.Timedelta(held.seconds, "s")
+        return self._metadata.get("resampled_to")
 
     def _held_fixed_interval_s(self) -> Optional[int]:
         """Return the fixed interval of resampled rows in seconds, else None.

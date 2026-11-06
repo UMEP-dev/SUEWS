@@ -3,7 +3,12 @@ import pandas as pd
 
 from ._env import logger_supy
 from ._misc import infer_freq_offset
-from ._output_metadata import output_covered_seconds, water_flux_variables, with_daily_coverage
+from ._output_metadata import (
+    output_covered_seconds,
+    resolve_held_interval,
+    water_flux_variables,
+    with_daily_coverage,
+)
 from .data_model.output import OUTPUT_REGISTRY
 
 
@@ -364,11 +369,13 @@ def _resample_output(
         ``df_output`` is already at ``freq`` it is returned unchanged, with
         all its groups.
     freq_source : str or pandas.Timedelta, optional
-        The time step ``df_output`` is known to be at (the model timestep).
-        When given, ``df_output`` counts as already at ``freq`` exactly when
-        ``freq_source`` equals ``freq``, instead of the cadence being
-        inferred from its index, which needs at least three timestamps.
-        Default (None) infers it.
+        The interval the rows of ``df_output`` hold (the model timestep for
+        native output). Default (None) resolves it from the best evidence
+        available: a ``SUEWSOutput``'s run context, the frame's
+        ``supy_output_interval_s`` attribute, else the cadence of its index
+        (see :func:`supy._output_metadata.resolve_held_interval`).
+        ``df_output`` counts as already at ``freq`` exactly when that
+        interval equals ``freq``.
     drop_empty_rows : bool, optional
         Drop the resampled rows that hold no value in any group resampled
         (the default). ``False`` keeps a row for every interval the output
@@ -426,32 +433,28 @@ def _resample_output(
     >>> output = sim.run()
     >>> resampled = output.resample(freq="h")  # Returns SUEWSOutput
     """
-    # Unwrap SUEWSOutput to raw DataFrame if needed
+    # The interval the rows hold, from the wrapper's run context or the
+    # frame's own evidence (attributes, then index cadence)
     if hasattr(df_output, "_df_output"):
-        if freq_source is None:
-            freq_source = df_output._output_frequency()
+        held = df_output._held_interval(freq_source)
         df_output = df_output._df_output
+    else:
+        held = resolve_held_interval(df_output, freq_source)
 
     # Skip resampling entirely when the data is already at the requested
     # frequency
-    if freq_source is not None:
-        to_offset = pd.tseries.frequencies.to_offset
+    if held.kind == "fixed":
         try:
-            same_freq = to_offset(freq_source).nanos == to_offset(freq).nanos
+            target_s = pd.tseries.frequencies.to_offset(freq).nanos / 1e9
         except ValueError:
-            # A non-fixed frequency (e.g. month-end) never equals a time step.
-            same_freq = False
-        if same_freq:
+            target_s = None  # A calendar frequency never equals a fixed interval.
+        if target_s == held.seconds:
             return df_output
-    elif _index_freq_matches(df_output, freq):
+    elif held.kind == "unknown" and _index_freq_matches(df_output, freq):
         return df_output
 
-    source_s = None
-    if freq_source is not None:
-        try:
-            source_s = pd.tseries.frequencies.to_offset(freq_source).nanos / 1e9
-        except ValueError:
-            source_s = None  # Calendar rows carry their individual coverage.
+    # Calendar rows carry their individual coverage.
+    source_s = held.seconds if held.kind == "fixed" else None
     df_output = with_daily_coverage(df_output, source_s)
     dict_daily_coverage = {}
     dict_units = df_output.attrs.get("supy_output_units", {})

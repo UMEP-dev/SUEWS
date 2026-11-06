@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from functools import cache
 from types import MappingProxyType
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import pandas as pd
 
@@ -54,11 +54,13 @@ def with_daily_coverage(
     """Attach daily coverage before native rows are selected or resampled.
 
     DailyState accumulates steps stamped within each calendar day. Count those
-    steps using the held model timestep, not a cadence reconstructed from gaps.
-    Streaming callers supply daily_steps from the complete forcing slice so a
-    midnight step in the preceding chunk still counts towards its day.
-    Without a held timestep, mark coverage as unknown (None) so later calls
-    with an output interval cannot fabricate it; amount conversion remains available.
+    steps using the interval the rows hold (see :func:`resolve_held_interval`:
+    a declared interval, or the regular cadence pandas finds in the index),
+    never a cadence reconstructed from gaps. Streaming callers supply
+    daily_steps from the complete forcing slice so a midnight step in the
+    preceding chunk still counts towards its day. Without a held interval,
+    mark coverage as unknown (None) so later calls with an output interval
+    cannot fabricate it; amount conversion remains available.
     """
     key = "supy_output_daily_coverage_s"
     if key in df_output.attrs or not isinstance(df_output.columns, pd.MultiIndex):
@@ -126,6 +128,89 @@ def output_interval_seconds(df_output: pd.DataFrame, interval_s: Optional[int] =
     if frequency is None:
         raise ValueError("Water-rate conversion requires an explicit output interval or regular timestamps")
     return pd.tseries.frequencies.to_offset(frequency).nanos / 1e9
+
+
+class HeldInterval(NamedTuple):
+    """The interval each output row holds, and the evidence it rests on.
+
+    ``kind`` is ``"fixed"`` (``seconds`` set), ``"calendar"`` (rows hold
+    calendar periods such as months, of no fixed length) or ``"unknown"``.
+    ``source`` names the evidence: ``"argument"``, ``"attrs"`` (the frame's
+    ``supy_output_interval_s``), ``"native"`` (a model timestep supplied by
+    the caller, for example from the run configuration), ``"state"`` (the
+    timestep in final state) or ``"index"`` (the regular cadence of the
+    timestamps).
+    """
+
+    kind: str
+    seconds: Optional[float] = None
+    source: Optional[str] = None
+
+
+def resolve_held_interval(
+    df_output: pd.DataFrame,
+    freq_source=None,
+    *,
+    native_s: Optional[float] = None,
+    df_state_final: Optional[pd.DataFrame] = None,
+    infer: bool = True,
+) -> HeldInterval:
+    """Return the interval the rows of *df_output* hold, from the best evidence.
+
+    The evidence is taken in this order, and the first that is present
+    decides:
+
+    1. *freq_source*, an explicit interval (offset alias, offset or
+       :class:`pandas.Timedelta`); a calendar alias (``"ME"``) means
+       calendar rows;
+    2. the frame's ``supy_output_interval_s`` attribute, written by every
+       resample and kept by Parquet files: a number is a fixed interval,
+       ``None`` a calendar one;
+    3. *native_s*, the model timestep a caller holds (for example from the
+       run configuration);
+    4. the model timestep in *df_state_final*;
+    5. with *infer*, the cadence :func:`pandas.infer_freq` finds in the
+       timestamps. It needs three or more and declines (returns ``None``) for
+       an irregular index, so a gap never yields a made-up interval.
+
+    Without any of these the interval is ``"unknown"``; callers then skip
+    what depends on it rather than guess.
+
+    DailyState rows may keep their native last-step stamps beside rows at the
+    held interval (streamed output); :func:`supy._post._dailystate_period_end`
+    tells the two apart from the stamps themselves.
+    """
+    to_offset = pd.tseries.frequencies.to_offset
+    if freq_source is not None:
+        try:
+            return HeldInterval("fixed", to_offset(freq_source).nanos / 1e9, "argument")
+        except ValueError:
+            return HeldInterval("calendar", None, "argument")
+    if "supy_output_interval_s" in df_output.attrs:
+        seconds = df_output.attrs["supy_output_interval_s"]
+        if seconds is None:
+            return HeldInterval("calendar", None, "attrs")
+        return HeldInterval("fixed", float(seconds), "attrs")
+    if native_s is not None:
+        return HeldInterval("fixed", float(native_s), "native")
+    if df_state_final is not None:
+        from ._save import _native_interval_s
+
+        state_s = _native_interval_s(df_state_final)
+        if state_s is not None:
+            return HeldInterval("fixed", float(state_s), "state")
+    if infer:
+        index = df_output.index
+        if isinstance(index, pd.MultiIndex):
+            index = index.get_level_values("datetime")
+        index = pd.DatetimeIndex(index.unique()).sort_values()
+        offset = infer_freq_offset(index) if len(index) >= 3 else None
+        if offset is not None:
+            try:
+                return HeldInterval("fixed", offset.nanos / 1e9, "index")
+            except ValueError:
+                return HeldInterval("calendar", None, "index")
+    return HeldInterval("unknown")
 
 
 def prepare_output(

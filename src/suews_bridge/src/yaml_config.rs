@@ -64,9 +64,9 @@ fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
 fn read_numeric(root: &Value, path: &[&str]) -> Option<f64> {
     let value = get_path(root, path)?;
     match value {
-        Value::Number(n) => n.as_f64(),
+        Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
         Value::Mapping(_) => get_path(value, &["value"]).and_then(|v| match v {
-            Value::Number(n) => n.as_f64(),
+            Value::Number(n) => n.as_f64().filter(|v| v.is_finite()),
             _ => None,
         }),
         _ => None,
@@ -2239,12 +2239,12 @@ fn apply_site_scalar_overrides(
         None if emissions_method_uses_co2_point_source(emissions_method) => {
             return Err(format!(
                 "`{}.properties.anthropogenic_emissions.co2.emission_co2_point_source` \
-                 is missing or null, but emissionsmethod {emissions_method} uses the CO2 point \
+                 is missing, null or non-finite, but emissionsmethod {emissions_method} uses the CO2 point \
                  source; give it in kg C day-1 (0 for no point source)",
                 site_yaml_at(site_root)
             ));
         }
-        None => {}
+        None => site_scalars.co2_point_source = f64::NAN,
     }
     if let Some(v) = read_numeric(site_root, &["properties", "flowchange"]) {
         site_scalars.flowchange = v;
@@ -3336,11 +3336,12 @@ mod tests {
     fn missing_co2_point_source_is_accepted_when_the_method_ignores_it() {
         // 0 computes no CO2 flux; 2 computes Fc_point, which the driver then
         // zeroes along with every other CO2 flux.
-        for method in [0, 2] {
+        for method in 0..=6 {
             let run_cfg = run_config_without_co2_point_source(method).unwrap_or_else(|e| {
                 panic!("emissionsmethod {method} ignores the point source: {e}")
             });
             assert_eq!(run_cfg.config.emissions_method, method as i32);
+            assert!(run_cfg.site_scalars.co2_point_source.is_nan());
         }
     }
 
@@ -3358,5 +3359,33 @@ mod tests {
             .flat_map(|family| (1..=6).map(move |m| family * 10 + m))
             .collect();
         assert_eq!(used, expected);
+    }
+    #[test]
+    fn non_finite_co2_point_source_is_rejected() {
+        for value in [
+            ".nan",
+            ".inf",
+            "-.inf",
+            "{value: .nan}",
+            "{value: .inf}",
+            "{value: -.inf}",
+        ] {
+            let mut root: Value = serde_yaml::from_str(FIXTURE_NEW_NAMES).unwrap();
+            *get_path_mut(&mut root, &["model", "physics", "emissions"]).unwrap() =
+                serde_yaml::from_str("{value: 12}").unwrap();
+            let site = first_site_mut(&mut root).unwrap();
+            *get_path_mut(
+                site,
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    "co2",
+                    "emission_co2_point_source",
+                ],
+            )
+            .unwrap() = serde_yaml::from_str(value).unwrap();
+            let err = load_run_config_from_value(&mut root).expect_err(value);
+            assert!(err.contains("sites[gridiv=1].properties.anthropogenic_emissions.co2.emission_co2_point_source"), "{value}: {err}");
+        }
     }
 }

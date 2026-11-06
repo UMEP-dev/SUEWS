@@ -54,6 +54,10 @@ EXAMPLES:
 
 ## 2026
 
+### 6 Nov 2026
+
+- [bugfix] Reject non-finite required CO2 point sources and carry unused absence as NaN; verify unchanged outputs for emissions methods 0-6 and the active point-source mass-to-flux conversion (#1991, #1993)
+
 ### 5 Nov 2026
 
 - [bugfix] Rust bridge: the CO2 point source is now read from `properties.anthropogenic_emissions.co2.emission_co2_point_source`, where supy writes it. The bridge read a flat `properties.CO2PointSource` key that no schema writes, so any non-zero point source reached the kernel as zero and was missing from the anthropogenic CO2 flux; the flat key is no longer read. When `emissionsmethod` is a CO2 method whose flux includes the point source (11-16, 21-26, 31-36, 41-46; the kernel zeroes every CO2 flux for 0-6) and the key is missing or null, the run now stops with an error naming it instead of using zero (#1998)

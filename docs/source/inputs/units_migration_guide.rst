@@ -171,13 +171,16 @@ forcing file and a JSON manifest, and never changes the inputs.
    surface and the smallest value that satisfies the inequality. Take the value
    from soil data for the site.
 
-2. Fill gaps in the observed series. Observed ``sm`` must be complete over the
-   run: a missing value (``-999`` or ``NaN``) is refused, both by the converter
-   and when a run starts, with the first missing timestamp in the message.
-   Earlier releases filled such gaps silently. Fill them in the legacy
-   ``xsmd`` column before conversion, for example by interpolating in time
-   with pandas, and record how they were filled; or shorten the run so that it
-   avoids them.
+2. Fill gaps in the observed series. The converter checks every row of the
+   forcing file it is given, whatever the run's ``start_time`` and
+   ``end_time``: a missing value (``-999`` or ``NaN``) anywhere in ``xsmd`` is
+   refused, with the first missing timestamp in the message. Earlier releases
+   filled such gaps silently. Either fill them in the legacy ``xsmd`` column
+   before conversion, for example by interpolating in time with pandas, and
+   record how they were filled; or trim the forcing file to a period with
+   complete observations and set the run's start and end inside it. Shortening
+   the run alone does not help, because conversion still reads the whole file.
+   A run of the converted case also refuses missing ``sm`` within its period.
 
 3. Convert, first with ``--dry-run``:
 

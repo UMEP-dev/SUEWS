@@ -87,7 +87,7 @@ CONTAINS
       INTEGER :: iv
 
       ! Hemisphere specific parameters --------------------------------------------
-      INTEGER :: sdd_reset_day
+      ! INTEGER :: sdd_reset_day
       INTEGER :: summer_day ! day of year on which gdd reset to zero
       INTEGER :: winter_day ! day of year on which sdd reset to zero 
       INTEGER :: senescence_mode ! flag deciding whether day length should be used to initate senescence portion of year 
@@ -123,7 +123,7 @@ CONTAINS
       ! Determine N/S hemisphere parameters
       ! TODO: Move outside timestep loop as timestep independent
       IF (lat >= 0) THEN
-         sdd_reset_day = 140
+         ! sdd_reset_day = 140
          ! summer_day = 170
          ! winter_day = 170
          summer_day = 182
@@ -131,7 +131,7 @@ CONTAINS
          southern_hemisphere = .FALSE.
          senescence_mode = SEN_DAYLENGTH
       ELSE !! N.B. not identical to N hemisphere - return to later
-         sdd_reset_day = 300
+         ! sdd_reset_day = 300
          summer_day = 250
          winter_day = 250
          southern_hemisphere = .TRUE.

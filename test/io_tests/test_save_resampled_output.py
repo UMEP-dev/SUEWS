@@ -224,3 +224,19 @@ def test_sparse_native_snapshots_with_state_are_not_refused(output, tmp_path, fi
         saved = pd.read_parquet(next(p for p in paths if p.name.endswith("_output.parquet")))
         assert len(saved) == len(sparse)
 
+
+def test_dailystate_only_save_without_state_ignores_unused_freq_s(output, tmp_path):
+    """DailyState rows are written as held, so the default freq_s does not apply.
+
+    Without final state the daily rows resolve to 86400 s from their stamps;
+    the frequency check refused the default ``freq_s=3600`` as finer than
+    that, although no group of this save is resampled to ``freq_s``.
+    """
+    daily = _without_interval(output.df).loc[:, ["DailyState"]].dropna(how="all")
+    assert len(daily) >= 3
+    paths = save_df_output(daily, output_groups=["DailyState"], path_dir_save=tmp_path)
+    texts = [p for p in paths if p.suffix == ".txt"]
+    assert [p.name for p in texts] == ["1_2012_DailyState.txt"]
+    assert len(pd.read_csv(texts[0], sep=r"\s+")) == len(daily)
+    with pytest.raises(ValueError, match="must be positive"):
+        save_df_output(daily, freq_s=0, output_groups=["DailyState"], path_dir_save=tmp_path / "zero")

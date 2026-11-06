@@ -1130,7 +1130,7 @@ def save_df_output(
     """
     held, held_s = _resolve_save_interval(df_output, df_state_final)
     _check_save_tstep(held, save_tstep)
-    _check_save_frequency(held_s, freq_s)
+    _check_positive_frequency(freq_s)
     df_output = with_daily_coverage(df_output, held_s)
     df_output = prepare_output(df_output, units, interval_s=held_s)
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
@@ -1155,6 +1155,10 @@ def save_df_output(
         _check_dailystate_interval(held_s)
         df_dailystate = _dailystate_rows(df_output)
     list_group_no_daily = [g for g in list_group_save if g != "DailyState"]
+    if list_group_no_daily:
+        # Only these groups are resampled to `freq_s`; DailyState rows are
+        # written as held, so a DailyState-only save leaves `freq_s` unused.
+        _check_save_frequency(held_s, freq_s)
 
     # resample `df_output` at `freq_save` (excluding DailyState); at the
     # native timestep `df_output` itself comes back, unresampled
@@ -1449,6 +1453,12 @@ def _check_save_tstep(held, save_tstep: bool) -> None:
     )
 
 
+def _check_positive_frequency(freq_s) -> None:
+    """Reject a saving frequency that is not positive, whatever is resampled."""
+    if not freq_s > 0:
+        raise ValueError(f"Output frequency must be positive, got freq_s={freq_s}")
+
+
 def _check_save_frequency(held_s, freq_s) -> None:
     """Reject a saving frequency the held rows cannot be aggregated to.
 
@@ -1463,8 +1473,7 @@ def _check_save_frequency(held_s, freq_s) -> None:
     checked against the regular cadence of its timestamps; only when no
     interval can be established is the check skipped, with a warning.
     """
-    if not freq_s > 0:
-        raise ValueError(f"Output frequency must be positive, got freq_s={freq_s}")
+    _check_positive_frequency(freq_s)
     if held_s is None:
         logger_supy.warning(
             "The interval the output rows hold is unknown (no declared "

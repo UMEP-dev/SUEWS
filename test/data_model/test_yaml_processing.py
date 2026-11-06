@@ -1724,7 +1724,7 @@ def test_empty_string_in_surface_type_dict():
     assert result["sites"][0]["properties"]["waterdist"]["to_grass"]["value"] is None
 
 
-def test_season_check_sets_snowalb_to_none():
+def test_season_check_removes_snowalb():
     yaml_input = {
         "sites": [
             {
@@ -1736,7 +1736,8 @@ def test_season_check_sets_snowalb_to_none():
     result = precheck_site_season_adjustments(
         deepcopy(yaml_input), "2025-06-01", model_year=2025
     )
-    assert result["sites"][0]["initial_states"]["snowalb"]["value"] is None
+    # Dropped rather than nulled: snowalb rejects null and the default applies
+    assert "snowalb" not in result["sites"][0]["initial_states"]
 
 
 def test_site_in_winter_does_not_touch_snowalb():
@@ -1754,7 +1755,7 @@ def test_site_in_winter_does_not_touch_snowalb():
     assert result["sites"][0]["initial_states"]["snowalb"]["value"] == 0.3
 
 
-def test_site_equatorial_sets_snowalb_none():
+def test_site_equatorial_removes_snowalb():
     data = {
         "sites": [
             {
@@ -1766,7 +1767,7 @@ def test_site_equatorial_sets_snowalb_none():
     result = precheck_site_season_adjustments(
         deepcopy(data), "2025-06-01", model_year=2025
     )
-    assert result["sites"][0]["initial_states"]["snowalb"]["value"] is None
+    assert "snowalb" not in result["sites"][0]["initial_states"]
 
 
 @pytest.mark.parametrize(

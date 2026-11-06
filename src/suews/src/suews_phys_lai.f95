@@ -216,11 +216,11 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_obs
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(OUT) :: lai_id_next
-      logical, INTENT(OUT) :: valid
+      LOGICAL, INTENT(OUT) :: valid
 
       valid = .FALSE.
 
-      IF (ANY(ieee_is_nan(lai_obs)) .or. ANY(lai_obs < 0.0D0)) THEN
+      IF (ANY(ieee_is_nan(lai_obs)) .OR. ANY(lai_obs < 0.0D0)) THEN
          ! Invalid lai_obs slipped past pre-flight; raise an error before
          ! mutating phenology state and assign a safe sentinel to the output.
          lai_id_next = -999.0D0
@@ -286,14 +286,14 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: sdd_id
 
       ! Calculate GDD and SDD
-      IF ((lai_id_prev >= lai_max) .or. (growth_state == 0)) THEN
+      IF ((lai_id_prev >= lai_max) .OR. (growth_state == 0)) THEN
          delta_gdd = 0.0D0
       ELSE
          delta_gdd = calc_delta_degree_days( &
                      tmin_prev, tmax_prev, base_t_gdd)
       END IF
 
-      IF ((lai_id_prev <= lai_min) .or. (senescence_state == 0)) THEN
+      IF ((lai_id_prev <= lai_min) .OR. (senescence_state == 0)) THEN
          delta_sdd = 0.0D0
       ELSE
          delta_sdd = calc_delta_degree_days( &
@@ -486,10 +486,10 @@ CONTAINS
 
       LOGICAL :: start_senescence
 
-      SELECT case (senescence_mode)
+      SELECT CASE (senescence_mode)
 
       CASE (SEN_DAYLENGTH)
-         start_senescence = ((len_day_id_prev <= 12) .and. (sdd_id <= sdd_base))
+         start_senescence = ((len_day_id_prev <= 12) .AND. (sdd_id <= sdd_base))
 
       CASE (SEN_SDD)
          start_senescence = (sdd_id <= sdd_base)
@@ -555,11 +555,11 @@ CONTAINS
 
    FUNCTION determine_stress_state_surf( &
       stressed, stress_days &
-      ) result(stress_state)
+      ) RESULT(stress_state)
 
       IMPLICIT NONE
 
-      logical, INTENT(IN) :: stressed ! Flag indicating if soil under stress
+      LOGICAL, INTENT(IN) :: stressed ! Flag indicating if soil under stress
       REAL(KIND(1D0)), INTENT(IN) :: stress_days
       REAL(KIND(1D0)) :: stress_state
 
